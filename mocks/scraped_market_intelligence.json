@@ -1,0 +1,13 @@
+[
+  {
+    "ingestion_channel_url": "https://local-merchant-registry.jo stm32",
+    "regional_scope_filter": "Jordan",
+    "origin_product_query": "Microcontroller STM32",
+    "scraped_price_point": 39.99,
+    "active_promotion_detected": true,
+    "discount_magnitude": "15%",
+    "raw_context_data_chunk": "Verified competitor shop in Amman offering a 15% clearance sale on local Microcontroller STM32 units.",
+    "contains_sentiment_indicators": true,
+    "inferred_item_header": "Local Authorized Microcontroller Distributor"
+  }
+]
