@@ -10,7 +10,8 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Step 2/4: Resetting absolute URL channels..." -ForegroundColor Yellow
 & "C:\Program Files\Git\cmd\git.exe" init
 & "C:\Program Files\Git\cmd\git.exe" remote remove origin 2>$null
-& "C:\Program Files\Git\cmd\git.exe" remote add origin "https://github.com"
+& "C:\Program Files\Git\cmd\git.exe" remote add origin "https://github.com
+"
 & "C:\Program Files\Git\cmd\git.exe" branch -M main 2>$null
 Write-Host "Step 3/4: Compiling production-grade system commit descriptions..." -ForegroundColor Yellow
 & "C:\Program Files\Git\cmd\git.exe" add .
