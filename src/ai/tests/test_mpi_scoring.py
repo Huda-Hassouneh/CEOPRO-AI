@@ -122,6 +122,27 @@ def test_compare_mpi_results_refuses_comparison_below_volume_floor():
     comparison = compare_mpi_results(thin, thick, min_volume_for_comparison=10)
     assert comparison.comparable is False
     assert comparison.difference is None
+    assert "'a'" in comparison.reason
+    assert "'b'" not in comparison.reason  # only 'a' is actually thin here
+
+
+def test_compare_mpi_results_mentions_both_sides_when_both_are_thin():
+    thin_a = compute_mpi(
+        [ReviewContribution("a1", sentiment_score=0.5, recency_weight=1.0, reliability_weight=1.0, relevance_weight=1.0)], {}
+    )
+    thin_b = compute_mpi(
+        [
+            ReviewContribution(f"b{i}", sentiment_score=0.5, recency_weight=1.0, reliability_weight=1.0, relevance_weight=1.0)
+            for i in range(2)
+        ],
+        {},
+    )
+    comparison = compare_mpi_results(thin_a, thin_b, min_volume_for_comparison=10)
+    assert comparison.comparable is False
+    # Both sides must be named, not just the first one found - the earlier
+    # version of this function silently dropped the second thin side.
+    assert "'a'" in comparison.reason
+    assert "'b'" in comparison.reason
 
 
 def test_compare_mpi_results_returns_difference_when_both_sides_sufficient():

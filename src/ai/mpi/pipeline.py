@@ -37,11 +37,22 @@ SOURCE_MODULE = "ai.mpi"
 DEFAULT_ENTITY_RELEVANCE = 1.0
 
 
+def _usable_reviews(reviews: list) -> list:
+    """
+    A review with no effective_date (both review_date and collected_at NULL)
+    can't get a recency weight, so it's excluded from scoring entirely - not
+    down-weighted, excluded. Filtered once here so every downstream
+    computation (contributions, label_counts, review_count) agrees on
+    exactly which reviews were actually used; computing them from different
+    subsets was a real bug caught in review (label_counts could report a
+    review that never contributed to the score).
+    """
+    return [r for r in reviews if r["effective_date"] is not None]
+
+
 def _build_contributions(reviews: list, as_of: date) -> list:
     contributions = []
     for review in reviews:
-        if review["effective_date"] is None:
-            continue
         sentiment_score = review["positive_probability"] - review["negative_probability"]
         contributions.append(
             ReviewContribution(
@@ -69,8 +80,9 @@ def get_subject_mpi(
     reviews = data_access.load_scored_reviews(conn, tenant_id, subject_type, subject_id)
     country_context = data_access.load_country_context(conn, tenant_id, subject_type, subject_id)
 
-    contributions = _build_contributions(reviews, as_of)
-    label_counts = _label_counts(reviews)
+    usable_reviews = _usable_reviews(reviews)
+    contributions = _build_contributions(usable_reviews, as_of)
+    label_counts = _label_counts(usable_reviews)
     result = compute_mpi(contributions, label_counts)
 
     if result is None:
@@ -157,8 +169,9 @@ def compare_subjects(
 
     def _score(subject_type: str, subject_id: Optional[str]):
         reviews = data_access.load_scored_reviews(conn, tenant_id, subject_type, subject_id)
-        contributions = _build_contributions(reviews, as_of)
-        return compute_mpi(contributions, _label_counts(reviews))
+        usable_reviews = _usable_reviews(reviews)
+        contributions = _build_contributions(usable_reviews, as_of)
+        return compute_mpi(contributions, _label_counts(usable_reviews))
 
     result_a = _score(*subject_a)
     result_b = _score(*subject_b)

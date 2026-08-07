@@ -116,13 +116,21 @@ def compare_mpi_results(result_a: MPIResult, result_b: MPIResult, min_volume_for
     rather than letting a well-sampled subject's real signal get diluted by
     a comparison against near-noise.
     """
-    if result_a.review_count < min_volume_for_comparison or result_b.review_count < min_volume_for_comparison:
-        thin_side = "a" if result_a.review_count < min_volume_for_comparison else "b"
+    thin_sides = []
+    if result_a.review_count < min_volume_for_comparison:
+        thin_sides.append(f"side 'a' has only {result_a.review_count} review(s)")
+    if result_b.review_count < min_volume_for_comparison:
+        thin_sides.append(f"side 'b' has only {result_b.review_count} review(s)")
+
+    if thin_sides:
+        # Report every side that's actually thin, not just the first one
+        # found - a caller debugging "why can't I compare these" needs to
+        # know if *both* sides are under-sampled, not just one.
         return MPIComparison(
             comparable=False,
             reason=(
-                f"Side '{thin_side}' has only {result_a.review_count if thin_side == 'a' else result_b.review_count} "
-                f"reviews, below the {min_volume_for_comparison}-review floor for a meaningful comparison."
+                f"{' and '.join(thin_sides)}, below the {min_volume_for_comparison}-review floor "
+                f"for a meaningful comparison."
             ),
             mpi_a=result_a.mpi,
             mpi_b=result_b.mpi,

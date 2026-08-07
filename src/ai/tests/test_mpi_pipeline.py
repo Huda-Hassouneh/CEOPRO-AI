@@ -85,6 +85,32 @@ def test_reviews_missing_effective_date_are_excluded(fake_conn):
     assert mock_evidence.call_args.args[2] == "UNKNOWN"
 
 
+def test_label_counts_and_review_count_agree_when_some_reviews_lack_a_date(fake_conn):
+    """
+    A review with no effective_date is excluded from scoring entirely - it
+    must also be excluded from label_counts, or the evidence explanation
+    reports a positive/neutral/negative breakdown that doesn't sum to
+    review_count (found in review: label_counts was computed from the
+    unfiltered review list while contributions used the filtered one).
+    """
+    n = pipeline.cold_start.MIN_SAMPLE_SIZE
+    reviews = [_review(f"r{i}", "positive", 0.9, 0.05) for i in range(n)]
+    excluded = _review("excluded", "negative", 0.05, 0.9)
+    excluded["effective_date"] = None
+    reviews.append(excluded)
+
+    with patch.object(pipeline.data_access, "load_scored_reviews", return_value=reviews), \
+         patch.object(pipeline.data_access, "load_country_context", return_value=None), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
+        result = pipeline.get_subject_mpi(fake_conn, "tenant-1", "BUSINESS", as_of=date(2026, 8, 8))
+
+    assert result["review_count"] == n  # the undated review must not count
+    assert result["label_counts"] == {"positive": n, "neutral": 0, "negative": 0}  # excluded review's label absent
+    assert sum(result["label_counts"].values()) == result["review_count"]
+    source_record_ids = mock_evidence.call_args.args[4]
+    assert sum(source_record_ids["label_counts"].values()) == source_record_ids["review_count"]
+
+
 def test_compare_subjects_refuses_when_one_side_has_no_data(fake_conn):
     def fake_load(conn, tenant_id, subject_type, subject_id=None):
         return [] if subject_type == "COMPETITOR" else [_review("r1", "positive", 0.9, 0.05)]

@@ -967,6 +967,32 @@ clean.
 No event contract exists for triggering MPI computation (same situation as `pricing/`/`sentiment/` —
 no `ceopro:stream:*` topic for it), so this is called directly for now.
 
+## 2026-08-08 — Second-pass critical review of `src/ai/mpi/` before PR #10 merges, two real bugs found and fixed
+
+Re-read every `mpi/` file with a critical eye rather than trusting the previous entry's own testing,
+specifically looking for bugs the module's own tests might have happened not to exercise. Found two.
+
+- **`label_counts`/`review_count` could disagree.** `get_subject_mpi()` and `compare_subjects()` both
+  computed `contributions` from a filtered review list (excluding reviews with no `effective_date`) but
+  `label_counts` from the *unfiltered* list — so a review excluded from the actual score could still be
+  counted in the "X positive, Y neutral, Z negative" breakdown reported in the evidence explanation,
+  and `sum(label_counts.values())` wouldn't equal `review_count`. The existing test for the "review has
+  no date" case happened not to catch this, because it used exactly one review total, which made the
+  whole thing take the UNKNOWN path (zero contributions) before `label_counts` was ever compared against
+  anything. A new test with a mix of dated and undated reviews reproduces the mismatch and confirms the
+  fix: both values are now derived from one filtering pass (`_usable_reviews()`), computed once and
+  reused, so they can no longer diverge.
+- **`compare_mpi_results()` only ever named one thin side.** When both sides of a comparison were below
+  the volume floor, the refusal reason named whichever side the `if/else` happened to check first and
+  said nothing about the other — misleading for spec §17's own explainability goal, applied to the
+  comparison's own refusal. Fixed to name every side that's actually thin.
+
+Both were genuine review-tests, not run against a live database (data/shape bugs, not SQL bugs) — added
+directly to `test_mpi_scoring.py`/`test_mpi_pipeline.py`. Re-ran the full offline suite (159 passed),
+then re-verified live against a fresh disposable `pgvector/pgvector:pg15` container from scratch (all 6
+`test_mpi_integration_db.py` tests, then the full suite: 191 passed, 26 skipped, 0 failed). `flake8`
+clean. Pushed to the same `claude/market-perception-index` branch before merge, not a separate PR.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
