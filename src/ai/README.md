@@ -161,6 +161,44 @@ provisioned for it in `src/infrastructure/init_broker.py`), so — like `pricing
 directly rather than via a Redis consumer; add a `consumer.py` once such a contract is agreed, the
 same way `forecasting/consumer.py` was added for `demand_forecast_requested`.
 
+### `mpi/` — Phase 4, Market Perception Index (spec §17, §22, §23)
+
+Implements the MPI directly on top of `sentiment/`'s output — no schema changes, no dedicated MPI
+table (checked: there isn't one in `init_schema.sql`), results are written purely to
+`evidence_records` per spec §22's shared evidence architecture.
+
+- `scoring.py` — pure functions, no DB access, fully unit-testable in isolation. Combines spec §17's
+  five required components (sentiment, source reliability, recency, volume, entity relevance) into a
+  single 0-100 index: each already-analyzed review contributes `sentiment_score × recency_weight ×
+  reliability_weight × relevance_weight`, averaged across all contributing reviews, then dampened
+  toward the neutral midpoint (50) by a volume-confidence factor that saturates at
+  `MPI_MIN_VOLUME_FOR_FULL_CONFIDENCE` (default 20) — a single strongly-worded review can't swing the
+  index to 100 the way it could a raw average. Recency uses exponential decay (`MPI_RECENCY_HALF_LIFE_DAYS`,
+  default 90); source reliability ranks `PUBLIC_API` > `PUBLIC_FEED` > `MANUAL`, reflecting spec §13's
+  stated preference for official/structured sources over scraping/manual entry, quantified rather than
+  left as an unweighted principle. Entity relevance defaults to 1.0 for every review (already explicitly
+  linked to its subject via `reviews.subject_type`/`product_id`/`competitor_id`, not fuzzy-matched) —
+  a continuous relevance score is a natural future refinement once `extraction/`'s NER output has
+  somewhere to persist to (`PENDING_ACTIONS.md` #4).
+- `compare_mpi_results()` (in `scoring.py`) — spec §17: "must support cross-country analysis only when
+  the comparison is statistically and economically meaningful" and "must not blindly compare raw
+  sentiment volume between countries with radically different market sizes." Refuses to return a
+  numeric difference at all — not a low-confidence one, none — when either side is under a volume
+  floor, rather than diluting a well-sampled subject's real signal with a near-noise comparison.
+- `cold_start.py` — the discrete LOW SAMPLE SIZE status label (spec §16/§23's pattern, reused here)
+  layered on top of `scoring.py`'s continuous volume dampening — the dashboard needs both: a score
+  that degrades gracefully *and* an explicit flag for "don't trust this yet."
+- `data_access.py` — row-level reads (unlike `sentiment/data_access.py`'s pre-aggregated view), since
+  the MPI needs each review's own date/collection_method to compute per-review weights. Supports
+  BUSINESS/PRODUCT/COMPETITOR levels, matching `reviews.subject_type`'s own three-way taxonomy exactly.
+  CATEGORY/COUNTRY/REGION-level aggregation (also named in spec §17) would need grouping through
+  `products.category`/`competitors.country_code` — a natural extension, not built this round.
+- `pipeline.py` — `get_subject_mpi()` computes and persists one subject's MPI as an `evidence_records`
+  `FACT` (or `UNKNOWN` if no analyzed reviews exist yet), preserving every component's individual
+  contribution in `source_record_ids` (spec §17: "the system must preserve the underlying
+  contributions" so a dashboard can answer "why did the MPI change"), not just the final number.
+  `compare_subjects()` computes two subjects' MPIs in-memory and applies the cross-country guard above.
+
 ### `extraction/` — Phase 4 groundwork, rule-based NER (spec §15)
 
 Implements the regex/rule tier of information extraction — spec §15's own explicitly-sanctioned
@@ -224,8 +262,9 @@ pip install -r src/ai/requirements.txt
 pytest src/ai/tests
 ```
 
-`test_integration_db.py` (forecasting), `test_pricing_integration_db.py` (pricing), and
-`test_extraction_integration_db.py` (extraction) additionally validate the raw SQL in each module's
+`test_integration_db.py` (forecasting), `test_pricing_integration_db.py` (pricing),
+`test_extraction_integration_db.py` (extraction), `test_sentiment_integration_db.py` (sentiment), and
+`test_mpi_integration_db.py` (MPI) additionally validate the raw SQL in each module's
 `data_access.py`/`evidence.py` against a real PostgreSQL instance running the actual
 `init_schema.sql` — column types, JSONB casts, FK constraints, and INT rounding on
 `demand_forecasts.expected_demand` are things a mocked connection can't catch. All are
