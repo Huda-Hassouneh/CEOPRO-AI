@@ -21,7 +21,7 @@ in [`PENDING_ACTIONS.md`](PENDING_ACTIONS.md) so it stays visible without diggin
 |---|---|---|---|
 | Phase 2 — Demand Intelligence (§18, §23, §25) | `src/ai/forecasting/` | 🟢 Built, tested (unit + integration) | Baselines, XGBoost + walk-forward validation, cold-start policy, evidence writers, Redis consumer. See entries below. |
 | Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟡 Hybrid (lexical + semantic) retrieval built/tested; chatbot itself not started | Document ingestion + BM25 + FAISS semantic retrieval + Reciprocal Rank Fusion, all against existing `rag_documents_metadata` + MinIO — none of it needs pgvector. Still missing: LLM reasoning step, chat history (needs a new table). A real fusion edge case found and documented (not fixed — inherent BM25 behavior on very short chunks). See entries below. |
-| Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/` | 🟡 Rule-based NER + sentiment analysis built/tested; NER persistence + MPI (§17) not started | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) built. No `extracted_entity` table to write results to yet; ORG/PERSON/GPE entity types not started. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy — `reviews` table is currently empty in prod, so the `UNKNOWN`-evidence path is what runs today. Market Perception Index (§17, combines sentiment + source reliability + recency + volume + entity relevance) not started. See entries below. |
+| Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/`, `src/ai/mpi/` | 🟡 Rule-based NER + sentiment analysis + MPI built/tested; NER persistence not started | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) built. No `extracted_entity` table to write results to yet; ORG/PERSON/GPE entity types not started. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier, per-subject aggregation, LOW SAMPLE SIZE policy. Market Perception Index (`mpi/`) built: combines sentiment + source reliability + recency + volume + entity relevance into a 0-100 index, preserving every component's contribution, plus a cross-country comparison guard. `reviews` is currently empty in prod, so the `UNKNOWN`-evidence path is what actually runs for both `sentiment/` and `mpi/` today. See entries below. |
 | Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail, evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Margin guardrails are weaker than spec'd — `products` has no cost column (`PENDING_ACTIONS.md` #14). Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
 | Phase 6 — Competitor Ranking (§20) | — | ⚪ Not started | Same data gap as Phase 5 (`PENDING_ACTIONS.md` #5). |
 
@@ -910,6 +910,62 @@ Marked retracted in `PENDING_ACTIONS.md` rather than deleted, so the correction 
 No `src/ai/` code changes in this entry — this was catching and correcting my own prior analysis
 before it merged, not new implementation work. `PENDING_ACTIONS.md` #2/#25/#26 updated on the same
 `claude/infra-bug-fixes` branch as the fixes themselves, before that PR merges.
+
+## 2026-08-08 — Phase 4 Market Perception Index built: `src/ai/mpi/`
+
+Built spec §17's MPI directly on top of `sentiment/`'s output, now that sentiment analysis exists to
+feed it. No schema changes — checked and confirmed no dedicated MPI table exists in `init_schema.sql`,
+so results are written purely to `evidence_records` per spec §22's shared evidence architecture.
+
+- `scoring.py` — pure functions, no DB access. Combines the five components spec §17 requires
+  (sentiment, source reliability, recency, volume, entity relevance) into a 0-100 index: each already-
+  analyzed review contributes `sentiment_score × recency_weight × reliability_weight × relevance_weight`,
+  averaged across contributing reviews, then dampened toward the neutral midpoint (50) by a saturating
+  volume-confidence factor — a single five-star review can't swing the index to 100 the way a raw
+  average would let it. Source reliability ranks `PUBLIC_API` > `PUBLIC_FEED` > `MANUAL`, a direct,
+  quantified reading of spec §13's stated preference for official/structured sources over
+  scraping/manual entry. Entity relevance defaults to 1.0 for every review, since each one is already
+  explicitly linked to its subject via `reviews.subject_type`/`product_id`/`competitor_id` (spec §10's
+  data model) rather than fuzzy-matched — a continuous relevance score is a natural future refinement
+  once `extraction/`'s NER output has somewhere to persist to (still blocked, `PENDING_ACTIONS.md` #4).
+- **Cross-country comparison guard**, spec §17 verbatim: "must support cross-country analysis only
+  when the comparison is statistically and economically meaningful" and "must not blindly compare raw
+  sentiment volume between countries with radically different market sizes." `compare_mpi_results()`
+  refuses to return a numeric difference at all — not a low-confidence one, none — when either side is
+  under a volume floor.
+- `cold_start.py` — the discrete LOW SAMPLE SIZE status label, layered on top of `scoring.py`'s
+  continuous volume dampening (same reasoning as `sentiment/`'s split between a continuous score and a
+  discrete flag: the dashboard needs both a score that degrades gracefully *and* an explicit "don't
+  trust this yet" signal).
+- `data_access.py` — row-level reads (unlike `sentiment/data_access.py`'s pre-aggregated view), since
+  the MPI needs each review's own date/collection_method to compute per-review weights. Supports
+  BUSINESS/PRODUCT/COMPETITOR (matching `reviews.subject_type`'s own three-way taxonomy exactly);
+  CATEGORY/COUNTRY/REGION-level aggregation (also named in spec §17) would need grouping through
+  `products.category`/`competitors.country_code` — not built this round, a natural follow-on.
+- `pipeline.py` — `get_subject_mpi()` persists one subject's MPI as `FACT` (or `UNKNOWN`), preserving
+  every component's individual contribution in `source_record_ids` — spec §17: "the system must
+  preserve the underlying contributions" so a dashboard can answer "why did the MPI change," not just
+  show the final number. `compare_subjects()` computes two subjects' MPIs in-memory and applies the
+  cross-country guard.
+
+**Testing found one real bug, fixed.** `get_subject_mpi()` initially only checked `if not reviews:`
+before computing — but a review can exist and still contribute nothing (e.g. both `review_date` and
+`collected_at` are NULL, so it has no `effective_date` to compute a recency weight from), in which case
+`scoring.compute_mpi()` correctly returns `None` for an empty contributions list, and the pipeline
+crashed with `AttributeError: 'NoneType' object has no attribute 'review_count'` trying to read it
+anyway. A test deliberately constructed exactly this case (`test_reviews_missing_effective_date_are_excluded`)
+and caught it before this ever touched a real database. Fixed by checking `result is None` (i.e.,
+whether anything was actually *usable*) instead of `if not reviews` (whether anything was *returned*).
+
+**Full suite: 189 tests** (23 new: 14 offline `scoring.py`, 3 offline `cold_start.py`, 6 offline
+`pipeline.py` — plus 6 live-DB integration tests against a disposable `pgvector/pgvector:pg15`
+container running the real `init_schema.sql`, covering row-level reads, country-context lookups for
+all three subject types, the UNKNOWN/LOW_SAMPLE_SIZE/FACT paths, and the cross-country volume-floor
+refusal). 189 passed, 26 skipped (real-model/embedding/MinIO-gated, unaffected), 0 failed. `flake8`
+clean.
+
+No event contract exists for triggering MPI computation (same situation as `pricing/`/`sentiment/` —
+no `ceopro:stream:*` topic for it), so this is called directly for now.
 
 ## How to add an entry
 
