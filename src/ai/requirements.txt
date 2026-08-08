@@ -19,4 +19,9 @@ faiss-cpu>=1.8,<2.0
 transformers>=4.40,<6.0
 sentencepiece>=0.2,<0.3
 protobuf>=4.25,<8.0
+# PDF/DOCX extraction for rag/data_access.py (PENDING_ACTIONS.md #15) -
+# MINIO_STORAGE_ARCHITECTURE.md explicitly expects both formats in
+# ceopro-rag-knowledge.
+pypdf>=5.0,<7.0
+python-docx>=1.1,<2.0
 pytest>=7.4,<8.0

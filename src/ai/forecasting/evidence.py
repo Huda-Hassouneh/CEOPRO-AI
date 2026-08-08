@@ -80,13 +80,15 @@ def insert_evidence_record(
     return str(evidence_id)
 
 
-def insert_model_version(conn, model_name: str, version: str, status: str, metrics: dict) -> str:
+def insert_model_version(
+    conn, model_name: str, version: str, status: str, metrics: dict, artifact_path: Optional[str] = None
+) -> str:
     query = """
-        INSERT INTO model_versions (model_name, version, status, trained_at, metrics)
-        VALUES (%s, %s, %s, NOW(), %s::jsonb)
+        INSERT INTO model_versions (model_name, version, status, trained_at, metrics, artifact_path)
+        VALUES (%s, %s, %s, NOW(), %s::jsonb, %s)
         RETURNING model_version_id;
     """
     with conn.cursor() as cursor:
-        cursor.execute(query, (model_name, version, status, json.dumps(metrics)))
+        cursor.execute(query, (model_name, version, status, json.dumps(metrics), artifact_path))
         model_version_id = cursor.fetchone()[0]
     return str(model_version_id)

@@ -86,6 +86,52 @@ def test_recommendation_respects_price_change_guardrail(fake_conn):
     assert result["suggested_price"] == 85.0  # 100 * (1 - 0.15)
 
 
+def test_recommendation_with_no_cost_skips_margin_guardrail(fake_conn):
+    """Most products won't have cost populated yet - margin_guardrail_clamped must report None, not False."""
+    own = {"product_name": "Sunscreen SPF 50", "current_price": 30.0, "currency": "JOD"}
+    competitor_prices = [_competitor_price("p1", "c1", 18.0), _competitor_price("p2", "c2", 20.0)]
+
+    with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
+         patch.object(pipeline.data_access, "load_competitor_prices", return_value=competitor_prices), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1"), \
+         patch.object(pipeline.evidence, "insert_recommendation_outcome", return_value="outcome-1"):
+        result = pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
+
+    assert result["margin_guardrail_clamped"] is None
+
+
+def test_recommendation_respects_margin_guardrail_when_cost_present(fake_conn):
+    # Cost 15, min margin 10% -> price floor 16.50. Competitors are cheap
+    # enough that the raw+price-change-guardrailed suggestion would land
+    # below that floor.
+    own = {"product_name": "Sunscreen SPF 50", "current_price": 17.0, "currency": "JOD", "cost": 15.0}
+    competitor_prices = [_competitor_price("p1", "c1", 10.0)]
+
+    with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
+         patch.object(pipeline.data_access, "load_competitor_prices", return_value=competitor_prices), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence, \
+         patch.object(pipeline.evidence, "insert_recommendation_outcome", return_value="outcome-1"):
+        result = pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
+
+    assert result["margin_guardrail_clamped"] is True
+    assert result["suggested_price"] == 16.5  # never below cost * 1.10, even though the market pulled lower
+    explanation = mock_evidence.call_args.args[6]
+    assert "margin" in explanation.lower()
+
+
+def test_recommendation_margin_guardrail_does_not_trigger_when_price_already_above_floor(fake_conn):
+    own = {"product_name": "Sunscreen SPF 50", "current_price": 30.0, "currency": "JOD", "cost": 5.0}
+    competitor_prices = [_competitor_price("p1", "c1", 18.0), _competitor_price("p2", "c2", 20.0)]
+
+    with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
+         patch.object(pipeline.data_access, "load_competitor_prices", return_value=competitor_prices), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1"), \
+         patch.object(pipeline.evidence, "insert_recommendation_outcome", return_value="outcome-1"):
+        result = pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
+
+    assert result["margin_guardrail_clamped"] is False
+
+
 def test_cross_currency_reference_appended_to_recommendation_explanation(fake_conn):
     own = {"product_name": "Sunscreen SPF 50", "current_price": 30.0, "currency": "JOD"}
     same_currency = [_competitor_price("p1", "c1", 18.0), _competitor_price("p2", "c2", 20.0)]

@@ -119,6 +119,7 @@ def test_evidence_writers_round_trip_through_real_tables(conn, seeded_tenant_and
     )
     model_version_id = evidence.insert_model_version(
         conn, "demand_forecast_xgboost", "test-version", "candidate", {"mae": 1.23, "n_folds": 5},
+        artifact_path="tenant_test/models/demand_forecast_xgboost_vtest-version.bin",
     )
     conn.commit()
 
@@ -136,10 +137,13 @@ def test_evidence_writers_round_trip_through_real_tables(conn, seeded_tenant_and
         assert float(row[1]) == 0.42
         assert row[2] == {"forecast_id": forecast_id}  # JSONB round-trips as a dict
 
-        cursor.execute("SELECT status, metrics FROM model_versions WHERE model_version_id = %s;", (model_version_id,))
+        cursor.execute(
+            "SELECT status, metrics, artifact_path FROM model_versions WHERE model_version_id = %s;", (model_version_id,)
+        )
         row = cursor.fetchone()
         assert row[0] == "candidate"
         assert row[1] == {"mae": 1.23, "n_folds": 5}
+        assert row[2] == "tenant_test/models/demand_forecast_xgboost_vtest-version.bin"
 
 
 def test_run_forecast_end_to_end_against_real_db(conn, seeded_tenant_and_product):

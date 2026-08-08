@@ -34,6 +34,23 @@ processes, each potentially for a different tenant. `forecasting/consumer.py._ha
 its own connection — everything else receives `conn` as a parameter (from a test, or eventually a
 future backend/API layer), so nothing else needed this retrofit.
 
+## `src/infrastructure/database/run_migrations.py` — schema migration runner
+
+Not owned by this track (it lives under `src/infrastructure/`), but built this round because every
+"landed but not deployable" blocker below traced back to the same gap: nothing in the repo applied
+`init_schema.sql` or `migrations/*.sql` to a real database (`PENDING_ACTIONS.md` #22). Applies
+`init_schema.sql` exactly once (detected via the `companies` marker table, since the file itself
+isn't idempotent), then every file in `migrations/` in filename order, tracking what's applied in a
+`schema_migrations` table so re-running is always a safe no-op:
+
+```bash
+DATABASE_URL=postgresql://... python -m src.infrastructure.database.run_migrations
+```
+
+Must run as a superuser/schema-owning role (`ceopro_admin`), not the restricted `ceopro_app` role —
+the RLS migration itself needs `CREATE ROLE`/`GRANT`. Not wired into `docker-compose.yml` or CI
+automatically; that remains a separate deployment decision.
+
 ## Modules
 
 ### `forecasting/` — Phase 2, Demand Intelligence (spec §18, §23, §25)
@@ -136,9 +153,12 @@ here approaches LLM-scale compute.
   when either retriever alone would already find the right answer, or when BM25 finds literally no
   matches for anything (letting FAISS's ranking pass through unweighted) — the fragile case is
   specifically "BM25 and FAISS disagree between few very short candidates."
-- `data_access.py` — reads/updates `rag_documents_metadata`, fetches raw MinIO object bytes. Handles
-  plain-text (`.txt`) content only — PDF/DOCX extraction isn't implemented (flagged in
-  `PENDING_ACTIONS.md`).
+- `data_access.py` — reads/updates `rag_documents_metadata`, fetches raw MinIO object bytes and
+  extracts text — plain text (`.txt`), PDF (`.pdf`, via `pypdf`), and Word (`.docx`, via `python-docx`),
+  routed by the object key's own extension. Extraction failures (corrupted file, encrypted PDF)
+  propagate rather than being caught here — `pipeline.py`'s `ingest_pending_documents()` already
+  catches any exception from this function and marks the document `Failed` (spec §12: never silently
+  discard invalid data), so there's no need for a second try/except here.
 - `pipeline.py` — `ingest_pending_documents()` (fetch → chunk-check → mark Processed/Failed, never
   silently drops a document per spec §12); `build_tenant_index()`/`retrieve()` for BM25-only (no
   embedding model needed); `build_hybrid_index()`/`retrieve_hybrid()` for the full lexical+semantic
@@ -219,14 +239,8 @@ knowledge or a trained model to extract reliably; regex/catalog-matching can't d
 - `products` has no `cost` column, so `pricing/guardrails.py` can only bound price-change magnitude,
   not enforce a real margin floor as spec §19 also asks for.
 - `currency_rates` table landed and is now wired into `pricing/currency.py` — no longer blocked.
-- pgvector's *schema* (extension + `rag_document_chunks`) landed, but `docker-compose.yml`'s
-  `postgres` image tag is invalid (doesn't exist on Docker Hub) — not actually deployable yet
-  (`PENDING_ACTIONS.md` #1/#17).
-- Row-Level Security policies exist and are enabled, but currently provide no real protection — the
-  app connects as the table-owner role, which Postgres exempts from RLS by default; confirmed with a
-  direct test (`PENDING_ACTIONS.md` #2).
-- `rag/data_access.py` decodes MinIO objects as plain UTF-8 text only — PDF/DOCX documents (which
-  `MINIO_STORAGE_ARCHITECTURE.md` explicitly expects in `ceopro-rag-knowledge`) aren't extracted.
+- pgvector, Row-Level Security (with a genuinely non-superuser `ceopro_app` role, not just `FORCE`),
+  and PDF/DOCX extraction in `rag/data_access.py` are all resolved — see `PENDING_ACTIONS.md` #1/#2/#15/#17.
 - No chat-history table exists, so RAG conversation persistence isn't implemented.
 - No `extracted_entity` table exists, so `extraction/`'s output has nowhere to persist to yet —
   `extractor.py` is called directly and its result used in-memory, not written anywhere.
@@ -258,9 +272,9 @@ aim it at a shared dev database:
 ```bash
 docker run -d --name ceopro_postgres_aitest -e POSTGRES_USER=ceopro_admin \
   -e POSTGRES_PASSWORD=local_test_password_only -e POSTGRES_DB=ceopro_platform \
-  -p 5433:5432 postgres:15-alpine
-psql "postgresql://ceopro_admin:local_test_password_only@localhost:5433/ceopro_platform" \
-  -f src/infrastructure/database/init_schema.sql
+  -p 5433:5432 pgvector/pgvector:pg15
+DATABASE_URL="postgresql://ceopro_admin:local_test_password_only@localhost:5433/ceopro_platform" \
+  python -m src.infrastructure.database.run_migrations
 AI_TEST_DATABASE_URL="postgresql://ceopro_admin:local_test_password_only@localhost:5433/ceopro_platform" \
   pytest src/ai/tests
 docker rm -f ceopro_postgres_aitest

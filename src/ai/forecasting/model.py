@@ -41,6 +41,15 @@ class XGBoostDemandForecaster:
         X = feature_frame[self.columns].astype(float)
         return self.model.predict(X)
 
+    def to_bytes(self) -> bytes:
+        """
+        XGBoost's own binary format (save_raw), not pickle - it's data-only
+        (no arbitrary code execution risk on load, unlike pickle/joblib) and
+        matches MINIO_STORAGE_ARCHITECTURE.md's artifact path convention
+        (tenant_{tenant_id}/models/{model_type}_v{version}.bin).
+        """
+        return self.model.get_booster().save_raw()
+
 
 def expanding_window_splits(n_rows: int, min_train_size: int, n_splits: int) -> List[Tuple[range, range]]:
     """
