@@ -911,6 +911,74 @@ No `src/ai/` code changes in this entry — this was catching and correcting my 
 before it merged, not new implementation work. `PENDING_ACTIONS.md` #2/#25/#26 updated on the same
 `claude/infra-bug-fixes` branch as the fixes themselves, before that PR merges.
 
+## 2026-08-08 — RLS tenant isolation actually fixed: a real app role, `FORCE`, and a second migration bug found by testing the fix itself
+
+A stray commit ("Update 20260807230553_add_market_intelligence_tables.sql") replaced that entire
+migration's SQL content with a Python `get_tenant_connection(tenant_id)` helper — never landed as an
+actual importable module anywhere, and its docstring referenced a migration
+(`*_add_app_role_and_force_rls.sql`) that didn't exist. But that docstring described exactly the fix
+this track already identified as needed for item #25 (RLS provides no protection because the app
+connects as a Postgres superuser). Restored the corrupted migration's original content (from its
+creation commit `f71bf2c`) and built the actually-missing fix properly, rather than leaving the
+misfiled fragment in place.
+
+**The fix, all three parts landing together:**
+- `migrations/20260808020000_add_app_role_and_force_rls.sql` — a genuinely separate, non-superuser
+  `ceopro_app` role (`NOSUPERUSER NOBYPASSRLS`, granted table CRUD but not `BYPASSRLS`; no password
+  committed, set via `ALTER ROLE` out-of-band per `.env.example`'s new note), plus
+  `FORCE ROW LEVEL SECURITY` on all 18 tables `init_schema.sql` already enables RLS on.
+- `src/ai/db.py` — `set_tenant_context(conn, tenant_id)`. Deliberately **not** a
+  `get_tenant_connection(tenant_id)` that binds a tenant at connection-open time (what the stray
+  docstring implied) — checked how connections are actually used in this codebase first
+  (`grep -rn "psycopg2.connect" src/ai/`) and found only one production call site,
+  `forecasting/consumer.py`, which holds **one connection across many Redis stream messages, each
+  potentially for a different tenant**. A connection-open-time binding would be actively wrong for that
+  pattern. `set_tenant_context()` gets called once per message instead, in `_handle_message()`, right
+  before `run_forecast()`.
+
+**Verified the whole thing empirically, not just read the SQL** — this is what caught a second real bug:
+- Spun up `pgvector/pgvector:pg15` with the *exact* `docker-compose.yml` config
+  (`POSTGRES_USER=ceopro_admin`), applied `init_schema.sql` + all 4 migrations in order, set a password
+  for `ceopro_app`, and tested as that role directly: `SELECT COUNT(*) FROM products;` with no tenant
+  context set **raised `ERROR: unrecognized configuration parameter "app.current_tenant_id"`** instead
+  of the intended zero rows.
+- Traced it: `products` (and 7 other tables) now had **two** RLS policies — `init_schema.sql`'s own
+  correct one (`current_setting('app.current_tenant_id', true)` — the safe, "return NULL if unset"
+  two-argument form) and the older, already-once-fixed RLS migration's policy (`current_setting('app.current_tenant_id')`
+  — no `missing_ok`, raises instead of returning NULL). Postgres evaluates every permissive policy on a
+  table, and one of them raising fails the whole query regardless of what the other policy would have
+  said. That older migration's policies had been fully redundant with `init_schema.sql`'s own ones since
+  the day it was written (same tables, same logic) — never useful, and now actively harmful. Rewrote it
+  to `DROP` its own redundant policies instead of patching the missing argument, since keeping the same
+  protection defined twice under two names serves no purpose.
+- Re-verified from a completely fresh container after that fix: `SELECT COUNT(*) FROM products;` /
+  `evidence_records` as `ceopro_app` with no tenant context → `0` rows, cleanly, no error. With
+  `SET app.current_tenant_id` set to tenant A → only tenant A's row. Attempted cross-tenant `INSERT`
+  (session set to tenant A, row's own `tenant_id` set to tenant B) → correctly rejected
+  (`ERROR: new row violates row-level security policy`).
+- Ran the **real** `forecasting/consumer.py` end-to-end, not a mocked test: published an actual message
+  to a live Redis stream, let the real consumer read it, and processed it through a real `psycopg2`
+  connection authenticated as `ceopro_app` — succeeded, wrote a real `evidence_records` row, tenant_id
+  correct. This is the first time any part of this codebase has actually run its real message-handling
+  code path against a truly tenant-restricted role rather than the superuser every test this session
+  has used until now.
+- Full offline+live-DB suite re-run throughout: 173 passed (as `ceopro_admin`, matching the existing
+  test convention — everything except `forecasting/consumer.py`'s new call still relies on
+  application-level `WHERE tenant_id = %s` filtering, unaffected by any of this), 0 failed. Three
+  `test_consumer.py` tests needed updating (they passed the literal string `"fake-conn"` as
+  `db_connection`, which broke once `_handle_message` legitimately needs to call `.cursor()` on it) —
+  a real, if minor, pre-existing test-fixture gap, not a regression from this change. New tests added
+  for `src/ai/db.py` and for the tenant-context call happening before every forecast. `flake8` clean.
+
+**Not done, deliberately:** no other `src/ai/` code changed — nothing else in the track opens its own
+connection, everything else receives `conn` as a parameter from whoever calls it (currently: tests, and
+this consumer). `docker-compose.yml` isn't changed to make anything actually connect as `ceopro_app` day
+to day — no "app"/"backend" service exists yet to configure that way (confirmed again: still no such
+service defined). `PENDING_ACTIONS.md` #25 updated to reflect the complete fix; #21 updated with the
+second bug found in the same file; new #27 logs the migration-corruption incident itself; new #28 logs
+that `staging-deployment.yml`'s hardcoded-secrets problem is fixed but it still references two files
+(`openapi_extractor.py`, root `requirements.txt`) that don't exist.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

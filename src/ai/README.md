@@ -14,6 +14,26 @@ This directory intentionally does **not** touch:
 Dependencies for this module are isolated in [`requirements.txt`](requirements.txt) so they don't
 get bundled into the backend's dependency set.
 
+## `db.py` — shared tenant-context helper
+
+`set_tenant_context(conn, tenant_id)` sets the `app.current_tenant_id` session variable
+`init_schema.sql`'s RLS policies key off (spec §10, §37: tenant isolation mandatory). Row-Level
+Security only actually restricts anything once the connecting role isn't a superuser — confirmed
+empirically that Postgres superusers unconditionally bypass RLS regardless of `FORCE ROW LEVEL SECURITY`
+— which is why the app must eventually connect as the non-superuser `ceopro_app` role
+(`src/infrastructure/database/migrations/20260808020000_add_app_role_and_force_rls.sql`) for this to
+matter, not `ceopro_admin`.
+
+Call this once per unit of work (once per request, once per consumed message), not once at
+connection-open time — `set_tenant_context` deliberately isn't `get_tenant_connection(tenant_id)`
+because this codebase's connections are long-lived and multi-tenant over their lifetime: checked
+(`grep -rn "psycopg2.connect" src/ai/`) and found only one production call site,
+`forecasting/consumer.py`, which holds one connection across every Redis stream message it ever
+processes, each potentially for a different tenant. `forecasting/consumer.py._handle_message()` calls
+`set_tenant_context()` right before `run_forecast()`, per message. No other module in `src/ai/` opens
+its own connection — everything else receives `conn` as a parameter (from a test, or eventually a
+future backend/API layer), so nothing else needed this retrofit.
+
 ## Modules
 
 ### `forecasting/` — Phase 2, Demand Intelligence (spec §18, §23, §25)
@@ -39,7 +59,9 @@ changes required.
   `src/infrastructure/init_broker.py`). This is the "AI / ML Forecast Engine" consumer named in the
   event contract in `DATA_OWNERSHIP_AND_CONTRACTS.md` — it does not touch or replace
   `src/infrastructure/messaging/ai_consumer.py`, which is a separate, still-unresolved ownership
-  question (market-intelligence stream, not demand forecasting).
+  question (market-intelligence stream, not demand forecasting). Calls `../db.py`'s
+  `set_tenant_context()` before every message — the only place in `src/ai/` that needs to, since it's
+  the only module that opens its own long-lived, multi-tenant connection.
 
 Runs CPU-only by design — no GPU dependency anywhere in this module.
 
