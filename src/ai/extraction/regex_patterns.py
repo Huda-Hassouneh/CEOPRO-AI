@@ -16,7 +16,7 @@ since those are look-ups against known names, not pattern matches.
 import os
 import re
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 # Spec S9's supported currency list, made configuration-driven (spec S9: "The
 # actual supported currency list must be configuration-driven") rather than
@@ -34,6 +34,10 @@ class ExtractedEntity:
     start: int
     end: int
     normalized_value: str = None
+    # Deterministic regex/rule matches have no meaningful confidence (None);
+    # catalog_matching.py's fuzzy PRODUCT/COMPETITOR matches populate this
+    # with their similarity score, since those are genuinely probabilistic.
+    confidence: Optional[float] = None
 
     def as_dict(self) -> dict:
         return {
@@ -42,6 +46,7 @@ class ExtractedEntity:
             "start": self.start,
             "end": self.end,
             "normalized_value": self.normalized_value,
+            "confidence": self.confidence,
         }
 
 

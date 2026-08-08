@@ -203,22 +203,38 @@ provisioned for it in `src/infrastructure/init_broker.py`), so — like `pricing
 directly rather than via a Redis consumer; add a `consumer.py` once such a contract is agreed, the
 same way `forecasting/consumer.py` was added for `demand_forecast_requested`.
 
-### `extraction/` — Phase 4 groundwork, rule-based NER (spec §15)
+### `extraction/` — Phase 4, rule-based NER + persistence (spec §15)
 
 Implements the regex/rule tier of information extraction — spec §15's own explicitly-sanctioned
 low-resource option ("NER may use: ... EntityRuler. Regex patterns. Fuzzy matching. Domain-specific
 rules."), not a pretrained transformer. No trained model, no GPU, the lightest possible NER tier.
+Against the existing `products`/`competitors`/`news_record`/`social_mention` tables plus the new
+`extracted_entity` table and `news_record`/`social_mention.extraction_status` column
+(`migrations/20260808040000_add_extraction_status.sql`).
 
 - `regex_patterns.py` — MONEY, CURRENCY, PERCENT, DISCOUNT, EMAIL, PHONE, INVOICE_ID, ORDER_ID, DATE.
   Currency codes are configuration-driven (spec §9), defaulting to spec's own list (JOD, EGP, SAR,
-  AED, QAR, KWD, BHD, OMR, MAD, TND, DZD, USD, EUR, ZAR).
+  AED, QAR, KWD, BHD, OMR, MAD, TND, DZD, USD, EUR, ZAR). `ExtractedEntity.confidence` is `None` for
+  these — deterministic pattern matches, not probabilistic.
 - `catalog_matching.py` — PRODUCT/COMPETITOR entity types, matched against a tenant's own known
   names rather than pattern-extracted (there's no regular pattern for a product name). Reuses
-  `pricing.matching.similarity()` directly rather than a second fuzzy-matching implementation.
-- `data_access.py` — reads known product/competitor names from the existing `products`/`competitors`
-  tables. Nothing is written — there's no `extracted_entity` table yet (`PENDING_ACTIONS.md` #4), so
-  this produces a result list with nowhere to persist to until that table exists.
-- `extractor.py` — combines both into one call.
+  `pricing.matching.similarity()` directly rather than a second fuzzy-matching implementation;
+  populates `ExtractedEntity.confidence` with the match's similarity score.
+- `extractor.py` — combines both into one call; pure function, no database access.
+- `data_access.py` — reads known product/competitor names, and 'Pending' `news_record`/
+  `social_mention` rows to extract from (`extraction_status` distinguishes "not yet processed" from
+  "processed, genuinely zero entities found" — a plain `LEFT JOIN extracted_entity` can't tell those
+  apart). Also updates that status column; the only write this module makes outside its own tables.
+- `evidence.py` — `insert_extracted_entities()` writes to `extracted_entity` (this track's own
+  table), one row per entity, `entity_value` = the catalog-normalized name when one exists,
+  otherwise the raw matched text.
+- `pipeline.py` — `extract_and_store_news_records()`/`extract_and_store_social_mentions()`:
+  load 'Pending' rows → extract → persist → mark Processed/Failed (spec §12: never silently discard
+  invalid data), mirroring `rag/pipeline.py`'s `ingest_pending_documents()` convention. Writes no
+  `evidence_records` — bulk entity extraction is an annotation step, not itself a user-facing
+  conclusion, same reasoning `sentiment/pipeline.py`'s `classify_and_store_reviews()` already
+  documents for bulk sentiment labeling. No event contract exists yet for triggering this (same
+  situation as `sentiment/`), so it's called directly rather than via a Redis consumer.
 
 Out of scope here: ORG, PERSON, GPE, ADDRESS (spec §15's other target types) — these need world
 knowledge or a trained model to extract reliably; regex/catalog-matching can't do them justice.
@@ -242,8 +258,10 @@ knowledge or a trained model to extract reliably; regex/catalog-matching can't d
 - pgvector, Row-Level Security (with a genuinely non-superuser `ceopro_app` role, not just `FORCE`),
   and PDF/DOCX extraction in `rag/data_access.py` are all resolved — see `PENDING_ACTIONS.md` #1/#2/#15/#17.
 - No chat-history table exists, so RAG conversation persistence isn't implemented.
-- No `extracted_entity` table exists, so `extraction/`'s output has nowhere to persist to yet —
-  `extractor.py` is called directly and its result used in-memory, not written anywhere.
+- No real news/social-mention data yet — `news_record`/`social_mention` exist but are empty (same
+  "table landed, no producer feeding it yet" situation as `reviews`/`competitor_prices`), so
+  `extraction/pipeline.py` has nothing to run against in production today, even though it's built
+  and tested against seeded data.
 
 ## Running tests
 

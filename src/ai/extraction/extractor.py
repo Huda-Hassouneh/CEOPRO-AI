@@ -1,9 +1,8 @@
 """
 CEOPRO AI - Rule-Based Extraction Orchestrator (spec S15).
 Combines regex-pattern extraction (structurally-regular entities) with
-catalog matching (PRODUCT/COMPETITOR names). No database writes - there is
-no `extracted_entity` table yet (PENDING_ACTIONS.md #4). This produces the
-entity list; wiring it to persistence is a follow-up once that table exists.
+catalog matching (PRODUCT/COMPETITOR names). Pure function, no database
+access - pipeline.py is what loads source text and persists the result.
 """
 
 from typing import List, Optional
