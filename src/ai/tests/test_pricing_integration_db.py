@@ -104,6 +104,40 @@ def test_load_competitor_prices_excludes_deactivated_competitor(conn, seeded_ten
     assert records == []
 
 
+def test_load_own_product_returns_none_cost_when_unset(conn, seeded_tenant_product_and_competitor):
+    """products.cost (added after this module was first built) is nullable - most products won't have it."""
+    tenant_id, product_id, _ = seeded_tenant_product_and_competitor
+    own = data_access.load_own_product(conn, tenant_id, product_id)
+    assert own["cost"] is None
+
+
+def test_load_own_product_reads_cost_when_set(conn, seeded_tenant_product_and_competitor):
+    tenant_id, product_id, _ = seeded_tenant_product_and_competitor
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE products SET cost = 12.50 WHERE product_id = %s;", (product_id,))
+    conn.commit()
+
+    own = data_access.load_own_product(conn, tenant_id, product_id)
+    assert own["cost"] == 12.50
+
+
+def test_run_price_recommendation_applies_margin_guardrail_against_real_db(conn, seeded_tenant_product_and_competitor):
+    tenant_id, product_id, _ = seeded_tenant_product_and_competitor
+    with conn.cursor() as cursor:
+        # Product currently 30.00, market pulls the suggestion down to ~19.17
+        # then the 15% price-change guardrail further limits it - cost is set
+        # high enough that even the price-change-guardrailed value would sell
+        # at a loss, so the margin guardrail must raise it back up.
+        cursor.execute("UPDATE products SET cost = 27.00 WHERE product_id = %s;", (product_id,))
+    conn.commit()
+
+    result = pipeline.run_price_recommendation(conn, tenant_id, product_id)
+
+    assert result["status"] == "OK"
+    assert result["margin_guardrail_clamped"] is True
+    assert result["suggested_price"] >= 27.00 * 1.10 - 0.01  # never below cost * (1 + default 10% margin)
+
+
 def test_run_price_recommendation_end_to_end_against_real_db(conn, seeded_tenant_product_and_competitor):
     tenant_id, product_id, _ = seeded_tenant_product_and_competitor
 

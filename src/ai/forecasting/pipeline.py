@@ -5,6 +5,7 @@ enough data) -> pick whichever actually beats the baseline -> persist forecast
 + evidence. This is the only module that writes to the database.
 """
 
+import io
 import logging
 from datetime import date, timedelta
 from typing import Optional
@@ -20,6 +21,10 @@ logger = logging.getLogger("CEOPRO_AI_FORECASTING_PIPELINE")
 
 SOURCE_MODULE = "ai.forecasting"
 MIN_TRAIN_SIZE_FOR_VALIDATION = 14
+# MINIO_STORAGE_ARCHITECTURE.md's ceopro-ai-artifacts bucket, matching
+# rag/pipeline.py's DEFAULT_BUCKET convention (minio_client is always passed
+# in by the caller, never constructed here).
+DEFAULT_ARTIFACTS_BUCKET = "ceopro-ai-artifacts"
 
 
 def _best_baseline(history: pd.Series, horizon_days: int) -> tuple:
@@ -74,7 +79,10 @@ def _recursive_xgboost_forecast(
     return np.array(predictions)
 
 
-def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = 7) -> dict:
+def run_forecast(
+    conn, tenant_id: str, product_id: str, horizon_days: int = 7,
+    minio_client=None, artifacts_bucket: str = DEFAULT_ARTIFACTS_BUCKET,
+) -> dict:
     daily = data_access.load_daily_demand(conn, tenant_id, product_id)
 
     if daily.empty:
@@ -138,8 +146,20 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = 7) -
                 chosen_source = "xgboost"
                 chosen_name = MODEL_NAME
                 trained_model_version_str = date.today().isoformat()
+
+                artifact_path = None
+                if minio_client is not None:
+                    # Path format is MINIO_STORAGE_ARCHITECTURE.md's own
+                    # spec: tenant_{tenant_id}/models/{model_type}_v{version}.bin
+                    artifact_path = f"tenant_{tenant_id}/models/{MODEL_NAME}_v{trained_model_version_str}.bin"
+                    artifact_bytes = forecaster.to_bytes()
+                    minio_client.put_object(
+                        artifacts_bucket, artifact_path,
+                        io.BytesIO(artifact_bytes), length=len(artifact_bytes),
+                    )
+
                 evidence.insert_model_version(
-                    conn, MODEL_NAME, trained_model_version_str, "candidate", metrics
+                    conn, MODEL_NAME, trained_model_version_str, "candidate", metrics, artifact_path
                 )
 
     expected_demand = float(forecast_values[-1]) if len(forecast_values) else 0.0

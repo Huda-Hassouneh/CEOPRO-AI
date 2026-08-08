@@ -87,6 +87,18 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
             f"{guardrail.max_change_pct:.0%} price-change guardrail and was capped to "
             f"{guardrail.suggested_price:.2f}."
         )
+
+    final_suggested_price = guardrail.suggested_price
+    margin_guardrail = guardrails.apply_margin_guardrail(own.get("cost"), final_suggested_price)
+    if margin_guardrail is not None:
+        if margin_guardrail.clamped:
+            explanation += (
+                f" Price {final_suggested_price:.2f} would have fallen below the minimum "
+                f"{margin_guardrail.min_margin_pct:.0%} margin over cost and was raised to "
+                f"{margin_guardrail.price_floor:.2f}."
+            )
+        final_suggested_price = margin_guardrail.suggested_price
+
     explanation += cross_currency_note
 
     evidence_id = evidence.insert_evidence_record(
@@ -111,8 +123,9 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         "status": "OK",
         "action": rec.action,
         "current_price": own["current_price"],
-        "suggested_price": guardrail.suggested_price,
+        "suggested_price": final_suggested_price,
         "guardrail_clamped": guardrail.clamped,
+        "margin_guardrail_clamped": margin_guardrail.clamped if margin_guardrail is not None else None,
         "matched_competitor_count": rec.matched_competitor_count,
         "confidence_score": rec.confidence_score,
         "evidence_id": evidence_id,

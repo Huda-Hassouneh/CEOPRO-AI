@@ -59,17 +59,29 @@ def test_handle_message_raises_on_missing_product_id(consumer):
 
 
 def test_handle_message_calls_run_forecast_with_parsed_args(consumer):
+    fake_conn = MagicMock()
     with patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast:
         consumer._handle_message(
-            db_connection="fake-conn", payload={"tenant_id": "t1", "product_id": "p1", "horizon_days": "14"}
+            db_connection=fake_conn, payload={"tenant_id": "t1", "product_id": "p1", "horizon_days": "14"}
         )
-    mock_run_forecast.assert_called_once_with("fake-conn", "t1", "p1", 14)
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 14)
 
 
 def test_handle_message_defaults_horizon_days_to_seven(consumer):
+    fake_conn = MagicMock()
     with patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast:
-        consumer._handle_message(db_connection="fake-conn", payload={"tenant_id": "t1", "product_id": "p1"})
-    mock_run_forecast.assert_called_once_with("fake-conn", "t1", "p1", 7)
+        consumer._handle_message(db_connection=fake_conn, payload={"tenant_id": "t1", "product_id": "p1"})
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7)
+
+
+def test_handle_message_sets_tenant_context_before_running_forecast(consumer):
+    """The RLS session variable must be (re)set on every message, since the
+    same connection is reused across every tenant this consumer ever sees."""
+    fake_conn = MagicMock()
+    with patch("src.ai.forecasting.consumer.run_forecast"):
+        consumer._handle_message(db_connection=fake_conn, payload={"tenant_id": "t1", "product_id": "p1"})
+    cursor = fake_conn.cursor.return_value.__enter__.return_value
+    cursor.execute.assert_called_once_with("SET app.current_tenant_id = %s;", ("t1",))
 
 
 def test_full_publish_consume_ack_cycle_matches_listen_loop_mechanics(consumer, redis_client):
@@ -78,6 +90,7 @@ def test_full_publish_consume_ack_cycle_matches_listen_loop_mechanics(consumer, 
     without invoking listen()'s infinite loop.
     """
     redis_client.xadd(consumer.stream_key, {"tenant_id": "t1", "product_id": "p1", "horizon_days": "7"})
+    fake_conn = MagicMock()
 
     with patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast:
         response = consumer.client.xreadgroup(
@@ -88,10 +101,10 @@ def test_full_publish_consume_ack_cycle_matches_listen_loop_mechanics(consumer, 
 
         for _stream, messages in response:
             for message_id, payload in messages:
-                consumer._handle_message("fake-conn", payload)
+                consumer._handle_message(fake_conn, payload)
                 consumer.client.xack(consumer.stream_key, consumer.group_id, message_id)
 
-    mock_run_forecast.assert_called_once_with("fake-conn", "t1", "p1", 7)
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7)
 
     pending = redis_client.xpending(consumer.stream_key, consumer.group_id)
     assert pending["pending"] == 0  # message was acked, nothing left outstanding
