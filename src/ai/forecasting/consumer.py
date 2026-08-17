@@ -19,6 +19,7 @@ from typing import Optional
 import psycopg2
 import redis
 
+from src.ai.db import set_tenant_context
 from src.ai.forecasting.pipeline import run_forecast
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -52,6 +53,11 @@ class ForecastRequestConsumer:
         if not tenant_id or not product_id:
             raise ValueError(f"Malformed demand_forecast_requested payload: {payload}")
 
+        # This connection is reused across every message this consumer ever
+        # processes, for whichever tenant each message happens to be for -
+        # the RLS tenant context has to be (re)set per message, not once at
+        # connection-open time. See src/ai/db.py.
+        set_tenant_context(db_connection, tenant_id)
         run_forecast(db_connection, tenant_id, product_id, horizon_days)
 
     def listen(self) -> None:

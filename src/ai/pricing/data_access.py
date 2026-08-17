@@ -16,7 +16,7 @@ MAX_PRICE_AGE_DAYS = int(os.getenv("PRICING_MAX_PRICE_AGE_DAYS", "30"))
 
 def load_own_product(conn, tenant_id: str, product_id: str) -> Optional[dict]:
     query = """
-        SELECT product_name, current_price, currency
+        SELECT product_name, current_price, currency, cost
         FROM products
         WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;
     """
@@ -27,7 +27,12 @@ def load_own_product(conn, tenant_id: str, product_id: str) -> Optional[dict]:
     if not row:
         return None
 
-    return {"product_name": row[0], "current_price": float(row[1]), "currency": row[2]}
+    return {
+        "product_name": row[0],
+        "current_price": float(row[1]),
+        "currency": row[2],
+        "cost": float(row[3]) if row[3] is not None else None,
+    }
 
 
 def load_competitor_prices(conn, tenant_id: str, currency: str, max_age_days: int = None) -> list:

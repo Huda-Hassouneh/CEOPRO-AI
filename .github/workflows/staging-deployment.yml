@@ -17,7 +17,12 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Disabled 2026-08-08 (PENDING_ACTIONS.md #28): neither a root-level
+      # requirements.txt nor src/infrastructure/openapi_extractor.py exist
+      # anywhere in this repo, so this step fails on every run. Re-enable
+      # (drop `if: false`) once Infra/DevOps adds both.
       - name: Build and Extract OpenAPI Schema
+        if: false
         run: |
           pip install -r requirements.txt
           python src/infrastructure/openapi_extractor.py

@@ -22,7 +22,7 @@ in [`PENDING_ACTIONS.md`](PENDING_ACTIONS.md) so it stays visible without diggin
 | Phase 2 — Demand Intelligence (§18, §23, §25) | `src/ai/forecasting/` | 🟢 Built, tested (unit + integration) | Baselines, XGBoost + walk-forward validation, cold-start policy, evidence writers, Redis consumer. See entries below. |
 | Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟡 Hybrid (lexical + semantic) retrieval built/tested; chatbot itself not started | Document ingestion + BM25 + FAISS semantic retrieval + Reciprocal Rank Fusion, all against existing `rag_documents_metadata` + MinIO — none of it needs pgvector. Still missing: LLM reasoning step, chat history (needs a new table). A real fusion edge case found and documented (not fixed — inherent BM25 behavior on very short chunks). See entries below. |
 | Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/` | 🟡 Rule-based NER + sentiment analysis built/tested; NER persistence + MPI (§17) not started | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) built. No `extracted_entity` table to write results to yet; ORG/PERSON/GPE entity types not started. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy — `reviews` table is currently empty in prod, so the `UNKNOWN`-evidence path is what runs today. Market Perception Index (§17, combines sentiment + source reliability + recency + volume + entity relevance) not started. See entries below. |
-| Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail, evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Margin guardrails are weaker than spec'd — `products` has no cost column (`PENDING_ACTIONS.md` #14). Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
+| Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail plus a margin guardrail (`products.cost`, `PENDING_ACTIONS.md` #14, resolved 2026-08-08), evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
 | Phase 6 — Competitor Ranking (§20) | — | ⚪ Not started | Same data gap as Phase 5 (`PENDING_ACTIONS.md` #5). |
 
 Legend: 🟢 built and tested · 🟡 in progress · 🟠 blocked on another team · ⚪ not started.
@@ -910,6 +910,156 @@ Marked retracted in `PENDING_ACTIONS.md` rather than deleted, so the correction 
 No `src/ai/` code changes in this entry — this was catching and correcting my own prior analysis
 before it merged, not new implementation work. `PENDING_ACTIONS.md` #2/#25/#26 updated on the same
 `claude/infra-bug-fixes` branch as the fixes themselves, before that PR merges.
+
+## 2026-08-08 — RLS tenant isolation actually fixed: a real app role, `FORCE`, and a second migration bug found by testing the fix itself
+
+A stray commit ("Update 20260807230553_add_market_intelligence_tables.sql") replaced that entire
+migration's SQL content with a Python `get_tenant_connection(tenant_id)` helper — never landed as an
+actual importable module anywhere, and its docstring referenced a migration
+(`*_add_app_role_and_force_rls.sql`) that didn't exist. But that docstring described exactly the fix
+this track already identified as needed for item #25 (RLS provides no protection because the app
+connects as a Postgres superuser). Restored the corrupted migration's original content (from its
+creation commit `f71bf2c`) and built the actually-missing fix properly, rather than leaving the
+misfiled fragment in place.
+
+**The fix, all three parts landing together:**
+- `migrations/20260808020000_add_app_role_and_force_rls.sql` — a genuinely separate, non-superuser
+  `ceopro_app` role (`NOSUPERUSER NOBYPASSRLS`, granted table CRUD but not `BYPASSRLS`; no password
+  committed, set via `ALTER ROLE` out-of-band per `.env.example`'s new note), plus
+  `FORCE ROW LEVEL SECURITY` on all 18 tables `init_schema.sql` already enables RLS on.
+- `src/ai/db.py` — `set_tenant_context(conn, tenant_id)`. Deliberately **not** a
+  `get_tenant_connection(tenant_id)` that binds a tenant at connection-open time (what the stray
+  docstring implied) — checked how connections are actually used in this codebase first
+  (`grep -rn "psycopg2.connect" src/ai/`) and found only one production call site,
+  `forecasting/consumer.py`, which holds **one connection across many Redis stream messages, each
+  potentially for a different tenant**. A connection-open-time binding would be actively wrong for that
+  pattern. `set_tenant_context()` gets called once per message instead, in `_handle_message()`, right
+  before `run_forecast()`.
+
+**Verified the whole thing empirically, not just read the SQL** — this is what caught a second real bug:
+- Spun up `pgvector/pgvector:pg15` with the *exact* `docker-compose.yml` config
+  (`POSTGRES_USER=ceopro_admin`), applied `init_schema.sql` + all 4 migrations in order, set a password
+  for `ceopro_app`, and tested as that role directly: `SELECT COUNT(*) FROM products;` with no tenant
+  context set **raised `ERROR: unrecognized configuration parameter "app.current_tenant_id"`** instead
+  of the intended zero rows.
+- Traced it: `products` (and 7 other tables) now had **two** RLS policies — `init_schema.sql`'s own
+  correct one (`current_setting('app.current_tenant_id', true)` — the safe, "return NULL if unset"
+  two-argument form) and the older, already-once-fixed RLS migration's policy (`current_setting('app.current_tenant_id')`
+  — no `missing_ok`, raises instead of returning NULL). Postgres evaluates every permissive policy on a
+  table, and one of them raising fails the whole query regardless of what the other policy would have
+  said. That older migration's policies had been fully redundant with `init_schema.sql`'s own ones since
+  the day it was written (same tables, same logic) — never useful, and now actively harmful. Rewrote it
+  to `DROP` its own redundant policies instead of patching the missing argument, since keeping the same
+  protection defined twice under two names serves no purpose.
+- Re-verified from a completely fresh container after that fix: `SELECT COUNT(*) FROM products;` /
+  `evidence_records` as `ceopro_app` with no tenant context → `0` rows, cleanly, no error. With
+  `SET app.current_tenant_id` set to tenant A → only tenant A's row. Attempted cross-tenant `INSERT`
+  (session set to tenant A, row's own `tenant_id` set to tenant B) → correctly rejected
+  (`ERROR: new row violates row-level security policy`).
+- Ran the **real** `forecasting/consumer.py` end-to-end, not a mocked test: published an actual message
+  to a live Redis stream, let the real consumer read it, and processed it through a real `psycopg2`
+  connection authenticated as `ceopro_app` — succeeded, wrote a real `evidence_records` row, tenant_id
+  correct. This is the first time any part of this codebase has actually run its real message-handling
+  code path against a truly tenant-restricted role rather than the superuser every test this session
+  has used until now.
+- Full offline+live-DB suite re-run throughout: 173 passed (as `ceopro_admin`, matching the existing
+  test convention — everything except `forecasting/consumer.py`'s new call still relies on
+  application-level `WHERE tenant_id = %s` filtering, unaffected by any of this), 0 failed. Three
+  `test_consumer.py` tests needed updating (they passed the literal string `"fake-conn"` as
+  `db_connection`, which broke once `_handle_message` legitimately needs to call `.cursor()` on it) —
+  a real, if minor, pre-existing test-fixture gap, not a regression from this change. New tests added
+  for `src/ai/db.py` and for the tenant-context call happening before every forecast. `flake8` clean.
+
+**Not done, deliberately:** no other `src/ai/` code changed — nothing else in the track opens its own
+connection, everything else receives `conn` as a parameter from whoever calls it (currently: tests, and
+this consumer). `docker-compose.yml` isn't changed to make anything actually connect as `ceopro_app` day
+to day — no "app"/"backend" service exists yet to configure that way (confirmed again: still no such
+service defined). `PENDING_ACTIONS.md` #25 updated to reflect the complete fix; #21 updated with the
+second bug found in the same file; new #27 logs the migration-corruption incident itself; new #28 logs
+that `staging-deployment.yml`'s hardcoded-secrets problem is fixed but it still references two files
+(`openapi_extractor.py`, root `requirements.txt`) that don't exist.
+
+## 2026-08-08 — Six `PENDING_ACTIONS.md` items closed (schema columns, PDF/DOCX, migration runner, broken CI step), full regression pass against a fresh environment
+
+Continuing on the same branch as the RLS fix above (PR #11 not yet merged). Scope was deliberately
+narrowed up front: fix everything safely scoped, but do **not** build `Dockerfile.ai`, `src/ai/main.py`,
+`src/backend/main.py`, or any other backend service stub just to satisfy CI references to files that
+don't exist yet (`PENDING_ACTIONS.md` #8) — that's a real service, not a bug fix.
+
+**`model_versions.artifact_path`** (`PENDING_ACTIONS.md` #7) — new column via
+`migrations/20260808030000_add_model_artifact_path.sql`. `forecasting/model.py`'s
+`XGBoostDemandForecaster.to_bytes()` serializes via XGBoost's own binary format (`get_booster().save_raw()`,
+not pickle — avoids arbitrary-code-execution risk on load). `forecasting/pipeline.py` gained an optional
+`minio_client` parameter; when provided, the trained model is uploaded to `ceopro-ai-artifacts` and its
+path recorded, matching `rag/`'s "caller injects the client" convention. Opt-in — `consumer.py` doesn't
+construct a client yet, so nothing uploads automatically until something wires one in.
+
+**`products.cost`** (`PENDING_ACTIONS.md` #14) — new nullable column via
+`migrations/20260808030100_add_products_cost.sql`. `pricing/guardrails.py` gained
+`apply_margin_guardrail()`: raises a suggested price up to `cost * (1 + min_margin_pct)` when cost is
+known, applied in `pricing/pipeline.py` after the existing price-change guardrail — floor-raise only,
+never lowers a price, returns `None` (no-op) when cost is unknown. Verified against a real database:
+seeded a product whose price-change-guardrailed suggestion would sell at a loss, confirmed the margin
+guardrail raises it back above cost.
+
+**PDF/DOCX extraction** (`PENDING_ACTIONS.md` #15) — `rag/data_access.py`'s `fetch_document_text()` now
+routes by the object key's extension (`.pdf` via `pypdf`, `.docx` via `python-docx`, default plain text).
+Verified against real PDF/DOCX byte content built in-memory (not mocked) — including a corrupt-bytes
+case to confirm extraction failures propagate rather than get silently swallowed (`pipeline.py`'s
+`ingest_pending_documents()` is what catches and marks `Failed`, per spec §12).
+
+**Migration runner** (`PENDING_ACTIONS.md` #22 — "the single highest-leverage fix available" per that
+item's own note) — `src/infrastructure/database/run_migrations.py`. Applies `init_schema.sql` exactly
+once (detected via the `companies` marker table, since the file isn't idempotent), then every file in
+`migrations/` in filename order, tracked in a new `schema_migrations` table so re-running is always a
+safe no-op. Not owned by this track (`src/infrastructure/`), but built because every "landed but not
+deployable" note in this log and in `PENDING_ACTIONS.md` (pgvector, RLS, market-intelligence tables)
+traced back to this one gap. A real bug found while writing its own test suite: a connection reused
+across multiple `run()` calls (as a caller reusing one connection, or this session's own pytest fixture,
+would do) could be left mid-transaction by a read-only check, and a second `run()` call on that same
+connection then failed with `set_session cannot be used inside a transaction`. Fixed by no longer
+forcing `autocommit` on a caller-supplied connection and always leaving the connection idle (committed)
+before returning. Verified against a truly fresh disposable database: applies the base schema + all 6
+migrations in one pass; a second `run()` call is a no-op; a connection reused across calls stays valid.
+
+**Broken CI step disabled** (`PENDING_ACTIONS.md` #28) — `.github/workflows/staging-deployment.yml`'s
+"Build and Extract OpenAPI Schema" step referenced `requirements.txt` and
+`src/infrastructure/openapi_extractor.py`, neither of which exists anywhere in the repo. Disabled with
+`if: false` and a comment explaining what unblocks re-enabling it, rather than fabricating stub files
+for a real extractor that's a DevOps design decision outside this pass's scope.
+
+**Full regression pass, against entirely fresh disposable containers (Postgres/pgvector, Redis, MinIO —
+none of this session's earlier containers reused)**:
+- Applied the full schema via the new migration runner itself (first real end-to-end proof of it working
+  against a truly fresh database with all 6 migrations, not just its own unit tests).
+- 152 offline tests passed.
+- 31 of 32 live-DB integration tests passed (`test_integration_db.py`, `test_pricing_integration_db.py`,
+  `test_extraction_integration_db.py`, `test_sentiment_integration_db.py`, `test_migration_runner.py`).
+  The one "failure" (`test_run_applies_base_schema_and_all_migrations_on_a_fresh_database`) is a known,
+  already-documented shared-state artifact — this session had already applied the schema to that same
+  database via the runner moments earlier, so it wasn't "fresh" from that specific test's point of view;
+  not a regression, and the test file's own docstring already flags that these tests share one live DB.
+- 11 live-Redis consumer tests passed.
+- 4 passed / 1 skipped on RAG+MinIO integration (the skip needs `AI_TEST_EMBEDDINGS=1`).
+- Real-model tests: 5 embeddings tests, 6 sentiment tests, and the combined hybrid-retrieval integration
+  test (needs DB+MinIO+embeddings together) all passed — full coverage, not just the fast/mocked subset.
+- **RLS re-verified end-to-end from scratch** against the fresh environment, connected as `ceopro_app`
+  (confirmed non-superuser, `rolbypassrls=false`): no tenant context set → zero rows, not an error;
+  tenant A context → only tenant A's data visible; a cross-tenant write attempt →
+  `ERROR: new row violates row-level security policy`; switching context to tenant B → only tenant B's
+  data visible.
+- **Real end-to-end consumer test**: published an actual message to a live Redis stream, consumed it
+  through the real `forecasting/consumer.py` code path over a real `psycopg2` connection authenticated
+  as `ceopro_app`, confirmed the resulting `evidence_records` row landed under the correct `tenant_id`.
+- `flake8`/`py_compile` clean on every changed/new file.
+
+**`PENDING_ACTIONS.md` updated**: #7, #14, #15, #22, #28 marked resolved with implementation detail;
+#4 (NER persistence tables) upgraded from "partially resolved" to resolved, since the migration runner
+now makes those table definitions actually deployable, not just defined as files.
+
+**Not done, deliberately** (explicit scope decision, confirmed before starting): `Dockerfile.ai`,
+`src/ai/main.py`, `src/backend/main.py` still don't exist — `PENDING_ACTIONS.md` #8 remains open. This
+branch (`claude/rls-app-role-and-migration-fix`, PR #11) still needs a human with merge rights to land it.
 
 ## How to add an entry
 
