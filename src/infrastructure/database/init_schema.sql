@@ -1,3 +1,7 @@
+
+-- 1. UTILITY FUNCTIONS & TRIGGER FUNCTIONS
+
+-- Resolves context-driven tenant identifiers dynamically.
 CREATE OR REPLACE FUNCTION get_current_tenant()
 RETURNS UUID AS $$
 DECLARE
@@ -11,6 +15,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
+-- Automatically applies real-time row update timestamps.
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -19,7 +24,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- =========================================================================
 -- TABLE 1: COMPANIES
+-- Stores core corporate tenant profiles.
 CREATE TABLE IF NOT EXISTS companies (
     tenant_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_name VARCHAR(255) NOT NULL,
@@ -40,7 +47,9 @@ CREATE TRIGGER set_timestamp_companies
 BEFORE UPDATE ON companies 
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
+-- =========================================================================
 -- TABLE 2: USERS
+-- Centralizes unique system authentication credentials.
 CREATE TABLE IF NOT EXISTS users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL,
@@ -58,7 +67,9 @@ CREATE TRIGGER set_timestamp_users
 BEFORE UPDATE ON users 
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
+-- =========================================================================
 -- TABLE 3: SYSTEM_ROLES
+-- Controls role-based dashboard access vectors.
 CREATE TABLE IF NOT EXISTS system_roles (
     role_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     role_key VARCHAR(50) UNIQUE NOT NULL,
@@ -75,7 +86,9 @@ INSERT INTO system_roles (role_key, role_name, permissions) VALUES
 ('staff', 'Staff Member', '{"view_catalog": true}')
 ON CONFLICT (role_key) DO NOTHING;
 
+-- =========================================================================
 -- TABLE 4: TENANT_USERS
+-- Links personnel to internal branches.
 CREATE TABLE IF NOT EXISTS tenant_users (
     tenant_user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -87,7 +100,9 @@ CREATE TABLE IF NOT EXISTS tenant_users (
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_tenant_user_composite_perimeter ON tenant_users(tenant_id, user_id);
 
+-- =========================================================================
 -- TABLE 5: PRODUCTS
+-- Manages multilingual product information matrices.
 CREATE TABLE IF NOT EXISTS products (
     product_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -95,6 +110,7 @@ CREATE TABLE IF NOT EXISTS products (
     brand JSONB,
     category JSONB,
     description JSONB,
+    cost_price NUMERIC(12, 4) NOT NULL DEFAULT 0.0000 CHECK (cost_price >= 0),
     current_price NUMERIC(12, 4) NOT NULL CHECK (current_price >= 0),
     currency VARCHAR(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
     source VARCHAR(20) NOT NULL DEFAULT 'MANUAL',
@@ -105,8 +121,8 @@ CREATE TABLE IF NOT EXISTS products (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
     CONSTRAINT chk_product_source CHECK (source IN ('MANUAL', 'IMPORTED')),
-    CONSTRAINT fk_products_creator FOREIGN KEY (tenant_id, created_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE RESTRICT,
-    CONSTRAINT fk_products_updater FOREIGN KEY (tenant_id, updated_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_products_creator FOREIGN KEY (tenant_id, created_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_products_updater FOREIGN KEY (tenant_id, updated_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE SET NULL,
     CONSTRAINT uq_tenant_product_perimeter UNIQUE (tenant_id, product_id)
 );
 
@@ -117,7 +133,9 @@ CREATE TRIGGER set_timestamp_products
 BEFORE UPDATE ON products 
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
+-- =========================================================================
 -- TABLE 6: PRODUCT_PRICE_HISTORY
+-- Archives granular item valuation iterations.
 CREATE TABLE IF NOT EXISTS product_price_history (
     price_history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL,
@@ -128,44 +146,31 @@ CREATE TABLE IF NOT EXISTS product_price_history (
     changed_by_user_id UUID,
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_price_history_product_isolated FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id) ON DELETE CASCADE,
-    CONSTRAINT fk_price_history_user_isolated FOREIGN KEY (tenant_id, changed_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE RESTRICT
+    CONSTRAINT fk_price_history_user_isolated FOREIGN KEY (tenant_id, changed_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_price_history_tenant_product ON product_price_history(tenant_id, product_id, changed_at DESC);
 
-ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tenant_users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE product_price_history ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION log_product_price_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO product_price_history(product_id, tenant_id, old_price, new_price, currency, changed_by_user_id)
+        VALUES (NEW.product_id, NEW.tenant_id, NULL, NEW.current_price, NEW.currency, NEW.updated_by_user_id);
+    ELSIF (TG_OP = 'UPDATE' AND OLD.current_price IS DISTINCT FROM NEW.current_price) THEN
+        INSERT INTO product_price_history(product_id, tenant_id, old_price, new_price, currency, changed_by_user_id)
+        VALUES (NEW.product_id, NEW.tenant_id, OLD.current_price, NEW.current_price, NEW.currency, NEW.updated_by_user_id);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-ALTER TABLE companies FORCE ROW LEVEL SECURITY;
-ALTER TABLE users FORCE ROW LEVEL SECURITY;
-ALTER TABLE tenant_users FORCE ROW LEVEL SECURITY;
-ALTER TABLE products FORCE ROW LEVEL SECURITY;
-ALTER TABLE product_price_history FORCE ROW LEVEL SECURITY;
-
-CREATE POLICY insert_companies_onboarding ON companies FOR INSERT WITH CHECK (get_current_tenant() IS NULL OR tenant_id = get_current_tenant());
-CREATE POLICY select_companies_isolated ON companies FOR SELECT USING (tenant_id = get_current_tenant() AND deleted_at IS NULL);
-CREATE POLICY update_companies_isolated ON companies FOR UPDATE USING (tenant_id = get_current_tenant());
-CREATE POLICY delete_companies_isolated ON companies FOR DELETE USING (tenant_id = get_current_tenant());
-
-CREATE POLICY insert_users_signup ON users FOR INSERT WITH CHECK (true);
-CREATE POLICY select_users_perimeter ON users FOR SELECT USING (
-    user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid 
-    OR EXISTS (SELECT 1 FROM tenant_users WHERE tenant_users.user_id = users.user_id AND tenant_users.tenant_id = get_current_tenant())
-);
-CREATE POLICY update_users_self ON users FOR UPDATE USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid);
-
-CREATE POLICY isolation_tenant_users ON tenant_users FOR ALL USING (tenant_id = get_current_tenant());
-
-CREATE POLICY select_products_isolated ON products FOR SELECT USING (tenant_id = get_current_tenant() AND deleted_at IS NULL);
-CREATE POLICY update_products_isolated ON products FOR UPDATE USING (tenant_id = get_current_tenant());
-CREATE POLICY insert_products_isolated ON products FOR INSERT WITH CHECK (tenant_id = get_current_tenant());
-CREATE POLICY delete_products_isolated ON products FOR DELETE USING (tenant_id = get_current_tenant());
-
-CREATE POLICY isolation_price_history ON product_price_history FOR ALL USING (tenant_id = get_current_tenant());
+CREATE TRIGGER trigger_capture_price_history
+AFTER INSERT OR UPDATE ON products
+FOR EACH ROW EXECUTE FUNCTION log_product_price_change();
+-- =========================================================================
 -- TABLE 7: INVENTORY
+-- Controls fulfillment point restocking metrics.
 CREATE TABLE IF NOT EXISTS inventory (
     inventory_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -185,7 +190,9 @@ CREATE TRIGGER set_timestamp_inventory
 BEFORE UPDATE ON inventory 
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
+-- =========================================================================
 -- TABLE 8: CURRENCY_RATES
+-- Evaluates multi-currency financial ledger balances.
 CREATE TABLE IF NOT EXISTS currency_rates (
     rate_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     from_currency VARCHAR(3) NOT NULL CHECK (from_currency ~ '^[A-Z]{3}$'),
@@ -195,7 +202,9 @@ CREATE TABLE IF NOT EXISTS currency_rates (
     CONSTRAINT uq_currency_pair UNIQUE (from_currency, to_currency)
 );
 
+-- =========================================================================
 -- TABLE 9: INVOICES
+-- Regulates customer billing record summaries.
 CREATE TABLE IF NOT EXISTS invoices (
     invoice_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -212,7 +221,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_invoice_status CHECK (payment_status IN ('UNPAID', 'PAID', 'PARTIAL', 'OVERDUE', 'CANCELLED')),
-    CONSTRAINT fk_invoices_creator FOREIGN KEY (tenant_id, created_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_invoices_creator FOREIGN KEY (tenant_id, created_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE SET NULL,
     CONSTRAINT uq_tenant_invoice_number UNIQUE (tenant_id, invoice_number),
     CONSTRAINT uq_tenant_invoice_perimeter UNIQUE (tenant_id, invoice_id)
 );
@@ -221,7 +230,9 @@ CREATE TRIGGER set_timestamp_invoices
 BEFORE UPDATE ON invoices 
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
+-- =========================================================================
 -- TABLE 10: INVOICE_ITEMS
+-- Computes verified structural sales compositions.
 CREATE TABLE IF NOT EXISTS invoice_items (
     invoice_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -231,10 +242,16 @@ CREATE TABLE IF NOT EXISTS invoice_items (
     unit_price NUMERIC(12, 4) NOT NULL CHECK (unit_price >= 0),
     total_price NUMERIC(12, 4) NOT NULL CHECK (total_price >= 0),
     CONSTRAINT fk_invoice_items_invoice FOREIGN KEY (tenant_id, invoice_id) REFERENCES invoices(tenant_id, invoice_id) ON DELETE CASCADE,
-    CONSTRAINT fk_invoice_items_product FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id) ON DELETE RESTRICT
+    CONSTRAINT fk_invoice_items_product FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id) ON DELETE RESTRICT,
+    CONSTRAINT chk_invoice_item_total_calc CHECK (total_price = (quantity * unit_price))
 );
 
+CREATE INDEX IF NOT EXISTS idx_invoice_items_composite_fk ON invoice_items(tenant_id, invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_product_fk ON invoice_items(tenant_id, product_id);
+
+-- =========================================================================
 -- TABLE 11: GLOBAL_COMPETITORS
+-- Contains private and global targets.
 CREATE TABLE IF NOT EXISTS global_competitors (
     global_competitor_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     competitor_name VARCHAR(255) NOT NULL,
@@ -248,7 +265,9 @@ CREATE TABLE IF NOT EXISTS global_competitors (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_competitor_global ON global_competitors (LOWER(competitor_name)) WHERE (visibility = 'GLOBAL');
 CREATE UNIQUE INDEX IF NOT EXISTS uq_competitor_private ON global_competitors (added_by_tenant_id, LOWER(competitor_name)) WHERE (visibility = 'PRIVATE');
 
+-- =========================================================================
 -- TABLE 12: TENANT_COMPETITORS
+-- Isolates active branch monitoring pipelines.
 CREATE TABLE IF NOT EXISTS tenant_competitors (
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
     global_competitor_id UUID NOT NULL REFERENCES global_competitors(global_competitor_id) ON DELETE CASCADE,
@@ -257,37 +276,9 @@ CREATE TABLE IF NOT EXISTS tenant_competitors (
     added_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (tenant_id, global_competitor_id)
 );
-
-ALTER TABLE inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE currency_rates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE global_competitors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tenant_competitors ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE inventory FORCE ROW LEVEL SECURITY;
-ALTER TABLE currency_rates FORCE ROW LEVEL SECURITY;
-ALTER TABLE invoices FORCE ROW LEVEL SECURITY;
-ALTER TABLE invoice_items FORCE ROW LEVEL SECURITY;
-ALTER TABLE global_competitors FORCE ROW LEVEL SECURITY;
-ALTER TABLE tenant_competitors FORCE ROW LEVEL SECURITY;
-
-CREATE POLICY isolation_inventory ON inventory FOR ALL USING (tenant_id = get_current_tenant());
-CREATE POLICY isolation_invoices ON invoices FOR ALL USING (tenant_id = get_current_tenant());
-CREATE POLICY isolation_invoice_items ON invoice_items FOR ALL USING (tenant_id = get_current_tenant());
-CREATE POLICY isolation_tenant_competitors ON tenant_competitors FOR ALL USING (tenant_id = get_current_tenant());
-
-CREATE POLICY select_global_competitors ON global_competitors FOR SELECT 
-    USING (visibility = 'GLOBAL' OR added_by_tenant_id = get_current_tenant());
-CREATE POLICY write_private_competitors ON global_competitors FOR ALL 
-    USING (added_by_tenant_id = get_current_tenant()) 
-    WITH CHECK (added_by_tenant_id = get_current_tenant() AND visibility = 'PRIVATE');
-
-CREATE POLICY global_read_currency ON currency_rates FOR SELECT USING (true);
-CREATE POLICY system_write_currency ON currency_rates FOR ALL 
-    USING (current_user = 'currency_sync_role') 
-    WITH CHECK (current_user = 'currency_sync_role');
+-- =========================================================================
 -- TABLE 13: COMPETITOR_PRODUCT_MAPPINGS
+-- Intersects catalog items with listings.
 CREATE TABLE IF NOT EXISTS competitor_product_mappings (
     mapping_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -305,7 +296,9 @@ CREATE TABLE IF NOT EXISTS competitor_product_mappings (
 
 CREATE INDEX IF NOT EXISTS idx_mappings_tenant_product ON competitor_product_mappings(tenant_id, product_id);
 
+-- =========================================================================
 -- TABLE 14: COMPETITOR_PRICES
+-- Indexes historical scrapper-derived observations chronologically.
 CREATE TABLE IF NOT EXISTS competitor_prices (
     competitor_price_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -320,7 +313,9 @@ CREATE TABLE IF NOT EXISTS competitor_prices (
 CREATE INDEX IF NOT EXISTS idx_competitor_prices_mapping ON competitor_prices(tenant_id, mapping_id);
 CREATE INDEX IF NOT EXISTS idx_competitor_prices_lookup ON competitor_prices(tenant_id, observed_at DESC);
 
+-- =========================================================================
 -- TABLE 15: REVIEWS
+-- Aggregates customer sentiment text pools.
 CREATE TABLE IF NOT EXISTS reviews (
     review_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -337,7 +332,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 CREATE INDEX IF NOT EXISTS idx_reviews_tenant_product ON reviews(tenant_id, product_id);
 
+-- =========================================================================
 -- TABLE 16: SENTIMENT_RESULTS
+-- Processes natural language analysis scores.
 CREATE TABLE IF NOT EXISTS sentiment_results (
     sentiment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -353,7 +350,9 @@ CREATE TABLE IF NOT EXISTS sentiment_results (
 
 CREATE INDEX IF NOT EXISTS idx_sentiment_tenant_label ON sentiment_results(tenant_id, sentiment_label);
 
+-- =========================================================================
 -- TABLE 17: DEMAND_FORECASTS
+-- Records analytical predictive market metrics.
 CREATE TABLE IF NOT EXISTS demand_forecasts (
     forecast_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -374,7 +373,9 @@ CREATE TABLE IF NOT EXISTS demand_forecasts (
 
 CREATE INDEX IF NOT EXISTS idx_forecasts_lookup ON demand_forecasts(tenant_id, product_id, forecast_start_date);
 
+-- =========================================================================
 -- TABLE 18: EVIDENCE_RECORDS
+-- Traces explainable automated modeling weightings.
 CREATE TABLE IF NOT EXISTS evidence_records (
     evidence_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -385,27 +386,10 @@ CREATE TABLE IF NOT EXISTS evidence_records (
     CONSTRAINT fk_evidence_forecast_isolated FOREIGN KEY (tenant_id, forecast_id) REFERENCES demand_forecasts(tenant_id, forecast_id) ON DELETE CASCADE
 );
 
-ALTER TABLE competitor_product_mappings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE competitor_prices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sentiment_results ENABLE ROW LEVEL SECURITY;
-ALTER TABLE demand_forecasts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE evidence_records ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE competitor_product_mappings FORCE ROW LEVEL SECURITY;
-ALTER TABLE competitor_prices FORCE ROW LEVEL SECURITY;
-ALTER TABLE reviews FORCE ROW LEVEL SECURITY;
-ALTER TABLE sentiment_results FORCE ROW LEVEL SECURITY;
-ALTER TABLE demand_forecasts FORCE ROW LEVEL SECURITY;
-ALTER TABLE evidence_records FORCE ROW LEVEL SECURITY;
-
-CREATE POLICY isolation_mappings ON competitor_product_mappings FOR ALL USING (tenant_id = get_current_tenant());
-CREATE POLICY isolation_competitor_prices ON competitor_prices FOR ALL USING (tenant_id = get_current_tenant());
-CREATE POLICY isolation_reviews ON reviews FOR ALL USING (tenant_id = get_current_tenant());
-CREATE POLICY isolation_sentiment ON sentiment_results FOR ALL USING (tenant_id = get_current_tenant());
-CREATE POLICY isolation_forecasts ON demand_forecasts FOR ALL USING (tenant_id = get_current_tenant());
-CREATE POLICY isolation_evidence ON evidence_records FOR ALL USING (tenant_id = get_current_tenant());
+CREATE INDEX IF NOT EXISTS idx_evidence_records_forecast_fk ON evidence_records(tenant_id, forecast_id);
+-- =========================================================================
 -- TABLE 19: RECOMMENDATION_OUTCOMES
+-- Maps business decisions to forecasts.
 CREATE TABLE IF NOT EXISTS recommendation_outcomes (
     recommendation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -417,14 +401,16 @@ CREATE TABLE IF NOT EXISTS recommendation_outcomes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_decision_state CHECK (user_decision IN ('PENDING', 'ACCEPTED', 'REJECTED')),
-    CONSTRAINT fk_rec_forecast_isolated FOREIGN KEY (tenant_id, forecast_id) REFERENCES demand_forecasts(tenant_id, forecast_id) ON DELETE RESTRICT
+    CONSTRAINT fk_rec_forecast_isolated FOREIGN KEY (tenant_id, forecast_id) REFERENCES demand_forecasts(tenant_id, forecast_id) ON DELETE CASCADE
 );
 
 CREATE TRIGGER set_timestamp_recommendations 
 BEFORE UPDATE ON recommendation_outcomes 
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
+-- =========================================================================
 -- TABLE 20: SYSTEM_ALERTS
+-- Signals operational stock optimization events.
 CREATE TABLE IF NOT EXISTS system_alerts (
     alert_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -438,7 +424,9 @@ CREATE TABLE IF NOT EXISTS system_alerts (
 
 CREATE INDEX IF NOT EXISTS idx_alerts_tenant_unresolved ON system_alerts(tenant_id, is_resolved) WHERE is_resolved = FALSE;
 
+-- =========================================================================
 -- TABLE 21: RAG_DOCUMENTS_METADATA
+-- Tracks unstructured knowledge repository registries.
 CREATE TABLE IF NOT EXISTS rag_documents_metadata (
     document_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -448,11 +436,13 @@ CREATE TABLE IF NOT EXISTS rag_documents_metadata (
     content_type VARCHAR(100),
     uploaded_by_user_id UUID,
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_rag_doc_user_isolated FOREIGN KEY (tenant_id, uploaded_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_rag_doc_user_isolated FOREIGN KEY (tenant_id, uploaded_by_user_id) REFERENCES tenant_users(tenant_id, user_id) ON DELETE SET NULL,
     CONSTRAINT uq_tenant_document_perimeter UNIQUE (tenant_id, document_id)
 );
 
+-- =========================================================================
 -- TABLE 22: RAG_DOCUMENT_CHUNKS
+-- Indexes vector generation source segments.
 CREATE TABLE IF NOT EXISTS rag_document_chunks (
     chunk_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -464,7 +454,9 @@ CREATE TABLE IF NOT EXISTS rag_document_chunks (
     CONSTRAINT uq_tenant_chunk_index UNIQUE (tenant_id, document_id, chunk_index)
 );
 
+-- =========================================================================
 -- TABLE 23: DATA_SOURCES
+-- Registers credential parameters for scraping.
 CREATE TABLE IF NOT EXISTS data_sources (
     source_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE,
@@ -477,7 +469,9 @@ CREATE TABLE IF NOT EXISTS data_sources (
     CONSTRAINT uq_tenant_source_perimeter UNIQUE (tenant_id, source_id)
 );
 
+-- =========================================================================
 -- TABLE 24: INGESTION_JOBS
+-- Tracks ETL scheduling operational progress.
 CREATE TABLE IF NOT EXISTS ingestion_jobs (
     job_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -494,7 +488,9 @@ CREATE TABLE IF NOT EXISTS ingestion_jobs (
     CONSTRAINT uq_tenant_job_perimeter UNIQUE (tenant_id, job_id)
 );
 
+-- =========================================================================
 -- TABLE 25: IMPORT_STAGING_ROWS
+-- Sanitizes ingested data packets temporarily.
 CREATE TABLE IF NOT EXISTS import_staging_rows (
     staging_row_id BIGSERIAL PRIMARY KEY,
     tenant_id UUID NOT NULL,
@@ -512,10 +508,12 @@ CREATE TABLE IF NOT EXISTS import_staging_rows (
 
 CREATE INDEX IF NOT EXISTS idx_staging_validation_lookup ON import_staging_rows(tenant_id, job_id, validation_status);
 
+-- =========================================================================
 -- TABLE 26: AUDIT_LOGS
+-- Logs session level operations chronologically.
 CREATE TABLE IF NOT EXISTS audit_logs (
     audit_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL, 
+    tenant_id UUID NOT NULL REFERENCES companies(tenant_id) ON DELETE CASCADE, 
     user_id UUID, 
     action_type VARCHAR(50) NOT NULL, 
     target_table VARCHAR(100) NOT NULL,
@@ -528,24 +526,57 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_compliance ON audit_logs(tenant_id, created_at DESC);
 
-ALTER TABLE recommendation_outcomes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE system_alerts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rag_documents_metadata ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rag_document_chunks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE data_sources ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ingestion_jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE import_staging_rows ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+-- =========================================================================
+-- ROW LEVEL SECURITY (RLS) & POLICIES SECURITY SETTINGS
+ALTER TABLE companies ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE tenant_users ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE product_price_history ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE inventory ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE currency_rates ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE invoices ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE global_competitors ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE tenant_competitors ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE competitor_product_mappings ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE competitor_prices ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE sentiment_results ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE demand_forecasts ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE evidence_records ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE recommendation_outcomes ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE system_alerts ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE rag_documents_metadata ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE rag_document_chunks ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE data_sources ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE ingestion_jobs ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE import_staging_rows ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;
 
-ALTER TABLE recommendation_outcomes FORCE ROW LEVEL SECURITY;
-ALTER TABLE system_alerts FORCE ROW LEVEL SECURITY;
-ALTER TABLE rag_documents_metadata FORCE ROW LEVEL SECURITY;
-ALTER TABLE rag_document_chunks FORCE ROW LEVEL SECURITY;
-ALTER TABLE data_sources FORCE ROW LEVEL SECURITY;
-ALTER TABLE ingestion_jobs FORCE ROW LEVEL SECURITY;
-ALTER TABLE import_staging_rows FORCE ROW LEVEL SECURITY;
-ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
-
+CREATE POLICY insert_companies_onboarding ON companies FOR INSERT WITH CHECK (get_current_tenant() IS NULL OR tenant_id = get_current_tenant());
+CREATE POLICY select_companies_isolated ON companies FOR SELECT USING (tenant_id = get_current_tenant() AND deleted_at IS NULL);
+CREATE POLICY update_companies_isolated ON companies FOR UPDATE USING (tenant_id = get_current_tenant());
+CREATE POLICY delete_companies_isolated ON companies FOR DELETE USING (tenant_id = get_current_tenant());
+CREATE POLICY insert_users_signup ON users FOR INSERT WITH CHECK (true);
+CREATE POLICY select_users_perimeter ON users FOR SELECT USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid OR EXISTS (SELECT 1 FROM tenant_users WHERE tenant_users.user_id = users.user_id AND tenant_users.tenant_id = get_current_tenant() AND tenant_users.removed_at IS NULL));
+CREATE POLICY update_users_self ON users FOR UPDATE USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid);
+CREATE POLICY isolation_tenant_users ON tenant_users FOR ALL USING (tenant_id = get_current_tenant() AND removed_at IS NULL);
+CREATE POLICY select_products_isolated ON products FOR SELECT USING (tenant_id = get_current_tenant() AND deleted_at IS NULL);
+CREATE POLICY update_products_isolated ON products FOR UPDATE USING (tenant_id = get_current_tenant());
+CREATE POLICY insert_products_isolated ON products FOR INSERT WITH CHECK (tenant_id = get_current_tenant());
+CREATE POLICY delete_products_isolated ON products FOR DELETE USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_price_history ON product_price_history FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_inventory ON inventory FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_invoices ON invoices FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_invoice_items ON invoice_items FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_tenant_competitors ON tenant_competitors FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_mappings ON competitor_product_mappings FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_competitor_prices ON competitor_prices FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_reviews ON reviews FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_sentiment ON sentiment_results FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_forecasts ON demand_forecasts FOR ALL USING (tenant_id = get_current_tenant());
+CREATE POLICY isolation_evidence ON evidence_records FOR ALL USING (tenant_id = get_current_tenant());
 CREATE POLICY isolation_recommendations ON recommendation_outcomes FOR ALL USING (tenant_id = get_current_tenant());
 CREATE POLICY isolation_alerts ON system_alerts FOR ALL USING (tenant_id = get_current_tenant());
 CREATE POLICY isolation_rag_docs ON rag_documents_metadata FOR ALL USING (tenant_id = get_current_tenant());
@@ -554,4 +585,8 @@ CREATE POLICY isolation_data_sources ON data_sources FOR ALL USING (tenant_id = 
 CREATE POLICY isolation_ingestion_jobs ON ingestion_jobs FOR ALL USING (tenant_id = get_current_tenant());
 CREATE POLICY isolation_staging_rows ON import_staging_rows FOR ALL USING (tenant_id = get_current_tenant());
 CREATE POLICY select_audit_logs ON audit_logs FOR SELECT USING (tenant_id = get_current_tenant());
-CREATE POLICY insert_audit_logs ON audit_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY insert_audit_logs ON audit_logs FOR INSERT WITH CHECK (tenant_id = get_current_tenant());
+CREATE POLICY select_global_competitors ON global_competitors FOR SELECT USING (visibility = 'GLOBAL' OR added_by_tenant_id = get_current_tenant());
+CREATE POLICY write_private_competitors ON global_competitors FOR ALL USING (added_by_tenant_id = get_current_tenant()) WITH CHECK (added_by_tenant_id = get_current_tenant() AND visibility = 'PRIVATE');
+CREATE POLICY global_read_currency ON currency_rates FOR SELECT USING (true);
+CREATE POLICY system_write_currency ON currency_rates FOR ALL USING (current_user = 'currency_sync_role') WITH CHECK (current_user = 'currency_sync_role');
