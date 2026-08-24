@@ -27,6 +27,20 @@ def resolve_overlaps(entities: List[ExtractedEntity]) -> List[ExtractedEntity]:
     code; a PRODUCT catalog hit overlapping a PHONE false-positive). Greedy
     interval selection by (type priority, span length) descending: highest-
     priority / longest match wins, everything it overlaps is dropped.
+
+    PENDING (no functional change in this pass): this ranks by priority
+    tier only, not by the underlying match confidence - a PRODUCT catalog
+    hit just above the 0.80 similarity threshold always beats a
+    well-formed MONEY match on overlap, even when the catalog match is the
+    weaker signal in that instance. Blending priority with confidence is a
+    reasonable follow-up, not done here to avoid changing ranking behavior
+    without data to validate the new ordering against.
+
+    Also out of scope for this tier entirely: context-dependent
+    disambiguation ("Order 42" the entity vs. "the 42nd order" the
+    ordinal). That needs the transformer/EntityRuler tier spec S15 lists
+    as the next option above regex/fuzzy matching - no amount of overlap
+    resolution here can recover context regex never captured.
     """
     def priority(e: ExtractedEntity):
         return (_TYPE_PRIORITY.get(e.entity_type, _DEFAULT_PRIORITY), e.end - e.start)
