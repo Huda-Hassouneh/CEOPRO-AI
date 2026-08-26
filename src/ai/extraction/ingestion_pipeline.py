@@ -1,22 +1,16 @@
 """
 CEOPRO AI - Ingestion Pipeline Orchestrator.
-Implements the full target architecture end-to-end for a single uploaded
-file, at zero infrastructure cost:
+Runs the full pipeline for one file: template detection -> strict typed
+parsing or fallback regex/catalog extraction -> raw-row persistence in
+the existing import_staging_rows table -> MinIO extraction metadata.
 
-    Input File -> Template Detection -> Structured Parsing / Fallback
-    Extraction -> Normalization -> Catalog Matching -> Canonical
-    Extraction Output -> import_staging_rows (existing Postgres table,
-    zero schema change) -> MinIO Persistence (extraction metadata)
-
-Zero-data-loss guarantee: the untouched raw row is written to
-import_staging_rows.raw_payload_json BEFORE any parsing is attempted, in
-its own try/except. A row that crashes every extraction path still has
-its original data sitting in Postgres with validation_status='INVALID'
-and the error recorded - nothing is ever silently dropped, even on a
-total extraction failure for that row.
+The untouched row is written to import_staging_rows.raw_payload_json
+BEFORE any parsing is attempted, in its own try/except. A row that
+crashes every extraction path still has its original data sitting in
+Postgres with validation_status='INVALID' and the error recorded.
 """
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from src.ai.extraction.template_detection import TemplateMode, detect_template
@@ -29,7 +23,7 @@ from src.ai.extraction.minio_persistence import build_extraction_document, uploa
 class IngestionRowOutcome:
     row_index: int
     staging_row_id: Optional[int]
-    mode: str  # "STRICT" or "FALLBACK"
+    mode: str
     parse_result: Optional[RowParseResult] = None
     fallback_entity_count: int = 0
     error: Optional[str] = None
@@ -49,13 +43,6 @@ class IngestionSummary:
 
 
 def _insert_staging_row(conn, tenant_id: str, job_id: str, raw_row: Dict[str, object]) -> int:
-    """
-    Writes the untouched row into the existing import_staging_rows table
-    (schema already defines it - no migration needed). This happens
-    before any parsing is attempted, so it is the zero-data-loss anchor
-    point: whatever else fails downstream, the original row is already
-    durable in Postgres.
-    """
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -106,14 +93,9 @@ def process_file(
     minio_client=None,
 ) -> IngestionSummary:
     """
-    Runs the full pipeline for one uploaded file.
-
-    `conn`, `redis_client`, and `minio_client` are all optional so this
-    can run in a dry-run/preview mode (e.g. showing the user what would
-    happen before committing) with no side effects: pass None for any of
-    them to skip that stage. In production, all three should be supplied
-    for the full zero-data-loss + catalog-matching + MinIO-provenance
-    pipeline described in the module docstring.
+    conn, redis_client, and minio_client are all optional so this can run
+    in a dry-run/preview mode with no side effects. In production, supply
+    all three for the full pipeline.
     """
     detection = detect_template(headers)
     summary = IngestionSummary(
@@ -131,7 +113,7 @@ def process_file(
         if conn is not None:
             try:
                 staging_row_id = _insert_staging_row(conn, tenant_id, job_id, raw_row)
-            except Exception as e:  # noqa: BLE001 - a staging-write failure must not stop the batch
+            except Exception as e:
                 summary.rows_failed += 1
                 summary.row_outcomes.append(
                     IngestionRowOutcome(
@@ -159,9 +141,6 @@ def process_file(
                 entities = extract_entities(
                     row_text, tenant_id=tenant_id, redis_client=redis_client, conn=conn
                 )
-                # Fold fallback-mode entities into the same RowParseResult
-                # shape used by STRICT mode, so build_extraction_document()
-                # and downstream consumers don't need a second code path.
                 result = RowParseResult(tenant_id=tenant_id)
                 result.fallback_entities = entities
                 result.unmapped_columns = list(raw_row.keys())
@@ -181,7 +160,7 @@ def process_file(
             if conn is not None and staging_row_id is not None:
                 _update_staging_row_status(conn, staging_row_id, "VALID")
 
-        except Exception as e:  # noqa: BLE001 - one bad row must not sink the whole file
+        except Exception as e:
             summary.rows_failed += 1
             summary.row_outcomes.append(
                 IngestionRowOutcome(
