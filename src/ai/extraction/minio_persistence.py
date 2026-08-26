@@ -1,8 +1,5 @@
 """
 CEOPRO AI - MinIO Persistence Layer for Extraction Results.
-Enforces an immutable object-storage archiving layer to record pipeline extraction 
-output without modifying relational database schema boundaries. Formats structured 
-JSON records partitioned cleanly by tenant and ingestion job parameters.
 """
 import io
 import json
@@ -31,12 +28,6 @@ def _entity_to_dict(entity) -> dict:
 def _row_result_to_dict(result: RowParseResult) -> dict:
     return {
         "typed_fields": result.typed_fields,
-        # Provenance: raw cell text behind each typed_fields entry, keyed
-        # the same way, so a normalized value can always be traced back to
-        # what the source row actually said - previously only the
-        # normalized value was persisted here, which defeated the
-        # traceability requirement (original file -> ... -> normalized
-        # value -> final artifact) at the last hop.
         "raw_fields": result.raw_fields,
         "field_confidence": result.field_confidence,
         "fallback_entities": [_entity_to_dict(e) for e in result.fallback_entities],
@@ -50,10 +41,6 @@ def build_extraction_document(
     source_filename: str,
     row_results: List[RowParseResult],
 ) -> dict:
-    """
-    Assembles a micro-batch of row execution traces into a single atomic JSON document payload.
-    Exposes high-level tracking counts for downstream trace UI validation dashboards.
-    """
     now = datetime.now(timezone.utc).isoformat()
     rows = [_row_result_to_dict(r) for r in row_results]
     verified_field_count = sum(
@@ -93,10 +80,6 @@ def upload_extraction_document(
     ingestion_job_id: str,
     bucket: str = EXTRACTION_RESULTS_BUCKET,
 ) -> str:
-    """
-    Streams a structural JSON document into object storage under an immutable tracking path. 
-    Guarantees no file clobbering or write-lock contention using unique transaction keys.
-    """
     _ensure_bucket(client, bucket)
     key = _object_key(tenant_id, ingestion_job_id)
     payload = json.dumps(document, ensure_ascii=False, indent=None).encode("utf-8")
