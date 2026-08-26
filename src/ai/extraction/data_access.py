@@ -1,18 +1,7 @@
 """
 CEOPRO AI - Extraction Catalog Data Access.
-Reads known product/competitor names to match against (read-only, existing
-tables). Nothing is written here - there is no `extracted_entity` table yet
-(PENDING_ACTIONS.md #4), so extraction results have nowhere to persist to.
-
-PENDING (no functional change in this pass): known_names is re-queried from
-PostgreSQL on every call with no caching. Fine at demo/current scale; under
-high ingestion volume (e.g. batch document processing calling
-find_catalog_mentions() per document) this becomes a repeated-query hot
-path. Worth a per-tenant cache with explicit invalidation on product/
-competitor writes before that becomes a bottleneck - deliberately not
-added here since a wrong invalidation rule is worse than no cache.
+Reads known product/competitor names to match against (read-only, existing tables).
 """
-
 from typing import List
 
 
