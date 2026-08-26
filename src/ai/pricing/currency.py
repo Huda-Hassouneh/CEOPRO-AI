@@ -54,15 +54,22 @@ class ConversionResult:
 
 
 def get_latest_rate(conn, base_currency: str, target_currency: str) -> Optional[ExchangeRate]:
+    """
+    Final_schema.sql's currency_rates is column-renamed from the schema this
+    was first built against (from_currency/to_currency/exchange_rate/
+    last_fetched, not base_currency/target_currency/rate/rate_date) and has
+    a UNIQUE(from_currency, to_currency) constraint - only ever one row per
+    pair, so "latest" is just "the row", not an ORDER BY/LIMIT query anymore.
+    The dataclass shape returned here is unchanged (rate/rate_date/source)
+    so callers don't need to change - last_fetched maps to rate_date.
+    """
     if base_currency == target_currency:
         return ExchangeRate(base_currency, target_currency, 1.0, date.today(), "identity")
 
     query = """
-        SELECT rate, rate_date, source
+        SELECT exchange_rate, last_fetched, source
         FROM currency_rates
-        WHERE base_currency = %s AND target_currency = %s
-        ORDER BY rate_date DESC
-        LIMIT 1;
+        WHERE from_currency = %s AND to_currency = %s;
     """
     with conn.cursor() as cursor:
         cursor.execute(query, (base_currency, target_currency))
@@ -71,8 +78,9 @@ def get_latest_rate(conn, base_currency: str, target_currency: str) -> Optional[
     if not row:
         return None
 
+    rate_date = row[1].date() if hasattr(row[1], "date") else row[1]
     return ExchangeRate(
-        base_currency=base_currency, target_currency=target_currency, rate=float(row[0]), rate_date=row[1], source=row[2]
+        base_currency=base_currency, target_currency=target_currency, rate=float(row[0]), rate_date=rate_date, source=row[2]
     )
 
 
