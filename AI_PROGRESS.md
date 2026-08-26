@@ -980,6 +980,74 @@ API call, confirmed not just slow to start) - every SQL file was reviewed carefu
 `sqlparse` for gross syntax errors, but none of it has actually been run against a real Postgres.
 Flagged explicitly as a required follow-up, not silently claimed as verified.
 
+## 2026-08-27 — `sentiment/`, `mpi/`, and `pricing/` reworked against `Final_schema.sql`
+
+Continuing the schema-fork rework (`PENDING_ACTIONS.md` #27) on top of the foundation fixes. Brought
+`mpi/` in from its own unmerged branch (PR #10) rather than a full branch merge - that branch predates
+the new ingestion-engine subsystem and a full merge produced dozens of stale conflicts against files
+already fixed in the foundation pass; copied the module's own files directly instead (untouched by
+that conflict, since `mpi/` never existed on `main` before).
+
+**Real, spec-relevant gaps found and fixed, same "extend the schema, don't reduce the feature" pattern
+as the foundation pass's `evidence_records` fix:**
+
+- **`reviews` was product-only** (`product_id NOT NULL`, no `subject_type`/`competitor_id`/
+  `source_status`/`collection_method`/`review_language` at all) - spec §16 requires PRODUCT/COMPETITOR/
+  BUSINESS-level sentiment. Confirmed with the project owner directly: extend back to all three rather
+  than reduce the feature. `migrations/20260827010000_restore_review_subject_types.sql`.
+- **`sentiment_results` collapsed from a 3-class probability distribution to a single score+label** -
+  the individual `positive_probability`/`neutral_probability`/`negative_probability`/`confidence`
+  columns (what the classifier actually outputs, and what spec §16 asks for) came back too, same
+  migration. `sentiment/evidence.py` now populates both shapes from one computation - `sentiment_score`
+  is exactly the same positive-minus-negative formula `data_access.py`'s aggregation already used, not
+  a second, potentially-inconsistent calculation.
+- **`global_competitors` had no `country_code` at all** - `mpi/`'s country-context lookup for
+  COMPETITOR-subject MPIs had nowhere to read from. `migrations/20260827020000_add_competitor_country_code.sql`.
+- **`competitor_prices` lost spec §13's Collection Policy Engine columns** (`source_status`,
+  `is_exact_data`) entirely. `migrations/20260827030000_add_competitor_prices_policy_columns.sql`.
+- **`recommendation_outcomes` lost its link back to the evidence that produced it** (`forecast_id`
+  instead, mandatory `recommended_action`) - spec §24 requires every recommendation traceable to its
+  outcome record. `evidence_id` added back (nullable, alongside `forecast_id` - forecasting keeps using
+  one, `pricing/` the other), plus a `uq_tenant_evidence_perimeter` constraint `evidence_records` needed
+  first to support the same tenant-isolated composite-FK pattern every other table in `Final_schema.sql`
+  already uses. `migrations/20260827040000_add_recommendation_outcomes_evidence_link.sql`.
+- **`currency_rates` lost `source`** (renamed/restructured to `from_currency`/`to_currency`/
+  `exchange_rate`/`last_fetched`, and now `UNIQUE(from_currency, to_currency)` - one row per pair, not
+  a history) - spec §9 explicitly requires preserving "the rate, its date, and its source" on every
+  conversion. `migrations/20260827050000_add_currency_rates_source.sql`; `pricing/currency.py` rewritten
+  for the actual column names, Python-side `ExchangeRate`/`ConversionResult` shapes unchanged so
+  callers didn't need to.
+
+**A genuine architecture simplification, not just a compatibility fix**: `competitor_prices` now joins
+to a specific `product_id` via `competitor_product_mappings` at mapping-creation time, not query time -
+`pricing/`'s old fuzzy name-matching step (`matching.match_competitor_records()`, comparing
+`products.product_name` against `competitor_prices.product_name_captured`) is now not just unneeded but
+actively wrong against the new data shape (that field is the competitor's own name now, not a captured
+product name). Removed - `data_access.load_competitor_prices()`'s real FK join already returns exactly
+the right, pre-matched records. `matching.similarity()` itself is kept; `extraction/catalog_matching.py`
+still uses it directly for an unrelated purpose.
+
+**`pricing/guardrails.py` gained a real margin guardrail** - `Final_schema.sql` already has
+`products.cost_price` built in (no migration needed for this one), so this was built properly here
+rather than waiting on a separate unmerged PR. Floor-raises a suggestion to `cost * (1 + min_margin_pct)`
+when needed, never lowers a price, no-ops when cost is unknown. Verified: seeded a product whose
+price-change-guardrailed suggestion would sell at a loss (30.00 price, 27.00 cost, competitors averaging
+~19.17), confirmed the margin guardrail raises it to 29.70.
+
+**Testing**: every live-DB integration test file (`test_extraction_integration_db.py`,
+`test_sentiment_integration_db.py`, `test_mpi_integration_db.py`, `test_pricing_integration_db.py`)
+rewritten for the real schema - JSONB product names, the new competitor chain, the new column names
+throughout. `test_pricing_matching.py`/`test_extractor.py`'s dead-function tests removed rather than
+patched around. New unit tests added for the margin guardrail (6 cases) and its pipeline integration
+(3 cases). Full offline suite: 163 passed (up from 135 after the foundation pass), 0 failed.
+`flake8`/`py_compile` clean. **Not verified against a live database** - Docker remains unavailable in
+this environment; every SQL file reviewed manually and checked with `sqlparse`, but none of it has
+actually run against a real Postgres. Same explicit follow-up flag as the foundation entry.
+
+**Not done yet**: `extraction/`'s NER-persistence layer (writing to `extracted_entity` from
+`news_record`/`social_mention`) still needs reconciling with the new ingestion-engine's
+`extract_entities()` signature (Redis-cached catalog lookups) - next.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
