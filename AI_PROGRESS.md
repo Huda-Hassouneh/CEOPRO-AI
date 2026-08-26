@@ -1048,6 +1048,53 @@ actually run against a real Postgres. Same explicit follow-up flag as the founda
 `news_record`/`social_mention`) still needs reconciling with the new ingestion-engine's
 `extract_entities()` signature (Redis-cached catalog lookups) - next.
 
+## 2026-08-27 — `extraction/` NER persistence reconciled with the new ingestion engine; schema-fork rework complete
+
+Closes the last piece of `PENDING_ACTIONS.md` #27. `main` had independently grown a large, genuinely
+well-built new subsystem under `src/ai/extraction/` alongside the schema fork — a Universal Import
+Engine (spec §12: CSV/XLSX/PDF/DB/API adapters, bilingual template detection, Arabic-Indic numeral
+normalization) that reuses the NER extractor as its fallback path. It rewrote `extractor.py`'s
+signature (`extract_entities(text, tenant_id, redis_client, conn)` — Redis-cached catalog lookups, a
+real improvement — replacing the old `(text, known_product_names, known_competitor_names)`) and
+`data_access.py`, neither aware of this track's own unmerged NER-persistence branch (PR #12), so
+landing both meant reconciling a real design collision, not a text conflict a merge tool resolves.
+
+**Approach**: kept the new extractor's improvements (Redis caching, Arabic-script catalog matching,
+overlap resolution between regex/catalog tiers - a real gap the old version had, silently never
+matching Arabic product/competitor names), added back only what was missing for persistence:
+
+- `ExtractedEntity` gained back a `confidence` field (`None` for regex/rule matches, populated by
+  `catalog_matching.py`'s fuzzy-match score) - dropped when the new extractor was built, needed for
+  `extracted_entity.confidence_score`.
+- `data_access.py` gained back `load_pending_news_records()`/`load_pending_social_mentions()`
+  (`extraction_status`-gated) and the matching status-marker functions - the new version only had the
+  catalog-name loaders, not the persistence-input loaders PR #12 built.
+- New `extraction/evidence.py` (`insert_extracted_entities()`) and `extraction/pipeline.py`
+  (`extract_and_store_news_records()`/`extract_and_store_social_mentions()`), calling the *new*
+  `extract_entities()` signature - `redis_client` is caller-injected and optional, same convention as
+  `ingestion_pipeline.py`'s `process_file()` and `rag/`'s `minio_client`; omitting it just skips
+  catalog matching (the extractor's own contract), not an error.
+
+**Testing**: 6 new offline tests (mocked conn/redis_client, covering both entry points' persist,
+redis-passthrough, and mark-Failed-on-error paths) plus 7 new live-DB integration tests, including a
+`_FakeRedis` in-memory stand-in (`.get()`/`.set()` only, no real Redis server needed) so the
+catalog-matching path can be verified end-to-end through the real pipeline without an extra live
+dependency. One test explicitly confirms the no-`redis_client` case still runs the regex tier cleanly.
+Full offline suite: 169 passed (up from 163), 0 failed. `flake8`/`py_compile` clean.
+
+`src/ai/README.md`'s `extraction/` section rewritten to document both capabilities now sharing that
+directory (NER vs. the ingestion engine) and how they connect; two now-factually-wrong blocker bullets
+(`cost` column, `extracted_entity` table) corrected - a fuller pass to bring the rest of that file
+current against everything resolved across today's three entries is a separate follow-up, not done here.
+
+**Schema-fork rework is now code-complete across all five in-scope modules** (`forecasting/` untouched,
+excluded per instruction). **Still not verified against a live database** - Docker has been unavailable
+throughout this entire piece of work. Every migration (11 new files across today's three entries) and
+every query has been reviewed manually and checked with `sqlparse`, but none of it has actually been
+applied to or run against a real Postgres. This is the single most important remaining follow-up before
+any of today's work should be treated as confirmed correct, not just carefully reasoned - flagged
+explicitly here and in `PENDING_ACTIONS.md` #27, not silently glossed over.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
