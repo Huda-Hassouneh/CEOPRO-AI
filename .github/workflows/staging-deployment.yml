@@ -1,0 +1,29 @@
+name: Staging Deployment
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build and Extract OpenAPI Schema
+        run: |
+          pip install -r requirements.txt
+          python src/infrastructure/openapi_extractor.py
+        env:
+          # CI-only placeholders for OpenAPI extraction (no live DB is touched
+          # in this step). Stored as repo secrets, not inlined, so nothing
+          # resembling a real credential lives in the workflow file.
+          JWT_SECRET: ${{ secrets.CI_OPENAPI_JWT_PLACEHOLDER }}
+          DATABASE_URL: ${{ secrets.CI_OPENAPI_DB_PLACEHOLDER }}
