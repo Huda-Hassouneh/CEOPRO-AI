@@ -1195,6 +1195,53 @@ then re-verified live against a fresh disposable `pgvector/pgvector:pg15` contai
 `test_mpi_integration_db.py` tests, then the full suite: 191 passed, 26 skipped, 0 failed). `flake8`
 clean. Pushed to the same `claude/market-perception-index` branch before merge, not a separate PR.
 
+## 2026-08-27 — `AI_ENGINEERING_PLAN.md` written; three unmerged branches consolidated; dev dataset extended (live-DB validation deferred)
+
+Scope: close `PENDING_ACTIONS.md` #11 (the promised-but-missing engineering plan), and address the AI
+development dataset gap (`PENDING_ACTIONS.md` #5/#18 — `competitor_prices`/`reviews`/`news_record`/
+`social_mention` all empty in prod, so `pricing/`, `sentiment/`, `mpi/`, `extraction/` have never run
+their real code paths against non-trivial data). Explicitly excludes Demand Forecasting and "AI
+Advisor" — the latter isn't a term used anywhere in this repo's docs; treated as an unspecified,
+separate feature and left untouched.
+
+**Branch consolidation first.** `claude/rls-app-role-and-migration-fix` (PR #11), `claude/ner-extraction-persistence`,
+and `claude/market-perception-index` (PR #10) were three separate unmerged branches, each with real,
+tested work `AI_PROGRESS.md`'s own Module status table couldn't accurately reflect from any single
+one of them. Merged all three onto one branch (`claude/ai-engineering-plan-and-schema-alignment`).
+Two real conflicts, both append-only additions from independent branches touching the same section —
+resolved by keeping both sides' content (this file's own Module status table row for Phase 4, and
+`src/ai/README.md`'s module list) rather than picking one over the other. 182 offline tests passing
+on the consolidated result.
+
+**`AI_ENGINEERING_PLAN.md`** (new, repo root): functional requirements/MVP outputs, use cases, data
+sources, data quality rules/thresholds, success metrics (mapped against spec §25 — honestly stating
+where real metrics need a labeled evaluation set this repo doesn't have, rather than inventing
+numbers), data availability/integration readiness, schema validation, architecture, orchestration
+(proposes the 4 missing event-contract topics, not built), and LLM/RAG approach (a shortlisted-but-
+not-finalized LLM recommendation, since spec §7 requires an evaluation set that doesn't exist yet).
+Brought `MASTER_SPEC_v4.md` and `AI_PLAN_AND_CONTRACT_UPDATES.md` into this branch verbatim from
+`noorhassouneh-patch-1` (never merged to `main`, `PENDING_ACTIONS.md` #12) so the plan document could
+cite real spec text instead of describing content a reviewer can't see in the same diff. Schema
+validation section explicitly uses Version A of `init_schema.sql` (21 tables), per
+`AI_PLAN_AND_CONTRACT_UPDATES.md`'s own precedence rule — the Version A/B fork
+(`PENDING_ACTIONS.md` #29/#30) is not resolved by this entry.
+
+**Dataset (item 12)**: `src/infrastructure/database/seed_demo_data.py` extended — both seeded tenants
+now get a competitor + competitor prices for every product (unblocks `pricing/`'s real recommendation
+path, not just `UNKNOWN`), a handful of Arabic/English/mixed reviews at both PRODUCT and BUSINESS
+level with a deliberate spread of ratings (unblocks `sentiment/` and `mpi/`), and a news/social item
+per tenant naming the seeded competitor with a discount/price mention (unblocks `extraction/`'s
+catalog matching, not just its regex patterns). `py_compile`/`flake8` clean.
+
+**Not verified this round, deliberately**: the extended seeder was not run against a live database —
+Docker Desktop was unavailable in this environment (backend never finished starting), confirmed by
+the user, who asked to proceed without it rather than wait further. This is a real gap, not a
+formality: the seeder's SQL has been reviewed but not executed, and none of `AI_ENGINEERING_PLAN.md`'s
+claims about item 12 have been empirically confirmed the way every other entry in this log has been.
+**Follow-up required**: run `seed_demo_data.py` against a fresh disposable Postgres and confirm
+`pricing/`, `sentiment/`, `mpi/`, and `extraction/` each produce non-`UNKNOWN` output against the
+seeded data, before treating item 12 as done rather than "written but unverified."
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

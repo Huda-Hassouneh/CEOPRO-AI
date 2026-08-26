@@ -44,6 +44,7 @@ class EnterprisePlatformSeeder:
         self, cursor, tenant_id: str, business_name: str, country_code: str,
         currency: str, product_names: list, price_range: tuple,
         stock_range: tuple, weekend_days: list, poisson_lambda: float,
+        competitor_name: str, reviews: list, news_items: list, social_items: list,
     ) -> None:
         cursor.execute("SET app.current_tenant_id = %s;", (tenant_id,))
         cursor.execute(
@@ -65,8 +66,10 @@ class EnterprisePlatformSeeder:
             (user_id, tenant_id, f"manager.{country_code.lower()}@ceopro.ai"),
         )
 
+        product_ids_by_name = {}
         for name in product_names:
             product_id = _deterministic_uuid("product", tenant_id, name)
+            product_ids_by_name[name] = product_id
             base_price = round(random.uniform(*price_range), 2)
 
             cursor.execute(
@@ -113,6 +116,74 @@ class EnterprisePlatformSeeder:
                 (str(uuid.uuid4()), tenant_id, product_id, random.randint(90, 160)),
             )
 
+        # --- Market Intelligence / Price Intelligence dataset (PENDING_ACTIONS.md #5, #18:
+        # competitor_prices and reviews are empty in prod, so pricing/, sentiment/, mpi/, and
+        # extraction/ only ever exercise their UNKNOWN/cold-start paths. Seeded here so those
+        # modules have real, non-empty input to validate against for once. ---
+        competitor_id = _deterministic_uuid("competitor", tenant_id, competitor_name)
+        cursor.execute(
+            """
+            INSERT INTO competitors (competitor_id, tenant_id, competitor_name, country_code, source)
+            VALUES (%s, %s, %s, %s, 'MANUAL')
+            ON CONFLICT (competitor_id) DO NOTHING;
+            """,
+            (competitor_id, tenant_id, competitor_name, country_code),
+        )
+
+        for name, product_id in product_ids_by_name.items():
+            our_price = round(random.uniform(*price_range), 2)
+            competitor_price = round(our_price * random.uniform(0.85, 1.15), 2)
+            cursor.execute(
+                """
+                INSERT INTO competitor_prices
+                    (price_entry_id, tenant_id, competitor_id, product_name_captured, price_found,
+                     currency, is_exact_data, collection_method, source_status)
+                VALUES (%s, %s, %s, %s, %s, %s, TRUE, 'MANUAL', 'ALLOWED')
+                ON CONFLICT (price_entry_id) DO NOTHING;
+                """,
+                (_deterministic_uuid("competitor_price", tenant_id, name), tenant_id,
+                 competitor_id, name, competitor_price, currency),
+            )
+
+        for i, review in enumerate(reviews):
+            product_id = product_ids_by_name.get(review.get("product_name"))
+            subject_type = "PRODUCT" if product_id else "BUSINESS"
+            cursor.execute(
+                """
+                INSERT INTO reviews
+                    (review_id, tenant_id, subject_type, product_id, source_platform, review_text,
+                     rating, review_language, review_date, collection_method, source_status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'MANUAL', 'ALLOWED')
+                ON CONFLICT (review_id) DO NOTHING;
+                """,
+                (_deterministic_uuid("review", tenant_id, str(i)), tenant_id, subject_type,
+                 product_id, review["platform"], review["text"], review["rating"],
+                 review["language"], datetime.now(timezone.utc) - timedelta(days=i * 3)),
+            )
+
+        for i, item in enumerate(news_items):
+            cursor.execute(
+                """
+                INSERT INTO news_record (news_id, tenant_id, source_url, headline, body_text, published_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (news_id) DO NOTHING;
+                """,
+                (_deterministic_uuid("news", tenant_id, str(i)), tenant_id,
+                 f"https://example-news.local/{tenant_id}/{i}", item["headline"], item["body_text"],
+                 datetime.now(timezone.utc) - timedelta(days=i * 5)),
+            )
+
+        for i, item in enumerate(social_items):
+            cursor.execute(
+                """
+                INSERT INTO social_mention (mention_id, tenant_id, platform, mention_text, posted_at)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (mention_id) DO NOTHING;
+                """,
+                (_deterministic_uuid("social", tenant_id, str(i)), tenant_id, item["platform"],
+                 item["text"], datetime.now(timezone.utc) - timedelta(days=i * 2)),
+            )
+
     def execute_seeding_protocol(self) -> None:
         conn = None
         cursor = None
@@ -140,12 +211,65 @@ class EnterprisePlatformSeeder:
                 ["Premium Olive Oil 1L", "Arabica Coffee Beans 1KG", "Medjool Dates 500G"],
                 price_range=(8.0, 35.0), stock_range=(80, 250),
                 weekend_days=[4, 5], poisson_lambda=3,
+                competitor_name="Al-Rayan Gourmet Foods",
+                reviews=[
+                    {"product_name": "Premium Olive Oil 1L", "platform": "MANUAL",
+                     "text": "The olive oil is excellent, rich flavor and great value for 18 JOD.",
+                     "rating": 5.0, "language": "en"},
+                    {"product_name": "Premium Olive Oil 1L", "platform": "MANUAL",
+                     "text": "زيت الزيتون ممتاز جداً وطعمه أصلي، بس السعر غالي شوي.",
+                     "rating": 4.0, "language": "ar"},
+                    {"product_name": "Arabica Coffee Beans 1KG", "platform": "MANUAL",
+                     "text": "القهوة وصلت متأخرة والكيس كان مفتوح، خدمة سيئة.",
+                     "rating": 2.0, "language": "ar"},
+                    {"product_name": "Medjool Dates 500G", "platform": "MANUAL",
+                     "text": "Good dates, nothing special but consistent quality every order.",
+                     "rating": 3.5, "language": "en"},
+                    {"product_name": None, "platform": "MANUAL",
+                     "text": "دعم العملاء متعاون جداً وردوا علي بسرعة، تجربة شراء ممتازة بشكل عام.",
+                     "rating": 4.5, "language": "ar"},
+                ],
+                news_items=[
+                    {"headline": "Al-Rayan Gourmet Foods launches 20% off promotion",
+                     "body_text": "Al-Rayan Gourmet Foods announced a 20% off promotion on olive oil "
+                                  "products this week, pricing Premium Olive Oil around 16.50 JOD, "
+                                  "undercutting most local retailers in Amman."},
+                ],
+                social_items=[
+                    {"platform": "twitter",
+                     "text": "Just bought Premium Olive Oil 1L for 18 JOD, way better than Al-Rayan Gourmet Foods honestly"},
+                ],
             )
             self._seed_tenant(
                 cursor, tenant_b, "CEOPRO Logistics KSA", "SA", "SAR",
                 ["Industrial Storage Box", "Heavy Duty Pallet", "Cargo Straps Pack"],
                 price_range=(90.0, 300.0), stock_range=(150, 600),
                 weekend_days=[3, 4], poisson_lambda=8,
+                competitor_name="Gulf Pack Solutions",
+                reviews=[
+                    {"product_name": "Heavy Duty Pallet", "platform": "MANUAL",
+                     "text": "Pallets are sturdy and arrived on schedule, exactly as ordered.",
+                     "rating": 5.0, "language": "en"},
+                    {"product_name": "Heavy Duty Pallet", "platform": "MANUAL",
+                     "text": "الطبالي وصلت متكسرة وكان في نقص بالكمية، مو مقبول أبداً.",
+                     "rating": 1.0, "language": "ar"},
+                    {"product_name": "Cargo Straps Pack", "platform": "MANUAL",
+                     "text": "الحزام الأمان جيد للاستخدام اليومي، بس ودي لو كان فيه ألوان أكثر.",
+                     "rating": 3.5, "language": "ar"},
+                    {"product_name": None, "platform": "MANUAL",
+                     "text": "Reliable logistics partner overall, invoicing could be faster though.",
+                     "rating": 4.0, "language": "en"},
+                ],
+                news_items=[
+                    {"headline": "Gulf Pack Solutions expands storage box catalog",
+                     "body_text": "Gulf Pack Solutions signed a distribution deal covering Industrial "
+                                  "Storage Box units at SAR 250 per unit, a 10% discount versus last "
+                                  "quarter's list price."},
+                ],
+                social_items=[
+                    {"platform": "twitter",
+                     "text": "Ordered Heavy Duty Pallet again this month, Gulf Pack Solutions still can't match the price"},
+                ],
             )
 
             document_id = _deterministic_uuid("rag_document", tenant_a)
