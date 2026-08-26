@@ -58,7 +58,7 @@ _MONEY_WITH_CODE_AFTER_PATTERN = re.compile(
     rf"(?P<amount>{_NUMERAL})\s*(?P<currency>" + "|".join(re.escape(c) for c in CURRENCY_CODES) + r")\b"
 )
 _MONEY_WITH_CODE_BEFORE_PATTERN = re.compile(
-    rf"\b(?P<currency>" + "|".join(re.escape(c) for c in CURRENCY_CODES) + rf")\s+(?P<amount>{_NUMERAL})\b"
+    r"\b(?P<currency>" + "|".join(re.escape(c) for c in CURRENCY_CODES) + rf")\s+(?P<amount>{_NUMERAL})\b"
 )
 _MONEY_WITH_SYMBOL_PATTERN = re.compile(rf"(?P<symbol>[$€£])\s?(?P<amount>{_NUMERAL})")
 _ARABIC_WORDS_SORTED = sorted(ARABIC_CURRENCY_WORDS, key=len, reverse=True)
@@ -162,7 +162,7 @@ def extract_discount(text: str) -> List[ExtractedEntity]:
     for pattern in (_DISCOUNT_PATTERN, _DISCOUNT_PATTERN_AR):
         for m in pattern.finditer(text):
             amount_raw = m.group(1) or m.group(2)
-            norm = normalize_number_string(amount_raw) if amount_raw else None
+            norm = f"{normalize_number_string(amount_raw)}%" if amount_raw else None
             entities.append(ExtractedEntity("DISCOUNT", m.group(0), m.start(), m.end(), norm))
     return entities
 
