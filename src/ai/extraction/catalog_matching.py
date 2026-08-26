@@ -45,7 +45,10 @@ def find_catalog_mentions(
 
         if best_score >= threshold:
             entities.append(
-                ExtractedEntity(entity_type=entity_type, text=candidate_text, start=start, end=end, normalized_value=best_name)
+                ExtractedEntity(
+                    entity_type=entity_type, text=candidate_text, start=start, end=end,
+                    normalized_value=best_name, confidence=round(best_score, 3),
+                )
             )
 
     return entities

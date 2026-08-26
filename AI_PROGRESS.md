@@ -21,7 +21,7 @@ in [`PENDING_ACTIONS.md`](PENDING_ACTIONS.md) so it stays visible without diggin
 |---|---|---|---|
 | Phase 2 — Demand Intelligence (§18, §23, §25) | `src/ai/forecasting/` | 🟢 Built, tested (unit + integration) | Baselines, XGBoost + walk-forward validation, cold-start policy, evidence writers, Redis consumer. See entries below. |
 | Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟡 Hybrid (lexical + semantic) retrieval built/tested; chatbot itself not started | Document ingestion + BM25 + FAISS semantic retrieval + Reciprocal Rank Fusion, all against existing `rag_documents_metadata` + MinIO — none of it needs pgvector. Still missing: LLM reasoning step, chat history (needs a new table). A real fusion edge case found and documented (not fixed — inherent BM25 behavior on very short chunks). See entries below. |
-| Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/` | 🟡 Rule-based NER + sentiment analysis built/tested; NER persistence + MPI (§17) not started | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) built. No `extracted_entity` table to write results to yet; ORG/PERSON/GPE entity types not started. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy — `reviews` table is currently empty in prod, so the `UNKNOWN`-evidence path is what runs today. Market Perception Index (§17, combines sentiment + source reliability + recency + volume + entity relevance) not started. See entries below. |
+| Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/` | 🟡 Rule-based NER + persistence + sentiment analysis built/tested; MPI (§17) not started | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) built, and now persisted to `extracted_entity` via `extraction/pipeline.py` (`extraction_status`-gated Pending/Processed/Failed, mirroring `rag/pipeline.py`'s convention). ORG/PERSON/GPE entity types not started — need world knowledge or a trained model. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy — `reviews`/`news_record`/`social_mention` tables are currently empty in prod, so the `UNKNOWN`-evidence / zero-pending-rows path is what runs today for both. Market Perception Index (§17, combines sentiment + source reliability + recency + volume + entity relevance) not started. See entries below. |
 | Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail plus a margin guardrail (`products.cost`, `PENDING_ACTIONS.md` #14, resolved 2026-08-08), evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
 | Phase 6 — Competitor Ranking (§20) | — | ⚪ Not started | Same data gap as Phase 5 (`PENDING_ACTIONS.md` #5). |
 
@@ -1060,6 +1060,58 @@ now makes those table definitions actually deployable, not just defined as files
 **Not done, deliberately** (explicit scope decision, confirmed before starting): `Dockerfile.ai`,
 `src/ai/main.py`, `src/backend/main.py` still don't exist — `PENDING_ACTIONS.md` #8 remains open. This
 branch (`claude/rls-app-role-and-migration-fix`, PR #11) still needs a human with merge rights to land it.
+
+## 2026-08-08 — NER persistence built: `extracted_entity` is now written to, closing the last piece of `PENDING_ACTIONS.md` #4
+
+Branched from `claude/rls-app-role-and-migration-fix` (PR #11, not yet merged) rather than `main`,
+since this work needs that branch's migration runner to actually apply its own new migration and get
+tested against a real database. Continuing straight off the previous entry: with the migration runner
+built, `extracted_entity`/`news_record`/`social_mention` stopped being "landed but not deployable" —
+this closes the remaining gap, actually writing extraction results somewhere.
+
+**New migration** `20260808040000_add_extraction_status.sql`: adds `extraction_status VARCHAR(50)
+DEFAULT 'Pending'` to `news_record` and `social_mention`, mirroring `rag_documents_metadata.processed_status`'s
+existing convention. Needed because a plain `LEFT JOIN extracted_entity` can't tell "not yet
+processed" apart from "processed, genuinely zero entities found" for a given row.
+
+**`ExtractedEntity` gained a `confidence` field** — `None` for regex/rule matches (deterministic, not
+probabilistic), populated with the fuzzy-match similarity score for `catalog_matching.py`'s
+PRODUCT/COMPETITOR matches. `extracted_entity.confidence_score` is nullable specifically for this
+reason.
+
+**`extraction/data_access.py`** gained `load_pending_news_records()`/`load_pending_social_mentions()`
+(same "join against the result table, filter unprocessed" shape `sentiment/data_access.py` already
+established, but via an explicit status column instead of a join, for the reason above) and
+`mark_news_record_status()`/`mark_social_mention_status()`.
+
+**`extraction/evidence.py`** (new): `insert_extracted_entities()` writes to `extracted_entity`, this
+track's own table — `entity_value` is the catalog-normalized name when one exists, otherwise the raw
+matched text.
+
+**`extraction/pipeline.py`** (new): `extract_and_store_news_records()`/`extract_and_store_social_mentions()`
+orchestrate load → extract → persist → mark Processed/Failed, mirroring `rag/pipeline.py`'s
+`ingest_pending_documents()` convention (spec §12: never silently discard invalid data). Deliberately
+writes no `evidence_records` — bulk entity extraction is an annotation step over raw text, not itself
+a user-facing conclusion, same reasoning `sentiment/pipeline.py`'s `classify_and_store_reviews()`
+already documents for bulk sentiment labeling. No event contract exists yet for triggering this (same
+situation as `sentiment/`), so it's called directly rather than via a Redis consumer.
+
+**Testing**: 5 new offline tests (mocked connection, covering both entry points' persist-and-mark and
+mark-Failed-on-error paths) plus 6 new live-DB integration tests, run against a genuinely fresh
+disposable Postgres with the full schema applied via the migration runner (first real proof this new
+migration composes correctly with the other 6). The end-to-end tests seed a real `news_record`/
+`social_mention` row referencing the seeded tenant's own product/competitor names, run the real
+pipeline function against the real database, and confirm: the right entity types land in
+`extracted_entity` (including `PRODUCT`/`COMPETITOR` catalog matches actually resolving, not just the
+regex-shaped ones), the source row's `extraction_status` flips to `Processed`, and a second run
+doesn't reprocess it. One test-writing bug caught and fixed along the way: a literal `%` character in
+a hardcoded test SQL string (`"20% off"`) collided with psycopg2's `%s` placeholder syntax
+(`IndexError: tuple index out of range`) — fixed by parameterizing the text instead of inlining it.
+Full offline suite re-run afterward: 157 passed (up from 152), 0 failed. `flake8`/`py_compile` clean.
+
+**Not done, deliberately**: no event contract/consumer for triggering extraction (mirrors `sentiment/`'s
+same open state); ORG/PERSON/GPE/ADDRESS entity types remain out of scope (need world knowledge or a
+trained model). `PENDING_ACTIONS.md` #4 updated to reflect persistence, not just deployability.
 
 ## How to add an entry
 
