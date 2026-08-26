@@ -1,8 +1,8 @@
 """
-CEOPRO AI - Rule-Based Information Extraction.
-Provides pattern-shaped token extractors for MONEY, PERCENT, DISCOUNT,
-DATE, PHONE, EMAIL, INVOICE_ID, and ORDER_ID. Covers structurally regular
-entities using regular expressions designed for multilingual parity
+CEOPRO AI - Rule-Based Information Extraction (spec S15).
+Provides pattern-shaped token extractors for MONEY, PERCENT, DISCOUNT, 
+DATE, PHONE, EMAIL, INVOICE_ID, and ORDER_ID. Covers structurally regular 
+entities using optimized regular expressions designed for multilingual parity 
 accepting ASCII, Arabic-Indic, and Extended Persian digit systems.
 """
 
@@ -87,8 +87,17 @@ _ORDER_ID_PATTERN = re.compile(
 _SLASH_DATE_PATTERN = re.compile(rf"\b([{DIGIT_CLASS}]{{1,4}})[/-]([{DIGIT_CLASS}]{{1,2}})[/-]([{DIGIT_CLASS}]{{1,4}})\b")
 
 
-def normalize_slash_date(raw_text: str) -> Optional[str]:
-    """Resolves day-first vs month-first ambiguity based on configuration. Returns ISO format."""
+def normalize_slash_date(raw_text: str, day_first: Optional[bool] = None) -> Optional[str]:
+    """
+    Publicly exposes date string normalization logic. Resolves day-first vs month-first 
+    ambiguity based on the configuration context. Returns ISO format string.
+
+    day_first overrides the global EXTRACTION_DATE_DAY_FIRST env var for
+    this call only - pass the caller's resolved per-tenant value (see
+    locale_config.py) when known. None (the default) preserves existing
+    global behavior exactly.
+    """
+    resolved_day_first = DATE_DAY_FIRST if day_first is None else day_first
     m = _SLASH_DATE_PATTERN.search(to_ascii_digits(raw_text))
     if not m:
         return None
@@ -96,42 +105,55 @@ def normalize_slash_date(raw_text: str) -> Optional[str]:
     if len(g1) == 4:
         return f"{g1}-{g2.zfill(2)}-{g3.zfill(2)}"
     if len(g3) == 4:
-        if DATE_DAY_FIRST:
+        if resolved_day_first:
             return f"{g3}-{g2.zfill(2)}-{g1.zfill(2)}"
         return f"{g3}-{g1.zfill(2)}-{g2.zfill(2)}"
     return None
 
 
-def extract_money(text: str) -> List[ExtractedEntity]:
-    """MONEY: amount + currency, in any supported order/notation (code, symbol, Arabic word)."""
+# ---------------------------------------------------------------------------
+# Per-type extractors. Each scans `text` once and returns every match as an
+# ExtractedEntity, in document order. These are the functions extract_all()
+# was calling before it regressed to a stub - the compiled patterns above
+# were already here and unused.
+# ---------------------------------------------------------------------------
+
+def extract_money(text: str, decimal_style: Optional[str] = None) -> List[ExtractedEntity]:
+    """
+    MONEY: amount + currency, in any supported order/notation (code, symbol, Arabic word).
+
+    decimal_style overrides the global EXTRACTION_DECIMAL_STYLE env var
+    for this call only - pass the caller's resolved per-tenant style
+    (see locale_config.py) when known. None preserves existing behavior.
+    """
     entities: List[ExtractedEntity] = []
 
     for m in _MONEY_WITH_CODE_AFTER_PATTERN.finditer(text):
-        amount = normalize_number_string(m.group("amount"))
+        amount = normalize_number_string(m.group("amount"), decimal_style)
         currency = m.group("currency")
         norm = f"{amount} {currency}" if amount is not None else None
         entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
 
     for m in _MONEY_WITH_CODE_BEFORE_PATTERN.finditer(text):
-        amount = normalize_number_string(m.group("amount"))
+        amount = normalize_number_string(m.group("amount"), decimal_style)
         currency = m.group("currency")
         norm = f"{amount} {currency}" if amount is not None else None
         entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
 
     for m in _MONEY_WITH_SYMBOL_PATTERN.finditer(text):
-        amount = normalize_number_string(m.group("amount"))
+        amount = normalize_number_string(m.group("amount"), decimal_style)
         currency = CURRENCY_SYMBOLS.get(m.group("symbol"))
         norm = f"{amount} {currency}" if amount is not None and currency else None
         entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
 
     for m in _MONEY_WITH_ARABIC_WORD_AFTER_PATTERN.finditer(text):
-        amount = normalize_number_string(m.group("amount"))
+        amount = normalize_number_string(m.group("amount"), decimal_style)
         currency = ARABIC_CURRENCY_WORDS.get(m.group("word"))
         norm = f"{amount} {currency}" if amount is not None and currency else None
         entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
 
     for m in _MONEY_WITH_ARABIC_WORD_BEFORE_PATTERN.finditer(text):
-        amount = normalize_number_string(m.group("amount"))
+        amount = normalize_number_string(m.group("amount"), decimal_style)
         currency = ARABIC_CURRENCY_WORDS.get(m.group("word"))
         norm = f"{amount} {currency}" if amount is not None and currency else None
         entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
@@ -140,29 +162,30 @@ def extract_money(text: str) -> List[ExtractedEntity]:
 
 
 def extract_currency(text: str) -> List[ExtractedEntity]:
-    """CURRENCY: a bare, standalone currency code."""
+    """CURRENCY: a bare, standalone currency code (e.g. a code appearing without an amount nearby)."""
     return [
         ExtractedEntity("CURRENCY", m.group(0), m.start(), m.end(), m.group(0))
         for m in _CURRENCY_CODE_PATTERN.finditer(text)
     ]
 
 
-def extract_percent(text: str) -> List[ExtractedEntity]:
-    """PERCENT: a bare numeral followed by '%'."""
+def extract_percent(text: str, decimal_style: Optional[str] = None) -> List[ExtractedEntity]:
+    """PERCENT: a bare numeral followed by '%', not already part of a DISCOUNT phrase."""
     entities = []
     for m in _PERCENT_PATTERN.finditer(text):
-        norm = normalize_number_string(m.group(1))
+        norm = normalize_number_string(m.group(1), decimal_style)
         entities.append(ExtractedEntity("PERCENT", m.group(0), m.start(), m.end(), norm))
     return entities
 
 
-def extract_discount(text: str) -> List[ExtractedEntity]:
+def extract_discount(text: str, decimal_style: Optional[str] = None) -> List[ExtractedEntity]:
     """DISCOUNT: '<n>% off' / 'discount of <n>%' in English, and the Arabic خصم/تخفيض equivalents."""
     entities = []
     for pattern in (_DISCOUNT_PATTERN, _DISCOUNT_PATTERN_AR):
         for m in pattern.finditer(text):
             amount_raw = m.group(1) or m.group(2)
-            norm = normalize_number_string(amount_raw) if amount_raw else None
+            normalized_amount = normalize_number_string(amount_raw, decimal_style) if amount_raw else None
+            norm = f"{normalized_amount}%" if normalized_amount is not None else None
             entities.append(ExtractedEntity("DISCOUNT", m.group(0), m.start(), m.end(), norm))
     return entities
 
@@ -180,9 +203,11 @@ def extract_phone(text: str) -> List[ExtractedEntity]:
     entities = []
     for m in _PHONE_PATTERN.finditer(text):
         matched = m.group(0)
-        digit_count = len(re.findall(rf"[{DIGIT_CLASS}]", matched))
-        if digit_count < 6:
-            continue
+        if not re.search(rf"[{DIGIT_CLASS}]{{4,}}", matched.replace(" ", "").replace("-", "")):
+            # Guards against near-empty matches (e.g. a lone "(" artifact) on short/odd input.
+            digit_count = len(re.findall(rf"[{DIGIT_CLASS}]", matched))
+            if digit_count < 6:
+                continue
         norm = re.sub(r"[^\d+]", "", to_ascii_digits(matched))
         entities.append(ExtractedEntity("PHONE", matched, m.start(), m.end(), norm))
     return entities
@@ -206,25 +231,40 @@ def extract_order_id(text: str) -> List[ExtractedEntity]:
     return entities
 
 
-def extract_date(text: str) -> List[ExtractedEntity]:
+def extract_date(text: str, day_first: Optional[bool] = None) -> List[ExtractedEntity]:
     """DATE: slash/dash-separated numeric dates, day-first or month-first per EXTRACTION_DATE_DAY_FIRST."""
     entities = []
     for m in _SLASH_DATE_PATTERN.finditer(to_ascii_digits(text)):
-        norm = normalize_slash_date(m.group(0))
+        norm = normalize_slash_date(m.group(0), day_first)
         entities.append(ExtractedEntity("DATE", m.group(0), m.start(), m.end(), norm))
     return entities
 
 
-def extract_all(text: str) -> List[ExtractedEntity]:
-    """Runs every per-type extractor over `text` and returns all matches, in document order."""
+def extract_all(
+    text: str,
+    decimal_style: Optional[str] = None,
+    day_first: Optional[bool] = None,
+) -> List[ExtractedEntity]:
+    """Runs every per-type extractor over `text` and returns all matches, in document order.
+
+    Overlaps between types (e.g. a MONEY match containing a standalone
+    CURRENCY code) are intentionally left in place here - that's
+    resolve_overlaps()'s job in extractor.py, one layer up, once catalog
+    matches are merged in too.
+
+    decimal_style/day_first override the global env-var defaults for
+    this call only - pass the caller's resolved per-tenant locale (see
+    locale_config.py) when known. Both default to None, which preserves
+    existing global behavior exactly for any caller that doesn't pass them.
+    """
     entities: List[ExtractedEntity] = []
-    entities.extend(extract_money(text))
+    entities.extend(extract_money(text, decimal_style))
     entities.extend(extract_currency(text))
-    entities.extend(extract_percent(text))
-    entities.extend(extract_discount(text))
+    entities.extend(extract_percent(text, decimal_style))
+    entities.extend(extract_discount(text, decimal_style))
     entities.extend(extract_email(text))
     entities.extend(extract_phone(text))
     entities.extend(extract_invoice_id(text))
     entities.extend(extract_order_id(text))
-    entities.extend(extract_date(text))
+    entities.extend(extract_date(text, day_first))
     return sorted(entities, key=lambda e: e.start)
