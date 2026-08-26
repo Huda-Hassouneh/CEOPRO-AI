@@ -105,8 +105,142 @@ def normalize_slash_date(raw_text: str) -> Optional[str]:
     return None
 
 
-def extract_all(text: str) -> List[ExtractedEntity]:
-    """Iterates through all regular expressions to yield discovered entities."""
-    entities = []
-    # Structural mappings for extraction loop (omitted for brevity, maintain legacy loop here)
+# ---------------------------------------------------------------------------
+# Per-type extractors. Each scans `text` once and returns every match as an
+# ExtractedEntity, in document order. These are the functions extract_all()
+# was calling before it regressed to a stub - the compiled patterns above
+# were already here and unused.
+# ---------------------------------------------------------------------------
+
+def extract_money(text: str) -> List[ExtractedEntity]:
+    """MONEY: amount + currency, in any supported order/notation (code, symbol, Arabic word)."""
+    entities: List[ExtractedEntity] = []
+
+    for m in _MONEY_WITH_CODE_AFTER_PATTERN.finditer(text):
+        amount = normalize_number_string(m.group("amount"))
+        currency = m.group("currency")
+        norm = f"{amount} {currency}" if amount is not None else None
+        entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
+
+    for m in _MONEY_WITH_CODE_BEFORE_PATTERN.finditer(text):
+        amount = normalize_number_string(m.group("amount"))
+        currency = m.group("currency")
+        norm = f"{amount} {currency}" if amount is not None else None
+        entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
+
+    for m in _MONEY_WITH_SYMBOL_PATTERN.finditer(text):
+        amount = normalize_number_string(m.group("amount"))
+        currency = CURRENCY_SYMBOLS.get(m.group("symbol"))
+        norm = f"{amount} {currency}" if amount is not None and currency else None
+        entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
+
+    for m in _MONEY_WITH_ARABIC_WORD_AFTER_PATTERN.finditer(text):
+        amount = normalize_number_string(m.group("amount"))
+        currency = ARABIC_CURRENCY_WORDS.get(m.group("word"))
+        norm = f"{amount} {currency}" if amount is not None and currency else None
+        entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
+
+    for m in _MONEY_WITH_ARABIC_WORD_BEFORE_PATTERN.finditer(text):
+        amount = normalize_number_string(m.group("amount"))
+        currency = ARABIC_CURRENCY_WORDS.get(m.group("word"))
+        norm = f"{amount} {currency}" if amount is not None and currency else None
+        entities.append(ExtractedEntity("MONEY", m.group(0), m.start(), m.end(), norm))
+
     return entities
+
+
+def extract_currency(text: str) -> List[ExtractedEntity]:
+    """CURRENCY: a bare, standalone currency code (e.g. a code appearing without an amount nearby)."""
+    return [
+        ExtractedEntity("CURRENCY", m.group(0), m.start(), m.end(), m.group(0))
+        for m in _CURRENCY_CODE_PATTERN.finditer(text)
+    ]
+
+
+def extract_percent(text: str) -> List[ExtractedEntity]:
+    """PERCENT: a bare numeral followed by '%', not already part of a DISCOUNT phrase."""
+    entities = []
+    for m in _PERCENT_PATTERN.finditer(text):
+        norm = normalize_number_string(m.group(1))
+        entities.append(ExtractedEntity("PERCENT", m.group(0), m.start(), m.end(), norm))
+    return entities
+
+
+def extract_discount(text: str) -> List[ExtractedEntity]:
+    """DISCOUNT: '<n>% off' / 'discount of <n>%' in English, and the Arabic خصم/تخفيض equivalents."""
+    entities = []
+    for pattern in (_DISCOUNT_PATTERN, _DISCOUNT_PATTERN_AR):
+        for m in pattern.finditer(text):
+            amount_raw = m.group(1) or m.group(2)
+            norm = normalize_number_string(amount_raw) if amount_raw else None
+            entities.append(ExtractedEntity("DISCOUNT", m.group(0), m.start(), m.end(), norm))
+    return entities
+
+
+def extract_email(text: str) -> List[ExtractedEntity]:
+    """EMAIL: standard address shape."""
+    return [
+        ExtractedEntity("EMAIL", m.group(0), m.start(), m.end(), m.group(0).lower())
+        for m in _EMAIL_PATTERN.finditer(text)
+    ]
+
+
+def extract_phone(text: str) -> List[ExtractedEntity]:
+    """PHONE: digit runs shaped like a phone number, ASCII or Arabic-Indic digits."""
+    entities = []
+    for m in _PHONE_PATTERN.finditer(text):
+        matched = m.group(0)
+        digit_count = len(re.findall(rf"[{DIGIT_CLASS}]", matched))
+        if digit_count < 6:
+            continue
+        norm = re.sub(r"[^\d+]", "", to_ascii_digits(matched))
+        entities.append(ExtractedEntity("PHONE", matched, m.start(), m.end(), norm))
+    return entities
+
+
+def extract_invoice_id(text: str) -> List[ExtractedEntity]:
+    """INVOICE_ID: 'INVOICE'/'INV' followed by an alphanumeric id containing at least one digit."""
+    entities = []
+    for m in _INVOICE_ID_PATTERN.finditer(text):
+        norm = to_ascii_digits(m.group(1)).upper()
+        entities.append(ExtractedEntity("INVOICE_ID", m.group(0), m.start(), m.end(), norm))
+    return entities
+
+
+def extract_order_id(text: str) -> List[ExtractedEntity]:
+    """ORDER_ID: 'ORDER'/'ORD' followed by an alphanumeric id containing at least one digit."""
+    entities = []
+    for m in _ORDER_ID_PATTERN.finditer(text):
+        norm = to_ascii_digits(m.group(1)).upper()
+        entities.append(ExtractedEntity("ORDER_ID", m.group(0), m.start(), m.end(), norm))
+    return entities
+
+
+def extract_date(text: str) -> List[ExtractedEntity]:
+    """DATE: slash/dash-separated numeric dates, day-first or month-first per EXTRACTION_DATE_DAY_FIRST."""
+    entities = []
+    for m in _SLASH_DATE_PATTERN.finditer(to_ascii_digits(text)):
+        norm = normalize_slash_date(m.group(0))
+        entities.append(ExtractedEntity("DATE", m.group(0), m.start(), m.end(), norm))
+    return entities
+
+
+def extract_all(text: str) -> List[ExtractedEntity]:
+    """Runs every per-type extractor over `text` and returns all matches, in document order.
+
+    Overlaps between types (e.g. a MONEY match containing a standalone
+    CURRENCY code) are intentionally left in place here - that's
+    resolve_overlaps()'s job in extractor.py, one layer up, once catalog
+    matches are merged in too.
+    """
+    entities: List[ExtractedEntity] = []
+    entities.extend(extract_money(text))
+    entities.extend(extract_currency(text))
+    entities.extend(extract_percent(text))
+    entities.extend(extract_discount(text))
+    entities.extend(extract_email(text))
+    entities.extend(extract_phone(text))
+    entities.extend(extract_invoice_id(text))
+    entities.extend(extract_order_id(text))
+    entities.extend(extract_date(text))
+    return sorted(entities, key=lambda e: e.start)
