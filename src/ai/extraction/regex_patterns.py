@@ -1,8 +1,8 @@
 """
-CEOPRO AI - Rule-Based Information Extraction (spec S15).
-Provides pattern-shaped token extractors for MONEY, PERCENT, DISCOUNT, 
-DATE, PHONE, EMAIL, INVOICE_ID, and ORDER_ID. Covers structurally regular 
-entities using optimized regular expressions designed for multilingual parity 
+CEOPRO AI - Rule-Based Information Extraction.
+Provides pattern-shaped token extractors for MONEY, PERCENT, DISCOUNT,
+DATE, PHONE, EMAIL, INVOICE_ID, and ORDER_ID. Covers structurally regular
+entities using regular expressions designed for multilingual parity
 accepting ASCII, Arabic-Indic, and Extended Persian digit systems.
 """
 
@@ -88,10 +88,7 @@ _SLASH_DATE_PATTERN = re.compile(rf"\b([{DIGIT_CLASS}]{{1,4}})[/-]([{DIGIT_CLASS
 
 
 def normalize_slash_date(raw_text: str) -> Optional[str]:
-    """
-    Publicly exposes date string normalization logic. Resolves day-first vs month-first 
-    ambiguity based on the configuration context. Returns ISO format string.
-    """
+    """Resolves day-first vs month-first ambiguity based on configuration. Returns ISO format."""
     m = _SLASH_DATE_PATTERN.search(to_ascii_digits(raw_text))
     if not m:
         return None
@@ -104,13 +101,6 @@ def normalize_slash_date(raw_text: str) -> Optional[str]:
         return f"{g3}-{g1.zfill(2)}-{g2.zfill(2)}"
     return None
 
-
-# ---------------------------------------------------------------------------
-# Per-type extractors. Each scans `text` once and returns every match as an
-# ExtractedEntity, in document order. These are the functions extract_all()
-# was calling before it regressed to a stub - the compiled patterns above
-# were already here and unused.
-# ---------------------------------------------------------------------------
 
 def extract_money(text: str) -> List[ExtractedEntity]:
     """MONEY: amount + currency, in any supported order/notation (code, symbol, Arabic word)."""
@@ -150,7 +140,7 @@ def extract_money(text: str) -> List[ExtractedEntity]:
 
 
 def extract_currency(text: str) -> List[ExtractedEntity]:
-    """CURRENCY: a bare, standalone currency code (e.g. a code appearing without an amount nearby)."""
+    """CURRENCY: a bare, standalone currency code."""
     return [
         ExtractedEntity("CURRENCY", m.group(0), m.start(), m.end(), m.group(0))
         for m in _CURRENCY_CODE_PATTERN.finditer(text)
@@ -158,7 +148,7 @@ def extract_currency(text: str) -> List[ExtractedEntity]:
 
 
 def extract_percent(text: str) -> List[ExtractedEntity]:
-    """PERCENT: a bare numeral followed by '%', not already part of a DISCOUNT phrase."""
+    """PERCENT: a bare numeral followed by '%'."""
     entities = []
     for m in _PERCENT_PATTERN.finditer(text):
         norm = normalize_number_string(m.group(1))
@@ -226,13 +216,7 @@ def extract_date(text: str) -> List[ExtractedEntity]:
 
 
 def extract_all(text: str) -> List[ExtractedEntity]:
-    """Runs every per-type extractor over `text` and returns all matches, in document order.
-
-    Overlaps between types (e.g. a MONEY match containing a standalone
-    CURRENCY code) are intentionally left in place here - that's
-    resolve_overlaps()'s job in extractor.py, one layer up, once catalog
-    matches are merged in too.
-    """
+    """Runs every per-type extractor over `text` and returns all matches, in document order."""
     entities: List[ExtractedEntity] = []
     entities.extend(extract_money(text))
     entities.extend(extract_currency(text))
