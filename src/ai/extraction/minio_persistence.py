@@ -4,7 +4,6 @@ Enforces an immutable object-storage archiving layer to record pipeline extracti
 output without modifying relational database schema boundaries. Formats structured 
 JSON records partitioned cleanly by tenant and ingestion job parameters.
 """
-
 import io
 import json
 import uuid
@@ -32,6 +31,13 @@ def _entity_to_dict(entity) -> dict:
 def _row_result_to_dict(result: RowParseResult) -> dict:
     return {
         "typed_fields": result.typed_fields,
+        # Provenance: raw cell text behind each typed_fields entry, keyed
+        # the same way, so a normalized value can always be traced back to
+        # what the source row actually said - previously only the
+        # normalized value was persisted here, which defeated the
+        # traceability requirement (original file -> ... -> normalized
+        # value -> final artifact) at the last hop.
+        "raw_fields": result.raw_fields,
         "field_confidence": result.field_confidence,
         "fallback_entities": [_entity_to_dict(e) for e in result.fallback_entities],
         "unmapped_columns": result.unmapped_columns,
@@ -50,14 +56,12 @@ def build_extraction_document(
     """
     now = datetime.now(timezone.utc).isoformat()
     rows = [_row_result_to_dict(r) for r in row_results]
-
     verified_field_count = sum(
         1 for r in row_results for c in r.field_confidence.values() if c >= 1.0
     )
     estimated_field_count = sum(
         1 for r in row_results for c in r.field_confidence.values() if c < 1.0
     )
-
     return {
         "document_type": "extraction_result",
         "schema_version": 1,
@@ -94,10 +98,8 @@ def upload_extraction_document(
     Guarantees no file clobbering or write-lock contention using unique transaction keys.
     """
     _ensure_bucket(client, bucket)
-
     key = _object_key(tenant_id, ingestion_job_id)
     payload = json.dumps(document, ensure_ascii=False, indent=None).encode("utf-8")
-
     try:
         client.put_object(
             bucket_name=bucket,
@@ -108,5 +110,4 @@ def upload_extraction_document(
         )
     except S3Error as e:
         raise RuntimeError(f"Failed to persist extraction document to MinIO: {e}") from e
-
     return key
