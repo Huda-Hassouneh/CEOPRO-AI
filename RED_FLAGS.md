@@ -210,6 +210,11 @@ is a real data-model difference `forecasting/` currently depends on.
 excluded from this rework by prior instruction, and picking the data source is a real architecture
 call, not a bug fix.
 
+**Addendum, found 2026-08-27 while triaging open PRs**: `Final_schema.sql` also has no `model_versions`
+table (`forecasting/evidence.py` writes to it) — a second, independent structural gap, compounding
+rather than duplicating the `transactions` one above. Whatever gets decided for `transactions` should
+cover `model_versions` too.
+
 Detail: `PENDING_ACTIONS.md` #31.
 
 ---
