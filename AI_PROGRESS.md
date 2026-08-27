@@ -1151,6 +1151,69 @@ was expected, not just hoped for). `flake8`/`py_compile` unaffected.
 **`PENDING_ACTIONS.md` #27 marked ✅ Resolved** — this was the one remaining step blocking that item's
 closure.
 
+## 2026-08-27 — Deep edge-case pass before merge: found and fixed a real RLS bug
+
+Requested explicitly ("review with edge cases and deep testing before the merge") as a follow-up to
+the same day's live-DB verification entry above, which confirmed the four reworked modules run
+correctly but only exercised the happy paths every other integration test already covers. This entry
+targets what that one didn't: tenant-isolation behavior under the actual restricted role, constraint
+edge cases, cross-tenant leakage, boundary conditions, and the real Redis cache path.
+
+**Found a real, serious bug in `Final_schema.sql` itself, not in any AI/ML module** —
+`get_current_tenant()`, the function every RLS policy calls, recurses infinitely and crashes the
+instant a non-superuser role evaluates it with real tenant context set. It's `SECURITY INVOKER`
+(Postgres's default) and its body queries `tenant_users` to confirm active membership; `tenant_users`
+is itself RLS-protected by a policy that calls `get_current_tenant()` again. Every verification this
+session up to this point - including the same-day live-DB entry above - connected as the superuser
+`ceopro_admin`, which bypasses RLS (and therefore never evaluates any policy, including the broken
+one) entirely, so this was invisible until a test connected as the actual restricted `ceopro_app` role
+and set real session variables. Reproduced directly: `psycopg2.errors.StatementTooComplex: stack depth
+limit exceeded` on a plain `SELECT * FROM products` with valid tenant/user context set.
+
+Fixed in `migrations/20260827060000_fix_get_current_tenant_recursion.sql` - marks the function
+`SECURITY DEFINER` (with `SET search_path = public, pg_temp`, standard hardening for that annotation)
+so its internal `tenant_users` lookup runs as the function's owner (a superuser) instead of the calling
+role, bypassing RLS instead of re-entering it. This is the standard, documented Postgres pattern for a
+helper function used inside RLS policies that itself needs to read a protected table. New permanent
+regression suite: `src/ai/tests/test_rls_integration_db.py` (11 tests, connects as `ceopro_app` for
+real - correct per-tenant scoping, fails closed with no context, a revoked membership loses access, a
+user can't claim a tenant they're not a member of, plus the constraint edge cases below). Practical
+significance: RLS as shipped in `Final_schema.sql` would have crashed on first real use the moment
+anything actually connected as a non-superuser role - not just "not wired up yet"
+(`PENDING_ACTIONS.md` #25's already-tracked gap: no service in `docker-compose.yml` connects as
+`ceopro_app` at all today), but broken even once it was. `PENDING_ACTIONS.md` #32.
+
+**Other findings, all confirmed correct or fixed in the same pass**:
+
+- `chk_evidence_shape`/`chk_review_subject_consistency`/`uq_competitor_private` (allows the same
+  competitor name across *different* tenants, only same-tenant duplicates collide) - all verified
+  behaving exactly as designed, now permanent regression tests alongside the RLS ones.
+- **New permanent test** for the trickiest realistic cross-tenant-leak shape: two tenants
+  independently tracking the *same* shared `GLOBAL`-visibility competitor, each with their own price
+  observations. `pricing/data_access.py`'s join chain (`competitor_prices` -> `competitor_product_mappings`
+  -> `tenant_competitors` -> `global_competitors`) stays correctly scoped - confirmed, not assumed.
+  `sentiment/`'s and `mpi/`'s data-access queries reviewed directly for the same class of leak; both
+  already correctly `tenant_id`-scoped on every join (`mpi/data_access.py::load_country_context()`'s
+  COMPETITOR branch already had its own comment documenting exactly this concern from the original
+  rework pass) - no fix needed.
+- `mpi/scoring.py::compare_mpi_results()`'s volume-floor guard had no test for review_count *exactly
+  equal to* the floor, only above/below - added, confirms the `<` comparison (not `<=`) is correct, i.e.
+  the floor itself is comparable, only strictly fewer reviews are refused.
+- `pricing/guardrails.py::apply_margin_guardrail()` with `cost=0`, and
+  `pricing/data_access.py::_representative_name()`'s JSONB fallback for a product name missing the
+  `"en"` key - both reviewed directly, both already handle it correctly, no fix needed.
+- `extraction/catalog_cache.py` exercised against a real Redis container for the first time (every
+  prior test used a `_FakeRedis` stand-in) - full cache-aside cycle (cold path populates + sets a 300s
+  TTL, warm path serves from cache without re-querying, `invalidate()` clears and forces a fresh read)
+  confirmed correct, including a round-trip through Arabic-script catalog names via JSON. No fix needed.
+
+**Testing**: full live-DB suite after all fixes: 49 passed (up from 37 in the same-day earlier entry -
+11 new RLS tests plus 1 new pricing cross-tenant test), only the already-tracked `PENDING_ACTIONS.md`
+#31 forecasting gap remains. Full offline suite: 170 passed (up from 169 - 1 new MPI boundary test), 0
+failed. `flake8`/`py_compile` clean on every new/modified file.
+
+`PENDING_ACTIONS.md` #32 (the RLS bug) and #33 (this pass's summary) added, both resolved/complete.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

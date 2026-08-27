@@ -145,6 +145,29 @@ def test_compare_mpi_results_mentions_both_sides_when_both_are_thin():
     assert "'b'" in comparison.reason
 
 
+def test_compare_mpi_results_exactly_at_volume_floor_is_comparable():
+    """min_volume_for_comparison is a floor, not an exclusive lower bound -
+    review_count == min_volume_for_comparison must pass, only strictly fewer
+    reviews should refuse. (compare_mpi_results uses `<`, not `<=`.)"""
+    at_floor_a = compute_mpi(
+        [
+            ReviewContribution(f"a{i}", sentiment_score=0.5, recency_weight=1.0, reliability_weight=1.0, relevance_weight=1.0)
+            for i in range(10)
+        ],
+        {},
+    )
+    at_floor_b = compute_mpi(
+        [
+            ReviewContribution(f"b{i}", sentiment_score=-0.5, recency_weight=1.0, reliability_weight=1.0, relevance_weight=1.0)
+            for i in range(10)
+        ],
+        {},
+    )
+    comparison = compare_mpi_results(at_floor_a, at_floor_b, min_volume_for_comparison=10)
+    assert comparison.comparable is True
+    assert comparison.difference is not None
+
+
 def test_compare_mpi_results_returns_difference_when_both_sides_sufficient():
     a = compute_mpi(
         [
