@@ -134,6 +134,65 @@ def test_load_competitor_prices_excludes_wrong_currency(conn, seeded_tenant_prod
     assert records == []
 
 
+def test_load_competitor_prices_stays_tenant_scoped_for_a_shared_global_competitor(conn):
+    """
+    global_competitors can be a single shared GLOBAL row that many tenants
+    independently track (visibility='GLOBAL', no added_by_tenant_id) - the
+    trickiest cross-tenant-leak shape, since tenant_competitors/
+    competitor_product_mappings/competitor_prices all key off the same
+    global_competitor_id for two completely different tenants. Confirms the
+    join chain (every join matched on tenant_id, not just the base WHERE)
+    keeps each tenant's own price observations isolated.
+    """
+    tenant_a = _insert_company(conn, "Shared-Competitor Tenant A")
+    tenant_b = _insert_company(conn, "Shared-Competitor Tenant B")
+    product_a = _insert_product(conn, tenant_a, "Product A", 10.00)
+    product_b = _insert_product(conn, tenant_b, "Product B", 10.00)
+
+    shared_competitor_id = str(uuid.uuid4())
+    mapping_a = str(uuid.uuid4())
+    mapping_b = str(uuid.uuid4())
+    # uq_competitor_global requires GLOBAL-visibility names to be unique
+    # across the whole table (it's a shared canonical directory, unlike
+    # PRIVATE names which are only unique per-tenant) - vary the name so
+    # repeat runs against a not-yet-reset database don't collide.
+    competitor_name = f"Shared Global Rival {shared_competitor_id}"
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (global_competitor_id, competitor_name, visibility) VALUES (%s, %s, 'GLOBAL');",
+            (shared_competitor_id, competitor_name),
+        )
+        cursor.execute("INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked) VALUES (%s, %s, TRUE);", (tenant_a, shared_competitor_id))
+        cursor.execute("INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked) VALUES (%s, %s, TRUE);", (tenant_b, shared_competitor_id))
+        cursor.execute(
+            "INSERT INTO competitor_product_mappings (mapping_id, tenant_id, global_competitor_id, product_id, is_active) VALUES (%s, %s, %s, %s, TRUE);",
+            (mapping_a, tenant_a, shared_competitor_id, product_a),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_product_mappings (mapping_id, tenant_id, global_competitor_id, product_id, is_active) VALUES (%s, %s, %s, %s, TRUE);",
+            (mapping_b, tenant_b, shared_competitor_id, product_b),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_prices (tenant_id, mapping_id, scraped_price, currency, is_exact_data, source_status, is_available, observed_at) "
+            "VALUES (%s, %s, 111.11, 'JOD', TRUE, 'ALLOWED', TRUE, %s);",
+            (tenant_a, mapping_a, datetime.now(timezone.utc)),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_prices (tenant_id, mapping_id, scraped_price, currency, is_exact_data, source_status, is_available, observed_at) "
+            "VALUES (%s, %s, 222.22, 'JOD', TRUE, 'ALLOWED', TRUE, %s);",
+            (tenant_b, mapping_b, datetime.now(timezone.utc)),
+        )
+    conn.commit()
+
+    results_a = data_access.load_competitor_prices(conn, tenant_a, product_a, "JOD")
+    results_b = data_access.load_competitor_prices(conn, tenant_b, product_b, "JOD")
+    assert [r["price_found"] for r in results_a] == [111.11]
+    assert [r["price_found"] for r in results_b] == [222.22]
+
+    # cross tenant/product mismatch must return nothing, not tenant_b's row
+    assert data_access.load_competitor_prices(conn, tenant_a, product_b, "JOD") == []
+
+
 def test_load_own_product_excludes_soft_deleted_product(conn, seeded_tenant_product_and_competitor):
     tenant_id, product_id, _ = seeded_tenant_product_and_competitor
     with conn.cursor() as cursor:
