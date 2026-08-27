@@ -1,16 +1,8 @@
-"""
-CEOPRO AI - Tenant Catalog Cache Wrapper (Redis Cache-Aside Scheme).
-"""
 import json
 from typing import List, Optional
-
 CACHE_TTL_SECONDS = 300
-
-
 def _cache_key(tenant_id: str, entity_kind: str) -> str:
     return f"catalog:{tenant_id}:{entity_kind}"
-
-
 def get_known_names(
     redis_client,
     conn,
@@ -31,8 +23,6 @@ def get_known_names(
     names = entity_loaders[entity_kind](conn, tenant_id)
     redis_client.set(key, json.dumps(names), ex=CACHE_TTL_SECONDS)
     return names
-
-
 def invalidate(redis_client, tenant_id: str, entity_kind: Optional[str] = None) -> None:
     if entity_kind is not None:
         redis_client.delete(_cache_key(tenant_id, entity_kind))
