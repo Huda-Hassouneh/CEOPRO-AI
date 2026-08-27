@@ -1,4 +1,11 @@
+"""
+CEOPRO AI - Extraction Catalog Data Access.
+Reads known product/competitor names to match against (read-only, existing tables).
+"""
+
 from typing import List
+
+
 def load_known_product_names(conn, tenant_id: str) -> List[str]:
     """
     products.product_name is JSONB (multilingual, e.g. {"en": "...", "ar": "..."}) -
@@ -18,7 +25,6 @@ def load_known_product_names(conn, tenant_id: str) -> List[str]:
             elif isinstance(product_name, str):
                 names.append(product_name)
         return names
-
 
 
 def load_known_competitor_names(conn, tenant_id: str) -> List[str]:
