@@ -22,14 +22,24 @@ Use these native Docker Compose commands to manage the infrastructure locally:
 - `.env.example`: Secure production-safe template configuration file (Item 1.7).
 - `check_connectivity.py`: Python automation health check confirming real-time connections pass successfully (Item 1.8).
 
-## 4. Run Connectivity Health Check
+## 4. Web Crawling / Market Data Collection
+The standalone scraper service lives in [`src/market_scraper/`](src/market_scraper/README.md).
+It currently crawls the repository's approved `toscrape.com` demo target with robots.txt,
+rate-limiting, validation, deduplication, pagination, normalized JSONL output, and offline tests.
+
+```bash
+python -m pip install -r src/market_scraper/requirements.txt
+python -m scrapy crawl books_to_scrape -a max_pages=1 -O data/market/books-smoke.jsonl:jsonlines
+```
+
+## 5. Run Connectivity Health Check
 To prove real-time access before handing over to Web App and AI teams, run:
 ```bash
 pip install psycopg2-binary redis
 python check_connectivity.py
 ```
 
-## 5. Mock Infrastructure Spin-Up (One-Command Quickstart)
+## 6. Mock Infrastructure Spin-Up (One-Command Quickstart)
 To spin up the entire isolated technical mock environment and seed the data broker streams in one continuous workflow execution, run the following unified command:
 ```powershell
 docker compose up -d; python src/infrastructure/init_broker.py; python src/infrastructure/check_connectivity.py
