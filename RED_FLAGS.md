@@ -143,6 +143,27 @@ Detail: `AI_PROGRESS.md`'s three 2026-08-27 entries.
 
 ---
 
+## 🟡 Medium (a clean `git merge` silently dropped real content)
+
+### Merging `main` into #16 lost a module docstring — with zero conflict markers
+**Found:** 2026-08-27, while rebasing #16/#17 against a moving `main` (PR triage pass). **Status:** ✅ Fixed.
+
+`git merge origin/main` reported one real conflict in `extraction/data_access.py` (resolved correctly).
+A *separate*, non-conflicting hunk in the same file — the module docstring, a few lines above — was
+auto-merged by silently taking `main`'s side, which had dropped that docstring in one of its own
+direct-to-`main` edits. Git's merge algorithm considered this clean (no overlapping changed lines), but
+real content was still lost. The only way this was caught: diffing the branch's pre-merge and
+post-merge state of the file directly, rather than trusting "the merge succeeded with no conflicts" to
+mean nothing changed unexpectedly.
+
+**Why this matters beyond the one file**: "no conflict markers" is not the same guarantee as "nothing
+was silently altered." Any merge that resolves a real conflict in a file also auto-merges every other
+hunk in that file using the same three-way logic, and none of those get a human's eyes by default.
+
+Detail: `PENDING_ACTIONS.md` #34.
+
+---
+
 ## 🟡 Medium (test-only bugs — product code was fine, the tests lied about coverage)
 
 These didn't affect production behavior, but they meant "tests pass" wasn't actually verifying what it
