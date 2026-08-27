@@ -63,8 +63,8 @@ def _insert_review(conn, tenant_id: str, product_id: str, text: str, source_stat
         cursor.execute(
             """
             INSERT INTO reviews
-                (review_id, tenant_id, subject_type, product_id, review_text, review_language, source_status)
-            VALUES (%s, %s, 'PRODUCT', %s, %s, 'en', %s);
+                (review_id, tenant_id, subject_type, product_id, review_text, review_language, source_status, source_platform)
+            VALUES (%s, %s, 'PRODUCT', %s, %s, 'en', %s, 'GOOGLE');
             """,
             (review_id, tenant_id, product_id, text, source_status),
         )

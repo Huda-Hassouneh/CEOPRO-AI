@@ -1095,6 +1095,62 @@ applied to or run against a real Postgres. This is the single most important rem
 any of today's work should be treated as confirmed correct, not just carefully reasoned - flagged
 explicitly here and in `PENDING_ACTIONS.md` #27, not silently glossed over.
 
+## 2026-08-27 — Schema-fork rework verified against a real live database
+
+Closes out the one flag repeated across all three of today's earlier entries and `PENDING_ACTIONS.md`
+#27: everything below was reviewed manually and `sqlparse`-checked, but none of it had actually run
+against a real Postgres, because Docker Desktop was broken in this environment all day. Docker Desktop
+became available mid-session (root cause: zombie/duplicate `Docker Desktop`/`com.docker.backend`
+processes from an earlier crash holding the named pipe in a broken state — killed all docker-related
+processes, `wsl --shutdown`, relaunched clean; confirmed with `docker run --rm hello-world`).
+
+**Verification setup**: three disposable, uniquely-named containers (`aitest_pg_verify_*`,
+`aitest_redis_verify_*`, `aitest_minio_verify_*`) — never touching any long-running dev container.
+`scripts/apply_migrations.py` run against a completely empty database: `Final_schema.sql` + all 11
+migration files applied cleanly, zero errors. Re-run confirmed idempotency (0 new migrations the second
+time) and correct `ceopro_app` password sync from `APP_DB_PASSWORD`.
+
+**The live run immediately paid for itself** — it caught three real bugs that manual review and
+`sqlparse` (which only checks syntax, not runtime behavior) had both missed:
+
+- `evidence_records`'s extension migration only dropped `NOT NULL` on `forecast_id`; `metric_name`,
+  `metric_value_json`, and `contribution_weight` were still `NOT NULL` from `Final_schema.sql`'s
+  original forecast-only definition, so every non-forecasting evidence insert
+  (`sentiment/`/`pricing/`/`mpi/`) failed with `NotNullViolation` until this was fixed in the same
+  migration file (`20260827000000_restore_shared_evidence_architecture.sql`). `PENDING_ACTIONS.md` #28
+  updated with this addendum.
+- Two test-fixture bugs, not product-code bugs: `test_sentiment_integration_db.py`/
+  `test_mpi_integration_db.py`'s review-seeding helpers never set `reviews.source_platform`
+  (`NOT NULL`, unrelated to this rework, always was); `test_pricing_integration_db.py`'s
+  competitor-price-seeding helper inserted a fresh `global_competitors` row on every call instead of
+  reusing one for the same `(tenant_id, competitor_name)`, so any test seeding multiple prices for one
+  competitor hit `uq_competitor_private`. Both fixed. `PENDING_ACTIONS.md` #30.
+
+**Result after fixes**: full live-DB integration suite (`pytest -k integration_db`) for the four
+reworked modules — `sentiment/`, `mpi/`, `pricing/`, `extraction/` — is **fully green: 0 failed, 0
+errors**, run against real tables with real foreign keys, real RLS-relevant roles, and real constraint
+checks, not mocks.
+
+**A genuine, structural gap found in `forecasting/`, out of scope for this rework but too significant
+not to flag immediately**: `Final_schema.sql` has no `transactions` table at all (confirmed against
+all 26 `CREATE TABLE` statements) — `forecasting/data_access.py::load_daily_demand()` cannot run
+against the new canonical schema. Two of its own test fixtures also broke on the now-JSONB
+`products.product_name` (a mechanical, unrelated fix applied: `json.dumps({"en": name})` instead of a
+bare string literal — same fix already applied to every other module's fixtures during this rework),
+but the missing `transactions` table is not mechanical: the closest structural analog in
+`Final_schema.sql` is `invoices`/`invoice_items`, which is a real data-model restructuring (no per-line
+`transaction_date`, no POS/online `sale_source` distinction), not a rename. Not fixed here —
+`forecasting/` was explicitly excluded from this rework by prior instruction, and deciding how it
+should source demand data is a call for whoever owns that architecture, not something to guess at
+unilaterally. Filed as `PENDING_ACTIONS.md` #31, needs a decision.
+
+**Testing**: live-DB integration suite as above. Full offline suite re-run after the fixture fixes:
+still 169 passed, 0 failed (only test **fixtures** changed, not the modules' actual behavior, so this
+was expected, not just hoped for). `flake8`/`py_compile` unaffected.
+
+**`PENDING_ACTIONS.md` #27 marked ✅ Resolved** — this was the one remaining step blocking that item's
+closure.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
