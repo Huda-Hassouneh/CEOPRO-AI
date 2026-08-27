@@ -56,24 +56,50 @@ def _insert_competitor_price(
     """
     Builds the full chain a real price needs: global_competitors ->
     tenant_competitors -> competitor_product_mappings -> competitor_prices.
+
+    Reuses an existing global_competitor/mapping for the same
+    (tenant_id, competitor_name, product_id) instead of inserting a fresh
+    global_competitors row every call - repeated calls with the same
+    competitor_name (e.g. seeding several observed prices for one rival)
+    would otherwise collide with uq_competitor_private.
     """
-    global_competitor_id = str(uuid.uuid4())
-    mapping_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO global_competitors (global_competitor_id, competitor_name, visibility, added_by_tenant_id) "
-            "VALUES (%s, %s, 'PRIVATE', %s);",
-            (global_competitor_id, competitor_name, tenant_id),
+            "SELECT global_competitor_id FROM global_competitors "
+            "WHERE added_by_tenant_id = %s AND LOWER(competitor_name) = LOWER(%s);",
+            (tenant_id, competitor_name),
         )
+        row = cursor.fetchone()
+        if row:
+            global_competitor_id = row[0]
+        else:
+            global_competitor_id = str(uuid.uuid4())
+            cursor.execute(
+                "INSERT INTO global_competitors (global_competitor_id, competitor_name, visibility, added_by_tenant_id) "
+                "VALUES (%s, %s, 'PRIVATE', %s);",
+                (global_competitor_id, competitor_name, tenant_id),
+            )
+            cursor.execute(
+                "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked) VALUES (%s, %s, TRUE);",
+                (tenant_id, global_competitor_id),
+            )
+
         cursor.execute(
-            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked) VALUES (%s, %s, TRUE);",
-            (tenant_id, global_competitor_id),
+            "SELECT mapping_id FROM competitor_product_mappings "
+            "WHERE tenant_id = %s AND global_competitor_id = %s AND product_id = %s;",
+            (tenant_id, global_competitor_id, product_id),
         )
-        cursor.execute(
-            "INSERT INTO competitor_product_mappings (mapping_id, tenant_id, global_competitor_id, product_id, is_active) "
-            "VALUES (%s, %s, %s, %s, TRUE);",
-            (mapping_id, tenant_id, global_competitor_id, product_id),
-        )
+        row = cursor.fetchone()
+        if row:
+            mapping_id = row[0]
+        else:
+            mapping_id = str(uuid.uuid4())
+            cursor.execute(
+                "INSERT INTO competitor_product_mappings (mapping_id, tenant_id, global_competitor_id, product_id, is_active) "
+                "VALUES (%s, %s, %s, %s, TRUE);",
+                (mapping_id, tenant_id, global_competitor_id, product_id),
+            )
+
         cursor.execute(
             "INSERT INTO competitor_prices "
             "(tenant_id, mapping_id, scraped_price, currency, is_exact_data, source_status, is_available, observed_at) "
