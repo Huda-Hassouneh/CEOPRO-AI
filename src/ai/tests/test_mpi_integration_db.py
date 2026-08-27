@@ -82,8 +82,8 @@ def _insert_scored_review(
             """
             INSERT INTO reviews
                 (review_id, tenant_id, subject_type, product_id, competitor_id, review_text,
-                 review_language, review_date, collection_method, source_status)
-            VALUES (%s, %s, %s, %s, %s, 'test review text', 'en', %s, %s, 'ALLOWED');
+                 review_language, review_date, collection_method, source_status, source_platform)
+            VALUES (%s, %s, %s, %s, %s, 'test review text', 'en', %s, %s, 'ALLOWED', 'GOOGLE');
             """,
             (review_id, tenant_id, subject_type, product_id, competitor_id, review_date, collection_method),
         )
