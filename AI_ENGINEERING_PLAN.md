@@ -1,26 +1,22 @@
 # CEOPRO AI — Engineering Plan (AI/ML Track)
 
-> **Editorial note added 2026-08-27, merging this document to `main` for the first time:**
-> this document was written 2026-08-26 against "Version A" (`init_schema.sql`, 21 tables) and
-> describes the schema fork it references (`Version A` vs. the 26-table `Version B`) as a
-> **still-open decision**. That decision has since been made: `Final_schema.sql` (what this
-> document calls Version B) was adopted as canonical (`PENDING_ACTIONS.md` #27), and every
-> AI/ML module below has been reworked against it — see `AI_PROGRESS.md`'s 2026-08-27 entries and
-> [RED_FLAGS.md](RED_FLAGS.md) for what actually changed and what was found along the way. The
-> **"Schema basis" line and every "Version A"/"Version B" reference below are now historical**,
-> not current guidance — kept as-written rather than rewritten, since the reasoning in the rest of
-> this document (functional requirements, use cases, data quality rules, success metrics,
-> architecture, orchestration, LLM/RAG approach) is substantially still valid and this note lets a
-> reader tell old context from current fact without guessing.
-
 **Owner:** AI/ML Engineering
 **Status of this document:** closes the "will provide later" gap `PENDING_ACTIONS.md` #11 flagged —
 `AI_ENGINEERING_PLAN.md` was referenced by `AI_PLAN_AND_CONTRACT_UPDATES.md` and `AI_CONTRACT_CHANGES_AND_CLARIFICATIONS.md`
-but never existed in this repo until now.
-**Grounded in:** `MASTER_SPEC_v4.md` (the real spec, `noorhassouneh-patch-1`), `AI_PLAN_AND_CONTRACT_UPDATES.md`'s
-precedence rule, the actual current state of `src/ai/` (`AI_PROGRESS.md`'s Module status table), and
-open items in `PENDING_ACTIONS.md`. Nothing in this document is invented outputs, KPIs, or
-architecture that don't trace to one of those four sources or to code that actually exists.
+but never existed in this repo until 2026-08-26. **Revalidated and rewritten 2026-08-28** against the
+schema and code actually on `main` today, superseding the original 2026-08-26 draft rather than just
+annotating it — the draft was written against a schema (`init_schema.sql`, called "Version A" below at
+the time) that has since been formally retired; every section below reflects `Final_schema.sql` (26
+tables) and the modules as reworked against it, cross-checked line-by-line against live-DB test runs,
+not re-derived from the spec alone. Historical note, kept for the record: the original draft framed
+the 21-table/26-table schema fork as a still-open decision — that decision was made 2026-08-27
+(`Final_schema.sql` adopted as canonical, `PENDING_ACTIONS.md` #27) after this document was first
+written, which is why a rewrite was needed rather than a patch.
+**Grounded in:** `MASTER_SPEC_v4.md` (the real spec), `AI_PLAN_AND_CONTRACT_UPDATES.md`'s precedence
+rule, the actual current state of `src/ai/` (`AI_PROGRESS.md`'s Module status table and its five
+2026-08-27 entries), `Final_schema.sql` itself, and open items in `PENDING_ACTIONS.md`/`RED_FLAGS.md`.
+Nothing in this document is invented outputs, KPIs, or architecture that don't trace to one of those
+sources or to code that actually exists and has been run against a real database.
 
 **Explicit exclusions (per instruction):** this document does not cover Demand Forecasting
 (`src/ai/forecasting/`, spec §18) or "AI Advisor." The latter term doesn't appear anywhere in
@@ -30,12 +26,11 @@ in scope below (item 11 of the originating task list asks for RAG architecture),
 treated here as a distinct, not-yet-specified feature and nothing is built or written under that name.
 If it refers to something specific, flag it and this document gets a follow-up entry.
 
-**Schema basis:** validated against Version A of `init_schema.sql` (21 tables, current default on
-every merged AI/ML PR) — per `AI_PLAN_AND_CONTRACT_UPDATES.md`'s own precedence rule, *"the
-implemented schema/code wins for anything already built."* `main`'s unreviewed 26-table rewrite
-(Version B) is a separate, still-open decision (`PENDING_ACTIONS.md` #29/#30, comparison published
-as the [Schema Fork Ledger](https://claude.ai/code/artifact/e96b0b60-3875-4496-b73c-5131e2d5861e)) —
-not adopted here.
+**Schema basis:** `Final_schema.sql` (26 tables), adopted as canonical 2026-08-27
+(`PENDING_ACTIONS.md` #27) and confirmed by the project owner directly. Every module in scope below
+has been reworked against it and verified with a live-DB integration suite (49 tests passing against
+a real disposable Postgres, `AI_PROGRESS.md`'s 2026-08-27/2026-08-28 entries) — this section is a
+genuine re-validation, not a restatement of what the code was originally built against.
 
 ---
 
@@ -71,7 +66,7 @@ BI platform, not a generic analytics tool:
 
 - **"Is my price competitive, and can I raise it without losing margin?"** — `pricing/` compares a
   tenant's price against matched same-currency competitors, bounds any suggested change against both
-  a price-change guardrail and (once `products.cost` is set) a margin floor, and traces every
+  a price-change guardrail and (once `products.cost_price` is set) a margin floor, and traces every
   suggestion back to the competitor rows that justified it. Business value: fewer manual price checks,
   a documented reason for every price change (spec §27 explainability).
 - **"What do customers actually think of this product vs. the competitor's?"** — `sentiment/` +
@@ -92,8 +87,9 @@ Per `src/infrastructure/DATA_OWNERSHIP_AND_CONTRACTS.md`'s ownership matrix and 
 
 | Category | Tables | Owner | Real data status |
 |---|---|---|---|
-| Business (core) | `companies`, `products`, `inventory`, `transactions` | Backend/platform | ✅ Real, ingested via Phase 1 |
-| Operational — pricing | `competitors`, `competitor_prices` | AI Market Scraper Service (named, not built) | 🔴 Empty (`PENDING_ACTIONS.md` #5) |
+| Business (core) | `companies`, `products`, `inventory` | Backend/platform | ✅ Real, ingested via Phase 1 |
+| Business (core) — **gap** | `transactions` | Backend/platform | 🔴 Table doesn't exist in `Final_schema.sql` at all — confirmed against all 26 `CREATE TABLE` statements. This isn't a data gap, it's a schema gap: `forecasting/data_access.py::load_daily_demand()` reads from it and cannot run against the current canonical schema. Tracked in `PENDING_ACTIONS.md` #31, needs an explicit decision (extend the schema to bring it back, or rework `forecasting/` onto `invoices`/`invoice_items` instead) — out of this document's scope (Demand Forecasting is explicitly excluded above), but too significant not to name here since section 3 would otherwise silently misstate it as ready. |
+| Operational — pricing | `global_competitors`, `tenant_competitors`, `competitor_product_mappings`, `competitor_prices` | AI Market Scraper Service (named, not built) | 🔴 Empty (`PENDING_ACTIONS.md` #5). Table shape changed from the original draft: competitors are no longer a single flat table — a global catalog (`global_competitors`) a tenant opts into tracking (`tenant_competitors`), mapped to a specific product (`competitor_product_mappings`) before a `competitor_prices` row can reference it. |
 | Operational — sentiment | `reviews` | Unassigned — no owner in the contract matrix at all | 🔴 Empty (`PENDING_ACTIONS.md` #18) |
 | Operational — market intel | `news_record`, `social_mention` | Same gap as `reviews` — no named owner | 🔴 Empty |
 | Knowledge | `rag_documents_metadata` + MinIO `ceopro-rag-knowledge` | Tenant-uploaded (backend) | 🟡 Seed data only |
@@ -155,14 +151,36 @@ sense) — this is real, separate work, not something this document fabricates n
 
 ## 6. AI Data Availability, Access Permissions, and Integration Readiness
 
-Access: `src/ai/` reads via `psycopg2` connections; as of `PENDING_ACTIONS.md` #25 (resolved), the
-correct restricted role for this is the non-superuser `ceopro_app` (RLS-enforced), not `ceopro_admin`.
+Access: `src/ai/` reads via `psycopg2` connections. The RLS/role situation is more nuanced than a
+single resolved/unresolved status, and worth stating precisely rather than glossing over:
+
+- A non-superuser `ceopro_app` role exists (`migrations/20260827000200_add_app_role.sql`), with its
+  password synced out-of-band from `APP_DB_PASSWORD`.
+- Its RLS policies are now genuinely correct and verified end-to-end (`PENDING_ACTIONS.md` #32) —
+  `get_current_tenant()` (every policy's tenant check) had an infinite-recursion bug that would have
+  crashed on first real use under a non-superuser role; fixed and covered by 11 permanent regression
+  tests connecting as `ceopro_app` for real.
+- **But nothing actually connects as `ceopro_app` yet.** Every DB-touching codepath that exists
+  today — `docker-compose.yml`'s only service definition that sets `DATABASE_URL`
+  (`migrate`, correctly using the superuser for migrations) plus any `src/ai/` code reading that same
+  env var — authenticates as `ceopro_admin`, a genuine Postgres superuser that unconditionally
+  bypasses RLS regardless of policy correctness. No code anywhere calls `SET`/`set_config` for
+  `app.current_tenant_id`/`app.current_user_id`. In practice, RLS provides **zero** isolation in the
+  currently-deployed system, not because the policies are wrong (they're now fixed and tested) but
+  because of which role actually connects (`PENDING_ACTIONS.md` #2, `RED_FLAGS.md`'s 🔴 Critical
+  section). Closing this needs a real service that connects as `ceopro_app` and sets that session
+  context per request — there is no `ai`/`backend` service in `docker-compose.yml` yet at all
+  (`PENDING_ACTIONS.md` #8) — not a schema or policy change.
+
 No `src/ai/` code currently constructs its own MinIO client for `rag/` — callers must inject one
 (established convention, see `src/ai/README.md`).
 
 Integration readiness by source, restating item 3 with an explicit readiness verdict:
 
-- `transactions`/`products`/`inventory` — ✅ ready, real data flowing since Phase 1.
+- `products`/`inventory` — ✅ ready, real data flowing since Phase 1.
+- `transactions` — 🔴 not ready, and not just a data gap: the table doesn't exist in `Final_schema.sql`
+  at all (see item 3). Blocks Demand Forecasting entirely, though that module is out of this
+  document's scope.
 - `competitor_prices` — 🔴 not ready. Table and RLS policy exist; no producer. Blocks Phase 5's
   recommendation path and all of Phase 6 (Competitor Ranking).
 - `reviews` — 🔴 not ready. Same situation, and per item 3, no owner is even assigned yet.
@@ -172,31 +190,57 @@ Integration readiness by source, restating item 3 with an explicit readiness ver
 
 Net: of the five modules in scope for this document, **two (`pricing/`, and half of Phase 4) are
 integration-ready in code but not in data.** This is the single largest gap between "built" and
-"delivering real business value" for this track right now — not a code problem.
+"delivering real business value" for this track right now — not a code problem. Separately, the RLS
+gap above means even the modules that *are* data-ready aren't yet running behind real tenant
+isolation in production — a security posture gap, not a data or code-correctness one.
 
 ## 7. Database Schema Validation Against AI Inputs, Outputs, and Traceability
 
-Validated against Version A (see header). Every table this track's built modules read from or write
-to exists with the expected shape:
+Validated against `Final_schema.sql` (26 tables), the now-canonical schema — not the original draft's
+Version A, and not by re-reading the SQL alone: every claim below is confirmed by a live-DB
+integration suite actually running against a real disposable Postgres with this exact schema and its
+11 migrations applied (`AI_PROGRESS.md`'s 2026-08-27/2026-08-28 entries; 49 live-DB tests passing).
 
-- **Reads:** `products`, `competitors`, `competitor_prices`, `reviews`, `news_record`,
-  `social_mention`, `currency_rates`, `rag_documents_metadata` — all present, columns match what
-  every `data_access.py` in `src/ai/` queries (confirmed by the live-DB integration test suite passing
-  against a real disposable Postgres running this exact schema).
+- **Reads:** `products` (note: `product_name` is JSONB, multilingual — every `data_access.py` was
+  reworked for this), `global_competitors`/`tenant_competitors`/`competitor_product_mappings` (the
+  competitor model was restructured from a single flat table into this three-table shape — a
+  tenant-scoped mapping, not a rename), `competitor_prices`, `reviews` (restored `subject_type`/
+  `source_status`/`competitor_id` columns the schema fork had dropped), `news_record`,
+  `social_mention`, `currency_rates` (column names changed: `from_currency`/`to_currency`/
+  `exchange_rate`/`last_fetched`, one row per currency pair rather than a history), `rag_documents_metadata`
+  — all present, columns match what every `data_access.py` in `src/ai/` queries.
 - **Writes (this track's owned tables per `DATA_OWNERSHIP_AND_CONTRACTS.md`):** `evidence_records`,
   `sentiment_results`, `extracted_entity`, `recommendation_outcomes` — present, correct FKs
-  (`tenant_id → companies`, category-specific FKs like `sentiment_results.review_id → reviews`).
+  (`tenant_id → companies`, category-specific FKs like `sentiment_results.review_id → reviews`), all
+  following `Final_schema.sql`'s own tenant-isolated composite-FK convention (a
+  `UNIQUE(tenant_id, X)` perimeter constraint backing every cross-table FK, so a join can't silently
+  cross tenants even before Row-Level Security is considered).
+- **`evidence_records` needed a real schema fix, not just validation**: as originally defined in
+  `Final_schema.sql` it was forecast-only (`forecast_id UUID NOT NULL`, no general-purpose columns) —
+  structurally impossible for `pricing/`/`sentiment/`/`mpi/`/`extraction/` to write to, breaking
+  spec §22's "one consistent evidence architecture" requirement outright. Fixed by extending the table
+  (`forecast_id` made nullable, `category`/`source_module`/`explanation_text`/etc. added back, a
+  `chk_evidence_shape` constraint requires one shape or the other, never a half-empty row) rather than
+  forking a second evidence table. `PENDING_ACTIONS.md` #28.
 - **Traceability (spec §22):** every `evidence_records` row this track writes carries
   `source_record_ids` (JSONB) pointing back to the specific rows that produced it — verified in
   integration tests, not just asserted in code.
-- **Gaps found and already tracked:** `model_versions` — the table this track needs for the excluded
-  Demand Forecasting module's own artifact tracking — exists in Version A but was silently dropped in
-  Version B with no replacement (Schema Fork Ledger). Not a gap in Version A itself, but a live risk
-  if Version B is ever adopted without addressing it. `products.cost` was a real gap, resolved
-  (`PENDING_ACTIONS.md` #14, margin guardrail now functional).
+- **Row-Level Security, part of the traceability/isolation guarantee, not a separate concern:** every
+  tenant-scoped table has `FORCE ROW LEVEL SECURITY` plus a policy keyed on `get_current_tenant()`.
+  That function itself had a real bug — infinite recursion under a non-superuser role, since fixed
+  and verified (`PENDING_ACTIONS.md` #32) — but see item 6 above: the policies being correct doesn't
+  mean isolation is active in production yet, since nothing currently connects as the restricted role.
+- **Confirmed gaps, not hypothetical ones:** `model_versions` — the table Demand Forecasting's own
+  artifact tracking needs — **does not exist in `Final_schema.sql`**, confirmed directly (not "a risk
+  if adopted" — it *is* adopted, and the table genuinely isn't there). Same situation as `transactions`
+  (item 3): both are real, structural gaps for the excluded Demand Forecasting module, not something
+  this document's in-scope modules hit. `products.cost` from the original draft is `products.cost_price`
+  in `Final_schema.sql` — present, and `pricing/guardrails.py`'s margin guardrail already uses it.
 
-Nothing in this section required a schema *change* — Version A already supports every AI
-input/output/traceability need for the modules in scope.
+Every input/output/traceability need for the five modules actually in scope here is met by
+`Final_schema.sql` as it stands today, after the `evidence_records` extension above — that extension
+was the one schema change this validation required, and it's already landed and tested, not still
+open.
 
 ## 8. MVP AI Architecture & Component Interfaces
 
@@ -217,13 +261,33 @@ Component interface convention: every `pipeline.py` entry point takes `(conn, te
 either returns a result dict (`{"status": ..., ...}`) or persists directly and returns an id/count —
 never both a live DB write and an unrelated side effect in the same call. `conn` is always injected
 by the caller (a consumer, a test, or a future API layer) — no module opens its own connection except
-`forecasting/consumer.py` (excluded), which is why `src/ai/db.py`'s `set_tenant_context()` is the only
-RLS-context call site outside that one file.
+`forecasting/consumer.py` (excluded).
 
-Cross-cutting shared components (not duplicated per module, per spec §22/§23's explicit "one
-consistent" requirement):
-- `forecasting/evidence.py::insert_evidence_record()` — reused directly by `pricing/`, `sentiment/`,
-  `extraction/` (indirectly), and `mpi/` rather than five separate evidence-writing implementations.
+**Correction from the original draft:** an earlier version of this document described a
+`src/ai/db.py::set_tenant_context()` helper as the established RLS-context call site,
+called from `forecasting/consumer.py`. That file was never actually merged to `main` — it only ever
+existed on the since-closed PR #15, and `forecasting/consumer.py` as it stands today calls no such
+function (confirmed directly: zero references to `set_tenant_context`/`set_config`/
+`app.current_tenant_id` anywhere in that file). This document should not have stated it as built —
+see item 6 above for the accurate, current state: no code anywhere in `src/ai/` sets RLS session
+context today. PR #15's version of that helper is recorded as a starting point in
+`PENDING_ACTIONS.md` #2, not as something already in place.
+
+Cross-cutting components, corrected against the actual current code (a claim worth verifying
+precisely, not assuming, given the pattern of stale claims already found and fixed elsewhere in this
+document):
+- **Only `pricing/` actually reuses `forecasting/evidence.py::insert_evidence_record()` directly**
+  (`from src.ai.forecasting.evidence import insert_evidence_record`, re-exported for its own callers).
+  `sentiment/evidence.py` and `mpi/evidence.py` each define their **own** `insert_evidence_record()` —
+  parallel implementations following the same shape (same columns, same `chk_evidence_shape`
+  constraint satisfied the same way), not literal code reuse. `extraction/evidence.py` writes through
+  `insert_extracted_entities()` instead — a genuinely different shape (one call writes many entity
+  rows, not one evidence summary), not a variant of the same function at all.
+- What *is* genuinely shared, per spec §22/§23's "one consistent" requirement, is the **shape**
+  every evidence write follows (the same columns, the same `chk_evidence_shape`-satisfying pattern,
+  the same `source_record_ids` traceability convention) — not one single reused function across all
+  five modules. Worth finalizing as literal shared code, not just a shared shape, if that consistency
+  is meant to be structurally enforced rather than convention-enforced.
 - Cold-start policy — each module has its own `cold_start.py`, but all follow the same
   continuous-score-plus-discrete-flag shape established first in `sentiment/`.
 
@@ -243,8 +307,11 @@ Redis Streams (`ceopro:stream:*`) is the established inter-service transport. Cu
 
 **This is the concrete orchestration gap to close** for a real MVP: four modules' worth of event
 contracts (topic name, payload shape, consumer group) aren't defined anywhere yet. Proposed shape,
-mirroring `forecasting/consumer.py`'s already-proven pattern exactly (one persistent connection,
-`set_tenant_context()` per message, ack-after-success):
+mirroring `forecasting/consumer.py`'s already-proven pattern (one persistent connection opened in
+`listen()`, `xreadgroup`/`xack` ack-after-success) — **plus** the RLS session-context call that
+pattern is still missing today (item 6: `forecasting/consumer.py` itself sets no
+`app.current_tenant_id`/`app.current_user_id` currently, confirmed directly — any new consumer built
+from this pattern should add that call, not copy its absence):
 
 | Proposed topic | Payload | Triggers |
 |---|---|---|
@@ -315,8 +382,12 @@ final answer.
 FAISS index from scratch on every call, fetching and re-chunking/re-embedding every document from
 MinIO each time — correct, but doesn't scale past a small per-tenant document count (`src/ai/README.md`
 already flags this as "a concrete argument for the pgvector ask," not a workaround). `rag_document_chunks`
-(the pgvector-backed persistence table) exists in Version A's schema but `rag/pipeline.py` doesn't
-write to it — chunks/embeddings are computed in-memory only. **Recommended approach to finalize:**
+(the persistence table) exists in `Final_schema.sql`, but its `embedding` column and the `vector`
+Postgres extension didn't — a real gap found and fixed during the schema-fork rework (added via
+`migrations/20260827000100_add_rag_embedding_column.sql`, sized at 384 dimensions, confirmed
+empirically against the actual production embedding model rather than assumed). The column existing
+now doesn't close this item, though — `rag/pipeline.py` still doesn't write to it; chunks/embeddings
+are still computed in-memory only on every call. **Recommended approach to finalize:**
 persist chunks + embeddings to `rag_document_chunks` on ingestion (`ingest_pending_documents()`),
 switch `build_hybrid_index()`/`retrieve_hybrid()` to read from there instead of recomputing from
 MinIO on every call, keep FAISS in-memory as the actual search structure (Postgres/pgvector as the
@@ -331,26 +402,68 @@ answer validation. None of this is implementable without item 10's LLM decision 
 
 ## 12. AI Development Dataset
 
-See the separate implementation entry in `AI_PROGRESS.md` (this document is grounding/planning, not
-where code changes get logged) — `src/infrastructure/database/seed_demo_data.py` extended to seed
-`competitors`, `competitor_prices`, `reviews`, `news_record`, and `social_mention` (all previously
-seeded with zero rows, per item 3/6 above). **Written but not yet validated**: Docker was unavailable
-in this environment, so the extended seeder has not actually been run against a live database, and no
-module's real pipeline has been confirmed to produce non-`UNKNOWN` output against it yet — that
-confirmation is a required follow-up before this item is genuinely done, not a formality.
+**Correction from the original draft:** it described `seed_demo_data.py` as extended to seed
+`competitors`/`competitor_prices`/`reviews`/`news_record`/`social_mention`. That extension was written
+on PR #15, which was never merged (only this document was extracted from it, `PENDING_ACTIONS.md`
+#12) — the actual `seed_demo_data.py` on `main` today is unchanged from before the schema-fork
+rework: it seeds `companies`/`users`/`products`/`inventory`/`transactions`/`demand_forecasts`/
+`currency_rates`/`rag_documents_metadata`/`rag_document_chunks` only. None of `pricing/`'s,
+`sentiment/`'s, `mpi/`'s, or `extraction/`'s own tables (`competitor_prices`, `reviews`, `news_record`,
+`social_mention`) get seeded at all, and — separately, confirmed directly — **this seeder would crash
+against `Final_schema.sql` today**: it `INSERT`s into `transactions`, a table that doesn't exist in
+the canonical schema at all (item 3/7's already-tracked gap). This isn't a new problem this document
+introduces, but the original draft's claim that the extension existed and just needed validation was
+inaccurate — the honest state is: the seeder is stale, untouched by the schema-fork rework (it's an
+infra file, outside this track's boundary, `src/ai/README.md`), and doesn't cover this track's own
+data needs even before considering whether it runs at all. Extending and fixing it is real, separate
+work, correctly scoped to whoever owns `seed_demo_data.py` per `PENDING_ACTIONS.md`'s convention, not
+something to claim as done in a planning document.
+
+Each of this track's four in-scope modules (`pricing/`, `sentiment/`, `mpi/`, `extraction/`) *does*
+have its own live-DB integration test suite that seeds exactly the rows it needs directly in the test
+itself (49 tests passing against a real disposable Postgres, `AI_PROGRESS.md`'s 2026-08-27/2026-08-28
+entries) — that's real validation of the code paths, just not a shared, reusable demo dataset a human
+could explore interactively the way `seed_demo_data.py` is meant to provide.
 
 ---
 
 ## Summary: what's actually open after this document
 
+**Resolved since the original 2026-08-26 draft** (kept here for the record, not as open items):
+the Version A/B schema fork (item 7's basis) — `Final_schema.sql` adopted as canonical
+(`PENDING_ACTIONS.md` #27); the `evidence_records` structural gap blocking 4 of 5 modules from
+writing evidence at all (`PENDING_ACTIONS.md` #28); `get_current_tenant()`'s infinite-recursion bug,
+which would have crashed every RLS-scoped query the instant a non-superuser role was actually used
+(`PENDING_ACTIONS.md` #32); `products.cost`/margin guardrail (now `products.cost_price`, functional).
+
+**Genuinely still open:**
+
 1. A labeled evaluation set per model family (item 5) — needed for real §25 metrics, not fabricable.
 2. Real data for `competitor_prices`/`reviews`/`news_record`/`social_mention` (item 3/6) — this
-   track's seed data (item 12) validates the code path, it isn't a substitute for production data.
+   track's own live-DB integration tests validate the code paths against seeded rows, but that isn't a
+   substitute for production data, and item 12's seed-data extension never actually landed (see below).
 3. Four missing event contracts + consumers (item 9) — infra provisioning + real consumer classes.
 4. The Arabic/English LLM evaluation set + final model selection (item 10).
 5. Everything past retrieval in the RAG pipeline (item 11) — blocked on #4.
-6. The Version A/B schema fork (item 7's basis) — still awaiting an explicit decision,
-   `PENDING_ACTIONS.md` #29/#30.
-7. Item 12's seed data was written but never run — Docker was unavailable in this environment. Needs
-   a live-DB pass confirming `pricing/`/`sentiment/`/`mpi/`/`extraction/` actually produce non-`UNKNOWN`
-   output against it before this item counts as verified, not just implemented.
+6. **RLS is policy-correct but not operationally active** (item 6) — the non-superuser `ceopro_app`
+   role and its policies now work correctly, but nothing in the deployed system connects as that role
+   or sets tenant session context, so production isolation today is still zero, for an operational
+   reason (which role connects) rather than a policy-correctness one. Needs a real service wired to
+   connect as `ceopro_app` and set `app.current_tenant_id`/`app.current_user_id` per request —
+   `PENDING_ACTIONS.md` #2.
+7. Two schema gaps confirmed real, not hypothetical, both blocking the excluded Demand Forecasting
+   module specifically: `transactions` and `model_versions` don't exist in `Final_schema.sql` at all
+   (`PENDING_ACTIONS.md` #31). Not this document's modules' problem directly, but `seed_demo_data.py`
+   (item 12) is broken by the same gap — it `INSERT`s into `transactions`.
+8. `seed_demo_data.py`'s extension to cover this track's own tables (`competitors`/`reviews`/etc.)
+   was written on the now-closed PR #15 but never merged — item 12's original claim that it existed
+   and just needed a live-DB run was inaccurate. The seeder on `main` today is unextended and, per #7
+   above, would crash against `Final_schema.sql` regardless. Real, separate follow-up work, correctly
+   outside this track's boundary (`seed_demo_data.py` is an infra file).
+9. The Universal Import Engine (`ingestion_pipeline.py`, all 5 `extraction/adapters/` files,
+   `row_parsing.py`, `template_detection.py`, `locale_config.py`, `minio_persistence.py` — spec §12,
+   not covered elsewhere in this document since it grew independently of this track's five modules) —
+   largely unverified. A 2026-08-28 QA pass added real test coverage to 3 of ~10 files in this
+   subsystem and found genuine bugs in 2 of them (silently degraded extraction quality, not crashes) —
+   `RED_FLAGS.md`'s 🟠 High section, `PENDING_ACTIONS.md` #37. The rest of this subsystem should be
+   treated as unverified, not assumed correct because nothing has crashed in normal use.
