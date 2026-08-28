@@ -32,3 +32,8 @@ pytest>=7.4,<8.0
 # every extraction of a PDF/XLSX source failed with ModuleNotFoundError.
 pdfplumber>=0.11,<0.12
 openpyxl>=3.1,<4.0
+# transformers.Trainer/TrainingArguments (sentiment/finetune.py) hard-require
+# this - confirmed directly: without it, Trainer() raises ImportError at
+# construction time ("Using the Trainer with PyTorch requires accelerate>=1.1.0").
+# Not needed by model.py's classify() (plain inference, no Trainer involved).
+accelerate>=1.1.0,<2.0
