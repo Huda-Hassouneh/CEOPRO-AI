@@ -7,6 +7,7 @@ independent of the real (opt-in, network-downloading) model - the real
 model's own correctness is covered separately in test_sentiment_model_real.py.
 """
 
+import json
 import os
 import uuid
 from unittest.mock import patch
@@ -47,9 +48,9 @@ def seeded_tenant_and_product(conn):
         cursor.execute(
             """
             INSERT INTO products (product_id, tenant_id, product_name, current_price, currency)
-            VALUES (%s, %s, 'Sunscreen SPF 50', 20.00, 'JOD');
+            VALUES (%s, %s, %s, 20.00, 'JOD');
             """,
-            (product_id, tenant_id),
+            (product_id, tenant_id, json.dumps({"en": "Sunscreen SPF 50"})),
         )
     conn.commit()
 
@@ -62,8 +63,8 @@ def _insert_review(conn, tenant_id: str, product_id: str, text: str, source_stat
         cursor.execute(
             """
             INSERT INTO reviews
-                (review_id, tenant_id, subject_type, product_id, review_text, review_language, source_status)
-            VALUES (%s, %s, 'PRODUCT', %s, %s, 'en', %s);
+                (review_id, tenant_id, subject_type, product_id, review_text, review_language, source_status, source_platform)
+            VALUES (%s, %s, 'PRODUCT', %s, %s, 'en', %s, 'GOOGLE');
             """,
             (review_id, tenant_id, product_id, text, source_status),
         )
