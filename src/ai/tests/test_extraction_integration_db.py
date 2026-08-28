@@ -292,6 +292,51 @@ def test_extract_and_store_social_mentions_end_to_end_against_real_db(conn, seed
     assert "COMPETITOR" in entity_types  # "Rival Pharmacy", the seeded tenant's known competitor
 
 
+def test_a_record_whose_entity_value_is_rejected_by_the_db_does_not_poison_the_rest_of_the_batch(
+    conn, seeded_tenant
+):
+    """
+    extracted_entity.entity_value is VARCHAR(512). A catalog match on a product
+    name longer than that (a real possibility - long product/competitor names)
+    fails the INSERT at the database level, which aborts the transaction. Before
+    pipeline.py wrapped each record's DB work in a SAVEPOINT, this poisoned the
+    connection: the except block's own "mark this record Failed" recovery write
+    then also failed, an uncaught exception that crashed the whole function and
+    left every other record in the batch - including perfectly valid ones -
+    stuck at 'Pending' forever. Reproduced directly before the fix.
+    """
+    tenant_id, _, _ = seeded_tenant
+    long_name = "A" + "b" * 520  # 521 chars, over the VARCHAR(512) limit
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE products SET product_name = %s WHERE tenant_id = %s;",
+            (json.dumps({"en": long_name}), tenant_id),
+        )
+        bad_news_id = str(uuid.uuid4())
+        good_news_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO news_record (news_id, tenant_id, source_url, headline, body_text) "
+            "VALUES (%s, %s, 'https://example.com/a', 'h', %s);",
+            (bad_news_id, tenant_id, long_name),
+        )
+        cursor.execute(
+            "INSERT INTO news_record (news_id, tenant_id, source_url, headline, body_text) "
+            "VALUES (%s, %s, 'https://example.com/b', 'h', 'A perfectly normal news body, nothing wrong here.');",
+            (good_news_id, tenant_id),
+        )
+    conn.commit()
+
+    processed_count = pipeline.extract_and_store_news_records(conn, tenant_id, redis_client=_FakeRedis())
+
+    assert processed_count == 1  # only the good record counts as processed
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT news_id, extraction_status FROM news_record WHERE tenant_id = %s;", (tenant_id,))
+        statuses = dict(cursor.fetchall())
+    assert statuses[bad_news_id] == "Failed"
+    assert statuses[good_news_id] == "Processed"  # must not be left stranded at 'Pending' by a crash
+
+
 def test_extract_and_store_news_records_without_redis_client_still_runs_regex_tier(
     conn, seeded_tenant, seeded_news_record
 ):
