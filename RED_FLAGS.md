@@ -192,25 +192,64 @@ matching the confirmed deployment target.
 Detail: `PENDING_ACTIONS.md` #37.
 
 ### A ~700-line subsystem (the Universal Import Engine) is still largely untested
-**Found:** 2026-08-28, post-merge QA pass. **Status:** ⚪ Partially addressed — 3 of ~10 files now
-have real coverage (and 2 of those 3 had real bugs), the rest remain unverified.
+**Found:** 2026-08-28, post-merge QA pass. **Status:** ✅ Largely resolved 2026-08-28 (same day, follow-up
+mission) — every file this entry named now has real test coverage; see the two entries below for what
+that coverage found.
 
 `ingestion_pipeline.py`, all 5 `extraction/adapters/` files (csv/xlsx/pdf/db/api), `row_parsing.py`,
 `template_detection.py`, `locale_config.py`, and `minio_persistence.py` — main's independently-grown
 "Universal Import Engine" (spec §12) — had **zero** automated test coverage anywhere in the repo
 before this pass, confirmed by grepping every test file for each module's name. This pass added real
 coverage for `template_detection.py`, `row_parsing.py`, and `locale_config.py` — and found genuine
-bugs in the first two, a strong signal the rest of this subsystem hasn't actually been verified
-either, just assumed fine because nothing crashed in normal use. `ingestion_pipeline.py`'s
-DB-touching paths and `minio_persistence.py`'s actual MinIO upload call were smoke-tested manually
-(dry-run mode, a hand-built document) and found to work, but neither has a permanent regression test.
-All 5 adapters remain completely unchecked by this pass beyond one manual CSV smoke test.
+bugs in the first two, a strong signal the rest of this subsystem hadn't actually been verified
+either, just assumed fine because nothing crashed in normal use. That signal held: the same-day
+follow-up pass below found the subsystem's adapters had **no caller anywhere in the repo at all**, and
+a real transaction-poisoning bug in `ingestion_pipeline.py`'s DB writes. `minio_persistence.py`'s
+document-building logic remains checked only by manual smoke test, not a permanent regression test —
+the one piece of this subsystem still without real coverage.
 
 **Not a red flag about correctness specifically** — everything checked so far either works or was
 fixed — **it's a red flag about confidence**: this subsystem's actual reliability is currently
 unknown, not confirmed-good, for most of its surface area.
 
 Detail: `PENDING_ACTIONS.md` #37.
+
+### "Detect file type" (spec §12, explicit) had no implementation — 5 adapters, zero callers
+**Found:** 2026-08-28, building out Document Ingestion & Validation. **Status:** ✅ Fixed, regression-tested.
+
+None of `extraction/adapters/`'s 5 files (csv/xlsx/pdf/db/api) had a single caller anywhere in the
+repo, confirmed by grepping the whole codebase for each adapter's function names. Every adapter was
+individually correct — each had just gained real test coverage confirming that — but completely
+unreachable: nothing decided which adapter a real uploaded file should go through, so an actual
+upload had no path into the pipeline at all despite the adapters existing and working. Not a subtle
+bug — a required pipeline stage (spec §12: *"Receive a file. Detect file type."*) simply had zero
+implementation.
+
+**Fix:** `extraction/file_dispatch.py` (new) — detects the file extension and dispatches to the 3
+file-based adapters (csv/xlsx/pdf; db/api are invoked directly by a caller holding a live
+connection/fetch callback, not file-type dispatched). 16 new tests across the dispatcher and the
+adapters it wires up.
+
+Detail: `PENDING_ACTIONS.md` #38.
+
+### A single bad row could silently break DB writes for the rest of an entire file
+**Found:** 2026-08-28, live-DB testing while building the "Validate values" step. **Status:** ✅ Fixed, regression-tested.
+
+A row whose value Postgres genuinely can't store — reproduced directly with a NUL byte in a cell,
+`psycopg2.errors.UntranslatableCharacter`, a hard Postgres/JSONB limitation with no application-level
+fix that preserves the raw value — left `ingestion_pipeline.py`'s database connection permanently
+transaction-aborted. Every later statement on that same connection then failed too
+(`psycopg2.errors.InFailedSqlTransaction`): every subsequent row's writes, and the final job-count
+update, all failed with a confusing, unrelated-looking error — for any file where the bad row wasn't
+the very last one. This directly contradicted the module's own documented guarantee, in its own
+docstring: *"one bad row must not sink the whole file."*
+
+**Fix:** every database write in `ingestion_pipeline.py` now runs inside a `SAVEPOINT`, rolled back
+to (not the whole transaction) on failure — the standard PostgreSQL pattern for exactly this
+situation. Verified with a live-DB test: a NUL-byte row followed by a good row — the good row still
+processes correctly, the transaction commits cleanly, job counts land correctly for both rows.
+
+Detail: `PENDING_ACTIONS.md` #39.
 
 ---
 
