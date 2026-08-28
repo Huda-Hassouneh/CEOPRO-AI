@@ -1,9 +1,11 @@
 """
 Integration test for extraction/data_access.py against a real PostgreSQL
-instance running the actual init_schema.sql. Same convention as the other
-*_integration_db.py files: skipped unless AI_TEST_DATABASE_URL is set.
+instance running the actual Final_schema.sql (+ migrations/). Same
+convention as the other *_integration_db.py files: skipped unless
+AI_TEST_DATABASE_URL is set.
 """
 
+import json
 import os
 import uuid
 
@@ -30,7 +32,7 @@ def conn():
 def seeded_tenant(conn):
     tenant_id = str(uuid.uuid4())
     product_id = str(uuid.uuid4())
-    competitor_id = str(uuid.uuid4())
+    global_competitor_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -42,25 +44,32 @@ def seeded_tenant(conn):
         cursor.execute(
             """
             INSERT INTO products (product_id, tenant_id, product_name, current_price, currency)
-            VALUES (%s, %s, 'Sunscreen SPF 50', 18.00, 'JOD');
+            VALUES (%s, %s, %s, 18.00, 'JOD');
             """,
-            (product_id, tenant_id),
+            (product_id, tenant_id, json.dumps({"en": "Sunscreen SPF 50", "ar": "واقي شمس"})),
         )
         cursor.execute(
             """
-            INSERT INTO competitors (competitor_id, tenant_id, competitor_name, country_code)
-            VALUES (%s, %s, 'Rival Pharmacy', 'JO');
+            INSERT INTO global_competitors (global_competitor_id, competitor_name, visibility, added_by_tenant_id)
+            VALUES (%s, 'Rival Pharmacy', 'PRIVATE', %s);
             """,
-            (competitor_id, tenant_id),
+            (global_competitor_id, tenant_id),
+        )
+        cursor.execute(
+            """
+            INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked)
+            VALUES (%s, %s, TRUE);
+            """,
+            (tenant_id, global_competitor_id),
         )
     conn.commit()
-    return tenant_id, product_id, competitor_id
+    return tenant_id, product_id, global_competitor_id
 
 
 def test_load_known_product_names(conn, seeded_tenant):
     tenant_id, _, _ = seeded_tenant
     names = data_access.load_known_product_names(conn, tenant_id)
-    assert names == ["Sunscreen SPF 50"]
+    assert sorted(names) == ["Sunscreen SPF 50", "واقي شمس"]
 
 
 def test_load_known_competitor_names(conn, seeded_tenant):
@@ -70,7 +79,7 @@ def test_load_known_competitor_names(conn, seeded_tenant):
 
 
 def test_load_known_product_names_excludes_soft_deleted(conn, seeded_tenant):
-    """products.deleted_at (added after this module was first built) must be respected."""
+    """products.deleted_at must be respected."""
     tenant_id, product_id, _ = seeded_tenant
     with conn.cursor() as cursor:
         cursor.execute("UPDATE products SET deleted_at = NOW() WHERE product_id = %s;", (product_id,))
@@ -79,14 +88,37 @@ def test_load_known_product_names_excludes_soft_deleted(conn, seeded_tenant):
     assert data_access.load_known_product_names(conn, tenant_id) == []
 
 
-def test_load_known_competitor_names_excludes_deactivated(conn, seeded_tenant):
-    """competitors.is_active (added after this module was first built) must be respected."""
-    tenant_id, _, competitor_id = seeded_tenant
+def test_load_known_competitor_names_excludes_untracked(conn, seeded_tenant):
+    """tenant_competitors.is_tracked must be respected."""
+    tenant_id, _, global_competitor_id = seeded_tenant
     with conn.cursor() as cursor:
-        cursor.execute("UPDATE competitors SET is_active = FALSE WHERE competitor_id = %s;", (competitor_id,))
+        cursor.execute(
+            "UPDATE tenant_competitors SET is_tracked = FALSE WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, global_competitor_id),
+        )
     conn.commit()
 
     assert data_access.load_known_competitor_names(conn, tenant_id) == []
+
+
+def test_load_known_competitor_names_excludes_other_tenants_private_competitors(conn, seeded_tenant):
+    """A PRIVATE competitor another tenant added, and never tracked by this one, must not leak in."""
+    tenant_id, _, _ = seeded_tenant
+    other_tenant_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) "
+            "VALUES (%s, 'Other Co', 'JO', 'JOD');",
+            (other_tenant_id,),
+        )
+        cursor.execute(
+            "INSERT INTO global_competitors (competitor_name, visibility, added_by_tenant_id) "
+            "VALUES ('Other Tenant Only Competitor', 'PRIVATE', %s);",
+            (other_tenant_id,),
+        )
+    conn.commit()
+
+    assert data_access.load_known_competitor_names(conn, tenant_id) == ["Rival Pharmacy"]
 
 
 def test_load_known_names_empty_for_tenant_with_no_products(conn):

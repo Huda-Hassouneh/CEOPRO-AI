@@ -911,6 +911,75 @@ No `src/ai/` code changes in this entry — this was catching and correcting my 
 before it merged, not new implementation work. `PENDING_ACTIONS.md` #2/#25/#26 updated on the same
 `claude/infra-bug-fixes` branch as the fixes themselves, before that PR merges.
 
+## 2026-08-27 — Schema fork resolved in favor of `Final_schema.sql`; foundation fixes for the rework
+
+`main` had forked its own schema again since the last entry in this log: `init_schema.sql` was
+renamed to `Final_schema.sql` and rebuilt into a 26-table schema (JSONB multilingual product fields,
+`global_competitors`/`tenant_competitors`/`competitor_product_mappings` replacing a flat `competitors`
+table, `invoices`/`invoice_items` replacing `transactions`, `FORCE ROW LEVEL SECURITY` baked in
+everywhere via a `get_current_tenant()` function). Confirmed directly with the project owner:
+**`Final_schema.sql` is now canonical.** Every AI/ML PR built against the old schema needs reworking
+against it — this entry covers the foundation; module-by-module rework (`pricing/`, `sentiment/`,
+`mpi/`, `extraction/` persistence) follows in separate PRs, tracked in `PENDING_ACTIONS.md` #27.
+
+**A real, spec-relevant gap found while reviewing the new schema**: `evidence_records` came back
+forecast-only (`forecast_id NOT NULL`, only `metric_name`/`metric_value_json`/`contribution_weight`) —
+structurally unusable by anything except forecasting, breaking spec §22's shared-evidence-architecture
+requirement. Fixed via `migrations/20260827000000_restore_shared_evidence_architecture.sql`:
+`forecast_id` made nullable, the general-purpose columns every other module's `evidence.py` needs
+added back alongside the forecast-specific ones (untouched), a `chk_evidence_shape` constraint
+requiring one side or the other to be populated. Extended the existing table rather than forking a
+second one, per `AI_PLAN_AND_CONTRACT_UPDATES.md`'s own precedent against exactly that. See
+`PENDING_ACTIONS.md` #28.
+
+**Three more concrete bugs found in code landed alongside the schema fork** (a large, genuinely
+well-built new `src/ai/extraction/` ingestion-engine subsystem — CSV/XLSX/PDF/DB/API adapters,
+bilingual template detection, Arabic-Indic numeral normalization — landed the same way, never run
+against a live database before being pushed):
+- `extraction/data_access.py::load_known_competitor_names()` queried a `competitors` table that
+  doesn't exist in `Final_schema.sql`. Rewritten to join `tenant_competitors`/`global_competitors`.
+  `load_known_product_names()` also needed a real fix, not just a rename: `product_name` is JSONB now,
+  so it returns every language variant as a separate candidate name (helps catalog matching catch a
+  mention in any of the tenant's languages, spec §8) rather than a raw JSON blob.
+- `pdfplumber`/`openpyxl` (imported by the new adapters) weren't in `src/ai/requirements.txt` — added.
+- `docker-compose.yml`'s new `migrate` service ran `python scripts/apply_migrations.py`, which didn't
+  exist anywhere in the repo. Written for real: applies `Final_schema.sql` once (detected via the
+  `companies` marker table, same design as the old `run_migrations.py`) then `migrations/` in order,
+  tracked in `schema_migrations`. Building it surfaced two more real gaps, fixed in the same pass:
+  `rag_document_chunks` had no `embedding` column at all and `Final_schema.sql` creates no extensions
+  anywhere (not even `vector`) — added via migration, sized at 384 dimensions, confirmed empirically
+  against the actual embedding model in production use
+  (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`), not assumed or left at a
+  round-number guess. And no non-superuser role existed for `FORCE ROW LEVEL SECURITY` to actually
+  restrict anything against (the same class of bug fixed once already on the old schema) — a
+  `ceopro_app` role migration added, password synced from `APP_DB_PASSWORD` via a parameterized query
+  in the runner itself, never embedded in a committed `.sql` file.
+- Retired `migrations/20260807230419_add_row_level_security.sql` (referenced `transactions`/
+  `competitors`, neither exists in `Final_schema.sql` — would hard-fail the whole migration sequence
+  the moment it ran) and fixed `migrations/20260807225947_add_campaigns_table.sql` (`uuid_generate_v4()`
+  needs an extension `Final_schema.sql` never creates; switched to `gen_random_uuid()`, matching the
+  rest of the schema, and brought its RLS up to the new baseline while touching it anyway).
+- The corrupted `migrations/20260807230553_add_market_intelligence_tables.sql` (PENDING_ACTIONS.md
+  #27/#29 from the investigation two entries back) was still corrupted on `main` - restored again here,
+  and upgraded to the new conventions (`gen_random_uuid()`, `IF NOT EXISTS`, `FORCE ROW LEVEL SECURITY`
+  with real policies, which the original never had).
+
+**Two pre-existing test failures found and fixed while verifying, unrelated to the schema fork
+itself**: `regex_patterns.py::extract_discount()` dropped the `%` suffix from `normalized_value`
+("20" instead of "20%") after a rewrite to use the new `normalize_number_string()` helper: 3 tests
+were failing. `test_extractor.py` was never updated when `extract_entities()`'s signature changed
+from `(text, known_product_names, known_competitor_names)` to
+`(text, tenant_id, redis_client, conn)` (Redis-cached catalog lookups, a genuine improvement) - still
+called with the old kwargs, `TypeError` on every run. Rewritten against the new signature with mocked
+`redis_client`/`conn`, plus one new test for the "partial args silently skip catalog matching" case.
+
+**Verification**: `flake8`/`py_compile` clean on every changed file. Full offline suite: 135 passed
+(up from 129 passed / 5 failed / 1 not collected before these fixes), 0 failed. **Not verified against
+a live database** - Docker was unavailable in this environment (backend returning HTTP 500 on every
+API call, confirmed not just slow to start) - every SQL file was reviewed carefully and checked with
+`sqlparse` for gross syntax errors, but none of it has actually been run against a real Postgres.
+Flagged explicitly as a required follow-up, not silently claimed as verified.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
