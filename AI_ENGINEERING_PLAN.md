@@ -132,7 +132,7 @@ Spec §25 defines the evaluation protocol per model family. Applied to what's in
 | Module | Spec §25 metrics | Currently measured how |
 |---|---|---|
 | NER (`extraction/`) | Precision, Recall, Entity F1 | Not yet — no labeled entity gold-set exists; tests assert exact-match on synthetic cases only |
-| Sentiment (`sentiment/`) | Accuracy, Macro F1, Confusion Matrix, Calibration | Not yet — `test_sentiment_model_real.py` checks known-clear-cases classify correctly, not a held-out labeled set |
+| Sentiment (`sentiment/`) | Accuracy, Macro F1, Confusion Matrix, Calibration | **Tooling ready, still no labeled data** (2026-08-28) — `sentiment/finetune.py::evaluate_only()` computes Accuracy/Macro F1/Confusion Matrix against any labeled CSV, verified end-to-end against the real production model; Calibration still needs a separate reliability-diagram/ECE computation, not yet built. `test_sentiment_model_real.py` still only checks known-clear-cases classify correctly — `evaluate_only()` is what actually closes this gap, the moment a real labeled set exists |
 | Retrieval (`rag/`) | Recall@K, Precision@K, MRR, NDCG | Not yet — `test_rag_integration.py` checks the right chunk ranks first on a small synthetic corpus, not a formal IR benchmark |
 | Chatbot | Groundedness, Citation correctness, Answer relevance, Hallucination rate | N/A — chatbot doesn't exist yet (item 11) |
 | Pricing | Realized demand, Margin impact, Recommendation accuracy, Constraint violation rate | Partially — guardrail *constraint violation rate* is effectively 0 by construction (guardrails are hard bounds, not learned); the other three need real transaction data post-recommendation, which doesn't exist yet |
