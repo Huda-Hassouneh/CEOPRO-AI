@@ -4,11 +4,19 @@ Optimizes structured document ingestion by isolating pre-mapped column cell valu
 Bypasses unconstrained regex heuristics to preserve structural data types, while 
 gracefully falling back to a lower-confidence regex tier for unmapped headers.
 """
+from datetime import date
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from src.ai.extraction.numerals import normalize_number_string, to_ascii_digits
-from src.ai.extraction.regex_patterns import ExtractedEntity, normalize_slash_date, extract_all
+from src.ai.extraction.regex_patterns import ExtractedEntity, extract_email, normalize_slash_date, extract_all
+
+# Sanity bound for transaction_date, not a business-rule cutoff - catches
+# an obviously-wrong parse (e.g. a 2-digit year read the wrong way round,
+# or a spreadsheet's placeholder date like 1900-01-01) without rejecting
+# any date a real invoice could plausibly carry.
+MIN_PLAUSIBLE_YEAR = 2000
+MAX_PLAUSIBLE_YEAR_AHEAD = 1  # today's year + this, to tolerate forward-dated invoices
 
 FIELD_PARSERS = {
     "amount_raw": "money",
@@ -146,3 +154,58 @@ def _parse_typed_cell(
         return raw, 1.0
 
     return None, 0.0
+
+
+# Fields where a negative typed value can never be correct, independent of
+# locale/currency - spec S12's "Validate values" step, distinct from
+# _parse_typed_cell()'s job (turn text into a number at all). A cell can
+# parse cleanly (a valid number) and still be semantically wrong (a
+# negative price, a zero-or-negative quantity) - that's exactly the gap
+# this closes, since parse success alone was previously treated as "valid."
+_NON_NEGATIVE_FIELDS = {"amount_raw", "unit_price", "discount_pct", "quantity"}
+
+
+def validate_typed_fields(result: RowParseResult, today: Optional[date] = None) -> List[str]:
+    """
+    Runs semantic sanity checks against result.typed_fields, returning a
+    list of human-readable error strings (empty list = no issues found).
+    Only checks fields that actually parsed (result.typed_fields) -
+    fields that failed to parse at all already surface as
+    unmapped_columns/fallback_entities, a separate and already-handled
+    concern. This function only rejects values a *successful* parse
+    still shouldn't be trusted with.
+    """
+    errors: List[str] = []
+    today = today or date.today()
+
+    for field_name, value in result.typed_fields.items():
+        if field_name in _NON_NEGATIVE_FIELDS:
+            try:
+                if float(value) < 0:
+                    errors.append(f"{field_name}: negative value '{value}' is not valid")
+            except (TypeError, ValueError):
+                pass  # not actually numeric - a different bug, not this check's job
+
+        if field_name == "quantity":
+            try:
+                if float(value) == 0:
+                    errors.append(f"{field_name}: zero quantity is not a valid sale/transaction row")
+            except (TypeError, ValueError):
+                pass
+
+        if field_name == "transaction_date" and value:
+            try:
+                year = int(str(value)[:4])
+                if year < MIN_PLAUSIBLE_YEAR or year > today.year + MAX_PLAUSIBLE_YEAR_AHEAD:
+                    errors.append(
+                        f"transaction_date: year {year} is outside the plausible range "
+                        f"({MIN_PLAUSIBLE_YEAR}-{today.year + MAX_PLAUSIBLE_YEAR_AHEAD}) - likely a bad parse"
+                    )
+            except (TypeError, ValueError):
+                errors.append(f"transaction_date: '{value}' doesn't start with a 4-digit year")
+
+        if field_name == "email" and value:
+            if not extract_email(str(value)):
+                errors.append(f"email: '{value}' doesn't look like a valid email address")
+
+    return errors
