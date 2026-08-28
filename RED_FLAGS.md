@@ -141,6 +141,77 @@ type json`. Fixed everywhere by switching to `json.dumps({"en": name})`.
 
 Detail: `AI_PROGRESS.md`'s three 2026-08-27 entries.
 
+### `template_detection.py` never matched snake_case headers — silently degraded extraction quality
+**Found:** 2026-08-28, post-merge QA pass. **Status:** ✅ Fixed, regression-tested.
+
+`_normalize_header()` only collapsed whitespace and lowercased — it never folded underscores to
+spaces. A file with headers like `product_name`/`unit_price` (`Final_schema.sql`'s own
+column-naming convention, and the natural shape of anything exported from a database or API rather
+than typed by hand in a spreadsheet) never matched `HEADER_SYNONYMS`, silently falling through to
+`FALLBACK`/NER extraction instead of the precise `STRICT` typed mapping it should have gotten — same
+fields, just a different header spelling. Not a crash, not an error — a silent quality regression
+that would have been very easy to miss without deliberately testing this exact module, which had zero
+test coverage before this pass.
+
+Fixed by folding underscores to spaces in `_normalize_header()` itself, applied identically to both
+the incoming headers and the synonym table (`build_header_mapping()` normalizes both sides through
+the same function) — verified this doesn't collide with the synonym table's existing
+underscore-containing entries (`total_ttc`, `prix_unitaire`). 6 new tests in
+`test_extraction_template_detection.py`.
+
+Detail: `PENDING_ACTIONS.md` #37.
+
+### `row_parsing.py`'s typed percent-cell parser never stripped `%` — same class of silent degradation
+**Found:** 2026-08-28, post-merge QA pass, same session as the bug above. **Status:** ✅ Fixed, regression-tested.
+
+`_parse_typed_cell()`'s `"percent"` branch called `normalize_number_string()` directly on the raw
+cell text. A `discount_pct` cell written the natural way (`"10%"`, not `"10"` — how Excel/Sheets
+write a percent-formatted cell, and how a human typing a discount naturally does too) has
+`float("10%")` fail inside `normalize_number_string()`, returning `None` — the cell then silently
+fell through to `unmapped_columns` + fallback regex extraction, despite the column already being
+correctly identified as `discount_pct` by `template_detection.py`. The regex-based fallback tier
+(`extract_percent()` in `regex_patterns.py`) already avoided this — its capture group excludes the
+`%` — so this was specifically a `STRICT`-mode/regex-fallback inconsistency, not a `numerals.py` bug.
+
+Fixed by stripping a trailing `%` before normalizing, mirroring what the regex path already does. 8
+new tests in `test_extraction_row_parsing.py`.
+
+Detail: `PENDING_ACTIONS.md` #37.
+
+### `torch` imported directly but never declared as a dependency
+**Found:** 2026-08-28, post-merge QA pass (static import scan across all of `src/ai/` against
+`requirements.txt`). **Status:** ✅ Fixed.
+
+`sentiment/model.py` calls `torch.no_grad()`/`torch.softmax()` directly, but `torch` was never in
+`src/ai/requirements.txt` — only present because `transformers`/`sentence-transformers` pull it in
+transitively. `requirements.txt` already documents exactly this reasoning for `transformers` itself
+("pinned here explicitly since `sentiment/model.py` imports it directly") but hadn't been applied to
+`torch`, which is imported the same way in the same file. Fixed — pinned explicitly, CPU range
+matching the confirmed deployment target.
+
+Detail: `PENDING_ACTIONS.md` #37.
+
+### A ~700-line subsystem (the Universal Import Engine) is still largely untested
+**Found:** 2026-08-28, post-merge QA pass. **Status:** ⚪ Partially addressed — 3 of ~10 files now
+have real coverage (and 2 of those 3 had real bugs), the rest remain unverified.
+
+`ingestion_pipeline.py`, all 5 `extraction/adapters/` files (csv/xlsx/pdf/db/api), `row_parsing.py`,
+`template_detection.py`, `locale_config.py`, and `minio_persistence.py` — main's independently-grown
+"Universal Import Engine" (spec §12) — had **zero** automated test coverage anywhere in the repo
+before this pass, confirmed by grepping every test file for each module's name. This pass added real
+coverage for `template_detection.py`, `row_parsing.py`, and `locale_config.py` — and found genuine
+bugs in the first two, a strong signal the rest of this subsystem hasn't actually been verified
+either, just assumed fine because nothing crashed in normal use. `ingestion_pipeline.py`'s
+DB-touching paths and `minio_persistence.py`'s actual MinIO upload call were smoke-tested manually
+(dry-run mode, a hand-built document) and found to work, but neither has a permanent regression test.
+All 5 adapters remain completely unchecked by this pass beyond one manual CSV smoke test.
+
+**Not a red flag about correctness specifically** — everything checked so far either works or was
+fixed — **it's a red flag about confidence**: this subsystem's actual reliability is currently
+unknown, not confirmed-good, for most of its surface area.
+
+Detail: `PENDING_ACTIONS.md` #37.
+
 ---
 
 ## 🟡 Medium (a clean `git merge` silently dropped real content)
