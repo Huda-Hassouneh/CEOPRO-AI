@@ -20,11 +20,24 @@ def insert_sentiment_result(
     confidence: float,
     model_version: str,
 ) -> str:
+    """
+    sentiment_results.sentiment_label/sentiment_score are Final_schema.sql's
+    own NOT NULL columns (upper-case label, single continuous score) -
+    populated here from the same 3-class output this module has always
+    produced, not a separate computation. sentiment_score uses the same
+    positive-minus-negative formula data_access.py's aggregation already
+    uses, so a single review's score and the aggregate's score mean the
+    same thing. The individual probabilities/confidence are also written
+    (this track's own migration added them back) - spec S16's full detail,
+    not just the schema's minimum.
+    """
+    sentiment_label = label.upper()
+    sentiment_score = round(positive_probability - negative_probability, 4)
     query = """
         INSERT INTO sentiment_results
-            (review_id, tenant_id, label, positive_probability, neutral_probability,
-             negative_probability, confidence, model_version)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            (review_id, tenant_id, sentiment_label, sentiment_score, positive_probability,
+             neutral_probability, negative_probability, confidence, model_version)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING sentiment_id;
     """
     with conn.cursor() as cursor:
@@ -33,7 +46,8 @@ def insert_sentiment_result(
             (
                 review_id,
                 tenant_id,
-                label,
+                sentiment_label,
+                sentiment_score,
                 positive_probability,
                 neutral_probability,
                 negative_probability,

@@ -22,11 +22,15 @@ def no_cross_currency_matches():
         yield
 
 
+def _own_product(current_price: float, currency: str = "JOD", cost: float = None) -> dict:
+    return {"product_name": "Sunscreen SPF 50", "current_price": current_price, "currency": currency, "cost": cost}
+
+
 def _competitor_price(entry_id: str, competitor_id: str, price: float, currency: str = "JOD") -> dict:
     return {
         "price_entry_id": entry_id,
         "competitor_id": competitor_id,
-        "product_name_captured": "Sunscreen SPF 50",
+        "competitor_name": "Rival Pharmacy",
         "price_found": price,
         "currency": currency,
         "captured_at": None,
@@ -40,7 +44,7 @@ def test_missing_product_raises(fake_conn):
 
 
 def test_no_matched_competitors_records_unknown_evidence(fake_conn):
-    own = {"product_name": "Sunscreen SPF 50", "current_price": 20.0, "currency": "JOD"}
+    own = _own_product(20.0)
 
     with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
          patch.object(pipeline.data_access, "load_competitor_prices", return_value=[]), \
@@ -53,7 +57,7 @@ def test_no_matched_competitors_records_unknown_evidence(fake_conn):
 
 
 def test_matched_competitors_produce_recommendation_and_outcome_row(fake_conn):
-    own = {"product_name": "Sunscreen SPF 50", "current_price": 30.0, "currency": "JOD"}
+    own = _own_product(30.0)
     competitor_prices = [_competitor_price("p1", "c1", 18.0), _competitor_price("p2", "c2", 20.0)]
 
     with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
@@ -66,13 +70,14 @@ def test_matched_competitors_produce_recommendation_and_outcome_row(fake_conn):
     assert result["action"] == "lower"  # 30.0 is well above the ~19.0 market average
     assert result["evidence_id"] == "evidence-1"
     assert result["outcome_id"] == "outcome-1"
+    assert result["margin_guardrail_clamped"] is None  # no cost known
     assert mock_evidence.call_args.args[2] == "RECOMMENDATION"
-    mock_outcome.assert_called_once_with(fake_conn, "evidence-1", "tenant-1")
+    mock_outcome.assert_called_once_with(fake_conn, "evidence-1", "tenant-1", "Lower price to 25.50 JOD")
     fake_conn.commit.assert_called_once()
 
 
 def test_recommendation_respects_price_change_guardrail(fake_conn):
-    own = {"product_name": "Sunscreen SPF 50", "current_price": 100.0, "currency": "JOD"}
+    own = _own_product(100.0)
     # market average ~10.0, a 90% drop - the guardrail (default 15%) must clamp this
     competitor_prices = [_competitor_price("p1", "c1", 10.0)]
 
@@ -86,8 +91,41 @@ def test_recommendation_respects_price_change_guardrail(fake_conn):
     assert result["suggested_price"] == 85.0  # 100 * (1 - 0.15)
 
 
+def test_recommendation_with_no_cost_skips_margin_guardrail(fake_conn):
+    own = _own_product(100.0, cost=None)
+    competitor_prices = [_competitor_price("p1", "c1", 10.0)]
+
+    with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
+         patch.object(pipeline.data_access, "load_competitor_prices", return_value=competitor_prices), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1"), \
+         patch.object(pipeline.evidence, "insert_recommendation_outcome", return_value="outcome-1"):
+        result = pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
+
+    assert result["margin_guardrail_clamped"] is None
+    assert result["suggested_price"] == 85.0  # unaffected, price-change guardrail's floor only
+
+
+def test_recommendation_respects_margin_guardrail_when_cost_present(fake_conn):
+    # own price 17.0, cost 15.0 -> price-change-guardrailed suggestion would be
+    # 14.45 (17 * 0.85), below cost - the margin guardrail (default 10%) must
+    # raise it back to 15 * 1.10 = 16.5.
+    own = _own_product(17.0, cost=15.0)
+    competitor_prices = [_competitor_price("p1", "c1", 10.0)]
+
+    with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
+         patch.object(pipeline.data_access, "load_competitor_prices", return_value=competitor_prices), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence, \
+         patch.object(pipeline.evidence, "insert_recommendation_outcome", return_value="outcome-1"):
+        result = pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
+
+    assert result["margin_guardrail_clamped"] is True
+    assert result["suggested_price"] == 16.5
+    explanation = mock_evidence.call_args.args[6]
+    assert "minimum-margin floor" in explanation
+
+
 def test_cross_currency_reference_appended_to_recommendation_explanation(fake_conn):
-    own = {"product_name": "Sunscreen SPF 50", "current_price": 30.0, "currency": "JOD"}
+    own = _own_product(30.0)
     same_currency = [_competitor_price("p1", "c1", 18.0), _competitor_price("p2", "c2", 20.0)]
     cross_currency = [_competitor_price("p3", "c3", 75.0, currency="SAR")]
 
@@ -113,7 +151,7 @@ def test_cross_currency_reference_appended_to_recommendation_explanation(fake_co
 
 
 def test_cross_currency_reference_notes_missing_rate(fake_conn):
-    own = {"product_name": "Sunscreen SPF 50", "current_price": 20.0, "currency": "JOD"}
+    own = _own_product(20.0)
     cross_currency = [_competitor_price("p3", "c3", 75.0, currency="EGP")]
 
     with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
@@ -129,7 +167,7 @@ def test_cross_currency_reference_notes_missing_rate(fake_conn):
 
 
 def test_no_cross_currency_matches_leaves_explanation_unchanged(fake_conn):
-    own = {"product_name": "Sunscreen SPF 50", "current_price": 20.0, "currency": "JOD"}
+    own = _own_product(20.0)
 
     with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
          patch.object(pipeline.data_access, "load_competitor_prices", return_value=[]), \

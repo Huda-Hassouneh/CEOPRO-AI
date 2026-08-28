@@ -39,6 +39,12 @@ class ExtractedEntity:
     start: int
     end: int
     normalized_value: str = None
+    # Deterministic regex/rule matches have no meaningful confidence (None);
+    # catalog_matching.py's fuzzy PRODUCT/COMPETITOR matches populate this
+    # with their similarity score, since those are genuinely probabilistic.
+    # extracted_entity.confidence_score (see extraction/evidence.py) is
+    # nullable specifically for this reason.
+    confidence: Optional[float] = None
 
     def as_dict(self) -> dict:
         return {
@@ -46,6 +52,7 @@ class ExtractedEntity:
             "text": self.text,
             "start": self.start,
             "end": self.end,
+            "confidence": self.confidence,
             "normalized_value": self.normalized_value,
         }
 

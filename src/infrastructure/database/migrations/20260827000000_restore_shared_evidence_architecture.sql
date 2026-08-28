@@ -16,6 +16,15 @@
 -- Final_schema.sql defined them for forecast_id IS NOT NULL rows.
 
 ALTER TABLE evidence_records ALTER COLUMN forecast_id DROP NOT NULL;
+-- Final_schema.sql's own three forecast-metric columns were also NOT NULL
+-- (evidence_records was forecast-only, so every column was mandatory) -
+-- missed on the first pass, caught by an actual live-DB run: non-forecasting
+-- evidence.py callers (sentiment/, pricing/, mpi/) never set metric_name/
+-- metric_value_json/contribution_weight at all, so every UNKNOWN/FACT/
+-- RECOMMENDATION insert failed with a NotNullViolation until this was fixed.
+ALTER TABLE evidence_records ALTER COLUMN metric_name DROP NOT NULL;
+ALTER TABLE evidence_records ALTER COLUMN metric_value_json DROP NOT NULL;
+ALTER TABLE evidence_records ALTER COLUMN contribution_weight DROP NOT NULL;
 
 ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS category VARCHAR(20);
 ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS source_module VARCHAR(100);
