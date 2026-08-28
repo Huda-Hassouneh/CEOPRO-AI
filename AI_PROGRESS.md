@@ -1293,6 +1293,41 @@ infrastructure ready for when real labeled data exists, not a claim that fine-tu
 0 failed. `flake8`/`py_compile` clean on every new/modified file. `PENDING_ACTIONS.md` #38-#40 added;
 `RED_FLAGS.md` updated with the transaction-poisoning bug (🟠 High) and the missing-dispatcher finding.
 
+## 2026-08-28 — Integration QA on the new ingestion/fine-tuning code found (and fixed) the same bug, worse, in older code
+
+Requested explicitly: test the new code (Universal Import Engine completion + sentiment fine-tuning
+harness, previous entry) for internal consistency, against requirements, and against its integration
+with what's already implemented. The first two turned up nothing further. The third did.
+
+`ingestion_pipeline.py`'s DB writes and `extraction/pipeline.py`'s DB writes both go through
+`extract_entities()` (`extraction/extractor.py`) in FALLBACK/catalog-matching mode. The previous entry's
+`SAVEPOINT` fix only covered `ingestion_pipeline.py`. Checking `extract_entities()`'s *other* caller —
+`extraction/pipeline.py::extract_and_store_news_records()`/`extract_and_store_social_mentions()`, older
+code, unrelated to this week's work — found it had no `SAVEPOINT` protection at all, and the same
+realistic trigger (`extracted_entity.entity_value` is `VARCHAR(512)`, a long catalog-matched name can
+exceed that) produced a *worse* failure here: the `except` block's own recovery write (marking the
+record `'Failed'`) also failed on the now-poisoned connection, an uncaught exception that crashed the
+whole function rather than degrading per-row. Reproduced directly against a live Postgres before fixing:
+a 521-character catalog match crashed `extract_and_store_news_records()` with
+`psycopg2.errors.InFailedSqlTransaction`, stranding even a second, completely valid record in the same
+batch at `'Pending'`.
+
+**Fix:** same `SAVEPOINT`/`ROLLBACK TO SAVEPOINT` pattern, adapted to this file's per-record (not
+per-statement) granularity — each record's extract-and-persist runs inside a savepoint that's rolled
+back, not the whole transaction, before the recovery write runs, so that write always executes against
+a clean connection. Verified after the fix: the bad record is marked `'Failed'`, the good record is
+correctly marked `'Processed'`, the function returns normally.
+
+Testing: new live-DB regression test added to `src/ai/tests/test_extraction_integration_db.py`
+(`test_a_record_whose_entity_value_is_rejected_by_the_db_does_not_poison_the_rest_of_the_batch`). Full
+offline suite (245 passed, 27 skipped, 0 failed) and full extraction live-DB suite (14/14 passed) rerun
+clean. `PENDING_ACTIONS.md` #41 added; `RED_FLAGS.md` updated.
+
+This is the clearest payoff yet of the "test integration with what's already implemented" step
+specifically — the bug lived entirely in pre-existing code untouched by this week's work, and was only
+found by tracing a shared dependency to its other, older caller rather than stopping at testing the new
+code in isolation.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
