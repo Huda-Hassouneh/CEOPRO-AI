@@ -21,7 +21,7 @@ in [`PENDING_ACTIONS.md`](PENDING_ACTIONS.md) so it stays visible without diggin
 |---|---|---|---|
 | Phase 2 — Demand Intelligence (§18, §23, §25) | `src/ai/forecasting/` | 🟢 Built, tested (unit + integration) | Baselines, XGBoost + walk-forward validation, cold-start policy, evidence writers, Redis consumer. See entries below. |
 | Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟡 Hybrid (lexical + semantic) retrieval built/tested; chatbot itself not started | Document ingestion + BM25 + FAISS semantic retrieval + Reciprocal Rank Fusion, all against existing `rag_documents_metadata` + MinIO — none of it needs pgvector. Still missing: LLM reasoning step, chat history (needs a new table). A real fusion edge case found and documented (not fixed — inherent BM25 behavior on very short chunks). See entries below. |
-| Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/` | 🟡 Rule-based NER + sentiment analysis built/tested; NER persistence + MPI (§17) not started | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) built. No `extracted_entity` table to write results to yet; ORG/PERSON/GPE entity types not started. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy — `reviews` table is currently empty in prod, so the `UNKNOWN`-evidence path is what runs today. Market Perception Index (§17, combines sentiment + source reliability + recency + volume + entity relevance) not started. See entries below. |
+| Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/`, `src/ai/mpi/` | 🟢 Built, tested (unit + integration); NER persistence + MPI both landed since this row was last updated | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) + Redis-cached catalog lookups, reworked against `Final_schema.sql`. NER persistence (`extracted_entity`) built and live-DB tested — the "not started" note here was stale, corrected 2026-08-28. `mpi/` (Market Perception Index, §17: sentiment + source reliability + recency + volume + entity relevance) built and live-DB tested, including cross-country comparison with a volume floor. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy, plus (2026-08-28) a fine-tuning/evaluation harness (`sentiment/finetune.py`) ready to run once real labeled data exists. `competitor_prices`/`reviews`/`news_record`/`social_mention` are still empty in prod, so the `UNKNOWN`-evidence/cold-start path is what actually runs today. Universal Import Engine (`extraction/ingestion_pipeline.py` + adapters, spec §12) - file-type detection and value validation added 2026-08-28, previously missing entirely. See entries below. |
 | Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail, evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Margin guardrails are weaker than spec'd — `products` has no cost column (`PENDING_ACTIONS.md` #14). Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
 | Phase 6 — Competitor Ranking (§20) | — | ⚪ Not started | Same data gap as Phase 5 (`PENDING_ACTIONS.md` #5). |
 
@@ -1213,6 +1213,85 @@ anything actually connected as a non-superuser role - not just "not wired up yet
 failed. `flake8`/`py_compile` clean on every new/modified file.
 
 `PENDING_ACTIONS.md` #32 (the RLS bug) and #33 (this pass's summary) added, both resolved/complete.
+
+## 2026-08-28 — Document Ingestion & Validation completed; sentiment fine-tuning/evaluation harness built
+
+Requested as a 7-item task list spanning success metrics, sentiment pipeline, NLP fine-tuning,
+competitor/market sentiment extraction, pricing rules/guardrails, price competitiveness, and document
+ingestion/validation. Five of the seven (metrics, sentiment pipeline, competitor/market sentiment
+extraction, pricing guardrails, price competitiveness) were already built and comprehensively tested
+earlier this session (108 existing tests across `sentiment/`/`pricing/`/`mpi/`, plus the 2026-08-27 deep
+edge-case pass targeting exactly these modules) - verified against actual code (not just recalled) that
+each is genuinely complete, no further work needed there. The other two needed real work:
+
+**Document Ingestion & Validation Pipeline (spec §12's Universal Import Engine)** - found genuinely
+incomplete on inspection, not just under-tested. Spec §12 lists explicit steps: *"Receive a file. Detect
+file type. ... Validate values. ... Report invalid records. Import valid records. Preserve invalid
+records."* Checked each against actual code:
+
+- **"Detect file type" was completely missing** - none of the 5 files in `extraction/adapters/`
+  (csv/xlsx/pdf/db/api) had a single caller anywhere in the repo. Every adapter was individually correct
+  but entirely unreachable - a real uploaded file had no path into the pipeline at all. Built
+  `extraction/file_dispatch.py` (`read_source_file()`), dispatching by extension to the 3 file-based
+  adapters (csv/xlsx/pdf - db/api are invoked directly by a caller with a live connection/fetch
+  callback, not file-type dispatched).
+- **"Validate values" was also missing** - a cell that parsed cleanly (a real number, a real date shape)
+  was treated as fully valid regardless of whether the value made semantic sense. Added
+  `row_parsing.py::validate_typed_fields()`: rejects negative money/percent/quantity values, zero
+  quantity, a `transaction_date` outside a plausible year range, and a malformed `email`. Wired into
+  `ingestion_pipeline.py::process_file()` - a validation failure now routes through the exact same
+  "report invalid, preserve raw, never silently discard" path a parse failure already used.
+- **A real bug found via live-DB testing, not review**: a row whose value Postgres genuinely can't store
+  (confirmed directly - a NUL byte in a JSONB column, `psycopg2.errors.UntranslatableCharacter`, a hard
+  Postgres limitation, not fixable while preserving the raw value untouched) left that connection's
+  transaction permanently aborted. Every later statement on the same connection - every subsequent row's
+  writes, and the final job-count update - then failed too with `psycopg2.errors.InFailedSqlTransaction`,
+  silently defeating the module's own documented "one bad row must not sink the whole file" guarantee.
+  Fixed by wrapping every DB write in `ingestion_pipeline.py` in a `SAVEPOINT`/`ROLLBACK TO SAVEPOINT` -
+  a single row's DB-level failure now only unwinds that row's own write, not the whole transaction.
+  Confirmed with a live-DB test: a NUL-byte row followed by a good row - the good row still processes
+  correctly, `conn.commit()` succeeds, job counts land correctly.
+- **Not built this pass, real gaps still open**: "Detect currency"/"Detect timezone" per-cell (today's
+  `STRICT`-mode money/date parsing assumes the tenant's home currency/locale from context, not detected
+  per-cell - a reasonable simplification for typical invoice exports, not a full implementation of the
+  spec line); "Store original files" (the pipeline persists *extraction results* to MinIO via
+  `minio_persistence.py`, not the original uploaded file itself); "Allow user confirmation" (a UI-layer
+  concern, not something this track's backend pipeline can implement alone. Tracked in
+  `PENDING_ACTIONS.md` #38.
+
+Testing: this subsystem (`ingestion_pipeline.py`, all 5 adapters, `row_parsing.py`'s new validation,
+`file_dispatch.py`) had **zero** test coverage anywhere in the repo before this pass. Added 53 new tests:
+6 (`file_dispatch`) + 10 (adapters) + 16 (validation) + 8 (`ingestion_pipeline` unit) + 4
+(`ingestion_pipeline` live-DB) + the pre-existing `template_detection`/`row_parsing`/`locale_config` tests
+from the 2026-08-28 QA pass this builds on.
+
+**Sentiment Model Fine-Tuning & Evaluation Harness** - spec S7 states plainly, more than once, *"Pretrained
+multilingual models must be preferred over training models from scratch"* - and no labeled sentiment
+dataset exists anywhere in this repo (confirmed, not assumed - `AI_ENGINEERING_PLAN.md` section 5's own
+gap analysis). Fine-tuning against fabricated data would produce a model with no genuine improvement and
+a false sense of the item being "done." Built the infrastructure instead: `sentiment/finetune.py` -
+`load_labeled_dataset()` (strict CSV format validation, documented in the module's own docstring),
+`fine_tune()` (HuggingFace `Trainer`, CPU-only defaults, saves locally - deliberately does not
+auto-deploy a freshly fine-tuned model into production), and `evaluate_only()` - usable **today**, no
+training required, to finally produce the real spec §25 metrics (Accuracy, Macro F1, Confusion Matrix)
+`AI_ENGINEERING_PLAN.md` section 5 flags as missing, against the current production model or any future
+fine-tuned one.
+
+**A real dependency gap found while testing this for real**: `transformers.Trainer` hard-requires the
+`accelerate` package - confirmed directly (`ImportError` at `Trainer()` construction without it) - not
+previously declared anywhere, since `model.py`'s plain-inference `classify()` never needed it. Added to
+`requirements.txt`. `evaluate_only()` verified end-to-end against the real production model
+(`cardiffnlp/twitter-xlm-roberta-base-sentiment`, ~1.1GB, `AI_TEST_SENTIMENT=1` gate matching
+`test_sentiment_model_real.py`'s existing convention) - the full load-model → tokenize → infer → compute-
+metrics path genuinely runs and returns the right shape of output, not just unit-tested in isolation.
+
+Testing: 13 offline tests (dataset loading, train/eval split, metric computation) + 1 real-model
+end-to-end test. `fine_tune()` itself is not run against real data anywhere (there is none) - this is
+infrastructure ready for when real labeled data exists, not a claim that fine-tuning has happened.
+
+**Overall**: 245 offline tests passing (up from 192 this morning), 53 live-DB tests passing (up from 49),
+0 failed. `flake8`/`py_compile` clean on every new/modified file. `PENDING_ACTIONS.md` #38-#40 added;
+`RED_FLAGS.md` updated with the transaction-poisoning bug (🟠 High) and the missing-dispatcher finding.
 
 ## How to add an entry
 
