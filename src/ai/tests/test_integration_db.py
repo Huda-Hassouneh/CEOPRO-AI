@@ -10,6 +10,7 @@ CI or on a machine without a disposable test Postgres instance available.
 Point it at a throwaway database - this test inserts and deletes rows.
 """
 
+import json
 import os
 import uuid
 from datetime import date, timedelta
@@ -50,9 +51,9 @@ def seeded_tenant_and_product(conn):
         cursor.execute(
             """
             INSERT INTO products (product_id, tenant_id, product_name, current_price, currency)
-            VALUES (%s, %s, 'Integration Test Widget', 15.00, 'JOD');
+            VALUES (%s, %s, %s, 15.00, 'JOD');
             """,
-            (product_id, tenant_id),
+            (product_id, tenant_id, json.dumps({"en": "Integration Test Widget"})),
         )
 
         base_date = date(2026, 1, 1)
@@ -172,9 +173,9 @@ def test_run_forecast_with_no_transactions_writes_unknown_evidence(conn):
         cursor.execute(
             """
             INSERT INTO products (product_id, tenant_id, product_name, current_price, currency)
-            VALUES (%s, %s, 'No Sales Widget', 5.00, 'JOD');
+            VALUES (%s, %s, %s, 5.00, 'JOD');
             """,
-            (product_id, tenant_id),
+            (product_id, tenant_id, json.dumps({"en": "No Sales Widget"})),
         )
     conn.commit()
 

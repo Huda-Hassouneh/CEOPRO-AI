@@ -161,25 +161,64 @@ provisioned for it in `src/infrastructure/init_broker.py`), so — like `pricing
 directly rather than via a Redis consumer; add a `consumer.py` once such a contract is agreed, the
 same way `forecasting/consumer.py` was added for `demand_forecast_requested`.
 
-### `extraction/` — Phase 4 groundwork, rule-based NER (spec §15)
+### `extraction/` — Phase 4, rule-based NER + persistence, plus a Universal Import Engine (spec §12, §15)
 
-Implements the regex/rule tier of information extraction — spec §15's own explicitly-sanctioned
-low-resource option ("NER may use: ... EntityRuler. Regex patterns. Fuzzy matching. Domain-specific
-rules."), not a pretrained transformer. No trained model, no GPU, the lightest possible NER tier.
+Two distinct capabilities sharing this directory: NER (spec §15's regex/rule tier) and a data
+ingestion pipeline (spec §12's Universal Import Engine, CSV/XLSX/PDF/DB/API sources). The ingestion
+engine reuses the NER extractor as its fallback path for unmapped columns — that's the connection
+between them, not a coincidence of directory layout.
+
+**NER (spec §15's own explicitly-sanctioned low-resource option — "NER may use: ... EntityRuler.
+Regex patterns. Fuzzy matching. Domain-specific rules."), not a pretrained transformer:**
 
 - `regex_patterns.py` — MONEY, CURRENCY, PERCENT, DISCOUNT, EMAIL, PHONE, INVOICE_ID, ORDER_ID, DATE.
-  Currency codes are configuration-driven (spec §9), defaulting to spec's own list (JOD, EGP, SAR,
-  AED, QAR, KWD, BHD, OMR, MAD, TND, DZD, USD, EUR, ZAR).
-- `catalog_matching.py` — PRODUCT/COMPETITOR entity types, matched against a tenant's own known
-  names rather than pattern-extracted (there's no regular pattern for a product name). Reuses
-  `pricing.matching.similarity()` directly rather than a second fuzzy-matching implementation.
-- `data_access.py` — reads known product/competitor names from the existing `products`/`competitors`
-  tables. Nothing is written — there's no `extracted_entity` table yet (`PENDING_ACTIONS.md` #4), so
-  this produces a result list with nowhere to persist to until that table exists.
-- `extractor.py` — combines both into one call.
+  Currency codes are configuration-driven (spec §9). `numerals.py` handles ASCII/Arabic-Indic/Persian
+  digit systems and locale-ambiguous decimal separators underneath this.
+- `catalog_matching.py` — PRODUCT/COMPETITOR entity types matched against a tenant's own known names
+  (Latin and Arabic-script candidate spans both), not pattern-extracted. Reuses
+  `pricing.matching.similarity()` rather than a second fuzzy-matching implementation. Populates
+  `ExtractedEntity.confidence` with the match's similarity score (`None` for deterministic regex
+  matches — those aren't probabilistic).
+- `catalog_cache.py` — Redis cache-aside wrapper (300s TTL) around `data_access.py`'s known-name
+  lookups, since catalog matching would otherwise re-query the same tenant's product/competitor list
+  on every single call.
+- `extractor.py` — `extract_entities(text, tenant_id=None, redis_client=None, conn=None)`: regex tier
+  always runs; catalog tier only when all three of `tenant_id`/`redis_client`/`conn` are supplied
+  (skipped otherwise, not an error). Merges both tiers and resolves overlapping spans by a
+  type-priority + span-length rule (e.g. a `PRODUCT` match wins over a `MONEY`/`DATE` match it
+  overlaps).
+- `data_access.py` — reads known product/competitor names (`products.product_name` is JSONB — every
+  language variant becomes its own candidate name; competitors come from
+  `global_competitors`/`tenant_competitors`, not a standalone table) and 'Pending'
+  `news_record`/`social_mention` rows to extract from (`extraction_status`-gated, distinguishing "not
+  yet processed" from "processed, genuinely zero entities found" — a plain join against
+  `extracted_entity` can't tell those apart).
+- `evidence.py` — `insert_extracted_entities()` writes to `extracted_entity` (this track's own table).
+- `pipeline.py` — `extract_and_store_news_records()`/`extract_and_store_social_mentions()`: load
+  'Pending' → extract (via the canonical `extractor.py`, `redis_client` caller-injected, same
+  convention as `rag/`'s `minio_client`) → persist → mark Processed/Failed (spec §12: never silently
+  discard invalid data). Writes no `evidence_records` — bulk entity extraction is an annotation step,
+  not itself a user-facing conclusion, same reasoning `sentiment/pipeline.py`'s
+  `classify_and_store_reviews()` documents for bulk sentiment labeling.
 
-Out of scope here: ORG, PERSON, GPE, ADDRESS (spec §15's other target types) — these need world
-knowledge or a trained model to extract reliably; regex/catalog-matching can't do them justice.
+Out of scope: ORG, PERSON, GPE, ADDRESS (spec §15's other target types) — these need world knowledge
+or a trained model; regex/catalog-matching can't do them justice.
+
+**Ingestion engine (spec §12's Universal Import Engine — file in, detect type, map columns, validate,
+import valid rows, preserve invalid ones):**
+
+- `template_detection.py` — bilingual (Arabic/English) header-synonym matching decides, once per file,
+  whether a column routes through strict typed parsing or the NER fallback.
+- `row_parsing.py` — typed casting for mapped columns (money/integer/percent/date/text).
+- `minio_persistence.py` — persists extraction results/metadata to the `ceopro-extraction-results`
+  MinIO bucket.
+- `adapters/` — one module per source shape (`csv_adapter.py`, `xlsx_adapter.py`, `pdf_adapter.py`,
+  `db_adapter.py`, `api_adapter.py`), each normalizing its source into the same `(headers, rows)` shape
+  `ingestion_pipeline.py` expects.
+- `ingestion_pipeline.py` — orchestrates one file end-to-end: template detection → typed parsing or
+  NER fallback per row → raw-row persistence to `import_staging_rows` (written *before* any parsing is
+  attempted, in its own try/except, so a row that crashes every extraction path still has its original
+  data recoverable) → status tracking on `ingestion_jobs`.
 
 ### Known upstream blockers (not fixed here — flagged in [`PENDING_ACTIONS.md`](../../PENDING_ACTIONS.md))
 
@@ -194,20 +233,12 @@ knowledge or a trained model to extract reliably; regex/catalog-matching can't d
   MinIO (`ceopro-ai-artifacts`) in this first version — metrics/version metadata are still recorded
   in `model_versions` on every training run. Wiring artifact storage is a follow-up once that column
   exists.
-- `products` has no `cost` column, so `pricing/guardrails.py` can only bound price-change magnitude,
-  not enforce a real margin floor as spec §19 also asks for.
-- `currency_rates` table landed and is now wired into `pricing/currency.py` — no longer blocked.
-- pgvector's *schema* (extension + `rag_document_chunks`) landed, but `docker-compose.yml`'s
-  `postgres` image tag is invalid (doesn't exist on Docker Hub) — not actually deployable yet
-  (`PENDING_ACTIONS.md` #1/#17).
-- Row-Level Security policies exist and are enabled, but currently provide no real protection — the
-  app connects as the table-owner role, which Postgres exempts from RLS by default; confirmed with a
-  direct test (`PENDING_ACTIONS.md` #2).
-- `rag/data_access.py` decodes MinIO objects as plain UTF-8 text only — PDF/DOCX documents (which
-  `MINIO_STORAGE_ARCHITECTURE.md` explicitly expects in `ceopro-rag-knowledge`) aren't extracted.
+- `currency_rates` table landed and is wired into `pricing/currency.py` — no longer blocked.
 - No chat-history table exists, so RAG conversation persistence isn't implemented.
-- No `extracted_entity` table exists, so `extraction/`'s output has nowhere to persist to yet —
-  `extractor.py` is called directly and its result used in-memory, not written anywhere.
+- RLS/pgvector/PDF-DOCX-extraction/margin-guardrail status: see `PENDING_ACTIONS.md` #1/#2/#25/#14 and
+  `AI_PROGRESS.md`'s 2026-08-27 entries — resolved on this schema (`Final_schema.sql`), not yet
+  reflected here since this file predates that rework; a fuller pass to bring the whole README current
+  is a separate follow-up.
 
 ## Running tests
 

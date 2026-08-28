@@ -980,6 +980,240 @@ API call, confirmed not just slow to start) - every SQL file was reviewed carefu
 `sqlparse` for gross syntax errors, but none of it has actually been run against a real Postgres.
 Flagged explicitly as a required follow-up, not silently claimed as verified.
 
+## 2026-08-27 — `sentiment/`, `mpi/`, and `pricing/` reworked against `Final_schema.sql`
+
+Continuing the schema-fork rework (`PENDING_ACTIONS.md` #27) on top of the foundation fixes. Brought
+`mpi/` in from its own unmerged branch (PR #10) rather than a full branch merge - that branch predates
+the new ingestion-engine subsystem and a full merge produced dozens of stale conflicts against files
+already fixed in the foundation pass; copied the module's own files directly instead (untouched by
+that conflict, since `mpi/` never existed on `main` before).
+
+**Real, spec-relevant gaps found and fixed, same "extend the schema, don't reduce the feature" pattern
+as the foundation pass's `evidence_records` fix:**
+
+- **`reviews` was product-only** (`product_id NOT NULL`, no `subject_type`/`competitor_id`/
+  `source_status`/`collection_method`/`review_language` at all) - spec §16 requires PRODUCT/COMPETITOR/
+  BUSINESS-level sentiment. Confirmed with the project owner directly: extend back to all three rather
+  than reduce the feature. `migrations/20260827010000_restore_review_subject_types.sql`.
+- **`sentiment_results` collapsed from a 3-class probability distribution to a single score+label** -
+  the individual `positive_probability`/`neutral_probability`/`negative_probability`/`confidence`
+  columns (what the classifier actually outputs, and what spec §16 asks for) came back too, same
+  migration. `sentiment/evidence.py` now populates both shapes from one computation - `sentiment_score`
+  is exactly the same positive-minus-negative formula `data_access.py`'s aggregation already used, not
+  a second, potentially-inconsistent calculation.
+- **`global_competitors` had no `country_code` at all** - `mpi/`'s country-context lookup for
+  COMPETITOR-subject MPIs had nowhere to read from. `migrations/20260827020000_add_competitor_country_code.sql`.
+- **`competitor_prices` lost spec §13's Collection Policy Engine columns** (`source_status`,
+  `is_exact_data`) entirely. `migrations/20260827030000_add_competitor_prices_policy_columns.sql`.
+- **`recommendation_outcomes` lost its link back to the evidence that produced it** (`forecast_id`
+  instead, mandatory `recommended_action`) - spec §24 requires every recommendation traceable to its
+  outcome record. `evidence_id` added back (nullable, alongside `forecast_id` - forecasting keeps using
+  one, `pricing/` the other), plus a `uq_tenant_evidence_perimeter` constraint `evidence_records` needed
+  first to support the same tenant-isolated composite-FK pattern every other table in `Final_schema.sql`
+  already uses. `migrations/20260827040000_add_recommendation_outcomes_evidence_link.sql`.
+- **`currency_rates` lost `source`** (renamed/restructured to `from_currency`/`to_currency`/
+  `exchange_rate`/`last_fetched`, and now `UNIQUE(from_currency, to_currency)` - one row per pair, not
+  a history) - spec §9 explicitly requires preserving "the rate, its date, and its source" on every
+  conversion. `migrations/20260827050000_add_currency_rates_source.sql`; `pricing/currency.py` rewritten
+  for the actual column names, Python-side `ExchangeRate`/`ConversionResult` shapes unchanged so
+  callers didn't need to.
+
+**A genuine architecture simplification, not just a compatibility fix**: `competitor_prices` now joins
+to a specific `product_id` via `competitor_product_mappings` at mapping-creation time, not query time -
+`pricing/`'s old fuzzy name-matching step (`matching.match_competitor_records()`, comparing
+`products.product_name` against `competitor_prices.product_name_captured`) is now not just unneeded but
+actively wrong against the new data shape (that field is the competitor's own name now, not a captured
+product name). Removed - `data_access.load_competitor_prices()`'s real FK join already returns exactly
+the right, pre-matched records. `matching.similarity()` itself is kept; `extraction/catalog_matching.py`
+still uses it directly for an unrelated purpose.
+
+**`pricing/guardrails.py` gained a real margin guardrail** - `Final_schema.sql` already has
+`products.cost_price` built in (no migration needed for this one), so this was built properly here
+rather than waiting on a separate unmerged PR. Floor-raises a suggestion to `cost * (1 + min_margin_pct)`
+when needed, never lowers a price, no-ops when cost is unknown. Verified: seeded a product whose
+price-change-guardrailed suggestion would sell at a loss (30.00 price, 27.00 cost, competitors averaging
+~19.17), confirmed the margin guardrail raises it to 29.70.
+
+**Testing**: every live-DB integration test file (`test_extraction_integration_db.py`,
+`test_sentiment_integration_db.py`, `test_mpi_integration_db.py`, `test_pricing_integration_db.py`)
+rewritten for the real schema - JSONB product names, the new competitor chain, the new column names
+throughout. `test_pricing_matching.py`/`test_extractor.py`'s dead-function tests removed rather than
+patched around. New unit tests added for the margin guardrail (6 cases) and its pipeline integration
+(3 cases). Full offline suite: 163 passed (up from 135 after the foundation pass), 0 failed.
+`flake8`/`py_compile` clean. **Not verified against a live database** - Docker remains unavailable in
+this environment; every SQL file reviewed manually and checked with `sqlparse`, but none of it has
+actually run against a real Postgres. Same explicit follow-up flag as the foundation entry.
+
+**Not done yet**: `extraction/`'s NER-persistence layer (writing to `extracted_entity` from
+`news_record`/`social_mention`) still needs reconciling with the new ingestion-engine's
+`extract_entities()` signature (Redis-cached catalog lookups) - next.
+
+## 2026-08-27 — `extraction/` NER persistence reconciled with the new ingestion engine; schema-fork rework complete
+
+Closes the last piece of `PENDING_ACTIONS.md` #27. `main` had independently grown a large, genuinely
+well-built new subsystem under `src/ai/extraction/` alongside the schema fork — a Universal Import
+Engine (spec §12: CSV/XLSX/PDF/DB/API adapters, bilingual template detection, Arabic-Indic numeral
+normalization) that reuses the NER extractor as its fallback path. It rewrote `extractor.py`'s
+signature (`extract_entities(text, tenant_id, redis_client, conn)` — Redis-cached catalog lookups, a
+real improvement — replacing the old `(text, known_product_names, known_competitor_names)`) and
+`data_access.py`, neither aware of this track's own unmerged NER-persistence branch (PR #12), so
+landing both meant reconciling a real design collision, not a text conflict a merge tool resolves.
+
+**Approach**: kept the new extractor's improvements (Redis caching, Arabic-script catalog matching,
+overlap resolution between regex/catalog tiers - a real gap the old version had, silently never
+matching Arabic product/competitor names), added back only what was missing for persistence:
+
+- `ExtractedEntity` gained back a `confidence` field (`None` for regex/rule matches, populated by
+  `catalog_matching.py`'s fuzzy-match score) - dropped when the new extractor was built, needed for
+  `extracted_entity.confidence_score`.
+- `data_access.py` gained back `load_pending_news_records()`/`load_pending_social_mentions()`
+  (`extraction_status`-gated) and the matching status-marker functions - the new version only had the
+  catalog-name loaders, not the persistence-input loaders PR #12 built.
+- New `extraction/evidence.py` (`insert_extracted_entities()`) and `extraction/pipeline.py`
+  (`extract_and_store_news_records()`/`extract_and_store_social_mentions()`), calling the *new*
+  `extract_entities()` signature - `redis_client` is caller-injected and optional, same convention as
+  `ingestion_pipeline.py`'s `process_file()` and `rag/`'s `minio_client`; omitting it just skips
+  catalog matching (the extractor's own contract), not an error.
+
+**Testing**: 6 new offline tests (mocked conn/redis_client, covering both entry points' persist,
+redis-passthrough, and mark-Failed-on-error paths) plus 7 new live-DB integration tests, including a
+`_FakeRedis` in-memory stand-in (`.get()`/`.set()` only, no real Redis server needed) so the
+catalog-matching path can be verified end-to-end through the real pipeline without an extra live
+dependency. One test explicitly confirms the no-`redis_client` case still runs the regex tier cleanly.
+Full offline suite: 169 passed (up from 163), 0 failed. `flake8`/`py_compile` clean.
+
+`src/ai/README.md`'s `extraction/` section rewritten to document both capabilities now sharing that
+directory (NER vs. the ingestion engine) and how they connect; two now-factually-wrong blocker bullets
+(`cost` column, `extracted_entity` table) corrected - a fuller pass to bring the rest of that file
+current against everything resolved across today's three entries is a separate follow-up, not done here.
+
+**Schema-fork rework is now code-complete across all five in-scope modules** (`forecasting/` untouched,
+excluded per instruction). **Still not verified against a live database** - Docker has been unavailable
+throughout this entire piece of work. Every migration (11 new files across today's three entries) and
+every query has been reviewed manually and checked with `sqlparse`, but none of it has actually been
+applied to or run against a real Postgres. This is the single most important remaining follow-up before
+any of today's work should be treated as confirmed correct, not just carefully reasoned - flagged
+explicitly here and in `PENDING_ACTIONS.md` #27, not silently glossed over.
+
+## 2026-08-27 — Schema-fork rework verified against a real live database
+
+Closes out the one flag repeated across all three of today's earlier entries and `PENDING_ACTIONS.md`
+#27: everything below was reviewed manually and `sqlparse`-checked, but none of it had actually run
+against a real Postgres, because Docker Desktop was broken in this environment all day. Docker Desktop
+became available mid-session (root cause: zombie/duplicate `Docker Desktop`/`com.docker.backend`
+processes from an earlier crash holding the named pipe in a broken state — killed all docker-related
+processes, `wsl --shutdown`, relaunched clean; confirmed with `docker run --rm hello-world`).
+
+**Verification setup**: three disposable, uniquely-named containers (`aitest_pg_verify_*`,
+`aitest_redis_verify_*`, `aitest_minio_verify_*`) — never touching any long-running dev container.
+`scripts/apply_migrations.py` run against a completely empty database: `Final_schema.sql` + all 11
+migration files applied cleanly, zero errors. Re-run confirmed idempotency (0 new migrations the second
+time) and correct `ceopro_app` password sync from `APP_DB_PASSWORD`.
+
+**The live run immediately paid for itself** — it caught three real bugs that manual review and
+`sqlparse` (which only checks syntax, not runtime behavior) had both missed:
+
+- `evidence_records`'s extension migration only dropped `NOT NULL` on `forecast_id`; `metric_name`,
+  `metric_value_json`, and `contribution_weight` were still `NOT NULL` from `Final_schema.sql`'s
+  original forecast-only definition, so every non-forecasting evidence insert
+  (`sentiment/`/`pricing/`/`mpi/`) failed with `NotNullViolation` until this was fixed in the same
+  migration file (`20260827000000_restore_shared_evidence_architecture.sql`). `PENDING_ACTIONS.md` #28
+  updated with this addendum.
+- Two test-fixture bugs, not product-code bugs: `test_sentiment_integration_db.py`/
+  `test_mpi_integration_db.py`'s review-seeding helpers never set `reviews.source_platform`
+  (`NOT NULL`, unrelated to this rework, always was); `test_pricing_integration_db.py`'s
+  competitor-price-seeding helper inserted a fresh `global_competitors` row on every call instead of
+  reusing one for the same `(tenant_id, competitor_name)`, so any test seeding multiple prices for one
+  competitor hit `uq_competitor_private`. Both fixed. `PENDING_ACTIONS.md` #30.
+
+**Result after fixes**: full live-DB integration suite (`pytest -k integration_db`) for the four
+reworked modules — `sentiment/`, `mpi/`, `pricing/`, `extraction/` — is **fully green: 0 failed, 0
+errors**, run against real tables with real foreign keys, real RLS-relevant roles, and real constraint
+checks, not mocks.
+
+**A genuine, structural gap found in `forecasting/`, out of scope for this rework but too significant
+not to flag immediately**: `Final_schema.sql` has no `transactions` table at all (confirmed against
+all 26 `CREATE TABLE` statements) — `forecasting/data_access.py::load_daily_demand()` cannot run
+against the new canonical schema. Two of its own test fixtures also broke on the now-JSONB
+`products.product_name` (a mechanical, unrelated fix applied: `json.dumps({"en": name})` instead of a
+bare string literal — same fix already applied to every other module's fixtures during this rework),
+but the missing `transactions` table is not mechanical: the closest structural analog in
+`Final_schema.sql` is `invoices`/`invoice_items`, which is a real data-model restructuring (no per-line
+`transaction_date`, no POS/online `sale_source` distinction), not a rename. Not fixed here —
+`forecasting/` was explicitly excluded from this rework by prior instruction, and deciding how it
+should source demand data is a call for whoever owns that architecture, not something to guess at
+unilaterally. Filed as `PENDING_ACTIONS.md` #31, needs a decision.
+
+**Testing**: live-DB integration suite as above. Full offline suite re-run after the fixture fixes:
+still 169 passed, 0 failed (only test **fixtures** changed, not the modules' actual behavior, so this
+was expected, not just hoped for). `flake8`/`py_compile` unaffected.
+
+**`PENDING_ACTIONS.md` #27 marked ✅ Resolved** — this was the one remaining step blocking that item's
+closure.
+
+## 2026-08-27 — Deep edge-case pass before merge: found and fixed a real RLS bug
+
+Requested explicitly ("review with edge cases and deep testing before the merge") as a follow-up to
+the same day's live-DB verification entry above, which confirmed the four reworked modules run
+correctly but only exercised the happy paths every other integration test already covers. This entry
+targets what that one didn't: tenant-isolation behavior under the actual restricted role, constraint
+edge cases, cross-tenant leakage, boundary conditions, and the real Redis cache path.
+
+**Found a real, serious bug in `Final_schema.sql` itself, not in any AI/ML module** —
+`get_current_tenant()`, the function every RLS policy calls, recurses infinitely and crashes the
+instant a non-superuser role evaluates it with real tenant context set. It's `SECURITY INVOKER`
+(Postgres's default) and its body queries `tenant_users` to confirm active membership; `tenant_users`
+is itself RLS-protected by a policy that calls `get_current_tenant()` again. Every verification this
+session up to this point - including the same-day live-DB entry above - connected as the superuser
+`ceopro_admin`, which bypasses RLS (and therefore never evaluates any policy, including the broken
+one) entirely, so this was invisible until a test connected as the actual restricted `ceopro_app` role
+and set real session variables. Reproduced directly: `psycopg2.errors.StatementTooComplex: stack depth
+limit exceeded` on a plain `SELECT * FROM products` with valid tenant/user context set.
+
+Fixed in `migrations/20260827060000_fix_get_current_tenant_recursion.sql` - marks the function
+`SECURITY DEFINER` (with `SET search_path = public, pg_temp`, standard hardening for that annotation)
+so its internal `tenant_users` lookup runs as the function's owner (a superuser) instead of the calling
+role, bypassing RLS instead of re-entering it. This is the standard, documented Postgres pattern for a
+helper function used inside RLS policies that itself needs to read a protected table. New permanent
+regression suite: `src/ai/tests/test_rls_integration_db.py` (11 tests, connects as `ceopro_app` for
+real - correct per-tenant scoping, fails closed with no context, a revoked membership loses access, a
+user can't claim a tenant they're not a member of, plus the constraint edge cases below). Practical
+significance: RLS as shipped in `Final_schema.sql` would have crashed on first real use the moment
+anything actually connected as a non-superuser role - not just "not wired up yet"
+(`PENDING_ACTIONS.md` #25's already-tracked gap: no service in `docker-compose.yml` connects as
+`ceopro_app` at all today), but broken even once it was. `PENDING_ACTIONS.md` #32.
+
+**Other findings, all confirmed correct or fixed in the same pass**:
+
+- `chk_evidence_shape`/`chk_review_subject_consistency`/`uq_competitor_private` (allows the same
+  competitor name across *different* tenants, only same-tenant duplicates collide) - all verified
+  behaving exactly as designed, now permanent regression tests alongside the RLS ones.
+- **New permanent test** for the trickiest realistic cross-tenant-leak shape: two tenants
+  independently tracking the *same* shared `GLOBAL`-visibility competitor, each with their own price
+  observations. `pricing/data_access.py`'s join chain (`competitor_prices` -> `competitor_product_mappings`
+  -> `tenant_competitors` -> `global_competitors`) stays correctly scoped - confirmed, not assumed.
+  `sentiment/`'s and `mpi/`'s data-access queries reviewed directly for the same class of leak; both
+  already correctly `tenant_id`-scoped on every join (`mpi/data_access.py::load_country_context()`'s
+  COMPETITOR branch already had its own comment documenting exactly this concern from the original
+  rework pass) - no fix needed.
+- `mpi/scoring.py::compare_mpi_results()`'s volume-floor guard had no test for review_count *exactly
+  equal to* the floor, only above/below - added, confirms the `<` comparison (not `<=`) is correct, i.e.
+  the floor itself is comparable, only strictly fewer reviews are refused.
+- `pricing/guardrails.py::apply_margin_guardrail()` with `cost=0`, and
+  `pricing/data_access.py::_representative_name()`'s JSONB fallback for a product name missing the
+  `"en"` key - both reviewed directly, both already handle it correctly, no fix needed.
+- `extraction/catalog_cache.py` exercised against a real Redis container for the first time (every
+  prior test used a `_FakeRedis` stand-in) - full cache-aside cycle (cold path populates + sets a 300s
+  TTL, warm path serves from cache without re-querying, `invalidate()` clears and forces a fresh read)
+  confirmed correct, including a round-trip through Arabic-script catalog names via JSON. No fix needed.
+
+**Testing**: full live-DB suite after all fixes: 49 passed (up from 37 in the same-day earlier entry -
+11 new RLS tests plus 1 new pricing cross-tenant test), only the already-tracked `PENDING_ACTIONS.md`
+#31 forecasting gap remains. Full offline suite: 170 passed (up from 169 - 1 new MPI boundary test), 0
+failed. `flake8`/`py_compile` clean on every new/modified file.
+
+`PENDING_ACTIONS.md` #32 (the RLS bug) and #33 (this pass's summary) added, both resolved/complete.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
