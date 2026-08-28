@@ -100,8 +100,22 @@ def _parse_typed_cell(
     field_type = FIELD_PARSERS[canonical_field]
     raw = str(cell_value).strip()
 
-    if field_type in ("money", "percent"):
+    if field_type == "money":
         return normalize_number_string(raw, decimal_style), 1.0
+
+    if field_type == "percent":
+        # A cell in a column already identified as discount_pct routinely
+        # carries its own literal '%' ("10%", not "10") - Excel/Sheets
+        # write it that way when a column is percent-formatted, and a
+        # human typing a discount naturally does too. normalize_number_string()
+        # has no reason to know that stripping it is safe here (it's a
+        # generic numeral normalizer, not percent-specific), so float("10%")
+        # would fail and this cell would silently fall through to
+        # unmapped/fallback extraction despite already being correctly
+        # identified as a typed percent column. extract_percent()'s regex
+        # path already avoids this (its capture group excludes the '%') -
+        # this mirrors that here.
+        return normalize_number_string(raw.rstrip("%").strip(), decimal_style), 1.0
 
     if field_type == "integer":
         ascii_raw = to_ascii_digits(raw)
