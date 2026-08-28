@@ -160,7 +160,7 @@ mean nothing changed unexpectedly.
 was silently altered." Any merge that resolves a real conflict in a file also auto-merges every other
 hunk in that file using the same three-way logic, and none of those get a human's eyes by default.
 
-Detail: `PENDING_ACTIONS.md` #34.
+Detail: `PENDING_ACTIONS.md` #36 (renumbered from #34 — PR #14 independently landed content at #34/#35 first).
 
 ---
 
