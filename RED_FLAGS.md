@@ -251,6 +251,34 @@ processes correctly, the transaction commits cleanly, job counts land correctly 
 
 Detail: `PENDING_ACTIONS.md` #39.
 
+### The same connection-poisoning bug existed in adjacent, pre-existing code — and there it crashed the whole batch
+**Found:** 2026-08-28, integration QA testing new ingestion/fine-tuning code against what it shares a
+dependency with. **Status:** ✅ Fixed, regression-tested.
+
+`extract_entities()` (`extraction/extractor.py`) has two callers: `ingestion_pipeline.py` (fixed above)
+and `extraction/pipeline.py::extract_and_store_news_records()`/`extract_and_store_social_mentions()` —
+older code, built earlier and unrelated to this week's ingestion/fine-tuning work. It had **no**
+`SAVEPOINT` protection at all. The same realistic trigger applies here too — `extracted_entity.entity_value`
+is `VARCHAR(512)`, and a long catalog-matched product/competitor name can legitimately exceed that —
+but the failure mode was worse: this file's `except` block does its own recovery write (marking the
+record `'Failed'`), and on a poisoned connection *that write also failed*, an uncaught exception that
+propagated out of the entire function. Reproduced directly against a live Postgres: a 521-character
+catalog match crashed `extract_and_store_news_records()` with `psycopg2.errors.InFailedSqlTransaction`,
+leaving even a second, completely valid record in the same batch stuck at `'Pending'` — not degraded
+per-row like the fixed `ingestion_pipeline.py` bug, the whole batch silently stopped processing with no
+error surfaced anywhere.
+
+**Fix:** each record's extract-and-persist now runs inside a `SAVEPOINT`, rolled back to (not the whole
+transaction) on failure *before* the recovery write runs — so the recovery write always executes against
+a clean connection. Verified with a live-DB test: the bad record is marked `'Failed'`, the good record
+is correctly marked `'Processed'`, the function returns normally instead of crashing.
+
+This is the clearest validation yet of testing new code's integration with pre-existing code, not just
+the new code in isolation — the bug lived entirely in old code, surfaced only by tracing a shared
+dependency (`extract_entities()`) to its other caller.
+
+Detail: `PENDING_ACTIONS.md` #41.
+
 ---
 
 ## 🟡 Medium (a clean `git merge` silently dropped real content)
