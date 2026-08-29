@@ -89,7 +89,19 @@ STRICT_MODE_MIN_COVERAGE = 0.5
 
 
 def _normalize_header(raw_header: str) -> str:
-    return re.sub(r"\s+", " ", raw_header.strip().lower())
+    """
+    Underscores are folded to spaces before whitespace collapse, so
+    snake_case headers ("product_name", "unit_price" - Final_schema.sql's
+    own column-naming convention, and a common shape for anything
+    exported from a database/API rather than typed by hand in a
+    spreadsheet) match the same way their space-separated spelling would.
+    Applied identically to both sides of the lookup in
+    build_header_mapping() below, so HEADER_SYNONYMS entries that already
+    happen to contain an underscore (e.g. "total_ttc", "prix_unitaire")
+    still match correctly - they normalize to the same string their
+    space-separated counterpart already does.
+    """
+    return re.sub(r"\s+", " ", raw_header.strip().lower().replace("_", " "))
 
 
 def build_header_mapping(headers: List[str]) -> Dict[str, str]:

@@ -26,7 +26,7 @@ def load_unanalyzed_reviews(conn: "psycopg2.extensions.connection", tenant_id: s
           AND r.source_status = 'ALLOWED'
           AND r.review_text IS NOT NULL
           AND length(trim(r.review_text)) > 0
-        ORDER BY r.collected_at
+        ORDER BY r.review_date
         LIMIT %s;
     """
     with conn.cursor() as cursor:
@@ -69,12 +69,16 @@ def load_aggregate_sentiment(
     else:
         raise ValueError(f"Unknown subject_type '{subject_type}'")
 
+    # sentiment_results.sentiment_label stores upper-case labels (Final_schema.sql's
+    # own convention, CHECK (sentiment_label IN ('POSITIVE','NEUTRAL','NEGATIVE')));
+    # lower-cased here so this module's internal convention (used throughout
+    # cold_start.py/model.py/pipeline.py) doesn't need to change.
     query = f"""
-        SELECT sr.label, COUNT(*), AVG(sr.positive_probability), AVG(sr.negative_probability)
+        SELECT LOWER(sr.sentiment_label), COUNT(*), AVG(sr.positive_probability), AVG(sr.negative_probability)
         FROM reviews r
         JOIN sentiment_results sr ON sr.review_id = r.review_id
         WHERE r.tenant_id = %s AND r.subject_type = %s {subject_filter}
-        GROUP BY sr.label;
+        GROUP BY sr.sentiment_label;
     """
     with conn.cursor() as cursor:
         cursor.execute(query, params)
