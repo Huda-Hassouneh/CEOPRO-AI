@@ -20,7 +20,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
 from src.ai.extraction.template_detection import TemplateMode, detect_template
-from src.ai.extraction.row_parsing import RowParseResult, parse_mapped_row
+from src.ai.extraction.row_parsing import RowParseResult, parse_mapped_row, validate_typed_fields
 from src.ai.extraction.extractor import extract_entities
 from src.ai.extraction.minio_persistence import build_extraction_document, upload_extraction_document
 from src.ai.extraction.locale_config import get_tenant_locale
@@ -49,6 +49,41 @@ class IngestionSummary:
     minio_object_key: Optional[str] = None
 
 
+_SAVEPOINT_NAME = "ingestion_pipeline_write"
+
+
+def _execute_in_savepoint(conn, sql: str, params: tuple):
+    """
+    Runs one write inside a SAVEPOINT, so a failure at the database level
+    (a constraint violation, an encoding error Postgres rejects - e.g. a
+    JSONB column can't hold an embedded NUL byte) only unwinds that one
+    statement, not the whole transaction. Without this, one row's DB-level
+    error leaves the transaction permanently aborted
+    (psycopg2.errors.InFailedSqlTransaction), and every later statement on
+    this same connection fails too - every subsequent row's writes, and
+    the final job-count update - even though their content had nothing to
+    do with the row that actually failed. Confirmed directly: reproduced
+    against a real Postgres with a NUL byte in a cell value, which
+    silently poisoned every write after it in the same file until this fix.
+
+    A Python-level exception from the caller's own code (a parse or
+    validation failure that never reaches this function at all) is a
+    separate, already-handled case - this only guards actual SQL
+    execution, not the row-processing logic around it.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(f"SAVEPOINT {_SAVEPOINT_NAME};")
+        try:
+            cursor.execute(sql, params)
+            result = cursor.fetchone() if cursor.description else None
+        except Exception:
+            cursor.execute(f"ROLLBACK TO SAVEPOINT {_SAVEPOINT_NAME};")
+            raise
+        else:
+            cursor.execute(f"RELEASE SAVEPOINT {_SAVEPOINT_NAME};")
+            return result
+
+
 def _insert_staging_row(conn, tenant_id: str, job_id: str, raw_row: Dict[str, object]) -> int:
     """
     Writes the untouched row into the existing import_staging_rows table
@@ -57,43 +92,43 @@ def _insert_staging_row(conn, tenant_id: str, job_id: str, raw_row: Dict[str, ob
     point: whatever else fails downstream, the original row is already
     durable in Postgres.
     """
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO import_staging_rows (tenant_id, job_id, raw_payload_json, validation_status)
-            VALUES (%s, %s, %s, 'PENDING')
-            RETURNING staging_row_id;
-            """,
-            (tenant_id, job_id, json.dumps(raw_row, ensure_ascii=False)),
-        )
-        return cursor.fetchone()[0]
+    row = _execute_in_savepoint(
+        conn,
+        """
+        INSERT INTO import_staging_rows (tenant_id, job_id, raw_payload_json, validation_status)
+        VALUES (%s, %s, %s, 'PENDING')
+        RETURNING staging_row_id;
+        """,
+        (tenant_id, job_id, json.dumps(raw_row, ensure_ascii=False)),
+    )
+    return row[0]
 
 
 def _update_staging_row_status(
     conn, staging_row_id: int, status: str, errors: Optional[str] = None
 ) -> None:
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """
-            UPDATE import_staging_rows
-            SET validation_status = %s, validation_errors = %s
-            WHERE staging_row_id = %s;
-            """,
-            (status, errors, staging_row_id),
-        )
+    _execute_in_savepoint(
+        conn,
+        """
+        UPDATE import_staging_rows
+        SET validation_status = %s, validation_errors = %s
+        WHERE staging_row_id = %s;
+        """,
+        (status, errors, staging_row_id),
+    )
 
 
 def _update_job_counts(conn, tenant_id: str, job_id: str, processed: int, failed: int) -> None:
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """
-            UPDATE ingestion_jobs
-            SET rows_processed = rows_processed + %s,
-                rows_failed = rows_failed + %s
-            WHERE tenant_id = %s AND job_id = %s;
-            """,
-            (processed, failed, tenant_id, job_id),
-        )
+    _execute_in_savepoint(
+        conn,
+        """
+        UPDATE ingestion_jobs
+        SET rows_processed = rows_processed + %s,
+            rows_failed = rows_failed + %s
+        WHERE tenant_id = %s AND job_id = %s;
+        """,
+        (processed, failed, tenant_id, job_id),
+    )
 
 
 def process_file(
@@ -165,6 +200,15 @@ def process_file(
                 result = parse_mapped_row(
                     raw_row, detection.header_mapping, tenant_id, decimal_style, day_first
                 )
+                # Spec S12's "Validate values" step: a cell can parse
+                # cleanly (a real number, a real date shape) and still be
+                # semantically wrong - a negative price, a zero quantity,
+                # a year outside any plausible invoice range. Parsing
+                # success alone was previously treated as "valid"; this
+                # closes that gap rather than silently importing bad data.
+                validation_errors = validate_typed_fields(result)
+                if validation_errors:
+                    raise ValueError("; ".join(validation_errors))
                 parse_results.append(result)
                 outcome = IngestionRowOutcome(
                     row_index=i,
