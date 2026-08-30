@@ -22,7 +22,7 @@ in [`PENDING_ACTIONS.md`](PENDING_ACTIONS.md) so it stays visible without diggin
 | Phase 2 — Demand Intelligence (§18, §23, §25) | `src/ai/forecasting/` | 🟢 Built, tested (unit + integration) | Baselines, XGBoost + walk-forward validation, cold-start policy, evidence writers, Redis consumer. See entries below. |
 | Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟡 Hybrid (lexical + semantic) retrieval built/tested; chatbot itself not started | Document ingestion + BM25 + FAISS semantic retrieval + Reciprocal Rank Fusion, all against existing `rag_documents_metadata` + MinIO — none of it needs pgvector. Still missing: LLM reasoning step, chat history (needs a new table). A real fusion edge case found and documented (not fixed — inherent BM25 behavior on very short chunks). See entries below. |
 | Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/`, `src/ai/mpi/` | 🟢 Built, tested (unit + integration); NER persistence + MPI both landed since this row was last updated | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) + Redis-cached catalog lookups, reworked against `Final_schema.sql`. NER persistence (`extracted_entity`) built and live-DB tested — the "not started" note here was stale, corrected 2026-08-28. `mpi/` (Market Perception Index, §17: sentiment + source reliability + recency + volume + entity relevance) built and live-DB tested, including cross-country comparison with a volume floor. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy, plus (2026-08-28) a fine-tuning/evaluation harness (`sentiment/finetune.py`) ready to run once real labeled data exists. `competitor_prices`/`reviews`/`news_record`/`social_mention` are still empty in prod, so the `UNKNOWN`-evidence/cold-start path is what actually runs today. Universal Import Engine (`extraction/ingestion_pipeline.py` + adapters, spec §12) - file-type detection and value validation added 2026-08-28, previously missing entirely. See entries below. |
-| Market Collection / Pipeline B (§13, §19) | `src/market_scraper/` | Production-hardened and live-DB/RLS tested; awaiting accountable approval for real competitor sources | Deny-by-default policy and privacy approval, tenant/source mapping allocation, Tier-2 staging, 0.82 product gate, Scrapy/Playwright collection, DNS/redirect SSRF checks, Redis retry/dead-letter worker, stale-job recovery, quarantine-without-price promotion, retention maintenance, Prometheus alerts, independently deployed analysis worker, and canonical `competitor_prices` persistence. The Books to Scrape sandbox passes the bounded live canary; actual competitor approval/mapping remains external (`PENDING_ACTIONS.md` #5). |
+| Market Collection / Pipeline B (§13, §19) | `src/market_scraper/` | Production-hardened and live-DB/RLS tested; awaiting accountable approval for real competitor sources | Deny-by-default policy and privacy approval, tenant/source mapping allocation, Tier-2 staging, 0.82 product gate, Scrapy/Playwright collection, DNS/redirect SSRF checks, Redis retry/dead-letter worker, stale-job recovery, quarantine-without-price promotion, retention maintenance, Prometheus alerts, independently deployed analysis worker, and canonical `competitor_prices` persistence. The Books to Scrape sandbox passes the bounded live canary; actual competitor approval/mapping remains external (`PENDING_ACTIONS.md` #5). Two official-API collectors added 2026-08-31: `google_places` (reviews only, no price — routes through the same staging/0.82-gate/safety-scan pipeline, `competitor_prices` and price-derived `market_events` are skipped for price-less records) and `amazon_paapi` (exact-ASIN price/availability, AWS SigV4-signed). The generic-website adapter from the original 3-source ask ("Google Places, Amazon PA-API, generic website") needed no new code — the pre-existing `standards`/`MarketSourceSpider` collector already covers STRUCTURED_DATA (JSON-LD) and WEB_SCRAPE (reviewed CSS selectors) for arbitrary competitor sites. |
 | Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail, evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Margin guardrails are weaker than spec'd — `products` has no cost column (`PENDING_ACTIONS.md` #14). Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
 | Phase 6 — Competitor Ranking (§20) | — | ⚪ Not started | Same data gap as Phase 5 (`PENDING_ACTIONS.md` #5). |
 
@@ -1328,6 +1328,84 @@ This is the clearest payoff yet of the "test integration with what's already imp
 specifically — the bug lived entirely in pre-existing code untouched by this week's work, and was only
 found by tracing a shared dependency to its other, older caller rather than stopping at testing the new
 code in isolation.
+
+## 2026-08-31 — Reconciled two independently-built market-scraper designs; added Google Places + Amazon PA-API collectors
+
+**Context**: earlier this session, `src/market_scraper/` was built from scratch (own `competitor_prices`-only
+persistence, own `collection_metadata` migration) at the same time a second, more mature Scrapy-based
+implementation — Collection Policy Engine, `market_observations`/`market_events`/`competitor_score_snapshots`/
+`market_alert_rules`/`market_alert_events`/`market_observation_staging`, prompt-injection scanning, SSRF
+protection, approval/retention/privacy workflow — was independently merged to `main` under the identical
+package path. A direct path collision (5 files: `README.md`, `__init__.py`, `persistence.py`,
+`requirements.txt`, `tests/__init__.py`), not a content merge conflict. Directed explicitly to keep `main`'s
+architecture and wire the originally-requested collectors (Google Places, Amazon PA-API) into it rather than
+resolve either direction by force.
+
+**Branch reconciliation**: created `reconcile-tmp` from `origin/main`, cherry-picked the 4 substantive commits
+from this session's own work (forecasting schema, real RLS-enforcing `src/ai/main.py`, the extraction-pipeline
+refactor, the secure upload endpoint) — deliberately excluding the two now-superseded `market_scraper` commits
+and 3 stale doc commits. One conflict (`docker-compose.yml`, both sets of services — `market-scraper`/
+`market-analysis-worker`/`market-maintenance` plus this session's own `ai` service — kept side by side).
+Confirmed the full 17-migration merged schema (12 pre-existing + `main`'s 3 market-collection migrations +
+this session's 2 forecasting/extraction migrations) applies clean from empty on a real disposable Postgres,
+and the full repo test suite (409 passed, 32 skipped, 0 failed) is green against it. This session's own
+now-obsolete `20260830010000_add_market_scraper_collection_metadata.sql` migration was already dropped by the
+cherry-pick (it belonged to the retired design) — no separate decision needed.
+
+**What changed in `main`'s kept architecture** (all additive/conditional — no existing behavior altered for a
+record that already has a price):
+
+- `market_repository.py::save_market_record()` — the `competitor_prices` INSERT and `_derive_events()`'s
+  price-change/product-discovered event derivation now run only when `item["price_amount"] is not None`.
+  `market_observations` persistence and `_save_reviews()` are unconditional either way — a review-only record
+  still gets a canonical observation row and its reviews saved, just no price row and no price events.
+- `pipelines.py::ValidateMarketRecordPipeline` — `price_amount`/`currency` moved out of the unconditionally
+  required fields; a new check requires them to be both-present or both-absent (a record can't have a price
+  with no currency or vice versa). `source_name`/`product_name`/`product_url` stay mandatory for every record.
+- `data_access.py::load_source()` now also selects and returns `connection_credentials_vault` (a pre-existing
+  `data_sources` TEXT column that had never been read anywhere) as a parsed `connection_credentials` dict —
+  no secrets-manager integration exists in this repo, so this column is used pragmatically as a JSON blob of
+  API credentials (`{"api_key": ...}` / `{"access_key", "secret_key", "partner_tag"}`), not a vault reference.
+  Flagged in `PENDING_ACTIONS.md` as a security note for whoever owns secrets management, not silently assumed
+  fine. `cli.py` passes it through to any non-`books_to_scrape` spider as `credentials_json`.
+- `collectors.py` / `policy_cli.py --collector` — registered the two new collector keys.
+
+**New spiders** (`src/market_scraper/spiders/`), both real `scrapy.Spider` subclasses — deliberately not a
+bypass of Scrapy, since `cli.py`'s dispatch and every pipeline/staging/promotion signal
+(`item_dropped`→REJECTED, `spider_closed`→finalize job/enqueue analysis) is Scrapy-signal-driven with no
+equivalent for a plain-function caller:
+
+- `google_places.py` (`GooglePlacesSpider`) — official Google Places API, two-step Find Place → Details flow
+  against the fixed `maps.googleapis.com` host (`allowed_domains` pinned to it, so
+  `PublicNetworkBoundaryMiddleware`'s SSRF/host checks apply with zero changes — this spider never requests a
+  mapped target's own `product_url`). 0.82 fuzzy-name gate on place name vs. the tenant's competitor name;
+  `scan_external_text()` run on every individual review body (independently of the top-level record, matching
+  `market_source.py`'s existing convention of quarantining unsafe reviews without quarantining an otherwise-safe
+  product). Every yielded record has `price_amount=currency=None` — Places has no price to offer.
+- `amazon_paapi.py` (`AmazonPricingSpider`) — official Product Advertising API v5, exact-ASIN match only
+  (`match_score=1.0`, `match_method=EXACT_SKU` — PA-API's `GetItems` returns that exact item or nothing, no
+  fuzzy path needed). AWS Signature Version 4 request signing implemented with stdlib `hmac`/`hashlib` only (no
+  new dependency), computed before building the `scrapy.Request` — the actual network I/O still goes through
+  Scrapy's downloader and `PublicNetworkBoundaryMiddleware` like any other collector. Yields price/availability
+  records with no reviews.
+
+**Testing**: 62 offline `market_scraper` tests pass (12 new: spider unit tests for both new collectors —
+threshold gating, signed-request construction, quarantine-on-unsafe-title/review — plus regression tests
+confirming the relaxed validation still enforces every existing price-record check unchanged, plus a
+`load_source`/`connection_credentials` unit test, plus a `collectors.py` registration test). Live-DB: added
+`test_review_only_record_promotes_without_a_price_row` to `test_market_integration_db.py`, run against a real
+migrated Postgres — confirms a review-only record promotes through Tier-2 staging, creates exactly one
+`market_observations` row and its review rows, creates zero `competitor_prices` rows and zero `market_events`,
+alongside the pre-existing price-record promotion/quarantine tests (still passing unchanged). Full repo suite
+re-run clean after all changes: 409 passed, 32 skipped, 0 failed.
+
+**Standing schema-safety rule** (per explicit prior instruction: verify and report before any merge, never
+merge if anything breaks): no schema/migration file was touched in this pass at all — every change is Python
+logic in already-existing, already-migrated tables/columns. `PENDING_ACTIONS.md` #5 partially advanced (the
+collector layer now covers all three originally-requested integrations); still genuinely blocked on the same
+external action as before — a human approving real competitor/business sources and configuring
+`data_sources`/`competitor_product_mappings` (plus, now, populating `connection_credentials_vault` for the two
+API-key-gated collectors). `PENDING_ACTIONS.md` #42 added for the plaintext-JSON-credentials design note.
 
 ## How to add an entry
 
