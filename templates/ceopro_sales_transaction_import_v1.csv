@@ -1,0 +1,2 @@
+product_name,quantity,unit_price,currency,transaction_date,discount_pct,invoice_id,order_id,email,phone,competitor_name,amount_raw
+Premium Olive Oil 1L,3,24.50,JOD,2026-08-30,10,INV-20458,ORD-99231,customer@example.com,+962791234567,Rival Store,66.15

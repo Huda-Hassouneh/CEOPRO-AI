@@ -35,7 +35,8 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
                    technical_restrictions, rate_limit_per_minute,
                    collector_key, render_javascript, collector_config,
                    approval_reference, approved_at, privacy_reviewed_at,
-                   retention_days, contains_personal_data
+                   retention_days, contains_personal_data,
+                   connection_credentials_vault
             FROM data_sources
             WHERE tenant_id = %s AND source_id = %s AND is_active = TRUE;
             """,
@@ -44,6 +45,13 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
         row = cursor.fetchone()
     if not row:
         return None
+    # connection_credentials_vault is a plain TEXT column (no secrets-manager
+    # integration exists in this repo); it holds a JSON object of API
+    # credentials for collectors that need them (e.g. {"api_key": "..."}).
+    try:
+        credentials = json.loads(row[16]) if row[16] else {}
+    except (TypeError, ValueError):
+        credentials = {}
     return {
         "source_id": str(row[0]),
         "source_name": row[1],
@@ -61,6 +69,7 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
         "privacy_reviewed_at": row[13],
         "retention_days": row[14],
         "contains_personal_data": row[15],
+        "connection_credentials": credentials,
     }
 
 

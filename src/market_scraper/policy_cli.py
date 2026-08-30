@@ -22,7 +22,11 @@ def main():
     parser.add_argument("--terms-permit", choices=("yes", "no", "unknown"), default="unknown")
     parser.add_argument("--technical-controls-permit", choices=("yes", "no", "unknown"), default="unknown")
     parser.add_argument("--rate-limit", type=int, default=30)
-    parser.add_argument("--collector", choices=("standards", "books_to_scrape"), default="standards")
+    parser.add_argument(
+        "--collector",
+        choices=("standards", "books_to_scrape", "google_places", "amazon_paapi"),
+        default="standards",
+    )
     parser.add_argument("--render-javascript", action="store_true")
     parser.add_argument("--approval-reference")
     parser.add_argument("--approved-by", help="UUID of the accountable reviewer")
