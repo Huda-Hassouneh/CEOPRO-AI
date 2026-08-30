@@ -1,0 +1,439 @@
+{
+  "best_baseline": "seasonal_naive",
+  "config": {
+    "max_folds": 30,
+    "min_train_rows": 60,
+    "step": 1
+  },
+  "evaluation_end": "2025-06-29T00:00:00",
+  "evaluation_start": "2025-05-31T00:00:00",
+  "history_sha256": "9942d2b7a8ee8616a17975b359b3acd260a548e40820277fe3845a2ff7e33c69",
+  "input": {
+    "days": 180,
+    "seed": 42,
+    "type": "deterministic_demo"
+  },
+  "leakage_policy": "Each fold trains only on dates before its test date. The next actual day becomes history only for the following fold.",
+  "library_versions": {
+    "numpy": "1.26.4",
+    "pandas": "2.3.3",
+    "xgboost": "2.1.4"
+  },
+  "method": "expanding-window one-step rolling-origin backtest",
+  "metrics": {
+    "model": {
+      "mae": 1.1924495773598764,
+      "mape": 6.612917785019218,
+      "mase": 0.38331395369856874,
+      "rmse": 1.4614752956508141
+    },
+    "moving_average": {
+      "mae": 3.626856716100089,
+      "mape": 20.31385691848667,
+      "mase": 1.1658562456154642,
+      "rmse": 4.190155771320931
+    },
+    "naive": {
+      "mae": 3.074334713655953,
+      "mape": 18.437923031720505,
+      "mase": 0.9882475674093627,
+      "rmse": 4.474249763613933
+    },
+    "previous_period": {
+      "mae": 3.074334713655953,
+      "mape": 18.437923031720505,
+      "mase": 0.9882475674093627,
+      "rmse": 4.474249763613933
+    },
+    "seasonal_naive": {
+      "mae": 2.0087516731753263,
+      "mape": 10.621016114464123,
+      "mase": 0.6457149723246302,
+      "rmse": 2.72902606400499
+    }
+  },
+  "model_beats_all_baselines": true,
+  "model_mae_improvement_over_best_baseline_percent": 40.63728268238769,
+  "model_params": {
+    "colsample_bytree": 0.8,
+    "learning_rate": 0.05,
+    "max_depth": 4,
+    "n_estimators": 200,
+    "n_jobs": -1,
+    "objective": "reg:squarederror",
+    "random_state": 42,
+    "subsample": 0.8,
+    "tree_method": "hist"
+  },
+  "n_folds": 30,
+  "predictions": [
+    {
+      "actual": 21.559638195553575,
+      "date": "2025-05-31T00:00:00",
+      "model": 22.383514404296875,
+      "moving_average": 17.280209294790392,
+      "naive": 21.913458280934414,
+      "previous_period": 21.913458280934414,
+      "seasonal_naive": 26.8962537548126,
+      "train_end": "2025-05-30T00:00:00",
+      "train_rows": 136,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 13.532215496609027,
+      "date": "2025-06-01T00:00:00",
+      "model": 14.299224853515625,
+      "moving_average": 16.517835643467674,
+      "naive": 21.559638195553575,
+      "previous_period": 21.559638195553575,
+      "seasonal_naive": 13.624470685627609,
+      "train_end": "2025-05-31T00:00:00",
+      "train_rows": 137,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 12.790380466354772,
+      "date": "2025-06-02T00:00:00",
+      "model": 14.628623962402344,
+      "moving_average": 16.50465633075073,
+      "naive": 13.532215496609027,
+      "previous_period": 13.532215496609027,
+      "seasonal_naive": 14.126571287784378,
+      "train_end": "2025-06-01T00:00:00",
+      "train_rows": 138,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 14.241430509112002,
+      "date": "2025-06-03T00:00:00",
+      "model": 14.78018856048584,
+      "moving_average": 16.313771927689363,
+      "naive": 12.790380466354772,
+      "previous_period": 12.790380466354772,
+      "seasonal_naive": 13.91548384112823,
+      "train_end": "2025-06-02T00:00:00",
+      "train_rows": 139,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 14.785460939018016,
+      "date": "2025-06-04T00:00:00",
+      "model": 15.579462051391602,
+      "moving_average": 16.360335737401332,
+      "naive": 14.241430509112002,
+      "previous_period": 14.241430509112002,
+      "seasonal_naive": 14.506050936300339,
+      "train_end": "2025-06-03T00:00:00",
+      "train_rows": 140,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 16.99651589629586,
+      "date": "2025-06-05T00:00:00",
+      "model": 15.093810081481934,
+      "moving_average": 16.400251452075285,
+      "naive": 14.785460939018016,
+      "previous_period": 14.785460939018016,
+      "seasonal_naive": 15.979176276945172,
+      "train_end": "2025-06-04T00:00:00",
+      "train_rows": 141,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 22.056329425767462,
+      "date": "2025-06-06T00:00:00",
+      "model": 20.920459747314453,
+      "moving_average": 16.545585683411094,
+      "naive": 16.99651589629586,
+      "previous_period": 16.99651589629586,
+      "seasonal_naive": 21.913458280934414,
+      "train_end": "2025-06-05T00:00:00",
+      "train_rows": 142,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 23.10428741322767,
+      "date": "2025-06-07T00:00:00",
+      "model": 20.80804443359375,
+      "moving_average": 16.565995846958675,
+      "naive": 22.056329425767462,
+      "previous_period": 22.056329425767462,
+      "seasonal_naive": 21.559638195553575,
+      "train_end": "2025-06-06T00:00:00",
+      "train_rows": 143,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 14.350845281753017,
+      "date": "2025-06-08T00:00:00",
+      "model": 13.228667259216309,
+      "moving_average": 16.786660020912116,
+      "naive": 23.10428741322767,
+      "previous_period": 23.10428741322767,
+      "seasonal_naive": 13.532215496609027,
+      "train_end": "2025-06-07T00:00:00",
+      "train_rows": 144,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 13.55306748029957,
+      "date": "2025-06-09T00:00:00",
+      "model": 13.939278602600098,
+      "moving_average": 16.903607133075543,
+      "naive": 14.350845281753017,
+      "previous_period": 14.350845281753017,
+      "seasonal_naive": 12.790380466354772,
+      "train_end": "2025-06-08T00:00:00",
+      "train_rows": 145,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 13.841859885321155,
+      "date": "2025-06-10T00:00:00",
+      "model": 13.768141746520996,
+      "moving_average": 17.01256242078194,
+      "naive": 13.55306748029957,
+      "previous_period": 13.55306748029957,
+      "seasonal_naive": 14.241430509112002,
+      "train_end": "2025-06-09T00:00:00",
+      "train_rows": 146,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 14.154728722557097,
+      "date": "2025-06-11T00:00:00",
+      "model": 13.780444145202637,
+      "moving_average": 16.955480903097538,
+      "naive": 13.841859885321155,
+      "previous_period": 13.841859885321155,
+      "seasonal_naive": 14.785460939018016,
+      "train_end": "2025-06-10T00:00:00",
+      "train_rows": 147,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 17.6041636789222,
+      "date": "2025-06-12T00:00:00",
+      "model": 13.985358238220215,
+      "moving_average": 16.865376300745975,
+      "naive": 14.154728722557097,
+      "previous_period": 14.154728722557097,
+      "seasonal_naive": 16.99651589629586,
+      "train_end": "2025-06-11T00:00:00",
+      "train_rows": 148,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 21.089335984930734,
+      "date": "2025-06-13T00:00:00",
+      "model": 21.999040603637695,
+      "moving_average": 16.952183126835454,
+      "naive": 17.6041636789222,
+      "previous_period": 17.6041636789222,
+      "seasonal_naive": 22.056329425767462,
+      "train_end": "2025-06-12T00:00:00",
+      "train_rows": 149,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 23.106187044483615,
+      "date": "2025-06-14T00:00:00",
+      "model": 21.87590789794922,
+      "moving_average": 16.81404120671592,
+      "naive": 21.089335984930734,
+      "previous_period": 21.089335984930734,
+      "seasonal_naive": 23.10428741322767,
+      "train_end": "2025-06-13T00:00:00",
+      "train_rows": 150,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 14.041487386295568,
+      "date": "2025-06-15T00:00:00",
+      "model": 15.358526229858398,
+      "moving_average": 16.814312582609627,
+      "naive": 23.106187044483615,
+      "previous_period": 23.106187044483615,
+      "seasonal_naive": 14.350845281753017,
+      "train_end": "2025-06-14T00:00:00",
+      "train_rows": 151,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 16.267887615449094,
+      "date": "2025-06-16T00:00:00",
+      "model": 13.608049392700195,
+      "moving_average": 16.77011859754428,
+      "naive": 14.041487386295568,
+      "previous_period": 14.041487386295568,
+      "seasonal_naive": 13.55306748029957,
+      "train_end": "2025-06-15T00:00:00",
+      "train_rows": 152,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 15.636941159327037,
+      "date": "2025-06-17T00:00:00",
+      "model": 15.619776725769043,
+      "moving_average": 17.157950045422783,
+      "naive": 16.267887615449094,
+      "previous_period": 16.267887615449094,
+      "seasonal_naive": 13.841859885321155,
+      "train_end": "2025-06-16T00:00:00",
+      "train_rows": 153,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 20.01203452281029,
+      "date": "2025-06-18T00:00:00",
+      "model": 19.01270866394043,
+      "moving_average": 17.41439022742362,
+      "naive": 15.636941159327037,
+      "previous_period": 15.636941159327037,
+      "seasonal_naive": 14.154728722557097,
+      "train_end": "2025-06-17T00:00:00",
+      "train_rows": 154,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 20.17608496863748,
+      "date": "2025-06-19T00:00:00",
+      "model": 18.986501693725586,
+      "moving_average": 18.251148198888362,
+      "naive": 20.01203452281029,
+      "previous_period": 20.01203452281029,
+      "seasonal_naive": 17.6041636789222,
+      "train_end": "2025-06-18T00:00:00",
+      "train_rows": 155,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 26.464254765484732,
+      "date": "2025-06-20T00:00:00",
+      "model": 24.274879455566406,
+      "moving_average": 18.618565525990544,
+      "naive": 20.17608496863748,
+      "previous_period": 20.17608496863748,
+      "seasonal_naive": 21.089335984930734,
+      "train_end": "2025-06-19T00:00:00",
+      "train_rows": 156,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 27.810286641778497,
+      "date": "2025-06-21T00:00:00",
+      "model": 24.92352294921875,
+      "moving_average": 19.386411066069687,
+      "naive": 26.464254765484732,
+      "previous_period": 26.464254765484732,
+      "seasonal_naive": 23.106187044483615,
+      "train_end": "2025-06-20T00:00:00",
+      "train_rows": 157,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 14.754019823591065,
+      "date": "2025-06-22T00:00:00",
+      "model": 14.106261253356934,
+      "moving_average": 20.058425294254672,
+      "naive": 27.810286641778497,
+      "previous_period": 27.810286641778497,
+      "seasonal_naive": 14.041487386295568,
+      "train_end": "2025-06-21T00:00:00",
+      "train_rows": 158,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 13.8542730834793,
+      "date": "2025-06-23T00:00:00",
+      "model": 14.631433486938477,
+      "moving_average": 20.16021564243974,
+      "naive": 14.754019823591065,
+      "previous_period": 14.754019823591065,
+      "seasonal_naive": 16.267887615449094,
+      "train_end": "2025-06-22T00:00:00",
+      "train_rows": 159,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 13.816474910816458,
+      "date": "2025-06-24T00:00:00",
+      "model": 13.769255638122559,
+      "moving_average": 19.815413566444057,
+      "naive": 13.8542730834793,
+      "previous_period": 13.8542730834793,
+      "seasonal_naive": 15.636941159327037,
+      "train_end": "2025-06-23T00:00:00",
+      "train_rows": 160,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 15.582105501266543,
+      "date": "2025-06-25T00:00:00",
+      "model": 14.397534370422363,
+      "moving_average": 19.555346959513972,
+      "naive": 13.816474910816458,
+      "previous_period": 13.816474910816458,
+      "seasonal_naive": 20.01203452281029,
+      "train_end": "2025-06-24T00:00:00",
+      "train_rows": 161,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 17.294909507692523,
+      "date": "2025-06-26T00:00:00",
+      "model": 16.376367568969727,
+      "moving_average": 18.922499956436294,
+      "naive": 15.582105501266543,
+      "previous_period": 15.582105501266543,
+      "seasonal_naive": 20.17608496863748,
+      "train_end": "2025-06-25T00:00:00",
+      "train_rows": 162,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 22.616989936288128,
+      "date": "2025-06-27T00:00:00",
+      "model": 21.3273868560791,
+      "moving_average": 18.510903462015587,
+      "naive": 17.294909507692523,
+      "previous_period": 17.294909507692523,
+      "seasonal_naive": 26.464254765484732,
+      "train_end": "2025-06-26T00:00:00",
+      "train_rows": 163,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 22.307634008668142,
+      "date": "2025-06-28T00:00:00",
+      "model": 22.80110740661621,
+      "moving_average": 17.961294200701786,
+      "naive": 22.616989936288128,
+      "previous_period": 22.616989936288128,
+      "seasonal_naive": 27.810286641778497,
+      "train_end": "2025-06-27T00:00:00",
+      "train_rows": 164,
+      "train_start": "2025-01-15T00:00:00"
+    },
+    {
+      "actual": 15.817991367523053,
+      "date": "2025-06-29T00:00:00",
+      "model": 14.473809242248535,
+      "moving_average": 17.17520096740031,
+      "naive": 22.307634008668142,
+      "previous_period": 22.307634008668142,
+      "seasonal_naive": 14.754019823591065,
+      "train_end": "2025-06-28T00:00:00",
+      "train_rows": 165,
+      "train_start": "2025-01-15T00:00:00"
+    }
+  ],
+  "ranking_by_mae": [
+    "model",
+    "seasonal_naive",
+    "naive",
+    "previous_period",
+    "moving_average"
+  ],
+  "winner": "model"
+}
