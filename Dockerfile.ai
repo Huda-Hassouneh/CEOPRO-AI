@@ -1,0 +1,48 @@
+# CEOPRO AI - src/ai/main.py's Docker image (PENDING_ACTIONS.md #2/#25,
+# RED_FLAGS.md's Critical "ceopro_admin unconditionally bypasses RLS" entry).
+# Builds and runs the first service that ever connects to Postgres as the
+# restricted ceopro_app role instead of the superuser ceopro_admin.
+#
+# Deliberately python:3.11-slim (Debian/glibc), not
+# src/infrastructure/Dockerfile.backend's python:3.11-alpine (musl) pattern -
+# src/ai/requirements.txt's ML dependencies (torch, faiss-cpu) ship manylinux
+# (glibc) wheels, not musl ones, so Alpine would force a slow, fragile
+# from-source build for both. This is a deliberate deviation from the
+# existing Dockerfile, not an oversight.
+
+# ==========================================
+# STAGE 1: DEPENDENCY BUILDER
+# ==========================================
+FROM python:3.11-slim AS ai-builder
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY src/ai/requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir --user -r requirements.txt
+
+# ==========================================
+# STAGE 2: PRODUCTION RUNTIME
+# ==========================================
+FROM python:3.11-slim AS ai-runtime
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PATH=/home/ceopro/.local/bin:$PATH
+ENV HOME=/home/ceopro
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r ceoprogroup && useradd -r -g ceoprogroup -d /home/ceopro ceopro \
+    && mkdir -p /home/ceopro/.local \
+    && chown -R ceopro:ceoprogroup /app /home/ceopro
+COPY --from=ai-builder /root/.local /home/ceopro/.local
+COPY --chown=ceopro:ceoprogroup src/ai ./src/ai
+USER ceopro
+EXPOSE 8000
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+CMD ["uvicorn", "src.ai.main:app", "--host", "0.0.0.0", "--port", "8000"]
