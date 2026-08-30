@@ -231,6 +231,35 @@ services:
       timeout: 5s
       retries: 3
 
+  # PENDING_ACTIONS.md #2/#25 - the first service that ever connects to
+  # Postgres as the restricted ceopro_app role (via src/ai/db.py) instead of
+  # the superuser ceopro_admin every other DB-touching path in this file
+  # uses. DATABASE_URL below is still the superuser connection string, same
+  # as `migrate` - src/ai/db.py derives the ceopro_app connection from it at
+  # request time, it's never used directly for app traffic.
+  ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    container_name: ceopro_ai
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8001:8000"
+    networks:
+      - ceopro_core_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
 volumes:
   postgres_data:
   redis_data:
