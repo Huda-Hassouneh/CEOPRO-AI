@@ -41,6 +41,7 @@ RUN apt-get update \
     && chown -R ceopro:ceoprogroup /app /home/ceopro
 COPY --from=ai-builder /root/.local /home/ceopro/.local
 COPY --chown=ceopro:ceoprogroup src/ai ./src/ai
+COPY --chown=ceopro:ceoprogroup templates ./templates
 USER ceopro
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
