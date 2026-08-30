@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -6,8 +7,9 @@ from src.market_scraper import data_access
 
 
 class FakeCursor:
-    def __init__(self):
+    def __init__(self, fetchone_result=None):
         self.calls = []
+        self.fetchone_result = fetchone_result
 
     def __enter__(self):
         return self
@@ -17,6 +19,9 @@ class FakeCursor:
 
     def execute(self, query, params):
         self.calls.append((" ".join(query.split()), params))
+
+    def fetchone(self):
+        return self.fetchone_result
 
 
 class FakeConnection:
@@ -57,6 +62,30 @@ def test_allowed_policy_requires_accountable_approval():
     )
     with pytest.raises(ValueError, match="approval_reference"):
         data_access.record_policy_decision(FakeConnection(), "tenant", "source", decision)
+
+
+def test_load_source_parses_connection_credentials_vault():
+    row = (
+        "source-1", "Example", "https://shop.example", "STRUCTURED_DATA",
+        "ALLOWED", "reviewed", {}, 30, "standards", False, {}, "SEC-1", "2026-01-01",
+        "2026-01-01", 90, False, json.dumps({"api_key": "abc"}),
+    )
+    connection = FakeConnection()
+    connection.fake_cursor = FakeCursor(fetchone_result=row)
+    source = data_access.load_source(connection, "tenant-1", "source-1")
+    assert source["connection_credentials"] == {"api_key": "abc"}
+
+
+def test_load_source_tolerates_empty_credentials_vault():
+    row = (
+        "source-1", "Example", "https://shop.example", "STRUCTURED_DATA",
+        "ALLOWED", "reviewed", {}, 30, "standards", False, {}, "SEC-1", "2026-01-01",
+        "2026-01-01", 90, False, None,
+    )
+    connection = FakeConnection()
+    connection.fake_cursor = FakeCursor(fetchone_result=row)
+    source = data_access.load_source(connection, "tenant-1", "source-1")
+    assert source["connection_credentials"] == {}
 
 
 def test_tenant_connection_requires_service_principal(monkeypatch):
