@@ -8,17 +8,25 @@ from scrapy.exceptions import DropItem
 class ValidateMarketRecordPipeline:
     """Reject malformed records before they can reach analytics or storage."""
 
-    required_fields = ("source_name", "product_name", "product_url", "price_amount", "currency")
+    required_fields = ("source_name", "product_name", "product_url")
+    # Price is optional: review-only collectors (e.g. Google Places) have no
+    # price to report. When present, it must still pass the same checks a
+    # price-bearing record always has.
+    priced_fields = ("price_amount", "currency")
 
     def process_item(self, item):
         missing = [field for field in self.required_fields if item.get(field) in (None, "")]
         if missing:
             raise DropItem(f"missing required fields: {', '.join(missing)}")
 
-        if float(item["price_amount"]) < 0:
-            raise DropItem("price_amount cannot be negative")
-        if len(item["currency"]) != 3 or not item["currency"].isalpha():
-            raise DropItem("currency must be a three-letter ISO code")
+        has_price = item.get("price_amount") is not None
+        if has_price != (item.get("currency") not in (None, "")):
+            raise DropItem("price_amount and currency must both be present or both be absent")
+        if has_price:
+            if float(item["price_amount"]) < 0:
+                raise DropItem("price_amount cannot be negative")
+            if len(item["currency"]) != 3 or not item["currency"].isalpha():
+                raise DropItem("currency must be a three-letter ISO code")
         if item.get("rating") is not None and not 0 <= float(item["rating"]) <= 5:
             raise DropItem("rating must be between 0 and 5")
         if item.get("mapping_id"):
@@ -32,7 +40,8 @@ class ValidateMarketRecordPipeline:
                 raise DropItem("mapped record match_score must be between 0.82 and 1")
         if item.get("safety_flags") and item.get("safety_status") != "QUARANTINED":
             raise DropItem("flagged external content must be quarantined")
-        item["currency"] = item["currency"].upper()
+        if has_price:
+            item["currency"] = item["currency"].upper()
         if urlsplit(item["product_url"]).scheme not in {"http", "https"}:
             raise DropItem("product_url must be HTTP(S)")
         return item

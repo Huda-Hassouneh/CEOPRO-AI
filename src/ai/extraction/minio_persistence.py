@@ -50,7 +50,7 @@ def _row_result_to_dict(result: RowParseResult) -> dict:
 def build_extraction_document(
     tenant_id: str,
     ingestion_job_id: str,
-    source_filename: str,
+    source_name: str,
     row_results: List[RowParseResult],
 ) -> dict:
     """
@@ -70,7 +70,7 @@ def build_extraction_document(
         "schema_version": 1,
         "tenant_id": tenant_id,
         "ingestion_job_id": ingestion_job_id,
-        "source_filename": source_filename,
+        "source_name": source_name,
         "created_at": now,
         "row_count": len(row_results),
         "verified_field_count": verified_field_count,

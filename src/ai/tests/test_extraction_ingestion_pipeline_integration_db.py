@@ -3,9 +3,10 @@ Integration test for ingestion_pipeline.py's DB-touching paths
 (_insert_staging_row/_update_staging_row_status/_update_job_counts)
 against a real PostgreSQL instance. Same convention as
 test_integration_db.py: skipped unless AI_TEST_DATABASE_URL is set.
-These functions had never been run against a real database before this -
-the offline unit tests in test_extraction_ingestion_pipeline.py only
-exercise dry-run mode (conn=None).
+Requires migrations/20260830020000_add_field_level_ingestion_tracking.sql
+applied (adds 'PARTIAL' to import_staging_rows' validation_status CHECK
+and ingestion_jobs.rows_partial) - without it, the PARTIAL-row tests below
+would fail with a CHECK violation, not a code bug.
 """
 import os
 import uuid
@@ -18,6 +19,20 @@ from src.ai.extraction import ingestion_pipeline
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
 pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AI_TEST_DATABASE_URL not set - skipping live-DB integration test")
+
+_TEMPLATE_HEADERS = ["product_name", "quantity", "unit_price", "currency", "transaction_date"]
+
+
+def _template_row(**overrides):
+    row = {
+        "product_name": "Widget A", "quantity": "5", "unit_price": "19.99",
+        "currency": "JOD", "transaction_date": "2026-08-30",
+    }
+    row.update(overrides)
+    return row
+
+
+_UNUSABLE_ROW = {"product_name": "", "quantity": "0", "unit_price": "-5", "currency": "", "transaction_date": ""}
 
 
 @pytest.fixture
@@ -36,11 +51,13 @@ def seeded_tenant_and_job(conn):
     job_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) VALUES (%s, 'Ingestion QA Co', 'JO', 'JOD');",
+            "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) "
+            "VALUES (%s, 'Ingestion QA Co', 'JO', 'JOD');",
             (tenant_id,),
         )
         cursor.execute(
-            "INSERT INTO data_sources (source_id, tenant_id, source_name, source_type) VALUES (%s, %s, 'Test Source', 'CSV_UPLOAD');",
+            "INSERT INTO data_sources (source_id, tenant_id, source_name, source_type) "
+            "VALUES (%s, %s, 'Test Source', 'CSV_UPLOAD');",
             (source_id, tenant_id),
         )
         cursor.execute(
@@ -51,55 +68,85 @@ def seeded_tenant_and_job(conn):
     return tenant_id, job_id
 
 
-def test_process_file_writes_staging_rows_and_marks_valid(conn, seeded_tenant_and_job):
-    tenant_id, job_id = seeded_tenant_and_job
-    headers = ["product_name", "quantity", "unit_price"]
-    rows = [{"product_name": "Widget A", "quantity": "5", "unit_price": "19.99"}]
+def _job_counts(conn, job_id):
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT rows_processed, rows_partial, rows_failed FROM ingestion_jobs WHERE job_id = %s;", (job_id,)
+        )
+        return cursor.fetchone()
 
-    summary = ingestion_pipeline.process_file(
-        tenant_id=tenant_id, job_id=job_id, source_filename="f.csv", headers=headers, rows=rows, conn=conn
+
+def _staging_row(conn, staging_row_id):
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT validation_status, validation_errors, raw_payload_json "
+            "FROM import_staging_rows WHERE staging_row_id = %s;",
+            (staging_row_id,),
+        )
+        return cursor.fetchone()
+
+
+def test_process_records_writes_staging_rows_and_marks_valid(conn, seeded_tenant_and_job):
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [_template_row()]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows, conn=conn
     )
     conn.commit()
 
+    assert summary.template_mode == "TEMPLATE_COMPLIANT"
     assert summary.rows_processed == 1
     staging_row_id = summary.row_outcomes[0].staging_row_id
     assert staging_row_id is not None
 
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT validation_status, raw_payload_json FROM import_staging_rows WHERE staging_row_id = %s;", (staging_row_id,))
-        status, raw_payload = cursor.fetchone()
-        assert status == "VALID"
-        assert raw_payload == rows[0]
-
-        cursor.execute("SELECT rows_processed, rows_failed FROM ingestion_jobs WHERE job_id = %s;", (job_id,))
-        processed, failed = cursor.fetchone()
-        assert processed == 1
-        assert failed == 0
+    status, _errors, raw_payload = _staging_row(conn, staging_row_id)
+    assert status == "VALID"
+    assert raw_payload == rows[0]
+    assert _job_counts(conn, job_id) == (1, 0, 0)
 
 
-def test_process_file_marks_validation_failures_invalid_with_error_recorded(conn, seeded_tenant_and_job):
+def test_process_records_marks_partial_rows_with_field_level_errors_recorded(conn, seeded_tenant_and_job):
+    """
+    A row with one bad field (negative quantity) and otherwise-clean
+    fields must land as PARTIAL, not INVALID - the whole point of the
+    field-level refactor. validation_errors is a JSON-encoded
+    {field: message} dict (no schema change needed - the column is
+    already TEXT, which holds any string including JSON).
+    """
     tenant_id, job_id = seeded_tenant_and_job
-    headers = ["product_name", "quantity", "unit_price"]
-    rows = [{"product_name": "Bad Widget", "quantity": "-3", "unit_price": "19.99"}]
+    rows = [_template_row(quantity="-3")]
 
-    summary = ingestion_pipeline.process_file(
-        tenant_id=tenant_id, job_id=job_id, source_filename="f.csv", headers=headers, rows=rows, conn=conn
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows, conn=conn
+    )
+    conn.commit()
+
+    assert summary.rows_processed == 1
+    assert summary.rows_partial == 1
+    staging_row_id = summary.row_outcomes[0].staging_row_id
+
+    status, errors, _raw = _staging_row(conn, staging_row_id)
+    assert status == "PARTIAL"
+    assert "quantity" in errors
+    assert _job_counts(conn, job_id) == (1, 1, 0)
+
+
+def test_process_records_marks_a_genuinely_unusable_row_invalid(conn, seeded_tenant_and_job):
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [_UNUSABLE_ROW]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows, conn=conn
     )
     conn.commit()
 
     assert summary.rows_failed == 1
     staging_row_id = summary.row_outcomes[0].staging_row_id
 
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT validation_status, validation_errors FROM import_staging_rows WHERE staging_row_id = %s;", (staging_row_id,))
-        status, errors = cursor.fetchone()
-        assert status == "INVALID"
-        assert "quantity" in errors
-
-        cursor.execute("SELECT rows_processed, rows_failed FROM ingestion_jobs WHERE job_id = %s;", (job_id,))
-        processed, failed = cursor.fetchone()
-        assert processed == 0
-        assert failed == 1
+    status, _errors, _raw = _staging_row(conn, staging_row_id)
+    assert status == "INVALID"
+    assert _job_counts(conn, job_id) == (0, 0, 1)
 
 
 def test_a_row_that_fails_at_the_database_level_does_not_poison_the_rest_of_the_file(conn, seeded_tenant_and_job):
@@ -116,14 +163,10 @@ def test_a_row_that_fails_at_the_database_level_does_not_poison_the_rest_of_the_
     nothing to do with the row that actually failed.
     """
     tenant_id, job_id = seeded_tenant_and_job
-    headers = ["product_name", "quantity", "unit_price"]
-    rows = [
-        {"product_name": "Weird\x00Row", "quantity": "5", "unit_price": "19.99"},  # NUL byte - staging insert itself fails
-        {"product_name": "Good Row After It", "quantity": "3", "unit_price": "9.99"},  # must still process fine
-    ]
+    rows = [_template_row(product_name="Weird\x00Row"), _template_row(product_name="Good Row After It")]
 
-    summary = ingestion_pipeline.process_file(
-        tenant_id=tenant_id, job_id=job_id, source_filename="f.csv", headers=headers, rows=rows, conn=conn
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows, conn=conn
     )
     conn.commit()  # must not raise - would if the transaction were still aborted
 
@@ -137,33 +180,43 @@ def test_a_row_that_fails_at_the_database_level_does_not_poison_the_rest_of_the_
 
     assert summary.rows_processed == 1
     assert summary.rows_failed == 1
-
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT rows_processed, rows_failed FROM ingestion_jobs WHERE job_id = %s;", (job_id,))
-        processed, failed = cursor.fetchone()
-        assert processed == 1
-        assert failed == 1
+    processed, _partial, failed = _job_counts(conn, job_id)
+    assert (processed, failed) == (1, 1)
 
 
 def test_multiple_rows_each_get_their_own_staging_row_and_job_counts_accumulate(conn, seeded_tenant_and_job):
     tenant_id, job_id = seeded_tenant_and_job
-    headers = ["product_name", "quantity", "unit_price"]
-    rows = [
-        {"product_name": "Good 1", "quantity": "5", "unit_price": "9.99"},
-        {"product_name": "Bad", "quantity": "0", "unit_price": "9.99"},
-        {"product_name": "Good 2", "quantity": "2", "unit_price": "4.99"},
-    ]
+    rows = [_template_row(product_name="Good 1"), _UNUSABLE_ROW, _template_row(product_name="Good 2")]
 
-    summary = ingestion_pipeline.process_file(
-        tenant_id=tenant_id, job_id=job_id, source_filename="f.csv", headers=headers, rows=rows, conn=conn
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows, conn=conn
     )
     conn.commit()
 
     staging_ids = [o.staging_row_id for o in summary.row_outcomes]
     assert len(set(staging_ids)) == 3  # 3 distinct staging rows, not reused/collided
 
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT rows_processed, rows_failed FROM ingestion_jobs WHERE job_id = %s;", (job_id,))
-        processed, failed = cursor.fetchone()
-        assert processed == 2
-        assert failed == 1
+    processed, _partial, failed = _job_counts(conn, job_id)
+    assert (processed, failed) == (2, 1)
+
+
+def test_trusted_field_mapping_writes_staging_rows_the_same_way(conn, seeded_tenant_and_job):
+    """A POS/ERP-style caller with its own field names, using
+    trusted_field_mapping instead of any header-matching tier, still gets
+    the full staging-row/job-count write path."""
+    tenant_id, job_id = seeded_tenant_and_job
+    headers = ["sku", "qty_sold", "unit_cost"]
+    rows = [{"sku": "Widget A", "qty_sold": "5", "unit_cost": "19.99"}]
+    mapping = {"sku": "product_name", "qty_sold": "quantity", "unit_cost": "unit_price"}
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="pos-sync", headers=headers, rows=rows,
+        trusted_field_mapping=mapping, conn=conn,
+    )
+    conn.commit()
+
+    assert summary.template_mode == "TRUSTED_MAPPING"
+    assert summary.rows_processed == 1
+    staging_row_id = summary.row_outcomes[0].staging_row_id
+    status, _errors, _raw = _staging_row(conn, staging_row_id)
+    assert status == "VALID"
