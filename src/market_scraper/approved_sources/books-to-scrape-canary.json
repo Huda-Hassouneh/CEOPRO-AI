@@ -1,0 +1,21 @@
+{
+  "source_name": "Books to Scrape Sandbox",
+  "source_url": "https://books.toscrape.com/",
+  "purpose": "bounded market-collector canary and parser validation only",
+  "collection_method": "WEB_SCRAPE",
+  "collector_key": "books_to_scrape",
+  "public_evidence": {
+    "homepage": "https://books.toscrape.com/",
+    "homepage_statement": "Books to Scrape - Sandbox; We love being scraped!",
+    "robots_url": "https://books.toscrape.com/robots.txt",
+    "robots_observation": "No robots policy was available during review; absence is not permission"
+  },
+  "technical_review_status": "APPROVABLE_CANARY",
+  "legal_status": "REQUIRES_ACCOUNTABLE_HUMAN_APPROVAL_REFERENCE",
+  "rate_limit_per_minute": 30,
+  "concurrent_requests_per_domain": 1,
+  "retention_days": 30,
+  "contains_personal_data": false,
+  "scope": "mapped product URLs or one bounded catalogue page; never an unrestricted production crawl",
+  "reviewed_at": "2026-08-30"
+}

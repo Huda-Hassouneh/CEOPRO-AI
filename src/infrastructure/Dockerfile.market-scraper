@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/playwright/python:v1.55.0-noble
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+COPY src/market_scraper/requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt && playwright install chromium
+COPY . /app
+
+RUN useradd --create-home --uid 10001 scraper && chown -R scraper:scraper /app
+USER scraper
+
+CMD ["python", "-m", "src.market_scraper.worker"]

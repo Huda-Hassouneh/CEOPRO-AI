@@ -10,10 +10,9 @@ match_competitor_records() function that did that matching has been removed
 - it would silently compare the wrong fields against the new schema's data
 shape (competitor name where a captured product name used to be).
 
-similarity() itself is kept - it's a general-purpose, spec S37-aligned
-fuzzy-match primitive, and extraction/catalog_matching.py still uses it
-directly for PRODUCT/COMPETITOR entity matching, which is an unrelated,
-still-valid use case.
+similarity() itself is kept as the shared spec-aligned fuzzy-match primitive.
+The market scraper uses it before promoting mapped observations (minimum
+score 0.82), and extraction/catalog_matching.py uses it for entity matching.
 """
 
 from difflib import SequenceMatcher
