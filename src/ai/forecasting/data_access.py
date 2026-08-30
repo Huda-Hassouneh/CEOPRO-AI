@@ -55,9 +55,9 @@ def load_product_context(conn: "psycopg2.extensions.connection", tenant_id: str,
     snapshot, not a time-varying signal.
     """
     query = """
-        SELECT p.current_price, p.category, i.current_stock
+        SELECT p.current_price, p.category, i.stock_quantity
         FROM products p
-        LEFT JOIN inventory i ON i.product_id = p.product_id
+        LEFT JOIN inventory i ON i.tenant_id = p.tenant_id AND i.product_id = p.product_id
         WHERE p.tenant_id = %s AND p.product_id = %s AND p.deleted_at IS NULL;
     """
     with conn.cursor() as cursor:
