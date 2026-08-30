@@ -171,6 +171,32 @@ def test_safe_stage_promotes_and_quarantine_does_not_create_price(seeded):
     connection.close()
 
 
+def test_review_only_record_promotes_without_a_price_row(seeded):
+    """Google Places has no price to report; promotion must still land the
+    observation and its reviews without ever touching competitor_prices."""
+    first, _ = seeded
+    connection, cursor = scoped_app_connection(first)
+    review_only = market_item(
+        first, price_amount=None, currency=None, match_method="FUZZY_NAME",
+        reviews=[{
+            "external_review_id": "review-1", "review_text": "Great service",
+            "reviewer_name": "Jane", "review_rating": 5, "review_date": None,
+            "safety_status": "SAFE", "safety_flags": [],
+        }],
+    )
+    review_only["_staging_id"] = stage_record(connection, review_only)
+    promoted = save_market_record(connection, review_only)
+    assert promoted["status"] == "PROMOTED"
+    assert promoted["price_id"] is None
+    assert len(promoted["review_ids"]) == 1
+    assert promoted["event_ids"] == []
+    cursor.execute("SELECT COUNT(*) FROM competitor_prices WHERE mapping_id = %s;", (first["mapping"],))
+    assert cursor.fetchone()[0] == 0
+    cursor.execute("SELECT COUNT(*) FROM market_observations WHERE mapping_id = %s;", (first["mapping"],))
+    assert cursor.fetchone()[0] == 1
+    connection.close()
+
+
 def test_security_definer_recovers_stale_market_job(seeded):
     first, _ = seeded
     admin = psycopg2.connect(ADMIN_URL)

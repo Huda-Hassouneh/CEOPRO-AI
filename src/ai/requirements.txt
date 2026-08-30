@@ -37,3 +37,21 @@ openpyxl>=3.1,<4.0
 # construction time ("Using the Trainer with PyTorch requires accelerate>=1.1.0").
 # Not needed by model.py's classify() (plain inference, no Trainer involved).
 accelerate>=1.1.0,<2.0
+# main.py/Dockerfile.ai (PENDING_ACTIONS.md #2/#25's RLS-enforcement gap) -
+# the service that finally connects as the restricted ceopro_app role instead
+# of the superuser ceopro_admin. Nothing in the repo declared fastapi
+# anywhere before this despite src/infrastructure/security.py already
+# importing it with no requirements file installing it - closed here as a
+# side effect, not otherwise touched (that file is infra-owned).
+fastapi>=0.110,<1.0
+uvicorn>=0.29,<1.0
+PyJWT>=2.8,<3.0
+# main.py's /extraction/upload endpoint takes a multipart file upload
+# (fastapi.UploadFile/File) - FastAPI requires this separately, it isn't
+# bundled with fastapi itself; confirmed by testing (ModuleNotFoundError
+# without it).
+python-multipart>=0.0.9,<0.1
+# fastapi.testclient.TestClient (tests/test_main.py) requires httpx as of
+# FastAPI 0.110+ - test-only, but declared here since there's no separate
+# test-requirements file in this repo.
+httpx>=0.27,<1.0
