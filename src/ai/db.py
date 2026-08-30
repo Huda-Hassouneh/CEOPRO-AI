@@ -24,6 +24,7 @@ import os
 from urllib.parse import urlparse, urlunparse
 
 import psycopg2
+from minio import Minio
 
 
 def _admin_database_url() -> str:
@@ -56,3 +57,26 @@ def app_role_connection(tenant_id: str, user_id: str) -> "psycopg2.extensions.co
         cursor.execute("SELECT set_config('app.current_user_id', %s, false);", (user_id,))
     connection.commit()
     return connection
+
+
+def minio_client() -> Minio:
+    """
+    MINIO_ROOT_USER/MINIO_ROOT_PASSWORD (.env.example) - there is no
+    restricted, non-root MinIO service account today, unlike ceopro_app for
+    Postgres. Root credentials for a bucket-scoped upload endpoint is a real,
+    known gap (matches this repo's own convention of flagging what's not
+    ideal rather than silently using it as if it were fine) - genuinely
+    the only working MinIO credential in this repo until a scoped
+    IAM policy/user is set up, which is infra work, not this call site's to
+    invent unilaterally.
+    """
+    endpoint = os.getenv("MINIO_ENDPOINT")
+    access_key = os.getenv("MINIO_ROOT_USER")
+    secret_key = os.getenv("MINIO_ROOT_PASSWORD")
+    if not endpoint or not access_key or not secret_key:
+        raise RuntimeError("MINIO_ENDPOINT/MINIO_ROOT_USER/MINIO_ROOT_PASSWORD must all be set.")
+
+    parsed = urlparse(endpoint)
+    secure = parsed.scheme == "https"
+    host = parsed.netloc or parsed.path  # netloc empty if endpoint had no scheme at all
+    return Minio(host, access_key=access_key, secret_key=secret_key, secure=secure)
