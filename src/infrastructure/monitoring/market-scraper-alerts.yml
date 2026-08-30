@@ -1,0 +1,45 @@
+groups:
+  - name: ceopro-market-collection
+    rules:
+      - alert: MarketScraperDown
+        expr: up{job="ceopro-market-scraper"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CEOPRO market scraper is unavailable"
+      - alert: MarketMaintenanceDown
+        expr: up{job="ceopro-market-maintenance"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CEOPRO market maintenance is unavailable"
+      - alert: MarketCollectionFailureRateHigh
+        expr: |
+          sum(rate(ceopro_market_collections_total{outcome="failed"}[15m]))
+          / clamp_min(sum(rate(ceopro_market_collections_total[15m])), 0.001) > 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 10% of market collections are failing"
+      - alert: MarketCollectionPendingBacklog
+        expr: ceopro_market_pending_messages > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Market collection queue has more than 100 pending jobs"
+      - alert: MarketCollectionDeadLetters
+        expr: increase(ceopro_market_dead_letters_total[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "A market collection job entered the dead-letter stream"
+      - alert: MarketRetentionFailures
+        expr: increase(ceopro_market_retention_runs_total{outcome="failed"}[30m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Market privacy-retention enforcement failed"

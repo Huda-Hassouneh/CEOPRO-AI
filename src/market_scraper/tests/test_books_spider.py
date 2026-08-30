@@ -1,3 +1,5 @@
+import json
+
 from scrapy.http import HtmlResponse, Request
 
 from src.market_scraper.spiders.books_to_scrape import BooksToScrapeSpider
@@ -54,6 +56,37 @@ def test_parse_product_emits_normalized_market_record():
     assert record["review_count"] == 3
     assert record["product_url"] == response.url
     assert record["captured_at"].endswith("Z")
+
+
+def test_mapped_target_carries_tenant_and_mapping_lineage():
+    target = {
+        "mapping_id": "mapping-1",
+        "product_url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+        "external_sku": "external-1",
+        "competitor_name": "Demo Competitor",
+        "product_id": "product-1",
+        "global_competitor_id": "competitor-1",
+        "product_name": "A Light in the Attic",
+    }
+    spider = BooksToScrapeSpider(
+        targets_json=json.dumps([target]),
+        tenant_id="tenant-1",
+        source_id="source-1",
+        job_id="job-1",
+    )
+    request = list(spider._initial_requests())[0]
+    response = response_for(target["product_url"], DETAIL_HTML)
+    record = list(spider.parse_product(response, request.cb_kwargs["listing"], target))[0]
+
+    assert request.dont_filter is True
+    assert record["tenant_id"] == "tenant-1"
+    assert record["source_id"] == "source-1"
+    assert record["job_id"] == "job-1"
+    assert record["mapping_id"] == "mapping-1"
+    assert record["competitor_name"] == "Demo Competitor"
+    assert record["match_score"] >= 0.82
+    assert record["match_method"] == "FUZZY_NAME"
+    assert record["safety_status"] == "SAFE"
 
 
 def test_spider_rejects_unapproved_start_domain():

@@ -24,8 +24,10 @@ Use these native Docker Compose commands to manage the infrastructure locally:
 
 ## 4. Web Crawling / Market Data Collection
 The standalone scraper service lives in [`src/market_scraper/`](src/market_scraper/README.md).
-It currently crawls the repository's approved `toscrape.com` demo target with robots.txt,
-rate-limiting, validation, deduplication, pagination, normalized JSONL output, and offline tests.
+It implements deny-by-default collection policy decisions, Redis worker allocation, tenant-scoped
+product mappings, respectful Scrapy collection, ingestion-job tracking, canonical PostgreSQL
+`competitor_prices` persistence, JSONL demo output, and offline tests. The repository's approved
+`toscrape.com` target remains the source-specific development fixture.
 
 ```bash
 python -m pip install -r src/market_scraper/requirements.txt
