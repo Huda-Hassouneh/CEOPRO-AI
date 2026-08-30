@@ -1,9 +1,20 @@
 """
-CEOPRO AI - Template Detection.
-Implements the governing principle: "Strict and deterministic when the
-user follows the CEOPRO template; intelligent and fault-tolerant when the
-user does not." This module decides, once per uploaded file (from its
-header row), which of the two paths the rest of the pipeline should take.
+CEOPRO AI - Header Recognition (the RECOGNIZED tier).
+
+This module implements exactly one of the four tiers ingestion_pipeline.py
+now orchestrates (see its own module docstring for the full picture):
+fuzzy, multi-language header-synonym matching for files that look
+plausibly CEOPRO-shaped without literally using the distributed template.
+It does NOT decide TEMPLATE_COMPLIANT (that's template_contract.py's exact-
+match against the actual published template) or TRUSTED_MAPPING (a
+caller-supplied mapping for DB/API/POS/ERP integrations, decided entirely
+by the caller before this module is ever consulted) - ingestion_pipeline.py
+tries those two first and only falls through to detect_template() here if
+neither applies. Kept deliberately separate from template_contract.py
+(rather than one module doing all tier detection) to avoid a circular
+import - this module doesn't know the canonical template exists, and
+template_contract.py doesn't know this fuzzy matcher exists; both are
+consulted, in order, by ingestion_pipeline.py alone.
 
 Zero-cost, zero-schema-change: pure header-string matching against a
 synonym table. No ML model, no external service, no new tables.
@@ -17,10 +28,34 @@ from src.ai.extraction.row_parsing import FIELD_PARSERS
 
 
 class TemplateMode(Enum):
-    STRICT = "STRICT"      # Header set matches the CEOPRO template closely enough -
-                            # route through parse_mapped_row (typed, deterministic).
-    FALLBACK = "FALLBACK"  # Unknown/foreign format - route through extract_entities()
-                            # (regex + catalog matching) per cell/row, best-effort.
+    """
+    The single enum used throughout extraction/ for which of the four
+    tiers a row/file was processed under - ordered here from strongest to
+    weakest guarantee:
+
+    TEMPLATE_COMPLIANT - headers exactly match the published canonical
+        template (template_contract.py). The 0%-data-loss guarantee tier.
+    TRUSTED_MAPPING - caller (DB/API/POS/ERP integration) supplied an
+        explicit field mapping directly, bypassing header matching
+        entirely because the caller already knows its own schema with
+        certainty. Also guarantee-eligible, for the same reason.
+    RECOGNIZED - this module's fuzzy, multi-language synonym match
+        (formerly named STRICT). Best-effort, high-quality, NOT guarantee-
+        eligible - the header text wasn't a literal template match, so the
+        mapping is a heuristic, not a certainty.
+    FALLBACK - no trustworthy column structure at all; routed through
+        extract_entities() (regex + catalog matching) per cell/row,
+        lowest-confidence best-effort.
+
+    Only RECOGNIZED and FALLBACK are ever returned by detect_template()
+    in this module - TEMPLATE_COMPLIANT and TRUSTED_MAPPING are assigned
+    directly by ingestion_pipeline.py before detect_template() is even
+    called, per the tier order above.
+    """
+    TEMPLATE_COMPLIANT = "TEMPLATE_COMPLIANT"
+    TRUSTED_MAPPING = "TRUSTED_MAPPING"
+    RECOGNIZED = "RECOGNIZED"
+    FALLBACK = "FALLBACK"
 
 
 # Canonical field -> every header spelling we recognise as meaning that
@@ -75,20 +110,20 @@ if _unknown:
     raise ValueError(f"HEADER_SYNONYMS references fields not in FIELD_PARSERS: {_unknown}")
 
 # The minimum canonical fields a file must cover to be trusted as
-# "the CEOPRO template" rather than routed to fallback. Deliberately a
-# small, high-confidence core (not every FIELD_PARSERS key) - a file
-# missing "discount_pct" is still very obviously a CEOPRO export; a file
+# RECOGNIZED rather than routed to fallback. Deliberately a small,
+# high-confidence core (not every FIELD_PARSERS key) - a file missing
+# "discount_pct" is still very plausibly a real sales record; a file
 # missing "product_name" and "unit_price" is not.
-STRICT_MODE_REQUIRED_FIELDS: Set[str] = {"product_name", "quantity", "unit_price"}
+RECOGNIZED_MODE_REQUIRED_FIELDS: Set[str] = {"product_name", "quantity", "unit_price"}
 
 # Fraction of *non-required* recognised headers still needed to call it
-# STRICT once the required core is met - guards against a file that has
+# RECOGNIZED once the required core is met - guards against a file that has
 # the 3 required headers by coincidence but is otherwise a completely
 # different format with noise in every other column.
-STRICT_MODE_MIN_COVERAGE = 0.5
+RECOGNIZED_MODE_MIN_COVERAGE = 0.5
 
 
-def _normalize_header(raw_header: str) -> str:
+def normalize_header(raw_header: str) -> str:
     """
     Underscores are folded to spaces before whitespace collapse, so
     snake_case headers ("product_name", "unit_price" - Final_schema.sql's
@@ -115,11 +150,11 @@ def build_header_mapping(headers: List[str]) -> Dict[str, str]:
     lookup: Dict[str, str] = {}
     for canonical_field, synonyms in HEADER_SYNONYMS.items():
         for synonym in synonyms:
-            lookup[_normalize_header(synonym)] = canonical_field
+            lookup[normalize_header(synonym)] = canonical_field
 
     mapping: Dict[str, str] = {}
     for header in headers:
-        canonical = lookup.get(_normalize_header(header))
+        canonical = lookup.get(normalize_header(header))
         if canonical:
             mapping[header] = canonical
     return mapping
@@ -136,22 +171,25 @@ class TemplateDetectionResult:
 
 def detect_template(headers: List[str]) -> TemplateDetectionResult:
     """
-    The single decision point for the whole pipeline: given a file's
-    header row, decide STRICT vs FALLBACK and return the mapping to use
-    either way (an empty mapping in FALLBACK mode signals "no columns are
-    trustworthy as typed - extract from raw cell/row text instead").
+    Decides RECOGNIZED vs FALLBACK for a file's header row (an empty
+    mapping in FALLBACK mode signals "no columns are trustworthy as typed -
+    extract from raw cell/row text instead"). This is only ONE tier of
+    ingestion_pipeline.py's four - see this module's own docstring and
+    TemplateMode's docstring for the full tier order and why
+    TEMPLATE_COMPLIANT/TRUSTED_MAPPING are decided elsewhere, before this
+    function is even called.
     """
     header_mapping = build_header_mapping(headers)
     matched_fields = set(header_mapping.values())
-    missing_required = STRICT_MODE_REQUIRED_FIELDS - matched_fields
+    missing_required = RECOGNIZED_MODE_REQUIRED_FIELDS - matched_fields
 
     recognised_count = len(header_mapping)
     total_headers = len(headers) or 1
     coverage_ratio = recognised_count / total_headers
 
-    if not missing_required and coverage_ratio >= STRICT_MODE_MIN_COVERAGE:
+    if not missing_required and coverage_ratio >= RECOGNIZED_MODE_MIN_COVERAGE:
         return TemplateDetectionResult(
-            mode=TemplateMode.STRICT,
+            mode=TemplateMode.RECOGNIZED,
             header_mapping=header_mapping,
             matched_fields=matched_fields,
             missing_required_fields=missing_required,

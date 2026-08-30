@@ -49,7 +49,7 @@ def read_source_file(
     """
     Detects the file type from its extension and dispatches to the
     matching adapter, returning the (headers, rows) shape
-    ingestion_pipeline.process_file() expects either way - the caller
+    ingestion_pipeline.process_records() expects either way - the caller
     doesn't need to know or care which adapter actually ran.
 
     sheet_name is xlsx-specific (ignored for csv/pdf) - passed through

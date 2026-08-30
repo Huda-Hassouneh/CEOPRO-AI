@@ -4,12 +4,15 @@ Optimizes structured document ingestion by isolating pre-mapped column cell valu
 Bypasses unconstrained regex heuristics to preserve structural data types, while 
 gracefully falling back to a lower-confidence regex tier for unmapped headers.
 """
+import re
 from datetime import date
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from src.ai.extraction.numerals import normalize_number_string, to_ascii_digits
 from src.ai.extraction.regex_patterns import ExtractedEntity, extract_email, normalize_slash_date, extract_all
+
+_CURRENCY_CODE_RE = re.compile(r"^[A-Z]{3}$")
 
 # Sanity bound for transaction_date, not a business-rule cutoff - catches
 # an obviously-wrong parse (e.g. a 2-digit year read the wrong way round,
@@ -30,6 +33,12 @@ FIELD_PARSERS = {
     "competitor_name": "text",
     "invoice_id": "text",
     "order_id": "text",
+    # Added for template_contract.py's canonical template: a plain 3-letter
+    # ISO code, kept separate from unit_price/amount_raw's cells rather than
+    # combined ("24.50 JOD") - normalize_number_string() has no currency-
+    # symbol handling, so a combined cell would be a real, avoidable source
+    # of parse failure for a template CEOPRO controls the shape of.
+    "currency": "currency_code",
 }
 
 
@@ -153,6 +162,12 @@ def _parse_typed_cell(
     if field_type == "text":
         return raw, 1.0
 
+    if field_type == "currency_code":
+        code = to_ascii_digits(raw).strip().upper()
+        if _CURRENCY_CODE_RE.match(code):
+            return code, 1.0
+        return None, 0.0
+
     return None, 0.0
 
 
@@ -165,31 +180,39 @@ def _parse_typed_cell(
 _NON_NEGATIVE_FIELDS = {"amount_raw", "unit_price", "discount_pct", "quantity"}
 
 
-def validate_typed_fields(result: RowParseResult, today: Optional[date] = None) -> List[str]:
+def validate_typed_fields(result: RowParseResult, today: Optional[date] = None) -> Dict[str, str]:
     """
-    Runs semantic sanity checks against result.typed_fields, returning a
-    list of human-readable error strings (empty list = no issues found).
-    Only checks fields that actually parsed (result.typed_fields) -
-    fields that failed to parse at all already surface as
-    unmapped_columns/fallback_entities, a separate and already-handled
-    concern. This function only rejects values a *successful* parse
-    still shouldn't be trusted with.
+    Runs semantic sanity checks against result.typed_fields, returning
+    {field_name: error_message} for only the fields that failed (empty
+    dict = no issues found). Only checks fields that actually parsed
+    (result.typed_fields) - fields that failed to parse at all already
+    surface as unmapped_columns/fallback_entities, a separate and
+    already-handled concern. This function only rejects values a
+    *successful* parse still shouldn't be trusted with.
+
+    Field-level, not row-level, by design: the caller (ingestion_pipeline.py)
+    drops only the specific field(s) named here from typed_fields and keeps
+    processing the rest of the row - a single bad field (e.g. a negative
+    price on an otherwise-clean row) no longer costs the whole row. Returns
+    a dict keyed by field name (not a list of strings) specifically so the
+    caller can do that per-field removal directly, without re-parsing which
+    field each message was about out of free text.
     """
-    errors: List[str] = []
+    errors: Dict[str, str] = {}
     today = today or date.today()
 
     for field_name, value in result.typed_fields.items():
         if field_name in _NON_NEGATIVE_FIELDS:
             try:
                 if float(value) < 0:
-                    errors.append(f"{field_name}: negative value '{value}' is not valid")
+                    errors[field_name] = f"negative value '{value}' is not valid"
             except (TypeError, ValueError):
                 pass  # not actually numeric - a different bug, not this check's job
 
         if field_name == "quantity":
             try:
                 if float(value) == 0:
-                    errors.append(f"{field_name}: zero quantity is not a valid sale/transaction row")
+                    errors[field_name] = "zero quantity is not a valid sale/transaction row"
             except (TypeError, ValueError):
                 pass
 
@@ -197,15 +220,15 @@ def validate_typed_fields(result: RowParseResult, today: Optional[date] = None) 
             try:
                 year = int(str(value)[:4])
                 if year < MIN_PLAUSIBLE_YEAR or year > today.year + MAX_PLAUSIBLE_YEAR_AHEAD:
-                    errors.append(
-                        f"transaction_date: year {year} is outside the plausible range "
+                    errors[field_name] = (
+                        f"year {year} is outside the plausible range "
                         f"({MIN_PLAUSIBLE_YEAR}-{today.year + MAX_PLAUSIBLE_YEAR_AHEAD}) - likely a bad parse"
                     )
             except (TypeError, ValueError):
-                errors.append(f"transaction_date: '{value}' doesn't start with a 4-digit year")
+                errors[field_name] = f"'{value}' doesn't start with a 4-digit year"
 
         if field_name == "email" and value:
             if not extract_email(str(value)):
-                errors.append(f"email: '{value}' doesn't look like a valid email address")
+                errors[field_name] = f"'{value}' doesn't look like a valid email address"
 
     return errors
