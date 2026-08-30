@@ -78,3 +78,23 @@ def test_empty_and_none_cells_are_skipped_entirely():
     result = parse_mapped_row(row, mapping, tenant_id="t1")
     assert result.typed_fields == {}
     assert result.unmapped_columns == []  # blank cells aren't "unmapped", they're just skipped
+
+
+def test_currency_code_parses_and_normalizes_case():
+    """currency (template_contract.py's canonical template) is a plain
+    3-letter ISO code, kept separate from unit_price/amount_raw's cells
+    rather than accepted combined ("24.50 JOD") - normalize_number_string()
+    has no currency-symbol handling at all."""
+    mapping = {"Currency": "currency"}
+    row = {"Currency": "jod"}
+    result = parse_mapped_row(row, mapping, tenant_id="t1")
+    assert result.typed_fields["currency"] == "JOD"
+    assert result.field_confidence["currency"] == 1.0
+
+
+def test_currency_code_rejects_non_3_letter_values():
+    mapping = {"Currency": "currency"}
+    row = {"Currency": "Jordanian Dinar"}
+    result = parse_mapped_row(row, mapping, tenant_id="t1")
+    assert "currency" not in result.typed_fields
+    assert result.unmapped_columns == ["Currency"]
