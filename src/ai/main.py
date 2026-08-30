@@ -1,0 +1,297 @@
+"""
+CEOPRO AI - Service Entrypoint (PENDING_ACTIONS.md #2/#25, RED_FLAGS.md's
+Critical "ceopro_admin unconditionally bypasses RLS" entry).
+
+Before this file existed, nothing in the deployed system ever connected to
+Postgres as anything other than the superuser ceopro_admin - RLS policies
+were correct and regression-tested (tests/test_rls_integration_db.py) but
+provided zero actual isolation, since superusers bypass RLS unconditionally
+regardless of policy correctness. This is the first real request path that
+connects as the restricted ceopro_app role (via db.app_role_connection())
+and sets app.current_tenant_id/app.current_user_id per request.
+
+One thin HTTP endpoint per already-built pipeline entry point (pricing/,
+sentiment/, mpi/, extraction/ - the four modules this track owns per
+DATA_OWNERSHIP_AND_CONTRACTS.md). forecasting/ is deliberately not
+duplicated here - it already has a real trigger, forecasting/consumer.py's
+Redis Streams consumer.
+
+Auth: decodes a Bearer JWT (JWT_SECRET, HS256) for tenant_id/user_id claims.
+Flagged explicitly, not silently assumed: no JWT-issuing service or claim-
+shape contract exists anywhere else in this repo today - security.py only
+validates an internal service-to-service token, unrelated. tenant_id/user_id
+is this session's own reasonable default (matching what the RLS session
+variables and .env.example's JWT_SECRET comment already imply), not a
+confirmed contract with a real auth service - worth reconciling once one
+exists.
+"""
+
+import os
+import tempfile
+from typing import Optional
+
+import jwt
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+
+from src.ai import db
+from src.ai.extraction import file_dispatch, ingestion_pipeline, job_management
+from src.ai.extraction import pipeline as extraction_pipeline
+from src.ai.mpi import pipeline as mpi_pipeline
+from src.ai.pricing import pipeline as pricing_pipeline
+from src.ai.sentiment import pipeline as sentiment_pipeline
+
+app = FastAPI(title="CEOPRO AI Service")
+
+# Upload security limits (extraction/upload). No dedicated MAX_UPLOAD_SIZE_BYTES
+# convention exists elsewhere in the repo yet - this is this endpoint's own,
+# documented default, overridable per deployment.
+_MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))  # 10MB
+
+# Content sniffing beyond the file extension - catches a trivial extension
+# spoof (e.g. an arbitrary file renamed to .xlsx). CSV has no reliable magic
+# bytes (it's plain text) so isn't checked here; PDF/XLSX/XLSM do.
+_MAGIC_BYTES = {".pdf": b"%PDF-", ".xlsx": b"PK\x03\x04", ".xlsm": b"PK\x03\x04"}
+
+_TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "templates")
+
+
+class TenantContext:
+    def __init__(self, tenant_id: str, user_id: str):
+        self.tenant_id = tenant_id
+        self.user_id = user_id
+
+
+def get_tenant_context(authorization: Optional[str] = Header(default=None)) -> TenantContext:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or malformed Authorization header.")
+
+    secret = os.getenv("JWT_SECRET")
+    if not secret:
+        raise RuntimeError("JWT_SECRET environment variable is not set.")
+
+    token = authorization[len("Bearer "):]
+    try:
+        claims = jwt.decode(token, secret, algorithms=["HS256"])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
+
+    tenant_id = claims.get("tenant_id")
+    user_id = claims.get("user_id")
+    if not tenant_id or not user_id:
+        raise HTTPException(status_code=401, detail="Token is missing tenant_id/user_id claims.")
+
+    return TenantContext(tenant_id=tenant_id, user_id=user_id)
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
+
+
+@app.post("/pricing/recommend")
+def pricing_recommend(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = pricing_pipeline.run_price_recommendation(conn, ctx.tenant_id, product_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/sentiment/analyze-pending")
+def sentiment_analyze_pending(batch_size: int = 100, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = sentiment_pipeline.classify_and_store_reviews(conn, ctx.tenant_id, batch_size)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/sentiment/summary")
+def sentiment_summary(
+    subject_type: str,
+    subject_id: Optional[str] = None,
+    country_context: Optional[str] = None,
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = sentiment_pipeline.get_subject_sentiment_summary(
+            conn, ctx.tenant_id, subject_type, subject_id, country_context
+        )
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/mpi/summary")
+def mpi_summary(
+    subject_type: str,
+    subject_id: Optional[str] = None,
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = mpi_pipeline.get_subject_mpi(conn, ctx.tenant_id, subject_type, subject_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/extraction/process-pending")
+def extraction_process_pending(limit: int = 100, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        news_count = extraction_pipeline.extract_and_store_news_records(conn, ctx.tenant_id, None, limit)
+        mentions_count = extraction_pipeline.extract_and_store_social_mentions(conn, ctx.tenant_id, None, limit)
+        conn.commit()
+        return {"news_processed": news_count, "social_mentions_processed": mentions_count}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/extraction/templates/{fmt}")
+def extraction_template(fmt: str, ctx: TenantContext = Depends(get_tenant_context)) -> FileResponse:
+    """Serves the actual committed canonical template files (templates/) -
+    still auth-gated (Depends(get_tenant_context)) even though the content
+    itself carries no tenant data, for consistency with every other
+    endpoint rather than carving out an unauthenticated exception."""
+    if fmt not in ("csv", "xlsx"):
+        raise HTTPException(status_code=404, detail="Unknown template format - use 'csv' or 'xlsx'.")
+    path = os.path.join(_TEMPLATES_DIR, f"ceopro_sales_transaction_import_v1.{fmt}")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Template file not found on this deployment.")
+    return FileResponse(path, filename=os.path.basename(path))
+
+
+def _read_upload_within_limit(file: UploadFile) -> bytes:
+    contents = file.file.read(_MAX_UPLOAD_BYTES + 1)
+    if len(contents) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File exceeds the {_MAX_UPLOAD_BYTES}-byte upload limit.")
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    return contents
+
+
+def _validate_upload_content(ext: str, contents: bytes) -> None:
+    expected_magic = _MAGIC_BYTES.get(ext)
+    if expected_magic and not contents.startswith(expected_magic):
+        raise HTTPException(status_code=400, detail=f"File content doesn't match its '{ext}' extension.")
+
+
+def _summary_response(job_id: str, summary) -> dict:
+    return {
+        "job_id": job_id,
+        "template_mode": summary.template_mode,
+        "is_template_compliant": summary.is_template_compliant,
+        "rows_processed": summary.rows_processed,
+        "rows_partial": summary.rows_partial,
+        "rows_failed": summary.rows_failed,
+        "data_loss_pct": summary.data_loss_pct,
+        "header_coverage_ratio": summary.header_coverage_ratio,
+        "minio_object_key": summary.minio_object_key,
+        "row_outcomes": [
+            {"row_index": o.row_index, "mode": o.mode, "field_errors": o.field_errors, "error": o.error}
+            for o in summary.row_outcomes
+        ],
+    }
+
+
+@app.post("/extraction/upload")
+def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    Uploads a file and runs it through the full ingestion pipeline
+    (extraction/ingestion_pipeline.py::process_records()) - the live,
+    end-to-end path for the 0%-loss/best-effort template guarantee
+    (PENDING_ACTIONS.md #45/#46).
+
+    Security, in order: auth required (same Bearer JWT as every other
+    endpoint - the response carries no tenant data an unauthenticated
+    caller should see, but every other endpoint requires it too, kept
+    consistent); extension allowlist (file_dispatch.detect_file_type() -
+    only .csv/.xlsx/.xlsm/.pdf); size-capped read (rejects an oversized
+    file without buffering the whole thing into memory first); magic-byte
+    content sniffing for xlsx/xlsm/pdf (catches a trivial extension
+    spoof - CSV has no reliable magic bytes, skipped); the uploaded
+    filename is used only as display metadata (`source_name`), never to
+    construct a filesystem path - the temp file's name is generated by
+    tempfile, suffixed only with the already-validated extension; the
+    temp file is always removed in `finally`, success or failure.
+
+    Known, deliberately out-of-scope-for-now gaps, flagged rather than
+    silently absent: no malware/AV scanning, no request rate limiting.
+    XLSM (macro-enabled Excel) is accepted - openpyxl (xlsx_adapter.py)
+    never executes macro code, it only reads cell values, so this carries
+    no code-execution risk from the macro content itself.
+    """
+    try:
+        ext = file_dispatch.detect_file_type(file.filename or "")
+    except file_dispatch.UnsupportedFileTypeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    contents = _read_upload_within_limit(file)
+    _validate_upload_content(ext, contents)
+
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    tmp_path = None
+    job_id = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            tmp.write(contents)
+            tmp_path = tmp.name
+
+        headers, rows = file_dispatch.read_source_file(tmp_path)
+
+        source_type = f"{ext.lstrip('.').upper()}_UPLOAD"
+        source_id = job_management.resolve_or_create_data_source(
+            conn, ctx.tenant_id, source_type, "Manual File Upload"
+        )
+        job_id = job_management.create_ingestion_job(conn, ctx.tenant_id, source_id)
+        conn.commit()
+
+        summary = ingestion_pipeline.process_records(
+            tenant_id=ctx.tenant_id, job_id=job_id, source_name=file.filename or f"upload{ext}",
+            headers=headers, rows=rows, conn=conn, redis_client=None, minio_client=db.minio_client(),
+        )
+
+        job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "COMPLETED")
+        conn.commit()
+        return _summary_response(job_id, summary)
+
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        if job_id is not None:
+            try:
+                job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "FAILED", error=str(e))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        raise HTTPException(status_code=500, detail="Upload processing failed.")
+    finally:
+        conn.close()
+        if tmp_path is not None and os.path.exists(tmp_path):
+            os.remove(tmp_path)

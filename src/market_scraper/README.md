@@ -33,7 +33,23 @@ The repository's approved development target is `https://books.toscrape.com/`. T
    database. This exists for development and smoke testing, not competitor production collection.
 
 A real competitor gets its own source-specific spider. Selectors are not shared across unrelated
-sites; a giant conditional mega-spider would be neither reliable nor maintainable.
+sites; a giant conditional mega-spider would be neither reliable nor maintainable. Two official-API
+collectors exist alongside the general-purpose `standards`/`MarketSourceSpider` collector:
+
+- **`google_places`** (`spiders/google_places.py`) — official Google Places API (Find Place →
+  Details), reviews only. Places has no price to report, so every record it yields has
+  `price_amount = currency = None`; `market_repository.save_market_record()` skips the
+  `competitor_prices` INSERT and price-derived `market_events` for those records but still writes
+  `market_observations` and the reviews, through the same Tier-2 staging/0.82-gate/safety-scan
+  pipeline as any priced record.
+- **`amazon_paapi`** (`spiders/amazon_paapi.py`) — official Amazon Product Advertising API v5,
+  exact-ASIN price/availability. AWS Signature Version 4 request signing is implemented with
+  stdlib `hmac`/`hashlib` only, no extra dependency.
+
+Both require API credentials, supplied per-source via `data_sources.connection_credentials_vault`
+(a JSON object — `{"api_key": ...}` for Places, `{"access_key", "secret_key", "partner_tag"}` for
+PA-API) and passed through by `cli.py` as `credentials_json`. That column is a plain `TEXT` field
+with no secrets-manager integration behind it yet — see `PENDING_ACTIONS.md` #42.
 
 ## Where competitor URLs and product matching come from
 
@@ -139,7 +155,10 @@ python -m src.market_scraper.policy_cli \
 ```
 
 If an official API or RSS URL is supplied, the engine selects it before scraping. API/RSS sources
-must be handled by their corresponding collector rather than being forced through Scrapy.
+must be handled by their corresponding collector rather than being forced through Scrapy. Pass
+`--collector google_places` or `--collector amazon_paapi` (in addition to the existing `standards`/
+`books_to_scrape`) to pick one of the two API collectors explicitly, and populate that source's
+`connection_credentials_vault` with its required credentials before running a collection.
 
 Each `competitor_product_mappings` row scheduled for collection must reference the reviewed
 `source_id` and contain an approved `competitor_product_url`.
@@ -219,7 +238,9 @@ lineage, validation, deduplication, PostgreSQL pipeline lifecycle, and Redis eve
 ## Adding another source
 
 1. Confirm authorization and run the policy review.
-2. Prefer an API/feed/structured-data collector when available.
+2. Prefer an API/feed/structured-data collector when available. Google Places and Amazon PA-API
+   already have dedicated collectors (`google_places`, `amazon_paapi`) — just supply credentials via
+   `connection_credentials_vault`, no new code needed.
 3. If web collection is the approved fallback, prefer JSON-LD. Otherwise store reviewed CSS
    selectors under `data_sources.collector_config.selectors` (`product_name` and `price` are the
    practical minimum; optional fields include `currency`, `category`, `description`, `availability`,

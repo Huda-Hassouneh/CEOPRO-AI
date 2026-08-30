@@ -29,6 +29,28 @@ def test_validator_accepts_valid_record_and_rejects_missing_price():
         pipeline.process_item(record)
 
 
+def test_validator_accepts_review_only_record_with_no_price_or_currency():
+    """Google Places (and any other reviews-only collector) has no price to report."""
+    pipeline = ValidateMarketRecordPipeline()
+    record = valid_record()
+    record["price_amount"] = None
+    record["currency"] = None
+    assert pipeline.process_item(record) is record
+
+
+def test_validator_rejects_price_without_currency_or_currency_without_price():
+    pipeline = ValidateMarketRecordPipeline()
+    price_only = valid_record()
+    price_only["currency"] = None
+    with pytest.raises(DropItem, match="price_amount and currency"):
+        pipeline.process_item(price_only)
+
+    currency_only = valid_record()
+    currency_only["price_amount"] = None
+    with pytest.raises(DropItem, match="price_amount and currency"):
+        pipeline.process_item(currency_only)
+
+
 def test_deduplicator_uses_mapping_id_before_external_id():
     pipeline = DeduplicateMarketRecordPipeline()
     pipeline.open_spider()
