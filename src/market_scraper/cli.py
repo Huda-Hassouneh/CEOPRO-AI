@@ -69,6 +69,7 @@ def run_collection(tenant_id: str, source_id: str) -> int:
             source_url=source["source_url"],
             render_javascript=str(source["render_javascript"]).lower(),
             collector_config_json=json.dumps(source["collector_config"]),
+            credentials_json=json.dumps(source.get("connection_credentials", {})),
         )
     try:
         process = CrawlerProcess(settings)
