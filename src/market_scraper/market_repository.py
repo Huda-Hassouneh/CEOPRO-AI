@@ -94,22 +94,25 @@ def save_market_record(conn, item: dict) -> dict:
             "status": "QUARANTINED", "price_id": None, "observation_id": None,
             "review_ids": [], "event_ids": [],
         }
+    has_price = item.get("price_amount") is not None
     with conn.cursor() as cursor:
-        previous = _previous_observation(cursor, item)
-        cursor.execute(
-            """
-            INSERT INTO competitor_prices
-                (tenant_id, mapping_id, scraped_price, currency, is_available,
-                 observed_at, source_status, is_exact_data)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING competitor_price_id;
-            """,
-            (
-                item["tenant_id"], item["mapping_id"], item["price_amount"], item["currency"],
-                item["is_available"], item["captured_at"], item["source_status"], item["is_exact_data"],
-            ),
-        )
-        price_id = str(cursor.fetchone()[0])
+        previous = _previous_observation(cursor, item) if has_price else None
+        price_id = None
+        if has_price:
+            cursor.execute(
+                """
+                INSERT INTO competitor_prices
+                    (tenant_id, mapping_id, scraped_price, currency, is_available,
+                     observed_at, source_status, is_exact_data)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING competitor_price_id;
+                """,
+                (
+                    item["tenant_id"], item["mapping_id"], item["price_amount"], item["currency"],
+                    item["is_available"], item["captured_at"], item["source_status"], item["is_exact_data"],
+                ),
+            )
+            price_id = str(cursor.fetchone()[0])
         cursor.execute(
             """
             INSERT INTO market_observations
@@ -137,7 +140,7 @@ def save_market_record(conn, item: dict) -> dict:
         )
         observation_id = str(cursor.fetchone()[0])
         review_ids = _save_reviews(cursor, item)
-        event_ids = _derive_events(cursor, item, previous)
+        event_ids = _derive_events(cursor, item, previous) if has_price else []
         cursor.execute(
             """
             UPDATE market_observation_staging
