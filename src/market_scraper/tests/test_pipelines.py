@@ -29,10 +29,15 @@ def test_validator_accepts_valid_record_and_rejects_missing_price():
         pipeline.process_item(record)
 
 
-def test_deduplicator_uses_source_and_external_id():
+def test_deduplicator_uses_mapping_id_before_external_id():
     pipeline = DeduplicateMarketRecordPipeline()
     pipeline.open_spider()
     record = valid_record()
     assert pipeline.process_item(record) is record
+    second_mapping = record.copy()
+    second_mapping["mapping_id"] = "mapping-2"
+    assert pipeline.process_item(second_mapping) is second_mapping
+    duplicate_mapping = record.copy()
+    duplicate_mapping["mapping_id"] = "mapping-2"
     with pytest.raises(DropItem, match="duplicate"):
-        pipeline.process_item(record.copy())
+        pipeline.process_item(duplicate_mapping)
