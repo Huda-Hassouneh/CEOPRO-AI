@@ -13,9 +13,9 @@ mapping it should have gotten.
 from src.ai.extraction.template_detection import TemplateMode, build_header_mapping, detect_template
 
 
-def test_space_separated_synonyms_match_strict_mode():
+def test_space_separated_synonyms_match_recognized_mode():
     result = detect_template(["product name", "quantity", "unit price"])
-    assert result.mode == TemplateMode.STRICT
+    assert result.mode == TemplateMode.RECOGNIZED
     assert result.header_mapping == {
         "product name": "product_name",
         "quantity": "quantity",
@@ -23,11 +23,11 @@ def test_space_separated_synonyms_match_strict_mode():
     }
 
 
-def test_snake_case_headers_also_match_strict_mode():
+def test_snake_case_headers_also_match_recognized_mode():
     """Regression test: snake_case headers must match the same synonyms
     their space-separated spelling does, not silently fall back to NER."""
     result = detect_template(["product_name", "quantity", "unit_price"])
-    assert result.mode == TemplateMode.STRICT
+    assert result.mode == TemplateMode.RECOGNIZED
     assert result.header_mapping == {
         "product_name": "product_name",
         "quantity": "quantity",
@@ -38,7 +38,7 @@ def test_snake_case_headers_also_match_strict_mode():
 
 def test_mixed_case_and_whitespace_headers_still_match():
     result = detect_template(["  Product_Name ", "QUANTITY", "Unit_Price"])
-    assert result.mode == TemplateMode.STRICT
+    assert result.mode == TemplateMode.RECOGNIZED
 
 
 def test_underscore_synonym_entries_still_resolve_correctly():
@@ -47,9 +47,9 @@ def test_underscore_synonym_entries_still_resolve_correctly():
     the same synonym - confirms folding underscores to spaces doesn't
     make those two entries collide or resolve to different fields. Uses
     build_header_mapping() directly (not detect_template()) since this is
-    about the synonym lookup itself, not the STRICT/FALLBACK decision -
+    about the synonym lookup itself, not the RECOGNIZED/FALLBACK decision -
     detect_template() always returns an empty mapping in FALLBACK mode,
-    and these 2 headers alone don't meet STRICT_MODE_REQUIRED_FIELDS."""
+    and these 2 headers alone don't meet RECOGNIZED_MODE_REQUIRED_FIELDS."""
     mapping = build_header_mapping(["prix_unitaire", "prix unitaire"])
     assert mapping["prix_unitaire"] == "unit_price"
     assert mapping["prix unitaire"] == "unit_price"

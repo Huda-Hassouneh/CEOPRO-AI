@@ -7,7 +7,7 @@ against each -> persists results to extracted_entity -> marks the source row
 mirroring rag/pipeline.py's ingest_pending_documents() convention.
 
 redis_client is optional and caller-injected, same convention as
-ingestion_pipeline.py's process_file() and rag/'s minio_client - when not
+ingestion_pipeline.py's process_records() and rag/'s minio_client - when not
 supplied, extract_entities() runs regex-only (no catalog matching), not an
 error, per its own "all three of tenant_id/redis_client/conn or none of
 them" contract.
