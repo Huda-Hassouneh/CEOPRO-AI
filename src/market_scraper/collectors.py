@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass
 
+from src.market_scraper.spiders.amazon_paapi import AmazonPricingSpider
 from src.market_scraper.spiders.books_to_scrape import BooksToScrapeSpider
+from src.market_scraper.spiders.google_places import GooglePlacesSpider
 from src.market_scraper.spiders.market_source import MarketSourceSpider
 
 
@@ -15,6 +17,8 @@ class Collector:
 COLLECTORS = {
     "books_to_scrape": Collector(BooksToScrapeSpider),
     "standards": Collector(MarketSourceSpider),
+    "google_places": Collector(GooglePlacesSpider),
+    "amazon_paapi": Collector(AmazonPricingSpider),
 }
 
 DEFAULT_BY_METHOD = {
