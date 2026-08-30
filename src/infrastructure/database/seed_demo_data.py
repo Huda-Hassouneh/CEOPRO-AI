@@ -80,7 +80,7 @@ class EnterprisePlatformSeeder:
 
             cursor.execute(
                 """
-                INSERT INTO inventory (inventory_id, tenant_id, product_id, current_stock, reorder_level)
+                INSERT INTO inventory (inventory_id, tenant_id, product_id, stock_quantity, reorder_level)
                 VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT (product_id) DO NOTHING;
                 """,
