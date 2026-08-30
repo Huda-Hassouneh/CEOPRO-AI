@@ -53,6 +53,7 @@ services:
     mem_limit: 512m
     volumes:
       - ./src/infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./src/infrastructure/monitoring/market-scraper-alerts.yml:/etc/prometheus/market-scraper-alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -151,6 +152,84 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  market-scraper:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      REDIS_URL: redis://redis:6379/0
+      SCRAPER_STREAM_KEY: ${SCRAPER_STREAM_KEY:-market.scrape.requested}
+      SCRAPER_DEAD_STREAM_KEY: ${SCRAPER_DEAD_STREAM_KEY:-market.scrape.dead}
+      SCRAPER_MAX_ATTEMPTS: ${SCRAPER_MAX_ATTEMPTS:-3}
+      SCRAPER_CLAIM_IDLE_MS: ${SCRAPER_CLAIM_IDLE_MS:-300000}
+      SCRAPER_STALE_JOB_MINUTES: ${SCRAPER_STALE_JOB_MINUTES:-30}
+      SCRAPER_METRICS_PORT: 9108
+      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-CEOPRO-MarketResearchBot/1.0}
+    expose:
+      - "9108"
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  market-analysis-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-analysis
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.analysis_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      REDIS_URL: redis://redis:6379/0
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  market-maintenance:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.maintenance"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_STALE_JOB_MINUTES: ${SCRAPER_STALE_JOB_MINUTES:-30}
+      SCRAPER_MAINTENANCE_INTERVAL_SECONDS: ${SCRAPER_MAINTENANCE_INTERVAL_SECONDS:-300}
+      SCRAPER_MAINTENANCE_METRICS_PORT: 9109
+    expose:
+      - "9109"
+    networks:
+      - ceopro_core_net
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   postgres_data:

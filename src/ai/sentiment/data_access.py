@@ -24,6 +24,7 @@ def load_unanalyzed_reviews(conn: "psycopg2.extensions.connection", tenant_id: s
         WHERE r.tenant_id = %s
           AND sr.sentiment_id IS NULL
           AND r.source_status = 'ALLOWED'
+          AND COALESCE(r.safety_status, 'SAFE') = 'SAFE'
           AND r.review_text IS NOT NULL
           AND length(trim(r.review_text)) > 0
         ORDER BY r.review_date
