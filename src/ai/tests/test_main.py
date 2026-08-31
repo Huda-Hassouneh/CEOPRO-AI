@@ -171,3 +171,49 @@ def test_template_download_unknown_format_rejected():
 def test_template_download_requires_auth():
     response = client.get("/extraction/templates/csv")
     assert response.status_code == 401
+
+
+def test_rag_query_requires_auth():
+    response = client.post("/rag/query", params={"query_text": "what is our best seller?"})
+    assert response.status_code == 401
+
+
+def test_rag_query_returns_answer_and_sources_on_success():
+    fake_conn = MagicMock()
+    fake_result = {"answer": "Sunscreen SPF 50.", "sources": [{"source_index": 1, "chunk_id": "c1", "score": 0.9}]}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.rag_llm_client.answer_query", return_value=fake_result) as mock_answer:
+        response = client.post("/rag/query", params={"query_text": "what is our best seller?"}, headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    assert mock_answer.call_args.args[2] == "what is our best seller?"
+
+
+def test_rag_query_maps_llm_provider_failure_to_502_not_500():
+    """A Groq/provider failure is a distinct, more specific error than a
+    generic 500 - retrieval genuinely succeeded, only the LLM call didn't."""
+    from src.ai.rag import llm_client as rag_llm_client_module
+
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch(
+             "src.ai.main.rag_llm_client.answer_query",
+             side_effect=rag_llm_client_module.LLMError("GROQ_API_KEY is not set"),
+         ):
+        response = client.post("/rag/query", params={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 502
+    assert "GROQ_API_KEY" in response.json()["detail"]
+    fake_conn.rollback.assert_called_once()
+
+
+def test_rag_query_returns_500_and_rolls_back_on_unexpected_error():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.rag_llm_client.answer_query", side_effect=RuntimeError("boom")):
+        response = client.post("/rag/query", params={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 500
+    fake_conn.rollback.assert_called_once()
