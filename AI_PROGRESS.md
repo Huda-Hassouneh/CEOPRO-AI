@@ -20,7 +20,7 @@ in [`PENDING_ACTIONS.md`](PENDING_ACTIONS.md) so it stays visible without diggin
 | Spec phase | Module | Status | Notes |
 |---|---|---|---|
 | Phase 2 — Demand Intelligence (§18, §23, §25) | `src/ai/forecasting/` | 🟢 Built, tested (unit + integration) | Baselines, XGBoost + walk-forward validation, cold-start policy, evidence writers, Redis consumer. See entries below. |
-| Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟡 Hybrid (lexical + semantic) retrieval built/tested; chatbot itself not started | Document ingestion + BM25 + FAISS semantic retrieval + Reciprocal Rank Fusion, all against existing `rag_documents_metadata` + MinIO — none of it needs pgvector. Still missing: LLM reasoning step, chat history (needs a new table). A real fusion edge case found and documented (not fixed — inherent BM25 behavior on very short chunks). See entries below. |
+| Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟡 Full retrieval pipeline (ingest → persist → hybrid fusion → re-rank → context assembly) built/tested, live-verified end-to-end with real models; chatbot's LLM reasoning step itself not started (provider still being evaluated) | Document ingestion now persists chunks + `pgvector` embeddings to `rag_document_chunks` (audited 2026-08-31: the column existed since 2026-08-27, unused until now) instead of re-fetching/re-chunking/re-embedding from MinIO on every retrieval call. BM25 + FAISS + Reciprocal Rank Fusion (candidate pool widened before fusion) + a multilingual Cross-Encoder re-ranker (spec §8 Arabic-English requirement honored) + context assembly, composed into one `run_retrieval()` call returning an LLM-agnostic `AssembledContext`. Two real schema gaps found and fixed along the way (`storage_bucket_path` rename, a genuinely missing `processed_status` column — see `PENDING_ACTIONS.md` #45). Still missing: the LLM reasoning step itself (deliberately abstracted out of this module) and chat history (needs a new table). The short-chunk BM25/RRF fusion edge case found earlier is documented, not fixed — reduced in practice by the widened candidate pool, not eliminated. See entries below. |
 | Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/`, `src/ai/mpi/` | 🟢 Built, tested (unit + integration); NER persistence + MPI both landed since this row was last updated | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) + Redis-cached catalog lookups, reworked against `Final_schema.sql`. NER persistence (`extracted_entity`) built and live-DB tested — the "not started" note here was stale, corrected 2026-08-28. `mpi/` (Market Perception Index, §17: sentiment + source reliability + recency + volume + entity relevance) built and live-DB tested, including cross-country comparison with a volume floor. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy, plus (2026-08-28) a fine-tuning/evaluation harness (`sentiment/finetune.py`) ready to run once real labeled data exists. `competitor_prices`/`reviews`/`news_record`/`social_mention` are still empty in prod, so the `UNKNOWN`-evidence/cold-start path is what actually runs today. Universal Import Engine (`extraction/ingestion_pipeline.py` + adapters, spec §12) - file-type detection and value validation added 2026-08-28, previously missing entirely. See entries below. |
 | Market Collection / Pipeline B (§13, §19) | `src/market_scraper/` | Production-hardened and live-DB/RLS tested; awaiting accountable approval for real competitor sources | Deny-by-default policy and privacy approval, tenant/source mapping allocation, Tier-2 staging, 0.82 product gate, Scrapy/Playwright collection, DNS/redirect SSRF checks, Redis retry/dead-letter worker, stale-job recovery, quarantine-without-price promotion, retention maintenance, Prometheus alerts, independently deployed analysis worker, and canonical `competitor_prices` persistence. The Books to Scrape sandbox passes the bounded live canary; actual competitor approval/mapping remains external (`PENDING_ACTIONS.md` #5). Two official-API collectors added 2026-08-31: `google_places` (reviews only, no price — routes through the same staging/0.82-gate/safety-scan pipeline, `competitor_prices` and price-derived `market_events` are skipped for price-less records) and `amazon_paapi` (exact-ASIN price/availability, AWS SigV4-signed). The generic-website adapter from the original 3-source ask ("Google Places, Amazon PA-API, generic website") needed no new code — the pre-existing `standards`/`MarketSourceSpider` collector already covers STRUCTURED_DATA (JSON-LD) and WEB_SCRAPE (reviewed CSS selectors) for arbitrary competitor sites. |
 | Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail, evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Margin guardrails are weaker than spec'd — `products` has no cost column (`PENDING_ACTIONS.md` #14). Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
@@ -1504,6 +1504,90 @@ passed (up from 67 — the 2 new tests) / 3 skipped (MinIO-only) / 0 failed.
 `SCALING.md` updated in place to mark fix #1 done with these numbers (fixes #2-4 — bulk writes,
 horizontal parallelization, bounded-memory file reads — remain documented plans, not implemented,
 labeled accordingly). `PENDING_ACTIONS.md` #43 marked resolved.
+
+## 2026-08-31 — RAG pipeline rebuilt from a rigorous audit: persistence, wider RRF candidate pool, Cross-Encoder re-ranking, LLM-agnostic context assembly
+
+Requested: implement the structural fixes and performance optimizations from a prior audit of
+`src/ai/rag/` (hybrid FAISS+BM25+RRF retrieval), with explicit scope: fix the P0 column bug, persist
+chunks/embeddings (P1), solve the document-update lifecycle with idempotent wipe-and-replace,
+integrate Cross-Encoder re-ranking, and abstract the LLM layer entirely out of this module (a
+provider decision - Qwen-2.5-Instruct/DeepSeek-V3 via Groq/Together/DeepInfra - is still being
+evaluated separately).
+
+**The audit's P0 finding was worse than it first looked.** The audit found `data_access.py`/
+`pipeline.py` querying `rag_documents_metadata.minio_object_key`, a column that doesn't exist (the
+real name is `storage_bucket_path`) - fixed across `data_access.py`, `pipeline.py`, the test
+fixtures, and `seed_demo_data.py`. But actually running the fix live against a real disposable
+Postgres immediately surfaced a second, more severe gap the audit's read-only pass had missed:
+`processed_status` - the column the module's entire Pending/Processed/Failed ingestion lifecycle
+depends on - doesn't exist **anywhere** in `Final_schema.sql` or any prior migration. Not a rename;
+a genuinely missing column. Every call to `ingest_pending_documents()` would have failed outright.
+Fixed with a new migration, `20260831000000_add_rag_document_status_column.sql` (`VARCHAR(20) NOT
+NULL DEFAULT 'Pending'` + a CHECK constraint + a lookup index) - the same pattern already established
+by `20260827000100_add_rag_embedding_column.sql` for exactly this kind of "code assumes a column that
+was never actually added" gap. This is the second time in two days a live run caught a schema gap a
+static/read-only pass missed (see the extraction-pipeline entries two days prior) - reinforcing that
+"run it against a real database" keeps finding real, otherwise-invisible gaps in this codebase.
+
+**P1 - persistence, the actual fix, not just a schema addition.** `rag_document_chunks.embedding`
+(`pgvector`, `vector(384)`) has existed since 2026-08-27 and was never read or written by any code -
+confirmed directly during the audit. `data_access.py` gained `replace_document_chunks()` (delete-
+then-insert - the idempotent wipe-and-replace the document-update lifecycle needed, proven directly
+with a live-DB test that re-ingests the same `document_id` with different content and confirms the
+old chunk is gone, not accumulated alongside the new one - not just assumed from the `DELETE` in the
+SQL) and `load_tenant_chunks()`. No new Python dependency for pgvector: embeddings are sent as a
+`%s::vector`-cast bracketed literal on the way in and parsed back from pgvector's own text
+representation by hand on the way out - psycopg2 alone is enough for a format this simple, with its
+own offline round-trip test. `pipeline.py`'s `ingest_pending_documents()` now chunks, embeds, and
+persists once, at ingest time; `build_tenant_index()`/`build_hybrid_index()` read the persisted
+chunks straight out of Postgres - no MinIO fetch, no re-embedding, ever, during retrieval. Their
+signatures dropped `minio_client`/`bucket` entirely, since retrieval no longer touches MinIO at all -
+a real interface simplification, not just an internal change.
+
+**Wired the candidate-pool-widening finding in alongside re-ranking**, since re-ranking a pool that
+was already starved to `top_k` before RRF fusion can't recover ranking quality RRF never had a chance
+to produce: `retrieve_hybrid()` now asks each retriever for `max(top_k * 4, 20)` candidates before
+fusing, narrowing to the real `top_k` only after fusion (and, when a caller uses the new
+`run_retrieval()`, only after re-ranking too).
+
+**P7 - Cross-Encoder re-ranking, new `reranking.py`.** Deliberately the multilingual
+`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, not the more commonly reached-for English-only
+`cross-encoder/ms-marco-MiniLM-L-6-v2` - this platform's Arabic-English code-switching requirement
+(spec §8) already shaped every other choice in this stack (the embedding model, the BM25 tokenizer),
+and a reranker that silently degraded on Arabic input would have undone that. `rerank()` takes an
+injectable `predict_fn` purely for offline testing - dependency injection, not a production code
+path - so the 5 new offline tests never need the real ~model download `test_rag_embeddings.py`
+already established the gating convention for (`AI_TEST_RERANKING=1`, mirroring `AI_TEST_EMBEDDINGS`).
+
+**Context assembly + the LLM boundary.** New `AssembledContext` (`retrieval_types.py`) and
+`pipeline.assemble_context()` turn a ranked chunk list into source-labeled context text plus a
+citations list - spec §21's "CONTEXT ASSEMBLY" stage, the one immediately before "LLM REASONING" in
+the spec's own workflow diagram. `run_retrieval()` composes ingest-persisted-index → wide-pool RRF →
+re-rank → context assembly into the single call a future LLM integration needs; it has zero imports,
+references, or dependencies on any LLM provider/SDK - the module boundary the request asked for is
+structural, not just a documentation note. Production-grade reliability: a re-ranker failure (model
+load issue, OOM) is caught and falls back to the RRF-fused order rather than failing the whole
+request, verified with a dedicated live-DB test - matches the "one component's failure must not sink
+the whole call" philosophy already established elsewhere in this codebase (SAVEPOINT-protected rows,
+per-document ingestion error handling).
+
+**Verification, in stages, not just asserted**: 36 offline RAG tests (pgvector literal round-trip,
+re-ranking logic via injected fake scorers, context assembly - none of these three had any unit
+coverage before). Live-DB, first without the model-gated tests (P0 fix, P1 persistence, wipe-and-
+replace idempotency, BM25-only retrieval - 6 passed) - caught the `processed_status` gap here, before
+any model download was even attempted. Then the full model-gated run, real embedding model + a real,
+freshly-downloaded multilingual Cross-Encoder: `run_retrieval()` end-to-end (9 passed, ~150s including
+both model downloads) - not a mocked reranker, the actual model scoring actual retrieved chunks.
+`seed_demo_data.py`'s RAG-section fix (3 more bugs found while already touching it for the P0 rename:
+missing `file_size_bytes`, wrong `chunk_text`/`chunk_text_content` column name, a 1024-dim vector
+against the real `vector(384)` column) verified correct in isolation - the same script's unrelated
+`currency_rates` seeding section has the identical class of bug and blocks a true end-to-end run;
+flagged, not fixed (`PENDING_ACTIONS.md` #46 - out of scope for this pass). Full repo suite re-run
+clean throughout: offline 358 passed / 0 failed; live-DB 69 passed / 0 failed.
+
+`PENDING_ACTIONS.md` #1 updated (pgvector column now actually used), #45 (this work) and #46 (the
+`currency_rates` seeding bug found in passing) added. `src/ai/README.md`'s `rag/` section rewritten -
+the old "no knowledge_chunks table" note was itself stale by four days.
 
 ## How to add an entry
 

@@ -148,29 +148,54 @@ class EnterprisePlatformSeeder:
                 weekend_days=[3, 4], poisson_lambda=8,
             )
 
+            # RAG demo document + chunk. Three real bugs fixed here alongside the
+            # P0 column-name fix (found while already touching this block, not
+            # left broken next to it): (a) rag_documents_metadata.file_size_bytes
+            # is NOT NULL with no default - never supplied, so this INSERT would
+            # fail outright; (b) rag_document_chunks' text column is
+            # chunk_text_content, not chunk_text; (c) the embedding was a random
+            # 1024-dim vector against a vector(384) column (the real embedding
+            # model - src/ai/rag/embeddings.py's default - outputs 384 dimensions,
+            # confirmed against the model's own config in the migration that added
+            # this column) - would fail on a dimension mismatch, not silently
+            # truncate. generate_normalized_vector() returns a plain Python list;
+            # psycopg2 has no built-in adapter for pgvector, so it's sent as a
+            # bracketed literal cast with ::vector (same approach as
+            # src/ai/rag/data_access.py's real ingestion path - no new dependency
+            # for a format this simple).
             document_id = _deterministic_uuid("rag_document", tenant_a)
+            chunk_text_content = (
+                "SME localized economic indicators, exchange fluctuations, and cross-border logistics "
+                "contracts payload analysis."
+            )
             cursor.execute(
                 """
-                INSERT INTO rag_documents_metadata (document_id, tenant_id, file_name, minio_object_key, processed_status)
-                VALUES (%s, %s, 'seed_market_notes.txt', %s, 'Processed')
+                INSERT INTO rag_documents_metadata
+                    (document_id, tenant_id, file_name, storage_bucket_path, file_size_bytes, processed_status)
+                VALUES (%s, %s, 'seed_market_notes.txt', %s, %s, 'Processed')
                 ON CONFLICT (document_id) DO NOTHING;
                 """,
-                (document_id, tenant_a, f"{tenant_a}/rag/seed_market_notes.txt"),
+                (
+                    document_id, tenant_a, f"{tenant_a}/rag/seed_market_notes.txt",
+                    len(chunk_text_content.encode("utf-8")),
+                ),
             )
-            hardened_vector = self.generate_normalized_vector(1024)
+            rag_embedding_dim = 384  # sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2's real output size
+            hardened_vector = self.generate_normalized_vector(rag_embedding_dim)
+            vector_literal = "[" + ",".join(str(x) for x in hardened_vector) + "]"
             cursor.execute(
                 """
-                INSERT INTO rag_document_chunks (chunk_id, document_id, tenant_id, chunk_index, chunk_text, embedding)
-                VALUES (%s, %s, %s, 0, %s, %s)
+                INSERT INTO rag_document_chunks
+                    (chunk_id, document_id, tenant_id, chunk_index, chunk_text_content, embedding, embedding_model_version)
+                VALUES (%s, %s, %s, 0, %s, %s::vector, 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
                 ON CONFLICT (chunk_id) DO NOTHING;
                 """,
                 (
                     _deterministic_uuid("rag_chunk", document_id, "0"),
                     document_id,
                     tenant_a,
-                    "SME localized economic indicators, exchange fluctuations, and cross-border logistics "
-                    "contracts payload analysis.",
-                    hardened_vector,
+                    chunk_text_content,
+                    vector_literal,
                 ),
             )
 
