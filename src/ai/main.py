@@ -39,6 +39,7 @@ from src.ai.extraction import file_dispatch, ingestion_pipeline, job_management
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.mpi import pipeline as mpi_pipeline
 from src.ai.pricing import pipeline as pricing_pipeline
+from src.ai.rag import llm_client as rag_llm_client
 from src.ai.sentiment import pipeline as sentiment_pipeline
 
 app = FastAPI(title="CEOPRO AI Service")
@@ -159,6 +160,34 @@ def mpi_summary(
     except Exception:
         conn.rollback()
         raise
+    finally:
+        conn.close()
+
+
+@app.post("/rag/query")
+def rag_query(
+    query_text: str, top_k: int = 5, ctx: TenantContext = Depends(get_tenant_context)
+) -> dict:
+    """
+    The complete RAG chatbot call: persisted hybrid retrieval -> Cross-
+    Encoder re-ranking -> context assembly -> LLM reasoning
+    (rag/llm_client.py, Groq-hosted Qwen - see that module's docstring for
+    why). A provider/network failure (LLMError) is a 502, not a 500 - the
+    retrieval half of this request genuinely succeeded, it's specifically
+    the upstream LLM call that didn't, which is a meaningfully different
+    failure for a caller to distinguish and retry.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = rag_llm_client.answer_query(conn, ctx.tenant_id, query_text, top_k=top_k)
+        conn.commit()
+        return result
+    except rag_llm_client.LLMError as err:
+        conn.rollback()
+        raise HTTPException(status_code=502, detail=str(err))
+    except Exception:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail="RAG query failed.")
     finally:
         conn.close()
 
