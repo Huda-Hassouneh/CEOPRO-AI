@@ -1,8 +1,10 @@
 # Scaling the Extraction Pipeline to Large Files
 
-This documents a real, measured performance finding from a live validation run and how to fix
-it when higher-throughput infrastructure ("more cores, more/faster DB capacity") is available.
-Nothing in this document has been implemented yet — it's a plan, not a claim.
+This documents a real, measured performance finding from a live validation run and how it was
+(and, for the still-open items, could be) fixed. **Update 2026-08-31: fix #1 (batched commits)
+is implemented and verified — see its section below for real before/after numbers.** Fixes #2–#4
+remain unimplemented plans for when higher-throughput infrastructure or genuinely larger files
+make them worth doing — labeled accordingly, not claimed as done.
 
 ## What was measured
 
@@ -42,27 +44,47 @@ is correct, the *transaction shape* around it is what doesn't scale.
 
 ## How to scale it (in priority order)
 
-### 1. Batch commits — the fix that matters, no new infrastructure needed
+### 1. Batch commits — DONE 2026-08-31, verified against the same real file
 
-Commit every N rows (e.g. 500–2,000) instead of once per file. This resets the subtransaction
-count periodically, so no single transaction ever approaches the cliff. The atomicity guarantee
-weakens slightly — a crash mid-file loses at most the current uncommitted batch, not zero rows,
-versus today's all-or-nothing per file — but every row's own `SAVEPOINT`-protected write is
-still individually safe, and the zero-data-loss guarantee (the raw row lands in
-`import_staging_rows` before parsing is attempted) is unaffected either way.
+`process_records()` now takes an opt-in `commit_every: Optional[int]` parameter (default `None`,
+preserving the original all-or-nothing transaction for any caller that relies on it — see the
+parameter's own docstring). When set, it commits job-count progress every `commit_every` rows
+instead of holding the whole file in one transaction, resetting the subtransaction count
+periodically so no single transaction ever approaches the cliff. `POST /extraction/upload`
+(`main.py`) now passes `commit_every=_EXTRACTION_COMMIT_EVERY` (env `EXTRACTION_COMMIT_EVERY`,
+default 500) on every real upload.
 
-This alone should recover close to the 7,424 rows/sec CPU-bound ceiling, bounded by actual
-Postgres write throughput per batch rather than by subtransaction depth. No cluster, no extra
-hardware — this is the fix to do first, on the infrastructure that exists today.
+**Re-ran the exact same 51,947-row file** (`reports/extraction/electronics_for_test_batched/`)
+with `commit_every=500` against a freshly migrated disposable Postgres:
 
-### 2. Bulk writes instead of one-row-at-a-time INSERT/UPDATE
+| Run | Time | Throughput | vs. unbatched |
+|---|---|---|---|
+| Unbatched (one transaction, ~104,000 SAVEPOINTs) | 8.5 hours | 1.7 rows/sec | — |
+| **Batched (`commit_every=500`)** | **3.65 minutes (218.9s)** | **237.3 rows/sec** | **140x faster** |
+
+237.3 rows/sec is close to the original 300-row pilot's 255 rows/sec (before the unbatched run's
+degradation set in) — confirming the fix works as designed: per-batch throughput stays near the
+small-file baseline instead of decaying as the file grows. A separate verification query confirmed
+`ingestion_jobs`'s DB-side counts (`51947, 0, 0`) exactly match the in-memory `IngestionSummary`
+returned to the caller — the batched accounting is correct, not just fast.
+
+The atomicity tradeoff is real and intentional: a crash mid-file with `commit_every` set loses at
+most the current uncommitted batch (≤500 rows), not the whole file — proven directly by
+`test_commit_every_flushes_progress_in_batches_visible_to_other_connections`
+(`test_extraction_ingestion_pipeline_integration_db.py`), which reads job counts from a *second*
+database connection before the test's own connection ever commits. Every row's own
+`SAVEPOINT`-protected write is still individually safe either way, and the zero-data-loss
+guarantee (the raw row lands in `import_staging_rows` before parsing is attempted) is unaffected.
+`commit_every=500` is a starting point, not a value tuned against production write latency yet.
+
+### 2. Bulk writes instead of one-row-at-a-time INSERT/UPDATE (still open)
 
 Batch the `import_staging_rows` inserts with `psycopg2.extras.execute_values` (one round trip
 per batch instead of one per row) rather than a single-row `INSERT ... RETURNING` per row.
 Combined with #1, this cuts network round-trips by roughly the batch size, which matters more
 as DB latency increases (a remote/managed Postgres instance, not just local Docker).
 
-### 3. Horizontal parallelization — for genuinely large files, on genuinely larger hardware
+### 3. Horizontal parallelization (still open) — for genuinely large files, on genuinely larger hardware
 
 The CPU-only run above confirms row processing is embarrassingly parallel: each row's
 `_process_mapped_row`/`_process_fallback_row` call is a pure function of that row alone, no
@@ -83,7 +105,7 @@ the "supercomputer" case):
   ... SET x = x + %s`, see `_update_job_counts()`) already tolerate concurrent workers updating
   the same job row — no schema change needed for this part.
 
-### 4. Bound memory for files larger than this one
+### 4. Bound memory for files larger than this one (still open)
 
 `file_dispatch.read_source_file()` currently loads every row into memory as a list of dicts
 before processing starts. Fine at 51,947 rows × 8 columns (a few hundred MB at most); would need
@@ -91,11 +113,12 @@ revisiting — a generator-based adapter reading in chunks — for a file with m
 significantly more columns. Not a problem this test file's scale actually exercised, flagged for
 when it becomes relevant rather than solved speculatively now.
 
-## What this document is not
+## What this document is (and isn't)
 
-This is a plan for when higher-throughput infrastructure is available and large files become a
-real, recurring use case — not an implementation done in this pass. The one fix actually applied
-alongside this document is unrelated to performance: a `HEADER_SYNONYMS` gap (`total price`,
-`date time` weren't recognized) that this same live test also found, which was causing this file
-to fall to weak `FALLBACK` extraction regardless of speed. See `PENDING_ACTIONS.md` for both
-findings tracked individually.
+Fix #1 (batched commits) is implemented, tested, wired into the real `/extraction/upload`
+endpoint, and re-verified against the exact 51,947-row file that originally exposed the problem
+— not just a plan. Fixes #2–#4 remain plans for when higher-throughput infrastructure or genuinely
+larger files make them worth doing, not implementations. Alongside this, the same live test
+originally found a `HEADER_SYNONYMS` gap (`total price`, `date time` weren't recognized) — a
+separate, correctness (not performance) fix, also already applied. See `PENDING_ACTIONS.md` for
+both findings tracked individually.
