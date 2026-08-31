@@ -1,0 +1,14 @@
+# Normalize line endings to LF in the repository regardless of the
+# committer's OS/git config - this repo runs in Linux Docker containers
+# and has seen contributions from multiple environments in the same
+# session, so line-ending drift is a real (not hypothetical) risk here.
+* text=auto eol=lf
+
+# Explicit binary types - never text-convert these, and don't diff them
+# as text (avoids noisy/misleading diffs on real binary changes).
+*.xlsx binary
+*.xlsm binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
