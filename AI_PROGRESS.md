@@ -1455,6 +1455,56 @@ close to this row count before):
 `PENDING_ACTIONS.md` #43 (scaling, open) and #44 (header-coverage, resolved) added. Full offline
 `src/ai/` suite re-run clean after the synonym fix: 281 passed, 27 skipped, 0 failed.
 
+## 2026-08-31 — Implemented and verified the batched-commit fix SCALING.md documented
+
+Direct continuation of the same day's earlier live-test finding (previous entry): `SCALING.md`
+documented a plan, not yet a fix, for the DB-transaction scaling cliff (8.5 hours for a
+51,947-row file vs. 7 seconds CPU-only). This entry implements and proves fix #1 (batched
+commits) — the one explicitly identified as doable "no new infrastructure needed."
+
+**Change**: `ingestion_pipeline.py::process_records()` gained an opt-in `commit_every:
+Optional[int] = None` parameter. Unset (default), behavior is byte-for-byte unchanged — one
+implicit transaction for the whole file, exactly as before, since at least one existing caller
+(`test_extraction_ingestion_pipeline_integration_db.py`'s own `conn` fixture) relies on
+rollback-based cleanup that periodic commits would break if forced on by default. When set, the
+function tracks per-batch deltas separately from the cumulative `IngestionSummary` totals and
+calls `_update_job_counts()` + `conn.commit()` every `commit_every` rows, plus a final flush for
+the remainder — resetting Postgres's subtransaction count before the degradation documented in
+`SCALING.md` sets in. `POST /extraction/upload` (`main.py`) now passes
+`commit_every=_EXTRACTION_COMMIT_EVERY` (env `EXTRACTION_COMMIT_EVERY`, default 500) on every
+real upload, so this isn't a dormant capability — it's live on the actual endpoint.
+
+**Verification, not just unit tests**: re-ran the *exact same* 51,947-row file
+(`mocks/Electronics_For_Test.xlsx`) that originally exposed the cliff, this time with
+`commit_every=500`, against a freshly migrated disposable Postgres:
+
+- **8.5 hours → 3.65 minutes (218.9s), 1.7 → 237.3 rows/sec — a 140x speedup.** 237.3 rows/sec is
+  close to the original 300-row pilot's 255 rows/sec (measured before the unbatched run's
+  degradation had set in), confirming per-batch throughput stays near the small-file baseline
+  instead of decaying as the file grows.
+- A separate verification query read `ingestion_jobs`'s DB-side counts directly and confirmed
+  they exactly match the `IngestionSummary` returned in memory (`51947, 0, 0` both sides) — the
+  batched delta-accounting is correct, not just fast (an easy class of bug to introduce silently
+  when splitting a single cumulative update into many incremental ones).
+- Raw results: `reports/extraction/electronics_for_test_batched/summary.json`.
+
+**New regression tests** (`test_extraction_ingestion_pipeline_integration_db.py`), both live-DB,
+both reading from a *second* database connection to prove real commit boundaries rather than just
+trusting in-process state:
+- `test_commit_every_flushes_progress_in_batches_visible_to_other_connections` — with
+  `commit_every=2` over 5 rows, a separate connection sees all 5 rows' job counts before the
+  test's own connection ever calls `commit()`.
+- `test_without_commit_every_progress_stays_uncommitted_until_the_caller_commits` — proves the
+  unset default is unchanged: a separate connection sees zero progress until the caller commits,
+  preserving the original all-or-nothing contract.
+
+Full suite re-run clean after the change: offline 347 passed / 27 skipped / 0 failed; live-DB 69
+passed (up from 67 — the 2 new tests) / 3 skipped (MinIO-only) / 0 failed.
+
+`SCALING.md` updated in place to mark fix #1 done with these numbers (fixes #2-4 — bulk writes,
+horizontal parallelization, bounded-memory file reads — remain documented plans, not implemented,
+labeled accordingly). `PENDING_ACTIONS.md` #43 marked resolved.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

@@ -320,6 +320,7 @@ def process_records(
     conn=None,
     redis_client=None,
     minio_client=None,
+    commit_every: Optional[int] = None,
 ) -> IngestionSummary:
     """
     Runs the full pipeline for one uploaded file or one batch of records
@@ -349,6 +350,26 @@ def process_records(
     country (companies.operating_countries) is not split per-file by
     country here - there's no per-file country field in the current
     schema to resolve against instead.
+
+    commit_every: opt-in, default None (unset preserves the exact original
+    behavior - one implicit transaction for the whole file, the caller
+    commits or rolls back everything at once; some callers rely on this,
+    e.g. test_extraction_ingestion_pipeline_integration_db.py's own `conn`
+    fixture rolls back after every test for cleanup - passing commit_every
+    there would leak committed rows into the test database). When set (and
+    `conn` is supplied), commits job-count progress to the database every
+    `commit_every` rows instead of holding tens of thousands of per-row
+    SAVEPOINTs in one uncommitted transaction. This addresses a real,
+    measured scaling cliff (PENDING_ACTIONS.md #43 / src/ai/extraction/
+    SCALING.md): a 51,947-row file took 8.5 hours in one transaction vs.
+    7 seconds of pure compute, traced to Postgres's subtransaction-cache
+    degrading once a single transaction accumulates that many SAVEPOINTs.
+    Periodic commits reset that count before it matters. Tradeoff: a crash
+    mid-file now loses at most the current uncommitted batch, not the
+    whole file - each row's own SAVEPOINT-protected write is still
+    individually safe either way, and the zero-data-loss guarantee (the
+    raw row lands in import_staging_rows before parsing is attempted) is
+    unaffected by this parameter either way.
     """
     decimal_style, day_first = None, None
     if conn is not None:
@@ -366,6 +387,7 @@ def process_records(
     )
 
     parse_results: List[RowParseResult] = []
+    flushed_processed = flushed_partial = flushed_failed = 0
 
     for i, raw_row in enumerate(rows):
         staging_row_id, staging_error = _stage_row_or_error(conn, tenant_id, job_id, raw_row)
@@ -374,54 +396,72 @@ def process_records(
             summary.row_outcomes.append(
                 IngestionRowOutcome(row_index=i, staging_row_id=None, mode=mode.value, error=staging_error)
             )
-            continue
+        else:
+            try:
+                if mode in _MAPPED_MODES:
+                    result, field_errors, row_fields_expected = _process_mapped_row(
+                        raw_row, header_mapping, tenant_id, decimal_style, day_first
+                    )
+                    summary.total_fields_expected += row_fields_expected
+                    summary.total_fields_extracted += len(result.typed_fields)
+                else:
+                    result = _process_fallback_row(raw_row, tenant_id, redis_client, conn, decimal_style, day_first)
+                    field_errors = {}
 
-        try:
-            if mode in _MAPPED_MODES:
-                result, field_errors, row_fields_expected = _process_mapped_row(
-                    raw_row, header_mapping, tenant_id, decimal_style, day_first
-                )
-                summary.total_fields_expected += row_fields_expected
-                summary.total_fields_extracted += len(result.typed_fields)
-            else:
-                result = _process_fallback_row(raw_row, tenant_id, redis_client, conn, decimal_style, day_first)
-                field_errors = {}
+                parse_results.append(result)
+                summary.rows_processed += 1
+                if field_errors:
+                    summary.rows_partial += 1
 
-            parse_results.append(result)
-            summary.rows_processed += 1
-            if field_errors:
-                summary.rows_partial += 1
-
-            outcome = IngestionRowOutcome(
-                row_index=i,
-                staging_row_id=staging_row_id,
-                mode=mode.value,
-                parse_result=result,
-                fallback_entity_count=len(result.fallback_entities),
-                field_errors=field_errors,
-            )
-            summary.row_outcomes.append(outcome)
-
-            if conn is not None and staging_row_id is not None:
-                status = "PARTIAL" if field_errors else "VALID"
-                errors_json = json.dumps(field_errors) if field_errors else None
-                _update_staging_row_status(conn, staging_row_id, status, errors=errors_json)
-
-        except Exception as e:  # noqa: BLE001 - one bad row must not sink the whole file
-            summary.rows_failed += 1
-            summary.row_outcomes.append(
-                IngestionRowOutcome(
+                outcome = IngestionRowOutcome(
                     row_index=i,
                     staging_row_id=staging_row_id,
                     mode=mode.value,
-                    error=str(e),
+                    parse_result=result,
+                    fallback_entity_count=len(result.fallback_entities),
+                    field_errors=field_errors,
                 )
+                summary.row_outcomes.append(outcome)
+
+                if conn is not None and staging_row_id is not None:
+                    status = "PARTIAL" if field_errors else "VALID"
+                    errors_json = json.dumps(field_errors) if field_errors else None
+                    _update_staging_row_status(conn, staging_row_id, status, errors=errors_json)
+
+            except Exception as e:  # noqa: BLE001 - one bad row must not sink the whole file
+                summary.rows_failed += 1
+                summary.row_outcomes.append(
+                    IngestionRowOutcome(
+                        row_index=i,
+                        staging_row_id=staging_row_id,
+                        mode=mode.value,
+                        error=str(e),
+                    )
+                )
+                if conn is not None and staging_row_id is not None:
+                    _update_staging_row_status(conn, staging_row_id, "INVALID", errors=str(e))
+
+        if commit_every and conn is not None and (i + 1) % commit_every == 0:
+            _update_job_counts(
+                conn, tenant_id, job_id,
+                summary.rows_processed - flushed_processed,
+                summary.rows_partial - flushed_partial,
+                summary.rows_failed - flushed_failed,
             )
-            if conn is not None and staging_row_id is not None:
-                _update_staging_row_status(conn, staging_row_id, "INVALID", errors=str(e))
+            conn.commit()
+            flushed_processed = summary.rows_processed
+            flushed_partial = summary.rows_partial
+            flushed_failed = summary.rows_failed
 
     if conn is not None:
-        _update_job_counts(conn, tenant_id, job_id, summary.rows_processed, summary.rows_partial, summary.rows_failed)
+        _update_job_counts(
+            conn, tenant_id, job_id,
+            summary.rows_processed - flushed_processed,
+            summary.rows_partial - flushed_partial,
+            summary.rows_failed - flushed_failed,
+        )
+        if commit_every:
+            conn.commit()
 
     if minio_client is not None and parse_results:
         document = build_extraction_document(tenant_id, job_id, source_name, parse_results)
