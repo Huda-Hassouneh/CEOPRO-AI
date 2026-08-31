@@ -1,0 +1,27 @@
+{
+  "test_file": "mocks/Electronics_For_Test.xlsx",
+  "run_at_utc": "2026-08-31T19:13:32Z",
+  "commit_every": 500,
+  "tenant_id": "b773dca7-2bc6-4b3b-a125-fb40e108ae6d",
+  "job_id": "22aacf7b-4fe3-4cd0-93d4-ba88ef09e0fa",
+  "template_mode": "RECOGNIZED",
+  "header_coverage_ratio": 0.625,
+  "total_rows_in_file": 51947,
+  "rows_processed": 51947,
+  "rows_partial": 0,
+  "rows_failed": 0,
+  "total_fields_expected": 259735,
+  "total_fields_extracted": 259735,
+  "data_loss_pct": 0.0,
+  "is_template_compliant": false,
+  "timing": {
+    "file_read_seconds": 5.29,
+    "pipeline_process_seconds": 218.87,
+    "rows_per_second": 237.34
+  },
+  "comparison_to_unbatched_run": {
+    "unbatched_seconds": 30648.42,
+    "unbatched_rows_per_second": 1.69,
+    "speedup_factor": 140.0
+  }
+}
