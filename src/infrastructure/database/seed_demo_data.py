@@ -1,3 +1,4 @@
+import json
 import math
 import os
 import sys
@@ -55,34 +56,54 @@ class EnterprisePlatformSeeder:
             (tenant_id, business_name, country_code, currency),
         )
 
+        # users has no tenant_id/role column - multi-tenancy and role
+        # assignment both go through the separate tenant_users pivot table
+        # (confirmed via \d users / \d tenant_users against a live disposable
+        # Postgres, not assumed). 'owner' is a real, already-seeded
+        # system_roles.role_key - no INSERT needed for it here.
         user_id = _deterministic_uuid("user", tenant_id)
         cursor.execute(
             """
-            INSERT INTO users (user_id, tenant_id, email, password_hash, role)
-            VALUES (%s, %s, %s, 'seed_data_placeholder_hash', 'owner')
+            INSERT INTO users (user_id, email, password_hash)
+            VALUES (%s, %s, 'seed_data_placeholder_hash')
             ON CONFLICT (user_id) DO NOTHING;
             """,
-            (user_id, tenant_id, f"manager.{country_code.lower()}@ceopro.ai"),
+            (user_id, f"manager.{country_code.lower()}@ceopro.ai"),
+        )
+        cursor.execute(
+            """
+            INSERT INTO tenant_users (tenant_id, user_id, role_key)
+            VALUES (%s, %s, 'owner')
+            ON CONFLICT (tenant_id, user_id) DO NOTHING;
+            """,
+            (tenant_id, user_id),
         )
 
         for name in product_names:
             product_id = _deterministic_uuid("product", tenant_id, name)
             base_price = round(random.uniform(*price_range), 2)
 
+            # product_name is JSONB (multilingual - {"en": ..., "ar": ...}),
+            # not plain text (confirmed via \d products against a live
+            # disposable Postgres) - same shape this session's other
+            # live-DB fixtures already use for this column elsewhere.
             cursor.execute(
                 """
                 INSERT INTO products (product_id, tenant_id, product_name, current_price, currency, source)
-                VALUES (%s, %s, %s, %s, %s, 'MANUAL')
+                VALUES (%s, %s, %s::jsonb, %s, %s, 'MANUAL')
                 ON CONFLICT (product_id) DO NOTHING;
                 """,
-                (product_id, tenant_id, name, base_price, currency),
+                (product_id, tenant_id, json.dumps({"en": name}), base_price, currency),
             )
 
+            # inventory has no unique constraint on product_id alone (only
+            # inventory_id itself, the real PK) - confirmed live. inventory_id
+            # is already deterministic below, so conflict on that instead.
             cursor.execute(
                 """
                 INSERT INTO inventory (inventory_id, tenant_id, product_id, stock_quantity, reorder_level)
                 VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (product_id) DO NOTHING;
+                ON CONFLICT (inventory_id) DO NOTHING;
                 """,
                 (_deterministic_uuid("inventory", product_id), tenant_id, product_id,
                  random.randint(*stock_range), 20),
@@ -123,16 +144,22 @@ class EnterprisePlatformSeeder:
 
             tenant_a = _deterministic_uuid("tenant", "ceopro-retail-jordan")
             tenant_b = _deterministic_uuid("tenant", "ceopro-logistics-ksa")
-            today = datetime.now(timezone.utc).date()
-
+            # Real currency_rates columns are from_currency/to_currency/exchange_rate/
+            # last_fetched (confirmed via \d currency_rates against a live disposable
+            # Postgres, not assumed) - base_currency/target_currency/rate/rate_date
+            # don't exist. The unique constraint is (from_currency, to_currency) only
+            # (no date component - last_fetched is a "when was this last refreshed"
+            # timestamp, not part of the pair's identity), so re-running this script
+            # updates the existing rate in place rather than erroring or duplicating.
             for base, target, rate in (("USD", "JOD", 0.7090), ("USD", "SAR", 3.7500), ("JOD", "SAR", 5.2890)):
                 cursor.execute(
                     """
-                    INSERT INTO currency_rates (base_currency, target_currency, rate, rate_date, source)
-                    VALUES (%s, %s, %s, %s, 'seed_data')
-                    ON CONFLICT (base_currency, target_currency, rate_date) DO UPDATE SET rate = EXCLUDED.rate;
+                    INSERT INTO currency_rates (from_currency, to_currency, exchange_rate, source)
+                    VALUES (%s, %s, %s, 'seed_data')
+                    ON CONFLICT (from_currency, to_currency)
+                        DO UPDATE SET exchange_rate = EXCLUDED.exchange_rate, last_fetched = CURRENT_TIMESTAMP;
                     """,
-                    (base, target, rate, today),
+                    (base, target, rate),
                 )
 
             self._seed_tenant(
