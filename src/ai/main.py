@@ -48,6 +48,13 @@ app = FastAPI(title="CEOPRO AI Service")
 # documented default, overridable per deployment.
 _MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))  # 10MB
 
+# See ingestion_pipeline.process_records()'s own commit_every docstring and
+# src/ai/extraction/SCALING.md for the measured cliff this avoids (a
+# 51,947-row file: 8.5 hours in one transaction vs. 7 seconds of pure
+# compute). 500 is a starting point (SCALING.md suggests 500-2,000), not a
+# value tuned against production write latency yet.
+_EXTRACTION_COMMIT_EVERY = int(os.getenv("EXTRACTION_COMMIT_EVERY", "500"))
+
 # Content sniffing beyond the file extension - catches a trivial extension
 # spoof (e.g. an arbitrary file renamed to .xlsx). CSV has no reliable magic
 # bytes (it's plain text) so isn't checked here; PDF/XLSX/XLSM do.
@@ -244,6 +251,14 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     XLSM (macro-enabled Excel) is accepted - openpyxl (xlsx_adapter.py)
     never executes macro code, it only reads cell values, so this carries
     no code-execution risk from the macro content itself.
+
+    Large files commit progress every EXTRACTION_COMMIT_EVERY rows
+    (default 500, see process_records()'s own commit_every docstring and
+    src/ai/extraction/SCALING.md) instead of holding the whole file in one
+    transaction - a real, measured fix for a 51,947-row test file that
+    took 8.5 hours in one transaction vs. 7 seconds of pure compute. A
+    failure partway through this endpoint now loses at most the current
+    uncommitted batch, not every row processed so far.
     """
     try:
         ext = file_dispatch.detect_file_type(file.filename or "")
@@ -273,6 +288,7 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
         summary = ingestion_pipeline.process_records(
             tenant_id=ctx.tenant_id, job_id=job_id, source_name=file.filename or f"upload{ext}",
             headers=headers, rows=rows, conn=conn, redis_client=None, minio_client=db.minio_client(),
+            commit_every=_EXTRACTION_COMMIT_EVERY,
         )
 
         job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "COMPLETED")
