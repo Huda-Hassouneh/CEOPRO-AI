@@ -1407,6 +1407,54 @@ external action as before — a human approving real competitor/business sources
 `data_sources`/`competitor_product_mappings` (plus, now, populating `connection_credentials_vault` for the two
 API-key-gated collectors). `PENDING_ACTIONS.md` #42 added for the plaintext-JSON-credentials design note.
 
+## 2026-08-31 — Live extraction test against a real 51,947-row POS export found and fixed a header-coverage gap; documented a DB-scaling plan for the transaction-cliff finding
+
+Requested: run the real extraction pipeline (not a mock) against `mocks/Electronics_For_Test.xlsx`
+and save full results for review. Used the exact production path `POST /extraction/upload` calls
+(`file_dispatch.read_source_file()` → `job_management` → `ingestion_pipeline.process_records()`)
+against a disposable, fully-migrated Postgres. Full raw output (per-row raw payload, typed fields,
+field-level errors/confidence for all 51,947 rows) saved to `reports/extraction/electronics_for_test/`.
+
+**First run found two real, previously-untested gaps** (no file in this repo's test suite had come
+close to this row count before):
+
+1. **Header-coverage gap, fixed**: the file's headers (`Sale_ID, Date_Time, Product_ID, Product_Name,
+   Quantity, Unit_Price, Total_Price, Shift`) matched only the 3 required RECOGNIZED-tier fields —
+   `Total_Price`/`Date_Time` are unambiguous real-world spellings of `amount_raw`/`transaction_date`,
+   but weren't in `HEADER_SYNONYMS` yet, so recognized coverage was 3/8 = 0.375, below the 0.5
+   threshold, and all 51,947 rows fell to weak `FALLBACK` regex/NER extraction — 0 typed fields
+   captured per row despite the essential commercial data (quantity, price, product name) being
+   perfectly well-labeled. **Fixed**: added `"total price"` and `"date time"`/`"datetime"` to
+   `HEADER_SYNONYMS` (`template_detection.py`), marked CONFIRMED (this session's own convention for
+   "verified against a real export," not ASSUMED) since this is a real POS export, not a guess. New
+   regression test `test_real_pos_export_shape_matches_recognized_mode`
+   (`test_extraction_template_detection.py`). Re-ran the full file after the fix (CPU-only, no DB, to
+   isolate from finding #2 below): mode correctly resolves to `RECOGNIZED`,
+   `total_fields_expected == total_fields_extracted == 259,735`, genuine `data_loss_pct = 0.0` — not
+   the misleading `0.0` a FALLBACK-mode file reports by definition (that metric is N/A for FALLBACK,
+   not "zero loss").
+
+2. **DB-transaction scaling cliff, documented not fixed**: the same file, run through the live
+   Postgres pipeline (not CPU-only), took **8.5 hours** (1.7 rows/sec) — a 300-row pilot beforehand
+   had projected ~3.4 minutes for the full file at 255 rows/sec. Isolated the cause directly: rerunning
+   the identical 51,947 rows with `conn=None` (no DB at all) took **7.0 seconds** (7,424 rows/sec) — a
+   ~4,400x gap between CPU-only and DB-backed runs on the exact same rows. Root cause:
+   `ingestion_pipeline.py`'s per-row `SAVEPOINT`/`RELEASE SAVEPOINT` writes (added for
+   `PENDING_ACTIONS.md` #39's reliability fix) all happen inside one uncommitted transaction for the
+   whole file — ~104,000 subtransactions in one transaction is deep enough into Postgres's
+   subtransaction-cache degradation regime that per-row cost climbs across the run. This is real and
+   reproducible, not a fluke of the specific container. **Not fixed this pass** — the fix (batched
+   commits, so no single transaction accumulates that many subtransactions) is a genuine
+   atomicity-granularity tradeoff decision, requested to be documented rather than changed
+   unilaterally. Wrote `src/ai/extraction/SCALING.md`: full root-cause writeup plus a prioritized
+   scaling plan (batched commits first — no new infra needed, should recover close to the 7,424
+   rows/sec CPU ceiling; then bulk/batched writes; then horizontal parallelization across
+   processes/worker nodes for large-file, high-throughput deployments, since per-row extraction is
+   confirmed embarrassingly parallel — no shared state between rows).
+
+`PENDING_ACTIONS.md` #43 (scaling, open) and #44 (header-coverage, resolved) added. Full offline
+`src/ai/` suite re-run clean after the synonym fix: 281 passed, 27 skipped, 0 failed.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
