@@ -64,9 +64,18 @@ class TemplateMode(Enum):
 # list as real customer files reveal new spellings; it's the only place
 # that needs editing to widen STRICT-mode coverage.
 HEADER_SYNONYMS: Dict[str, List[str]] = {
+    # "total price" / "date time" / "datetime" (amount_raw/transaction_date
+    # below): CONFIRMED against a real POS export (mocks/Electronics_For_Test.xlsx,
+    # 51,947-row live extraction test, 2026-08-31) - see PENDING_ACTIONS.md.
+    # That file's headers (Sale_ID, Date_Time, Product_ID, Product_Name,
+    # Quantity, Unit_Price, Total_Price, Shift) matched only the 3 required
+    # fields before this fix - 3/8 = 0.375 coverage, below
+    # RECOGNIZED_MODE_MIN_COVERAGE, so every row fell to FALLBACK regex/NER
+    # extraction despite Total_Price/Date_Time being unambiguous synonyms
+    # this table simply didn't have yet.
     "amount_raw": [
         "amount", "amount raw", "total", "grand total", "total_ttc", "net amount",
-        "المبلغ", "الإجمالي",
+        "total price", "المبلغ", "الإجمالي",
     ],
     "unit_price": [
         "unit price", "price", "unitprice", "prix_unitaire", "prix unitaire",
@@ -76,7 +85,10 @@ HEADER_SYNONYMS: Dict[str, List[str]] = {
         "quantity", "qty", "qty.", "qte", "الكمية", "الكميه", "كمية",
     ],
     "discount_pct": ["discount", "discount %", "discount_pct", "خصم", "نسبة الخصم"],
-    "transaction_date": ["date", "transaction date", "invoice date", "التاريخ", "تاريخ"],
+    "transaction_date": [
+        "date", "transaction date", "invoice date", "date time", "datetime",
+        "التاريخ", "تاريخ",
+    ],
     "email": ["email", "e-mail", "email address", "البريد الإلكتروني"],
     "phone": ["phone", "phone number", "mobile", "الهاتف", "رقم الهاتف"],
     "product_name": ["product", "product name", "item", "item name", "اسم المنتج", "المنتج"],

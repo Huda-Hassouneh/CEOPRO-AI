@@ -65,3 +65,29 @@ def test_unrecognized_headers_fall_back():
     result = detect_template(["a_random_column", "another_one", "yet_another"])
     assert result.mode == TemplateMode.FALLBACK
     assert result.matched_fields == set()
+
+
+def test_real_pos_export_shape_matches_recognized_mode():
+    """
+    Regression test for a real live extraction test (mocks/Electronics_For_Test.xlsx,
+    51,947 rows, 2026-08-31): this exact header shape - the 3 required fields
+    correctly named, plus 5 extra reference/metadata columns (Sale_ID,
+    Product_ID, Shift have no synonym mapping at all, which is expected and
+    fine) - fell to FALLBACK before "total price"/"date time" were added as
+    synonyms, because 3/8 = 0.375 coverage was below the 0.5 threshold even
+    though Total_Price and Date_Time are unambiguous real-world spellings.
+    """
+    headers = [
+        "Sale_ID", "Date_Time", "Product_ID", "Product_Name",
+        "Quantity", "Unit_Price", "Total_Price", "Shift",
+    ]
+    result = detect_template(headers)
+    assert result.mode == TemplateMode.RECOGNIZED
+    assert result.header_mapping == {
+        "Date_Time": "transaction_date",
+        "Product_Name": "product_name",
+        "Quantity": "quantity",
+        "Unit_Price": "unit_price",
+        "Total_Price": "amount_raw",
+    }
+    assert result.coverage_ratio == 5 / 8
