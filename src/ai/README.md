@@ -84,11 +84,15 @@ no ML model at all — purely rule-based per spec's explicit cold-start requirem
 
 ### `rag/` — Phase 3 groundwork, retrieval only (spec §4, §6, §21)
 
-Implements document ingestion and hybrid (lexical + semantic) retrieval against the existing
-`rag_documents_metadata` table and the `ceopro-rag-knowledge` MinIO bucket — no schema changes.
-**Not** the full RAG chatbot: no LLM reasoning step, no chat history persistence (would need a new
-table). CPU-only throughout — the embedding model is small (~470MB, "light-medium" tier), nothing
-here approaches LLM-scale compute.
+Implements document ingestion and hybrid (lexical + semantic) retrieval, with persisted chunk/
+embedding storage (`rag_documents_metadata` + `rag_document_chunks`, both existing tables — no new
+schema beyond two small migrations found missing while wiring this up for real, see below) and the
+`ceopro-rag-knowledge` MinIO bucket for raw document bytes. **Not** the full RAG chatbot: no LLM
+reasoning step, no chat history persistence (would need a new table) — `pipeline.run_retrieval()`
+returns everything up to that point (an `AssembledContext`: context text + source citations) and
+stops there deliberately, so this module has zero dependency on which LLM provider eventually
+consumes it. CPU-only throughout — the embedding model and re-ranker are both small
+("light-medium" tier), nothing here approaches LLM-scale compute.
 
 - `chunking.py` — word-boundary overlapping-window text chunking. Works for Arabic and English alike
   (no language-specific tokenizer, spec §8's Arabic-English code-switching requirement).
@@ -110,20 +114,39 @@ here approaches LLM-scale compute.
   with only one genuine keyword match, BM25's document-length normalization can outrank a document
   with zero real matches over one with a real match — and unweighted RRF doesn't reliably correct for
   it when BM25 and FAISS disagree on which of only 2-3 candidates is "best" (see the note in
-  `test_rag_integration.py` for the specific case this showed up in). Works correctly and reliably
-  when either retriever alone would already find the right answer, or when BM25 finds literally no
-  matches for anything (letting FAISS's ranking pass through unweighted) — the fragile case is
-  specifically "BM25 and FAISS disagree between few very short candidates."
-- `data_access.py` — reads/updates `rag_documents_metadata`, fetches raw MinIO object bytes. Handles
-  plain-text (`.txt`) content only — PDF/DOCX extraction isn't implemented (flagged in
-  `PENDING_ACTIONS.md`).
-- `pipeline.py` — `ingest_pending_documents()` (fetch → chunk-check → mark Processed/Failed, never
-  silently drops a document per spec §12); `build_tenant_index()`/`retrieve()` for BM25-only (no
-  embedding model needed); `build_hybrid_index()`/`retrieve_hybrid()` for the full lexical+semantic
-  pipeline. Since there's no `knowledge_chunks` table, nothing is persisted between calls — chunks
-  and embeddings are recomputed from MinIO on every call. That's correct but doesn't scale, which is
-  itself a concrete argument for the pgvector ask in `PENDING_ACTIONS.md` #1, not just a workaround
-  for its absence.
+  `test_rag_integration.py` for the specific case this showed up in). `pipeline.retrieve_hybrid()`
+  widens the pre-fusion candidate pool each retriever contributes (`max(top_k * 4, 20)` by default,
+  not just `top_k`) so RRF has more than a starved 2-3 candidates to actually fuse from — reduces how
+  often this edge case triggers, doesn't eliminate the underlying BM25-on-short-chunks behavior.
+- `reranking.py` — Cross-Encoder re-ranking (`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` by default,
+  configurable via `RAG_RERANKER_MODEL`) over the RRF-fused candidate pool, narrowing it to the
+  caller's real `top_k`. Deliberately multilingual, not the more commonly reached-for English-only
+  `cross-encoder/ms-marco-MiniLM-L-6-v2` — spec §8's Arabic-English requirement applies here too.
+  `pipeline.run_retrieval()` catches a re-ranking failure and falls back to the RRF order rather than
+  failing the whole request — a lower-precision result beats no result over a re-ranker hiccup.
+- `data_access.py` — reads/updates `rag_documents_metadata`; persists chunk text + embeddings to
+  `rag_document_chunks` via `replace_document_chunks()` (delete-then-insert, idempotent — safe to
+  call again for the same `document_id`) and reads them back via `load_tenant_chunks()`. No `pgvector`
+  Python client dependency: embeddings are sent as a bracketed literal cast (`%s::vector`) and parsed
+  back from pgvector's own text representation by hand — psycopg2 alone is enough for a format this
+  simple. Fetches raw MinIO object bytes for plain-text (`.txt`) content only — PDF/DOCX extraction
+  isn't implemented (flagged in `PENDING_ACTIONS.md`).
+- `pipeline.py` — `ingest_pending_documents()` (fetch → chunk → embed → persist → mark
+  Processed/Failed, never silently drops a document per spec §12 — this is the *only* place that
+  touches MinIO or the embedding model); `build_tenant_index()`/`build_hybrid_index()` build indexes
+  from the *persisted* chunks (no MinIO fetch, no re-embedding — that used to happen on every
+  retrieval call, now happens once per document at ingest time); `retrieve()`/`retrieve_hybrid()` for
+  lexical-only / fused retrieval; `assemble_context()` turns a ranked chunk list into an
+  `AssembledContext` (source-labeled context text + citations); `run_retrieval()` composes all of the
+  above into the one function a future LLM-integration caller needs.
+- **Two migrations landed alongside this rewrite, found missing while making it actually run against
+  the real schema, not assumed correct from the original code**: `20260827000100_add_rag_embedding_column.sql`
+  (pre-existing, previously unused — added the `pgvector` `embedding vector(384)` column this module
+  now actually writes to) and `20260831000000_add_rag_document_status_column.sql` (new — the whole
+  module's Pending/Processed/Failed document lifecycle depended on a `processed_status` column that
+  didn't exist anywhere in `Final_schema.sql` at all, not a rename like `storage_bucket_path` — every
+  call to `ingest_pending_documents()` against the real schema would have failed immediately with
+  `UndefinedColumn`, confirmed directly against a live disposable Postgres before writing the fix).
 
 ### `sentiment/` — Phase 4 groundwork, multilingual sentiment analysis (spec §16, §23)
 
