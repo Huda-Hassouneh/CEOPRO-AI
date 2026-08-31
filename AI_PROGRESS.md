@@ -20,7 +20,7 @@ in [`PENDING_ACTIONS.md`](PENDING_ACTIONS.md) so it stays visible without diggin
 | Spec phase | Module | Status | Notes |
 |---|---|---|---|
 | Phase 2 — Demand Intelligence (§18, §23, §25) | `src/ai/forecasting/` | 🟢 Built, tested (unit + integration) | Baselines, XGBoost + walk-forward validation, cold-start policy, evidence writers, Redis consumer. See entries below. |
-| Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟡 Full retrieval pipeline (ingest → persist → hybrid fusion → re-rank → context assembly) built/tested, live-verified end-to-end with real models; chatbot's LLM reasoning step itself not started (provider still being evaluated) | Document ingestion now persists chunks + `pgvector` embeddings to `rag_document_chunks` (audited 2026-08-31: the column existed since 2026-08-27, unused until now) instead of re-fetching/re-chunking/re-embedding from MinIO on every retrieval call. BM25 + FAISS + Reciprocal Rank Fusion (candidate pool widened before fusion) + a multilingual Cross-Encoder re-ranker (spec §8 Arabic-English requirement honored) + context assembly, composed into one `run_retrieval()` call returning an LLM-agnostic `AssembledContext`. Two real schema gaps found and fixed along the way (`storage_bucket_path` rename, a genuinely missing `processed_status` column — see `PENDING_ACTIONS.md` #45). Still missing: the LLM reasoning step itself (deliberately abstracted out of this module) and chat history (needs a new table). The short-chunk BM25/RRF fusion edge case found earlier is documented, not fixed — reduced in practice by the widened candidate pool, not eliminated. See entries below. |
+| Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟢 Full pipeline built/tested end to end: ingest → persist → hybrid fusion → re-rank → context assembly → **LLM reasoning (Groq-hosted Qwen)**, exposed via `POST /rag/query`. Live-verified with real embedding/reranker models; the LLM call itself is code-complete and unit-tested against a mocked HTTP layer but has never made a real request (needs a `GROQ_API_KEY` only the user can provision) | Document ingestion persists chunks + `pgvector` embeddings to `rag_document_chunks` instead of re-fetching/re-chunking/re-embedding from MinIO on every retrieval call. BM25 + FAISS + Reciprocal Rank Fusion (candidate pool widened before fusion) + a multilingual Cross-Encoder re-ranker + context assembly, composed by `run_retrieval()`. New `llm_client.py` (2026-09-01) is the only file in the package aware an LLM provider exists — `generate_answer()`/`answer_query()` call Groq's OpenAI-compatible API serving Qwen, chosen specifically because a hosted, hardware-accelerated API is simultaneously fast, accurate (a real 32B-class model, not a distilled toy), and adds zero local compute footprint. Three real schema gaps found and fixed while wiring this up for real (`storage_bucket_path` rename, a genuinely missing `processed_status` column, plus — while fixing an unrelated seed-script bug for a different request — two more schema mismatches in `seed_demo_data.py`'s tenant/product seeding, see `PENDING_ACTIONS.md` #45/#46). Still missing: chat history (needs a new table). The short-chunk BM25/RRF fusion edge case found earlier is documented, not fixed. See entries below and `src/ai/rag/README.md` for setup/usage. |
 | Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/`, `src/ai/mpi/` | 🟢 Built, tested (unit + integration); NER persistence + MPI both landed since this row was last updated | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) + Redis-cached catalog lookups, reworked against `Final_schema.sql`. NER persistence (`extracted_entity`) built and live-DB tested — the "not started" note here was stale, corrected 2026-08-28. `mpi/` (Market Perception Index, §17: sentiment + source reliability + recency + volume + entity relevance) built and live-DB tested, including cross-country comparison with a volume floor. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy, plus (2026-08-28) a fine-tuning/evaluation harness (`sentiment/finetune.py`) ready to run once real labeled data exists. `competitor_prices`/`reviews`/`news_record`/`social_mention` are still empty in prod, so the `UNKNOWN`-evidence/cold-start path is what actually runs today. Universal Import Engine (`extraction/ingestion_pipeline.py` + adapters, spec §12) - file-type detection and value validation added 2026-08-28, previously missing entirely. See entries below. |
 | Market Collection / Pipeline B (§13, §19) | `src/market_scraper/` | Production-hardened and live-DB/RLS tested; awaiting accountable approval for real competitor sources | Deny-by-default policy and privacy approval, tenant/source mapping allocation, Tier-2 staging, 0.82 product gate, Scrapy/Playwright collection, DNS/redirect SSRF checks, Redis retry/dead-letter worker, stale-job recovery, quarantine-without-price promotion, retention maintenance, Prometheus alerts, independently deployed analysis worker, and canonical `competitor_prices` persistence. The Books to Scrape sandbox passes the bounded live canary; actual competitor approval/mapping remains external (`PENDING_ACTIONS.md` #5). Two official-API collectors added 2026-08-31: `google_places` (reviews only, no price — routes through the same staging/0.82-gate/safety-scan pipeline, `competitor_prices` and price-derived `market_events` are skipped for price-less records) and `amazon_paapi` (exact-ASIN price/availability, AWS SigV4-signed). The generic-website adapter from the original 3-source ask ("Google Places, Amazon PA-API, generic website") needed no new code — the pre-existing `standards`/`MarketSourceSpider` collector already covers STRUCTURED_DATA (JSON-LD) and WEB_SCRAPE (reviewed CSS selectors) for arbitrary competitor sites. |
 | Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail, evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Margin guardrails are weaker than spec'd — `products` has no cost column (`PENDING_ACTIONS.md` #14). Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
@@ -1588,6 +1588,63 @@ clean throughout: offline 358 passed / 0 failed; live-DB 69 passed / 0 failed.
 `PENDING_ACTIONS.md` #1 updated (pgvector column now actually used), #45 (this work) and #46 (the
 `currency_rates` seeding bug found in passing) added. `src/ai/README.md`'s `rag/` section rewritten -
 the old "no knowledge_chunks table" note was itself stale by four days.
+
+## 2026-09-01 — LLM reasoning wired in (Groq-hosted Qwen), seed_demo_data.py's remaining bugs fixed forward, RAG setup guide written
+
+Three requested items, closing out the RAG rebuild that started 2026-08-31.
+
+**LLM integration.** New `rag/llm_client.py` — the only file in the `rag/` package aware an LLM
+provider exists at all; `pipeline.py`/`data_access.py`/everything else stay exactly as LLM-agnostic
+as the prior rewrite left them. Chose Groq (an OpenAI-compatible, hardware-accelerated hosted
+inference API) serving Qwen, specifically because "fast, accurate, lightweight, doesn't overload my
+machine" stop being in tension once the model runs on someone else's infrastructure: Groq's LPU
+hardware gives very low per-token latency ("fast"), a real 32B-class instruction-tuned Qwen model is
+genuinely capable at multilingual/cross-dialect Arabic reasoning rather than a distilled toy
+("accurate"), and because the weights never touch wherever this service is deployed, the only local
+cost is sending/receiving text over HTTPS ("lightweight, doesn't overload my machine"). A small
+locally-run Qwen variant would have satisfied "lightweight" at the cost of "accurate" for this
+platform's actual multilingual requirement - not a good trade. `DEFAULT_MODEL` (`qwen/qwen3-32b`) is
+flagged explicitly as unverified against Groq's live catalog - no `GROQ_API_KEY` exists in this
+environment, so this module is code-complete and tested against a mocked HTTP layer, but has never
+made a real call; override via `GROQ_MODEL` if the catalog has moved by the time this is deployed.
+`answer_query()` composes `pipeline.run_retrieval()` with the LLM call into one function, short-
+circuiting before ever calling the LLM if retrieval found nothing to ground an answer in. Exposed as
+`POST /rag/query` in `main.py` - an `LLMError` (missing key, non-2xx, network failure) maps to HTTP
+502 (retrieval succeeded, only the upstream call didn't), anything else to a clean 500 rather than a
+leaked traceback (this exposed a real gap in the endpoint's first draft - a bare `raise` doesn't
+become a 500 response the way `main.py`'s other endpoints' explicit `raise HTTPException(500, ...)`
+does; fixed to match that existing pattern). 12 new offline tests (mocked HTTP, no real network call
+or API key needed).
+
+**`seed_demo_data.py` - asked to fix the `currency_rates` bug "so the whole script runs cleanly."**
+It didn't, not from just that one fix. Fixing it forward - actually running the script against a
+real disposable Postgres after each fix, not assuming success from reading the diff - surfaced three
+more independent, pre-existing bugs, each hidden behind the previous one: `_seed_tenant()` inserted
+`tenant_id`/`role` directly into `users`, which has neither column (multi-tenancy and role
+assignment go through the separate `tenant_users` pivot table); the `products` INSERT sent a plain
+string for `product_name`, which is `JSONB` (`{"en": ...}`), not text; and the `inventory` INSERT's
+`ON CONFLICT (product_id)` referenced a column with no unique/exclusion constraint at all (only
+`inventory_id`, the real PK, has one). All four fixed in sequence, each re-verified live. Confirmed
+idempotent (running it twice leaves correct, non-duplicated counts - 2 companies, 6 products, 2
+`tenant_users`, 3 `currency_rates`). `PENDING_ACTIONS.md` #46 updated from "found, not fixed" to
+resolved, with the full accounting of what was actually wrong - not just the one symptom that was
+named.
+
+**RAG setup guide.** New `src/ai/rag/README.md`: exact `pip install`/migration commands, an env-var
+table (only `GROQ_API_KEY` needs to actually be supplied - everything else has a working default), a
+copy-pasteable end-to-end query example (`llm_client.answer_query()`) with the exact expected
+response shape, a `curl` example for the new HTTP endpoint, and the test commands for all three
+verification tiers this module now has (pure offline, live-DB without real models, live-DB with real
+embedding+reranker models). `src/ai/README.md`'s own `rag/` section updated to match - it had
+already drifted stale within a day (still said "no LLM reasoning step" the day after this same
+session removed that gap).
+
+**Verification**: full offline suite clean (370 passed, up from 358 - the 12 new LLM-client/endpoint
+tests plus 0 change elsewhere). Full live-DB suite re-run clean (69 passed) against the same disposable
+Postgres `seed_demo_data.py` had just successfully seeded and left data in - confirms the seeded rows
+don't interfere with anything. No RAG retrieval/re-ranking code changed this pass, so no need to
+re-download or re-verify the embedding/reranker models against real infra again - already proven
+2026-08-31.
 
 ## How to add an entry
 
