@@ -220,3 +220,60 @@ def test_trusted_field_mapping_writes_staging_rows_the_same_way(conn, seeded_ten
     staging_row_id = summary.row_outcomes[0].staging_row_id
     status, _errors, _raw = _staging_row(conn, staging_row_id)
     assert status == "VALID"
+
+
+def test_commit_every_flushes_progress_in_batches_visible_to_other_connections(conn, seeded_tenant_and_job):
+    """
+    Regression test for PENDING_ACTIONS.md #43 / src/ai/extraction/SCALING.md's
+    fix #1: with commit_every set, progress is durably committed in batches
+    rather than held in one uncommitted transaction for the whole file - proven
+    here by reading job counts from a SEPARATE connection before this test's
+    own `conn` fixture ever calls commit() (its teardown only rolls back).
+    5 rows with commit_every=2 means 2 mid-loop flushes (after rows 2 and 4)
+    plus one final flush for the last row - all 5 must already be visible.
+    """
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [_template_row() for _ in range(5)]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows,
+        conn=conn, commit_every=2,
+    )
+    assert summary.rows_processed == 5
+
+    other = psycopg2.connect(DATABASE_URL)
+    other.autocommit = True
+    try:
+        with other.cursor() as cursor:
+            cursor.execute(
+                "SELECT rows_processed, rows_partial, rows_failed FROM ingestion_jobs WHERE job_id = %s;",
+                (job_id,),
+            )
+            assert cursor.fetchone() == (5, 0, 0)
+    finally:
+        other.close()
+
+
+def test_without_commit_every_progress_stays_uncommitted_until_the_caller_commits(conn, seeded_tenant_and_job):
+    """
+    The default (commit_every=None) must be unchanged: process_records()
+    never commits on its own, so the original all-or-nothing contract some
+    callers rely on for rollback-based cleanup (this file's own `conn`
+    fixture included) still holds.
+    """
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [_template_row() for _ in range(3)]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows, conn=conn,
+    )
+    assert summary.rows_processed == 3
+
+    other = psycopg2.connect(DATABASE_URL)
+    other.autocommit = True
+    try:
+        with other.cursor() as cursor:
+            cursor.execute("SELECT rows_processed FROM ingestion_jobs WHERE job_id = %s;", (job_id,))
+            assert cursor.fetchone() == (0,)  # nothing committed yet - still the pre-run value
+    finally:
+        other.close()
