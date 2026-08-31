@@ -82,17 +82,22 @@ purchasing power, local taxes, import costs, and shipping to be accounted for, n
 modeled here; a converted price is shown as context, not treated as an equivalent competitor. CPU-only,
 no ML model at all — purely rule-based per spec's explicit cold-start requirement for pricing.
 
-### `rag/` — Phase 3 groundwork, retrieval only (spec §4, §6, §21)
+### `rag/` — Phase 3, RAG chatbot retrieval + reasoning (spec §4, §6, §21)
 
-Implements document ingestion and hybrid (lexical + semantic) retrieval, with persisted chunk/
-embedding storage (`rag_documents_metadata` + `rag_document_chunks`, both existing tables — no new
-schema beyond two small migrations found missing while wiring this up for real, see below) and the
-`ceopro-rag-knowledge` MinIO bucket for raw document bytes. **Not** the full RAG chatbot: no LLM
-reasoning step, no chat history persistence (would need a new table) — `pipeline.run_retrieval()`
-returns everything up to that point (an `AssembledContext`: context text + source citations) and
-stops there deliberately, so this module has zero dependency on which LLM provider eventually
-consumes it. CPU-only throughout — the embedding model and re-ranker are both small
-("light-medium" tier), nothing here approaches LLM-scale compute.
+**See [`rag/README.md`](rag/README.md) for setup, exact commands, and a copy-pasteable query
+example** — this section is the module-by-module summary; that file is the practical how-to guide.
+
+Implements document ingestion, hybrid (lexical + semantic) retrieval, Cross-Encoder re-ranking, and
+LLM reasoning end to end, with persisted chunk/embedding storage (`rag_documents_metadata` +
+`rag_document_chunks`, both existing tables — no new schema beyond two small migrations found
+missing while wiring this up for real, see below) and the `ceopro-rag-knowledge` MinIO bucket for
+raw document bytes. `pipeline.run_retrieval()` (retrieval only — persisted index → RRF fusion →
+re-rank → context assembly) and `llm_client.answer_query()` (retrieval + the actual LLM call) are
+deliberately separate: the LLM provider (Groq, hosting Qwen) is known to exactly one file,
+`llm_client.py` — nothing else in this package has any dependency on which provider or model
+answers the question. Still missing: chat history persistence (would need a new table). CPU-only for
+retrieval/re-ranking throughout (the embedding model and re-ranker are both small, "light-medium"
+tier); the LLM itself runs on Groq's infrastructure, not wherever this service is deployed.
 
 - `chunking.py` — word-boundary overlapping-window text chunking. Works for Arabic and English alike
   (no language-specific tokenizer, spec §8's Arabic-English code-switching requirement).
@@ -138,7 +143,16 @@ consumes it. CPU-only throughout — the embedding model and re-ranker are both 
   retrieval call, now happens once per document at ingest time); `retrieve()`/`retrieve_hybrid()` for
   lexical-only / fused retrieval; `assemble_context()` turns a ranked chunk list into an
   `AssembledContext` (source-labeled context text + citations); `run_retrieval()` composes all of the
-  above into the one function a future LLM-integration caller needs.
+  above into the one function `llm_client.py` needs.
+- `llm_client.py` — the only file in this package that knows an LLM provider exists.
+  `generate_answer()` calls Groq (an OpenAI-compatible, hardware-accelerated hosted inference API)
+  serving Qwen (`GROQ_MODEL`, default `qwen/qwen3-32b` — verify against Groq's current catalog
+  before production use, see the module's own docstring). `answer_query()` composes
+  `pipeline.run_retrieval()` with `generate_answer()` into the full chatbot call — this is what
+  `POST /rag/query` (`main.py`) calls. A missing `GROQ_API_KEY`, a non-2xx response, or a network
+  failure all raise `LLMError` (never a bare `httpx` exception) so the caller has exactly one
+  exception type to handle. No new dependency — uses `httpx`, already declared for FastAPI's
+  `TestClient`.
 - **Two migrations landed alongside this rewrite, found missing while making it actually run against
   the real schema, not assumed correct from the original code**: `20260827000100_add_rag_embedding_column.sql`
   (pre-existing, previously unused — added the `pgvector` `embedding vector(384)` column this module
