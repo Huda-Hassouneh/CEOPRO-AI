@@ -48,8 +48,11 @@ def test_generate_answer_returns_the_model_content_on_success(monkeypatch):
 
 
 def test_generate_answer_raises_llm_error_on_non_200(monkeypatch):
-    monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: _FakeResponse(429, text="rate limited"))
-    with pytest.raises(llm_client.LLMError, match="429"):
+    """400 is deliberately not in _RETRYABLE_STATUS_CODES (a malformed
+    request stays malformed on retry) - this test stays fast/single-call,
+    retry behavior itself is covered separately below."""
+    monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: _FakeResponse(400, text="bad request"))
+    with pytest.raises(llm_client.LLMError, match="400"):
         llm_client.generate_answer(_context(), api_key="test-key")
 
 
@@ -59,13 +62,46 @@ def test_generate_answer_raises_llm_error_on_malformed_response_shape(monkeypatc
         llm_client.generate_answer(_context(), api_key="test-key")
 
 
-def test_generate_answer_raises_llm_error_on_network_failure(monkeypatch):
+def test_generate_answer_raises_llm_error_on_network_failure_after_exhausting_retries(monkeypatch):
+    monkeypatch.setattr(llm_client.time, "sleep", lambda *a: None)  # no real delay in the test suite
+    calls = []
+
     def raise_network_error(*a, **k):
+        calls.append(1)
         raise httpx.ConnectError("connection refused")
 
     monkeypatch.setattr(llm_client.httpx, "post", raise_network_error)
     with pytest.raises(llm_client.LLMError, match="Groq API request failed"):
         llm_client.generate_answer(_context(), api_key="test-key")
+    assert len(calls) == llm_client.MAX_RETRIES + 1  # every retry was actually attempted, not skipped
+
+
+def test_generate_answer_retries_a_5xx_and_succeeds_on_a_later_attempt(monkeypatch):
+    """The behavior the retry logic exists for: a transient failure that
+    would have been a hard error before now succeeds instead of failing
+    the whole request."""
+    monkeypatch.setattr(llm_client.time, "sleep", lambda *a: None)
+    responses = iter([
+        _FakeResponse(503, text="service unavailable"),
+        _FakeResponse(200, {"choices": [{"message": {"content": "Sunscreen SPF 50."}}]}),
+    ])
+    monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: next(responses))
+
+    answer = llm_client.generate_answer(_context(), api_key="test-key")
+    assert answer == "Sunscreen SPF 50."
+
+
+def test_generate_answer_does_not_retry_a_client_error(monkeypatch):
+    """A 401 (bad key) won't become valid on retry - retrying it would just
+    burn latency and quota for a guaranteed-identical outcome."""
+    calls = []
+    monkeypatch.setattr(
+        llm_client.httpx, "post",
+        lambda *a, **k: calls.append(1) or _FakeResponse(401, text="invalid api key"),
+    )
+    with pytest.raises(llm_client.LLMError, match="401"):
+        llm_client.generate_answer(_context(), api_key="test-key")
+    assert len(calls) == 1  # no retry attempted at all
 
 
 def test_generate_answer_uses_env_model_when_not_overridden(monkeypatch):
