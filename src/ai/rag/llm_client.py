@@ -39,6 +39,7 @@ not the retrieval pipeline underneath it.
 
 import logging
 import os
+import time
 
 import httpx
 
@@ -56,6 +57,17 @@ DEFAULT_MODEL = "qwen/qwen3-32b"
 MODEL_NAME = os.getenv("GROQ_MODEL", DEFAULT_MODEL)
 
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("GROQ_TIMEOUT_SECONDS", "20"))
+
+# Retry only what's actually transient: a network blip, a 5xx (Groq's own
+# problem), or a 429 (explicitly "try again shortly", not a permanent
+# rejection). A 400/401/403 means this request or this key is wrong and
+# will still be wrong on the next attempt - retrying those would just burn
+# quota and latency for no chance of a different outcome. Small bounded
+# backoff, not unbounded - this is a synchronous call a real request is
+# waiting on, not a background job that can afford to wait minutes.
+MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "2"))
+RETRY_BACKOFF_SECONDS = float(os.getenv("GROQ_RETRY_BACKOFF_SECONDS", "0.5"))
+_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 # Low temperature: this is grounded question-answering over retrieved
 # business documents, not creative writing - the answer should track the
@@ -83,6 +95,42 @@ def _build_user_prompt(context: AssembledContext) -> str:
     )
 
 
+def _post_with_retry(payload: dict, headers: dict, timeout: float) -> httpx.Response:
+    """
+    Up to MAX_RETRIES retries (MAX_RETRIES + 1 attempts total) with a
+    linear backoff, only for a network failure or a status code in
+    _RETRYABLE_STATUS_CODES - see those constants' own comment for why a
+    4xx outside that set (bad request, bad key, forbidden) is deliberately
+    not retried. Returns the last response/re-raises the last exception
+    once retries are exhausted, so the caller sees exactly the same shape
+    of failure it would have without retries, just after trying harder
+    first.
+    """
+    last_exception = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            response = httpx.post(GROQ_API_URL, headers=headers, json=payload, timeout=timeout)
+        except httpx.HTTPError as err:
+            last_exception = err
+            if attempt < MAX_RETRIES:
+                logger.warning(f"Groq request failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
+                time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+                continue
+            raise LLMError(f"Groq API request failed: {err}") from err
+
+        if response.status_code not in _RETRYABLE_STATUS_CODES or attempt == MAX_RETRIES:
+            return response
+
+        logger.warning(
+            f"Groq returned {response.status_code}, retrying (attempt {attempt + 1}/{MAX_RETRIES})"
+        )
+        time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+
+    # Unreachable in practice (the loop always returns or raises above),
+    # kept only so this function has an explicit exhaustive return path.
+    raise LLMError(f"Groq API request failed after {MAX_RETRIES} retries: {last_exception}")
+
+
 def generate_answer(
     context: AssembledContext,
     api_key: str = None,
@@ -97,29 +145,24 @@ def generate_answer(
     Raises LLMError (never a bare httpx/JSON exception) on a missing API
     key, a non-2xx response, a network failure, or an unexpected response
     shape - one exception type this module's caller needs to know about,
-    not three.
+    not three. Transient failures (network errors, 429/5xx) are retried
+    with backoff first - see _post_with_retry().
     """
     api_key = api_key or os.getenv("GROQ_API_KEY")
     if not api_key:
         raise LLMError("GROQ_API_KEY is not set - cannot call the LLM provider.")
 
     model = model or MODEL_NAME
-    try:
-        response = httpx.post(
-            GROQ_API_URL,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": _build_user_prompt(context)},
-                ],
-                "temperature": temperature,
-            },
-            timeout=timeout,
-        )
-    except httpx.HTTPError as err:
-        raise LLMError(f"Groq API request failed: {err}") from err
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": _build_user_prompt(context)},
+        ],
+        "temperature": temperature,
+    }
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    response = _post_with_retry(payload, headers, timeout)
 
     if response.status_code != 200:
         raise LLMError(f"Groq API returned {response.status_code}: {response.text[:500]}")
