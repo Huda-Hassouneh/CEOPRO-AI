@@ -10,6 +10,24 @@ chunks straight out of Postgres. That's the entire fix: what used to be
 "re-fetch, re-chunk, re-embed the whole corpus on every question asked" is
 now "pay that cost once, per document, when it's ingested."
 
+Efficiency follow-up (2026-09-01 review): persistence alone still left
+build_hybrid_index() re-tokenizing the entire tenant corpus for BM25 and
+re-building the FAISS index from scratch on every single retrieval call -
+cheaper than re-embedding, but still real, repeated, avoidable CPU work for
+a corpus that hasn't changed since the last query. _TENANT_INDEX_CACHE
+holds one built TenantIndex per tenant, in this process's memory, reused
+across calls until ingest_pending_documents() invalidates it (the only
+thing that changes a tenant's chunks). Deliberately in-process, not Redis/
+shared - same reasoning bm25_index.py already gives for keeping BM25 state
+in memory rather than treating it as a system of record: the persisted
+rows in Postgres are the source of truth, this cache is disposable and
+rebuilds correctly (just slower) on a cold process or a cache miss. In a
+multi-worker deployment each worker holds its own cache - acceptable here
+since a stale cache only ever causes a slightly-out-of-date answer for one
+worker's queries until its own next ingestion-triggered invalidation or
+restart, never wrong data across tenants (still keyed strictly by
+tenant_id).
+
 This module implements retrieval only (lexical + semantic + fusion +
 re-ranking + context assembly) - not the "LLM REASONING" step of spec S21's
 RAG workflow. That is deliberately abstracted away entirely: run_retrieval()
@@ -20,8 +38,10 @@ no knowledge of, dependency on, or reference to any LLM API.
 """
 
 import logging
+import os
+import threading
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -47,11 +67,37 @@ DEFAULT_BUCKET = "ceopro-rag-knowledge"
 # enough to keep re-ranking cost bounded" default.
 DEFAULT_RERANK_CANDIDATES = 20
 
+# See run_retrieval()'s own docstring for why this has no built-in numeric
+# default - unset (None) unless an operator has actually calibrated one
+# against their real reranker's score distribution and set
+# RAG_MIN_CONFIDENCE_SCORE themselves.
+_MIN_CONFIDENCE_SCORE_ENV = os.getenv("RAG_MIN_CONFIDENCE_SCORE")
+DEFAULT_MIN_CONFIDENCE_SCORE: Optional[float] = (
+    float(_MIN_CONFIDENCE_SCORE_ENV) if _MIN_CONFIDENCE_SCORE_ENV else None
+)
+
 
 @dataclass
 class TenantIndex:
     bm25: BM25Index
     faiss: FAISSIndex
+
+
+# See this module's docstring for what this cache is and isn't. A plain
+# dict + lock, not a library, for the same reason BM25Index/FAISSIndex
+# themselves are plain in-memory objects - this is per-process disposable
+# state, not shared infrastructure.
+_TENANT_INDEX_CACHE: Dict[str, TenantIndex] = {}
+_TENANT_INDEX_CACHE_LOCK = threading.Lock()
+
+
+def invalidate_tenant_index_cache(tenant_id: str) -> None:
+    """Drops the cached index for one tenant, if any. Called automatically by
+    ingest_pending_documents() whenever it actually changes that tenant's
+    chunks - exposed here too for a caller that mutates rag_document_chunks
+    some other way (a bulk admin re-ingest script, for instance)."""
+    with _TENANT_INDEX_CACHE_LOCK:
+        _TENANT_INDEX_CACHE.pop(tenant_id, None)
 
 
 def ingest_pending_documents(conn, minio_client, tenant_id: str, bucket: str = DEFAULT_BUCKET) -> int:
@@ -89,6 +135,8 @@ def ingest_pending_documents(conn, minio_client, tenant_id: str, bucket: str = D
             data_access.mark_document_status(conn, doc["document_id"], "Failed")
 
     conn.commit()
+    if processed_count > 0:
+        invalidate_tenant_index_cache(tenant_id)
     logger.info(f"Ingestion complete for tenant={tenant_id}: {processed_count}/{len(pending)} processed")
     return processed_count
 
@@ -100,13 +148,36 @@ def build_tenant_index(conn, tenant_id: str) -> BM25Index:
     return BM25Index(chunks)
 
 
-def build_hybrid_index(conn, tenant_id: str) -> TenantIndex:
-    """Builds both the lexical (BM25) and semantic (FAISS) indexes from persisted chunks - no MinIO fetch,
-    no re-embedding; embeddings were computed once at ingest time (ingest_pending_documents())."""
+def build_hybrid_index(conn, tenant_id: str, use_cache: bool = True) -> TenantIndex:
+    """
+    Builds both the lexical (BM25) and semantic (FAISS) indexes from
+    persisted chunks - no MinIO fetch, no re-embedding; embeddings were
+    computed once at ingest time (ingest_pending_documents()).
+
+    use_cache=True (the default, and what run_retrieval() uses): reuses a
+    per-process cached TenantIndex for this tenant when one exists, instead
+    of re-tokenizing the whole corpus for BM25 and rebuilding the FAISS
+    index from scratch on every call - see this module's own docstring for
+    what the cache is/isn't and how it's invalidated. Pass False to force a
+    fresh build (tests, or a caller that must see the latest chunks
+    regardless of cache state).
+    """
+    if use_cache:
+        with _TENANT_INDEX_CACHE_LOCK:
+            cached = _TENANT_INDEX_CACHE.get(tenant_id)
+        if cached is not None:
+            return cached
+
     rows = data_access.load_tenant_chunks(conn, tenant_id)
     chunks = [(chunk_id, text) for chunk_id, text, _ in rows]
     embeddings = np.stack([embedding for _, _, embedding in rows]).astype(np.float32) if rows else np.empty((0, 0), dtype=np.float32)
-    return TenantIndex(bm25=BM25Index(chunks), faiss=FAISSIndex(chunks, embeddings))
+    index = TenantIndex(bm25=BM25Index(chunks), faiss=FAISSIndex(chunks, embeddings))
+
+    if use_cache:
+        with _TENANT_INDEX_CACHE_LOCK:
+            _TENANT_INDEX_CACHE[tenant_id] = index
+
+    return index
 
 
 def retrieve(index: BM25Index, query_text: str, top_k: int = 5) -> List[ScoredChunk]:
@@ -164,6 +235,7 @@ def run_retrieval(
     top_k: int = 5,
     rerank_candidates: int = DEFAULT_RERANK_CANDIDATES,
     use_reranker: bool = True,
+    min_confidence_score: Optional[float] = DEFAULT_MIN_CONFIDENCE_SCORE,
 ) -> AssembledContext:
     """
     The complete pipeline up to (not including) LLM reasoning: load the
@@ -180,6 +252,20 @@ def run_retrieval(
     lower-priority stage's failure as fatal to the whole call (see
     ingest_pending_documents()'s per-document error handling for the same
     philosophy applied elsewhere in this module).
+
+    Grounding / anti-hallucination (2026-09-01 review): min_confidence_score,
+    when set, drops any ranked chunk scoring below it before context
+    assembly - if that empties the result entirely, the caller
+    (llm_client.answer_query()) already short-circuits on empty
+    context_text into "I don't have any relevant information", never
+    calling the LLM on a corpus that plainly didn't match. Deliberately
+    NOT given a default value: Cross-Encoder score ranges are model- and
+    corpus-specific (this deployment's reranker was never calibrated
+    against a labeled relevance dataset), so a made-up "safe-looking"
+    threshold could reject good matches exactly as easily as bad ones.
+    Enable it (env RAG_MIN_CONFIDENCE_SCORE, or pass it directly) only
+    after observing this reranker's real score distribution on your own
+    corpus and queries.
     """
     tenant_index = build_hybrid_index(conn, tenant_id)
     fused = retrieve_hybrid(tenant_index, query_text, top_k=rerank_candidates)
@@ -193,4 +279,21 @@ def run_retrieval(
     else:
         ranked = fused[:top_k]
 
+    ranked = apply_confidence_filter(ranked, min_confidence_score)
+
     return assemble_context(query_text, ranked)
+
+
+def apply_confidence_filter(
+    chunks: List[ScoredChunk], min_confidence_score: Optional[float]
+) -> List[ScoredChunk]:
+    """
+    Pure filter, split out from run_retrieval() so it's unit-testable
+    without a live database: drops any chunk scoring below
+    min_confidence_score, or returns `chunks` unchanged when it's None
+    (the default - see run_retrieval()'s own docstring for why no numeric
+    default is set here).
+    """
+    if min_confidence_score is None:
+        return chunks
+    return [chunk for chunk in chunks if chunk.score >= min_confidence_score]
