@@ -31,7 +31,7 @@ import tempfile
 from typing import Optional
 
 import jwt
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
 from src.ai import db
@@ -40,6 +40,7 @@ from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.mpi import pipeline as mpi_pipeline
 from src.ai.pricing import pipeline as pricing_pipeline
 from src.ai.rag import llm_client as rag_llm_client
+from src.ai.rag import pipeline as rag_pipeline
 from src.ai.sentiment import pipeline as sentiment_pipeline
 
 app = FastAPI(title="CEOPRO AI Service")
@@ -55,6 +56,18 @@ _MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)
 # compute). 500 is a starting point (SCALING.md suggests 500-2,000), not a
 # value tuned against production write latency yet.
 _EXTRACTION_COMMIT_EVERY = int(os.getenv("EXTRACTION_COMMIT_EVERY", "500"))
+
+# RAG query bounds (2026-09-01 security review). /rag/query's query_text
+# goes straight into a prompt sent to a paid, metered third-party API
+# (Groq) - an unbounded length is a real cost/abuse vector, not just a
+# correctness nicety, so this is enforced by FastAPI's own request
+# validation (a 422 before the handler even runs) rather than checked
+# inside the endpoint body. top_k's upper bound matches
+# rag.pipeline.DEFAULT_RERANK_CANDIDATES - asking for more than the
+# re-ranker's own candidate pool size can never return more results
+# anyway, so capping it here is just an honest error instead of a
+# silently-smaller-than-requested response.
+_MAX_QUERY_TEXT_LENGTH = int(os.getenv("RAG_MAX_QUERY_TEXT_LENGTH", "2000"))
 
 # Content sniffing beyond the file extension - catches a trivial extension
 # spoof (e.g. an arbitrary file renamed to .xlsx). CSV has no reliable magic
@@ -166,7 +179,9 @@ def mpi_summary(
 
 @app.post("/rag/query")
 def rag_query(
-    query_text: str, top_k: int = 5, ctx: TenantContext = Depends(get_tenant_context)
+    query_text: str = Query(..., min_length=1, max_length=_MAX_QUERY_TEXT_LENGTH),
+    top_k: int = Query(default=5, ge=1, le=rag_pipeline.DEFAULT_RERANK_CANDIDATES),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict:
     """
     The complete RAG chatbot call: persisted hybrid retrieval -> Cross-
@@ -176,6 +191,11 @@ def rag_query(
     retrieval half of this request genuinely succeeded, it's specifically
     the upstream LLM call that didn't, which is a meaningfully different
     failure for a caller to distinguish and retry.
+
+    query_text/top_k are bounded (FastAPI validation, a 422 before this
+    body ever runs) - see _MAX_QUERY_TEXT_LENGTH's own comment for why an
+    unbounded query_text is a real cost/abuse vector against a paid
+    upstream API, not just a correctness nicety.
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:

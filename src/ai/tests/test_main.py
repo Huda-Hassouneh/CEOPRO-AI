@@ -217,3 +217,31 @@ def test_rag_query_returns_500_and_rolls_back_on_unexpected_error():
 
     assert response.status_code == 500
     fake_conn.rollback.assert_called_once()
+
+
+def test_rag_query_rejects_empty_query_text():
+    """min_length=1 - an empty query has nothing to retrieve or ask an LLM
+    about, and would still cost a wasted retrieval pass if allowed through."""
+    response = client.post("/rag/query", params={"query_text": ""}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_rag_query_rejects_a_query_text_over_the_length_cap():
+    """2026-09-01 security review: query_text goes straight into a prompt
+    sent to a paid, metered third-party API - unbounded length is a real
+    cost/abuse vector, enforced here before the handler (and therefore
+    before any DB connection or LLM call) ever runs."""
+    from src.ai.main import _MAX_QUERY_TEXT_LENGTH
+
+    response = client.post(
+        "/rag/query", params={"query_text": "x" * (_MAX_QUERY_TEXT_LENGTH + 1)}, headers=_auth()
+    )
+    assert response.status_code == 422
+
+
+def test_rag_query_rejects_top_k_out_of_bounds():
+    response = client.post("/rag/query", params={"query_text": "q", "top_k": 0}, headers=_auth())
+    assert response.status_code == 422
+
+    response = client.post("/rag/query", params={"query_text": "q", "top_k": 999}, headers=_auth())
+    assert response.status_code == 422
