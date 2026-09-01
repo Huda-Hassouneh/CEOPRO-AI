@@ -1646,6 +1646,33 @@ don't interfere with anything. No RAG retrieval/re-ranking code changed this pas
 re-download or re-verify the embedding/reranker models against real infra again - already proven
 2026-08-31.
 
+## 2026-09-01 — Live-DB verification of PR #32 (RAG security/efficiency review) completed
+
+PR #32 (index caching, `/rag/query` input bounds, Groq retry-with-backoff, PDF/DOCX/XLSX ingestion,
+opt-in confidence filter) was merged on offline-suite verification only (390 passed) - the PR
+description said so explicitly rather than claiming a live-DB pass that hadn't happened. This entry
+closes that gap: ran the live-DB suite against a fresh disposable Postgres/Redis/MinIO (all 18
+migrations applied from empty), in two passes.
+
+Without the model-gated tests first (fast, no downloads): 9 passed, 3 skipped - including the three
+tests that matter most for this PR specifically -
+`test_build_hybrid_index_is_served_from_cache_on_the_second_call` (proves the new index cache is
+actually reused, an identity check not just "the data still looks right"),
+`test_build_hybrid_index_cache_is_invalidated_by_reingestion` (proves a re-ingested tenant's next
+query sees fresh data, not stale cache), and
+`test_run_retrieval_with_an_unreachable_confidence_threshold_returns_nothing` (proves the grounding
+filter actually empties a result end-to-end, not just in the extracted pure-function unit test).
+
+With `AI_TEST_EMBEDDINGS=1 AI_TEST_RERANKING=1` (real embedding model + a real, freshly-downloaded
+Cross-Encoder, ~31s including both): all 12 tests passed, including
+`test_run_retrieval_end_to_end_with_reranking_and_context_assembly` - the actual reranker model
+scoring actual retrieved chunks, not mocked.
+
+Full repo live-DB suite re-run clean alongside the RAG-specific run: 69 passed, 0 failed, no
+regressions elsewhere from anything in PR #32. Full offline suite re-confirmed clean too: 390 passed,
+0 failed. No code changes in this pass - this is a testing-only follow-up closing the verification
+gap PR #32 itself flagged.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
