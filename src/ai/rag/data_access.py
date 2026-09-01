@@ -4,9 +4,18 @@ Reads/updates rag_documents_metadata (existing table, no schema change) and
 fetches raw object bytes from MinIO's ceopro-rag-knowledge bucket (per
 MINIO_STORAGE_ARCHITECTURE.md - this bucket is already AI-owned).
 
-Text extraction here handles plain text (.txt) content only. PDF/DOCX
-extraction is a follow-up (needs pypdf/python-docx, not added yet) - flagged
-in PENDING_ACTIONS.md rather than silently mishandled.
+fetch_document_text() dispatches by file extension: .txt/.md as plain UTF-8,
+.pdf via pdfplumber (already a project dependency, extraction/adapters/
+pdf_adapter.py's own library), .docx via python-docx, .xlsx via openpyxl
+(also already a project dependency, extraction/adapters/xlsx_adapter.py's
+own library) (2026-09-01 - a real document-based RAG system needs to read
+the policy/manual/regulation/spreadsheet documents its own use case names,
+not just plain text). An unsupported extension raises
+UnsupportedDocumentTypeError with a clear message rather than silently
+mis-decoding binary content as text - it's still caught by
+ingest_pending_documents()'s existing per-document error handling and
+marked 'Failed' with that message, spec S12's "never silently discard
+invalid data" applied to a format gap the same way as any other failure.
 
 Also owns rag_document_chunks persistence (text + pgvector embedding) -
 audit finding P1: this table has existed, with its embedding vector(384)
@@ -23,9 +32,20 @@ the way in, and read back as pgvector's own text representation
 a format this simple.
 """
 
+import io
+import os
 from typing import List, Optional, Tuple
 
+import docx
 import numpy as np
+import openpyxl
+import pdfplumber
+
+SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".xlsx"}
+
+
+class UnsupportedDocumentTypeError(ValueError):
+    """Raised for a file extension fetch_document_text() has no extractor for."""
 
 
 def _to_pgvector_literal(embedding: np.ndarray) -> str:
@@ -67,13 +87,69 @@ def mark_document_status(conn, document_id: str, status: str) -> None:
 
 
 def fetch_document_text(minio_client, bucket: str, object_key: str) -> str:
-    """Fetches an object from MinIO and decodes it as UTF-8 text (plain-text documents only)."""
+    """
+    Fetches an object from MinIO and extracts its text content, dispatched
+    by `object_key`'s file extension (see SUPPORTED_DOCUMENT_EXTENSIONS).
+    Raises UnsupportedDocumentTypeError for anything else - see this
+    module's own docstring for why that's a deliberate error, not a
+    silent best-effort decode.
+    """
+    ext = os.path.splitext(object_key)[1].lower()
+    if ext not in SUPPORTED_DOCUMENT_EXTENSIONS:
+        raise UnsupportedDocumentTypeError(
+            f"Unsupported document type '{ext or '(no extension)'}' for '{object_key}' - "
+            f"supported: {', '.join(sorted(SUPPORTED_DOCUMENT_EXTENSIONS))}"
+        )
+
     response = minio_client.get_object(bucket, object_key)
     try:
-        return response.read().decode("utf-8")
+        raw = response.read()
     finally:
         response.close()
         response.release_conn()
+
+    if ext in (".txt", ".md"):
+        return raw.decode("utf-8")
+    if ext == ".pdf":
+        return _extract_pdf_text(raw)
+    if ext == ".docx":
+        return _extract_docx_text(raw)
+    return _extract_xlsx_text(raw)
+
+
+def _extract_pdf_text(raw: bytes) -> str:
+    with pdfplumber.open(io.BytesIO(raw)) as pdf:
+        pages = [page.extract_text() for page in pdf.pages]
+    return "\n\n".join(page for page in pages if page)
+
+
+def _extract_docx_text(raw: bytes) -> str:
+    document = docx.Document(io.BytesIO(raw))
+    paragraphs = [p.text for p in document.paragraphs if p.text.strip()]
+    return "\n\n".join(paragraphs)
+
+
+def _extract_xlsx_text(raw: bytes) -> str:
+    """
+    Flattens every sheet into readable text: a "Sheet: <name>" heading per
+    sheet, then one tab-separated line per row (blank cells rendered as
+    empty, not "None" - a spreadsheet's own visual shape, not a literal
+    dump of Python None values). read_only=True and data_only=True match
+    extraction/adapters/xlsx_adapter.py's own convention - read the last
+    computed values, not formula source text, and don't hold the whole
+    workbook's object graph in memory for a large sheet.
+    """
+    workbook = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    sections = []
+    for sheet in workbook.worksheets:
+        lines = [
+            "\t".join("" if cell is None else str(cell) for cell in row)
+            for row in sheet.iter_rows(values_only=True)
+        ]
+        lines = [line for line in lines if line.strip("\t")]  # skip fully-blank rows
+        if lines:
+            sections.append(f"Sheet: {sheet.title}\n" + "\n".join(lines))
+    return "\n\n".join(sections)
 
 
 def replace_document_chunks(

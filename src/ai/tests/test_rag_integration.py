@@ -275,3 +275,70 @@ def test_run_retrieval_falls_back_gracefully_when_reranker_unavailable(conn, min
 
     assert "Sunscreen" in context.context_text
     assert len(context.sources) == 1
+
+
+def test_build_hybrid_index_is_served_from_cache_on_the_second_call(conn, minio_client, seeded_tenant):
+    """
+    2026-09-01 efficiency review: build_hybrid_index() re-tokenized the
+    whole corpus for BM25 and rebuilt FAISS from scratch on every call,
+    even when nothing changed. Proves the fix actually reuses a cached
+    object (identity check, not just "the data still looks right" - a
+    coincidentally-correct rebuild would also pass a data-only assertion).
+    """
+    pipeline.invalidate_tenant_index_cache(seeded_tenant)  # isolate from any other test's leftover state
+    doc_key = f"test/{uuid.uuid4()}.txt"
+    _upload_text(minio_client, doc_key, "Sunscreen SPF 50 is our best selling summer product.")
+    _insert_document(conn, seeded_tenant, "doc.txt", doc_key)
+    assert pipeline.ingest_pending_documents(conn, minio_client, seeded_tenant, bucket=TEST_BUCKET) == 1
+
+    first = pipeline.build_hybrid_index(conn, seeded_tenant)
+    second = pipeline.build_hybrid_index(conn, seeded_tenant)
+
+    assert first is second  # the exact same object, not just equal data
+
+
+def test_build_hybrid_index_cache_is_invalidated_by_reingestion(conn, minio_client, seeded_tenant):
+    """The other half of the cache proof: a call after re-ingestion must NOT
+    be served stale data from before the re-ingestion."""
+    pipeline.invalidate_tenant_index_cache(seeded_tenant)
+    doc_key = f"test/{uuid.uuid4()}.txt"
+    _upload_text(minio_client, doc_key, "Original content about sunscreen.")
+    document_id = _insert_document(conn, seeded_tenant, "doc.txt", doc_key)
+    assert pipeline.ingest_pending_documents(conn, minio_client, seeded_tenant, bucket=TEST_BUCKET) == 1
+
+    stale = pipeline.build_hybrid_index(conn, seeded_tenant)
+    assert len(stale.bm25) == 1
+
+    _upload_text(minio_client, doc_key, "Completely different content about winter coats.")
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE rag_documents_metadata SET processed_status = 'Pending' WHERE document_id = %s;", (document_id,))
+    conn.commit()
+    assert pipeline.ingest_pending_documents(conn, minio_client, seeded_tenant, bucket=TEST_BUCKET) == 1
+
+    fresh = pipeline.build_hybrid_index(conn, seeded_tenant)
+    assert fresh is not stale
+    results = pipeline.retrieve(fresh.bm25, "winter coats", top_k=1)
+    assert len(results) == 1
+
+
+def test_run_retrieval_with_an_unreachable_confidence_threshold_returns_nothing(conn, minio_client, seeded_tenant):
+    """
+    Grounding/anti-hallucination proof: an impossibly high
+    min_confidence_score must empty the result even when real, relevant
+    content was ingested and retrieval would otherwise have found it -
+    the caller (llm_client.answer_query()) then sees empty context_text
+    and never calls the LLM. use_reranker=False here so this test doesn't
+    also need the AI_TEST_RERANKING-gated model just to prove the filter
+    itself works on RRF scores.
+    """
+    doc_key = f"test/{uuid.uuid4()}.txt"
+    _upload_text(minio_client, doc_key, "Sunscreen SPF 50 is our best selling summer product.")
+    _insert_document(conn, seeded_tenant, "doc.txt", doc_key)
+    assert pipeline.ingest_pending_documents(conn, minio_client, seeded_tenant, bucket=TEST_BUCKET) == 1
+
+    context = pipeline.run_retrieval(
+        conn, seeded_tenant, "sunscreen", top_k=5, use_reranker=False, min_confidence_score=999.0
+    )
+
+    assert context.context_text == ""
+    assert context.sources == []
