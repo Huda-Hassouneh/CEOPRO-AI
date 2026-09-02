@@ -8,14 +8,19 @@ across all models" run before mobile/web backend integration begins.
 
     1. Extraction        - mocks/e2e_pipeline_demo.csv -> ingestion_pipeline.process_records()
     2. Promotion          - extraction.promotion.promote_ingested_rows() -> products/transactions
-    3. Competitor scraping - policy-approve + subprocess-run market_scraper.cli against the
-                              books_to_scrape sandbox (Scrapy's CrawlerProcess/Twisted reactor
-                              can only start once per process, so this must be a subprocess,
-                              never imported in-process)
-    4. Demand forecasting - forecasting.pipeline.run_forecast() per promoted product
-    5. Price intelligence - pricing.pipeline.run_price_recommendation() per promoted product
-    6. RAG grounding       - a summary of this run's forecast/pricing output is ingested into
-                              rag_document_chunks so RAG chat can answer questions about it
+    3. Competitor scraping - real dynamic discovery (market_scraper/discovery.py), subprocess-run
+                              market_scraper.cli (Scrapy's CrawlerProcess/Twisted reactor can only
+                              start once per process, so this must be a subprocess, never imported
+                              in-process) - persistence.py already writes any scraped reviews into
+                              `reviews` (subject_type='COMPETITOR') as a side effect of this stage
+    4. Market analysis     - market_scraper.analysis_worker.analyze_tenant(): classifies those
+                              scraped reviews (sentiment/pipeline.py) and refreshes competitor score
+                              snapshots (intelligence.py) - the same function the real
+                              market.analysis.requested Redis consumer calls, run synchronously here
+    5. Demand forecasting - forecasting.pipeline.run_forecast() per promoted product
+    6. Price intelligence - pricing.pipeline.run_price_recommendation() per promoted product
+    7. RAG grounding       - a summary of this run's forecast/pricing/sentiment output is ingested
+                              into rag_document_chunks so RAG chat can answer questions about it
                               (run_retrieval()/answer_query() only ever read ingested documents -
                               there is no separate structured-table retrieval stage today)
 
@@ -55,7 +60,9 @@ from src.ai.forecasting import pipeline as forecasting_pipeline
 from src.ai.pricing import pipeline as pricing_pipeline
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
+from src.ai.sentiment import pipeline as sentiment_pipeline
 from src.market_scraper import discovery
+from src.market_scraper.analysis_worker import analyze_tenant
 from src.market_scraper.sector_detection import build_retail_search_query, detect_vertical, resolve_tenant_geo_scope
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -431,8 +438,65 @@ def _run_per_product_parallel(tenant_id: str, user_id: str, product_ids: list, w
     return results
 
 
+def stage_market_analysis(tenant_id: str, user_id: str) -> tuple:
+    """
+    Reuses market_scraper.analysis_worker.analyze_tenant() directly - the
+    exact function the real market.analysis.requested Redis consumer
+    (analysis_worker.run_forever()) calls, already fully built earlier
+    this engagement: classify_and_store_reviews() (sentiment/pipeline.py,
+    already wired to /sentiment/summary in main.py) then
+    refresh_score_snapshots() (intelligence.py's price/activity/relevance/
+    composite competitor scoring). Called synchronously here rather than
+    via the Redis stream - this orchestrator is a one-shot script, not a
+    long-running service, so there's no decoupling benefit to gain from
+    the async path, and no Redis dependency needed for this specific run.
+    persistence.py already writes scraped reviews into `reviews` with
+    subject_type='COMPETITOR' - this stage is the first thing in this
+    session that actually classifies them, closing the loop this
+    worktree's own name (competitors-market-sentiment) describes.
+
+    Returns (stage, sentiment_summaries) - sentiment_summaries is a real,
+    per-competitor sentiment aggregate (sentiment/pipeline.py's own
+    get_subject_sentiment_summary(), the same function /sentiment/summary
+    calls) for stage_rag_grounding to cite with real evidence_ids.
+    """
+    stage = Stage("4_market_analysis")
+    sentiment_summaries = []
+    try:
+        result = analyze_tenant(tenant_id)
+        stage.details = {"analyze_tenant_result": result}
+        if result.get("sentiment", {}).get("analyzed_count", 0) == 0:
+            stage.status = "PARTIAL"
+            stage.errors.append("No unanalyzed reviews were found for this tenant - nothing to classify.")
+
+        conn = db.app_role_connection(tenant_id, user_id)
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT DISTINCT r.competitor_id, gc.competitor_name FROM reviews r "
+                    "JOIN global_competitors gc ON gc.global_competitor_id = r.competitor_id "
+                    "WHERE r.tenant_id = %s AND r.subject_type = 'COMPETITOR' AND r.competitor_id IS NOT NULL;",
+                    (tenant_id,),
+                )
+                competitors = cursor.fetchall()
+            for competitor_id, competitor_name in competitors:
+                summary = sentiment_pipeline.get_subject_sentiment_summary(
+                    conn, tenant_id, "COMPETITOR", str(competitor_id)
+                )
+                conn.commit()
+                sentiment_summaries.append(
+                    {"competitor_id": str(competitor_id), "competitor_name": competitor_name, **summary}
+                )
+            stage.details["sentiment_summaries"] = sentiment_summaries
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001
+        stage.fail(str(e))
+    return stage, sentiment_summaries
+
+
 def stage_forecasting(tenant_id: str, user_id: str, product_ids: list) -> tuple:
-    stage = Stage("4_forecasting")
+    stage = Stage("5_forecasting")
     if not product_ids:
         stage.skip("No promoted products to forecast.")
         return stage, {}
@@ -448,7 +512,7 @@ def stage_forecasting(tenant_id: str, user_id: str, product_ids: list) -> tuple:
 
 
 def stage_pricing(tenant_id: str, user_id: str, product_ids: list) -> tuple:
-    stage = Stage("5_pricing")
+    stage = Stage("6_pricing")
     if not product_ids:
         stage.skip("No promoted products to price.")
         return stage, {}
@@ -486,7 +550,10 @@ def _load_competitor_price_records(conn, tenant_id: str, product_id: str) -> lis
         ]
 
 
-def _build_summary_document(conn, tenant_id: str, mock_file: str, row_count: int, product_ids, forecast_results, pricing_results) -> str:
+def _build_summary_document(
+    conn, tenant_id: str, mock_file: str, row_count: int, product_ids, forecast_results, pricing_results,
+    sentiment_summaries: list,
+) -> str:
     """
     Every fact below carries an explicit [Source: ...] annotation naming the
     real table/module/id it came from - llm_client.SYSTEM_PROMPT instructs
@@ -510,8 +577,31 @@ def _build_summary_document(conn, tenant_id: str, mock_file: str, row_count: int
         "- External market data (where present): scraped via src/market_scraper, persisted to the "
         "`competitor_prices` table with the source competitor's name and capture timestamp "
         "[Source: competitor_prices table, global_competitors table].",
+        "- Competitor review sentiment (where present): scraped reviews persisted to `reviews` "
+        "(subject_type='COMPETITOR'), classified by sentiment.pipeline.classify_and_store_reviews() "
+        "into `sentiment_results`, aggregated per competitor by "
+        "sentiment.pipeline.get_subject_sentiment_summary() [Source: reviews table, sentiment_results "
+        "table, evidence_records table].",
         "",
     ]
+
+    if sentiment_summaries:
+        lines.append("## Competitor Review Sentiment")
+        for entry in sentiment_summaries:
+            if entry.get("status") == "OK":
+                counts = entry["label_counts"]
+                lines.append(
+                    f"{entry['competitor_name']}: sentiment_score={entry['sentiment_score']} "
+                    f"({counts['positive']} positive, {counts['neutral']} neutral, {counts['negative']} negative "
+                    f"reviews analyzed) [Source: sentiment_results table, evidence_id={entry['evidence_id']}]."
+                )
+            else:
+                lines.append(
+                    f"{entry['competitor_name']}: no analyzed reviews yet "
+                    f"[Source: evidence_records table, evidence_id={entry.get('evidence_id')}]."
+                )
+        lines.append("")
+
     for product in product_ids:
         pid = product["product_id"]
         lines.append(f"## {product['product_name']} (product_id={pid})")
@@ -564,16 +654,19 @@ def _build_summary_document(conn, tenant_id: str, mock_file: str, row_count: int
 
 def stage_rag_grounding(
     tenant_id: str, user_id: str, product_ids: list, forecast_results: dict, pricing_results: dict,
-    mock_file: str, row_count: int,
+    sentiment_summaries: list, mock_file: str, row_count: int,
 ) -> Stage:
-    stage = Stage("6_rag_grounding")
+    stage = Stage("7_rag_grounding")
     if not product_ids:
         stage.skip("No promoted products to summarize for RAG grounding.")
         return stage
 
     conn = db.app_role_connection(tenant_id, user_id)
     try:
-        summary_text = _build_summary_document(conn, tenant_id, mock_file, row_count, product_ids, forecast_results, pricing_results)
+        summary_text = _build_summary_document(
+            conn, tenant_id, mock_file, row_count, product_ids, forecast_results, pricing_results,
+            sentiment_summaries,
+        )
         content = summary_text.encode("utf-8")
         object_key = f"{tenant_id}/e2e-pipeline-summary-{uuid.uuid4()}.txt"
 
@@ -610,7 +703,7 @@ def stage_rag_grounding(
 
 
 def stage_rag_query_test(tenant_id: str, user_id: str, product_ids: list) -> Stage:
-    stage = Stage("7_rag_chat_verification")
+    stage = Stage("8_rag_chat_verification")
     if not product_ids:
         stage.skip("No promoted products - nothing to verify a grounded answer against.")
         return stage
@@ -688,24 +781,28 @@ def main():
         report["stages"].append(stage3.to_dict())
         print(f"[{stage3.name}] {stage3.status}")
 
-        stage4, forecast_results = stage_forecasting(tenant_id, user_id, product_ids)
+        stage4, sentiment_summaries = stage_market_analysis(tenant_id, user_id)
         report["stages"].append(stage4.to_dict())
-        print(f"[{stage4.name}] {stage4.status}")
+        print(f"[{stage4.name}] {stage4.status} - {stage4.details}")
 
-        stage5, pricing_results = stage_pricing(tenant_id, user_id, product_ids)
+        stage5, forecast_results = stage_forecasting(tenant_id, user_id, product_ids)
         report["stages"].append(stage5.to_dict())
         print(f"[{stage5.name}] {stage5.status}")
 
-        stage6 = stage_rag_grounding(
-            tenant_id, user_id, product_ids, forecast_results, pricing_results,
-            mock_file=args.mock_file, row_count=stage1.details.get("row_count", 0),
-        )
+        stage6, pricing_results = stage_pricing(tenant_id, user_id, product_ids)
         report["stages"].append(stage6.to_dict())
         print(f"[{stage6.name}] {stage6.status}")
 
-        stage7 = stage_rag_query_test(tenant_id, user_id, product_ids)
+        stage7 = stage_rag_grounding(
+            tenant_id, user_id, product_ids, forecast_results, pricing_results, sentiment_summaries,
+            mock_file=args.mock_file, row_count=stage1.details.get("row_count", 0),
+        )
         report["stages"].append(stage7.to_dict())
         print(f"[{stage7.name}] {stage7.status}")
+
+        stage8 = stage_rag_query_test(tenant_id, user_id, product_ids)
+        report["stages"].append(stage8.to_dict())
+        print(f"[{stage8.name}] {stage8.status}")
 
     finally:
         admin_conn.close()
