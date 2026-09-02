@@ -1,7 +1,7 @@
 # RAG Pipeline — Setup & Query Guide
 
 End-to-end retrieval-augmented generation: document ingestion → persisted hybrid (BM25 + FAISS)
-retrieval → Cross-Encoder re-ranking → context assembly → LLM reasoning (Groq-hosted Qwen). See
+retrieval → Cross-Encoder re-ranking → context assembly → LLM reasoning (Groq-hosted Llama). See
 [`../README.md`](../README.md#rag--phase-3-groundwork-retrieval-only-spec-4-6-21) for the
 module-by-module breakdown of how each stage works; this file is the practical "how do I actually
 run this" guide.
@@ -20,13 +20,13 @@ python scripts/apply_migrations.py   # needs DATABASE_URL + APP_DB_PASSWORD set
 | `DATABASE_URL` / `APP_DB_PASSWORD` | Yes | — | Postgres connection (see repo root `.env.example`) |
 | `MINIO_ENDPOINT` / `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | Yes, for ingestion | — | Raw document storage |
 | `GROQ_API_KEY` | Yes, for `/rag/query` | — | **You must provide this.** Get one at [console.groq.com](https://console.groq.com/) |
-| `GROQ_MODEL` | No | `qwen/qwen3-32b` | Verify this is still current against Groq's [model catalog](https://console.groq.com/docs/models) before relying on it — hosted catalogs change |
+| `GROQ_MODEL` | No | `llama-3.3-70b-versatile` | Verified live against Groq's production [model catalog](https://console.groq.com/docs/models) (2026-09-01) — hosted catalogs change, re-check before relying on this long-term. Groq's only Qwen models are preview-only (not for production use) as of this check |
 | `RAG_EMBEDDING_MODEL` | No | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Dense retrieval embedding model |
 | `RAG_RERANKER_MODEL` | No | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Multilingual Cross-Encoder (spec §8 Arabic-English requirement — do not swap for an English-only reranker) |
 
 `GROQ_API_KEY` is the only one of these you actually need to go find and set yourself — everything
-else has a working default. **Why Groq + Qwen, not a locally-run model**: Groq's hardware-accelerated
-hosted inference is fast (low per-token latency), Qwen at this size is accurate on multilingual/
+else has a working default. **Why Groq + Llama, not a locally-run model**: Groq's hardware-accelerated
+hosted inference is fast (low per-token latency), a 70B-class model is accurate on multilingual/
 cross-dialect Arabic content, and because the model runs on Groq's infrastructure rather than
 yours, there is zero local GPU/CPU/RAM footprint — the only thing your machine does is send and
 receive text over HTTPS. See [`llm_client.py`](llm_client.py)'s module docstring for the full
@@ -108,6 +108,41 @@ Returns the same `{"answer": ..., "sources": [...]}` shape as a JSON response. A
 failure comes back as HTTP 502 (retrieval succeeded, only the LLM call didn't); anything else
 unexpected comes back as 500.
 
+### Interactive terminal chat (`chat_cli.py`)
+
+A standalone REPL for manually driving `/rag/query` like a real chat session - type a question,
+see the answer and cited sources, type another, `exit` to quit. Zero extra dependencies (httpx +
+PyJWT, both already in `requirements.txt`); it mints its own test JWT locally rather than needing
+a real login flow (see `main.py`'s own docstring - no JWT-issuing service exists yet).
+
+```bash
+# Terminal 1 - start the service
+export DATABASE_URL=... APP_DB_PASSWORD=... JWT_SECRET=... GROQ_API_KEY=...
+uvicorn src.ai.main:app --host 127.0.0.1 --port 8000
+
+# Terminal 2 - chat
+export JWT_SECRET=...            # must match terminal 1's JWT_SECRET
+export AI_TENANT_ID=<a real tenant_id with ingested RAG documents>
+export AI_USER_ID=<any tenant_users.user_id for that tenant>
+python -m src.ai.rag.chat_cli
+```
+
+```text
+Connected to http://localhost:8000 as tenant <tenant_id>. Type 'exit' to quit.
+
+You: What are our best selling products?
+
+Assistant: Sunscreen SPF 50 is our best seller, based on the retrieved sales notes.
+
+Sources:
+  [1] chunk=3fa85f64-5717-4562-b3fc-2c963f66afa6 score=0.87
+
+You: exit
+Goodbye.
+```
+
+`AI_SERVICE_URL` overrides the default `http://localhost:8000` if the service is running elsewhere.
+
 ## 4. Running the tests
 
 ```bash
@@ -150,7 +185,7 @@ run_retrieval()
         |
 AssembledContext
         |
-generate_answer()  -- Groq API call (Qwen), the only LLM-aware step in this whole path
+generate_answer()  -- Groq API call (Llama), the only LLM-aware step in this whole path
         |
 {"answer": ..., "sources": [...]}
 ```
