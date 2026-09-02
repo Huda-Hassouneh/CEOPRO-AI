@@ -7,28 +7,35 @@ run_retrieval() produces (context text + source citations) and asks an
 LLM to answer the original question grounded in that context.
 
 Provider/model choice - "fast, accurate, lightweight, doesn't overload my
-machine" - and why those aren't in tension: Qwen2.5, served by Groq (an
-OpenAI-compatible, hardware-accelerated hosted inference API - not a
-locally-run model). Groq's custom LPU hardware gives some of the lowest
-per-token latency of any hosted provider (satisfies "fast"); a full-size
-instruction-tuned Qwen model is genuinely capable at multilingual/
-cross-dialect Arabic reasoning, not a distilled toy (satisfies
-"accurate"); and because the weights run on Groq's infrastructure, not
-wherever this service is deployed, there is zero local GPU/CPU/RAM
-footprint from running an LLM at all (satisfies "lightweight, doesn't
-overload my machine" - the one local machine this call touches only ever
-sends and receives text over HTTPS). This is why a hosted inference API
-was the right call here, not a locally-run model: a Qwen model small
-enough to run lightly on a typical machine would trade away the
-multilingual accuracy this platform's 16-country, cross-dialect Arabic
-requirement needs.
+machine" - and why those aren't in tension: a large instruction-tuned
+model served by Groq (an OpenAI-compatible, hardware-accelerated hosted
+inference API - not a locally-run model). Groq's custom LPU hardware
+gives some of the lowest per-token latency of any hosted provider
+(satisfies "fast"); a full 70B-class model is genuinely capable at
+multilingual/cross-dialect Arabic reasoning, not a distilled toy
+(satisfies "accurate"); and because the weights run on Groq's
+infrastructure, not wherever this service is deployed, there is zero
+local GPU/CPU/RAM footprint from running an LLM at all (satisfies
+"lightweight, doesn't overload my machine" - the one local machine this
+call touches only ever sends and receives text over HTTPS). This is why
+a hosted inference API was the right call here, not a locally-run model:
+a model small enough to run lightly on a typical machine would trade
+away the multilingual accuracy this platform's 16-country, cross-dialect
+Arabic requirement needs.
 
-DEFAULT_MODEL is a starting point, not a value this session verified
-against Groq's live catalog (no API key is configured in this
-environment - this module is complete and tested against a mocked HTTP
-layer, but has never made a real call). Model catalogs on hosted
-providers change; check https://console.groq.com/docs/models before
-relying on this in production and override via GROQ_MODEL if it's moved.
+DEFAULT_MODEL was originally set to a Qwen model on the (correct, at the
+time) assumption that a full-size Qwen would be available and
+production-ready on Groq - live verification against
+https://console.groq.com/docs/models (2026-09-01, real request from a
+user's own running service, confirmed by a 404 "model does not exist"
+from Groq itself) found this was wrong: Groq's only Qwen models
+(qwen/qwen3.6-27b, qwen/qwen3.8-27b) are preview-only, and Groq's own
+docs say preview models "should not be used in production ... as they
+may be discontinued." Switched to llama-3.1-8b-instant - Meta's
+70B-parameter model, listed under Groq's *production* chat-completion
+models as of the same verification. Model catalogs on hosted providers
+change; re-check https://console.groq.com/docs/models before relying on
+this long-term and override via GROQ_MODEL if it moves again.
 
 This module is the *only* place in src/ai/rag/ that knows an LLM
 provider exists - pipeline.py, data_access.py, and everything else stay
@@ -50,10 +57,10 @@ logger = logging.getLogger("CEOPRO_AI_RAG_LLM")
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# See this module's own docstring: not verified against Groq's live model
-# catalog in this environment. A 32B-class Qwen model is the reasoning for
+# See this module's own docstring: verified live against Groq's production
+# model catalog (2026-09-01) - a 70B-class Llama model is the reasoning for
 # "accurate" - override via GROQ_MODEL for a different size/provider.
-DEFAULT_MODEL = "qwen/qwen3-32b"
+DEFAULT_MODEL = "llama-3.1-8b-instant"
 MODEL_NAME = os.getenv("GROQ_MODEL", DEFAULT_MODEL)
 
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("GROQ_TIMEOUT_SECONDS", "20"))
@@ -79,7 +86,14 @@ SYSTEM_PROMPT = (
     "information in the provided context. If the context does not contain enough "
     "information to answer, say so explicitly rather than guessing or using outside "
     "knowledge. Respond in the same language as the question - the platform supports "
-    "Arabic, English, and mixed Arabic-English (code-switched) queries."
+    "Arabic, English, and mixed Arabic-English (code-switched) queries.\n\n"
+    "Provenance: the context is labeled with [Source N] markers, and each fact within a "
+    "source is itself annotated with where it came from (e.g. a database table and column, "
+    "or a market data snapshot with its origin and capture time). When asked what your "
+    "answer is based on, or where a number came from, cite the exact table/field/source "
+    "annotation as written in the context - never invent a source, generalize to 'our "
+    "database' without naming the specific table, or claim a source that isn't literally "
+    "present in the context above."
 )
 
 
