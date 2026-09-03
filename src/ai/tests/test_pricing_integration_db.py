@@ -439,3 +439,45 @@ def test_create_competitor_mapping_rejects_a_manufacturer(conn):
     with conn.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;", (tenant_id,))
         assert cursor.fetchone()[0] == 0
+
+
+def test_create_competitor_mapping_with_scrape_fields_is_visible_to_load_scrape_targets(conn):
+    """
+    End-to-end proof, not just an isolated unit check: a mapping created
+    with source_id/competitor_product_url/competitor_product_sku must
+    actually be the thing market_scraper/data_access.py::load_scrape_targets()
+    allocates for collection - the two modules agreeing on the same row
+    shape is the whole point of having create_competitor_mapping() set
+    these fields at all.
+    """
+    from src.market_scraper import data_access as scraper_data_access
+
+    tenant_id = _insert_company(conn, "Jordan Grocer Co")
+    product_id = _insert_product(conn, tenant_id, "Olive Oil 1L", 10.00)
+    competitor_id = _insert_global_competitor(conn, tenant_id, "Rival Grocer JO", country_code="JO")
+
+    source_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO data_sources "
+            "(source_id, tenant_id, source_name, source_type, collection_method, policy_status, "
+            " approval_reference, approved_by, approved_at, privacy_reviewed_at) "
+            "VALUES (%s, %s, 'Test Source', 'WEB_SCRAPE', 'WEB_SCRAPE', 'ALLOWED', 'test-ref', %s, now(), now());",
+            (source_id, tenant_id, str(uuid.uuid4())),
+        )
+    conn.commit()
+
+    mapping_id = matching.create_competitor_mapping(
+        conn, tenant_id, competitor_id, product_id,
+        source_id=source_id,
+        competitor_product_url="https://rival-grocer.example/olive-oil-1l",
+        competitor_product_sku="RG-OO-1L",
+    )
+    conn.commit()
+
+    targets = scraper_data_access.load_scrape_targets(conn, tenant_id, source_id)
+    assert len(targets) == 1
+    assert targets[0]["mapping_id"] == mapping_id
+    assert targets[0]["product_url"] == "https://rival-grocer.example/olive-oil-1l"
+    assert targets[0]["external_sku"] == "RG-OO-1L"
+    assert targets[0]["competitor_name"] == "Rival Grocer JO"
