@@ -40,7 +40,15 @@ class CompetitorMappingError(ValueError):
     """Raised when a proposed competitor mapping fails a geographic-relevance or manufacturer-exclusion check."""
 
 
-def create_competitor_mapping(conn, tenant_id: str, global_competitor_id: str, product_id: str) -> str:
+def create_competitor_mapping(
+    conn,
+    tenant_id: str,
+    global_competitor_id: str,
+    product_id: str,
+    source_id: str = None,
+    competitor_product_url: str = None,
+    competitor_product_sku: str = None,
+) -> str:
     """
     Creates one competitor_product_mappings row, but only after two checks
     neither the schema nor any other code enforces:
@@ -57,6 +65,15 @@ def create_competitor_mapping(conn, tenant_id: str, global_competitor_id: str, p
        competitor for pricing purposes, regardless of how well its product
        name matches (name similarity alone, e.g. similarity() above, has
        no concept of geography).
+
+    source_id/competitor_product_url/competitor_product_sku are all
+    optional (a mapping can exist before a specific scrape source is
+    picked), but a mapping intended to actually be collected needs all
+    three: market_scraper/data_access.py::load_scrape_targets() only
+    allocates mappings with a non-null competitor_product_url, joined to
+    an ALLOWED data_sources row via source_id - a mapping missing them is
+    real (passes both checks above, safe to keep) but invisible to
+    collection until they're filled in.
 
     Raises CompetitorMappingError (never a bare KeyError/TypeError) with a
     human-readable reason on either failure, or if the tenant/competitor
@@ -116,8 +133,11 @@ def create_competitor_mapping(conn, tenant_id: str, global_competitor_id: str, p
 
         mapping_id = str(uuid.uuid4())
         cursor.execute(
-            "INSERT INTO competitor_product_mappings (mapping_id, tenant_id, global_competitor_id, product_id, is_active) "
-            "VALUES (%s, %s, %s, %s, TRUE);",
-            (mapping_id, tenant_id, global_competitor_id, product_id),
+            "INSERT INTO competitor_product_mappings "
+            "(mapping_id, tenant_id, global_competitor_id, product_id, source_id, "
+            " competitor_product_url, competitor_product_sku, is_active) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE);",
+            (mapping_id, tenant_id, global_competitor_id, product_id, source_id,
+             competitor_product_url, competitor_product_sku),
         )
     return mapping_id
