@@ -118,7 +118,7 @@ class GooglePlacesSpider(scrapy.Spider):
             "mapping_id": target["mapping_id"], "product_id": target["product_id"],
             "global_competitor_id": target["global_competitor_id"],
             "competitor_name": target["competitor_name"], "source_name": self.source_name,
-            "source_type": "official_api", "collection_method": self.collection_method,
+            "source_type": "official_api", "source_platform": "google", "collection_method": self.collection_method,
             "source_status": "ALLOWED", "is_exact_data": True,
             "match_score": match_score, "match_method": "FUZZY_NAME",
             "safety_status": "SAFE", "safety_flags": [],

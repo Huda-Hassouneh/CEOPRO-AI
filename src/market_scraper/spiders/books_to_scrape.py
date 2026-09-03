@@ -136,6 +136,7 @@ class BooksToScrapeSpider(scrapy.Spider):
         record = {
             "source_name": self.source_name,
             "source_type": "public_website",
+            "source_platform": "books_to_scrape",
             "collection_method": self.collection_method,
             "source_status": self.source_status,
             "is_exact_data": True,

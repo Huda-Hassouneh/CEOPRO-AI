@@ -144,3 +144,54 @@ def test_parse_items_ignores_a_non_list_dataset_response():
         json_response("https://api.apify.com/x", {"error": "actor run failed"}), TARGET,
     ))
     assert items == []
+
+
+def test_parse_items_extracts_engagement_signals():
+    payload = [{
+        "id": "post-1", "ownerUsername": "example_retail", "ownerFullName": "Example Retail",
+        "caption": "New arrivals", "likesCount": 1200, "commentsCount": 45,
+        "hashtags": ["sale", "newarrival"], "mentions": ["@partner_brand"],
+        "type": "Video", "timestamp": "2026-08-29T12:00:00.000Z",
+    }]
+    item = list(spider().parse_items(json_response("https://api.apify.com/x", payload), TARGET))[0]
+    assert item["source_platform"] == "instagram"
+    assert item["author_name"] == "Example Retail"
+    assert item["author_handle"] == "example_retail"
+    assert item["likes_count"] == 1200
+    assert item["comments_count"] == 45
+    assert item["hashtags"] == ["sale", "newarrival"]
+    assert item["mentions"] == ["@partner_brand"]
+    assert item["media_type"] == "Video"
+    assert item["published_at"] == "2026-08-29T12:00:00.000Z"
+    assert item["engagement_captured_at"] is not None
+
+
+def test_parse_items_extracts_tiktok_engagement_field_names():
+    payload = [{
+        "id": "vid-1", "authorMeta": {"name": "example_retail"}, "text": "New drop",
+        "diggCount": 500, "commentCount": 20, "shareCount": 8, "playCount": 15000,
+        "hashtags": ["tiktokmademebuyit"],
+    }]
+    item = list(spider(platform="tiktok").parse_items(json_response("https://api.apify.com/x", payload), TARGET))[0]
+    assert item["author_handle"] == "example_retail"
+    assert item["likes_count"] == 500
+    assert item["comments_count"] == 20
+    assert item["shares_count"] == 8
+    assert item["views_count"] == 15000
+
+
+def test_parse_items_handles_a_numeric_unix_timestamp():
+    payload = [{"id": "post-2", "ownerUsername": "example_retail", "caption": "hi", "createTime": 1798934400}]
+    item = list(spider().parse_items(json_response("https://api.apify.com/x", payload), TARGET))[0]
+    assert item["published_at"] is not None and item["published_at"].startswith("20")
+
+
+def test_parse_items_leaves_engagement_fields_none_when_provider_has_none():
+    payload = [{"id": "post-3", "ownerUsername": "example_retail", "caption": "hi"}]
+    item = list(spider().parse_items(json_response("https://api.apify.com/x", payload), TARGET))[0]
+    assert item["likes_count"] is None
+    assert item["comments_count"] is None
+    assert item["shares_count"] is None
+    assert item["views_count"] is None
+    assert item["hashtags"] == []
+    assert item["mentions"] == []
