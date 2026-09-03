@@ -403,3 +403,59 @@ def test_without_commit_to_business_tables_nothing_reaches_products_or_transacti
         assert cursor.fetchone()[0] == 0
         cursor.execute("SELECT count(*) FROM transactions WHERE tenant_id = %s;", (tenant_id,))
         assert cursor.fetchone()[0] == 0
+
+
+def test_commit_to_business_tables_defaults_currency_when_file_has_no_currency_column(conn, seeded_tenant_and_job):
+    """
+    The gap this closes: mocks/Electronics_For_Test.xlsx (a real 51,947-row
+    POS export) has headers Sale_ID/Date_Time/Product_ID/Product_Name/
+    Quantity/Unit_Price/Total_Price/Shift - RECOGNIZED-tier (Total_Price/
+    Date_Time both have synonyms), but with NO currency column at all.
+    Before this fix, every row's typed_fields would permanently lack
+    "currency", so _TRANSACTION_REQUIRED_FIELDS would never be satisfied
+    and zero rows would ever reach products/transactions, no matter how
+    clean the rest of the file was. companies.primary_currency (seeded as
+    'JOD' by seeded_tenant_and_job) must now fill that gap.
+    """
+    tenant_id, job_id = seeded_tenant_and_job
+    headers = ["product_name", "quantity", "unit_price", "transaction_date"]
+    rows = [{
+        "product_name": "No-Currency-Column Widget", "quantity": "2",
+        "unit_price": "10.00", "transaction_date": "2026-08-30",
+    }]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=headers, rows=rows,
+        conn=conn, commit_to_business_tables=True,
+    )
+    conn.commit()
+
+    assert summary.rows_committed == 1
+    outcome = summary.row_outcomes[0]
+    assert outcome.committed_table == "transactions"
+
+    txn = _committed_transaction(conn, outcome.committed_record_id)
+    assert txn is not None
+    _product_id, _quantity_sold, _unit_price, currency = txn
+    assert currency == "JOD"
+
+
+def test_commit_to_business_tables_still_leaves_blank_currency_cell_in_staging_when_column_exists(conn, seeded_tenant_and_job):
+    """
+    The precise boundary of the fix above: a file WITH a currency column
+    whose value is blank on one row must NOT be silently defaulted - that
+    would hide a real data-quality problem instead of surfacing it, the
+    opposite of this module's field-level PARTIAL philosophy. Only a file
+    with no currency column recognized AT ALL gets the tenant default.
+    """
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [dict(_template_row(), currency="")]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows,
+        conn=conn, commit_to_business_tables=True,
+    )
+    conn.commit()
+
+    assert summary.rows_committed == 0
+    assert summary.row_outcomes[0].committed_table is None

@@ -673,13 +673,28 @@ def process_records(
     commit_every) must not have this default on either, or every test run
     would leak real products/transactions rows into the test database.
     """
-    decimal_style, day_first = None, None
+    decimal_style, day_first, default_currency = None, None, None
     if conn is not None:
         locale = get_tenant_locale(conn, tenant_id)
         if locale is not None:
             decimal_style, day_first = locale.decimal_style, locale.date_day_first
+            default_currency = locale.primary_currency or None
 
     mode, header_mapping, coverage_ratio = _resolve_mode(headers, trusted_field_mapping)
+
+    # Scoped to the FILE, not the row: only when no column was recognized
+    # as currency at all (e.g. mocks/Electronics_For_Test.xlsx, a POS
+    # export with no currency column whatsoever) does a missing currency
+    # get the tenant's own primary_currency filled in below. A row whose
+    # file DOES have a currency column but left this one cell blank/invalid
+    # must still fall through to "incomplete, stays in staging" - silently
+    # substituting a default there would hide a real data-quality problem
+    # instead of surfacing it, the opposite of this module's field-level
+    # PARTIAL philosophy.
+    apply_default_currency = (
+        default_currency is not None and mode in _MAPPED_MODES and "currency" not in header_mapping.values()
+    )
+
     summary = IngestionSummary(
         tenant_id=tenant_id,
         job_id=job_id,
@@ -731,6 +746,20 @@ def process_records(
                 else:
                     result = _process_fallback_row(raw_row, tenant_id, redis_client, conn, decimal_style, day_first)
                     field_errors = {}
+
+                if apply_default_currency and not result.typed_fields.get("currency"):
+                    # The file itself carries no currency column (e.g. a POS
+                    # export whose amounts are implicitly in the business's
+                    # own home currency - confirmed live against
+                    # mocks/Electronics_For_Test.xlsx, which has none).
+                    # Falls back to companies.primary_currency rather than
+                    # leaving every row short of _TRANSACTION_REQUIRED_FIELDS
+                    # forever. Applied AFTER total_fields_extracted is
+                    # counted above, deliberately: this is an inferred
+                    # default, not something the file itself provided, so it
+                    # must never inflate the data_loss_pct/extraction-
+                    # accuracy metrics.
+                    result.typed_fields["currency"] = default_currency
 
                 parse_results.append(result)
                 summary.rows_processed += 1

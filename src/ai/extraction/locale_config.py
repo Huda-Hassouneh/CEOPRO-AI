@@ -41,12 +41,14 @@ class TenantLocale(NamedTuple):
     decimal_style: str
     supported_currencies: List[str]
     preferred_language: str
+    primary_currency: str
 
 
 def resolve_locale(
     country_code: str,
     supported_currencies: Optional[List[str]] = None,
     preferred_language: str = "en",
+    primary_currency: str = "",
 ) -> TenantLocale:
     code = (country_code or "").strip().upper()
     return TenantLocale(
@@ -55,25 +57,36 @@ def resolve_locale(
         decimal_style=COUNTRY_DECIMAL_STYLE.get(code, DEFAULT_DECIMAL_STYLE),
         supported_currencies=supported_currencies or [],
         preferred_language=preferred_language,
+        primary_currency=(primary_currency or "").strip().upper(),
     )
 
 
 def get_tenant_locale(conn, tenant_id: str) -> Optional[TenantLocale]:
     """
-    Reads companies.country_code / supported_currencies / preferred_language
-    (existing columns) for tenant_id and resolves them into a TenantLocale.
-    Returns None if the tenant row is missing or soft-deleted, so callers
-    can fall back to the global EXTRACTION_* env-var defaults rather than
-    fail outright.
+    Reads companies.country_code / supported_currencies / preferred_language /
+    primary_currency (existing columns) for tenant_id and resolves them into
+    a TenantLocale. Returns None if the tenant row is missing or
+    soft-deleted, so callers can fall back to the global EXTRACTION_*
+    env-var defaults rather than fail outright.
+
+    primary_currency rides along on this same query (rather than a second
+    round-trip) because ingestion_pipeline.py needs it for the identical
+    reason it needs decimal_style/date_day_first: resolved once per file,
+    not per row - see process_records()'s use of it as the fallback
+    currency for a source file (e.g. a POS export) whose amounts are
+    obviously in the tenant's own home currency but that carries no
+    explicit currency column at all.
     """
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT country_code, supported_currencies, preferred_language "
+            "SELECT country_code, supported_currencies, preferred_language, primary_currency "
             "FROM companies WHERE tenant_id = %s AND deleted_at IS NULL;",
             (tenant_id,),
         )
         row = cursor.fetchone()
     if row is None:
         return None
-    country_code, supported_currencies, preferred_language = row
-    return resolve_locale(country_code, list(supported_currencies or []), preferred_language or "en")
+    country_code, supported_currencies, preferred_language, primary_currency = row
+    return resolve_locale(
+        country_code, list(supported_currencies or []), preferred_language or "en", primary_currency or "",
+    )
