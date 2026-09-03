@@ -264,11 +264,15 @@ def _summary_response(job_id: str, summary) -> dict:
         "rows_processed": summary.rows_processed,
         "rows_partial": summary.rows_partial,
         "rows_failed": summary.rows_failed,
+        "rows_committed": summary.rows_committed,
         "data_loss_pct": summary.data_loss_pct,
         "header_coverage_ratio": summary.header_coverage_ratio,
         "minio_object_key": summary.minio_object_key,
         "row_outcomes": [
-            {"row_index": o.row_index, "mode": o.mode, "field_errors": o.field_errors, "error": o.error}
+            {
+                "row_index": o.row_index, "mode": o.mode, "field_errors": o.field_errors, "error": o.error,
+                "committed_table": o.committed_table, "committed_record_id": o.committed_record_id,
+            }
             for o in summary.row_outcomes
         ],
     }
@@ -337,7 +341,7 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
         summary = ingestion_pipeline.process_records(
             tenant_id=ctx.tenant_id, job_id=job_id, source_name=file.filename or f"upload{ext}",
             headers=headers, rows=rows, conn=conn, redis_client=None, minio_client=db.minio_client(),
-            commit_every=_EXTRACTION_COMMIT_EVERY,
+            commit_every=_EXTRACTION_COMMIT_EVERY, commit_to_business_tables=True,
         )
 
         job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "COMPLETED")
