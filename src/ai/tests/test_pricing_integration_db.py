@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 import psycopg2
 import pytest
 
-from src.ai.pricing import currency, data_access, pipeline
+from src.ai.pricing import currency, data_access, matching, pipeline
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -339,3 +339,145 @@ def test_run_price_recommendation_with_no_competitor_data_writes_unknown_evidenc
         assert cursor.fetchone()[0] == "UNKNOWN"
         cursor.execute("SELECT COUNT(*) FROM recommendation_outcomes WHERE tenant_id = %s;", (tenant_id,))
         assert cursor.fetchone()[0] == 0  # no outcome row when there's no recommendation
+
+
+def _insert_global_competitor(
+    conn, tenant_id: str, name: str, country_code: str = None, is_manufacturer: bool = False,
+) -> str:
+    global_competitor_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors "
+            "(global_competitor_id, competitor_name, visibility, added_by_tenant_id, country_code, is_manufacturer) "
+            "VALUES (%s, %s, 'PRIVATE', %s, %s, %s);",
+            (global_competitor_id, name, tenant_id, country_code, is_manufacturer),
+        )
+    return global_competitor_id
+
+
+def test_create_competitor_mapping_succeeds_for_a_relevant_same_country_competitor(conn):
+    """The straightforward, correct case: a same-country retail competitor must map cleanly."""
+    tenant_id = _insert_company(conn, "Jordan Grocer Co")  # _insert_company hardcodes country_code='JO'
+    product_id = _insert_product(conn, tenant_id, "Olive Oil 1L", 10.00)
+    competitor_id = _insert_global_competitor(conn, tenant_id, "Rival Grocer JO", country_code="JO")
+    conn.commit()
+
+    mapping_id = matching.create_competitor_mapping(conn, tenant_id, competitor_id, product_id)
+    conn.commit()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT tenant_id, global_competitor_id, product_id, is_active FROM competitor_product_mappings "
+            "WHERE mapping_id = %s;",
+            (mapping_id,),
+        )
+        row = cursor.fetchone()
+    assert row == (tenant_id, competitor_id, product_id, True)
+
+
+def test_create_competitor_mapping_rejects_a_geographically_irrelevant_competitor(conn):
+    """
+    The exact scenario flagged as a real gap: a competitor with no
+    presence in any country this tenant operates in (e.g. an India-only
+    business proposed as a competitor for a China-only restaurant) must
+    be refused, not silently mapped on name similarity alone.
+    """
+    tenant_id = _insert_company(conn, "Jordan Grocer Co")  # country_code='JO', no operating_countries
+    product_id = _insert_product(conn, tenant_id, "Olive Oil 1L", 10.00)
+    competitor_id = _insert_global_competitor(conn, tenant_id, "Unrelated India Business", country_code="IN")
+    conn.commit()
+
+    with pytest.raises(matching.CompetitorMappingError, match="IN"):
+        matching.create_competitor_mapping(conn, tenant_id, competitor_id, product_id)
+
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;", (tenant_id,))
+        assert cursor.fetchone()[0] == 0
+
+
+def test_create_competitor_mapping_allows_a_tenants_declared_operating_country(conn):
+    """A competitor outside the tenant's primary country but inside its declared operating_countries is still relevant."""
+    tenant_id = _insert_company(conn, "Multi-Country Retailer")
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE companies SET operating_countries = ARRAY['SA', 'AE'] WHERE tenant_id = %s;", (tenant_id,))
+    product_id = _insert_product(conn, tenant_id, "Dates 500g", 8.00)
+    competitor_id = _insert_global_competitor(conn, tenant_id, "Riyadh Grocer", country_code="SA")
+    conn.commit()
+
+    mapping_id = matching.create_competitor_mapping(conn, tenant_id, competitor_id, product_id)
+    assert mapping_id is not None
+
+
+def test_create_competitor_mapping_rejects_a_competitor_with_no_country_on_record(conn):
+    """Missing geography must fail closed, not be treated as 'assume relevant'."""
+    tenant_id = _insert_company(conn, "Jordan Grocer Co")
+    product_id = _insert_product(conn, tenant_id, "Olive Oil 1L", 10.00)
+    competitor_id = _insert_global_competitor(conn, tenant_id, "Unknown Location Business", country_code=None)
+    conn.commit()
+
+    with pytest.raises(matching.CompetitorMappingError, match="no country_code"):
+        matching.create_competitor_mapping(conn, tenant_id, competitor_id, product_id)
+
+
+def test_create_competitor_mapping_rejects_a_manufacturer(conn):
+    """
+    The other flagged logical flaw: the business that manufactures a
+    product is not a rival seller of it, even if same-country and even if
+    its name is an exact match (a manufacturer's own storefront/brand
+    page would otherwise pass geography and name-similarity checks).
+    """
+    tenant_id = _insert_company(conn, "Jordan Grocer Co")
+    product_id = _insert_product(conn, tenant_id, "Olive Oil 1L", 10.00)
+    manufacturer_id = _insert_global_competitor(
+        conn, tenant_id, "Olive Oil Original Manufacturer", country_code="JO", is_manufacturer=True,
+    )
+    conn.commit()
+
+    with pytest.raises(matching.CompetitorMappingError, match="manufacturer"):
+        matching.create_competitor_mapping(conn, tenant_id, manufacturer_id, product_id)
+
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;", (tenant_id,))
+        assert cursor.fetchone()[0] == 0
+
+
+def test_create_competitor_mapping_with_scrape_fields_is_visible_to_load_scrape_targets(conn):
+    """
+    End-to-end proof, not just an isolated unit check: a mapping created
+    with source_id/competitor_product_url/competitor_product_sku must
+    actually be the thing market_scraper/data_access.py::load_scrape_targets()
+    allocates for collection - the two modules agreeing on the same row
+    shape is the whole point of having create_competitor_mapping() set
+    these fields at all.
+    """
+    from src.market_scraper import data_access as scraper_data_access
+
+    tenant_id = _insert_company(conn, "Jordan Grocer Co")
+    product_id = _insert_product(conn, tenant_id, "Olive Oil 1L", 10.00)
+    competitor_id = _insert_global_competitor(conn, tenant_id, "Rival Grocer JO", country_code="JO")
+
+    source_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO data_sources "
+            "(source_id, tenant_id, source_name, source_type, collection_method, policy_status, "
+            " approval_reference, approved_by, approved_at, privacy_reviewed_at) "
+            "VALUES (%s, %s, 'Test Source', 'WEB_SCRAPE', 'WEB_SCRAPE', 'ALLOWED', 'test-ref', %s, now(), now());",
+            (source_id, tenant_id, str(uuid.uuid4())),
+        )
+    conn.commit()
+
+    mapping_id = matching.create_competitor_mapping(
+        conn, tenant_id, competitor_id, product_id,
+        source_id=source_id,
+        competitor_product_url="https://rival-grocer.example/olive-oil-1l",
+        competitor_product_sku="RG-OO-1L",
+    )
+    conn.commit()
+
+    targets = scraper_data_access.load_scrape_targets(conn, tenant_id, source_id)
+    assert len(targets) == 1
+    assert targets[0]["mapping_id"] == mapping_id
+    assert targets[0]["product_url"] == "https://rival-grocer.example/olive-oil-1l"
+    assert targets[0]["external_sku"] == "RG-OO-1L"
+    assert targets[0]["competitor_name"] == "Rival Grocer JO"

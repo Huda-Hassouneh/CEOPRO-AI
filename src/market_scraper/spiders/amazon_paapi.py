@@ -170,7 +170,7 @@ class AmazonPricingSpider(scrapy.Spider):
             "mapping_id": target["mapping_id"], "product_id": target["product_id"],
             "global_competitor_id": target["global_competitor_id"],
             "competitor_name": target["competitor_name"], "source_name": self.source_name,
-            "source_type": "official_api", "collection_method": self.collection_method,
+            "source_type": "official_api", "source_platform": "amazon", "collection_method": self.collection_method,
             "source_status": "ALLOWED", "is_exact_data": True,
             "match_score": 1.0, "match_method": "EXACT_SKU",
             "safety_status": "QUARANTINED" if safety_flags else "SAFE",

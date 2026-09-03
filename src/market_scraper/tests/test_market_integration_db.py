@@ -232,3 +232,87 @@ def test_retention_deletes_expired_raw_staging_data(seeded):
     cursor.execute("SELECT staging_id FROM market_observation_staging WHERE staging_id = %s;", (first["stage"],))
     assert cursor.fetchone() is None
     connection.close()
+
+
+def test_engagement_signals_persist_and_are_searchable_by_product_and_competitor(seeded):
+    """
+    The comprehensive market-data-record requirement: a promoted
+    observation must carry engagement signals (likes/comments/shares/
+    views/hashtags/mentions/author/media type) as real, typed, indexed
+    columns - not just buried in raw_payload - and be findable by product
+    OR by competitor without a join, via the denormalized product_id/
+    global_competitor_id this migration backfills from mapping_id.
+    """
+    first, _ = seeded
+    connection, cursor = scoped_app_connection(first)
+    social_post = market_item(
+        first,
+        source_platform="instagram", country_code="JO",
+        author_name="Example Retail", author_handle="example_retail",
+        likes_count=1200, comments_count=45, shares_count=12, views_count=9000,
+        hashtags=["sale", "newarrival"], mentions=["@partner_brand"],
+        media_type="video", published_at="2026-08-29T12:00:00Z",
+        engagement_captured_at="2026-08-30T00:00:00Z",
+    )
+    social_post["_staging_id"] = stage_record(connection, social_post)
+    result = save_market_record(connection, social_post)
+    assert result["status"] == "PROMOTED"
+
+    cursor.execute(
+        """
+        SELECT source_platform, country_code, author_name, author_handle,
+               likes_count, comments_count, shares_count, views_count,
+               hashtags, mentions, media_type, validation_status,
+               product_id, global_competitor_id
+        FROM market_observations WHERE observation_id = %s;
+        """,
+        (result["observation_id"],),
+    )
+    row = cursor.fetchone()
+    assert row[0] == "instagram"
+    assert row[1] == "JO"
+    assert row[2] == "Example Retail"
+    assert row[3] == "example_retail"
+    assert row[4:8] == (1200, 45, 12, 9000)
+    assert row[8] == ["sale", "newarrival"]
+    assert row[9] == ["@partner_brand"]
+    assert row[10] == "video"
+    assert row[11] == "PROMOTED"
+    assert str(row[12]) == first["product"]
+    assert str(row[13]) == first["competitor"]
+
+    # Search by product, no join required.
+    cursor.execute(
+        "SELECT observation_id FROM market_observations WHERE tenant_id = %s AND product_id = %s;",
+        (first["tenant"], first["product"]),
+    )
+    assert (result["observation_id"],) in [(str(r[0]),) for r in cursor.fetchall()]
+
+    # Search by competitor, no join required.
+    cursor.execute(
+        "SELECT observation_id FROM market_observations WHERE tenant_id = %s AND global_competitor_id = %s;",
+        (first["tenant"], first["competitor"]),
+    )
+    assert (result["observation_id"],) in [(str(r[0]),) for r in cursor.fetchall()]
+    connection.close()
+
+
+def test_engagement_signals_default_to_null_for_a_source_without_them(seeded):
+    """Amazon/Google/books-style items that never set the new keys must insert cleanly with NULLs, not error."""
+    first, _ = seeded
+    connection, cursor = scoped_app_connection(first)
+    plain_item = market_item(first)  # no engagement keys at all, same as every pre-existing spider's item shape
+    plain_item["_staging_id"] = stage_record(connection, plain_item)
+    result = save_market_record(connection, plain_item)
+    assert result["status"] == "PROMOTED"
+
+    cursor.execute(
+        "SELECT likes_count, hashtags, mentions, source_platform FROM market_observations WHERE observation_id = %s;",
+        (result["observation_id"],),
+    )
+    likes, hashtags, mentions, platform = cursor.fetchone()
+    assert likes is None
+    assert hashtags == []
+    assert mentions == []
+    assert platform is None
+    connection.close()

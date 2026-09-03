@@ -277,3 +277,185 @@ def test_without_commit_every_progress_stays_uncommitted_until_the_caller_commit
             assert cursor.fetchone() == (0,)  # nothing committed yet - still the pre-run value
     finally:
         other.close()
+
+
+def _committed_transaction(conn, transaction_id):
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT product_id, quantity_sold, unit_price, original_currency FROM transactions WHERE transaction_id = %s;",
+            (transaction_id,),
+        )
+        return cursor.fetchone()
+
+
+def test_commit_to_business_tables_writes_product_and_transaction(conn, seeded_tenant_and_job):
+    """
+    The gap this closes: import_staging_rows.committed_table/
+    committed_record_id existed in the schema with nothing anywhere in
+    src/ai/extraction/ ever setting them - every successfully-ingested row
+    stopped at staging forever. With commit_to_business_tables=True, a row
+    whose typed_fields cover the full canonical sales-transaction shape
+    must land a real products row and a real transactions row, and the
+    staging row itself must be marked COMMITTED with both columns set.
+    """
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [_template_row(product_name="Test Widget XYZ")]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows,
+        conn=conn, commit_to_business_tables=True,
+    )
+    conn.commit()
+
+    assert summary.rows_committed == 1
+    outcome = summary.row_outcomes[0]
+    assert outcome.committed_table == "transactions"
+    assert outcome.committed_record_id is not None
+
+    status, _errors, _raw = _staging_row(conn, outcome.staging_row_id)
+    assert status == "COMMITTED"
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT committed_table, committed_record_id FROM import_staging_rows WHERE staging_row_id = %s;",
+            (outcome.staging_row_id,),
+        )
+        committed_table, committed_record_id = cursor.fetchone()
+    assert committed_table == "transactions"
+    assert str(committed_record_id) == outcome.committed_record_id
+
+    txn = _committed_transaction(conn, outcome.committed_record_id)
+    assert txn is not None
+    _product_id, quantity_sold, unit_price, currency = txn
+    assert quantity_sold == 5
+    assert str(unit_price) == "19.9900"
+    assert currency == "JOD"
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT product_name, source FROM products WHERE tenant_id = %s AND product_name->>'en' = 'Test Widget XYZ';",
+            (tenant_id,),
+        )
+        product_row = cursor.fetchone()
+    assert product_row is not None
+    assert product_row[1] == "IMPORTED"
+
+
+def test_commit_to_business_tables_dedups_repeated_product_name(conn, seeded_tenant_and_job):
+    """The same product named across many rows must resolve to one products row, not one per row."""
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [_template_row(product_name="Repeated Product") for _ in range(5)]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows,
+        conn=conn, commit_to_business_tables=True,
+    )
+    conn.commit()
+
+    assert summary.rows_committed == 5
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT count(*) FROM products WHERE tenant_id = %s AND product_name->>'en' = 'Repeated Product';",
+            (tenant_id,),
+        )
+        assert cursor.fetchone()[0] == 1
+
+
+def test_commit_to_business_tables_leaves_incomplete_rows_in_staging(conn, seeded_tenant_and_job):
+    """
+    A row missing one of the required transaction fields (here: currency)
+    must NOT be committed, even with commit_to_business_tables=True - it
+    stays safely in import_staging_rows for a human to resolve, exactly
+    the same "commit what's complete" philosophy this module already
+    applies to field-level PARTIAL validation.
+    """
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [dict(_template_row(), currency="")]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows,
+        conn=conn, commit_to_business_tables=True,
+    )
+    conn.commit()
+
+    assert summary.rows_committed == 0
+    outcome = summary.row_outcomes[0]
+    assert outcome.committed_table is None
+
+    status, _errors, _raw = _staging_row(conn, outcome.staging_row_id)
+    assert status in ("VALID", "PARTIAL")  # never COMMITTED
+
+
+def test_without_commit_to_business_tables_nothing_reaches_products_or_transactions(conn, seeded_tenant_and_job):
+    """The default (False) must be unchanged: no products/transactions writes at all, matching every pre-existing test's assumption."""
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [_template_row()]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows, conn=conn,
+    )
+    conn.commit()
+
+    assert summary.rows_committed == 0
+    assert summary.row_outcomes[0].committed_table is None
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM products WHERE tenant_id = %s;", (tenant_id,))
+        assert cursor.fetchone()[0] == 0
+        cursor.execute("SELECT count(*) FROM transactions WHERE tenant_id = %s;", (tenant_id,))
+        assert cursor.fetchone()[0] == 0
+
+
+def test_commit_to_business_tables_defaults_currency_when_file_has_no_currency_column(conn, seeded_tenant_and_job):
+    """
+    The gap this closes: mocks/Electronics_For_Test.xlsx (a real 51,947-row
+    POS export) has headers Sale_ID/Date_Time/Product_ID/Product_Name/
+    Quantity/Unit_Price/Total_Price/Shift - RECOGNIZED-tier (Total_Price/
+    Date_Time both have synonyms), but with NO currency column at all.
+    Before this fix, every row's typed_fields would permanently lack
+    "currency", so _TRANSACTION_REQUIRED_FIELDS would never be satisfied
+    and zero rows would ever reach products/transactions, no matter how
+    clean the rest of the file was. companies.primary_currency (seeded as
+    'JOD' by seeded_tenant_and_job) must now fill that gap.
+    """
+    tenant_id, job_id = seeded_tenant_and_job
+    headers = ["product_name", "quantity", "unit_price", "transaction_date"]
+    rows = [{
+        "product_name": "No-Currency-Column Widget", "quantity": "2",
+        "unit_price": "10.00", "transaction_date": "2026-08-30",
+    }]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=headers, rows=rows,
+        conn=conn, commit_to_business_tables=True,
+    )
+    conn.commit()
+
+    assert summary.rows_committed == 1
+    outcome = summary.row_outcomes[0]
+    assert outcome.committed_table == "transactions"
+
+    txn = _committed_transaction(conn, outcome.committed_record_id)
+    assert txn is not None
+    _product_id, _quantity_sold, _unit_price, currency = txn
+    assert currency == "JOD"
+
+
+def test_commit_to_business_tables_still_leaves_blank_currency_cell_in_staging_when_column_exists(conn, seeded_tenant_and_job):
+    """
+    The precise boundary of the fix above: a file WITH a currency column
+    whose value is blank on one row must NOT be silently defaulted - that
+    would hide a real data-quality problem instead of surfacing it, the
+    opposite of this module's field-level PARTIAL philosophy. Only a file
+    with no currency column recognized AT ALL gets the tenant default.
+    """
+    tenant_id, job_id = seeded_tenant_and_job
+    rows = [dict(_template_row(), currency="")]
+
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows,
+        conn=conn, commit_to_business_tables=True,
+    )
+    conn.commit()
+
+    assert summary.rows_committed == 0
+    assert summary.row_outcomes[0].committed_table is None

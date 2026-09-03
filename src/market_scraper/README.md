@@ -161,7 +161,60 @@ must be handled by their corresponding collector rather than being forced throug
 `connection_credentials_vault` with its required credentials before running a collection.
 
 Each `competitor_product_mappings` row scheduled for collection must reference the reviewed
-`source_id` and contain an approved `competitor_product_url`.
+`source_id` and contain an approved `competitor_product_url` - `src/ai/pricing/matching.py`'s
+`create_competitor_mapping()` is the one place a mapping should be created (it also enforces
+geographic relevance and refuses to map a product's own manufacturer as a competitor); pass its
+`source_id`/`competitor_product_url`/`competitor_product_sku` parameters so the mapping is actually
+visible to `load_scrape_targets()`, not just recorded.
+
+### Paid social data provider (Instagram / Facebook / TikTok)
+
+None of these three platforms offers a public API exposing a competitor's own product/post data,
+and their Terms of Service prohibit automated collection of their pages directly - this repository
+does not scrape them itself. `spiders/social_data_provider.py` instead wraps a paid, licensed
+third-party data provider's own REST API (modeled on Apify's Actor API, since it offers published,
+maintained actors for all three platforms behind one consistent request pattern); the provider, not
+this codebase, carries the compliance relationship with each platform.
+
+This is a real collector, not a stub, but it is deliberately a "nothing works until you pay for it"
+section: with no `connection_credentials_vault.api_token` set, it raises
+`PaidProviderNotConfiguredError` immediately and never sends a request - nothing else in the
+pipeline breaks or even notices it's unconfigured, exactly like `amazon_paapi`/`google_places`'s
+existing missing-credentials behavior.
+
+To actually use it once you have a provider account:
+
+```bash
+python -m src.market_scraper.policy_cli \
+  --tenant-id TENANT_UUID \
+  --source-id SOURCE_UUID \
+  --source-url https://api.apify.com/ \
+  --public-web \
+  --terms-permit yes \
+  --technical-controls-permit yes \
+  --approval-reference SECURITY-TICKET-124 \
+  --approved-by REVIEWER_USER_UUID \
+  --retention-days 30 \
+  --rate-limit 30 \
+  --collector social_data_provider
+```
+
+Then set that source's `collector_config` to pick a platform (`instagram`, `facebook`, or `tiktok`)
+and, optionally, override the actor/request shape:
+
+```json
+{"platform": "instagram", "actor_id": "apify/instagram-scraper"}
+```
+
+and its `connection_credentials_vault` to `{"api_token": "your-apify-token"}`. Each
+`competitor_product_mappings.competitor_product_sku` (or `competitor_product_url`'s handle) should
+hold the target's profile/page/account handle on that platform.
+
+**Verify before relying on this in production**: the default request-body shapes in
+`_run_input()` are this module's best-effort guess at each actor's current input schema, not a
+verified guarantee - actor schemas are the provider's to change, and multiple competing actors
+exist per platform with different shapes. Check the actual actor's input schema on its Apify Store
+page, and override via `collector_config.run_input_template` if it doesn't match.
 
 ## Run a mapped collection
 

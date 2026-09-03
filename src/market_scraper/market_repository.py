@@ -119,9 +119,17 @@ def save_market_record(conn, item: dict) -> dict:
                 (tenant_id, source_id, job_id, mapping_id, product_name, category, description,
                  canonical_url, image_url, external_id, rating, review_count, stock_quantity,
                  match_score, match_method, page_text, safety_status, safety_flags,
-                 content_hash, raw_payload, observed_at)
+                 content_hash, raw_payload, observed_at,
+                 product_id, global_competitor_id, source_platform, country_code,
+                 price_amount, currency, is_available, published_at,
+                 author_name, author_handle, likes_count, comments_count, shares_count, views_count,
+                 engagement_captured_at, hashtags, mentions, media_type)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s)
+                    %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
+                    %s, %s::jsonb, %s::jsonb, %s)
             RETURNING observation_id;
             """,
             (
@@ -136,6 +144,21 @@ def save_market_record(conn, item: dict) -> dict:
                     default=str,
                 ),
                 item["captured_at"],
+                # Comprehensive market-data-record fields (spec: search by
+                # product and competitor, capture all available engagement/
+                # market signals) - all read via .get() with a None default
+                # so a spider that doesn't have a given signal (e.g. Amazon
+                # PA-API has no "likes") simply stores NULL, never breaks.
+                item.get("product_id"), item.get("global_competitor_id"),
+                item.get("source_platform"), item.get("country_code"),
+                item.get("price_amount"), item.get("currency"), item.get("is_available"),
+                item.get("published_at"),
+                item.get("author_name"), item.get("author_handle"),
+                item.get("likes_count"), item.get("comments_count"),
+                item.get("shares_count"), item.get("views_count"),
+                item.get("engagement_captured_at"),
+                json.dumps(item.get("hashtags") or []), json.dumps(item.get("mentions") or []),
+                item.get("media_type"),
             ),
         )
         observation_id = str(cursor.fetchone()[0])
