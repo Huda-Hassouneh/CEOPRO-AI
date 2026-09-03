@@ -196,6 +196,7 @@ class SocialDataProviderSpider(scrapy.Spider):
         page_text = (title or "")[:50_000]
         safety_flags = scan_external_text(page_text) if page_text else []
         price_amount, currency = self._extract_price(raw_item)
+        engagement = self._extract_engagement(raw_item)
         captured_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         return {
@@ -203,7 +204,8 @@ class SocialDataProviderSpider(scrapy.Spider):
             "mapping_id": target["mapping_id"], "product_id": target["product_id"],
             "global_competitor_id": target["global_competitor_id"],
             "competitor_name": target["competitor_name"], "source_name": self.source_name,
-            "source_type": "paid_data_provider", "collection_method": self.collection_method,
+            "source_type": "paid_data_provider", "source_platform": self.platform,
+            "collection_method": self.collection_method,
             "source_status": "ALLOWED", "is_exact_data": False,
             "match_score": score, "match_method": "FUZZY_NAME",
             "safety_status": "QUARANTINED" if safety_flags else "SAFE",
@@ -218,6 +220,44 @@ class SocialDataProviderSpider(scrapy.Spider):
             "product_url": raw_item.get("url") or target["product_url"],
             "image_url": raw_item.get("displayUrl") or raw_item.get("imageUrl"),
             "reviews": [], "captured_at": captured_at,
+            **engagement,
+        }
+
+    @staticmethod
+    def _extract_engagement(raw_item: dict) -> dict:
+        """
+        Social engagement signals - the whole reason a post/profile scrape
+        is worth more than a plain product listing. Field names are the
+        common ones across Instagram/TikTok/Facebook actor outputs (e.g.
+        Apify's own instagram-scraper/tiktok-scraper/facebook-pages-
+        scraper), tried with graceful fallbacks - same "best-effort
+        default, verify against the real actor schema" caveat as this
+        module's own docstring and _run_input() already carry; a field
+        this specific actor doesn't provide is simply None, never guessed.
+        """
+        author_name = raw_item.get("ownerFullName") or raw_item.get("authorName") or raw_item.get("pageName")
+        author_meta = raw_item.get("authorMeta") if isinstance(raw_item.get("authorMeta"), dict) else {}
+        author_handle = raw_item.get("ownerUsername") or author_meta.get("name")
+        hashtags = raw_item.get("hashtags") or raw_item.get("tags") or []
+        mentions = raw_item.get("mentions") or raw_item.get("taggedUsers") or []
+        published_raw = raw_item.get("timestamp") or raw_item.get("publishedAt") or raw_item.get("createTime")
+        published_at = None
+        if isinstance(published_raw, str):
+            published_at = published_raw
+        elif isinstance(published_raw, (int, float)):
+            published_at = datetime.fromtimestamp(published_raw, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        return {
+            "author_name": clean_text(author_name) if author_name else None,
+            "author_handle": author_handle,
+            "likes_count": raw_item.get("likesCount") or raw_item.get("diggCount") or raw_item.get("likes"),
+            "comments_count": raw_item.get("commentsCount") or raw_item.get("commentCount"),
+            "shares_count": raw_item.get("sharesCount") or raw_item.get("shareCount"),
+            "views_count": raw_item.get("videoViewCount") or raw_item.get("playCount") or raw_item.get("viewsCount"),
+            "hashtags": hashtags if isinstance(hashtags, list) else [],
+            "mentions": mentions if isinstance(mentions, list) else [],
+            "media_type": raw_item.get("type") or raw_item.get("mediaType"),
+            "published_at": published_at,
+            "engagement_captured_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
     @staticmethod
