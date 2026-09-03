@@ -23,19 +23,26 @@ a model small enough to run lightly on a typical machine would trade
 away the multilingual accuracy this platform's 16-country, cross-dialect
 Arabic requirement needs.
 
-DEFAULT_MODEL was originally set to a Qwen model on the (correct, at the
-time) assumption that a full-size Qwen would be available and
-production-ready on Groq - live verification against
-https://console.groq.com/docs/models (2026-09-01, real request from a
-user's own running service, confirmed by a 404 "model does not exist"
-from Groq itself) found this was wrong: Groq's only Qwen models
-(qwen/qwen3.6-27b, qwen/qwen3.8-27b) are preview-only, and Groq's own
-docs say preview models "should not be used in production ... as they
-may be discontinued." Switched to llama-3.1-8b-instant - Meta's
-70B-parameter model, listed under Groq's *production* chat-completion
-models as of the same verification. Model catalogs on hosted providers
-change; re-check https://console.groq.com/docs/models before relying on
-this long-term and override via GROQ_MODEL if it moves again.
+DEFAULT_MODEL has moved twice, both times because a hosted provider's
+catalog changed under us - re-check https://console.groq.com/docs/models
+before relying on this long-term and override via GROQ_MODEL if it moves
+again:
+1. Originally a Qwen model, on the (correct, at the time) assumption a
+   full-size Qwen would be production-ready on Groq - live verification
+   (2026-09-01) found Groq's only Qwen models are preview-only.
+2. Switched to llama-3.1-8b-instant. Live-verified again on 2026-09-03
+   with a real API key, direct HTTP calls (bypassing this module) to
+   every candidate model returned 404 "does not exist or you do not have
+   access to it" for llama-3.1-8b-instant AND llama-3.3-70b-versatile,
+   and 400 "decommissioned" for llama3-8b-8192/llama3-70b-8192/
+   gemma2-9b-it - Groq's catalog had moved on again. openai/gpt-oss-20b
+   was the first model in that same live test to return a real 200 with
+   correct `choices[0].message.content` - switched to it. Notably, gpt-oss
+   models return a *separate* `message.reasoning` field alongside
+   `content` (chain-of-thought Groq exposes distinctly) - this module
+   only ever reads `content` (see _post_with_retry's caller below), so
+   that reasoning text is correctly ignored, not accidentally surfaced
+   to the end user.
 
 This module is the *only* place in src/ai/rag/ that knows an LLM
 provider exists - pipeline.py, data_access.py, and everything else stay
@@ -57,10 +64,9 @@ logger = logging.getLogger("CEOPRO_AI_RAG_LLM")
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# See this module's own docstring: verified live against Groq's production
-# model catalog (2026-09-01) - a 70B-class Llama model is the reasoning for
-# "accurate" - override via GROQ_MODEL for a different size/provider.
-DEFAULT_MODEL = "llama-3.1-8b-instant"
+# See this module's own docstring: verified live with a real key on
+# 2026-09-03 - override via GROQ_MODEL for a different size/provider.
+DEFAULT_MODEL = "openai/gpt-oss-20b"
 MODEL_NAME = os.getenv("GROQ_MODEL", DEFAULT_MODEL)
 
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("GROQ_TIMEOUT_SECONDS", "20"))

@@ -550,9 +550,60 @@ def _load_competitor_price_records(conn, tenant_id: str, product_id: str) -> lis
         ]
 
 
+
+# Static table-ownership map: (table, populated_by, consumed_by). Kept as
+# one explicit list rather than derived from code introspection - it's
+# documentation of intent, and a table gaining a new writer/reader should
+# be a deliberate edit here, not something that silently falls out of a
+# grep. Every table any stage in this orchestrator actually touches is
+# listed - this is what answers "who populates/consumes each table".
+_TABLE_OWNERSHIP = [
+    ("import_staging_rows", "extraction.ingestion_pipeline.process_records() (stage 1)",
+     "extraction.promotion.promote_ingested_rows() (stage 2) - reads eligible rows, then flags them "
+     "committed_table/committed_record_id/validation_status='COMMITTED'"),
+    ("products", "extraction.promotion.promote_ingested_rows() (stage 2)",
+     "forecasting.pipeline.run_forecast(), pricing.pipeline.run_price_recommendation(), "
+     "market_scraper.discovery (competitor_product_mappings.product_id) (stages 3, 5, 6)"),
+    ("transactions", "extraction.promotion.promote_ingested_rows() (stage 2)",
+     "forecasting.pipeline.run_forecast() (stage 5) - reads a product's transaction history"),
+    ("global_competitors", "market_scraper.discovery.register_tenant_scoped_competitor() (stage 3)",
+     "market_scraper.intelligence.refresh_score_snapshots(), sentiment summaries, pricing's competitor "
+     "snapshot citations (stages 4, 6)"),
+    ("tenant_competitors", "market_scraper.discovery.register_tenant_scoped_competitor() (stage 3)",
+     "market_scraper.intelligence.refresh_score_snapshots() (stage 4) - scopes scoring to a tenant's "
+     "own tracked competitors"),
+    ("data_sources", "market_scraper.discovery.register_tenant_scoped_competitor() (stage 3)",
+     "market_scraper.policy.evaluate_source()/data_access.record_policy_decision() (stage 3) - the "
+     "policy decision a source is collected under"),
+    ("competitor_product_mappings", "market_scraper.discovery.register_tenant_scoped_competitor() (stage 3)",
+     "pricing.pipeline.run_price_recommendation() (stage 6) - joins to find this product's competitor "
+     "price rows"),
+    ("competitor_prices", "market_scraper's spider/persistence.py, via market_scraper.cli subprocess "
+     "(stage 3) - only when a candidate's policy status is genuinely ALLOWED",
+     "pricing.pipeline.run_price_recommendation() (stage 6)"),
+    ("reviews", "market_scraper's spider/persistence.py (subject_type='COMPETITOR', stage 3)",
+     "sentiment.pipeline.classify_and_store_reviews() (stage 4)"),
+    ("sentiment_results", "sentiment.pipeline.classify_and_store_reviews() (stage 4)",
+     "sentiment.pipeline.get_subject_sentiment_summary() (stage 4) - aggregated per competitor/product"),
+    ("competitor_score_snapshots", "market_scraper.intelligence.refresh_score_snapshots() (stage 4)",
+     "not yet read by any stage in this orchestrator - available for a future competitor-scoring UI/API"),
+    ("demand_forecasts", "forecasting.pipeline.run_forecast() (stage 5)",
+     "this RAG-grounding document (stage 7), cited to the chat user"),
+    ("recommendation_outcomes", "pricing.pipeline.run_price_recommendation() (stage 6)",
+     "this RAG-grounding document (stage 7), cited to the chat user"),
+    ("evidence_records", "forecasting.pipeline / pricing.pipeline / sentiment.pipeline (stages 4-6) - "
+     "one row per model output, linking it to the DB rows it was computed from",
+     "this RAG-grounding document's own [Source: ...] citations (stage 7) - the evidence_id named next "
+     "to each fact below is a real row here"),
+    ("rag_documents_metadata / rag_document_chunks", "rag.pipeline.ingest_pending_documents() (stage 7) "
+     "- chunks and embeds this very document",
+     "rag.pipeline.run_retrieval()/llm_client.answer_query() (stage 8 and the notebook chat cell)"),
+]
+
+
 def _build_summary_document(
     conn, tenant_id: str, mock_file: str, row_count: int, product_ids, forecast_results, pricing_results,
-    sentiment_summaries: list,
+    sentiment_summaries: list, extraction_details: dict = None, discoveries: list = None,
 ) -> str:
     """
     Every fact below carries an explicit [Source: ...] annotation naming the
@@ -560,6 +611,8 @@ def _build_summary_document(
     the model to cite these verbatim when asked about provenance, so the
     citation has to actually be true, not just plausible-sounding.
     """
+    extraction_details = extraction_details or {}
+    discoveries = discoveries or []
     lines = [
         "End-to-End Pipeline Run Summary",
         "",
@@ -584,6 +637,51 @@ def _build_summary_document(
         "table, evidence_records table].",
         "",
     ]
+
+    lines.append("## Data Pipeline & Table Ownership")
+    lines.append(
+        "Every table this pipeline touches, who writes it, and who reads it - "
+        "[Source: this orchestrator's own stage functions, scripts/run_e2e_pipeline.py]."
+    )
+    for table, populated_by, consumed_by in _TABLE_OWNERSHIP:
+        lines.append(f"- `{table}`: populated by {populated_by}; consumed by {consumed_by}.")
+    lines.append("")
+
+    if extraction_details:
+        lines.append("## Extraction Summary")
+        lines.append(
+            f"{extraction_details.get('row_count', row_count)} rows read from "
+            f"'{os.path.basename(mock_file)}' in {extraction_details.get('file_read_seconds', '?')}s, "
+            f"processed in {extraction_details.get('process_records_seconds', '?')}s "
+            f"({extraction_details.get('rows_per_second', '?')} rows/sec). "
+            f"{extraction_details.get('rows_processed', '?')} processed, "
+            f"{extraction_details.get('rows_partial', '?')} partial, "
+            f"{extraction_details.get('rows_failed', '?')} failed, "
+            f"{extraction_details.get('data_loss_pct', '?')}% data loss "
+            "[Source: import_staging_rows table, ingestion_jobs table]."
+        )
+        lines.append("")
+
+    if discoveries:
+        lines.append("## Competitor Discovery")
+        lines.append(
+            f"{len(discoveries)} candidate competitor URL(s) discovered and logged this run "
+            "(every candidate is recorded regardless of whether it was ultimately scraped - "
+            "[Source: global_competitors table, competitor_product_mappings table, data_sources table])."
+        )
+        for d in discoveries:
+            if "error" in d and "policy_status" not in d:
+                lines.append(f"- {d['product_name']}: candidate {d['url']} failed to register: {d['error']}.")
+                continue
+            outcome = "scraped" if d.get("scraped") else "logged, not scraped"
+            reason = ""
+            if not d.get("scraped"):
+                reason = f" (policy_status={d.get('policy_status')}"
+                if d.get("is_manufacturer_or_wholesale"):
+                    reason += ", manufacturer/wholesale - deprioritized"
+                reason += ")"
+            lines.append(f"- {d['product_name']}: {d.get('title') or d['url']} - {outcome}{reason}.")
+        lines.append("")
 
     if sentiment_summaries:
         lines.append("## Competitor Review Sentiment")
@@ -655,6 +753,7 @@ def _build_summary_document(
 def stage_rag_grounding(
     tenant_id: str, user_id: str, product_ids: list, forecast_results: dict, pricing_results: dict,
     sentiment_summaries: list, mock_file: str, row_count: int,
+    extraction_details: dict = None, discoveries: list = None,
 ) -> Stage:
     stage = Stage("7_rag_grounding")
     if not product_ids:
@@ -665,7 +764,7 @@ def stage_rag_grounding(
     try:
         summary_text = _build_summary_document(
             conn, tenant_id, mock_file, row_count, product_ids, forecast_results, pricing_results,
-            sentiment_summaries,
+            sentiment_summaries, extraction_details=extraction_details, discoveries=discoveries,
         )
         content = summary_text.encode("utf-8")
         object_key = f"{tenant_id}/e2e-pipeline-summary-{uuid.uuid4()}.txt"
@@ -796,6 +895,7 @@ def main():
         stage7 = stage_rag_grounding(
             tenant_id, user_id, product_ids, forecast_results, pricing_results, sentiment_summaries,
             mock_file=args.mock_file, row_count=stage1.details.get("row_count", 0),
+            extraction_details=stage1.details, discoveries=stage3.details.get("discoveries", []),
         )
         report["stages"].append(stage7.to_dict())
         print(f"[{stage7.name}] {stage7.status}")
