@@ -26,6 +26,8 @@ candidate URL as evidence that a seller was found, per spec: "log the
 details it did find along with the exact URL discovered."
 """
 import json
+import urllib.error
+import urllib.request
 import urllib.robotparser
 from dataclasses import dataclass
 from typing import Optional
@@ -76,17 +78,45 @@ class DiscoveryDecision:
     robots_evidence: Optional[str]
 
 
+_ROBOTS_FETCH_TIMEOUT = 15
+
+
 def _fetch_robots_allows(url: str) -> Optional[bool]:
-    """True/False from a real robots.txt fetch; None if robots.txt itself
-    couldn't be read - never treated as silent permission by the caller."""
+    """
+    True/False from a real robots.txt fetch; None if robots.txt itself
+    couldn't be read - never treated as silent permission by the caller.
+
+    Reimplements RobotFileParser.read()'s own fetch (same HTTP-status
+    handling: 401/403 -> disallow_all, other 4xx -> allow_all, matching
+    the real convention that a missing robots.txt means unrestricted) but
+    with an explicit timeout - the stdlib's own .read() calls
+    urllib.request.urlopen() with NO timeout at all, a real hang risk this
+    module lived with silently until a caller with enough concurrent
+    robots.txt fetches (direct_search.py's per-domain lookups, run in an
+    8-worker thread pool) exposed it live: a single unresponsive server
+    left the whole run stuck indefinitely instead of failing fast into
+    the "unreviewed, not permitted" path this function already correctly
+    returns for every other failure mode.
+    """
     parsed = urlsplit(url)
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
     parser = urllib.robotparser.RobotFileParser()
     parser.set_url(robots_url)
     try:
-        parser.read()
+        f = urllib.request.urlopen(robots_url, timeout=_ROBOTS_FETCH_TIMEOUT)
+    except urllib.error.HTTPError as err:
+        if err.code in (401, 403):
+            parser.disallow_all = True
+        elif 400 <= err.code < 500:
+            parser.allow_all = True
+        else:
+            return None
+        err.close()
     except Exception:
         return None
+    else:
+        raw = f.read()
+        parser.parse(raw.decode("utf-8", "surrogateescape").splitlines())
     return parser.can_fetch("*", url)
 
 

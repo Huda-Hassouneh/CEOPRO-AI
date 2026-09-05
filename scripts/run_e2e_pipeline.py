@@ -8,11 +8,16 @@ across all models" run before mobile/web backend integration begins.
 
     1. Extraction        - mocks/e2e_pipeline_demo.csv -> ingestion_pipeline.process_records()
     2. Promotion          - extraction.promotion.promote_ingested_rows() -> products/transactions
-    3. Competitor scraping - real dynamic discovery (market_scraper/discovery.py), subprocess-run
-                              market_scraper.cli (Scrapy's CrawlerProcess/Twisted reactor can only
-                              start once per process, so this must be a subprocess, never imported
-                              in-process) - persistence.py already writes any scraped reviews into
-                              `reviews` (subject_type='COMPETITOR') as a side effect of this stage
+    3. Competitor scraping - real dynamic discovery: candidate URLs come from
+                              market_scraper/direct_search.py's live, no-paid-API site search
+                              (schema.org SearchAction, real per-domain HTTP fetches) merged with
+                              a small manually-verified list, then market_scraper/discovery.py's
+                              policy engine (robots.txt, manufacturer filter) decides what actually
+                              gets scraped via a subprocess-run market_scraper.cli (Scrapy's
+                              CrawlerProcess/Twisted reactor can only start once per process, so
+                              this must be a subprocess, never imported in-process) - persistence.py
+                              already writes any scraped reviews into `reviews`
+                              (subject_type='COMPETITOR') as a side effect of this stage
     4. Market analysis     - market_scraper.analysis_worker.analyze_tenant(): classifies those
                               scraped reviews (sentiment/pipeline.py) and refreshes competitor score
                               snapshots (intelligence.py) - the same function the real
@@ -58,27 +63,27 @@ from src.ai import db
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
 from src.ai.forecasting import pipeline as forecasting_pipeline
 from src.ai.pricing import pipeline as pricing_pipeline
+from src.ai.pricing.matching import similarity
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
 from src.ai.sentiment import pipeline as sentiment_pipeline
-from src.market_scraper import discovery
+from src.market_scraper import direct_search, discovery
 from src.market_scraper.analysis_worker import analyze_tenant
 from src.market_scraper.sector_detection import build_retail_search_query, detect_vertical, resolve_tenant_geo_scope
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_MOCK_FILE = os.path.join(REPO_ROOT, "mocks", "e2e_pipeline_demo.csv")
 
-# Real web-search results, gathered once for this verification run (query
-# shape: sector_detection.build_retail_search_query(product_name), e.g.
-# '"Arduino Nano" buy shop store price') - stands in for the live search-API
-# call discovery.py's own docstring documents as the real, currently-unfilled
-# production dependency (no search-API credentials are configured in this
-# environment, same category of gap as Google Places/Amazon PA-API). Every
-# candidate below is a URL that genuinely turned up in that search - nothing
-# here is a hardcoded "the" competitor for a product; discovery.py's
-# evaluate_candidate()/looks_like_manufacturer_or_wholesale() decide what
-# happens with each one dynamically, the same as they would for any other
-# candidate list from any other vertical.
+# Manually-verified candidates, kept as a supplement to direct_search.py's
+# live discovery (stage_scraping() below merges both, deduped by URL) - not
+# a replacement for it any more. Originally this dict was the *only* source
+# of candidates (no paid search-API credentials are configured in this
+# environment, same category of gap as Google Places/Amazon PA-API); that
+# gap is now closed for real, without any paid API, via direct_search.py's
+# schema.org SearchAction discovery - see that module's own docstring.
+# store-usa.arduino.cc is kept here specifically because it has real,
+# already-quoted robots.txt evidence (_TERMS_EVIDENCE_BY_HOST below) that
+# a fresh live search wouldn't rediscover on its own.
 _DISCOVERED_CANDIDATES = {
     "Arduino Nano": [
         discovery.CandidateSource("Arduino Nano", "https://store-usa.arduino.cc/products/arduino-nano", "Arduino Nano - Arduino Online Shop"),
@@ -314,16 +319,46 @@ def stage_scraping(
     stage.details["geo_scope"] = {
         "value": geo_scope, "source": "override" if geo_scope_override else "companies.country_code",
         "note": (
-            "Applies to build_retail_search_query() for any new discovery call. The candidates below "
-            "were gathered before this run (see _DISCOVERED_CANDIDATES' docstring on the live-search-API "
-            "gap) and are not retroactively re-scoped by this value."
+            "direct_search.py's retailer domain lists are not yet geo-scoped themselves (all "
+            "currently-verified domains are US-based) - a real follow-up, not this run's claim."
         ),
     }
 
     os.environ["SCRAPER_ACTOR_USER_ID"] = user_id
+    retailer_domains = direct_search.RETAILER_DOMAINS_BY_VERTICAL.get(vertical.vertical, [])
+
+    # Live per-product search calls are I/O-bound real HTTP requests (each
+    # domain's search-results page, robots.txt already cached per-domain by
+    # direct_search.py itself - see its own _TEMPLATE_CACHE/_ROBOTS_PATH_CACHE
+    # docstring) - run them concurrently rather than one product at a time.
+    # Measured live: an earlier sequential version of this call, uncached,
+    # made a 109-product run hang for 10+ minutes still climbing; caching
+    # alone cuts the redundant homepage/robots calls, and this pool cuts the
+    # remaining per-product search-fetch latency by running many at once.
+    live_results = {}
+    if retailer_domains:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = {
+                pool.submit(direct_search.search_product_across_retailers, p["product_name"], retailer_domains): p["product_name"]
+                for p in product_ids
+            }
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    live_results[name] = future.result()
+                except Exception:  # noqa: BLE001 - one product's search failure must not sink the rest
+                    live_results[name] = []
+
     discoveries = []
     for product in product_ids:
-        candidates = _DISCOVERED_CANDIDATES.get(product["product_name"])
+        # Real, live-discovered candidates (direct_search.py - schema.org SearchAction,
+        # no paid API) merged with any manually pre-verified ones for this product name
+        # (e.g. store-usa.arduino.cc's own quoted robots.txt evidence). Deduped by URL -
+        # the same product can legitimately turn up from both sources.
+        candidates = list(_DISCOVERED_CANDIDATES.get(product["product_name"], []))
+        live_candidates = live_results.get(product["product_name"], [])
+        known_urls = {c.url for c in candidates}
+        candidates.extend(c for c in live_candidates if c.url not in known_urls)
         if not candidates:
             continue
 
@@ -365,16 +400,36 @@ def stage_scraping(
                 "scraped": False,
             }
 
+            # Pre-filter by title similarity before paying for a real subprocess scrape.
+            # Live-measured (2026-09-04, 461 candidates from direct_search.py's broader
+            # discovery): scraping every candidate unconditionally took 2030s (~34 min)
+            # for one run, because 450 of 458 scraped candidates failed the spider's own
+            # match_score check (market_source.py's MATCH_THRESHOLD=0.82, same
+            # similarity() function) *after* a full subprocess round-trip - a search
+            # result titled "Espressif ESP8266EX" for a query on "ESP8266 NodeMCU" was
+            # never going to pass 0.82, and didn't need a scrape to find that out. This
+            # mirrors that same check on the candidate's own search-result title first;
+            # it's an approximation (the spider's real check runs against the scraped
+            # page's own declared name, which can differ slightly from the search
+            # result's link text) so it only skips candidates clearly below threshold,
+            # never claims a match the spider hasn't actually verified.
+            title_match_score = similarity(candidate.title, product["product_name"]) if candidate.title else 0.0
+            record["title_similarity_prefilter"] = round(title_match_score, 3)
             should_scrape = registration["policy_status"] == "ALLOWED" or host in live_approve_hosts
-            if should_scrape and not is_manufacturer:
+            if should_scrape and is_manufacturer:
+                record["skipped_reason"] = "manufacturer/wholesale candidate deprioritized in favor of retail sources"
+            elif should_scrape and title_match_score < _TITLE_PREFILTER_THRESHOLD:
+                record["skipped_reason"] = (
+                    f"title similarity {title_match_score:.2f} below {_TITLE_PREFILTER_THRESHOLD:.2f} "
+                    "prefilter - not the same product as the search result's own page would likely confirm"
+                )
+            elif should_scrape:
                 try:
                     scrape_result = _run_one_scrape(tenant_id, user_id, registration["source_id"])
                     record["scraped"] = True
                     record.update(scrape_result)
                 except subprocess.TimeoutExpired:
                     record["error"] = "market_scraper.cli did not finish within timeout"
-            elif should_scrape and is_manufacturer:
-                record["skipped_reason"] = "manufacturer/wholesale candidate deprioritized in favor of retail sources"
 
             discoveries.append(record)
 
@@ -404,6 +459,16 @@ def stage_scraping(
 # win for products that use the cheap "baseline" path (no XGBoost, mostly
 # DB I/O) without badly oversubscribing the ones that do use XGBoost.
 _PER_PRODUCT_MAX_WORKERS = int(os.getenv("E2E_PER_PRODUCT_MAX_WORKERS", "3"))
+
+# Live-calibrated (2026-09-04) against real title pairs: genuine matches this
+# pipeline has actually scraped scored 0.80-0.88 (e.g. "Arduino Nano Every" vs
+# "Arduino Nano"); real false-positive search hits that later failed the
+# spider's own 0.82 match_score check scored 0.47-0.49 (e.g. "Espressif
+# ESP8266EX" vs "ESP8266 NodeMCU"). 0.6 sits with real margin on both sides -
+# loose enough not to reject a genuine match on candidate-title wording alone,
+# tight enough to skip the scrape entirely for a search result that clearly
+# isn't the same product.
+_TITLE_PREFILTER_THRESHOLD = 0.6
 
 
 def _run_per_product_parallel(tenant_id: str, user_id: str, product_ids: list, worker_fn) -> dict:
