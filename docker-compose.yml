@@ -248,6 +248,25 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # RAG chat's LLM provider (src/ai/rag/llm_client.py) - previously never
+      # wired through here at all, so /rag/query would always fail with
+      # "GROQ_API_KEY is not set" in a real docker-compose deployment despite
+      # working when run outside Docker with the var exported directly.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-400}
+      # Set to route generation at the llm-local service below (or any other
+      # OpenAI-compatible endpoint) instead of Groq - leave blank for Groq,
+      # the unchanged default. From inside this container, the llm-local
+      # service's own address is http://llm-local:8080/v1/chat/completions -
+      # NOT 127.0.0.1:8090, which only resolves from the host machine.
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-}
+      LOCAL_LLM_TIMEOUT_SECONDS: ${LOCAL_LLM_TIMEOUT_SECONDS:-90}
+      # Optional - market_scraper/places_discovery.py and
+      # social_cross_reference.py degrade to returning [] when unset.
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
+      GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
     ports:
       - "8001:8000"
     networks:
@@ -259,6 +278,31 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+
+  # Zero-cost, fully local alternative to Groq for RAG chat generation - the
+  # official llama.cpp server image (https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md),
+  # CPU-only build, no GPU required. NOT started by default (`docker compose
+  # up` skips it) - it only runs when explicitly requested via
+  # `docker compose --profile local-llm up`, since it needs a real model file
+  # in ./models/ first (run `python scripts/download_local_llm_model.py`
+  # once) and most deployments will use Groq instead. Live-verified
+  # 2026-09-06 with Qwen2.5-3B-Instruct (Q5_K_M): ~6 tokens/sec generation on
+  # a 4-core/8-thread CPU - real and usable, genuinely slower than Groq's
+  # hardware-accelerated hosting. Point the `ai` service's LOCAL_LLM_BASE_URL
+  # at http://llm-local:8080/v1/chat/completions to actually use it.
+  llm-local:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: ceopro_llm_local
+    profiles: ["local-llm"]
+    volumes:
+      - ./models:/models
+    command: >
+      -m /models/qwen2.5-3b-instruct-q5_k_m.gguf
+      --host 0.0.0.0 --port 8080 -t 4 -c 4096
+    ports:
+      - "8090:8080"
+    networks:
+      - ceopro_core_net
 
 volumes:
   postgres_data:

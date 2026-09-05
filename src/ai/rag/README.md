@@ -1,7 +1,8 @@
 # RAG Pipeline — Setup & Query Guide
 
 End-to-end retrieval-augmented generation: document ingestion → persisted hybrid (BM25 + FAISS)
-retrieval → Cross-Encoder re-ranking → context assembly → LLM reasoning (Groq-hosted Llama). See
+retrieval → Cross-Encoder re-ranking → context assembly → LLM reasoning (Groq-hosted by default, or
+a local zero-cost `llama.cpp` server - see below). See
 [`../README.md`](../README.md#rag--phase-3-groundwork-retrieval-only-spec-4-6-21) for the
 module-by-module breakdown of how each stage works; this file is the practical "how do I actually
 run this" guide.
@@ -19,18 +20,39 @@ python scripts/apply_migrations.py   # needs DATABASE_URL + APP_DB_PASSWORD set
 |---|---|---|---|
 | `DATABASE_URL` / `APP_DB_PASSWORD` | Yes | — | Postgres connection (see repo root `.env.example`) |
 | `MINIO_ENDPOINT` / `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | Yes, for ingestion | — | Raw document storage |
-| `GROQ_API_KEY` | Yes, for `/rag/query` | — | **You must provide this.** Get one at [console.groq.com](https://console.groq.com/) |
-| `GROQ_MODEL` | No | `llama-3.3-70b-versatile` | Verified live against Groq's production [model catalog](https://console.groq.com/docs/models) (2026-09-01) — hosted catalogs change, re-check before relying on this long-term. Groq's only Qwen models are preview-only (not for production use) as of this check |
+| `GROQ_API_KEY` | Yes, for `/rag/query` — unless `LOCAL_LLM_BASE_URL` is set instead | — | **You must provide this** unless using the local option below. Get one at [console.groq.com](https://console.groq.com/) |
+| `GROQ_MODEL` | No | `openai/gpt-oss-20b` | Live-verified 2026-09-03 against Groq's real API with a real key after `llama-3.1-8b-instant`/`llama-3.3-70b-versatile` both started returning 404 — hosted catalogs change, re-check [the model list](https://console.groq.com/docs/models) before relying on this long-term |
+| `GROQ_MAX_TOKENS` | No | `400` | Caps response length — a real, free latency lever on both backends, not just a Groq nicety |
+| `LOCAL_LLM_BASE_URL` | No | unset (uses Groq) | Set to route generation at a local `llama.cpp` server instead — see "Zero-cost local LLM option" below |
+| `LOCAL_LLM_TIMEOUT_SECONDS` | No | `90` | Only applies when `LOCAL_LLM_BASE_URL` is set — local generation is genuinely slower than Groq's hosted hardware |
 | `RAG_EMBEDDING_MODEL` | No | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Dense retrieval embedding model |
 | `RAG_RERANKER_MODEL` | No | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Multilingual Cross-Encoder (spec §8 Arabic-English requirement — do not swap for an English-only reranker) |
 
-`GROQ_API_KEY` is the only one of these you actually need to go find and set yourself — everything
-else has a working default. **Why Groq + Llama, not a locally-run model**: Groq's hardware-accelerated
-hosted inference is fast (low per-token latency), a 70B-class model is accurate on multilingual/
-cross-dialect Arabic content, and because the model runs on Groq's infrastructure rather than
-yours, there is zero local GPU/CPU/RAM footprint — the only thing your machine does is send and
-receive text over HTTPS. See [`llm_client.py`](llm_client.py)'s module docstring for the full
-reasoning.
+By default you only need to go find and set `GROQ_API_KEY` yourself — everything else has a
+working default. **Why Groq by default, not a locally-run model**: Groq's hardware-accelerated
+hosted inference is fast (low per-token latency), the model is accurate on multilingual/
+cross-dialect Arabic content, and because it runs on Groq's infrastructure rather than yours,
+there is zero local GPU/CPU/RAM footprint. See [`llm_client.py`](llm_client.py)'s module docstring
+for the full reasoning.
+
+### Zero-cost local LLM option (full data privacy, no external API call)
+
+For a $0 budget or a hard requirement that no query/document text ever leaves your own
+infrastructure, run a local `llama.cpp` server instead:
+
+```bash
+pip install huggingface_hub
+python scripts/download_local_llm_model.py          # one-time, ~2.3GB
+docker compose --profile local-llm up llm-local      # or run llama-server directly, see that script
+export LOCAL_LLM_BASE_URL=http://127.0.0.1:8090/v1/chat/completions   # 127.0.0.1 if outside Docker
+```
+
+Live-verified 2026-09-06 on real hardware (i5-1135G7, 4-core/8-thread CPU, Qwen2.5-3B-Instruct
+Q5_K_M): ~6 tokens/sec generation, a real 32.6s for one full grounded answer through the actual
+`generate_answer()` code path — correct, coherent, correctly cited. Genuinely slower than Groq;
+that's the real trade for zero cost and full privacy, not a bug. This was a single smoke test, not
+an accuracy evaluation — a real side-by-side comparison against Groq's answers on a batch of
+questions is the honest next step for quantified confidence, not yet done.
 
 ## 2. Ingest a document
 
