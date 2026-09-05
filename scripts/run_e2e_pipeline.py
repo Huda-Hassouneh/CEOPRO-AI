@@ -390,6 +390,16 @@ def stage_scraping(
                 })
                 continue
 
+            # Real answer to "who is this competitor and where do they have a
+            # social presence" without touching Facebook/Instagram/TikTok at
+            # all: the same homepage fetch direct_search.py already made to
+            # find this site's search action also read its own published
+            # schema.org sameAs links (or a plain <a href> fallback) - the
+            # business's own public homepage, not the social platform itself.
+            # Empty for candidates whose domain was never fetched via
+            # direct_search.py this run (e.g. the manually-seeded list) -
+            # an honest gap, not an error.
+            social = direct_search.get_social_profiles_cached(host)
             record = {
                 "product_name": product["product_name"],
                 "url": candidate.url,
@@ -398,6 +408,8 @@ def stage_scraping(
                 "policy_status": registration["policy_status"],
                 "terms_evidence": terms_evidence,
                 "scraped": False,
+                "social_profiles": social["profiles"],
+                "social_profiles_source": social["sources"],
             }
 
             # Pre-filter by title similarity before paying for a real subprocess scrape.
@@ -746,6 +758,18 @@ def _build_summary_document(
                     reason += ", manufacturer/wholesale - deprioritized"
                 reason += ")"
             lines.append(f"- {d['product_name']}: {d.get('title') or d['url']} - {outcome}{reason}.")
+            social = d.get("social_profiles") or {}
+            if social:
+                sources = d.get("social_profiles_source", {})
+                profile_bits = ", ".join(
+                    f"{platform}: {url} ({sources.get(platform, 'unknown')})"
+                    for platform, url in social.items()
+                )
+                lines.append(
+                    f"  Official social profiles found on {urlsplit(d['url']).hostname}'s own homepage "
+                    f"(published by the business itself, not scraped from the platform): {profile_bits} "
+                    "[Source: this business's own public homepage, read via direct_search.py]."
+                )
         lines.append("")
 
     if sentiment_summaries:
