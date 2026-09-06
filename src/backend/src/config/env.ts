@@ -12,6 +12,7 @@ function initlizeDotEnv() {
   const fileName = fileURLToPath(import.meta.url);
   try {
     const rootDir = getRootDirectoryPath(fileName, "backend");
+    console.log(".env location: ", rootDir.concat("\\.env"));
 
     const config: dotenv.DotenvConfigOptions = {
       path: rootDir.concat("\\.env")
