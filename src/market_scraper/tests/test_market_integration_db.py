@@ -197,6 +197,39 @@ def test_review_only_record_promotes_without_a_price_row(seeded):
     connection.close()
 
 
+def test_engagement_metrics_round_trip_through_observation_and_reviews(seeded):
+    """social_data_provider.py's like_count/share_count (post-level) and
+    reviews[].like_count/reply_count (comment-level) must survive a real
+    INSERT, not just pass through a mocked dict - confirms the
+    20260906010000 migration's columns are wired end to end."""
+    first, _ = seeded
+    connection, cursor = scoped_app_connection(first)
+    social_item = market_item(
+        first, price_amount=None, currency=None, like_count=500, share_count=12,
+        reviews=[{
+            "external_review_id": "comment-1", "review_text": "Love this!",
+            "reviewer_name": "fan1", "review_rating": None, "review_date": None,
+            "like_count": 10, "reply_count": 1, "safety_status": "SAFE", "safety_flags": [],
+        }],
+    )
+    social_item["_staging_id"] = stage_record(connection, social_item)
+    promoted = save_market_record(connection, social_item)
+    assert promoted["status"] == "PROMOTED"
+
+    cursor.execute(
+        "SELECT like_count, share_count FROM market_observations WHERE mapping_id = %s;",
+        (first["mapping"],),
+    )
+    assert cursor.fetchone() == (500, 12)
+
+    cursor.execute(
+        "SELECT like_count, reply_count FROM reviews WHERE review_id = %s;",
+        (promoted["review_ids"][0],),
+    )
+    assert cursor.fetchone() == (10, 1)
+    connection.close()
+
+
 def test_security_definer_recovers_stale_market_job(seeded):
     first, _ = seeded
     admin = psycopg2.connect(ADMIN_URL)

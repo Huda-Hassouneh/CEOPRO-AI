@@ -21,12 +21,28 @@ nothing else in a scrape run breaks while this collector alone is
 unconfigured, same contract as the existing amazon_paapi/google_places
 collectors when their own credentials are missing.
 
-Per-platform request shape (collector_config["actor_ids"], the
-run-sync-get-dataset-items input body) is a best-effort default matching
-Apify's commonly-published actor conventions - verify against the
-provider's actual actor input schema before production use.
-collector_config["input_overrides"] is an escape hatch to override the
-built default per platform without a code change.
+Two-stage collection, matching the shared item schema
+(sample_output_ready.json) rather than inventing ad-hoc fields:
+
+1. One request per target profile to a "posts" actor - yields each
+   returned post's own like_count/share_count/aggregate comment count.
+2. Optionally (collector_config["fetch_comments"], default True) one
+   further request per post to a "comments" actor, populating `reviews`
+   with real per-comment text/author/date plus like_count/reply_count -
+   the same shape reviews from every other collector use, just with two
+   new optional engagement columns behind them (see the
+   20260906010000_add_engagement_metrics_columns.sql migration). Comments
+   are a second billed provider call on top of the posts call - disable
+   fetch_comments for the cheaper posts-only mode when comment-level
+   detail isn't needed.
+
+Per-platform request/response shape (collector_config["actor_ids"]/
+["comments_actor_ids"], the run-sync-get-dataset-items input body and
+response fields) is a best-effort default matching commonly-published
+actor conventions - verify against the provider's actual actor schema
+before production use. collector_config["input_overrides"]/
+["comments_input_overrides"] are escape hatches to override the built
+request per platform without a code change.
 """
 import json
 from datetime import datetime, timezone
@@ -49,6 +65,13 @@ _DEFAULT_ACTOR_IDS = {
     "tiktok": "apify/tiktok-scraper",
 }
 
+# Dedicated comments actors - a second, separately-billed call per post.
+_DEFAULT_COMMENTS_ACTOR_IDS = {
+    "facebook": "apify/facebook-comments-scraper",
+    "instagram": "apify/instagram-comment-scraper",
+    "tiktok": "clockworks/tiktok-comments-scraper",
+}
+
 _PLATFORM_HOSTS = {
     "facebook.com": "facebook",
     "www.facebook.com": "facebook",
@@ -68,14 +91,32 @@ def _platform_for(url: str) -> Optional[str]:
     return _PLATFORM_HOSTS.get(hostname)
 
 
-def _default_input(profile_url: str, results_limit: int) -> dict:
+def _first_present(record: dict, *keys) -> Optional[object]:
+    """First non-None value among candidate field names a provider might use."""
+    for key in keys:
+        value = record.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def _default_input(profile_or_post_url: str, results_limit: int) -> dict:
     """
     Best-effort default input shape (startUrls + a results cap) - real
     actors vary in field names (some want resultsLimit, others maxItems);
     this is a reasonable starting point, not a verified-against-every-actor
-    contract. Override via collector_config["input_overrides"][platform].
+    contract. Override via collector_config["input_overrides"]/
+    ["comments_input_overrides"][platform].
     """
-    return {"startUrls": [{"url": profile_url}], "resultsLimit": results_limit}
+    return {"startUrls": [{"url": profile_or_post_url}], "resultsLimit": results_limit}
+
+
+def _normalize_timestamp(value) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, tz=timezone.utc).isoformat()
+    return str(value)
 
 
 class SocialDataProviderSpider(scrapy.Spider):
@@ -124,9 +165,16 @@ class SocialDataProviderSpider(scrapy.Spider):
         collector_config = json.loads(collector_config_json or "{}")
         self.provider_base_url = collector_config.get("provider_base_url", _DEFAULT_PROVIDER_BASE_URL)
         self.actor_ids = {**_DEFAULT_ACTOR_IDS, **(collector_config.get("actor_ids") or {})}
+        self.comments_actor_ids = {**_DEFAULT_COMMENTS_ACTOR_IDS, **(collector_config.get("comments_actor_ids") or {})}
         self.input_overrides = collector_config.get("input_overrides") or {}
+        self.comments_input_overrides = collector_config.get("comments_input_overrides") or {}
         self.results_limit = collector_config.get("results_limit", 20)
+        self.comments_per_post = collector_config.get("comments_per_post", 20)
+        self.fetch_comments = collector_config.get("fetch_comments", True)
         self.allowed_domains = [urlsplit(self.provider_base_url).hostname]
+
+    def _actor_run_url(self, actor_id: str) -> str:
+        return f"{self.provider_base_url}/{actor_id}/run-sync-get-dataset-items?token={self.api_token}"
 
     def _initial_requests(self):
         for target in self.targets:
@@ -138,10 +186,9 @@ class SocialDataProviderSpider(scrapy.Spider):
                 self.logger.info("no configured provider actor for URL: %s", profile_url)
                 continue
             payload = self.input_overrides.get(platform) or _default_input(profile_url, self.results_limit)
-            actor_id = self.actor_ids[platform]
-            url = f"{self.provider_base_url}/{actor_id}/run-sync-get-dataset-items?token={self.api_token}"
             yield scrapy.Request(
-                url, method="POST", headers={"Content-Type": "application/json"},
+                self._actor_run_url(self.actor_ids[platform]),
+                method="POST", headers={"Content-Type": "application/json"},
                 body=json.dumps(payload), callback=self.parse_dataset_items,
                 cb_kwargs={"target": target, "platform": platform}, dont_filter=True,
             )
@@ -157,22 +204,52 @@ class SocialDataProviderSpider(scrapy.Spider):
 
     def parse_dataset_items(self, response, target, platform):
         try:
-            items = response.json()
+            posts = response.json()
         except Exception:
             self.logger.warning("non-JSON response from provider for %s", target.get("competitor_name"))
             return
-        if not isinstance(items, list) or not items:
+        if not isinstance(posts, list) or not posts:
             self.logger.info("no dataset items returned for %s (%s)", target.get("competitor_name"), platform)
             return
 
-        record = items[0]
-        bio_or_caption = clean_text(
-            record.get("caption") or record.get("bio") or record.get("description") or ""
+        for post in posts:
+            post_url = post.get("url") or post.get("webVideoUrl") or post.get("permalink") or target["product_url"]
+            comments_actor = self.comments_actor_ids.get(platform)
+            if self.fetch_comments and comments_actor:
+                payload = self.comments_input_overrides.get(platform) or _default_input(
+                    post_url, self.comments_per_post
+                )
+                yield scrapy.Request(
+                    self._actor_run_url(comments_actor),
+                    method="POST", headers={"Content-Type": "application/json"},
+                    body=json.dumps(payload), callback=self.parse_comments,
+                    cb_kwargs={"target": target, "platform": platform, "post": post, "post_url": post_url},
+                    dont_filter=True,
+                )
+            else:
+                yield self._build_item(target, platform, post, post_url, reviews=[])
+
+    def parse_comments(self, response, target, platform, post, post_url):
+        try:
+            comments = response.json()
+        except Exception:
+            self.logger.warning("non-JSON comments response for %s", post_url)
+            comments = []
+        if not isinstance(comments, list):
+            comments = []
+        yield self._build_item(target, platform, post, post_url, reviews=self._build_reviews(comments))
+
+    def _build_item(self, target, platform, post, post_url, reviews: list) -> dict:
+        caption = clean_text(
+            post.get("caption") or post.get("text") or post.get("bio") or post.get("description") or ""
         )
-        safety_flags = scan_external_text(bio_or_caption) if bio_or_caption else []
-        followers_count = record.get("followersCount") or record.get("fans") or record.get("followerCount")
+        safety_flags = scan_external_text(caption) if caption else []
+        like_count = _first_present(post, "likesCount", "like_count", "diggCount", "likes")
+        share_count = _first_present(post, "sharesCount", "share_count", "shares")
+        comment_count = _first_present(post, "commentsCount", "comment_count", "commentCount")
+        external_id = post.get("id") or post.get("shortCode") or post.get("videoId") or platform
         captured_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        yield {
+        return {
             "tenant_id": self.tenant_id, "source_id": self.source_id, "job_id": self.job_id,
             "mapping_id": target["mapping_id"], "product_id": target["product_id"],
             "global_competitor_id": target["global_competitor_id"],
@@ -182,18 +259,40 @@ class SocialDataProviderSpider(scrapy.Spider):
             "match_score": 1.0, "match_method": "DIRECT_PROFILE_URL",
             "safety_status": "QUARANTINED" if safety_flags else "SAFE",
             "safety_flags": safety_flags,
-            "external_id": record.get("id") or record.get("username") or platform,
+            "external_id": external_id,
             "product_name": target.get("product_name") or target["competitor_name"],
-            "category": None, "description": bio_or_caption or None,
+            "category": None, "description": caption or None,
             "price_amount": None, "currency": None,
             "availability": None, "is_available": None, "stock_quantity": None,
-            "page_text": bio_or_caption or None,
-            "rating": None, "review_count": len(items),
-            "product_url": target["product_url"],
-            "image_url": record.get("profilePicUrl") or record.get("imageUrl"),
-            "reviews": [], "captured_at": captured_at,
-            # Extra, non-schema key - not read by market_repository.save_market_record's
-            # fixed columns, but preserved verbatim in market_observations.raw_payload
-            # for anyone downstream who wants the engagement signal.
-            "followers_count": followers_count,
+            "page_text": caption or None,
+            "rating": None,
+            "review_count": comment_count if comment_count is not None else (len(reviews) or None),
+            "like_count": like_count, "share_count": share_count,
+            "product_url": post_url,
+            "image_url": post.get("displayUrl") or post.get("thumbnailUrl") or post.get("imageUrl") or post.get("profilePicUrl"),
+            "reviews": reviews, "captured_at": captured_at,
         }
+
+    @staticmethod
+    def _build_reviews(comments: list) -> list:
+        reviews = []
+        for index, comment in enumerate(comments):
+            text = clean_text(comment.get("text") or comment.get("comment") or "")
+            if not text:
+                continue
+            safety_flags = scan_external_text(text)
+            comment_id = comment.get("id") or comment.get("cid") or index
+            reviews.append({
+                "external_review_id": str(comment_id),
+                "review_text": text,
+                "reviewer_name": comment.get("ownerUsername") or comment.get("username") or comment.get("author"),
+                "review_rating": None,
+                "review_date": _normalize_timestamp(
+                    _first_present(comment, "timestamp", "createTime", "created_at", "createdAt")
+                ),
+                "like_count": _first_present(comment, "likesCount", "like_count", "diggCount"),
+                "reply_count": _first_present(comment, "repliesCount", "reply_count", "replyCommentTotal", "reply_comment_total"),
+                "safety_status": "QUARANTINED" if safety_flags else "SAFE",
+                "safety_flags": safety_flags,
+            })
+        return reviews

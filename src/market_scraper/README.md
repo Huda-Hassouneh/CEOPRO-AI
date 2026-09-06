@@ -53,7 +53,13 @@ Ikea included — without a bespoke spider):
   finding *mentions* of a competitor via Google's own index). This collector instead wraps a paid
   third-party provider's REST API, modeled on Apify's Actor API
   (`run-sync-get-dataset-items`) — one maintained actor per platform. It only ever talks to the
-  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly.
+  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly. Two-stage
+  collection: one call per competitor profile returns posts with their own like/share/comment-count
+  aggregates, then (`collector_config["fetch_comments"]`, default on) one further call per post
+  fetches the actual comment list — real text, author, and per-comment like/reply counts, landing in
+  `reviews.like_count`/`reply_count` and `market_observations.like_count`/`share_count`
+  (`20260906010000_add_engagement_metrics_columns.sql`). Comments are a second, separately-billed
+  provider call on top of the posts call — disable `fetch_comments` for the cheaper posts-only mode.
 
 All three require credentials, supplied per-source via `data_sources.connection_credentials_vault`
 (a JSON object — `{"api_key": ...}` for Places, `{"access_key", "secret_key", "partner_tag"}` for
