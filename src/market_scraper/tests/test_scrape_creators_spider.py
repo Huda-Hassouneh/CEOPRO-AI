@@ -147,7 +147,7 @@ def test_parse_post_stops_on_reported_failure():
 def test_comments_pagination_follows_cursor_until_has_next_page_false():
     page_1_results = list(spider().parse_comments_page(
         json_response("https://api.scrapecreators.com/v1/facebook/post/comments", COMMENTS_PAGE_1),
-        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1,
+        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1, 0,
     ))
     assert len(page_1_results) == 1
     next_request = page_1_results[0]
@@ -157,6 +157,7 @@ def test_comments_pagination_follows_cursor_until_has_next_page_false():
         json_response("https://api.scrapecreators.com/v1/facebook/post/comments", COMMENTS_PAGE_2),
         TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"],
         next_request.cb_kwargs["accumulated"], next_request.cb_kwargs["page"],
+        next_request.cb_kwargs["post_credits_spent"],
     ))[0]
     assert len(final_item["reviews"]) == 2
 
@@ -165,25 +166,65 @@ def test_comments_pagination_respects_max_comment_pages():
     bounded = spider(collector_config={"max_comment_pages": 1})
     results = list(bounded.parse_comments_page(
         json_response("https://api.scrapecreators.com/v1/facebook/post/comments", COMMENTS_PAGE_1),
-        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1,
+        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1, 0,
     ))
     assert len(results) == 1
     assert isinstance(results[0], dict)  # final item, not another request
     assert len(results[0]["reviews"]) == 2
 
 
+def test_comments_pagination_stops_at_per_post_credit_budget():
+    bounded = spider(collector_config={"max_credits_per_post": 1})
+    results = list(bounded.parse_comments_page(
+        json_response("https://api.scrapecreators.com/v1/facebook/post/comments", COMMENTS_PAGE_1),
+        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1, 0,
+    ))
+    # COMMENTS_PAGE_1 itself charges 1 credit (credits_charged: 1), which
+    # already meets max_credits_per_post=1 - must stop here even though
+    # has_next_page is True and page < max_comment_pages.
+    assert len(results) == 1
+    assert isinstance(results[0], dict)
+    assert len(results[0]["reviews"]) == 2
+
+
+def test_run_wide_credit_budget_stops_further_targets():
+    two_targets = [TARGET_FB, {**TARGET_FB, "mapping_id": "mapping-2", "product_url": "https://www.facebook.com/other/posts/2"}]
+    tight = spider(two_targets, collector_config={"max_credits_per_run": 1})
+    # Simulate the first target having already spent the entire run budget.
+    tight.credits_spent = 1
+    requests = list(tight._initial_requests())
+    assert requests == []
+
+
+def test_parse_post_degrades_to_posts_only_when_run_budget_already_spent():
+    tight = spider(collector_config={"max_credits_per_run": 1})
+    tight.credits_spent = 1
+    results = list(tight.parse_post(
+        json_response("https://api.scrapecreators.com/v1/facebook/post/", POST_RESPONSE),
+        TARGET_FB, "facebook", TARGET_FB["product_url"],
+    ))
+    assert len(results) == 1
+    assert results[0]["reviews"] == []
+
+
+def test_missing_credits_charged_field_defaults_to_one():
+    spider_instance = spider()
+    spider_instance._record_credits({"success": True})
+    assert spider_instance.credits_spent == 1
+
+
 def test_real_facebook_payload_maps_reaction_count_and_reply_count_correctly():
     """The exact payload structure pulled from ScrapeCreators' own docs."""
     item = list(spider().parse_comments_page(
         json_response("https://api.scrapecreators.com/v1/facebook/post/comments", COMMENTS_PAGE_2),
-        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1,
+        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1, 0,
     ))
     # COMMENTS_PAGE_2 has no comments and has_next_page=False -> final item directly.
     assert item[0]["reviews"] == []
 
     real_item = list(spider().parse_comments_page(
         json_response("https://api.scrapecreators.com/v1/facebook/post/comments", {**COMMENTS_PAGE_1, "has_next_page": False}),
-        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1,
+        TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"], [], 1, 0,
     ))[0]
     first = real_item["reviews"][0]
     assert first["review_text"].startswith("Do 1/2 mini Oreos")

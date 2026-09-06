@@ -60,25 +60,67 @@ Ikea included — without a bespoke spider):
   `reviews.like_count`/`reply_count` and `market_observations.like_count`/`share_count`
   (`20260906010000_add_engagement_metrics_columns.sql`). Comments are a second, separately-billed
   provider call on top of the posts call — disable `fetch_comments` for the cheaper posts-only mode.
-- **`scrape_creators`** (`spiders/scrape_creators.py`) — a second, genuinely different social
-  provider: [ScrapeCreators](https://docs.scrapecreators.com) is a plain REST API (`x-api-key`
-  header, cursor-based pagination via `cursor`/`has_next_page`), not an actor-run platform like
-  Apify. Confirmed live against a real Facebook comments payload (2026-09-06): billing is **per
-  call**, not per row returned — one request that returned 10 comments charged exactly 1 credit —
-  which makes deep comment-thread mining (the actual product goal: hidden negative sentiment,
-  complaint themes) far cheaper than a per-row-billed provider once a thread runs long.
-  `collector_config["max_comment_pages"]` bounds how deep pagination goes per post (default 5
-  pages). Each target's `competitor_product_url` is treated as a specific post/video URL to monitor
-  in depth, not a profile to browse. Instagram/TikTok endpoint paths exist in ScrapeCreators' own
-  docs but their exact response field names aren't independently confirmed the way Facebook's is —
-  `collector_config["endpoints"]`/`["field_overrides"]` correct that per-platform without a code
-  change once checked.
+- **`scrape_creators`** (`spiders/scrape_creators.py`) — **the primary, active social provider for
+  this deployment** (see "Vendor policy" below). [ScrapeCreators](https://docs.scrapecreators.com)
+  is a plain REST API (`x-api-key` header, cursor-based pagination via `cursor`/`has_next_page`),
+  not an actor-run platform like Apify. Confirmed live against a real Facebook comments payload
+  (2026-09-06): billing is **per call**, not per row returned — one request that returned 10
+  comments charged exactly 1 credit — which makes deep comment-thread mining (the actual product
+  goal: hidden negative sentiment, complaint themes) far cheaper than a per-row-billed provider once
+  a thread runs long. Each target's `competitor_product_url` is treated as a specific post/video URL
+  to monitor in depth, not a profile to browse. Instagram/TikTok endpoint paths exist in
+  ScrapeCreators' own docs but their exact response field names aren't independently confirmed the
+  way Facebook's is — `collector_config["endpoints"]`/`["field_overrides"]` correct that
+  per-platform without a code change once checked.
+
+  Depth is **budget-bounded, not just page-bounded** — every response's own real `credits_charged`
+  is tracked against `collector_config["max_credits_per_post"]` (default 20) and
+  `["max_credits_per_run"]` (default 500, across every target in one crawl). This is deliberately
+  the primary stop condition rather than a fixed page count: it keeps meaning the same thing as
+  comment volume, ScrapeCreators' pricing, or the number of tracked competitors changes over time,
+  with no retuning required as the company scales. Hitting the per-post ceiling stops that one
+  post's pagination with whatever was already fetched; hitting the run-wide ceiling stops issuing
+  any further requests for the rest of that crawl and degrades remaining targets to a posts-only
+  (no comments) record rather than silently dropping them or overspending. `max_comment_pages`
+  (default 5) remains as a structural backstop only, in case a response is ever missing
+  `credits_charged` entirely.
 
 All four require credentials, supplied per-source via `data_sources.connection_credentials_vault`
 (a JSON object — `{"api_key": ...}` for Places and for ScrapeCreators, `{"access_key",
 "secret_key", "partner_tag"}` for PA-API, `{"api_token": ...}` for the Apify-shaped social
 provider) and passed through by `cli.py` as `credentials_json`. That column is a plain `TEXT`
 field with no secrets-manager integration behind it yet — see `PENDING_ACTIONS.md` #42.
+
+## Vendor policy for social collection
+
+`scrape_creators` is the primary, active social-data vendor for this deployment — the one
+provisioned with real `connection_credentials_vault.api_key` and an `ALLOWED` policy status.
+`social_data_provider` (Apify-shaped) stays registered in `collectors.py`/`policy_cli.py` and fully
+tested, but is kept **inactive**: no credentials configured, so `PaidProviderNotConfiguredError`
+fires immediately if anything ever tries to run it (same as before any credentials exist for it).
+This is intentional, not an oversight — it's a cold, ready-to-activate fallback, not a second live
+vendor. Switching to it later (a ScrapeCreators outage, a pricing change, wanting Apify's larger
+actor-redundancy ecosystem once budget allows) means populating its credentials and pointing
+`data_sources.collector_key` at `social_data_provider` for that source — a config/credentials
+change, never a code change, because both collectors already share the same constructor contract
+and yield the same item shape.
+
+Setting this up for a real tenant:
+
+```bash
+# Primary: ScrapeCreators, active
+python -m src.market_scraper.policy_cli \
+  --tenant-id TENANT_UUID --source-id SOURCE_UUID \
+  --source-url https://api.scrapecreators.com --official-api-url https://api.scrapecreators.com \
+  --terms-permit yes --technical-controls-permit yes \
+  --collector scrape_creators \
+  --approval-reference VENDOR-CONTRACT-REF --approved-by REVIEWER_USER_UUID --retention-days 30
+# then set that source's connection_credentials_vault to {"api_key": "<real ScrapeCreators key>"}
+```
+
+Apify's `social_data_provider` source row, if created at all ahead of time, is left with
+`connection_credentials_vault` empty/unset and never approved — it exists in the vault as
+configuration, not as a running collector.
 
 ## Where competitor URLs and product matching come from
 

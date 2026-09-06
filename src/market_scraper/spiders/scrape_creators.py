@@ -33,6 +33,21 @@ Deliberately a "paid feature, nothing paid configured yet" module: with
 no connection_credentials_vault.api_key, __init__ raises
 PaidProviderNotConfiguredError immediately and never sends a request -
 same contract as amazon_paapi/google_places/social_data_provider.
+
+Budget-bounded, not just depth-bounded: every response's own
+`credits_charged` field (real, provider-reported spend - never assumed)
+is tracked against two independent ceilings,
+collector_config["max_credits_per_post"] (default 20) and
+["max_credits_per_run"] (default 500, across every target in one crawl).
+This is the primary depth control, not max_comment_pages (kept only as a
+structural backstop against a missing/zero credits_charged field) -
+tying the stop condition to real spend means it keeps meaning the same
+thing as comment volume, pricing, or the number of tracked competitors
+changes, with no retuning needed. Hitting the per-post ceiling degrades
+that one post to whatever comments were already fetched; hitting the
+run-wide ceiling stops issuing any further requests for the rest of that
+crawl (already-fetched posts still yield, newer targets fall back to a
+posts-only, comments-free item) rather than silently overspending.
 """
 import json
 from datetime import datetime, timezone
@@ -133,8 +148,12 @@ class ScrapeCreatorsSpider(scrapy.Spider):
         }
         self.field_overrides = collector_config.get("field_overrides") or {}
         self.max_comment_pages = collector_config.get("max_comment_pages", 5)
+        self.max_credits_per_post = collector_config.get("max_credits_per_post", 20)
+        self.max_credits_per_run = collector_config.get("max_credits_per_run", 500)
         self.fetch_comments = collector_config.get("fetch_comments", True)
         self.allowed_domains = [urlsplit(self.base_url).hostname]
+        self.credits_spent = 0
+        self._run_budget_warned = False
 
     def _headers(self) -> dict:
         return {"x-api-key": self.api_key}
@@ -145,8 +164,29 @@ class ScrapeCreatorsSpider(scrapy.Spider):
     def _fields(self, platform: str, key: str, *default_candidates):
         return self.field_overrides.get(platform, {}).get(key, list(default_candidates))
 
+    def _record_credits(self, payload: dict) -> int:
+        """Every ScrapeCreators response reports its own real cost - never
+        assumed beyond a conservative 1-credit fallback if the field is
+        ever absent."""
+        charged = payload.get("credits_charged", 1) or 1
+        self.credits_spent += charged
+        return charged
+
+    def _run_budget_exceeded(self) -> bool:
+        exceeded = self.credits_spent >= self.max_credits_per_run
+        if exceeded and not self._run_budget_warned:
+            self.logger.warning(
+                "scrape_creators run-wide credit budget (%s) reached at %s credits spent - "
+                "no further requests will be issued this run.",
+                self.max_credits_per_run, self.credits_spent,
+            )
+            self._run_budget_warned = True
+        return exceeded
+
     def _initial_requests(self):
         for target in self.targets:
+            if self._run_budget_exceeded():
+                break
             post_url = target.get("product_url")
             if not post_url:
                 continue
@@ -176,11 +216,15 @@ class ScrapeCreatorsSpider(scrapy.Spider):
         except Exception:
             self.logger.warning("non-JSON post response for %s", post_url)
             post = {}
+        self._record_credits(post)
         if not post.get("success", True):
             self.logger.info("ScrapeCreators reported failure for %s", post_url)
             return
 
-        if not self.fetch_comments:
+        if not self.fetch_comments or self._run_budget_exceeded():
+            # Run-wide budget already spent (or comments disabled) -
+            # degrade to a posts-only record rather than dropping this
+            # competitor's data entirely.
             yield self._build_item(target, platform, post, post_url, reviews=[])
             return
 
@@ -190,33 +234,45 @@ class ScrapeCreatorsSpider(scrapy.Spider):
             url, headers=self._headers(), callback=self.parse_comments_page,
             cb_kwargs={
                 "target": target, "platform": platform, "post": post, "post_url": post_url,
-                "accumulated": [], "page": 1,
+                "accumulated": [], "page": 1, "post_credits_spent": 0,
             },
             dont_filter=True,
         )
 
-    def parse_comments_page(self, response, target, platform, post, post_url, accumulated, page):
+    def parse_comments_page(self, response, target, platform, post, post_url, accumulated, page, post_credits_spent):
         try:
             payload = response.json()
         except Exception:
             self.logger.warning("non-JSON comments response for %s", post_url)
             payload = {}
+        post_credits_spent += self._record_credits(payload)
         comments = payload.get("comments") or []
         accumulated = accumulated + self._build_reviews(comments, platform)
 
         cursor = payload.get("cursor")
-        if payload.get("has_next_page") and cursor and page < self.max_comment_pages:
+        can_continue = (
+            payload.get("has_next_page") and cursor
+            and page < self.max_comment_pages
+            and post_credits_spent < self.max_credits_per_post
+            and not self._run_budget_exceeded()
+        )
+        if can_continue:
             endpoint = self.endpoints[platform]
             url = self._endpoint_url(endpoint["comments"], {endpoint["url_param"]: post_url, "cursor": cursor})
             yield scrapy.Request(
                 url, headers=self._headers(), callback=self.parse_comments_page,
                 cb_kwargs={
                     "target": target, "platform": platform, "post": post, "post_url": post_url,
-                    "accumulated": accumulated, "page": page + 1,
+                    "accumulated": accumulated, "page": page + 1, "post_credits_spent": post_credits_spent,
                 },
                 dont_filter=True,
             )
         else:
+            if post_credits_spent >= self.max_credits_per_post:
+                self.logger.info(
+                    "per-post credit budget (%s) reached for %s at page %s - stopping this post's pagination",
+                    self.max_credits_per_post, post_url, page,
+                )
             yield self._build_item(target, platform, post, post_url, reviews=accumulated)
 
     def _build_item(self, target, platform, post, post_url, reviews: list) -> dict:
