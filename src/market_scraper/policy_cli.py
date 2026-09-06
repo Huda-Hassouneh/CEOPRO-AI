@@ -24,7 +24,10 @@ def main():
     parser.add_argument("--rate-limit", type=int, default=30)
     parser.add_argument(
         "--collector",
-        choices=("standards", "books_to_scrape", "google_places", "amazon_paapi", "social_data_provider"),
+        choices=(
+            "standards", "books_to_scrape", "google_places", "amazon_paapi",
+            "social_data_provider", "scrape_creators",
+        ),
         default="standards",
     )
     parser.add_argument("--render-javascript", action="store_true")

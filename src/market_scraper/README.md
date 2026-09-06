@@ -33,7 +33,7 @@ The repository's approved development target is `https://books.toscrape.com/`. T
    database. This exists for development and smoke testing, not competitor production collection.
 
 A real competitor gets its own source-specific spider. Selectors are not shared across unrelated
-sites; a giant conditional mega-spider would be neither reliable nor maintainable. Three
+sites; a giant conditional mega-spider would be neither reliable nor maintainable. Four
 API/paid-provider collectors exist alongside the general-purpose `standards`/`MarketSourceSpider`
 collector (which, being schema.org/JSON-LD-based, also covers most conventional retailer sites —
 Ikea included — without a bespoke spider):
@@ -60,12 +60,25 @@ Ikea included — without a bespoke spider):
   `reviews.like_count`/`reply_count` and `market_observations.like_count`/`share_count`
   (`20260906010000_add_engagement_metrics_columns.sql`). Comments are a second, separately-billed
   provider call on top of the posts call — disable `fetch_comments` for the cheaper posts-only mode.
+- **`scrape_creators`** (`spiders/scrape_creators.py`) — a second, genuinely different social
+  provider: [ScrapeCreators](https://docs.scrapecreators.com) is a plain REST API (`x-api-key`
+  header, cursor-based pagination via `cursor`/`has_next_page`), not an actor-run platform like
+  Apify. Confirmed live against a real Facebook comments payload (2026-09-06): billing is **per
+  call**, not per row returned — one request that returned 10 comments charged exactly 1 credit —
+  which makes deep comment-thread mining (the actual product goal: hidden negative sentiment,
+  complaint themes) far cheaper than a per-row-billed provider once a thread runs long.
+  `collector_config["max_comment_pages"]` bounds how deep pagination goes per post (default 5
+  pages). Each target's `competitor_product_url` is treated as a specific post/video URL to monitor
+  in depth, not a profile to browse. Instagram/TikTok endpoint paths exist in ScrapeCreators' own
+  docs but their exact response field names aren't independently confirmed the way Facebook's is —
+  `collector_config["endpoints"]`/`["field_overrides"]` correct that per-platform without a code
+  change once checked.
 
-All three require credentials, supplied per-source via `data_sources.connection_credentials_vault`
-(a JSON object — `{"api_key": ...}` for Places, `{"access_key", "secret_key", "partner_tag"}` for
-PA-API, `{"api_token": ...}` for the social provider) and passed through by `cli.py` as
-`credentials_json`. That column is a plain `TEXT` field with no secrets-manager integration behind
-it yet — see `PENDING_ACTIONS.md` #42.
+All four require credentials, supplied per-source via `data_sources.connection_credentials_vault`
+(a JSON object — `{"api_key": ...}` for Places and for ScrapeCreators, `{"access_key",
+"secret_key", "partner_tag"}` for PA-API, `{"api_token": ...}` for the Apify-shaped social
+provider) and passed through by `cli.py` as `credentials_json`. That column is a plain `TEXT`
+field with no secrets-manager integration behind it yet — see `PENDING_ACTIONS.md` #42.
 
 ## Where competitor URLs and product matching come from
 
@@ -196,10 +209,10 @@ python -m src.market_scraper.policy_cli \
 
 If an official API or RSS URL is supplied, the engine selects it before scraping. API/RSS sources
 must be handled by their corresponding collector rather than being forced through Scrapy. Pass
-`--collector google_places`, `--collector amazon_paapi`, or `--collector social_data_provider` (in
-addition to the existing `standards`/`books_to_scrape`) to pick one of the API/paid-provider
-collectors explicitly, and populate that source's `connection_credentials_vault` with its required
-credentials before running a collection.
+`--collector google_places`, `--collector amazon_paapi`, `--collector social_data_provider`, or
+`--collector scrape_creators` (in addition to the existing `standards`/`books_to_scrape`) to pick
+one of the API/paid-provider collectors explicitly, and populate that source's
+`connection_credentials_vault` with its required credentials before running a collection.
 
 Each `competitor_product_mappings` row scheduled for collection must reference the reviewed
 `source_id` and contain an approved `competitor_product_url`.

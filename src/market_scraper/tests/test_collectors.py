@@ -3,6 +3,7 @@ import pytest
 from src.market_scraper.collectors import COLLECTORS, resolve_collector
 from src.market_scraper.spiders.amazon_paapi import AmazonPricingSpider
 from src.market_scraper.spiders.google_places import GooglePlacesSpider
+from src.market_scraper.spiders.scrape_creators import ScrapeCreatorsSpider
 from src.market_scraper.spiders.social_data_provider import SocialDataProviderSpider
 
 
@@ -13,6 +14,10 @@ def test_google_places_and_amazon_paapi_are_registered():
 
 def test_social_data_provider_is_registered():
     assert COLLECTORS["social_data_provider"].spider is SocialDataProviderSpider
+
+
+def test_scrape_creators_is_registered():
+    assert COLLECTORS["scrape_creators"].spider is ScrapeCreatorsSpider
 
 
 def test_resolve_collector_honors_explicit_collector_key():

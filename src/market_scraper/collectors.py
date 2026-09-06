@@ -6,6 +6,7 @@ from src.market_scraper.spiders.amazon_paapi import AmazonPricingSpider
 from src.market_scraper.spiders.books_to_scrape import BooksToScrapeSpider
 from src.market_scraper.spiders.google_places import GooglePlacesSpider
 from src.market_scraper.spiders.market_source import MarketSourceSpider
+from src.market_scraper.spiders.scrape_creators import ScrapeCreatorsSpider
 from src.market_scraper.spiders.social_data_provider import SocialDataProviderSpider
 
 
@@ -21,6 +22,7 @@ COLLECTORS = {
     "google_places": Collector(GooglePlacesSpider),
     "amazon_paapi": Collector(AmazonPricingSpider),
     "social_data_provider": Collector(SocialDataProviderSpider),
+    "scrape_creators": Collector(ScrapeCreatorsSpider),
 }
 
 DEFAULT_BY_METHOD = {
