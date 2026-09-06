@@ -1,0 +1,26 @@
+E2E Pipeline Run 20260901T180647Z - overall status: PARTIAL
+tenant_id=0aa67197-e5e1-4354-bf97-fb307f783978 user_id=077fa34b-c9f0-44aa-90bc-b335e7e235c9
+
+[1_extraction] OK (29.698s)
+    {"job_id": "0b205a07-b6ff-45a3-af98-ba6d606651d3", "row_count": 51947, "file_read_seconds": 6.664, "process_records_seconds": 22.917, "rows_per_second": 2266.7, "template_mode": "RECOGNIZED", "is_template_compliant": false, "rows_processed": 51947, "rows_partial": 0, "rows_failed": 0, "data_loss_pct": 0.0}
+
+[2_promotion] OK (17.05s)
+    {"default_currency_used": "JOD", "rows_promoted": 51947, "rows_skipped_incomplete": 0, "rows_failed": 0, "products_created": 109, "promotion_error_count": 0, "promotion_errors_sample": [], "promoted_products": [{"product_id": "01359ca7-f4d1-4237-bd75-78b63f76427c", "product_name": "NeoPixel LED Ring 16-Bit RGB"}, {"product_id": "01448768-470f-43b4-80fb-752180a369b6", "product_name": "MP3 YX5300 Serial Sound Module"}, {"product_id": "04edffe6-5598-4f2e-904e-b5354238789a", "product_name": "L298N Dual Motor Driver"}, {"product_id": "06e6061a-aea1-495c-9aa2-805aff663e3f", "product_name": "NE555 Timer IC"}, {"product_id": "06e6065e-05dc-4351-87d2-086c538e6a69", "product_name": "5V Relay Module 4-Channel"}, {"product_id": "09265ccc-8689-485e-9e74-55c46adadbf8", "product_name": "Ultrasonic Sensor HC-SR04"}, {"product_id": "0a2a4f81-b976-4b6a-8fef-097f359d7aa2", "product_name": "PC817 Optocoupler IC"}, {"product_id": "0cb42101-a590-4c23-b78a-b39863ef08e3", "product_name": "Wire Stripper & Cutt
+
+[3_competitor_scraping] PARTIAL (4.579s)
+    ! Discovery ran and logged real candidate URLs, but none reached a scraped price - see discoveries[].policy_status/is_manufacturer_or_wholesale for why each one didn't.
+    {"detected_vertical": {"vertical": "electronics_hobbyist", "confidence": 1.0, "matched_keywords": ["arduino", "raspberry", "sensor", "resistor", "capacitor", "led", "module", "breadboard", "diode", "transistor", "solder", "battery", "motor", "wire", "pcb", "usb", "relay", "stepper", "servo"]}, "geo_scope": {"value": "JO", "source": "companies.country_code", "note": "Applies to build_retail_search_query() for any new discovery call. The candidates below were gathered before this run (see _DISCOVERED_CANDIDATES' docstring on the live-search-API gap) and are not retroactively re-scoped by this value."}, "discoveries": [{"product_name": "Digital Multimeter DT830B", "url": "https://www.impactbattery.com/yellow-digital-multimeter-dt830b.html", "title": "Yellow Digital MultiMeter DT830B", "is_manufacturer_or_wholesale": false, "policy_status": "RESTRICTED", "terms_evidence": null, "scraped": true, "subprocess_returncode": 1, "subprocess_stdout_tail": "", "subprocess_stderr_tail": "Traceback (
+
+[4_forecasting] OK (47.664s)
+    {"per_product": {"01359ca7-f4d1-4237-bd75-78b63f76427c": {"status": "OK", "source": "baseline", "forecast_id": "a211ea7e-2216-4a5b-9d24-fdfb92315c0b", "evidence_id": "05539c3a-d0eb-4a84-b7ef-116c9030c6c9", "expected_demand": 2.7142857142857144, "forecast_target_date": "2026-01-07", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 365, "minimum_required": 30, "confidence_status": "OK"}}, "01448768-470f-43b4-80fb-752180a369b6": {"status": "OK", "source": "baseline", "forecast_id": "28703a7a-77af-4f15-af67-f50ad8c23fb2", "evidence_id": "71fdab4c-7082-479e-89c4-779949f46f36", "expected_demand": 2.4285714285714284, "forecast_target_date": "2026-01-06", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 364, "minimum_required": 30, "confidence_status": "OK"}}, "04edffe6-5598-4f2e-904e-b5354238789a": {"status": "OK", "source": "xgboost", "forecast_id": "2bf9144c-fcb6-41ff-9be2-91635b6d2c20", "evidence_id": "3cb3b53f-b521-45d3
+
+[5_pricing] OK (1.883s)
+    {"per_product": {"01448768-470f-43b4-80fb-752180a369b6": {"status": "UNKNOWN", "evidence_id": "b5a4d174-e9de-4c78-8d2d-48936418e703"}, "04edffe6-5598-4f2e-904e-b5354238789a": {"status": "UNKNOWN", "evidence_id": "8d7a3855-8458-4326-9a5e-d2c9f1cd5332"}, "01359ca7-f4d1-4237-bd75-78b63f76427c": {"status": "UNKNOWN", "evidence_id": "c94a95d5-3fcf-4ba1-9c45-1009b05ed409"}, "06e6065e-05dc-4351-87d2-086c538e6a69": {"status": "UNKNOWN", "evidence_id": "11dc6cb2-c60c-4745-a946-38e642550234"}, "09265ccc-8689-485e-9e74-55c46adadbf8": {"status": "UNKNOWN", "evidence_id": "58f5bebb-846e-47d8-8532-7f1cfee035fc"}, "06e6061a-aea1-495c-9aa2-805aff663e3f": {"status": "UNKNOWN", "evidence_id": "e7f01c03-c304-448c-b9ca-84f395a1f532"}, "0cb42101-a590-4c23-b78a-b39863ef08e3": {"status": "UNKNOWN", "evidence_id": "27738b49-8c32-43ac-b885-3577d416e81c"}, "0a2a4f81-b976-4b6a-8fef-097f359d7aa2": {"status": "UNKNOWN", "evidence_id": "43a392e3-8e5c-438f-b554-0943eec4d512"}, "0e4c5bc6-814f-4782-8d69-d31461fb51af":
+
+[6_rag_grounding] OK (12.666s)
+    {"object_key": "0aa67197-e5e1-4354-bf97-fb307f783978/e2e-pipeline-summary-46b3c8c4-54f4-42d6-8480-0e57c4c4115f.txt", "documents_ingested": 1}
+
+[7_rag_chat_verification] PARTIAL (11.994s)
+    ! Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): GROQ_API_KEY is not set - cannot call the LLM provider.
+    {}
+

@@ -46,6 +46,38 @@ def test_jsonld_product_and_reviews_are_normalized():
     assert len(item["content_hash"]) == 64
 
 
+def test_rating_on_a_non_5_scale_is_rescaled_not_dropped():
+    """Confirmed live against a real site (impactbattery.com):
+    aggregateRating can be ratingValue=90 on a bestRating=100/worstRating=0
+    scale, not the 0-5 scale ValidateMarketRecordPipeline enforces. Taking
+    ratingValue at face value produced a 90.0 "rating", which
+    ValidateMarketRecordPipeline correctly rejects (0-5) - silently
+    dropping an otherwise-valid, correctly-matched record."""
+    document = {
+        "@context": "https://schema.org", "@type": "Product", "name": "Trail Shoe", "sku": "SKU-1",
+        "offers": {"price": "89.50", "priceCurrency": "USD"},
+        "aggregateRating": {"ratingValue": 90, "bestRating": 100, "worstRating": 0, "reviewCount": "2"},
+        "review": [{"reviewBody": "Great", "reviewRating": {"ratingValue": 80, "bestRating": 100, "worstRating": 0}}],
+    }
+    html = f'<script type="application/ld+json">{json.dumps(document)}</script>'
+    item = list(spider().parse_structured(response(TARGET["product_url"], html), TARGET))[0]
+    assert item["rating"] == 4.5
+    assert item["reviews"][0]["review_rating"] == 4.0
+
+
+def test_rating_with_no_explicit_scale_passes_through_unchanged():
+    """No bestRating/worstRating at all - the common case - must behave
+    exactly as before this fix (a bare 0-5 ratingValue is not rescaled)."""
+    document = {
+        "@context": "https://schema.org", "@type": "Product", "name": "Trail Shoe", "sku": "SKU-1",
+        "offers": {"price": "89.50", "priceCurrency": "USD"},
+        "aggregateRating": {"ratingValue": 4.5, "reviewCount": "2"},
+    }
+    html = f'<script type="application/ld+json">{json.dumps(document)}</script>'
+    item = list(spider().parse_structured(response(TARGET["product_url"], html), TARGET))[0]
+    assert item["rating"] == 4.5
+
+
 def test_api_uses_exact_sku_or_point_82_fuzzy_match():
     api = response(
         "https://shop.example/products",
