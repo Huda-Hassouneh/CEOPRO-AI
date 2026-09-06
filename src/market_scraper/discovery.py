@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urlsplit
 
+from src.ai.pricing.competitor_classification import classify_competitor
 from src.market_scraper import data_access
 from src.market_scraper.policy import SourceCapabilities, evaluate_source, is_public_http_url
 from src.market_scraper.sector_detection import MANUFACTURER_SIGNAL_WORDS
@@ -176,14 +177,27 @@ def register_tenant_scoped_competitor(
 
     with conn.cursor() as cursor:
         cursor.execute(
+            "SELECT brand FROM products WHERE tenant_id = %s AND product_id = %s;",
+            (tenant_id, product_id),
+        )
+        product_row = cursor.fetchone()
+        brand_value = (product_row[0] or {}) if product_row else {}
+        brand_tokens = {
+            token for text in (brand_value.values() if isinstance(brand_value, dict) else [])
+            if text for token in str(text).lower().split()
+        }
+        is_manufacturer = looks_like_manufacturer_or_wholesale(candidate, brand_tokens)
+
+        cursor.execute(
             """
-            INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id)
-            VALUES (%s, %s, 'PRIVATE', %s)
+            INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id, is_manufacturer)
+            VALUES (%s, %s, 'PRIVATE', %s, %s)
             ON CONFLICT (added_by_tenant_id, LOWER(competitor_name)) WHERE (visibility = 'PRIVATE')
-            DO UPDATE SET website_url = EXCLUDED.website_url
+            DO UPDATE SET website_url = EXCLUDED.website_url,
+                          is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer
             RETURNING global_competitor_id;
             """,
-            (candidate.title or hostname, f"{urlsplit(candidate.url).scheme}://{hostname}", tenant_id),
+            (candidate.title or hostname, f"{urlsplit(candidate.url).scheme}://{hostname}", tenant_id, is_manufacturer),
         )
         competitor_id = cursor.fetchone()[0]
 
@@ -229,6 +243,14 @@ def register_tenant_scoped_competitor(
         contains_personal_data=False,
     )
 
+    # Re-evaluates this competitor's product_match_rate/is_tracked against
+    # the mapping just inserted above - real-competitor status (spec:
+    # not a manufacturer, in-region, >=50% product overlap) rather than
+    # the previous unconditional is_tracked=TRUE at insert time. Cheap
+    # and idempotent to re-run on every discovery, so it always reflects
+    # the tenant's current catalog rather than a stale first-insert value.
+    classification = classify_competitor(conn, tenant_id, str(competitor_id))
+
     return {
         "competitor_id": str(competitor_id),
         "source_id": str(source_id),
@@ -236,4 +258,8 @@ def register_tenant_scoped_competitor(
         "policy_status": decision_obj.status.value,
         "product_url": candidate.url,
         "competitor_name": candidate.title or hostname,
+        "is_manufacturer": is_manufacturer,
+        "product_match_rate": classification.product_match_rate,
+        "is_confirmed_competitor": classification.is_confirmed_competitor,
+        "classification_reason": classification.reason,
     }

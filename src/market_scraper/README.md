@@ -33,8 +33,10 @@ The repository's approved development target is `https://books.toscrape.com/`. T
    database. This exists for development and smoke testing, not competitor production collection.
 
 A real competitor gets its own source-specific spider. Selectors are not shared across unrelated
-sites; a giant conditional mega-spider would be neither reliable nor maintainable. Two official-API
-collectors exist alongside the general-purpose `standards`/`MarketSourceSpider` collector:
+sites; a giant conditional mega-spider would be neither reliable nor maintainable. Three
+API/paid-provider collectors exist alongside the general-purpose `standards`/`MarketSourceSpider`
+collector (which, being schema.org/JSON-LD-based, also covers most conventional retailer sites —
+Ikea included — without a bespoke spider):
 
 - **`google_places`** (`spiders/google_places.py`) — official Google Places API (Find Place →
   Details), reviews only. Places has no price to report, so every record it yields has
@@ -45,11 +47,19 @@ collectors exist alongside the general-purpose `standards`/`MarketSourceSpider` 
 - **`amazon_paapi`** (`spiders/amazon_paapi.py`) — official Amazon Product Advertising API v5,
   exact-ASIN price/availability. AWS Signature Version 4 request signing is implemented with
   stdlib `hmac`/`hashlib` only, no extra dependency.
+- **`social_data_provider`** (`spiders/social_data_provider.py`) — Instagram/Facebook/TikTok have no
+  public API for competitor data and their ToS prohibits direct automated collection, so this repo
+  never scrapes them itself (`social_cross_reference.py` is the free, ToS-compliant alternative for
+  finding *mentions* of a competitor via Google's own index). This collector instead wraps a paid
+  third-party provider's REST API, modeled on Apify's Actor API
+  (`run-sync-get-dataset-items`) — one maintained actor per platform. It only ever talks to the
+  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly.
 
-Both require API credentials, supplied per-source via `data_sources.connection_credentials_vault`
+All three require credentials, supplied per-source via `data_sources.connection_credentials_vault`
 (a JSON object — `{"api_key": ...}` for Places, `{"access_key", "secret_key", "partner_tag"}` for
-PA-API) and passed through by `cli.py` as `credentials_json`. That column is a plain `TEXT` field
-with no secrets-manager integration behind it yet — see `PENDING_ACTIONS.md` #42.
+PA-API, `{"api_token": ...}` for the social provider) and passed through by `cli.py` as
+`credentials_json`. That column is a plain `TEXT` field with no secrets-manager integration behind
+it yet — see `PENDING_ACTIONS.md` #42.
 
 ## Where competitor URLs and product matching come from
 
@@ -63,6 +73,30 @@ page allocated to a tenant product comes from
 Every extracted product is checked in `spiders/market_source.py`: exact external SKU wins with score
 `1.0`; otherwise the extracted name must reach fuzzy similarity `0.82`. `pipelines.py` independently
 enforces the recorded method and score before persistence.
+
+## Real-competitor classification
+
+Discovery (`discovery.py::register_tenant_scoped_competitor`) records every seller found for a
+matched product — useful as an audit trail — but not every seller found that way is actually a
+competitor. `src/ai/pricing/competitor_classification.py::classify_competitor()` runs immediately
+after registration (and can be re-run any time a tenant's catalog/mappings grow) and gates
+`tenant_competitors.is_tracked` — the flag `data_access.py::load_scrape_targets()` requires — on
+three checks:
+
+1. **Not a manufacturer/wholesaler.** `discovery.py::looks_like_manufacturer_or_wholesale()`
+   (domain-matches-brand or a wholesale/distributor/OEM signal word) is persisted as
+   `global_competitors.is_manufacturer`; a manufacturer's own store is excluded regardless of
+   product overlap.
+2. **In the tenant's operating region.** `global_competitors.country_code` is compared against
+   `companies.country_code`/`operating_countries`; an unknown competitor country is not excluded
+   (no evidence either way), but a known out-of-region one is.
+3. **Product overlap meets a configurable threshold.** `product_match_rate` = (this tenant's active
+   products this competitor also has an active mapping to) / (this tenant's total active products).
+   Only `>= threshold` (default `0.5`, i.e. 50%, passed as a parameter — not hardcoded) confirms a
+   real competitor.
+
+`tenant_competitors.product_match_rate`/`is_confirmed_competitor`/`classified_at` record the result
+of the most recent classification.
 
 ## Collection policy
 
@@ -156,9 +190,10 @@ python -m src.market_scraper.policy_cli \
 
 If an official API or RSS URL is supplied, the engine selects it before scraping. API/RSS sources
 must be handled by their corresponding collector rather than being forced through Scrapy. Pass
-`--collector google_places` or `--collector amazon_paapi` (in addition to the existing `standards`/
-`books_to_scrape`) to pick one of the two API collectors explicitly, and populate that source's
-`connection_credentials_vault` with its required credentials before running a collection.
+`--collector google_places`, `--collector amazon_paapi`, or `--collector social_data_provider` (in
+addition to the existing `standards`/`books_to_scrape`) to pick one of the API/paid-provider
+collectors explicitly, and populate that source's `connection_credentials_vault` with its required
+credentials before running a collection.
 
 Each `competitor_product_mappings` row scheduled for collection must reference the reviewed
 `source_id` and contain an approved `competitor_product_url`.
