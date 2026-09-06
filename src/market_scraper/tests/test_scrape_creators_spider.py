@@ -79,6 +79,45 @@ def json_response(url, payload):
     return TextResponse(url=url, request=request, body=json.dumps(payload).encode(), encoding="utf-8")
 
 
+def test_default_config_has_no_artificial_depth_limit():
+    """Product requirement: full comment threads by default, not a
+    shallow sample. Only a generous run-wide circuit breaker remains,
+    and even that is explicitly overridable to None."""
+    default = spider()
+    assert default.max_comment_pages is None
+    assert default.max_credits_per_post is None
+    assert default.max_credits_per_run == 5000
+
+
+def test_max_credits_per_run_can_be_fully_disabled():
+    unlimited = spider(collector_config={"max_credits_per_run": None})
+    unlimited.credits_spent = 10_000_000
+    assert unlimited._run_budget_exceeded() is False
+
+
+def test_default_pagination_follows_a_long_thread_across_many_pages():
+    """A real deep thread (many pages, all has_next_page=True) must not
+    stop early under default settings - only the actual end of the
+    thread (has_next_page=False) should halt it."""
+    long_thread_spider = spider()
+    accumulated, page, post_credits_spent = [], 1, 0
+    for _ in range(50):  # far beyond the old max_comment_pages=5 default
+        page_payload = {**COMMENTS_PAGE_1, "has_next_page": True, "cursor": f"page-{page}"}
+        results = list(long_thread_spider.parse_comments_page(
+            json_response("https://api.scrapecreators.com/v1/facebook/post/comments", page_payload),
+            TARGET_FB, "facebook", POST_RESPONSE, TARGET_FB["product_url"],
+            accumulated, page, post_credits_spent,
+        ))
+        assert len(results) == 1
+        next_request = results[0]
+        accumulated = next_request.cb_kwargs["accumulated"]
+        page = next_request.cb_kwargs["page"]
+        post_credits_spent = next_request.cb_kwargs["post_credits_spent"]
+    assert page == 51
+    assert len(accumulated) == 100  # 2 comments/page x 50 pages
+    assert long_thread_spider.credits_spent == 50
+
+
 def test_missing_api_key_is_rejected_before_any_request():
     with pytest.raises(PaidProviderNotConfiguredError, match="api_key"):
         ScrapeCreatorsSpider(

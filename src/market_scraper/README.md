@@ -73,17 +73,17 @@ Ikea included — without a bespoke spider):
   way Facebook's is — `collector_config["endpoints"]`/`["field_overrides"]` correct that
   per-platform without a code change once checked.
 
-  Depth is **budget-bounded, not just page-bounded** — every response's own real `credits_charged`
-  is tracked against `collector_config["max_credits_per_post"]` (default 20) and
-  `["max_credits_per_run"]` (default 500, across every target in one crawl). This is deliberately
-  the primary stop condition rather than a fixed page count: it keeps meaning the same thing as
-  comment volume, ScrapeCreators' pricing, or the number of tracked competitors changes over time,
-  with no retuning required as the company scales. Hitting the per-post ceiling stops that one
-  post's pagination with whatever was already fetched; hitting the run-wide ceiling stops issuing
-  any further requests for the rest of that crawl and degrades remaining targets to a posts-only
-  (no comments) record rather than silently dropping them or overspending. `max_comment_pages`
-  (default 5) remains as a structural backstop only, in case a response is ever missing
-  `credits_charged` entirely.
+  **Full-thread capture is the default** — product requirement: a truncated thread can hide exactly
+  the negative-sentiment comments that matter most. `collector_config["max_comment_pages"]` and
+  `["max_credits_per_post"]` both default to `None` (no limit) — pagination for a post runs until
+  the provider itself reports `has_next_page: false`, however long the thread actually is. The only
+  default ceiling is `["max_credits_per_run"]` (`5000` credits across one whole crawl, roughly $9-10
+  at the confirmed Facebook rate) — a circuit breaker against a genuine anomaly (a bug causing a
+  runaway request loop, or an entire batch of tracked posts going viral in the same run
+  simultaneously), never a data-completeness limit; every response's own real `credits_charged` is
+  what's tracked against it, never an estimate. Every real thread should fit comfortably under that
+  default in normal operation — set any of the three explicitly (`max_credits_per_run` included, to
+  `None`) to change or remove it entirely.
 
 All four require credentials, supplied per-source via `data_sources.connection_credentials_vault`
 (a JSON object — `{"api_key": ...}` for Places and for ScrapeCreators, `{"access_key",

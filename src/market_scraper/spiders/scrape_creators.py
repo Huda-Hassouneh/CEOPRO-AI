@@ -34,20 +34,22 @@ no connection_credentials_vault.api_key, __init__ raises
 PaidProviderNotConfiguredError immediately and never sends a request -
 same contract as amazon_paapi/google_places/social_data_provider.
 
-Budget-bounded, not just depth-bounded: every response's own
-`credits_charged` field (real, provider-reported spend - never assumed)
-is tracked against two independent ceilings,
-collector_config["max_credits_per_post"] (default 20) and
-["max_credits_per_run"] (default 500, across every target in one crawl).
-This is the primary depth control, not max_comment_pages (kept only as a
-structural backstop against a missing/zero credits_charged field) -
-tying the stop condition to real spend means it keeps meaning the same
-thing as comment volume, pricing, or the number of tracked competitors
-changes, with no retuning needed. Hitting the per-post ceiling degrades
-that one post to whatever comments were already fetched; hitting the
-run-wide ceiling stops issuing any further requests for the rest of that
-crawl (already-fetched posts still yield, newer targets fall back to a
-posts-only, comments-free item) rather than silently overspending.
+Full-thread capture is the default - product requirement: this exists to
+surface hidden negative sentiment and complaint themes, and a truncated
+thread can hide exactly the comments that matter most. collector_config
+["max_comment_pages"] and ["max_credits_per_post"] both default to None
+(no limit) - pagination for a given post runs until the provider itself
+reports has_next_page=False, i.e. the entire thread, however long that
+is. The only default ceiling is ["max_credits_per_run"] (5000 credits
+across one whole crawl, ~$9-10 at the confirmed Facebook rate) - a
+circuit breaker against a genuine anomaly (a bug causing an infinite
+request loop, or an entire batch of tracked posts unexpectedly going
+viral in the same run), not a data-completeness limit; every response's
+own real `credits_charged` field is what's tracked against it, never an
+estimate. Set any of the three explicitly (including max_credits_per_run
+itself, to None) to change or remove that behavior - this is a safety
+default, not a business rule, and every real thread should already fit
+comfortably under it in normal operation.
 """
 import json
 from datetime import datetime, timezone
@@ -147,9 +149,17 @@ class ScrapeCreatorsSpider(scrapy.Spider):
             for platform in _DEFAULT_ENDPOINTS
         }
         self.field_overrides = collector_config.get("field_overrides") or {}
-        self.max_comment_pages = collector_config.get("max_comment_pages", 5)
-        self.max_credits_per_post = collector_config.get("max_credits_per_post", 20)
-        self.max_credits_per_run = collector_config.get("max_credits_per_run", 500)
+        # Full-thread capture is the default: None on any of these three
+        # means "no limit" - pagination runs until the provider itself
+        # reports has_next_page=False, i.e. the entire comment thread.
+        # max_credits_per_run is the one exception with a real default -
+        # a circuit breaker against a runaway crawl (a bug, or an entire
+        # batch of posts unexpectedly going viral at once), not a
+        # data-completeness limit. Set it (or any of the three) to None
+        # explicitly to remove that safety net entirely.
+        self.max_comment_pages = collector_config.get("max_comment_pages", None)
+        self.max_credits_per_post = collector_config.get("max_credits_per_post", None)
+        self.max_credits_per_run = collector_config.get("max_credits_per_run", 5000)
         self.fetch_comments = collector_config.get("fetch_comments", True)
         self.allowed_domains = [urlsplit(self.base_url).hostname]
         self.credits_spent = 0
@@ -173,6 +183,8 @@ class ScrapeCreatorsSpider(scrapy.Spider):
         return charged
 
     def _run_budget_exceeded(self) -> bool:
+        if self.max_credits_per_run is None:
+            return False
         exceeded = self.credits_spent >= self.max_credits_per_run
         if exceeded and not self._run_budget_warned:
             self.logger.warning(
@@ -250,10 +262,11 @@ class ScrapeCreatorsSpider(scrapy.Spider):
         accumulated = accumulated + self._build_reviews(comments, platform)
 
         cursor = payload.get("cursor")
+        page_limit_ok = self.max_comment_pages is None or page < self.max_comment_pages
+        post_budget_ok = self.max_credits_per_post is None or post_credits_spent < self.max_credits_per_post
         can_continue = (
             payload.get("has_next_page") and cursor
-            and page < self.max_comment_pages
-            and post_credits_spent < self.max_credits_per_post
+            and page_limit_ok and post_budget_ok
             and not self._run_budget_exceeded()
         )
         if can_continue:
@@ -268,10 +281,15 @@ class ScrapeCreatorsSpider(scrapy.Spider):
                 dont_filter=True,
             )
         else:
-            if post_credits_spent >= self.max_credits_per_post:
+            if not post_budget_ok:
                 self.logger.info(
                     "per-post credit budget (%s) reached for %s at page %s - stopping this post's pagination",
                     self.max_credits_per_post, post_url, page,
+                )
+            elif not page_limit_ok:
+                self.logger.info(
+                    "max_comment_pages (%s) reached for %s - stopping this post's pagination",
+                    self.max_comment_pages, post_url,
                 )
             yield self._build_item(target, platform, post, post_url, reviews=accumulated)
 
