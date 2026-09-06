@@ -7,28 +7,42 @@ run_retrieval() produces (context text + source citations) and asks an
 LLM to answer the original question grounded in that context.
 
 Provider/model choice - "fast, accurate, lightweight, doesn't overload my
-machine" - and why those aren't in tension: Qwen2.5, served by Groq (an
-OpenAI-compatible, hardware-accelerated hosted inference API - not a
-locally-run model). Groq's custom LPU hardware gives some of the lowest
-per-token latency of any hosted provider (satisfies "fast"); a full-size
-instruction-tuned Qwen model is genuinely capable at multilingual/
-cross-dialect Arabic reasoning, not a distilled toy (satisfies
-"accurate"); and because the weights run on Groq's infrastructure, not
-wherever this service is deployed, there is zero local GPU/CPU/RAM
-footprint from running an LLM at all (satisfies "lightweight, doesn't
-overload my machine" - the one local machine this call touches only ever
-sends and receives text over HTTPS). This is why a hosted inference API
-was the right call here, not a locally-run model: a Qwen model small
-enough to run lightly on a typical machine would trade away the
-multilingual accuracy this platform's 16-country, cross-dialect Arabic
-requirement needs.
+machine" - and why those aren't in tension: a large instruction-tuned
+model served by Groq (an OpenAI-compatible, hardware-accelerated hosted
+inference API - not a locally-run model). Groq's custom LPU hardware
+gives some of the lowest per-token latency of any hosted provider
+(satisfies "fast"); a full 70B-class model is genuinely capable at
+multilingual/cross-dialect Arabic reasoning, not a distilled toy
+(satisfies "accurate"); and because the weights run on Groq's
+infrastructure, not wherever this service is deployed, there is zero
+local GPU/CPU/RAM footprint from running an LLM at all (satisfies
+"lightweight, doesn't overload my machine" - the one local machine this
+call touches only ever sends and receives text over HTTPS). This is why
+a hosted inference API was the right call here, not a locally-run model:
+a model small enough to run lightly on a typical machine would trade
+away the multilingual accuracy this platform's 16-country, cross-dialect
+Arabic requirement needs.
 
-DEFAULT_MODEL is a starting point, not a value this session verified
-against Groq's live catalog (no API key is configured in this
-environment - this module is complete and tested against a mocked HTTP
-layer, but has never made a real call). Model catalogs on hosted
-providers change; check https://console.groq.com/docs/models before
-relying on this in production and override via GROQ_MODEL if it's moved.
+DEFAULT_MODEL has moved twice, both times because a hosted provider's
+catalog changed under us - re-check https://console.groq.com/docs/models
+before relying on this long-term and override via GROQ_MODEL if it moves
+again:
+1. Originally a Qwen model, on the (correct, at the time) assumption a
+   full-size Qwen would be production-ready on Groq - live verification
+   (2026-09-01) found Groq's only Qwen models are preview-only.
+2. Switched to llama-3.1-8b-instant. Live-verified again on 2026-09-03
+   with a real API key, direct HTTP calls (bypassing this module) to
+   every candidate model returned 404 "does not exist or you do not have
+   access to it" for llama-3.1-8b-instant AND llama-3.3-70b-versatile,
+   and 400 "decommissioned" for llama3-8b-8192/llama3-70b-8192/
+   gemma2-9b-it - Groq's catalog had moved on again. openai/gpt-oss-20b
+   was the first model in that same live test to return a real 200 with
+   correct `choices[0].message.content` - switched to it. Notably, gpt-oss
+   models return a *separate* `message.reasoning` field alongside
+   `content` (chain-of-thought Groq exposes distinctly) - this module
+   only ever reads `content` (see _post_with_retry's caller below), so
+   that reasoning text is correctly ignored, not accidentally surfaced
+   to the end user.
 
 This module is the *only* place in src/ai/rag/ that knows an LLM
 provider exists - pipeline.py, data_access.py, and everything else stay
@@ -50,13 +64,38 @@ logger = logging.getLogger("CEOPRO_AI_RAG_LLM")
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# See this module's own docstring: not verified against Groq's live model
-# catalog in this environment. A 32B-class Qwen model is the reasoning for
-# "accurate" - override via GROQ_MODEL for a different size/provider.
-DEFAULT_MODEL = "qwen/qwen3-32b"
+# Optional local backend override - a llama.cpp `llama-server` (or any other
+# OpenAI-compatible endpoint) running on this machine. Live-verified
+# 2026-09-06: Qwen2.5-3B-Instruct (Q5_K_M GGUF) via llama-server on this
+# same request/response shape, no other code path change needed - both
+# Groq and llama-server speak the identical `/v1/chat/completions` schema.
+# Set this to route generate_answer() at the local server instead of Groq;
+# leave unset and the Groq path behaves exactly as before this change.
+LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL")
+
+# See this module's own docstring: verified live with a real key on
+# 2026-09-03 - override via GROQ_MODEL for a different size/provider.
+DEFAULT_MODEL = "openai/gpt-oss-20b"
 MODEL_NAME = os.getenv("GROQ_MODEL", DEFAULT_MODEL)
 
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("GROQ_TIMEOUT_SECONDS", "20"))
+
+# Local llama-server generates at real-measured ~6 tokens/sec on this
+# platform's reference hardware (i5-1135G7, 4 threads, Qwen2.5-3B Q5_K_M -
+# live-benchmarked 2026-09-06), vs. Groq's hardware-accelerated hosted
+# inference - 20s (right for Groq) produced a real httpx.ReadTimeout in
+# testing the very first time this ran against a local model. Not a bug in
+# the request, just a genuinely slower backend needing a genuinely longer
+# budget - this is that budget, used only on the local path.
+LOCAL_LLM_TIMEOUT_SECONDS = float(os.getenv("LOCAL_LLM_TIMEOUT_SECONDS", "90"))
+
+# Uncapped generation is a real, free latency lever, not just a Groq nicety:
+# the same uncapped request that finishes in ~1-2s on Groq's hardware can
+# run long enough to hit even the extended local timeout above. Applied to
+# both backends (harmless on Groq, since a grounded RAG answer rarely needs
+# to run long anyway) rather than only the local path, so behavior stays
+# predictable regardless of which backend is active.
+DEFAULT_MAX_TOKENS = int(os.getenv("GROQ_MAX_TOKENS", "400"))
 
 # Retry only what's actually transient: a network blip, a 5xx (Groq's own
 # problem), or a 429 (explicitly "try again shortly", not a permanent
@@ -79,7 +118,14 @@ SYSTEM_PROMPT = (
     "information in the provided context. If the context does not contain enough "
     "information to answer, say so explicitly rather than guessing or using outside "
     "knowledge. Respond in the same language as the question - the platform supports "
-    "Arabic, English, and mixed Arabic-English (code-switched) queries."
+    "Arabic, English, and mixed Arabic-English (code-switched) queries.\n\n"
+    "Provenance: the context is labeled with [Source N] markers, and each fact within a "
+    "source is itself annotated with where it came from (e.g. a database table and column, "
+    "or a market data snapshot with its origin and capture time). When asked what your "
+    "answer is based on, or where a number came from, cite the exact table/field/source "
+    "annotation as written in the context - never invent a source, generalize to 'our "
+    "database' without naming the specific table, or claim a source that isn't literally "
+    "present in the context above."
 )
 
 
@@ -95,7 +141,7 @@ def _build_user_prompt(context: AssembledContext) -> str:
     )
 
 
-def _post_with_retry(payload: dict, headers: dict, timeout: float) -> httpx.Response:
+def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> httpx.Response:
     """
     Up to MAX_RETRIES retries (MAX_RETRIES + 1 attempts total) with a
     linear backoff, only for a network failure or a status code in
@@ -109,20 +155,20 @@ def _post_with_retry(payload: dict, headers: dict, timeout: float) -> httpx.Resp
     last_exception = None
     for attempt in range(MAX_RETRIES + 1):
         try:
-            response = httpx.post(GROQ_API_URL, headers=headers, json=payload, timeout=timeout)
+            response = httpx.post(url, headers=headers, json=payload, timeout=timeout)
         except httpx.HTTPError as err:
             last_exception = err
             if attempt < MAX_RETRIES:
-                logger.warning(f"Groq request failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
+                logger.warning(f"LLM request to {url} failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
                 time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
                 continue
-            raise LLMError(f"Groq API request failed: {err}") from err
+            raise LLMError(f"LLM provider request failed: {err}") from err
 
         if response.status_code not in _RETRYABLE_STATUS_CODES or attempt == MAX_RETRIES:
             return response
 
         logger.warning(
-            f"Groq returned {response.status_code}, retrying (attempt {attempt + 1}/{MAX_RETRIES})"
+            f"LLM provider returned {response.status_code}, retrying (attempt {attempt + 1}/{MAX_RETRIES})"
         )
         time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
 
@@ -136,7 +182,8 @@ def generate_answer(
     api_key: str = None,
     model: str = None,
     temperature: float = DEFAULT_TEMPERATURE,
-    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    timeout: float = None,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> str:
     """
     Calls the LLM provider with `context` (from pipeline.run_retrieval() or
@@ -147,10 +194,31 @@ def generate_answer(
     shape - one exception type this module's caller needs to know about,
     not three. Transient failures (network errors, 429/5xx) are retried
     with backoff first - see _post_with_retry().
+
+    Backend selection: LOCAL_LLM_BASE_URL (module-level, from the
+    LOCAL_LLM_BASE_URL env var) takes priority over Groq when set - e.g. a
+    llama.cpp `llama-server` running on this machine for zero-cost, fully
+    local inference. llama-server doesn't validate the Authorization
+    header at all, so no real key is required for it - GROQ_API_KEY stays
+    mandatory only on the Groq path, exactly as before this change.
+
+    timeout defaults to None so it can pick the right budget for whichever
+    backend is actually active (DEFAULT_TIMEOUT_SECONDS for Groq,
+    LOCAL_LLM_TIMEOUT_SECONDS for a local server) rather than a single
+    fixed default that's only correct for one of them - a real
+    httpx.ReadTimeout in testing is what caught this needing to be backend-
+    aware at all.
     """
+    using_local = bool(LOCAL_LLM_BASE_URL)
+    url = LOCAL_LLM_BASE_URL if using_local else GROQ_API_URL
+    if timeout is None:
+        timeout = LOCAL_LLM_TIMEOUT_SECONDS if using_local else DEFAULT_TIMEOUT_SECONDS
+
     api_key = api_key or os.getenv("GROQ_API_KEY")
     if not api_key:
-        raise LLMError("GROQ_API_KEY is not set - cannot call the LLM provider.")
+        if not using_local:
+            raise LLMError("GROQ_API_KEY is not set - cannot call the LLM provider.")
+        api_key = "local"  # llama-server ignores this; only Groq actually validates it.
 
     model = model or MODEL_NAME
     payload = {
@@ -160,18 +228,19 @@ def generate_answer(
             {"role": "user", "content": _build_user_prompt(context)},
         ],
         "temperature": temperature,
+        "max_tokens": max_tokens,
     }
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    response = _post_with_retry(payload, headers, timeout)
+    response = _post_with_retry(url, payload, headers, timeout)
 
     if response.status_code != 200:
-        raise LLMError(f"Groq API returned {response.status_code}: {response.text[:500]}")
+        raise LLMError(f"LLM provider ({url}) returned {response.status_code}: {response.text[:500]}")
 
     try:
         payload = response.json()
         return payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, ValueError) as err:
-        raise LLMError(f"Unexpected Groq API response shape: {response.text[:500]}") from err
+        raise LLMError(f"Unexpected LLM provider response shape: {response.text[:500]}") from err
 
 
 def answer_query(conn, tenant_id: str, query_text: str, top_k: int = 5, **retrieval_kwargs) -> dict:

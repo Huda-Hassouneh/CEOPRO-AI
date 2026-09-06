@@ -93,7 +93,7 @@ LLM reasoning end to end, with persisted chunk/embedding storage (`rag_documents
 missing while wiring this up for real, see below) and the `ceopro-rag-knowledge` MinIO bucket for
 raw document bytes. `pipeline.run_retrieval()` (retrieval only — persisted index → RRF fusion →
 re-rank → context assembly) and `llm_client.answer_query()` (retrieval + the actual LLM call) are
-deliberately separate: the LLM provider (Groq, hosting Qwen) is known to exactly one file,
+deliberately separate: the LLM provider (Groq, hosting Llama) is known to exactly one file,
 `llm_client.py` — nothing else in this package has any dependency on which provider or model
 answers the question. Still missing: chat history persistence (would need a new table). CPU-only for
 retrieval/re-ranking throughout (the embedding model and re-ranker are both small, "light-medium"
@@ -146,8 +146,8 @@ tier); the LLM itself runs on Groq's infrastructure, not wherever this service i
   above into the one function `llm_client.py` needs.
 - `llm_client.py` — the only file in this package that knows an LLM provider exists.
   `generate_answer()` calls Groq (an OpenAI-compatible, hardware-accelerated hosted inference API)
-  serving Qwen (`GROQ_MODEL`, default `qwen/qwen3-32b` — verify against Groq's current catalog
-  before production use, see the module's own docstring). `answer_query()` composes
+  serving Llama (`GROQ_MODEL`, default `llama-3.3-70b-versatile` — verified live against Groq's
+  production catalog 2026-09-01, see the module's own docstring). `answer_query()` composes
   `pipeline.run_retrieval()` with `generate_answer()` into the full chatbot call — this is what
   `POST /rag/query` (`main.py`) calls. A missing `GROQ_API_KEY`, a non-2xx response, or a network
   failure all raise `LLMError` (never a bare `httpx` exception) so the caller has exactly one

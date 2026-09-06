@@ -237,7 +237,7 @@ class MarketSourceSpider(scrapy.Spider):
             "availability": availability,
             "is_available": "outofstock" not in availability.lower(),
             "stock_quantity": None, "page_text": page_text or None,
-            "rating": self._float_or_none(_first(aggregate, "ratingValue") or _first(product, "rating")),
+            "rating": self._normalize_rating(aggregate) if aggregate else self._float_or_none(_first(product, "rating")),
             "review_count": self._int_or_none(
                 _first(aggregate, "reviewCount", "ratingCount") or _first(product, "review_count")
             ),
@@ -259,11 +259,12 @@ class MarketSourceSpider(scrapy.Spider):
             rating = _first(review, "reviewRating") or {}
             author = _first(review, "author") or {}
             safety_flags = scan_external_text(body)
+            review_rating = self._normalize_rating(rating) if isinstance(rating, dict) else self._float_or_none(rating)
             records.append({
                 "external_review_id": str(_first(review, "@id", "id") or f"{context['mapping_id']}:{index}"),
                 "review_text": body,
                 "reviewer_name": _first(author, "name") if isinstance(author, dict) else str(author),
-                "review_rating": self._float_or_none(_first(rating, "ratingValue") if isinstance(rating, dict) else rating),
+                "review_rating": review_rating,
                 "review_date": _first(review, "datePublished"),
                 "safety_status": "QUARANTINED" if safety_flags else "SAFE",
                 "safety_flags": safety_flags,
@@ -275,6 +276,38 @@ class MarketSourceSpider(scrapy.Spider):
         if isinstance(image, list):
             image = image[0] if image else None
         return _first(image, "url") if isinstance(image, dict) else image
+
+    @staticmethod
+    def _normalize_rating(rating_obj):
+        """
+        Schema.org's ratingValue can be on any scale - bestRating/worstRating
+        default to 5/1 per spec when absent, but real sites routinely
+        override them (confirmed live: impactbattery.com's aggregateRating
+        is ratingValue=90 on a bestRating=100/worstRating=0 scale). Taking
+        ratingValue at face value silently dropped every such record
+        downstream - reviews.review_rating and this pipeline's own
+        ValidateMarketRecordPipeline both enforce 0-5, and a bare "90"
+        fails that check even though the underlying rating is genuinely a
+        perfectly valid 4.5/5. Rescale here instead of assuming 0-5.
+        """
+        if not isinstance(rating_obj, dict):
+            return None
+        value = rating_obj.get("ratingValue")
+        if value is None:
+            return None
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return None
+        try:
+            best = float(rating_obj["bestRating"]) if rating_obj.get("bestRating") is not None else 5.0
+            worst = float(rating_obj["worstRating"]) if rating_obj.get("worstRating") is not None else 0.0
+        except (TypeError, ValueError):
+            best, worst = 5.0, 0.0
+        if best <= worst:
+            return None
+        normalized = (value - worst) / (best - worst) * 5.0
+        return max(0.0, min(5.0, normalized))
 
     @staticmethod
     def _float_or_none(value):
