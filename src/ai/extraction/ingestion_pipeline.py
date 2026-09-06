@@ -49,6 +49,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from psycopg2.extras import execute_values
+
 from src.ai.extraction.template_detection import TemplateMode, detect_template
 from src.ai.extraction.template_contract import match_canonical_template
 from src.ai.extraction.row_parsing import RowParseResult, parse_mapped_row, validate_typed_fields
@@ -203,6 +205,87 @@ def _update_staging_row_status(
         """,
         (status, errors, staging_row_id),
     )
+
+
+_BULK_SAVEPOINT_NAME = "ingestion_pipeline_bulk_write"
+
+# Default bulk statement size when the caller doesn't pass commit_every (the
+# original commit_every=None path used to mean "one SAVEPOINT-wrapped
+# INSERT/UPDATE per row, one big uncommitted transaction" - the exact
+# mechanism SCALING.md root-caused as the 8.5-hour cliff. Chunking the bulk
+# statements themselves (independent of whether/how often the transaction
+# commits) fixes that even for a caller that never sets commit_every.
+_DEFAULT_BULK_CHUNK_SIZE = 1000
+
+
+def _bulk_insert_staging_rows(
+    conn, tenant_id: str, job_id: str, raw_rows: List[Dict[str, object]]
+) -> List[int]:
+    """
+    One INSERT statement for the whole chunk instead of one per row - the
+    dominant cost at scale was never the parsing (7s of pure compute for a
+    51,947-row file per SCALING.md) but ~6 SAVEPOINT-wrapped round trips
+    per row (SAVEPOINT/INSERT/RELEASE, then SAVEPOINT/UPDATE/RELEASE).
+    Returns staging_row_ids in the same order as `raw_rows` - a multi-row
+    VALUES INSERT ... RETURNING preserves input order (no JOIN/ON CONFLICT
+    involved here to reorder it), the same guarantee promotion.py's bulk
+    transaction insert already relies on.
+    """
+    values = [(tenant_id, job_id, json.dumps(row, ensure_ascii=False)) for row in raw_rows]
+    with conn.cursor() as cursor:
+        results = execute_values(
+            cursor,
+            """
+            INSERT INTO import_staging_rows (tenant_id, job_id, raw_payload_json, validation_status)
+            VALUES %s RETURNING staging_row_id;
+            """,
+            values,
+            template="(%s, %s, %s, 'PENDING')",
+            fetch=True,
+        )
+    return [row[0] for row in results]
+
+
+def _bulk_update_staging_status(conn, updates: List[Tuple[int, str, Optional[str]]]) -> None:
+    """updates: [(staging_row_id, status, errors_json_or_None), ...]."""
+    if not updates:
+        return
+    with conn.cursor() as cursor:
+        execute_values(
+            cursor,
+            """
+            UPDATE import_staging_rows AS s
+            SET validation_status = v.status, validation_errors = v.errors
+            FROM (VALUES %s) AS v(staging_row_id, status, errors)
+            WHERE s.staging_row_id = v.staging_row_id;
+            """,
+            updates,
+            template="(%s, %s, %s)",
+        )
+
+
+def _run_bulk_or_fallback(conn, savepoint_name: str, bulk_fn, fallback_fn):
+    """
+    Tries `bulk_fn()` inside a SAVEPOINT; on any failure, rolls back to it
+    and calls `fallback_fn()` instead (the slower, per-row-isolated path).
+    A whole-chunk failure should be rare - every field is already type/
+    range-validated well before this runs - but when it happens (e.g. a
+    NUL byte in a cell, the exact real failure SCALING.md's own
+    _execute_in_savepoint docstring cites), it must degrade to per-row
+    isolation rather than losing the rest of a otherwise-good chunk.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(f"SAVEPOINT {savepoint_name};")
+    try:
+        result = bulk_fn()
+    except Exception:
+        with conn.cursor() as cursor:
+            cursor.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name};")
+        return fallback_fn()
+    else:
+        with conn.cursor() as cursor:
+            cursor.execute(f"RELEASE SAVEPOINT {savepoint_name};")
+        return result
 
 
 def _update_job_counts(conn, tenant_id: str, job_id: str, processed: int, partial: int, failed: int) -> None:
@@ -388,15 +471,40 @@ def process_records(
 
     parse_results: List[RowParseResult] = []
     flushed_processed = flushed_partial = flushed_failed = 0
+    # See _bulk_insert_staging_rows()'s docstring: bulk-chunking the writes
+    # is independent of commit_every (which only controls how often the
+    # transaction *commits*) - even the commit_every=None caller (one
+    # implicit transaction for the whole file) now gets bulk statements in
+    # chunks of _DEFAULT_BULK_CHUNK_SIZE instead of one SAVEPOINT-wrapped
+    # statement per row, fixing the root cause (SAVEPOINT count) either way.
+    bulk_chunk_size = commit_every or _DEFAULT_BULK_CHUNK_SIZE
 
-    for i, raw_row in enumerate(rows):
-        staging_row_id, staging_error = _stage_row_or_error(conn, tenant_id, job_id, raw_row)
-        if staging_error is not None:
-            summary.rows_failed += 1
-            summary.row_outcomes.append(
-                IngestionRowOutcome(row_index=i, staging_row_id=None, mode=mode.value, error=staging_error)
-            )
+    for chunk_start in range(0, len(rows), bulk_chunk_size):
+        chunk = rows[chunk_start : chunk_start + bulk_chunk_size]
+
+        if conn is not None:
+            def _bulk_stage(chunk=chunk):
+                return [(sid, None) for sid in _bulk_insert_staging_rows(conn, tenant_id, job_id, chunk)]
+
+            def _fallback_stage(chunk=chunk):
+                return [_stage_row_or_error(conn, tenant_id, job_id, row) for row in chunk]
+
+            staged = _run_bulk_or_fallback(conn, _BULK_SAVEPOINT_NAME, _bulk_stage, _fallback_stage)
         else:
+            staged = [(None, None)] * len(chunk)
+
+        pending_status_updates: List[Tuple[int, str, Optional[str]]] = []
+
+        for offset, raw_row in enumerate(chunk):
+            i = chunk_start + offset
+            staging_row_id, staging_error = staged[offset]
+            if staging_error is not None:
+                summary.rows_failed += 1
+                summary.row_outcomes.append(
+                    IngestionRowOutcome(row_index=i, staging_row_id=None, mode=mode.value, error=staging_error)
+                )
+                continue
+
             try:
                 if mode in _MAPPED_MODES:
                     result, field_errors, row_fields_expected = _process_mapped_row(
@@ -426,7 +534,7 @@ def process_records(
                 if conn is not None and staging_row_id is not None:
                     status = "PARTIAL" if field_errors else "VALID"
                     errors_json = json.dumps(field_errors) if field_errors else None
-                    _update_staging_row_status(conn, staging_row_id, status, errors=errors_json)
+                    pending_status_updates.append((staging_row_id, status, errors_json))
 
             except Exception as e:  # noqa: BLE001 - one bad row must not sink the whole file
                 summary.rows_failed += 1
@@ -439,9 +547,19 @@ def process_records(
                     )
                 )
                 if conn is not None and staging_row_id is not None:
-                    _update_staging_row_status(conn, staging_row_id, "INVALID", errors=str(e))
+                    pending_status_updates.append((staging_row_id, "INVALID", str(e)))
 
-        if commit_every and conn is not None and (i + 1) % commit_every == 0:
+        if conn is not None and pending_status_updates:
+            def _bulk_status(updates=pending_status_updates):
+                _bulk_update_staging_status(conn, updates)
+
+            def _fallback_status(updates=pending_status_updates):
+                for staging_row_id, status, errors_json in updates:
+                    _update_staging_row_status(conn, staging_row_id, status, errors=errors_json)
+
+            _run_bulk_or_fallback(conn, _BULK_SAVEPOINT_NAME, _bulk_status, _fallback_status)
+
+        if commit_every and conn is not None:
             _update_job_counts(
                 conn, tenant_id, job_id,
                 summary.rows_processed - flushed_processed,

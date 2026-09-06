@@ -1,0 +1,28 @@
+E2E Pipeline Run 20260902T211521Z - overall status: PARTIAL
+tenant_id=8d31bbf7-c484-40d5-9316-0c1280aaa4ef user_id=8d9cc2db-5ce8-494f-95ea-45bb5a53ea3a
+
+[1_extraction] OK (43.676s)
+    {"job_id": "8a2483df-e679-4a34-a10a-8833c9679bdc", "row_count": 51947, "file_read_seconds": 9.938, "process_records_seconds": 33.427, "rows_per_second": 1554.0, "template_mode": "RECOGNIZED", "is_template_compliant": false, "rows_processed": 51947, "rows_partial": 0, "rows_failed": 0, "data_loss_pct": 0.0}
+
+[2_promotion] OK (37.053s)
+    {"currency_resolution": {"currency": "JOD", "source": "primary_currency", "needs_confirmation": false}, "rows_promoted": 51947, "rows_skipped_incomplete": 0, "rows_failed": 0, "products_created": 109, "promotion_error_count": 0, "promotion_errors_sample": [], "promoted_products": [{"product_id": "003235d2-f9d3-4f52-8ff2-579f1c6bf41a", "product_name": "Digital Vernier Caliper"}, {"product_id": "0070e2cb-005f-494b-8fe8-622c1a6bf245", "product_name": "LCD 1602 Display with I2C"}, {"product_id": "02a03d75-b463-4595-96de-fef0c7e42801", "product_name": "8x8 LED Dot Matrix MAX7219"}, {"product_id": "0487b2b5-8ecb-437c-b421-25eb9114f18f", "product_name": "PIR Motion Sensor"}, {"product_id": "06612478-123e-47bc-803f-8e317da8c44f", "product_name": "OLED Display 0.96 inch I2C"}, {"product_id": "07999cd5-9522-4105-8f0d-fc7e7099999b", "product_name": "DC Toy Motor 3V-6V"}, {"product_id": "08bd090a-5c07-4deb-89c0-528caa613747", "product_name": "Tweezers Anti-static Set (3pcs)"}, {"product_id": "0906
+
+[3_competitor_scraping] OK (20.538s)
+    {"detected_vertical": {"vertical": "electronics_hobbyist", "confidence": 1.0, "matched_keywords": ["arduino", "raspberry", "sensor", "resistor", "capacitor", "led", "module", "breadboard", "diode", "transistor", "solder", "battery", "motor", "wire", "pcb", "usb", "relay", "stepper", "servo"]}, "geo_scope": {"value": "JO", "source": "companies.country_code", "note": "Applies to build_retail_search_query() for any new discovery call. The candidates below were gathered before this run (see _DISCOVERED_CANDIDATES' docstring on the live-search-API gap) and are not retroactively re-scoped by this value."}, "discoveries": [{"product_name": "Raspberry Pi 4 (4GB)", "url": "https://www.sparkfun.com/raspberry-pi-4-model-b-4-gb.html", "title": "Raspberry Pi 4 Model B (4 GB) - SparkFun Electronics", "is_manufacturer_or_wholesale": false, "policy_status": "RESTRICTED", "terms_evidence": null, "scraped": false}, {"product_name": "Raspberry Pi 4 (4GB)", "url": "https://www.pishop.us/product/raspberry-
+
+[4_market_analysis] OK (18.516s)
+    {"analyze_tenant_result": {"sentiment": {"status": "OK", "analyzed_count": 2}, "score_count": 5}, "sentiment_summaries": [{"competitor_id": "20fbda82-5baf-441a-9544-d27711e14cbf", "competitor_name": "Yellow Digital MultiMeter DT830B", "status": "OK", "evidence_id": "c8db1886-16b1-40f1-9d63-af7a1c19a91a", "sentiment_score": 0.227, "label_counts": {"positive": 1, "neutral": 1, "negative": 0}, "sample_size": {"sufficient": false, "analyzed_count": 2, "minimum_required": 10, "status": "LOW_SAMPLE_SIZE"}}]}
+
+[5_forecasting] OK (173.692s)
+    {"per_product": {"003235d2-f9d3-4f52-8ff2-579f1c6bf41a": {"status": "OK", "source": "baseline", "forecast_id": "1bbfb520-975f-4466-b788-bea47c706b59", "evidence_id": "b87f7c53-29f5-4c66-bca9-8c46e5bd5cb3", "expected_demand": 2.0, "forecast_target_date": "2026-01-06", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 362, "minimum_required": 30, "confidence_status": "OK"}}, "02a03d75-b463-4595-96de-fef0c7e42801": {"status": "OK", "source": "baseline", "forecast_id": "f4ea0276-2104-4686-97f9-3c93b272c840", "evidence_id": "b385862c-dc07-4fcb-85e9-34e9aae6bbf1", "expected_demand": 3.142857142857143, "forecast_target_date": "2026-01-07", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 365, "minimum_required": 30, "confidence_status": "OK"}}, "0070e2cb-005f-494b-8fe8-622c1a6bf245": {"status": "OK", "source": "baseline", "forecast_id": "22415e4c-0ab4-48c7-a1e8-77eea05cefd5", "evidence_id": "9f077ce4-230a-4b0c-900a-03400a490
+
+[6_pricing] OK (3.109s)
+    {"per_product": {"0070e2cb-005f-494b-8fe8-622c1a6bf245": {"status": "UNKNOWN", "evidence_id": "45f398ec-e035-4b1a-aca3-073457d13008"}, "02a03d75-b463-4595-96de-fef0c7e42801": {"status": "UNKNOWN", "evidence_id": "c0622430-2978-4211-9649-f91a8465e62f"}, "003235d2-f9d3-4f52-8ff2-579f1c6bf41a": {"status": "UNKNOWN", "evidence_id": "6199e5b0-e609-462d-9821-da93f1c8c89d"}, "06612478-123e-47bc-803f-8e317da8c44f": {"status": "UNKNOWN", "evidence_id": "a7a0867e-e866-4e63-af41-eeb62f831868"}, "07999cd5-9522-4105-8f0d-fc7e7099999b": {"status": "UNKNOWN", "evidence_id": "b192fa35-ccf6-4b09-8e1a-48904e7847d4"}, "0487b2b5-8ecb-437c-b421-25eb9114f18f": {"status": "UNKNOWN", "evidence_id": "eb309c93-3b72-47ef-ac36-bbee1d4c7e73"}, "08bd090a-5c07-4deb-89c0-528caa613747": {"status": "UNKNOWN", "evidence_id": "d82e604e-c15b-4bf3-85a9-6445bf51f8a0"}, "0906bc60-2eda-45da-afd2-1a9c0ac136d9": {"status": "UNKNOWN", "evidence_id": "cf658ee2-2227-4446-bcd3-926caaaa553d"}, "0dac1bb5-7cbd-418a-a220-b49fb55f59a3":
+
+[7_rag_grounding] OK (18.542s)
+    {"object_key": "8d31bbf7-c484-40d5-9316-0c1280aaa4ef/e2e-pipeline-summary-ae700ba6-c5d9-4aeb-a7bc-91b4e1b90fed.txt", "documents_ingested": 1}
+
+[8_rag_chat_verification] PARTIAL (26.553s)
+    ! Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): GROQ_API_KEY is not set - cannot call the LLM provider.
+    {}
+
