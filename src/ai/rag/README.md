@@ -210,4 +210,4 @@ AssembledContext
 generate_answer()  -- Groq API call (Llama), the only LLM-aware step in this whole path
         |
 {"answer": ..., "sources": [...]}
-```
+```.
