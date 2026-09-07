@@ -34,6 +34,24 @@ needs nothing new for this):
 Never fabricates a result: a missing key/cx, an API error, or genuinely
 no matches all return an empty list - the same honest-degradation
 contract social_cross_reference.py and places_discovery.py already use.
+
+Two real mitigations for the 100/day free-tier cap, both real multi-
+tenant scaling concerns, not hypothetical ones:
+
+1. **Cache** (search_cache.py, Postgres-backed): pass `conn` and an
+   identical query - same product name/geo scope, whether from the same
+   tenant re-running discovery or a different tenant selling the same
+   product - is served from cache, never re-billed against the daily
+   quota. Only a genuine Google response (including a real "zero
+   results" answer) is cached; a failed/errored call never is, so a
+   temporary quota exhaustion doesn't get baked in as a false "no
+   results" for the cache's whole TTL.
+2. **SearXNG fallback** (searxng_discovery.py): when Google is
+   unconfigured, fails, or errors (quota exhausted or otherwise), the
+   same query is tried against a SearXNG instance next, if one is
+   configured. Deliberately NOT a Bing/DuckDuckGo HTML scrape - see
+   searxng_discovery.py's own docstring for why that's excluded on
+   purpose, not by oversight.
 """
 import json
 import logging
@@ -41,8 +59,9 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
+from src.market_scraper import search_cache, searxng_discovery
 from src.market_scraper.discovery import CandidateSource
 from src.market_scraper.sector_detection import build_retail_search_query
 
@@ -70,10 +89,61 @@ def _get(params: dict) -> Optional[dict]:
         return None
 
 
+def _run_query(
+    product_name: str, query: str, max_results: int, api_key: str, cx: str,
+) -> Tuple[List[CandidateSource], bool]:
+    """Returns (candidates, succeeded) - succeeded distinguishes a real
+    Google response (even an empty one - a genuine "no results" answer)
+    from a failed/errored call, so a caller can cache the former and
+    fall back to SearXNG only for the latter."""
+    result = _get({"key": api_key, "cx": cx, "q": query, "num": min(max_results, 10)})
+    if not result:
+        return [], False
+    if "error" in result:
+        logger.warning("Custom Search returned an error for %r: %s", query, result["error"])
+        return [], False
+
+    candidates = []
+    for item in (result.get("items") or []):
+        link = item.get("link")
+        if not link:
+            continue
+        candidates.append(CandidateSource(product_name, link, item.get("title") or ""))
+    return candidates, True
+
+
+def _with_cache_and_fallback(
+    conn, product_name: str, query: str, max_results: int,
+    api_key: Optional[str], cx: Optional[str], searxng_instance_url: Optional[str],
+) -> List[CandidateSource]:
+    cache_key = search_cache.build_cache_key("google_cse", query)
+    if conn is not None:
+        cached = search_cache.get_cached(conn, cache_key)
+        if cached is not None:
+            return cached
+
+    api_key = api_key or os.getenv("GOOGLE_CUSTOM_SEARCH_API_KEY")
+    cx = cx or os.getenv("GOOGLE_CUSTOM_SEARCH_CX")
+    if api_key and cx:
+        candidates, succeeded = _run_query(product_name, query, max_results, api_key, cx)
+        if succeeded:
+            if conn is not None:
+                search_cache.set_cached(conn, cache_key, candidates)
+            if candidates:
+                return candidates
+            return []  # a real, cacheable "no results" answer - no fallback needed
+    else:
+        logger.info("GOOGLE_CUSTOM_SEARCH_API_KEY/GOOGLE_CUSTOM_SEARCH_CX not set - trying SearXNG fallback.")
+
+    # Google is unconfigured, failed, or errored - never cached, real fallback attempt.
+    return searxng_discovery.discover_product_candidates(product_name, query, searxng_instance_url)
+
+
 def discover_product_candidates(
     product_name: str, geo_scope: str = "",
     api_key: Optional[str] = None, cx: Optional[str] = None,
     max_results: int = _MAX_RESULTS_PER_QUERY,
+    conn=None, searxng_instance_url: Optional[str] = None,
 ) -> List[CandidateSource]:
     """
     Real Google Custom Search call for `product_name` - the query itself
@@ -83,21 +153,20 @@ def discover_product_candidates(
     Nothing about this function branches on industry; it behaves the same
     way for any product name it's given.
 
+    Pass `conn` to enable the Postgres-backed cache (module docstring) -
+    omit it (default) to always call live, same as before this existed.
+    Falls back to SearXNG (searxng_instance_url, or SEARXNG_INSTANCE_URL)
+    when Google is unconfigured, fails, or errors.
+
     Returns one CandidateSource per real search result - product_name is
     the query this candidate was found for (matches direct_search.py's own
     CandidateSource shape so callers can treat both sources identically),
-    url/title come straight from Google's index. Returns [] when
-    GOOGLE_CUSTOM_SEARCH_API_KEY/GOOGLE_CUSTOM_SEARCH_CX aren't set, the
-    call fails, or there are genuinely no results - never a guessed URL.
+    url/title come straight from Google's (or SearXNG's) index. Returns
+    [] when nothing is configured/reachable or there are genuinely no
+    results - never a guessed URL.
     """
-    api_key = api_key or os.getenv("GOOGLE_CUSTOM_SEARCH_API_KEY")
-    cx = cx or os.getenv("GOOGLE_CUSTOM_SEARCH_CX")
-    if not api_key or not cx:
-        logger.info("GOOGLE_CUSTOM_SEARCH_API_KEY/GOOGLE_CUSTOM_SEARCH_CX not set - web product discovery skipped.")
-        return []
-
     query = build_retail_search_query(product_name, geo_scope or None)
-    return _run_query(product_name, query, max_results, api_key, cx)
+    return _with_cache_and_fallback(conn, product_name, query, max_results, api_key, cx, searxng_instance_url)
 
 
 # Platforms a "pure social, no e-commerce site" competitor is realistically
@@ -112,6 +181,7 @@ def discover_social_profile_candidates(
     product_name: str,
     api_key: Optional[str] = None, cx: Optional[str] = None,
     max_results_per_site: int = 3,
+    conn=None, searxng_instance_url: Optional[str] = None,
 ) -> List[CandidateSource]:
     """
     Finds competitors that only exist as a social profile - no e-commerce
@@ -120,7 +190,8 @@ def discover_social_profile_candidates(
     ever look for a seller's own site). One real Google Custom Search
     call per platform in _SOCIAL_DISCOVERY_SITES, `"<product_name>" site:
     <platform>` - the exact same free, self-serve API/credentials this
-    module already uses, no new vendor.
+    module already uses, no new vendor. Same cache/SearXNG-fallback
+    behavior as discover_product_candidates() - see its docstring.
 
     Returns real CandidateSource records pointing at the actual profile/
     post URL Google's index has - never a guessed handle. These still go
@@ -137,33 +208,10 @@ def discover_social_profile_candidates(
     ScrapeCreators/Apify collectors once configured), same as it does for
     any other tracked competitor's social presence.
     """
-    api_key = api_key or os.getenv("GOOGLE_CUSTOM_SEARCH_API_KEY")
-    cx = cx or os.getenv("GOOGLE_CUSTOM_SEARCH_CX")
-    if not api_key or not cx:
-        logger.info("GOOGLE_CUSTOM_SEARCH_API_KEY/GOOGLE_CUSTOM_SEARCH_CX not set - social profile discovery skipped.")
-        return []
-
     candidates = []
     for site in _SOCIAL_DISCOVERY_SITES:
         query = f'"{product_name}" site:{site}'
-        candidates.extend(_run_query(product_name, query, max_results_per_site, api_key, cx))
-    return candidates
-
-
-def _run_query(
-    product_name: str, query: str, max_results: int, api_key: str, cx: str,
-) -> List[CandidateSource]:
-    result = _get({"key": api_key, "cx": cx, "q": query, "num": min(max_results, 10)})
-    if not result:
-        return []
-    if "error" in result:
-        logger.warning("Custom Search returned an error for %r: %s", query, result["error"])
-        return []
-
-    candidates = []
-    for item in (result.get("items") or []):
-        link = item.get("link")
-        if not link:
-            continue
-        candidates.append(CandidateSource(product_name, link, item.get("title") or ""))
+        candidates.extend(_with_cache_and_fallback(
+            conn, product_name, query, max_results_per_site, api_key, cx, searxng_instance_url,
+        ))
     return candidates

@@ -140,10 +140,10 @@ def discover_competitors_for_tenant(
     results = []
     for product in products:
         candidates = list(discover_product_candidates(
-            product["product_name"], resolved_geo_scope, max_results=candidates_per_product,
+            product["product_name"], resolved_geo_scope, max_results=candidates_per_product, conn=conn,
         ))
         if include_social_only:
-            candidates.extend(discover_social_profile_candidates(product["product_name"]))
+            candidates.extend(discover_social_profile_candidates(product["product_name"], conn=conn))
         if seeded_domains:
             candidates.extend(search_product_across_retailers(
                 product["product_name"], seeded_domains, per_domain_limit=2,

@@ -151,7 +151,18 @@ is specific to electronics or any single vertical:
    actual industry-agnostic path: it runs identically for a coffee machine, a sofa, or a resistor.
    Same free-tier setup as `social_cross_reference.py` (100 queries/day): export
    `GOOGLE_CUSTOM_SEARCH_API_KEY` / `GOOGLE_CUSTOM_SEARCH_CX`. Missing credentials, an API error, or
-   genuinely no results all return `[]` — never a fabricated candidate.
+   genuinely no results all return `[]` — never a fabricated candidate. Two real mitigations for the
+   100/day cap, both wired in by default whenever `conn` is passed (as `tenant_discovery.py` already
+   does): a Postgres-backed cache (`search_cache.py`, `web_search_cache` table, 7-day default TTL,
+   deliberately **not** tenant-scoped — identical searches across different tenants share one cache
+   entry, since "what URLs does Google return for this text" is public search-index metadata, not
+   tenant data) skips the live call entirely on a hit; a SearXNG fallback (`searxng_discovery.py`,
+   `SEARXNG_INSTANCE_URL`) is tried whenever Google is unconfigured, fails, or errors. Only a genuine
+   Google response (including a real zero-result answer) is cached — a failed/errored call never is,
+   so a temporary quota exhaustion doesn't get baked in as false "no results" for the cache's whole
+   TTL. Raw HTML scraping of Bing/DuckDuckGo's own result pages was considered and deliberately
+   excluded — see `searxng_discovery.py`'s own docstring for why (same ToS-avoidance precedent
+   `social_cross_reference.py` already set for Google's result pages).
 4. `direct_search.py::search_product_across_retailers()` layers in for free, zero-API-cost, but only
    contributes candidates for a vertical that already has a hand-seeded `RETAILER_DOMAINS_BY_VERTICAL`
    entry (today: `electronics_hobbyist` only, seeded and live-verified during this codebase's own
