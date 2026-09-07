@@ -54,7 +54,12 @@ Ikea included — without a bespoke spider):
   best-effort reading of public documentation, not confirmed against a real authenticated call — no
   credentials are configured in this environment. `_field()`'s multi-candidate-key lookup degrades
   safely if a guess is wrong; `collector_config["field_overrides"]` corrects it without a code
-  change. Needs a real credentialed smoke test before being trusted with real spend decisions.
+  change. `collector_config["use_sandbox"] = True` points at Digi-Key's real sandbox
+  (`sandbox-api.digikey.com`) — free self-registration at developer.digikey.com, no production-app
+  approval gate, and Digi-Key's own docs confirm the response *structure* matches production (fake
+  data, real field names) — the actual way to verify the guesses above before trusting this with
+  real spend, without needing production credentials. `scripts/live_credential_smoke_tests.py`'s
+  `DIGIKEY_USE_SANDBOX=1` env var drives this.
 - **`mouser_api`** (`spiders/mouser_api.py`) — official Mouser Search API v1, exact-part-number
   price/availability. Single API-key auth (query string, no OAuth) — real endpoint/request-shape
   confirmed from Mouser's own docs. Same flagged field-name caveat as `digikey_api` above; price is
@@ -65,8 +70,15 @@ Ikea included — without a bespoke spider):
   never scrapes them itself (`social_cross_reference.py` is the free, ToS-compliant alternative for
   finding *mentions* of a competitor via Google's own index). This collector instead wraps a paid
   third-party provider's REST API, modeled on Apify's Actor API
-  (`run-sync-get-dataset-items`) — one maintained actor per platform. It only ever talks to the
-  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly. Two-stage
+  (`run-sync-get-dataset-items`) — one maintained actor per platform, defaulting to Apify's own
+  published actors (`apify/instagram-scraper`, `apify/tiktok-scraper`,
+  `apify/facebook-pages-scraper`; `_first_present()`'s candidate field names — `diggCount` for
+  TikTok's like-count convention alongside `likesCount`/`like_count` — already anticipate these
+  actors' real output shape, not a hypothetical one), overridable per source via
+  `collector_config["actor_ids"]` for a different actor entirely. It only ever talks to the
+  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly — Apify (or
+  whichever provider) is the one taking on the operational scraping, same category as
+  `scrape_creators` below, not this codebase doing it itself. Two-stage
   collection: one call per competitor profile returns posts with their own like/share/comment-count
   aggregates, then (`collector_config["fetch_comments"]`, default on) one further call per post
   fetches the actual comment list — real text, author, and per-comment like/reply counts, landing in

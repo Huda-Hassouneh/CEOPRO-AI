@@ -38,9 +38,22 @@ import scrapy
 from src.market_scraper.content_safety import scan_external_text
 from src.market_scraper.parsing import clean_text
 
-_TOKEN_URL = "https://api.digikey.com/v1/oauth2/token"
-_PRODUCT_DETAILS_URL = "https://api.digikey.com/products/v4/search/{product_number}/productdetails"
+_PRODUCTION_HOST = "api.digikey.com"
+# Real, confirmed-from-Digi-Key's-own-docs sandbox: same response
+# STRUCTURE as production (real field names, fake data), free self-
+# registration, no production-app approval gate - the actual way to
+# verify this module's field-name guesses without needing production
+# credentials. collector_config["use_sandbox"]=True switches to it.
+_SANDBOX_HOST = "sandbox-api.digikey.com"
 _TOKEN_FETCH_TIMEOUT = 15
+
+
+def _token_url(host: str) -> str:
+    return f"https://{host}/v1/oauth2/token"
+
+
+def _product_details_url(host: str, product_number: str) -> str:
+    return f"https://{host}/products/v4/search/{product_number}/productdetails"
 
 
 def _first(value, *keys):
@@ -50,19 +63,22 @@ def _first(value, *keys):
     return None
 
 
-def fetch_access_token(client_id: str, client_secret: str) -> dict:
+def fetch_access_token(client_id: str, client_secret: str, host: str = _PRODUCTION_HOST) -> dict:
     """
     Real OAuth2 client-credentials token exchange - stdlib only, same
     "no extra dependency for a pure network call" discipline as
     amazon_paapi.py's own AWS SigV4 implementation. Returns the raw
     {"access_token", "expires_in", "token_type"} response; caching/expiry
-    is the caller's job (this function always makes a real call).
+    is the caller's job (this function always makes a real call). Pass
+    host=_SANDBOX_HOST to exchange against Digi-Key's real sandbox
+    instead - same client_id/client_secret, no production-app approval
+    needed.
     """
     body = urllib.parse.urlencode({
         "client_id": client_id, "client_secret": client_secret, "grant_type": "client_credentials",
     }).encode("utf-8")
     req = urllib.request.Request(
-        _TOKEN_URL, data=body, method="POST",
+        _token_url(host), data=body, method="POST",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     with urllib.request.urlopen(req, timeout=_TOKEN_FETCH_TIMEOUT) as resp:
@@ -111,7 +127,13 @@ class DigiKeyPricingSpider(scrapy.Spider):
         self.locale_language = collector_config.get("locale_language", "en")
         self.locale_currency = collector_config.get("locale_currency", "USD")
         self.field_overrides = collector_config.get("field_overrides", {})
-        self.allowed_domains = ["api.digikey.com"]
+        # Real Digi-Key sandbox (sandbox-api.digikey.com) - same response
+        # STRUCTURE as production per Digi-Key's own docs, free self-
+        # registration, no approval gate. Set True to verify this
+        # module's field-name guesses for real before trusting it with
+        # production spend, without needing a production app.
+        self.host = _SANDBOX_HOST if collector_config.get("use_sandbox") else _PRODUCTION_HOST
+        self.allowed_domains = [self.host]
         self._access_token = None
         self._token_expires_at = 0.0
 
@@ -121,7 +143,7 @@ class DigiKeyPricingSpider(scrapy.Spider):
 
     def _bearer_token(self) -> str:
         if self._access_token is None or time.monotonic() >= self._token_expires_at:
-            token_response = fetch_access_token(self.client_id, self.client_secret)
+            token_response = fetch_access_token(self.client_id, self.client_secret, host=self.host)
             self._access_token = token_response["access_token"]
             # Refresh a little early rather than exactly at expiry, so a
             # slow request in flight never straddles the boundary.
@@ -144,7 +166,7 @@ class DigiKeyPricingSpider(scrapy.Spider):
             if not part_number:
                 self.logger.info("skipping target without a Digi-Key part number: %s", target.get("competitor_name"))
                 continue
-            url = _PRODUCT_DETAILS_URL.format(product_number=urllib.parse.quote(part_number, safe=""))
+            url = _product_details_url(self.host, urllib.parse.quote(part_number, safe=""))
             yield scrapy.Request(
                 url, headers=self._headers(), callback=self.parse_item,
                 cb_kwargs={"target": target, "part_number": part_number}, dont_filter=True,
