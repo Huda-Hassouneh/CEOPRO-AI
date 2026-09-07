@@ -69,7 +69,7 @@ from src.market_scraper.sitemap_discovery import SITEMAP_DOMAINS_BY_VERTICAL, di
 from src.market_scraper.web_product_discovery import discover_product_candidates, discover_social_profile_candidates
 
 
-def _load_active_tenant_products(conn, tenant_id: str) -> List[dict]:
+def _load_active_tenant_products(conn, tenant_id: str, skip_already_discovered: bool = True) -> List[dict]:
     """
     Returns [{"product_id", "product_name"}] for every active product -
     the same products.product_name JSONB convention load_known_product_
@@ -80,12 +80,27 @@ def _load_active_tenant_products(conn, tenant_id: str) -> List[dict]:
     from the extraction track: that module's own docstring scopes it to
     extraction's read set, and this needs product_id alongside the name,
     which that function doesn't return.
+
+    skip_already_discovered (default True) excludes a product that
+    already has at least one competitor_product_mappings row - the real
+    mechanism behind "the same daily cron call just makes free
+    incremental progress": once today's search_quota.py budget runs out
+    partway through a large catalog, whatever wasn't reached yet simply
+    stays un-mapped, and tomorrow's identical call skips everything
+    already covered and picks up from there, with no separate resume-
+    index or queue to maintain. Set False for a deliberate full re-
+    discovery pass (a mapped product might still be missing a competitor
+    that's shown up since).
     """
-    with conn.cursor() as cursor:
-        cursor.execute(
-            "SELECT product_id, product_name FROM products WHERE tenant_id = %s AND deleted_at IS NULL;",
-            (tenant_id,),
+    query = "SELECT product_id, product_name FROM products WHERE tenant_id = %s AND deleted_at IS NULL"
+    if skip_already_discovered:
+        query += (
+            " AND product_id NOT IN ("
+            "SELECT DISTINCT product_id FROM competitor_product_mappings WHERE tenant_id = %s"
+            ")"
         )
+    with conn.cursor() as cursor:
+        cursor.execute(query + ";", (tenant_id, tenant_id) if skip_already_discovered else (tenant_id,))
         rows = cursor.fetchall()
     products = []
     for product_id, product_name in rows:
@@ -104,7 +119,8 @@ def discover_competitors_for_tenant(
     conn, tenant_id: str, actor_user_id: str,
     geo_scope: Optional[str] = None, max_products: Optional[int] = None,
     candidates_per_product: int = 5, include_social_only: bool = True,
-    group_by_family: bool = True,
+    group_by_family: bool = True, skip_already_discovered: bool = True,
+    daily_query_limit: Optional[int] = 100,
 ) -> List[dict]:
     """
     Runs real discovery for every active product in this tenant's own
@@ -139,6 +155,17 @@ def discover_competitors_for_tenant(
     already small enough not to need this can skip the extra DB queries
     select_family_representatives() itself does).
 
+    skip_already_discovered (default True) is the real zero-dollar answer
+    to "the daily quota isn't enough for the whole catalog in one run":
+    a product that already has at least one competitor_product_mappings
+    row is excluded before family-grouping even happens, so once search_
+    quota.py's daily budget runs out partway through a large catalog, the
+    SAME call re-run tomorrow (e.g. via a daily cron) naturally picks up
+    only what's still unmapped - no separate resume-index or queue to
+    build or maintain. daily_query_limit (default 100, Google's real
+    free-tier cap) is passed straight through to web_product_discovery.py
+    - see its own docstring for the pacer's full reasoning.
+
     Returns one result dict per registered candidate (register_tenant_
     scoped_competitor()'s own return shape, with product_id/product_name
     added) - every found candidate is registered for every family member
@@ -153,7 +180,7 @@ def discover_competitors_for_tenant(
     collectible" filter on result["policy_status"] == "ALLOWED" rather
     than assuming len() of the return value.
     """
-    products = _load_active_tenant_products(conn, tenant_id)
+    products = _load_active_tenant_products(conn, tenant_id, skip_already_discovered=skip_already_discovered)
     if max_products is not None:
         products = products[:max_products]
 
@@ -171,9 +198,12 @@ def discover_competitors_for_tenant(
     for unit in search_units:
         candidates = list(discover_product_candidates(
             unit["product_name"], resolved_geo_scope, max_results=candidates_per_product, conn=conn,
+            daily_query_limit=daily_query_limit,
         ))
         if include_social_only:
-            candidates.extend(discover_social_profile_candidates(unit["product_name"], conn=conn))
+            candidates.extend(discover_social_profile_candidates(
+                unit["product_name"], conn=conn, daily_query_limit=daily_query_limit,
+            ))
         if seeded_domains:
             candidates.extend(search_product_across_retailers(
                 unit["product_name"], seeded_domains, per_domain_limit=2,

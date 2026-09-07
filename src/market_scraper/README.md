@@ -163,18 +163,31 @@ is specific to electronics or any single vertical:
    actual industry-agnostic path: it runs identically for a coffee machine, a sofa, or a resistor.
    Same free-tier setup as `social_cross_reference.py` (100 queries/day): export
    `GOOGLE_CUSTOM_SEARCH_API_KEY` / `GOOGLE_CUSTOM_SEARCH_CX`. Missing credentials, an API error, or
-   genuinely no results all return `[]` — never a fabricated candidate. Two real mitigations for the
-   100/day cap, both wired in by default whenever `conn` is passed (as `tenant_discovery.py` already
-   does): a Postgres-backed cache (`search_cache.py`, `web_search_cache` table, 7-day default TTL,
-   deliberately **not** tenant-scoped — identical searches across different tenants share one cache
-   entry, since "what URLs does Google return for this text" is public search-index metadata, not
-   tenant data) skips the live call entirely on a hit; a SearXNG fallback (`searxng_discovery.py`,
-   `SEARXNG_INSTANCE_URL`) is tried whenever Google is unconfigured, fails, or errors. Only a genuine
-   Google response (including a real zero-result answer) is cached — a failed/errored call never is,
-   so a temporary quota exhaustion doesn't get baked in as false "no results" for the cache's whole
-   TTL. Raw HTML scraping of Bing/DuckDuckGo's own result pages was considered and deliberately
-   excluded — see `searxng_discovery.py`'s own docstring for why (same ToS-avoidance precedent
-   `social_cross_reference.py` already set for Google's result pages).
+   genuinely no results all return `[]` — never a fabricated candidate. Three real mitigations for the
+   100/day cap, all wired in by default whenever `conn` is passed (as `tenant_discovery.py` already
+   does):
+   - **Cache** (`search_cache.py`, `web_search_cache` table, 7-day default TTL, deliberately **not**
+     tenant-scoped — identical searches across different tenants share one cache entry, since "what
+     URLs does Google return for this text" is public search-index metadata, not tenant data) skips
+     the live call entirely on a hit. Only a genuine Google response (including a real zero-result
+     answer) is cached — a failed/errored call never is, so a temporary quota exhaustion doesn't get
+     baked in as false "no results" for the cache's whole TTL.
+   - **Quota pacer** (`search_quota.py`, `search_quota_usage` table, `daily_query_limit` — default
+     `100`, Google's real free-tier cap) — the actual zero-dollar answer for a catalog too large to
+     fit in one day's free budget. Checked *before* every real call, never after: once today's tracked
+     count hits the limit, the live call is skipped for the rest of the day rather than risking an
+     accidental paid overage. Pairs with `tenant_discovery.py`'s `skip_already_discovered` default
+     (below) — a daily cron re-running the identical call each day naturally makes free, incremental
+     progress on whatever wasn't reached yesterday, with no separate resume/queue tracking needed.
+     This — not the fallback below — is the real lever for "the quota isn't enough for a large
+     catalog"; deliberately not SearXNG, which needs a real running instance (self-hosted, it competes
+     for RAM on the same box; a public one risks hammering someone else's free community resource with
+     a whole catalog's worth of queries, which many disable their JSON API by default to prevent).
+   - **SearXNG fallback** (`searxng_discovery.py`, `SEARXNG_INSTANCE_URL`) stays wired in as a genuine
+     resilience fallback for a real Google outage/error — not the primary volume strategy, for the
+     reason above. Raw HTML scraping of Bing/DuckDuckGo's own result pages was considered and
+     deliberately excluded — see `searxng_discovery.py`'s own docstring for why (same ToS-avoidance
+     precedent `social_cross_reference.py` already set for Google's result pages).
 4. `direct_search.py::search_product_across_retailers()` layers in for free, zero-API-cost, but only
    contributes candidates for a vertical that already has a hand-seeded `RETAILER_DOMAINS_BY_VERTICAL`
    entry (today: `electronics_hobbyist` only, seeded and live-verified during this codebase's own
@@ -208,6 +221,12 @@ cost N searches for N variants).
   when no sales data exists — never silently disguised as volume-based) — then applies whatever's
   found to **every real SKU** in that family via `register_tenant_scoped_competitor()`, so
   `competitor_product_mappings` coverage is still per-SKU, just without a redundant re-search per SKU.
+- **`skip_already_discovered`** (default `True`) excludes a product that already has at least one
+  `competitor_product_mappings` row before family-grouping even runs — the actual mechanism behind
+  "the daily quota isn't enough for the whole catalog in one run": once `search_quota.py`'s budget
+  (above) is spent partway through a large catalog, the identical call re-run tomorrow (e.g. a daily
+  cron) naturally skips everything already covered and makes free, incremental progress on the rest —
+  no separate resume-index or queue to build.
 - **`tenant_competitors.tier`** (`CANDIDATE` / `RELEVANT` / `STRATEGIC`, migration
   `20260907010000`) is computed and persisted by `competitor_classification.py::classify_competitor()`:
   `CANDIDATE` (excluded — a manufacturer, or out of region), `RELEVANT` (passed those checks, below

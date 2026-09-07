@@ -257,6 +257,74 @@ def test_same_domain_found_under_two_different_titles_dedupes_to_one_row(conn):
     assert identity_key == "acmecoffee.example"
 
 
+def test_skip_already_discovered_excludes_a_product_with_an_existing_mapping(conn):
+    """
+    The real "resume tomorrow for free" mechanism, proven end-to-end: a
+    product that already has a competitor_product_mappings row (from an
+    earlier discovery pass, or seeded directly) is excluded before the
+    next call even builds a search query for it - the same daily cron
+    call naturally skips what's already covered.
+    """
+    tenant_id = _insert_company(conn)
+    already_mapped = _insert_product(conn, tenant_id, "Espresso Machine")
+    not_yet_mapped = _insert_product(conn, tenant_id, "Pour Over Kettle")
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id) "
+            "VALUES ('Existing Competitor', 'https://existing.example', 'PRIVATE', %s) "
+            "RETURNING global_competitor_id;",
+            (tenant_id,),
+        )
+        competitor_id = cursor.fetchone()[0]
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s);",
+            (tenant_id, competitor_id),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_product_mappings (tenant_id, global_competitor_id, product_id) "
+            "VALUES (%s, %s, %s);",
+            (tenant_id, competitor_id, already_mapped),
+        )
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    mocked_search.assert_called_once_with(
+        "Pour Over Kettle", "JO", max_results=5, conn=conn, daily_query_limit=100,
+    )
+
+
+def test_skip_already_discovered_false_searches_everything_regardless(conn):
+    tenant_id = _insert_company(conn)
+    already_mapped = _insert_product(conn, tenant_id, "Espresso Machine")
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id) "
+            "VALUES ('Existing Competitor', 'https://existing.example', 'PRIVATE', %s) "
+            "RETURNING global_competitor_id;",
+            (tenant_id,),
+        )
+        competitor_id = cursor.fetchone()[0]
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s);",
+            (tenant_id, competitor_id),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_product_mappings (tenant_id, global_competitor_id, product_id) "
+            "VALUES (%s, %s, %s);",
+            (tenant_id, competitor_id, already_mapped),
+        )
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), skip_already_discovered=False)
+
+    mocked_search.assert_called_once()  # the already-mapped product is searched again
+
+
 def test_deleted_products_are_not_searched(conn):
     tenant_id = _insert_company(conn)
     product_id = _insert_product(conn, tenant_id, "Espresso Machine")
