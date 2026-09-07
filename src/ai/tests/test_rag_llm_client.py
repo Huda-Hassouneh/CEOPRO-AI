@@ -58,7 +58,7 @@ def test_generate_answer_raises_llm_error_on_non_200(monkeypatch):
 
 def test_generate_answer_raises_llm_error_on_malformed_response_shape(monkeypatch):
     monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: _FakeResponse(200, {"unexpected": "shape"}))
-    with pytest.raises(llm_client.LLMError, match="Unexpected Groq API response shape"):
+    with pytest.raises(llm_client.LLMError, match="Unexpected LLM provider response shape"):
         llm_client.generate_answer(_context(), api_key="test-key")
 
 
@@ -71,7 +71,7 @@ def test_generate_answer_raises_llm_error_on_network_failure_after_exhausting_re
         raise httpx.ConnectError("connection refused")
 
     monkeypatch.setattr(llm_client.httpx, "post", raise_network_error)
-    with pytest.raises(llm_client.LLMError, match="Groq API request failed"):
+    with pytest.raises(llm_client.LLMError, match="LLM provider request failed"):
         llm_client.generate_answer(_context(), api_key="test-key")
     assert len(calls) == llm_client.MAX_RETRIES + 1  # every retry was actually attempted, not skipped
 
