@@ -1,0 +1,26 @@
+E2E Pipeline Run 20260901T181143Z - overall status: PARTIAL
+tenant_id=c1624a99-a75e-4ff6-b590-4a742837374a user_id=5ded24b7-b8e6-4461-a4cc-55d2fb3f8ef5
+
+[1_extraction] OK (30.665s)
+    {"job_id": "a1f7027a-5e5c-4df7-b241-1b2a080c88f3", "row_count": 51947, "file_read_seconds": 5.702, "process_records_seconds": 24.888, "rows_per_second": 2087.2, "template_mode": "RECOGNIZED", "is_template_compliant": false, "rows_processed": 51947, "rows_partial": 0, "rows_failed": 0, "data_loss_pct": 0.0}
+
+[2_promotion] OK (19.955s)
+    {"default_currency_used": "JOD", "rows_promoted": 51947, "rows_skipped_incomplete": 0, "rows_failed": 0, "products_created": 109, "promotion_error_count": 0, "promotion_errors_sample": [], "promoted_products": [{"product_id": "01004b29-89f9-4b64-900c-9f7cc60e1e94", "product_name": "Robot Gripper Mechanical Arm"}, {"product_id": "03a7d986-6197-4176-a221-6112254f5035", "product_name": "MB102 Breadboard Power Module"}, {"product_id": "0608f27e-222c-457f-97f0-69703ecccc4a", "product_name": "LM2596 DC-DC Buck Converter"}, {"product_id": "0821dee6-373a-451b-92f6-be259b2d9ae7", "product_name": "5V Relay Module 1-Channel"}, {"product_id": "0d9c5478-150a-4786-9553-a2d33676ff1f", "product_name": "USB Cable Type-B for Arduino"}, {"product_id": "12614244-ef15-48f2-b793-fd81446f2eed", "product_name": "Active Buzzer 5V"}, {"product_id": "17789630-060a-4b0a-8d9d-4dca2c536f84", "product_name": "HC-05 Bluetooth Serial Module"}, {"product_id": "181e77b0-cf9b-4e9a-a580-bff6bbfe791e", "product_name": "USB
+
+[3_competitor_scraping] PARTIAL (12.016s)
+    ! Discovery ran and logged real candidate URLs, but none reached a scraped price - see discoveries[].policy_status/is_manufacturer_or_wholesale for why each one didn't.
+    {"detected_vertical": {"vertical": "electronics_hobbyist", "confidence": 1.0, "matched_keywords": ["arduino", "raspberry", "sensor", "resistor", "capacitor", "led", "module", "breadboard", "diode", "transistor", "solder", "battery", "motor", "wire", "pcb", "usb", "relay", "stepper", "servo"]}, "geo_scope": {"value": "JO", "source": "companies.country_code", "note": "Applies to build_retail_search_query() for any new discovery call. The candidates below were gathered before this run (see _DISCOVERED_CANDIDATES' docstring on the live-search-API gap) and are not retroactively re-scoped by this value."}, "discoveries": [{"product_name": "Digital Multimeter DT830B", "url": "https://www.impactbattery.com/yellow-digital-multimeter-dt830b.html", "title": "Yellow Digital MultiMeter DT830B", "is_manufacturer_or_wholesale": false, "policy_status": "ALLOWED", "terms_evidence": "Explicitly approved by operator for this run via --live-approve-hosts (host: www.impactbattery.com)", "scraped": true, "s
+
+[4_forecasting] OK (50.296s)
+    {"per_product": {"03a7d986-6197-4176-a221-6112254f5035": {"status": "OK", "source": "baseline", "forecast_id": "e9452ab0-68a1-4481-b131-2fb7cb9bad1c", "evidence_id": "6f87a922-a57b-44ca-9eec-44d9f75d82b9", "expected_demand": 3.0, "forecast_target_date": "2026-01-06", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 364, "minimum_required": 30, "confidence_status": "OK"}}, "01004b29-89f9-4b64-900c-9f7cc60e1e94": {"status": "OK", "source": "baseline", "forecast_id": "14f6d2da-d509-48f7-80d1-68f79c1bb585", "evidence_id": "b1be692b-15ee-482d-8807-8cd4c394f4a0", "expected_demand": 1.5714285714285714, "forecast_target_date": "2026-01-07", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 364, "minimum_required": 30, "confidence_status": "OK"}}, "0608f27e-222c-457f-97f0-69703ecccc4a": {"status": "OK", "source": "baseline", "forecast_id": "090db1a4-c49c-40bc-b77d-1d65a7c2c930", "evidence_id": "42652870-4301-4545-a0f2-b86f01ea
+
+[5_pricing] OK (2.062s)
+    {"per_product": {"0608f27e-222c-457f-97f0-69703ecccc4a": {"status": "UNKNOWN", "evidence_id": "05a9eddb-5eab-4648-9585-31f9344ec05a"}, "01004b29-89f9-4b64-900c-9f7cc60e1e94": {"status": "UNKNOWN", "evidence_id": "4a6e81be-f0b1-470e-9e51-7af45ac71826"}, "03a7d986-6197-4176-a221-6112254f5035": {"status": "UNKNOWN", "evidence_id": "8d5014fd-c9de-4b31-9e92-cf892bbda1bd"}, "0d9c5478-150a-4786-9553-a2d33676ff1f": {"status": "UNKNOWN", "evidence_id": "2b39ab87-f7d1-4963-9f06-23bcdcab42a0"}, "0821dee6-373a-451b-92f6-be259b2d9ae7": {"status": "UNKNOWN", "evidence_id": "96f171d6-8cb2-4071-9612-31df70352bee"}, "12614244-ef15-48f2-b793-fd81446f2eed": {"status": "UNKNOWN", "evidence_id": "ff34397a-3d5a-4b55-a7c3-f5e516513d6e"}, "181e77b0-cf9b-4e9a-a580-bff6bbfe791e": {"status": "UNKNOWN", "evidence_id": "7a89e7b8-b863-4901-96e8-da1454d3ae7a"}, "17789630-060a-4b0a-8d9d-4dca2c536f84": {"status": "UNKNOWN", "evidence_id": "b2c20e8b-cf31-410a-86d7-d19557a6a7ce"}, "186cf149-1e65-47b4-b299-440d478ce42c":
+
+[6_rag_grounding] OK (12.092s)
+    {"object_key": "c1624a99-a75e-4ff6-b590-4a742837374a/e2e-pipeline-summary-a44fba28-92d6-431e-abab-a40da3b67ec3.txt", "documents_ingested": 1}
+
+[7_rag_chat_verification] PARTIAL (12.263s)
+    ! Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): GROQ_API_KEY is not set - cannot call the LLM provider.
+    {}
+

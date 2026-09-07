@@ -1,0 +1,29 @@
+E2E Pipeline Run 20260903T190924Z - overall status: PARTIAL
+tenant_id=9350f98c-ff0a-4166-8575-588bf81ddea9 user_id=9e04c872-20fa-4969-a3f4-6e388c2e5966
+
+[1_extraction] OK (33.643s)
+    {"job_id": "2d82a956-b361-4f26-8182-b37f85a76101", "row_count": 51947, "file_read_seconds": 5.325, "process_records_seconds": 28.212, "rows_per_second": 1841.3, "template_mode": "RECOGNIZED", "is_template_compliant": false, "rows_processed": 51947, "rows_partial": 0, "rows_failed": 0, "data_loss_pct": 0.0}
+
+[2_promotion] OK (16.005s)
+    {"currency_resolution": {"currency": "JOD", "source": "primary_currency", "needs_confirmation": false}, "rows_promoted": 51947, "rows_skipped_incomplete": 0, "rows_failed": 0, "products_created": 109, "promotion_error_count": 0, "promotion_errors_sample": [], "promoted_products": [{"product_id": "01b37491-50ac-4dfd-a4ab-e3b0123dc754", "product_name": "40-Pin Male Header Strip (5pcs)"}, {"product_id": "0413454a-9c09-4e6a-b901-868ab76895d6", "product_name": "Digital Vernier Caliper"}, {"product_id": "04c0ab4e-23fa-401a-8824-35379a67c671", "product_name": "Dual 18650 Battery Charger"}, {"product_id": "07a09ed3-e009-49f1-9542-19be5e8dde53", "product_name": "Screw Terminal Block 2-Pin (10pc)"}, {"product_id": "0a16af46-da65-425c-850e-3668640e6823", "product_name": "Digital Multimeter DT830B"}, {"product_id": "0ad6f19d-9ec4-4c02-a789-88ab03f6ed31", "product_name": "DHT22 Precision Temp Sensor"}, {"product_id": "0b1891b5-bedf-4baa-b78c-36821753a64e", "product_name": "DC Toy Motor 3V-6V"}, {"p
+
+[3_competitor_scraping] OK (41.249s)
+    {"detected_vertical": {"vertical": "electronics_hobbyist", "confidence": 1.0, "matched_keywords": ["arduino", "raspberry", "sensor", "resistor", "capacitor", "led", "module", "breadboard", "diode", "transistor", "solder", "battery", "motor", "wire", "pcb", "usb", "relay", "stepper", "servo"]}, "geo_scope": {"value": "JO", "source": "companies.country_code", "note": "Applies to build_retail_search_query() for any new discovery call. The candidates below were gathered before this run (see _DISCOVERED_CANDIDATES' docstring on the live-search-API gap) and are not retroactively re-scoped by this value."}, "discoveries": [{"product_name": "Digital Multimeter DT830B", "url": "https://www.impactbattery.com/yellow-digital-multimeter-dt830b.html", "title": "Yellow Digital MultiMeter DT830B", "is_manufacturer_or_wholesale": false, "policy_status": "ALLOWED", "terms_evidence": "Explicitly approved by operator for this run via --live-approve-hosts (host: www.impactbattery.com)", "scraped": true, "s
+
+[4_market_analysis] OK (34.899s)
+    {"analyze_tenant_result": {"sentiment": {"status": "OK", "analyzed_count": 2}, "score_count": 5}, "sentiment_summaries": [{"competitor_id": "9e8f1987-6ac5-4799-9ae6-7d2651154f36", "competitor_name": "Yellow Digital MultiMeter DT830B", "status": "OK", "evidence_id": "8738aa64-f3ca-4194-add8-9ab8659ca9c6", "sentiment_score": 0.227, "label_counts": {"positive": 1, "neutral": 1, "negative": 0}, "sample_size": {"sufficient": false, "analyzed_count": 2, "minimum_required": 10, "status": "LOW_SAMPLE_SIZE"}}]}
+
+[5_forecasting] OK (64.041s)
+    {"per_product": {"01b37491-50ac-4dfd-a4ab-e3b0123dc754": {"status": "OK", "source": "baseline", "forecast_id": "4677e729-fd11-495d-9a44-a0a4e6b1ffe4", "evidence_id": "2897c318-17c8-47f3-8674-9524f296550a", "expected_demand": 2.7142857142857144, "forecast_target_date": "2026-01-05", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 363, "minimum_required": 30, "confidence_status": "OK"}}, "0413454a-9c09-4e6a-b901-868ab76895d6": {"status": "OK", "source": "baseline", "forecast_id": "3b79edef-3322-4d6d-8f3b-53c5c18ffc97", "evidence_id": "c30174e0-cc79-4473-91bf-f89bb16b8965", "expected_demand": 2.0, "forecast_target_date": "2026-01-06", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 362, "minimum_required": 30, "confidence_status": "OK"}}, "04c0ab4e-23fa-401a-8824-35379a67c671": {"status": "OK", "source": "baseline", "forecast_id": "d83c522c-d8ec-4e2e-9ae7-3763f3457e2b", "evidence_id": "f48e282d-a6eb-475a-b9f0-a699ba69
+
+[6_pricing] OK (2.415s)
+    {"per_product": {"01b37491-50ac-4dfd-a4ab-e3b0123dc754": {"status": "UNKNOWN", "evidence_id": "85609422-e3b4-4c1c-a04f-f07439c4a351"}, "0413454a-9c09-4e6a-b901-868ab76895d6": {"status": "UNKNOWN", "evidence_id": "e65060c5-1638-4227-bbe3-2aa3255a9e70"}, "04c0ab4e-23fa-401a-8824-35379a67c671": {"status": "UNKNOWN", "evidence_id": "2a2a2d6d-8911-4e8a-a23b-3a16bb92d27d"}, "0ad6f19d-9ec4-4c02-a789-88ab03f6ed31": {"status": "UNKNOWN", "evidence_id": "513a38be-c093-414b-9c05-2b8127f1a5f2"}, "0a16af46-da65-425c-850e-3668640e6823": {"status": "UNKNOWN", "evidence_id": "a5ecdd3c-643d-4dd2-abbb-1d72a9d7f122"}, "07a09ed3-e009-49f1-9542-19be5e8dde53": {"status": "UNKNOWN", "evidence_id": "6b13e9f6-d6ba-49ac-a8e2-c4265810b7d6"}, "0b1891b5-bedf-4baa-b78c-36821753a64e": {"status": "UNKNOWN", "evidence_id": "63f6f93e-476a-47eb-a7bc-92b1affc9d2c"}, "0b30c17b-7a71-4c68-b0e3-f8abfed847c9": {"status": "UNKNOWN", "evidence_id": "14385da0-330a-4fe6-86a6-802ffb7a6117"}, "0b812919-4ce6-4eb4-99ed-3f9843776f39":
+
+[7_rag_grounding] OK (12.388s)
+    {"object_key": "9350f98c-ff0a-4166-8575-588bf81ddea9/e2e-pipeline-summary-94257c19-57cd-48cb-989f-36eb31bf0899.txt", "documents_ingested": 1}
+
+[8_rag_chat_verification] PARTIAL (13.983s)
+    ! Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): Groq API returned 429: {"error":{"message":"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_01m1ctvh4sekzr8rh69ae1tfz8` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 3948, Requested 5224. Please try again in 8.79s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing","type":"tokens","code":"rate_limit_exceeded"}}
+
+    {}
+

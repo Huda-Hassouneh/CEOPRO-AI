@@ -1,0 +1,26 @@
+E2E Pipeline Run 20260901T163517Z - overall status: FAILED
+tenant_id=14dafb92-f177-4671-bec4-f1ff86e7b36f user_id=5ac05c47-bd05-4f94-9b16-9d1055b39080
+
+[1_extraction] OK (398.42s)
+    {"job_id": "c44e7037-0bdd-43ec-b974-32fa198c4d1a", "row_count": 51947, "file_read_seconds": 6.263, "process_records_seconds": 392.088, "rows_per_second": 132.5, "template_mode": "RECOGNIZED", "is_template_compliant": false, "rows_processed": 51947, "rows_partial": 0, "rows_failed": 0, "data_loss_pct": 0.0}
+
+[2_promotion] OK (12.294s)
+    {"default_currency_used": "JOD", "rows_promoted": 51947, "rows_skipped_incomplete": 0, "rows_failed": 0, "products_created": 109, "promotion_error_count": 0, "promotion_errors_sample": [], "promoted_products": [{"product_id": "cc7e5ce1-677d-4ecf-b3d3-3aa2080a67c0", "product_name": "IRF540N MOSFET Power"}, {"product_id": "2da4c774-aa06-4925-9130-112950b66ee6", "product_name": "18650 Li-ion Battery 2500mAh"}, {"product_id": "0777e1bb-47ba-4f74-a8a8-676faeb69321", "product_name": "Arduino Nano"}, {"product_id": "c1650e06-121f-481d-8bbd-3775c492969f", "product_name": "NEO-6M GPS Module with Antenna"}, {"product_id": "24bbbc3b-7687-4eab-aa63-72bdfaf4dbf1", "product_name": "LED Assortment (50 pcs)"}, {"product_id": "4a96419b-898d-4994-8b5c-e710c9203394", "product_name": "MAX232 RS232 to TTL Converter"}, {"product_id": "73482ac7-caaf-4503-8fa5-683307c86c69", "product_name": "XL6009 DC-DC Boost Converter"}, {"product_id": "cf7425a8-3bb4-4908-a1c5-255b287483e9", "product_name": "5V 3A USB-C Pow
+
+[3_competitor_scraping] FAILED (9.064s)
+    ! market_scraper.cli exited 1 - see subprocess_stderr_tail.
+    {"source_id": "2a484f8d-825d-4afe-9ec1-915d30f6b58e", "mapped_url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html", "subprocess_returncode": 1, "subprocess_stdout_tail": "", "subprocess_stderr_tail": "\\pythoncore-3.14-64\\Lib\\site-packages\\scrapy\\core\\spidermw.py\", line 108, in _evaluate_iterable\n    async for r in iterable:\n        yield r\n  File \"C:\\Users\\Laptopi thinkk\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\scrapy\\utils\\asyncgen.py\", line 21, in as_async_generator\n    for r in it:\n             ^^\n  File \"C:\\CEO PRO\\CEOPRO-AI\\.claude\\worktrees\\competitors-market-sentiment-a0ba02\\src\\market_scraper\\spiders\\books_to_scrape.py\", line 184, in parse_product\n    raise ValueError(\"demo product did not meet the 0.82 mapping threshold\")\nValueError: demo product did not meet the 0.82 mapping threshold\n2026-09-01 19:42:17 [scrapy.core.engine] INFO: Closing spider (finished)\n2026-09-01 19:42:17 [src.market_
+
+[4_forecasting] OK (55.687s)
+    {"per_product": {"cc7e5ce1-677d-4ecf-b3d3-3aa2080a67c0": {"status": "OK", "source": "baseline", "forecast_id": "bcd2597c-1e9f-44c8-a11b-8fc542880c5b", "evidence_id": "124403d1-1f1d-49bd-abda-4f145f767b4b", "expected_demand": 1.1428571428571428, "forecast_target_date": "2026-01-07", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 365, "minimum_required": 30, "confidence_status": "OK"}}, "2da4c774-aa06-4925-9130-112950b66ee6": {"status": "OK", "source": "baseline", "forecast_id": "5b238388-e712-409f-b987-28b8a2f59c6d", "evidence_id": "908ee2b0-ff4d-44a9-956f-e675ee477401", "expected_demand": 1.5714285714285714, "forecast_target_date": "2026-01-07", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 365, "minimum_required": 30, "confidence_status": "OK"}}, "0777e1bb-47ba-4f74-a8a8-676faeb69321": {"status": "OK", "source": "baseline", "forecast_id": "d0b292fb-9020-4d4a-9969-dbf8617b64aa", "evidence_id": "27cba1ac-e4d1-4c4
+
+[5_pricing] OK (1.485s)
+    {"per_product": {"cc7e5ce1-677d-4ecf-b3d3-3aa2080a67c0": {"status": "UNKNOWN", "evidence_id": "9ae8ee36-cffd-4b10-bda6-b59595c8d450"}, "2da4c774-aa06-4925-9130-112950b66ee6": {"status": "UNKNOWN", "evidence_id": "9bc90f48-ccb8-4dfa-bfa5-9f71ca14837f"}, "0777e1bb-47ba-4f74-a8a8-676faeb69321": {"status": "UNKNOWN", "evidence_id": "bd606477-33b2-41a2-9508-b5bd7319ca6a"}, "c1650e06-121f-481d-8bbd-3775c492969f": {"status": "UNKNOWN", "evidence_id": "b4f37e5a-1a1d-469d-8bd4-a2d0fde63f87"}, "24bbbc3b-7687-4eab-aa63-72bdfaf4dbf1": {"status": "UNKNOWN", "evidence_id": "ecb06721-c9a0-44ac-a2cc-eb2a2eded7c4"}, "4a96419b-898d-4994-8b5c-e710c9203394": {"status": "UNKNOWN", "evidence_id": "bfddc2ac-a380-4317-9f5a-e8ed4efd69f9"}, "73482ac7-caaf-4503-8fa5-683307c86c69": {"status": "UNKNOWN", "evidence_id": "d76a92cb-a970-459e-a9ac-68300d1c8e9d"}, "cf7425a8-3bb4-4908-a1c5-255b287483e9": {"status": "UNKNOWN", "evidence_id": "bc623a15-8d3e-4467-862f-22c0faf9e7fe"}, "f550582a-c7c1-4e6d-bcb5-7b1794d76211":
+
+[6_rag_grounding] OK (13.724s)
+    {"object_key": "14dafb92-f177-4671-bec4-f1ff86e7b36f/e2e-pipeline-summary-9d06322d-1953-4562-91f3-b0d7533aa98d.txt", "documents_ingested": 1}
+
+[7_rag_chat_verification] PARTIAL (15.597s)
+    ! Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): GROQ_API_KEY is not set - cannot call the LLM provider.
+    {}
+

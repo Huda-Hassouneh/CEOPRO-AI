@@ -7,3 +7,10 @@ venv/
 data/market/
 node_modules/
 **/generated/prisma/
+
+
+# Local LLM model files (scripts/download_local_llm_model.py) - multi-GB
+# binaries, never belong in the repo. Same reasoning as data/market/ above.
+models/
+*.gguf
+

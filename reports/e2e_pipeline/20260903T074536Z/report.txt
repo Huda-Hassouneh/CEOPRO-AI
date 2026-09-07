@@ -1,0 +1,29 @@
+E2E Pipeline Run 20260903T074536Z - overall status: PARTIAL
+tenant_id=1104829c-bcd9-4fe7-82f5-9c5accbc9651 user_id=60a0d9cb-b428-4e9f-aad7-714afa66da1d
+
+[1_extraction] OK (23.921s)
+    {"job_id": "ba4c3506-bdc2-4666-843e-831be9b75902", "row_count": 51947, "file_read_seconds": 4.148, "process_records_seconds": 19.606, "rows_per_second": 2649.5, "template_mode": "RECOGNIZED", "is_template_compliant": false, "rows_processed": 51947, "rows_partial": 0, "rows_failed": 0, "data_loss_pct": 0.0}
+
+[2_promotion] OK (23.865s)
+    {"currency_resolution": {"currency": "JOD", "source": "primary_currency", "needs_confirmation": false}, "rows_promoted": 51947, "rows_skipped_incomplete": 0, "rows_failed": 0, "products_created": 109, "promotion_error_count": 0, "promotion_errors_sample": [], "promoted_products": [{"product_id": "0063d6ec-35ac-4b04-be22-afa82f3a7231", "product_name": "Electrolytic Capacitor Kit"}, {"product_id": "008ce221-e35a-4f74-bcae-ca086f9b57ae", "product_name": "DC Power Jack Female Panel"}, {"product_id": "0318ac04-d812-4bef-9603-a81568ae1469", "product_name": "1N4007 Rectifier Diode (10 pcs)"}, {"product_id": "03837193-1a0d-4db3-9bdf-f160c8f31dc7", "product_name": "Pulse Oximeter Heart Rate Module"}, {"product_id": "0945a730-69bd-4101-a352-2eed2b4b8d58", "product_name": "Arduino Nano"}, {"product_id": "0af2d984-246e-4153-affb-2c09f0b8868f", "product_name": "Ceramic Capacitor Kit"}, {"product_id": "14ada536-ac8a-444a-ab00-38ba1df0d3ac", "product_name": "MP3 YX5300 Serial Sound Module"}, {"produc
+
+[3_competitor_scraping] OK (16.996s)
+    {"detected_vertical": {"vertical": "electronics_hobbyist", "confidence": 1.0, "matched_keywords": ["arduino", "raspberry", "sensor", "resistor", "capacitor", "led", "module", "breadboard", "diode", "transistor", "solder", "battery", "motor", "wire", "pcb", "usb", "relay", "stepper", "servo"]}, "geo_scope": {"value": "JO", "source": "companies.country_code", "note": "Applies to build_retail_search_query() for any new discovery call. The candidates below were gathered before this run (see _DISCOVERED_CANDIDATES' docstring on the live-search-API gap) and are not retroactively re-scoped by this value."}, "discoveries": [{"product_name": "Arduino Nano", "url": "https://store-usa.arduino.cc/products/arduino-nano", "title": "Arduino Nano - Arduino Online Shop", "is_manufacturer_or_wholesale": true, "policy_status": "ALLOWED", "terms_evidence": "robots.txt: \"Public product, collection, page, blog, policy, cart, and localized HTML is crawlable.\" (fetched 2026-09-03)", "scraped": false, "skipp
+
+[4_market_analysis] OK (18.444s)
+    {"analyze_tenant_result": {"sentiment": {"status": "OK", "analyzed_count": 2}, "score_count": 5}, "sentiment_summaries": [{"competitor_id": "cfd73a48-46b2-48a1-8b17-10fdf786e5d4", "competitor_name": "Yellow Digital MultiMeter DT830B", "status": "OK", "evidence_id": "52adcb68-1792-4de7-93c2-30fc142d3b30", "sentiment_score": 0.227, "label_counts": {"positive": 1, "neutral": 1, "negative": 0}, "sample_size": {"sufficient": false, "analyzed_count": 2, "minimum_required": 10, "status": "LOW_SAMPLE_SIZE"}}]}
+
+[5_forecasting] OK (51.653s)
+    {"per_product": {"008ce221-e35a-4f74-bcae-ca086f9b57ae": {"status": "OK", "source": "baseline", "forecast_id": "09c8b195-2bae-4146-825c-f00600caf676", "evidence_id": "d4037e69-054c-4065-a6f8-ab08e37ee747", "expected_demand": 2.7142857142857144, "forecast_target_date": "2026-01-07", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 365, "minimum_required": 30, "confidence_status": "OK"}}, "0318ac04-d812-4bef-9603-a81568ae1469": {"status": "OK", "source": "baseline", "forecast_id": "c083275a-3dc7-465b-8917-cf441cca6147", "evidence_id": "57c74f47-cd32-4fa0-a5a4-e44ad065add5", "expected_demand": 2.2857142857142856, "forecast_target_date": "2026-01-07", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 365, "minimum_required": 30, "confidence_status": "OK"}}, "0063d6ec-35ac-4b04-be22-afa82f3a7231": {"status": "OK", "source": "xgboost", "forecast_id": "e69915a4-e1b5-48ee-8a76-df117106b504", "evidence_id": "4481620c-fc3c-465c
+
+[6_pricing] OK (2.92s)
+    {"per_product": {"0318ac04-d812-4bef-9603-a81568ae1469": {"status": "UNKNOWN", "evidence_id": "07ae60fc-10c5-4059-a7cf-d0b23aafd9fa"}, "0063d6ec-35ac-4b04-be22-afa82f3a7231": {"status": "UNKNOWN", "evidence_id": "77993dcb-defb-4714-af25-535dd72df3a3"}, "008ce221-e35a-4f74-bcae-ca086f9b57ae": {"status": "UNKNOWN", "evidence_id": "972a7cde-025b-4117-893c-a5d2b0095286"}, "0945a730-69bd-4101-a352-2eed2b4b8d58": {"status": "UNKNOWN", "evidence_id": "eae694e6-f7f0-4cc5-a912-74ea36ad194f"}, "03837193-1a0d-4db3-9bdf-f160c8f31dc7": {"status": "UNKNOWN", "evidence_id": "3628c4bd-50fc-4224-a942-4e16ea9d4511"}, "0af2d984-246e-4153-affb-2c09f0b8868f": {"status": "UNKNOWN", "evidence_id": "f23cfe9f-5bdb-4f65-9e4a-affdcff82fe5"}, "14ada536-ac8a-444a-ab00-38ba1df0d3ac": {"status": "UNKNOWN", "evidence_id": "e4c977d3-f790-4268-9140-a12ac0c84e58"}, "16ef7a68-740a-41c7-979c-503ffebbfaee": {"status": "UNKNOWN", "evidence_id": "db4760ed-ea02-4002-9f0e-389e6bd5aff9"}, "15efdb4f-1455-47aa-b98c-a2881de15bba":
+
+[7_rag_grounding] OK (12.135s)
+    {"object_key": "1104829c-bcd9-4fe7-82f5-9c5accbc9651/e2e-pipeline-summary-31dd7684-005d-45b4-80b7-d2c6f1657a68.txt", "documents_ingested": 1}
+
+[8_rag_chat_verification] PARTIAL (11.231s)
+    ! Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): Groq API returned 404: {"error":{"message":"The model `llama-3.1-8b-instant` does not exist or you do not have access to it.","type":"invalid_request_error","code":"model_not_found"}}
+
+    {}
+
