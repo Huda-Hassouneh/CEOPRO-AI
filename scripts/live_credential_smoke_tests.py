@@ -30,7 +30,11 @@ unset is skipped, never guessed:
     self-registration at developer.digikey.com, no production-app
     approval needed; Digi-Key's own docs confirm the response structure
     matches production, so this is the real way to check this module's
-    field-name guesses before trusting it with production spend)
+    field-name guesses before trusting it with production spend.
+    IMPORTANT: a Sandbox app is registered separately from a Production
+    app on developer.digikey.com and gets its own client_id/client_secret
+    - DIGIKEY_CLIENT_ID/CLIENT_SECRET must come from a Sandbox app when
+    DIGIKEY_USE_SANDBOX=1, or the token exchange returns 401 Unauthorized)
   MOUSER_API_KEY, MOUSER_TEST_PART_NUMBER
 
 Run from the repo root:

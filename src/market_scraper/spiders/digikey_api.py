@@ -44,6 +44,15 @@ _PRODUCTION_HOST = "api.digikey.com"
 # registration, no production-app approval gate - the actual way to
 # verify this module's field-name guesses without needing production
 # credentials. collector_config["use_sandbox"]=True switches to it.
+#
+# IMPORTANT, previously wrong in this file's own comments: a Sandbox app
+# is a SEPARATE registration from a Production app on developer.digikey.com
+# (Digi-Key's own docs: "A Developer creates Sandbox applications, and
+# Sandbox apps are only available to the developer creating them") - it
+# gets its OWN client_id/client_secret, not the production app's. Passing
+# production credentials against sandbox-api.digikey.com (or vice versa)
+# is exactly what produces a 401 Unauthorized from fetch_access_token()
+# below - register a Sandbox app specifically to get sandbox credentials.
 _SANDBOX_HOST = "sandbox-api.digikey.com"
 _TOKEN_FETCH_TIMEOUT = 15
 
@@ -70,9 +79,11 @@ def fetch_access_token(client_id: str, client_secret: str, host: str = _PRODUCTI
     amazon_paapi.py's own AWS SigV4 implementation. Returns the raw
     {"access_token", "expires_in", "token_type"} response; caching/expiry
     is the caller's job (this function always makes a real call). Pass
-    host=_SANDBOX_HOST to exchange against Digi-Key's real sandbox
-    instead - same client_id/client_secret, no production-app approval
-    needed.
+    host=_SANDBOX_HOST to exchange against Digi-Key's real sandbox instead
+    - but note a Sandbox app is registered separately from a Production
+    app and gets its own client_id/client_secret (see _SANDBOX_HOST above);
+    a 401 here usually means production credentials were passed against
+    the sandbox host, or vice versa.
     """
     body = urllib.parse.urlencode({
         "client_id": client_id, "client_secret": client_secret, "grant_type": "client_credentials",
