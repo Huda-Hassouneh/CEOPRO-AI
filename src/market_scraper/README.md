@@ -118,34 +118,43 @@ field with no secrets-manager integration behind it yet — see `PENDING_ACTIONS
 
 ## Vendor policy for social collection
 
-`scrape_creators` is the primary, active social-data vendor for this deployment — the one
-provisioned with real `connection_credentials_vault.api_key` and an `ALLOWED` policy status.
-`social_data_provider` (Apify-shaped) stays registered in `collectors.py`/`policy_cli.py` and fully
-tested, but is kept **inactive**: no credentials configured, so `PaidProviderNotConfiguredError`
-fires immediately if anything ever tries to run it (same as before any credentials exist for it).
-This is intentional, not an oversight — it's a cold, ready-to-activate fallback, not a second live
-vendor. Switching to it later (a ScrapeCreators outage, a pricing change, wanting Apify's larger
-actor-redundancy ecosystem once budget allows) means populating its credentials and pointing
-`data_sources.collector_key` at `social_data_provider` for that source — a config/credentials
-change, never a code change, because both collectors already share the same constructor contract
-and yield the same item shape.
+**Revised 2026-09-07**: `social_data_provider` (Apify-shaped) is now the **primary, active**
+social-data vendor — a deliberate choice for the testing phase, since Apify's free starter tier
+($5/month credit) fits budget better than ScrapeCreators' pay-per-call model while validating the
+pipeline. This reverses the vendor's earlier active/inactive roles (documented below for history);
+nothing about *how* either collector works changed, only which one is provisioned with real
+credentials. `scrape_creators` stays fully registered and tested — same "cold, ready-to-activate"
+relationship Apify previously had — since a future volume/cost profile could make its per-call
+billing the better fit again, and switching back is a credentials/config change, never a code one:
+both collectors share the same constructor contract and yield the same item shape.
 
-Setting this up for a real tenant:
+Setting this up for a real tenant — `register-source` creates the policy decision,
+`set-credentials` writes the actual token (the real replacement for a raw SQL `UPDATE`, the only
+way this was previously done):
 
 ```bash
-# Primary: ScrapeCreators, active
-python -m src.market_scraper.policy_cli \
+# Primary: Apify (social_data_provider), active
+python -m src.market_scraper.policy_cli register-source \
   --tenant-id TENANT_UUID --source-id SOURCE_UUID \
-  --source-url https://api.scrapecreators.com --official-api-url https://api.scrapecreators.com \
+  --source-url https://api.apify.com --official-api-url https://api.apify.com \
   --terms-permit yes --technical-controls-permit yes \
-  --collector scrape_creators \
+  --collector social_data_provider \
   --approval-reference VENDOR-CONTRACT-REF --approved-by REVIEWER_USER_UUID --retention-days 30
-# then set that source's connection_credentials_vault to {"api_key": "<real ScrapeCreators key>"}
+
+python -m src.market_scraper.policy_cli set-credentials \
+  --tenant-id TENANT_UUID --source-id SOURCE_UUID \
+  --credentials-file /path/to/apify-token.json   # {"api_token": "<real Apify token>"}
+  # or --credentials '{"api_token": "..."}' inline (lands in shell history - prefer the file form)
 ```
 
-Apify's `social_data_provider` source row, if created at all ahead of time, is left with
-`connection_credentials_vault` empty/unset and never approved — it exists in the vault as
-configuration, not as a running collector.
+`register-source` only ever creates the *policy* row (`data_sources` itself must already exist,
+created by this platform's own onboarding flow, before this runs) — it never writes credentials,
+which is exactly why `set-credentials` exists as a separate step rather than one more flag on the
+same command.
+
+ScrapeCreators' source row, if created at all ahead of time, is left with `connection_credentials_vault`
+empty/unset and never approved — it exists in the vault as configuration, not as a running collector,
+mirroring how Apify's row was described here before this revision.
 
 ## Industry-agnostic discovery orchestration
 
@@ -381,7 +390,7 @@ migration superuser. Configure `REDIS_URL` as shown in `.env.example`.
 A web source can only become `ALLOWED` after explicit terms and technical-control review:
 
 ```bash
-python -m src.market_scraper.policy_cli \
+python -m src.market_scraper.policy_cli register-source \
   --tenant-id TENANT_UUID \
   --source-id SOURCE_UUID \
   --source-url https://books.toscrape.com/ \
@@ -396,10 +405,12 @@ python -m src.market_scraper.policy_cli \
 
 If an official API or RSS URL is supplied, the engine selects it before scraping. API/RSS sources
 must be handled by their corresponding collector rather than being forced through Scrapy. Pass
-`--collector google_places`, `--collector amazon_paapi`, `--collector social_data_provider`, or
-`--collector scrape_creators` (in addition to the existing `standards`/`books_to_scrape`) to pick
-one of the API/paid-provider collectors explicitly, and populate that source's
-`connection_credentials_vault` with its required credentials before running a collection.
+`--collector google_places`, `--collector amazon_paapi`, `--collector digikey_api`,
+`--collector mouser_api`, `--collector social_data_provider`, or `--collector scrape_creators` (in
+addition to the existing `standards`/`books_to_scrape`) to pick one of the API/paid-provider
+collectors explicitly, then populate that source's credentials with
+`policy_cli.py set-credentials` (see "Vendor policy for social collection" above) before running a
+collection.
 
 Each `competitor_product_mappings` row scheduled for collection must reference the reviewed
 `source_id` and contain an approved `competitor_product_url`.
