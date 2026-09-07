@@ -1,0 +1,2690 @@
+{
+  "run_id": "20260901T181822Z",
+  "mock_file": "mocks/Electronics_For_Test.xlsx",
+  "stages": [
+    {
+      "stage": "1_extraction",
+      "status": "OK",
+      "duration_seconds": 29.529,
+      "process_rss_mb_at_completion": 582.8,
+      "details": {
+        "job_id": "93dae071-bb3a-49e5-a148-61585b53ba1a",
+        "row_count": 51947,
+        "file_read_seconds": 6.713,
+        "process_records_seconds": 22.75,
+        "rows_per_second": 2283.4,
+        "template_mode": "RECOGNIZED",
+        "is_template_compliant": false,
+        "rows_processed": 51947,
+        "rows_partial": 0,
+        "rows_failed": 0,
+        "data_loss_pct": 0.0
+      },
+      "errors": []
+    },
+    {
+      "stage": "2_promotion",
+      "status": "OK",
+      "duration_seconds": 23.204,
+      "process_rss_mb_at_completion": 585.4,
+      "details": {
+        "default_currency_used": "JOD",
+        "rows_promoted": 51947,
+        "rows_skipped_incomplete": 0,
+        "rows_failed": 0,
+        "products_created": 109,
+        "promotion_error_count": 0,
+        "promotion_errors_sample": [],
+        "promoted_products": [
+          {
+            "product_id": "01c333a4-b15f-47ca-99fd-1b461f66514f",
+            "product_name": "Solder Sucker Desoldering Pump"
+          },
+          {
+            "product_id": "060f16ab-47ea-4711-ac5a-4b6ff1022f3d",
+            "product_name": "Wire Stripper & Cutter"
+          },
+          {
+            "product_id": "079c972e-a63a-4610-bdc9-0702f7eb59f1",
+            "product_name": "74HC595 8-Bit Shift Register"
+          },
+          {
+            "product_id": "0b2af1f7-b8a2-47c9-b17a-f359da94427c",
+            "product_name": "NEO-6M GPS Module with Antenna"
+          },
+          {
+            "product_id": "0e3dfb95-dfb0-4025-8975-6977b746e77f",
+            "product_name": "DC Power Jack Male Connector"
+          },
+          {
+            "product_id": "0e99cc8a-ed27-4a9b-9fae-07e751ff8baa",
+            "product_name": "40-Pin Female Header Strip (5pcs)"
+          },
+          {
+            "product_id": "0f3f0c23-ad1e-4d16-b2c0-9f39b36f3a07",
+            "product_name": "L293D Quad Motor Driver IC"
+          },
+          {
+            "product_id": "11037f77-1a09-4a2e-a5de-f76005b850b2",
+            "product_name": "DHT11 Temp/Humidity Sensor"
+          },
+          {
+            "product_id": "1bb25adf-53a9-444c-b4e1-3480501069dc",
+            "product_name": "IRF540N MOSFET Power"
+          },
+          {
+            "product_id": "1c82a734-5584-4df6-8928-b28b9778ed2a",
+            "product_name": "ESP8266 NodeMCU"
+          },
+          {
+            "product_id": "1e0ed013-dcc0-4249-adbf-d74297ad88a5",
+            "product_name": "USB Cable Type-B for Arduino"
+          },
+          {
+            "product_id": "1ef48ab8-5479-4e1d-9150-c2c8a1134a8e",
+            "product_name": "5V Relay Module 1-Channel"
+          },
+          {
+            "product_id": "20386a98-3f38-4598-b6c4-56e86ea60f2f",
+            "product_name": "USB-C Data Cable 1m"
+          },
+          {
+            "product_id": "20cd14a6-2b25-4a11-b9ee-46ae1df8b2be",
+            "product_name": "40-Pin Male Header Strip (5pcs)"
+          },
+          {
+            "product_id": "23286b7f-9342-4a7c-bfd0-ba870a391b4e",
+            "product_name": "Heat Shrink Tube Kit"
+          },
+          {
+            "product_id": "24af0c88-7b60-4394-80e7-de32f71af92c",
+            "product_name": "Solder Wire Reel 100g"
+          },
+          {
+            "product_id": "26216192-1338-40c5-b269-ba1681abc736",
+            "product_name": "LCD 2004 Character Display I2C"
+          },
+          {
+            "product_id": "2835c547-7631-48ea-95f5-fad2655312bb",
+            "product_name": "RFID RC522 Module with Card"
+          },
+          {
+            "product_id": "2f8841b0-4702-4248-9013-2d48024ad792",
+            "product_name": "Rocker Switch KCD1 On/Off"
+          },
+          {
+            "product_id": "316f2b28-1c48-4cf3-9cd8-399ab6393866",
+            "product_name": "Screw Terminal Block 2-Pin (10pc)"
+          },
+          {
+            "product_id": "32e9182a-a408-4037-8df3-0a5ed1bf2714",
+            "product_name": "NeoPixel LED Ring 16-Bit RGB"
+          },
+          {
+            "product_id": "331dba05-f0ec-43c6-8092-2f539839fe68",
+            "product_name": "Ultrasonic Sensor HC-SR04"
+          },
+          {
+            "product_id": "332a9cda-29a2-4640-a364-538c72785ad8",
+            "product_name": "SD Card Reader Module SPI"
+          },
+          {
+            "product_id": "35badba0-8aa1-4084-b47f-b9f01611e973",
+            "product_name": "Metal Ball Caster Wheel"
+          },
+          {
+            "product_id": "35ff94ab-8e54-4d80-b942-975fa0fbbbb9",
+            "product_name": "18650 Li-ion Battery 2500mAh"
+          },
+          {
+            "product_id": "3d009a99-f383-479a-a9fa-770f2771d4b9",
+            "product_name": "MQ-7 Carbon Monoxide Sensor"
+          },
+          {
+            "product_id": "3e09fec1-ea63-4454-a148-c847866d2ab1",
+            "product_name": "LDR Light Sensor Module"
+          },
+          {
+            "product_id": "3eec2303-7248-4970-ac46-4f7ddcb8212e",
+            "product_name": "L298N Dual Motor Driver"
+          },
+          {
+            "product_id": "40b30af6-7208-4468-9073-79c63fe796cd",
+            "product_name": "ESP32 NodeMCU WiFi+BT"
+          },
+          {
+            "product_id": "413566d0-f558-4d39-96af-537c1bdd27b9",
+            "product_name": "Breadboard Half Size (Mini)"
+          },
+          {
+            "product_id": "41db9e75-1beb-407e-9075-4f46b5f35744",
+            "product_name": "Heavy Duty 9V Battery"
+          },
+          {
+            "product_id": "4879f9a6-65c9-430b-b09f-495462d11f43",
+            "product_name": "Digital Vernier Caliper"
+          },
+          {
+            "product_id": "4938df18-e5a0-4168-98ab-d372137fc972",
+            "product_name": "ULN2003 Stepper Driver Module"
+          },
+          {
+            "product_id": "4c332537-5c73-45be-abb8-ce09fdaeaf0c",
+            "product_name": "DC Power Jack Female Panel"
+          },
+          {
+            "product_id": "4ccc9516-c419-471a-ac3c-301065825bfc",
+            "product_name": "MPU6050 Gyro/Accel Module"
+          },
+          {
+            "product_id": "4d2b64f1-13a1-4fca-84a2-66b9ed032484",
+            "product_name": "Soil Moisture Sensor"
+          },
+          {
+            "product_id": "4dba2bc4-3b22-47b4-90c8-be4bf6cba742",
+            "product_name": "Alligator Clip Test Leads (10pcs)"
+          },
+          {
+            "product_id": "4ed7345c-0cf8-41a4-a91f-06113299e0d4",
+            "product_name": "2N2222 NPN Transistor (10 pcs)"
+          },
+          {
+            "product_id": "5243bc8b-2be8-4bfc-b67e-e170d7aae5c3",
+            "product_name": "AA Battery Pack (4pcs)"
+          },
+          {
+            "product_id": "524b6bd0-e59c-4a16-bfec-8d753cbdc6ef",
+            "product_name": "MB102 Breadboard Power Module"
+          },
+          {
+            "product_id": "5497b16a-024f-4e30-a670-5a29f95b97da",
+            "product_name": "Tweezers Anti-static Set (3pcs)"
+          },
+          {
+            "product_id": "55a59e59-2c30-42dc-a255-9c9b28c9655d",
+            "product_name": "Raspberry Pi Pico"
+          },
+          {
+            "product_id": "7121da84-dc30-49a7-ba8b-e475f44e65b7",
+            "product_name": "Zener Diode Kit"
+          },
+          {
+            "product_id": "73550d05-e791-4e2d-8cba-471bb6bedd91",
+            "product_name": "7-Segment Display 4-Digit"
+          },
+          {
+            "product_id": "76586d99-3819-4ab0-9b53-cef44109c8a4",
+            "product_name": "Banana Plug Red/Black Pair"
+          },
+          {
+            "product_id": "776ddfa4-41b9-49b9-b4ff-8e4b355938e2",
+            "product_name": "1N4007 Rectifier Diode (10 pcs)"
+          },
+          {
+            "product_id": "7a652ee0-cbf8-4304-a59a-b47decdfcaaf",
+            "product_name": "Rain Drops Sensor Module"
+          },
+          {
+            "product_id": "7e1965ad-6ed7-483e-bba7-56c2b2637175",
+            "product_name": "DC Geared Motor with Wheel"
+          },
+          {
+            "product_id": "7fcedc52-b054-4cd5-bad6-0bde5c184949",
+            "product_name": "NE555 Timer IC"
+          },
+          {
+            "product_id": "80218ca6-d807-4539-b249-f63d3d94cfb0",
+            "product_name": "74HC138 3-to-8 Line Decoder"
+          },
+          {
+            "product_id": "8065462f-bd45-41d1-9580-87a05428868f",
+            "product_name": "12V 2A Power Adapter DC"
+          },
+          {
+            "product_id": "8209eaf3-daf0-41d3-8891-0bd5b0123907",
+            "product_name": "SPDT Toggle Switch Mini"
+          },
+          {
+            "product_id": "82ad3180-130b-41ae-9c85-e50de5fe3458",
+            "product_name": "DS3231 High Precision RTC Module"
+          },
+          {
+            "product_id": "84321161-19e8-4907-9fcb-f3a48057ff02",
+            "product_name": "Jumper Wires F-F (40pcs)"
+          },
+          {
+            "product_id": "85d1aca1-e903-4c59-a399-ee219408c7dd",
+            "product_name": "HC-05 Bluetooth Serial Module"
+          },
+          {
+            "product_id": "8ca58625-3227-4c96-a3fe-9a4c8b85656a",
+            "product_name": "5V 3A USB-C Power Adapter"
+          },
+          {
+            "product_id": "8e923cf0-0356-4fc1-933c-90d96fe7b04f",
+            "product_name": "PIR Motion Sensor"
+          },
+          {
+            "product_id": "93cce4b1-885f-4f11-8ff7-eb51221dc64c",
+            "product_name": "TCS3200 Color Sensor"
+          },
+          {
+            "product_id": "970eb20c-d3a7-4b5a-ab69-a54506bb59cb",
+            "product_name": "Micro USB Cable 1m"
+          },
+          {
+            "product_id": "99af3cd3-e2df-47cd-abf4-1b665e9d4dd0",
+            "product_name": "Perfboard Prototype PCB 9x15cm"
+          },
+          {
+            "product_id": "9a1815fb-48f9-48f9-96c4-40633d7c6751",
+            "product_name": "Potentiometer 10k"
+          },
+          {
+            "product_id": "9aba9ece-bfbf-472e-ad92-69fa7b63e353",
+            "product_name": "Digital Multimeter DT830B"
+          },
+          {
+            "product_id": "9c21d3c0-99be-4c73-a5be-719cc8bd64db",
+            "product_name": "MP3 YX5300 Serial Sound Module"
+          },
+          {
+            "product_id": "9cca6f33-84bf-4ff1-a205-6f1792c9a10e",
+            "product_name": "Omni Directional Wheel 50mm"
+          },
+          {
+            "product_id": "9d296575-2d75-4963-8161-8d633057f763",
+            "product_name": "8x8 LED Dot Matrix MAX7219"
+          },
+          {
+            "product_id": "a02fd676-e3cc-473c-b910-07953edf8d31",
+            "product_name": "Electrolytic Capacitor Kit"
+          },
+          {
+            "product_id": "a34a14a3-9eee-437b-abe6-b5b8a7556249",
+            "product_name": "LED Assortment (50 pcs)"
+          },
+          {
+            "product_id": "a4871909-480e-4f03-82e0-de0c324cc038",
+            "product_name": "NRF24L01 Wireless 2.4G Module"
+          },
+          {
+            "product_id": "a506b159-0a45-4fca-b601-fcf8a81df550",
+            "product_name": "Soldering Iron 60W Adjustable"
+          },
+          {
+            "product_id": "a6504a04-27f2-4b0a-af6f-379e8aa6877a",
+            "product_name": "Tactile Push Button (10pcs)"
+          },
+          {
+            "product_id": "a8cc9a88-09c1-4e3a-abd4-b17c613d329c",
+            "product_name": "Pulse Oximeter Heart Rate Module"
+          },
+          {
+            "product_id": "aec46876-7d20-471a-a3ea-3d9944336ed6",
+            "product_name": "ESP32-CAM Module with Camera"
+          },
+          {
+            "product_id": "b0609693-a625-486b-81b7-5552a69b3e3e",
+            "product_name": "Resistor Pack (100 pcs)"
+          },
+          {
+            "product_id": "b08c0b2d-ac7d-4887-aeb6-376bbd348726",
+            "product_name": "5V Relay Module 4-Channel"
+          },
+          {
+            "product_id": "b227f6b8-a69f-48ec-8f11-745e30e02994",
+            "product_name": "Ceramic Capacitor Kit"
+          },
+          {
+            "product_id": "b49be38c-a8e5-4a1e-9aa2-92e009bf1b16",
+            "product_name": "Arduino Uno R3"
+          },
+          {
+            "product_id": "b8db28c0-e158-48cd-b32a-f57edd331c1a",
+            "product_name": "TP4056 Li-ion Charging Module"
+          },
+          {
+            "product_id": "bad79a8b-9e20-4aa7-ac73-ce8ddc8b4e0a",
+            "product_name": "DC Toy Motor 3V-6V"
+          },
+          {
+            "product_id": "bbf63d34-3028-4bbd-a9fd-351a483f8bb7",
+            "product_name": "Teensy 4.0"
+          },
+          {
+            "product_id": "be9104fd-12e6-4258-825a-84d422616262",
+            "product_name": "Breadboard Full Size (Large)"
+          },
+          {
+            "product_id": "bf787963-fe4a-408e-a653-a80ad0d966d0",
+            "product_name": "LCD 1602 Display with I2C"
+          },
+          {
+            "product_id": "c55d3ad7-1edf-4bbc-bdde-788e328b50a4",
+            "product_name": "SIM800L GPRS GSM Module"
+          },
+          {
+            "product_id": "c9a7ce77-218e-4bd5-854c-7aec9245780c",
+            "product_name": "LM2596 DC-DC Buck Converter"
+          },
+          {
+            "product_id": "cb95db77-f846-4664-90d8-79b3b858b223",
+            "product_name": "LM358 Dual Op-Amp IC"
+          },
+          {
+            "product_id": "cc145a11-eca9-420e-ad21-d1643071c511",
+            "product_name": "Jumper Wires M-F (40pcs)"
+          },
+          {
+            "product_id": "cca494e5-5f77-45ec-af01-e46cab2a9808",
+            "product_name": "Arduino Nano"
+          },
+          {
+            "product_id": "cd8a6c21-aab7-4e8e-896e-b45178b13bb4",
+            "product_name": "Raspberry Pi 5 (8GB)"
+          },
+          {
+            "product_id": "ceb3ad69-878b-4ae3-89b7-cb139f8487b0",
+            "product_name": "Active Buzzer 5V"
+          },
+          {
+            "product_id": "d2191e89-98ad-42a1-b0e5-f03bd4980d8c",
+            "product_name": "Stepper Motor Nema 17"
+          },
+          {
+            "product_id": "d4a60a4c-6bbb-4d88-9995-ae4f13762384",
+            "product_name": "Solenoid Lock 12V"
+          },
+          {
+            "product_id": "d4f0beb3-41fb-4dd2-9fef-1cca63a487d4",
+            "product_name": "XL6009 DC-DC Boost Converter"
+          },
+          {
+            "product_id": "d635ca40-d983-44ba-90c4-048a0574d64d",
+            "product_name": "MQ-2 Smoke/Gas Sensor"
+          },
+          {
+            "product_id": "d679f208-ee90-4153-9100-08c1d60bce77",
+            "product_name": "Soldering Iron Stand"
+          },
+          {
+            "product_id": "d71ecfdf-5142-40cc-b698-e7bbb5cd57db",
+            "product_name": "DHT22 Precision Temp Sensor"
+          },
+          {
+            "product_id": "d9fc6bbd-71ed-401f-882e-6e977895a716",
+            "product_name": "Robot Gripper Mechanical Arm"
+          },
+          {
+            "product_id": "dc76bdcb-11fa-4e77-a493-f0fd0401ab11",
+            "product_name": "IR Obstacle Sensor"
+          },
+          {
+            "product_id": "e7d16219-b690-4025-97eb-17b3a28affb5",
+            "product_name": "Servo Motor MG996R Metal"
+          },
+          {
+            "product_id": "e7efe551-804d-4584-bc88-cebfce83a190",
+            "product_name": "STM32 Blue Pill"
+          },
+          {
+            "product_id": "e7fe0212-f445-4561-9214-e39576b094f1",
+            "product_name": "Jumper Wires M-M (40pcs)"
+          },
+          {
+            "product_id": "e86a64d0-8aa3-4938-acb5-27ab9f1ba44b",
+            "product_name": "OLED Display 0.96 inch I2C"
+          },
+          {
+            "product_id": "ec8978a4-efd6-4ffb-8e58-b7ed8c4fdc88",
+            "product_name": "Servo Motor SG90"
+          },
+          {
+            "product_id": "ed44ee1c-5944-41de-b493-71b17cc7dc73",
+            "product_name": "Hot Glue Gun 40W"
+          },
+          {
+            "product_id": "ef97b47b-e943-4b54-b866-4a75087a5a9e",
+            "product_name": "PC817 Optocoupler IC"
+          },
+          {
+            "product_id": "efeec8c4-fe15-4e20-920a-41bd5dca7fc9",
+            "product_name": "Arduino Mega 2560"
+          },
+          {
+            "product_id": "f0df0ced-66c3-497b-b8ea-7c2a4df9287e",
+            "product_name": "Smart Car Chassis 2WD Kit"
+          },
+          {
+            "product_id": "f1b38498-19c1-457e-80ce-012fc4b7104b",
+            "product_name": "Raspberry Pi 4 (4GB)"
+          },
+          {
+            "product_id": "f3ff34a7-0c04-4fea-a883-7b5a7603bf20",
+            "product_name": "Water Level Sensor"
+          },
+          {
+            "product_id": "f5804c1c-923a-45e6-b03d-409f4fdb625a",
+            "product_name": "MAX232 RS232 to TTL Converter"
+          },
+          {
+            "product_id": "f7351e34-c876-4ecc-a468-a258a7890a4a",
+            "product_name": "Dual 18650 Battery Charger"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "stage": "3_competitor_scraping",
+      "status": "OK",
+      "duration_seconds": 14.479,
+      "process_rss_mb_at_completion": 588.7,
+      "details": {
+        "detected_vertical": {
+          "vertical": "electronics_hobbyist",
+          "confidence": 1.0,
+          "matched_keywords": [
+            "arduino",
+            "raspberry",
+            "sensor",
+            "resistor",
+            "capacitor",
+            "led",
+            "module",
+            "breadboard",
+            "diode",
+            "transistor",
+            "solder",
+            "battery",
+            "motor",
+            "wire",
+            "pcb",
+            "usb",
+            "relay",
+            "stepper",
+            "servo"
+          ]
+        },
+        "geo_scope": {
+          "value": "JO",
+          "source": "companies.country_code",
+          "note": "Applies to build_retail_search_query() for any new discovery call. The candidates below were gathered before this run (see _DISCOVERED_CANDIDATES' docstring on the live-search-API gap) and are not retroactively re-scoped by this value."
+        },
+        "discoveries": [
+          {
+            "product_name": "Digital Multimeter DT830B",
+            "url": "https://www.impactbattery.com/yellow-digital-multimeter-dt830b.html",
+            "title": "Yellow Digital MultiMeter DT830B",
+            "is_manufacturer_or_wholesale": false,
+            "policy_status": "ALLOWED",
+            "terms_evidence": "Explicitly approved by operator for this run via --live-approve-hosts (host: www.impactbattery.com)",
+            "scraped": true,
+            "subprocess_returncode": 0,
+            "subprocess_stdout_tail": "",
+            "subprocess_stderr_tail": "026-09-01 21:19:23 [scrapy.core.engine] INFO: Closing spider (finished)\n2026-09-01 21:19:27 [src.market_scraper.persistence] ERROR: could not enqueue downstream market analysis: Error 10061 connecting to localhost:6379. No connection could be made because the target machine actively refused it.\n2026-09-01 21:19:27 [src.market_scraper.persistence] INFO: scrape job 557a80e0-a084-4d9f-bdbd-b8c1b838c553 closed as COMPLETED\n2026-09-01 21:19:27 [scrapy.statscollectors] INFO: Dumping Scrapy stats:\n{'downloader/request_bytes': 591,\n 'downloader/request_count': 2,\n 'downloader/request_method_count/GET': 2,\n 'downloader/response_bytes': 32402,\n 'downloader/response_count': 2,\n 'downloader/response_status_count/200': 2,\n 'elapsed_time_seconds': 4.866795500001899,\n 'finish_reason': 'finished',\n 'finish_time': datetime.datetime(2026, 9, 1, 18, 19, 23, 695175, tzinfo=datetime.timezone.utc),\n 'httpcompression/response_bytes': 127717,\n 'httpcompression/response_count': 2,\n 'item_scraped_count': 1,\n 'items_per_minute': 15.0,\n 'log_count/INFO': 2,\n 'response_received_count': 2,\n 'responses_per_minute': 30.0,\n 'robotstxt/request_count': 1,\n 'robotstxt/response_count': 1,\n 'robotstxt/response_status_count/200': 1,\n 'scheduler/dequeued': 1,\n 'scheduler/dequeued/memory': 1,\n 'scheduler/enqueued': 1,\n 'scheduler/enqueued/memory': 1,\n 'start_time': datetime.datetime(2026, 9, 1, 18, 19, 18, 828379, tzinfo=datetime.timezone.utc)}\n2026-09-01 21:19:27 [scrapy.core.engine] INFO: Spider closed (finished)\n"
+          },
+          {
+            "product_name": "Arduino Nano",
+            "url": "https://store-usa.arduino.cc/products/arduino-nano",
+            "title": "Arduino Nano - Arduino Online Shop",
+            "is_manufacturer_or_wholesale": true,
+            "policy_status": "ALLOWED",
+            "terms_evidence": "robots.txt: \"Public product, collection, page, blog, policy, cart, and localized HTML is crawlable.\" (fetched 2026-09-01)",
+            "scraped": false,
+            "skipped_reason": "manufacturer/wholesale candidate deprioritized in favor of retail sources"
+          },
+          {
+            "product_name": "Arduino Nano",
+            "url": "https://www.sparkfun.com/arduino-nano-every.html",
+            "title": "Arduino Nano Every - SparkFun Electronics",
+            "is_manufacturer_or_wholesale": false,
+            "policy_status": "RESTRICTED",
+            "terms_evidence": null,
+            "scraped": false
+          },
+          {
+            "product_name": "Raspberry Pi 4 (4GB)",
+            "url": "https://www.sparkfun.com/raspberry-pi-4-model-b-4-gb.html",
+            "title": "Raspberry Pi 4 Model B (4 GB) - SparkFun Electronics",
+            "is_manufacturer_or_wholesale": false,
+            "policy_status": "RESTRICTED",
+            "terms_evidence": null,
+            "scraped": false
+          },
+          {
+            "product_name": "Raspberry Pi 4 (4GB)",
+            "url": "https://www.pishop.us/product/raspberry-pi-4-model-b-4gb/",
+            "title": "Raspberry Pi 4 Model B 4GB | PiShop US - Official Reseller",
+            "is_manufacturer_or_wholesale": false,
+            "policy_status": "BLOCKED",
+            "terms_evidence": null,
+            "scraped": false
+          }
+        ],
+        "competitor_prices_rows": 1
+      },
+      "errors": []
+    },
+    {
+      "stage": "4_forecasting",
+      "status": "OK",
+      "duration_seconds": 49.428,
+      "process_rss_mb_at_completion": 594.2,
+      "details": {
+        "per_product": {
+          "079c972e-a63a-4610-bdc9-0702f7eb59f1": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "95b63ba3-036c-49bf-b09f-96ef8586742f",
+            "evidence_id": "d209fa83-f762-4e9d-8cbb-b5434c411564",
+            "expected_demand": 1.1428571428571428,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "01c333a4-b15f-47ca-99fd-1b461f66514f": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "685f43ce-d294-4e9e-957a-76c4a7ee58cf",
+            "evidence_id": "0bed1321-4ab8-47a1-9301-3ec9024fb387",
+            "expected_demand": 2.5714285714285716,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "060f16ab-47ea-4711-ac5a-4b6ff1022f3d": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "23da7d07-faa1-4f62-a124-eae8f90b19dc",
+            "evidence_id": "6c3066e6-3ec2-4d7a-9398-cd492a249b49",
+            "expected_demand": 2.0,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "0e3dfb95-dfb0-4025-8975-6977b746e77f": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "08050bd6-007d-4a12-b370-d78c9151df01",
+            "evidence_id": "06c655c3-39cf-40f4-a7d5-851c3ef5b5ff",
+            "expected_demand": 1.5714285714285714,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "0b2af1f7-b8a2-47c9-b17a-f359da94427c": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "e515141c-e1a9-442f-a693-c6217dc990e9",
+            "evidence_id": "682fbb05-5155-4a06-850a-8845458a17b0",
+            "expected_demand": 1.4285714285714286,
+            "forecast_target_date": "2026-01-04",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 362,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "0e99cc8a-ed27-4a9b-9fae-07e751ff8baa": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "e5adc5f4-25ff-4612-9f99-d911c3d0ed65",
+            "evidence_id": "811badeb-8204-4570-8eec-3f60b0c29c0c",
+            "expected_demand": 2.763007164001465,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.66,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "0f3f0c23-ad1e-4d16-b2c0-9f39b36f3a07": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "668f8990-e444-4761-ac8e-1a5363a575de",
+            "evidence_id": "9fd2d68a-e820-480a-bf22-a221a06233d9",
+            "expected_demand": 3.2857142857142856,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "1bb25adf-53a9-444c-b4e1-3480501069dc": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "1517c1e0-1df1-4ef7-97c6-40d724e10386",
+            "evidence_id": "2e2002a2-f1c4-4ad9-878e-9d9d6b600098",
+            "expected_demand": 1.1428571428571428,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "11037f77-1a09-4a2e-a5de-f76005b850b2": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "b91f11eb-1581-40c7-98e7-8c5d5c35b8cb",
+            "evidence_id": "b7194c56-71e7-4a6e-a9c6-8423ad8108b6",
+            "expected_demand": 2.7258241176605225,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.73,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "1c82a734-5584-4df6-8928-b28b9778ed2a": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "8ce50302-825e-42f2-b18b-032b8687906e",
+            "evidence_id": "44659396-9523-4e3b-9618-026af1d925c2",
+            "expected_demand": 2.0,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "1ef48ab8-5479-4e1d-9150-c2c8a1134a8e": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "975c777d-a98d-482e-8d1f-329ad4c31afe",
+            "evidence_id": "4ca94f50-3075-43a4-bc8c-10a2189f6324",
+            "expected_demand": 1.5714285714285714,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "1e0ed013-dcc0-4249-adbf-d74297ad88a5": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "f6b3413c-5232-4437-b5e6-daae4554c61a",
+            "evidence_id": "855b2fb5-f09b-4143-91e7-ec7a0e172cd3",
+            "expected_demand": 0.8481677174568176,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.3,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "20386a98-3f38-4598-b6c4-56e86ea60f2f": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "5a436415-41cf-40bd-b47d-01af3fcefef2",
+            "evidence_id": "5a212934-f7ff-4936-b95b-26b4dc5b778e",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "20cd14a6-2b25-4a11-b9ee-46ae1df8b2be": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "47978aac-d6b2-4e00-8641-5bc71bcecc02",
+            "evidence_id": "3e83b750-1578-44e5-aabe-dcbf1095385c",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-05",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "23286b7f-9342-4a7c-bfd0-ba870a391b4e": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "cbc3022b-8f89-44a5-9733-19affe0f0faa",
+            "evidence_id": "c442408c-5120-4223-bb79-666c6c54ff31",
+            "expected_demand": 6.0,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "24af0c88-7b60-4394-80e7-de32f71af92c": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "d9f019e4-bdc3-49b9-9975-f82da6ef2e7b",
+            "evidence_id": "7b0fcc87-fa6b-4a60-b742-81a0e354d030",
+            "expected_demand": 1.2857142857142858,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "26216192-1338-40c5-b269-ba1681abc736": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "b3c9b19c-98fc-412c-bedf-41ca1bccec99",
+            "evidence_id": "5eba609a-f31e-458f-81df-6e0c8eebf6cd",
+            "expected_demand": 2.5714285714285716,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "2835c547-7631-48ea-95f5-fad2655312bb": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "f86cfb8f-a88a-432a-bdc0-90eaf8caee6b",
+            "evidence_id": "6dff67f2-a964-48fa-86c0-cd9ff4a221ce",
+            "expected_demand": 1.7142857142857142,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "2f8841b0-4702-4248-9013-2d48024ad792": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "b7414c29-325e-4cb5-94b2-96225a0922b9",
+            "evidence_id": "4f2cdf2a-e83b-4947-9783-80137a4d828a",
+            "expected_demand": 2.0514750480651855,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.3,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "32e9182a-a408-4037-8df3-0a5ed1bf2714": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "d25fbdf6-9228-47bd-8574-df8660040b44",
+            "evidence_id": "e2fac498-a47f-413e-9b53-647cc0a04d06",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "316f2b28-1c48-4cf3-9cd8-399ab6393866": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "a88b6f3d-85c9-4e5e-89ad-4d8a57f687fa",
+            "evidence_id": "9d3a5e79-b228-4afa-9a1f-73effb788c44",
+            "expected_demand": 1.9464685916900635,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.3,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "331dba05-f0ec-43c6-8092-2f539839fe68": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "a8525e75-8330-4313-97cd-7e5c214cb686",
+            "evidence_id": "3e143062-801f-4aa0-8243-31b4745ca07c",
+            "expected_demand": 1.7142857142857142,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "332a9cda-29a2-4640-a364-538c72785ad8": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "c947c24b-f938-42cb-8aa8-9464538272f4",
+            "evidence_id": "91ccc01a-acdf-4370-a8a1-52c8d9fe7d00",
+            "expected_demand": 1.8571428571428572,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "35badba0-8aa1-4084-b47f-b9f01611e973": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "566f51e4-11d7-490e-99ae-e6cb22b0a30d",
+            "evidence_id": "a64e4ea3-a427-4bbe-9fcc-a7ed01db2e99",
+            "expected_demand": 2.142857142857143,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "35ff94ab-8e54-4d80-b942-975fa0fbbbb9": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "c4ed681c-e6f3-49af-82e1-22cb0add4f6d",
+            "evidence_id": "c9c61ec5-6c40-428e-bff5-4958cc1340a6",
+            "expected_demand": 1.5714285714285714,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "3d009a99-f383-479a-a9fa-770f2771d4b9": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "43be1c05-63c9-4b9c-81bb-ce255eb9fdb4",
+            "evidence_id": "d67c1550-0cb3-4d10-8127-464cac29a793",
+            "expected_demand": 1.5714285714285714,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "3e09fec1-ea63-4454-a148-c847866d2ab1": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "7399312b-92f1-4f5a-80f3-37dc81087f32",
+            "evidence_id": "6777e349-9302-41b2-8734-6ea69af8c999",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "40b30af6-7208-4468-9073-79c63fe796cd": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "d2e28472-cd36-4d5c-a7c6-e50e0d365c7d",
+            "evidence_id": "034bd0b6-258e-4b55-a2bf-1d1799489b9d",
+            "expected_demand": 1.0,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "3eec2303-7248-4970-ac46-4f7ddcb8212e": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "456902aa-8315-4d6e-9f60-b9b033701f2f",
+            "evidence_id": "e95d67ab-9b1c-4774-8a6c-53cfb3df0e78",
+            "expected_demand": 1.569014549255371,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.3,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "413566d0-f558-4d39-96af-537c1bdd27b9": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "ab350e19-48ad-49ff-8edc-6d3e735d4f06",
+            "evidence_id": "4640eff0-29e9-4e0d-8efd-fb47d5d2c0f8",
+            "expected_demand": 3.5714285714285716,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "41db9e75-1beb-407e-9075-4f46b5f35744": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "65a4fc06-5614-444a-b7e8-2f7b65cd71ab",
+            "evidence_id": "ec2f91ad-6565-4c5f-9473-e0c8cfd682aa",
+            "expected_demand": 1.8571428571428572,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "4879f9a6-65c9-430b-b09f-495462d11f43": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "538c1424-9043-4e32-a90d-22b1610a8f28",
+            "evidence_id": "d7ab5de7-91a7-4e2f-bf5a-8dc3946d97a0",
+            "expected_demand": 2.0,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 362,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "4938df18-e5a0-4168-98ab-d372137fc972": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "7b1729e9-711b-4466-aea2-a1c4152c279d",
+            "evidence_id": "c17edcb8-aa3d-49af-a870-09da5db23f59",
+            "expected_demand": 1.6839566230773926,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.49,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "4c332537-5c73-45be-abb8-ce09fdaeaf0c": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "1f633d72-fbe4-4c7a-9234-0ccd99e419b5",
+            "evidence_id": "d2c17fa3-53e7-4143-bd4a-b272aa819e2c",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "4ccc9516-c419-471a-ac3c-301065825bfc": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "096080f3-0a63-4399-8752-3a00bbc13110",
+            "evidence_id": "e055cc02-171e-492a-b3b0-3c9ff4c1f18d",
+            "expected_demand": 1.0608197450637817,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.31,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "4d2b64f1-13a1-4fca-84a2-66b9ed032484": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "da6f4a00-3017-45e5-a846-3e3f609ec09e",
+            "evidence_id": "d345164a-f6c2-41d8-a5d3-52ac2fa540e4",
+            "expected_demand": 2.0,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "4dba2bc4-3b22-47b4-90c8-be4bf6cba742": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "14497dc3-c50b-4e77-8c16-d8228bd3d34b",
+            "evidence_id": "40e8edb2-ad18-48c8-b51d-841ac3eec9bb",
+            "expected_demand": 2.142857142857143,
+            "forecast_target_date": "2026-01-04",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 359,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "4ed7345c-0cf8-41a4-a91f-06113299e0d4": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "63f503a4-23bc-4260-aaa3-6fde6a716b34",
+            "evidence_id": "8362043c-39eb-4829-ac28-5cf975cad1e7",
+            "expected_demand": 2.857142857142857,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "524b6bd0-e59c-4a16-bfec-8d753cbdc6ef": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "6716653b-9889-4f0b-9800-bb8abf8a46b1",
+            "evidence_id": "714cd757-0895-4ac8-9188-5be59b60296a",
+            "expected_demand": 3.0,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "5243bc8b-2be8-4bfc-b67e-e170d7aae5c3": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "11af6997-43c6-4c5b-8e60-44d0f7ea928b",
+            "evidence_id": "32171ed6-0c17-4cc3-ae9b-4e9e8292127a",
+            "expected_demand": 5.036684989929199,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.3,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "5497b16a-024f-4e30-a670-5a29f95b97da": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "1e3fb78c-767e-479d-9f1d-8ab1c5ae3caa",
+            "evidence_id": "01032c69-0e13-4a69-be7f-86bcf4d3ae90",
+            "expected_demand": 2.0,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "7121da84-dc30-49a7-ba8b-e475f44e65b7": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "d6451cee-d604-498d-9808-98ecbd193e00",
+            "evidence_id": "fedcdc12-86e9-43cf-977f-7838b282a58c",
+            "expected_demand": 6.0,
+            "forecast_target_date": "2026-01-05",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "55a59e59-2c30-42dc-a255-9c9b28c9655d": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "fbb85c54-78cd-424d-85c3-cc06b47cae56",
+            "evidence_id": "c508a3f2-15e2-4e21-80a1-a6d69600ef4f",
+            "expected_demand": 1.4285714285714286,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "73550d05-e791-4e2d-8cba-471bb6bedd91": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "1c2d53a9-19d9-4f68-909e-8336a5335c73",
+            "evidence_id": "3ddf313b-db73-4ed7-8117-126a5babc9f3",
+            "expected_demand": 2.4285714285714284,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "776ddfa4-41b9-49b9-b4ff-8e4b355938e2": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "ccaa1ffc-5e99-482e-82c5-e14c296eb42a",
+            "evidence_id": "bd449c32-94d5-4935-9049-5057222cd4b8",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "76586d99-3819-4ab0-9b53-cef44109c8a4": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "854838ff-0e8c-44d7-a138-9d0f81a709f2",
+            "evidence_id": "b2de23b9-3db2-4f43-bb3f-571017be8d38",
+            "expected_demand": 2.142857142857143,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "7a652ee0-cbf8-4304-a59a-b47decdfcaaf": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "c07e89cd-049f-41b1-b7fb-b47c415d29ad",
+            "evidence_id": "54be811f-b985-45af-9c15-ebefe45d4499",
+            "expected_demand": 1.5714285714285714,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "7fcedc52-b054-4cd5-bad6-0bde5c184949": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "53747d09-1bd4-4024-967d-4770eb7c0f49",
+            "evidence_id": "e92714fd-24fd-4340-8479-96fd6c8653d8",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "7e1965ad-6ed7-483e-bba7-56c2b2637175": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "af39222d-16d9-4b0d-b9e3-2c2307ae7445",
+            "evidence_id": "2455b2c9-b76f-4f86-95fe-553be7237544",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "80218ca6-d807-4539-b249-f63d3d94cfb0": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "5508b47d-25aa-47ff-a8fb-663365532a5f",
+            "evidence_id": "fb65ef6f-6b4f-4999-96fb-7b1fe9404d9a",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "8209eaf3-daf0-41d3-8891-0bd5b0123907": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "5addce31-b4eb-46d9-9251-d4656890fa23",
+            "evidence_id": "f74f885e-7f2d-457e-8c0a-8b6a3f9fd379",
+            "expected_demand": 2.5714285714285716,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "8065462f-bd45-41d1-9580-87a05428868f": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "cbae43c6-3b0f-48fa-913b-6794dd0c46b7",
+            "evidence_id": "c0a55236-1f0b-4a69-b8d3-7e10b4956cd3",
+            "expected_demand": 2.609205484390259,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.52,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "82ad3180-130b-41ae-9c85-e50de5fe3458": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "d99c4e23-98c5-40fd-9e49-a0ba18a39062",
+            "evidence_id": "956c3062-b1d3-4033-94fa-664f52e3782f",
+            "expected_demand": 2.5714285714285716,
+            "forecast_target_date": "2026-01-02",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 360,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "84321161-19e8-4907-9fcb-f3a48057ff02": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "bd772e03-8940-495c-9464-f7f4b30caec0",
+            "evidence_id": "f1fd4034-d98f-4726-bedd-a381fd756fcd",
+            "expected_demand": 2.142857142857143,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "8ca58625-3227-4c96-a3fe-9a4c8b85656a": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "c949a100-10f0-455e-a17d-433716f8c9ed",
+            "evidence_id": "f866c1f2-c3b0-4c96-921c-eca1be3df898",
+            "expected_demand": 1.4285714285714286,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "85d1aca1-e903-4c59-a399-ee219408c7dd": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "240c898c-cd21-41f4-ad2e-ca6c45475c4b",
+            "evidence_id": "de892da9-ebe2-452f-9bf0-11f5070134da",
+            "expected_demand": 3.1724741458892822,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.36,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "8e923cf0-0356-4fc1-933c-90d96fe7b04f": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "95678de3-0b86-4d01-b36c-2d17c17ce0ec",
+            "evidence_id": "e36bec3b-975d-49b8-86a2-c323465e19d9",
+            "expected_demand": 2.5714285714285716,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "93cce4b1-885f-4f11-8ff7-eb51221dc64c": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "d5583357-ad97-4fa1-89ce-8c490c2a178b",
+            "evidence_id": "03916e1e-c9b2-483f-8b18-2774860298ae",
+            "expected_demand": 1.4285714285714286,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "99af3cd3-e2df-47cd-abf4-1b665e9d4dd0": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "3544e91c-4f4c-498c-8903-b895ad26955b",
+            "evidence_id": "fd599fed-0a79-46df-adfd-62f0e51e32af",
+            "expected_demand": 1.5714285714285714,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "970eb20c-d3a7-4b5a-ab69-a54506bb59cb": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "4157119e-0c09-436f-9292-0a09b31c3401",
+            "evidence_id": "ccc954ab-06c7-43f5-a062-5f34918e68fc",
+            "expected_demand": 1.8421614170074463,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.58,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "9a1815fb-48f9-48f9-96c4-40633d7c6751": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "bc6da2e0-e1e7-4df3-8d6c-1a05dee9f572",
+            "evidence_id": "d1d21aa9-0385-4ecb-aac7-e8c456b927fc",
+            "expected_demand": 1.0,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 362,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "9aba9ece-bfbf-472e-ad92-69fa7b63e353": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "20921c97-5f1f-42d8-a45c-0dfeb5505d92",
+            "evidence_id": "2507e4cf-0066-46d6-8658-f16c2885be3a",
+            "expected_demand": 2.142857142857143,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "9c21d3c0-99be-4c73-a5be-719cc8bd64db": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "84453513-8f6b-4963-b1e9-25006ecbb0d0",
+            "evidence_id": "2f77b2f9-e3f5-499f-8dbf-200294051d78",
+            "expected_demand": 2.4285714285714284,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "9cca6f33-84bf-4ff1-a205-6f1792c9a10e": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "c2e9a840-1998-4f71-81d8-b436c603cfa1",
+            "evidence_id": "147e15f2-67ef-4311-8f63-066ab392bf66",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "9d296575-2d75-4963-8161-8d633057f763": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "5b9ce655-e14b-4fcb-ae75-d9aaa74b8447",
+            "evidence_id": "d051f124-40ca-4b29-a9b9-98147be5de16",
+            "expected_demand": 3.142857142857143,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "a02fd676-e3cc-473c-b910-07953edf8d31": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "cff39d61-50dd-4ae6-9b4b-e6e466374050",
+            "evidence_id": "6887d89b-4458-437b-963a-8f39d15cd37d",
+            "expected_demand": 4.700300216674805,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.86,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "a4871909-480e-4f03-82e0-de0c324cc038": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "4d9c7db6-92c5-4c2c-836a-c910469270d1",
+            "evidence_id": "d0afaeaa-6484-428e-8c4f-eb3f59ee5828",
+            "expected_demand": 2.4285714285714284,
+            "forecast_target_date": "2026-01-05",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "a34a14a3-9eee-437b-abe6-b5b8a7556249": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "8730344a-5ff5-4fa8-ab0c-bd778a57da0d",
+            "evidence_id": "513f614b-b780-4d0f-a47e-fa61e2a491da",
+            "expected_demand": 0.8303322792053223,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.3,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "a506b159-0a45-4fca-b601-fcf8a81df550": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "8bb56717-5aea-4a27-9f0d-b20b3e6ba4d9",
+            "evidence_id": "8b78361a-ea90-4586-8582-766e196dd813",
+            "expected_demand": 3.3107986450195312,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.39,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "a6504a04-27f2-4b0a-af6f-379e8aa6877a": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "fcdf59f8-a4b3-4bd2-9695-09a61ad822e1",
+            "evidence_id": "a91a9113-9220-4364-b9fa-a981e1c64cec",
+            "expected_demand": 1.7142857142857142,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "a8cc9a88-09c1-4e3a-abd4-b17c613d329c": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "b7fa1c5e-8e5b-44f2-b6f0-537358ee8e18",
+            "evidence_id": "fe9a7d6a-5b00-455a-88ad-e4c8e0fa21f1",
+            "expected_demand": 3.0,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "aec46876-7d20-471a-a3ea-3d9944336ed6": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "3df13278-f69a-4a18-814e-eee49b683698",
+            "evidence_id": "3d38bcd9-f5f6-44ad-a388-78f884d63823",
+            "expected_demand": 1.5714285714285714,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "b0609693-a625-486b-81b7-5552a69b3e3e": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "6b637736-3bc3-4552-890c-57eacd2394de",
+            "evidence_id": "8fd2e8c1-6e11-47d4-b71a-aff7a9897353",
+            "expected_demand": 4.142857142857143,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "b08c0b2d-ac7d-4887-aeb6-376bbd348726": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "6cea7b36-f42a-417b-9b36-c00976b0b09e",
+            "evidence_id": "b5ea0778-160f-4a85-a3ac-b9d47f71bede",
+            "expected_demand": 1.8571428571428572,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "b227f6b8-a69f-48ec-8f11-745e30e02994": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "12e0172f-4786-495e-bf61-56d0d786879f",
+            "evidence_id": "e4154fc1-e113-494b-aaa9-667f56a88b33",
+            "expected_demand": 1.8571428571428572,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "b49be38c-a8e5-4a1e-9aa2-92e009bf1b16": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "11a2de15-189c-4a0a-b52f-08c93655775e",
+            "evidence_id": "984fa102-3f0c-410b-b1d9-a62ccfec21ed",
+            "expected_demand": 1.9014158248901367,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.47,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "b8db28c0-e158-48cd-b32a-f57edd331c1a": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "833b03fb-a576-4ca5-aaf9-cbc0213c9162",
+            "evidence_id": "468bbcf9-7421-4d38-9b73-1a58320a3bbb",
+            "expected_demand": 3.302138328552246,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.35,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "bad79a8b-9e20-4aa7-ac73-ce8ddc8b4e0a": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "77787b09-c5f5-4e91-b02f-c21fd7dc1aeb",
+            "evidence_id": "fe2a17d9-adcc-4718-b2a3-7682d2590b1c",
+            "expected_demand": 2.3421058654785156,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.34,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "bbf63d34-3028-4bbd-a9fd-351a483f8bb7": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "f0edb942-816d-4d9e-87c5-f9939cfff848",
+            "evidence_id": "cbba2343-8476-40f8-b9b0-9ccaea859b5c",
+            "expected_demand": 2.4858059883117676,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.7,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "bf787963-fe4a-408e-a653-a80ad0d966d0": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "a3adb7ff-4ce3-4a8b-8e31-53f987e792a1",
+            "evidence_id": "bb1ce8f8-31bc-4a94-afa8-253d14dbf3b8",
+            "expected_demand": 1.8571428571428572,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "be9104fd-12e6-4258-825a-84d422616262": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "8463b0a9-c6d4-4dfe-98f4-4a94cb6b157b",
+            "evidence_id": "b83b1c2f-dd13-45ad-94e7-627919d504e9",
+            "expected_demand": 1.5419024229049683,
+            "forecast_target_date": "2026-01-05",
+            "confidence_score": 0.65,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "c55d3ad7-1edf-4bbc-bdde-788e328b50a4": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "5c6a3836-5a95-4f71-a6f6-ce1eec97b164",
+            "evidence_id": "ed17d5a3-3377-42af-a492-97bf7c34cc49",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "c9a7ce77-218e-4bd5-854c-7aec9245780c": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "737e9b88-3562-4b42-baaf-58586b2739cf",
+            "evidence_id": "c1d476ce-cb90-4a74-b6f4-08c790403955",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "cb95db77-f846-4664-90d8-79b3b858b223": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "971ea4fa-f4e6-4a9a-b392-6982dc6454a8",
+            "evidence_id": "7b848527-b839-4968-9f4c-3a616d40f344",
+            "expected_demand": 1.0,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 362,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "cc145a11-eca9-420e-ad21-d1643071c511": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "f4d2ca48-81bf-4ca2-8ed0-7f34f21475f8",
+            "evidence_id": "923be48a-8f6e-4824-9ab6-669b5ac5123e",
+            "expected_demand": 2.4285714285714284,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "cca494e5-5f77-45ec-af01-e46cab2a9808": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "7110b13d-f68b-4ed8-86e3-b6296d56262b",
+            "evidence_id": "074ff06c-b5f9-4887-99c4-496f43653595",
+            "expected_demand": 2.4285714285714284,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "cd8a6c21-aab7-4e8e-896e-b45178b13bb4": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "65ce658d-e6aa-421d-a4f5-381cc49bd742",
+            "evidence_id": "370f3dc0-df9e-494a-be58-cc43912aafb6",
+            "expected_demand": 1.2857142857142858,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "ceb3ad69-878b-4ae3-89b7-cb139f8487b0": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "974e39a6-3034-4a0e-aacd-f13180edf593",
+            "evidence_id": "a2b1f6a6-c778-41ef-b916-7ca7ceefd648",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "d2191e89-98ad-42a1-b0e5-f03bd4980d8c": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "2c2783d8-9366-4259-b07d-6425aea0752f",
+            "evidence_id": "0e1fc404-536d-4527-a236-949699b42933",
+            "expected_demand": 2.9013891220092773,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.69,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "d4a60a4c-6bbb-4d88-9995-ae4f13762384": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "96dd94ef-cfdd-459a-b599-6e502f6cf755",
+            "evidence_id": "cbfc89e2-a541-4171-949d-3dc2330b1290",
+            "expected_demand": 2.236280918121338,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.45,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "d4f0beb3-41fb-4dd2-9fef-1cca63a487d4": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "bf98286b-4b24-43d8-a958-1f99a4f5473d",
+            "evidence_id": "0b2e2a33-f4e0-4da2-8a0b-d113ae045691",
+            "expected_demand": 2.142857142857143,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "d635ca40-d983-44ba-90c4-048a0574d64d": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "bf0f675e-d251-44e9-8384-92f576c851c4",
+            "evidence_id": "ec4fe0d1-e261-4071-822b-577322c32cbc",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "d679f208-ee90-4153-9100-08c1d60bce77": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "e0426588-5104-4fa9-ba73-f7f54595f0cd",
+            "evidence_id": "39e63d1a-3c24-46fb-9ce5-0a03f43a2a79",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "d71ecfdf-5142-40cc-b698-e7bbb5cd57db": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "41569e69-7773-4ffd-b8f9-2b16ecb9a98e",
+            "evidence_id": "7261b0ea-5684-44d4-b041-e931c50120fa",
+            "expected_demand": 1.6233305931091309,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.49,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "d9fc6bbd-71ed-401f-882e-6e977895a716": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "b4b49e43-d077-493a-9326-8dcab390837b",
+            "evidence_id": "7c669c2b-90d9-45af-ac94-8ee18075eaac",
+            "expected_demand": 1.5714285714285714,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "dc76bdcb-11fa-4e77-a493-f0fd0401ab11": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "0e4f883a-8ea2-411d-b75d-c5ff47e2d66b",
+            "evidence_id": "d3fb5e1e-0484-4aa3-ae6e-ef95b3f3a6a7",
+            "expected_demand": 0.8571428571428571,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "e7d16219-b690-4025-97eb-17b3a28affb5": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "e44eb74a-959d-4c58-8f30-af25c901b87e",
+            "evidence_id": "45efd35e-d32a-469d-a706-e6d6ca133f65",
+            "expected_demand": 3.0,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "e7efe551-804d-4584-bc88-cebfce83a190": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "8febe743-652f-4897-b5d2-60a15f18b17d",
+            "evidence_id": "24a4cf96-6975-430a-bd47-8d042fe0baf7",
+            "expected_demand": 1.444860577583313,
+            "forecast_target_date": "2026-01-05",
+            "confidence_score": 0.61,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "e7fe0212-f445-4561-9214-e39576b094f1": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "24032304-1346-487c-8785-d7bd1a391dee",
+            "evidence_id": "b615cb6e-5104-4a7f-a645-c65c5161400b",
+            "expected_demand": 2.597569704055786,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.38,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "e86a64d0-8aa3-4938-acb5-27ab9f1ba44b": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "50ec0582-cb93-4b0b-8719-b0d2fa876e5a",
+            "evidence_id": "045aea49-e268-44a9-882c-2b59f3e484b1",
+            "expected_demand": 2.7142857142857144,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "ec8978a4-efd6-4ffb-8e58-b7ed8c4fdc88": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "bf346252-5614-4d3b-822a-66544f58df37",
+            "evidence_id": "9358d4ba-71c7-468e-9ded-a96eafa0b4c9",
+            "expected_demand": 0.8571428571428571,
+            "forecast_target_date": "2026-01-05",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "ef97b47b-e943-4b54-b866-4a75087a5a9e": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "e0507c6c-30a6-4ddc-aacb-25830d646974",
+            "evidence_id": "1a038029-4871-48e9-907e-6dfc877e89e9",
+            "expected_demand": 1.2857142857142858,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "ed44ee1c-5944-41de-b493-71b17cc7dc73": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "f8227b81-dae1-4ecb-b773-772e3584500d",
+            "evidence_id": "d6578d5f-338b-4e55-9f29-9cc1e9dc81ae",
+            "expected_demand": 0.49671441316604614,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.61,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "efeec8c4-fe15-4e20-920a-41bd5dca7fc9": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "b05c1068-5b8a-47b9-884f-ba43a2fa54eb",
+            "evidence_id": "0140e0f2-346e-4c8b-87e0-19f001cf083a",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "f0df0ced-66c3-497b-b8ea-7c2a4df9287e": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "fe3d7b08-83b9-4b00-a59f-037067ab90d7",
+            "evidence_id": "0ae6d4c8-7db5-404b-84c1-39ec713268c9",
+            "expected_demand": 1.1428571428571428,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 364,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "f1b38498-19c1-457e-80ce-012fc4b7104b": {
+            "status": "OK",
+            "source": "xgboost",
+            "forecast_id": "e14e686d-e964-411b-926b-f5d026d035c5",
+            "evidence_id": "d3778c44-145e-4662-8df5-651ccdb6b588",
+            "expected_demand": 1.721053123474121,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.56,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "f3ff34a7-0c04-4fea-a883-7b5a7603bf20": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "60da37b0-d4cf-4713-9493-8d9503fb4cec",
+            "evidence_id": "1f81d63b-a1ae-4e91-9d7c-e85c6e8b7fe8",
+            "expected_demand": 2.4285714285714284,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "f5804c1c-923a-45e6-b03d-409f4fdb625a": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "4276ef0f-c31a-45e5-9c2d-6025e0fa0999",
+            "evidence_id": "f87ecf6d-30b6-48a6-a9ee-ab42c38561d2",
+            "expected_demand": 2.4285714285714284,
+            "forecast_target_date": "2026-01-07",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 365,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          },
+          "f7351e34-c876-4ecc-a468-a258a7890a4a": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "28b78917-f5d1-4081-88dd-788723f113dd",
+            "evidence_id": "56348f08-574d-42f2-b202-0f3a7a50ef1c",
+            "expected_demand": 1.2857142857142858,
+            "forecast_target_date": "2026-01-06",
+            "confidence_score": 0.4,
+            "data_sufficiency": {
+              "sufficient": true,
+              "available_days": 363,
+              "minimum_required": 30,
+              "confidence_status": "OK"
+            }
+          }
+        }
+      },
+      "errors": []
+    },
+    {
+      "stage": "5_pricing",
+      "status": "OK",
+      "duration_seconds": 1.973,
+      "process_rss_mb_at_completion": 594.2,
+      "details": {
+        "per_product": {
+          "079c972e-a63a-4610-bdc9-0702f7eb59f1": {
+            "status": "UNKNOWN",
+            "evidence_id": "1ec8f680-34ef-4f12-8a9b-70f90c73872d"
+          },
+          "01c333a4-b15f-47ca-99fd-1b461f66514f": {
+            "status": "UNKNOWN",
+            "evidence_id": "85743cac-cb1f-43dd-a4f5-847360c9cb29"
+          },
+          "060f16ab-47ea-4711-ac5a-4b6ff1022f3d": {
+            "status": "UNKNOWN",
+            "evidence_id": "77caf360-0b83-4f99-8835-2b03f86611ba"
+          },
+          "0e3dfb95-dfb0-4025-8975-6977b746e77f": {
+            "status": "UNKNOWN",
+            "evidence_id": "0287edd3-204f-4690-93fd-bb8cfcc92fd2"
+          },
+          "0b2af1f7-b8a2-47c9-b17a-f359da94427c": {
+            "status": "UNKNOWN",
+            "evidence_id": "d637b69e-f5b2-4feb-a50b-15cb525441a7"
+          },
+          "0e99cc8a-ed27-4a9b-9fae-07e751ff8baa": {
+            "status": "UNKNOWN",
+            "evidence_id": "759d8a6a-bb29-42eb-8c40-396e1ac871f6"
+          },
+          "0f3f0c23-ad1e-4d16-b2c0-9f39b36f3a07": {
+            "status": "UNKNOWN",
+            "evidence_id": "340fb09d-214b-46a8-ab80-d97f1cceba0b"
+          },
+          "11037f77-1a09-4a2e-a5de-f76005b850b2": {
+            "status": "UNKNOWN",
+            "evidence_id": "5cd91f87-8234-41f3-8502-e5a87b7e35bf"
+          },
+          "1bb25adf-53a9-444c-b4e1-3480501069dc": {
+            "status": "UNKNOWN",
+            "evidence_id": "f4c58847-da8c-4914-b3b5-53b58408aa8b"
+          },
+          "1e0ed013-dcc0-4249-adbf-d74297ad88a5": {
+            "status": "UNKNOWN",
+            "evidence_id": "ce944592-10e3-4f03-9222-a995ff96f5b1"
+          },
+          "1c82a734-5584-4df6-8928-b28b9778ed2a": {
+            "status": "UNKNOWN",
+            "evidence_id": "36c49e09-28ba-40ff-a1f8-acde8606d1c4"
+          },
+          "1ef48ab8-5479-4e1d-9150-c2c8a1134a8e": {
+            "status": "UNKNOWN",
+            "evidence_id": "dae8027b-fc1a-47c7-9de8-734361434991"
+          },
+          "20386a98-3f38-4598-b6c4-56e86ea60f2f": {
+            "status": "UNKNOWN",
+            "evidence_id": "d26b0bc3-4237-4fa4-b2a0-599c820673ec"
+          },
+          "20cd14a6-2b25-4a11-b9ee-46ae1df8b2be": {
+            "status": "UNKNOWN",
+            "evidence_id": "cf107319-9894-4fd6-9777-abb155e12020"
+          },
+          "23286b7f-9342-4a7c-bfd0-ba870a391b4e": {
+            "status": "UNKNOWN",
+            "evidence_id": "c6efa159-0211-4810-b301-9b1fa900f09f"
+          },
+          "24af0c88-7b60-4394-80e7-de32f71af92c": {
+            "status": "UNKNOWN",
+            "evidence_id": "ef68f491-0e77-42c0-ba08-727ff4d2be9b"
+          },
+          "26216192-1338-40c5-b269-ba1681abc736": {
+            "status": "UNKNOWN",
+            "evidence_id": "2d5f844d-55b5-489d-950f-db53c362aadb"
+          },
+          "2835c547-7631-48ea-95f5-fad2655312bb": {
+            "status": "UNKNOWN",
+            "evidence_id": "7b41dc4e-0a8d-4944-96f9-281b8e35a6a3"
+          },
+          "2f8841b0-4702-4248-9013-2d48024ad792": {
+            "status": "UNKNOWN",
+            "evidence_id": "d58522c8-2fa1-4e51-be20-211780df710b"
+          },
+          "316f2b28-1c48-4cf3-9cd8-399ab6393866": {
+            "status": "UNKNOWN",
+            "evidence_id": "31be526d-ae1a-47c1-b936-2956d1657af7"
+          },
+          "32e9182a-a408-4037-8df3-0a5ed1bf2714": {
+            "status": "UNKNOWN",
+            "evidence_id": "767425d9-1c58-42fa-a3b5-529c1fb97bc2"
+          },
+          "332a9cda-29a2-4640-a364-538c72785ad8": {
+            "status": "UNKNOWN",
+            "evidence_id": "be958761-9316-4198-8b66-142048eb1c86"
+          },
+          "331dba05-f0ec-43c6-8092-2f539839fe68": {
+            "status": "UNKNOWN",
+            "evidence_id": "a47082ba-218e-4866-b5b2-efa01bc0bee1"
+          },
+          "35badba0-8aa1-4084-b47f-b9f01611e973": {
+            "status": "UNKNOWN",
+            "evidence_id": "f57c6ec9-9a27-4b1b-b03b-851a34f6710f"
+          },
+          "35ff94ab-8e54-4d80-b942-975fa0fbbbb9": {
+            "status": "UNKNOWN",
+            "evidence_id": "a7495b6f-500a-47a7-94ad-ac6e893a667d"
+          },
+          "3e09fec1-ea63-4454-a148-c847866d2ab1": {
+            "status": "UNKNOWN",
+            "evidence_id": "57f0a25e-d65d-42c5-9562-18dc5b6364b0"
+          },
+          "3d009a99-f383-479a-a9fa-770f2771d4b9": {
+            "status": "UNKNOWN",
+            "evidence_id": "9e3d6490-d202-4e18-9641-3913352fb33e"
+          },
+          "3eec2303-7248-4970-ac46-4f7ddcb8212e": {
+            "status": "UNKNOWN",
+            "evidence_id": "f6783991-21cb-47a3-9d8c-9edf1aed000e"
+          },
+          "40b30af6-7208-4468-9073-79c63fe796cd": {
+            "status": "UNKNOWN",
+            "evidence_id": "41962c8e-1047-43c4-a2d7-e65c542d86a8"
+          },
+          "413566d0-f558-4d39-96af-537c1bdd27b9": {
+            "status": "UNKNOWN",
+            "evidence_id": "21eaf55b-f7f1-4241-ae63-fb49528bb4e4"
+          },
+          "41db9e75-1beb-407e-9075-4f46b5f35744": {
+            "status": "UNKNOWN",
+            "evidence_id": "0ed4d0e8-046a-4bbd-9a22-68a8df65851e"
+          },
+          "4879f9a6-65c9-430b-b09f-495462d11f43": {
+            "status": "UNKNOWN",
+            "evidence_id": "bf640c39-c2cd-4e4f-92a0-1169ab857199"
+          },
+          "4c332537-5c73-45be-abb8-ce09fdaeaf0c": {
+            "status": "UNKNOWN",
+            "evidence_id": "056738a6-3806-40a1-9c98-bc1f43412663"
+          },
+          "4938df18-e5a0-4168-98ab-d372137fc972": {
+            "status": "UNKNOWN",
+            "evidence_id": "c2fd4eff-c7ba-446c-977b-c527603e6ecb"
+          },
+          "4ccc9516-c419-471a-ac3c-301065825bfc": {
+            "status": "UNKNOWN",
+            "evidence_id": "39337e01-6441-4d92-9d42-38d6e8db3815"
+          },
+          "4dba2bc4-3b22-47b4-90c8-be4bf6cba742": {
+            "status": "UNKNOWN",
+            "evidence_id": "418f22a0-2813-45e9-8a02-000787e83029"
+          },
+          "4d2b64f1-13a1-4fca-84a2-66b9ed032484": {
+            "status": "UNKNOWN",
+            "evidence_id": "a724363b-2229-401f-a716-d5fb2be13b47"
+          },
+          "4ed7345c-0cf8-41a4-a91f-06113299e0d4": {
+            "status": "UNKNOWN",
+            "evidence_id": "729ac2ff-a502-4f2e-8668-a4eb1baf5c86"
+          },
+          "5243bc8b-2be8-4bfc-b67e-e170d7aae5c3": {
+            "status": "UNKNOWN",
+            "evidence_id": "84dd1fc7-db61-41f9-802f-b9d8897c529e"
+          },
+          "524b6bd0-e59c-4a16-bfec-8d753cbdc6ef": {
+            "status": "UNKNOWN",
+            "evidence_id": "a89cab2b-ba11-4903-a14e-b99048c52681"
+          },
+          "5497b16a-024f-4e30-a670-5a29f95b97da": {
+            "status": "UNKNOWN",
+            "evidence_id": "1e5e3a95-c74e-4189-830d-b89fad9399d6"
+          },
+          "7121da84-dc30-49a7-ba8b-e475f44e65b7": {
+            "status": "UNKNOWN",
+            "evidence_id": "8dffd5ab-0b0c-401e-9844-8a9d587d6cd5"
+          },
+          "73550d05-e791-4e2d-8cba-471bb6bedd91": {
+            "status": "UNKNOWN",
+            "evidence_id": "f34f4100-e1cd-46c7-9ddc-717783f845aa"
+          },
+          "55a59e59-2c30-42dc-a255-9c9b28c9655d": {
+            "status": "UNKNOWN",
+            "evidence_id": "0bf409af-7ed8-4a1c-aec9-20cbc72e6408"
+          },
+          "7a652ee0-cbf8-4304-a59a-b47decdfcaaf": {
+            "status": "UNKNOWN",
+            "evidence_id": "77f1b8c6-0e73-4cc5-94d7-475eeceb6e2b"
+          },
+          "76586d99-3819-4ab0-9b53-cef44109c8a4": {
+            "status": "UNKNOWN",
+            "evidence_id": "8183e65c-3c6d-4945-baaf-b7efde91d348"
+          },
+          "776ddfa4-41b9-49b9-b4ff-8e4b355938e2": {
+            "status": "UNKNOWN",
+            "evidence_id": "d10f40c5-8967-46ef-8548-1d013c09dc17"
+          },
+          "7e1965ad-6ed7-483e-bba7-56c2b2637175": {
+            "status": "UNKNOWN",
+            "evidence_id": "8af33a12-a2be-4c17-95aa-bbe98043ce48"
+          },
+          "80218ca6-d807-4539-b249-f63d3d94cfb0": {
+            "status": "UNKNOWN",
+            "evidence_id": "6baf41a6-fbb5-492a-b8a9-24f89a429b67"
+          },
+          "7fcedc52-b054-4cd5-bad6-0bde5c184949": {
+            "status": "UNKNOWN",
+            "evidence_id": "23941b45-4c3b-4952-a90d-88fd127b025a"
+          },
+          "8065462f-bd45-41d1-9580-87a05428868f": {
+            "status": "UNKNOWN",
+            "evidence_id": "62c2ad08-3faf-4371-8d7c-8f06077b20cf"
+          },
+          "82ad3180-130b-41ae-9c85-e50de5fe3458": {
+            "status": "UNKNOWN",
+            "evidence_id": "eb143f4e-0e71-4410-8a27-a285b4c71700"
+          },
+          "8209eaf3-daf0-41d3-8891-0bd5b0123907": {
+            "status": "UNKNOWN",
+            "evidence_id": "e7c4f311-4f29-4bd6-92ff-775264fb1af8"
+          },
+          "85d1aca1-e903-4c59-a399-ee219408c7dd": {
+            "status": "UNKNOWN",
+            "evidence_id": "042b7420-5213-44ca-9969-ce040b8dbd75"
+          },
+          "8ca58625-3227-4c96-a3fe-9a4c8b85656a": {
+            "status": "UNKNOWN",
+            "evidence_id": "b14ce3ab-4663-402a-8e5c-3c61ac510f68"
+          },
+          "84321161-19e8-4907-9fcb-f3a48057ff02": {
+            "status": "UNKNOWN",
+            "evidence_id": "8b75e7b8-650f-4665-88a3-f7ee20ebdce3"
+          },
+          "93cce4b1-885f-4f11-8ff7-eb51221dc64c": {
+            "status": "UNKNOWN",
+            "evidence_id": "0ea98c1d-5b4a-4d22-90d1-e9aa490b5f6f"
+          },
+          "8e923cf0-0356-4fc1-933c-90d96fe7b04f": {
+            "status": "UNKNOWN",
+            "evidence_id": "a93e5082-d25d-48f3-b9b6-6c5e416597ec"
+          },
+          "970eb20c-d3a7-4b5a-ab69-a54506bb59cb": {
+            "status": "UNKNOWN",
+            "evidence_id": "1c8ed175-5898-4770-a538-1ce9cb4dd7ca"
+          },
+          "9a1815fb-48f9-48f9-96c4-40633d7c6751": {
+            "status": "UNKNOWN",
+            "evidence_id": "e3eadff3-a1d3-4a0a-a6d5-6849eb9376f0"
+          },
+          "9aba9ece-bfbf-472e-ad92-69fa7b63e353": {
+            "status": "UNKNOWN",
+            "evidence_id": "bcaf5acc-c6fa-487f-b23b-cab7adb8571b"
+          },
+          "99af3cd3-e2df-47cd-abf4-1b665e9d4dd0": {
+            "status": "UNKNOWN",
+            "evidence_id": "082edf3f-21c2-4748-af70-076f56b77818"
+          },
+          "9c21d3c0-99be-4c73-a5be-719cc8bd64db": {
+            "status": "UNKNOWN",
+            "evidence_id": "0b9bdacc-e2ed-4f38-870f-81a66b1db3f9"
+          },
+          "9cca6f33-84bf-4ff1-a205-6f1792c9a10e": {
+            "status": "UNKNOWN",
+            "evidence_id": "1670dc3b-930a-4358-94a0-10ede0816208"
+          },
+          "9d296575-2d75-4963-8161-8d633057f763": {
+            "status": "UNKNOWN",
+            "evidence_id": "00ce243b-8911-4aa9-9b9a-ce9b221ba7cf"
+          },
+          "a4871909-480e-4f03-82e0-de0c324cc038": {
+            "status": "UNKNOWN",
+            "evidence_id": "73021e04-7f2a-4ccb-8340-e487fc346dc7"
+          },
+          "a02fd676-e3cc-473c-b910-07953edf8d31": {
+            "status": "UNKNOWN",
+            "evidence_id": "215c7c6a-2ac8-4f01-8b95-c92606afac8b"
+          },
+          "a34a14a3-9eee-437b-abe6-b5b8a7556249": {
+            "status": "UNKNOWN",
+            "evidence_id": "eaf96f7a-7b05-4b3b-85b7-ab21aabb744f"
+          },
+          "a6504a04-27f2-4b0a-af6f-379e8aa6877a": {
+            "status": "UNKNOWN",
+            "evidence_id": "5f82ed32-5fe3-4623-b734-71d6fa2c58f7"
+          },
+          "a506b159-0a45-4fca-b601-fcf8a81df550": {
+            "status": "UNKNOWN",
+            "evidence_id": "3b5983bc-59a5-43e4-9623-19ae29b3fce4"
+          },
+          "a8cc9a88-09c1-4e3a-abd4-b17c613d329c": {
+            "status": "UNKNOWN",
+            "evidence_id": "a7414936-6ef2-4c9e-9602-d03a3701d3ee"
+          },
+          "b0609693-a625-486b-81b7-5552a69b3e3e": {
+            "status": "UNKNOWN",
+            "evidence_id": "8763078d-576a-4ec1-9cef-d6d07d7b18f5"
+          },
+          "aec46876-7d20-471a-a3ea-3d9944336ed6": {
+            "status": "UNKNOWN",
+            "evidence_id": "6f4d3b80-8558-4319-b10a-c94633f46410"
+          },
+          "b08c0b2d-ac7d-4887-aeb6-376bbd348726": {
+            "status": "UNKNOWN",
+            "evidence_id": "15f509ab-3da9-4335-9e83-3aef9a10b77b"
+          },
+          "b227f6b8-a69f-48ec-8f11-745e30e02994": {
+            "status": "UNKNOWN",
+            "evidence_id": "0c03c080-1275-4f81-9bd3-df546a46bdf8"
+          },
+          "b8db28c0-e158-48cd-b32a-f57edd331c1a": {
+            "status": "UNKNOWN",
+            "evidence_id": "27629a60-c384-4a17-916e-a8d54d981661"
+          },
+          "b49be38c-a8e5-4a1e-9aa2-92e009bf1b16": {
+            "status": "UNKNOWN",
+            "evidence_id": "f4713711-3a19-4fc8-a999-381ce9bd9923"
+          },
+          "bad79a8b-9e20-4aa7-ac73-ce8ddc8b4e0a": {
+            "status": "UNKNOWN",
+            "evidence_id": "2daf6e45-fc4f-4aec-81ee-6b3803641447"
+          },
+          "bbf63d34-3028-4bbd-a9fd-351a483f8bb7": {
+            "status": "UNKNOWN",
+            "evidence_id": "266ad8e4-0445-47f3-bc66-408c88cee361"
+          },
+          "be9104fd-12e6-4258-825a-84d422616262": {
+            "status": "UNKNOWN",
+            "evidence_id": "a861833a-7de3-46b2-a668-ab019a3f0d52"
+          },
+          "c9a7ce77-218e-4bd5-854c-7aec9245780c": {
+            "status": "UNKNOWN",
+            "evidence_id": "49f5e12f-fed7-47d9-b4fb-74cf77e7bd5c"
+          },
+          "bf787963-fe4a-408e-a653-a80ad0d966d0": {
+            "status": "UNKNOWN",
+            "evidence_id": "6d0251bc-d8a3-471e-ba1f-d910e291d2e3"
+          },
+          "c55d3ad7-1edf-4bbc-bdde-788e328b50a4": {
+            "status": "UNKNOWN",
+            "evidence_id": "4adb6747-8507-4d6c-8a65-8a4b7068ce9b"
+          },
+          "cc145a11-eca9-420e-ad21-d1643071c511": {
+            "status": "UNKNOWN",
+            "evidence_id": "46dffa77-8c82-494b-a832-8ad3aa1d603c"
+          },
+          "cca494e5-5f77-45ec-af01-e46cab2a9808": {
+            "status": "UNKNOWN",
+            "evidence_id": "aa53bddc-6b82-4674-9cc9-809f69146243"
+          },
+          "cb95db77-f846-4664-90d8-79b3b858b223": {
+            "status": "UNKNOWN",
+            "evidence_id": "869f2e9d-dbfb-43e1-802b-c6d4f0691ecb"
+          },
+          "cd8a6c21-aab7-4e8e-896e-b45178b13bb4": {
+            "status": "UNKNOWN",
+            "evidence_id": "24a36720-86a7-4de6-b1c8-3366a9efe6ac"
+          },
+          "ceb3ad69-878b-4ae3-89b7-cb139f8487b0": {
+            "status": "UNKNOWN",
+            "evidence_id": "1ad5ce8c-d763-4dd9-a58e-2e7c1bf80564"
+          },
+          "d2191e89-98ad-42a1-b0e5-f03bd4980d8c": {
+            "status": "UNKNOWN",
+            "evidence_id": "78d6286f-8597-407c-acad-177a2a3a542f"
+          },
+          "d4f0beb3-41fb-4dd2-9fef-1cca63a487d4": {
+            "status": "UNKNOWN",
+            "evidence_id": "58c86086-3a09-480f-b03b-4ada755a7685"
+          },
+          "d635ca40-d983-44ba-90c4-048a0574d64d": {
+            "status": "UNKNOWN",
+            "evidence_id": "420e9aa2-8b5e-413e-949c-d5cdb9ecf3b2"
+          },
+          "d4a60a4c-6bbb-4d88-9995-ae4f13762384": {
+            "status": "UNKNOWN",
+            "evidence_id": "680c2168-4a8a-45de-8b30-f87bf8f07ea4"
+          },
+          "d679f208-ee90-4153-9100-08c1d60bce77": {
+            "status": "UNKNOWN",
+            "evidence_id": "9906dece-c1fb-4e84-b426-731d3ffb1c9a"
+          },
+          "d9fc6bbd-71ed-401f-882e-6e977895a716": {
+            "status": "UNKNOWN",
+            "evidence_id": "a4aee174-14f2-4d17-914b-a6870b0a9a08"
+          },
+          "d71ecfdf-5142-40cc-b698-e7bbb5cd57db": {
+            "status": "UNKNOWN",
+            "evidence_id": "00fe66eb-6359-4097-a8f3-e023155fbd47"
+          },
+          "dc76bdcb-11fa-4e77-a493-f0fd0401ab11": {
+            "status": "UNKNOWN",
+            "evidence_id": "cbcbaeb0-0616-4f59-91cc-f4c41889cf87"
+          },
+          "e7efe551-804d-4584-bc88-cebfce83a190": {
+            "status": "UNKNOWN",
+            "evidence_id": "6fe4fad9-4699-4d8c-acb7-918fc108bda2"
+          },
+          "e7d16219-b690-4025-97eb-17b3a28affb5": {
+            "status": "UNKNOWN",
+            "evidence_id": "397aa6a4-ed58-4931-a7af-a4633f363c3a"
+          },
+          "ec8978a4-efd6-4ffb-8e58-b7ed8c4fdc88": {
+            "status": "UNKNOWN",
+            "evidence_id": "0cef60aa-4523-4e46-befb-3b44bb33a540"
+          },
+          "e86a64d0-8aa3-4938-acb5-27ab9f1ba44b": {
+            "status": "UNKNOWN",
+            "evidence_id": "a2195763-8b92-4493-a183-ef654327f637"
+          },
+          "e7fe0212-f445-4561-9214-e39576b094f1": {
+            "status": "UNKNOWN",
+            "evidence_id": "013a3921-6554-40bd-8c0d-14bbb24cb93f"
+          },
+          "ed44ee1c-5944-41de-b493-71b17cc7dc73": {
+            "status": "UNKNOWN",
+            "evidence_id": "5e651689-3372-4743-afd1-3603865a49ac"
+          },
+          "ef97b47b-e943-4b54-b866-4a75087a5a9e": {
+            "status": "UNKNOWN",
+            "evidence_id": "157d1a83-cf59-46c1-a437-6c487ce2368e"
+          },
+          "efeec8c4-fe15-4e20-920a-41bd5dca7fc9": {
+            "status": "UNKNOWN",
+            "evidence_id": "f73e845b-a2db-4ac0-a7ea-287a5ece35a3"
+          },
+          "f1b38498-19c1-457e-80ce-012fc4b7104b": {
+            "status": "UNKNOWN",
+            "evidence_id": "b67416d5-ac1e-46f5-bd63-b304b53e31ba"
+          },
+          "f3ff34a7-0c04-4fea-a883-7b5a7603bf20": {
+            "status": "UNKNOWN",
+            "evidence_id": "b8c7aad3-23eb-47fa-b468-017804169fe4"
+          },
+          "f0df0ced-66c3-497b-b8ea-7c2a4df9287e": {
+            "status": "UNKNOWN",
+            "evidence_id": "1a2334ae-b233-441b-8bf7-9aa08686f376"
+          },
+          "f5804c1c-923a-45e6-b03d-409f4fdb625a": {
+            "status": "UNKNOWN",
+            "evidence_id": "27931169-4abf-4499-8503-60413d1ee26f"
+          },
+          "f7351e34-c876-4ecc-a468-a258a7890a4a": {
+            "status": "UNKNOWN",
+            "evidence_id": "b50beab4-a71d-4afc-97e8-c0605fdb2a3d"
+          }
+        }
+      },
+      "errors": []
+    },
+    {
+      "stage": "6_rag_grounding",
+      "status": "OK",
+      "duration_seconds": 13.127,
+      "process_rss_mb_at_completion": 1061.4,
+      "details": {
+        "object_key": "68bf13ff-1782-4814-a7fa-1d370ae1c223/e2e-pipeline-summary-cae6d250-8a34-49fc-abcf-f3be90e07213.txt",
+        "documents_ingested": 1
+      },
+      "errors": []
+    },
+    {
+      "stage": "7_rag_chat_verification",
+      "status": "PARTIAL",
+      "duration_seconds": 11.875,
+      "process_rss_mb_at_completion": 1590.8,
+      "details": {},
+      "errors": [
+        "Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): GROQ_API_KEY is not set - cannot call the LLM provider."
+      ]
+    }
+  ],
+  "tenant_id": "68bf13ff-1782-4814-a7fa-1d370ae1c223",
+  "user_id": "8cd536f2-a9f9-464d-98b0-69a27852e978",
+  "overall_status": "PARTIAL",
+  "total_duration_seconds": 143.633,
+  "peak_process_rss_mb": 1590.8
+}

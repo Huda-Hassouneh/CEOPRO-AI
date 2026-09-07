@@ -1,0 +1,26 @@
+E2E Pipeline Run 20260901T174647Z - overall status: PARTIAL
+tenant_id=ff149016-0e12-4695-850a-5eaee73cc375 user_id=db319041-bee4-4bf4-93d3-b4d668f17425
+
+[1_extraction] OK (32.525s)
+    {"job_id": "d31d6505-1f2a-4680-9636-bedd5bc2bd7d", "row_count": 51947, "file_read_seconds": 7.27, "process_records_seconds": 25.137, "rows_per_second": 2066.6, "template_mode": "RECOGNIZED", "is_template_compliant": false, "rows_processed": 51947, "rows_partial": 0, "rows_failed": 0, "data_loss_pct": 0.0}
+
+[2_promotion] OK (16.292s)
+    {"default_currency_used": "JOD", "rows_promoted": 51947, "rows_skipped_incomplete": 0, "rows_failed": 0, "products_created": 109, "promotion_error_count": 0, "promotion_errors_sample": [], "promoted_products": [{"product_id": "06302158-07a0-4a44-b980-6f53d6ebbe88", "product_name": "1N4007 Rectifier Diode (10 pcs)"}, {"product_id": "07846707-c925-44a8-8101-ced22420ee72", "product_name": "Breadboard Full Size (Large)"}, {"product_id": "0983ae17-0c61-438d-a7eb-85bd2ce9012e", "product_name": "MP3 YX5300 Serial Sound Module"}, {"product_id": "0a74fa0d-5aac-4e7d-ac84-13f58a4ae1e8", "product_name": "Ultrasonic Sensor HC-SR04"}, {"product_id": "0bce5526-0502-4bb1-aaf9-a6fdefff5899", "product_name": "Pulse Oximeter Heart Rate Module"}, {"product_id": "0e6732e9-0779-4e71-be7e-e543257edae4", "product_name": "Arduino Uno R3"}, {"product_id": "11a83ab7-b123-4b16-ab96-681336f43aa3", "product_name": "Metal Ball Caster Wheel"}, {"product_id": "125656b2-e3ec-47ff-ac8b-416071100b88", "product_name": "US
+
+[3_competitor_scraping] PARTIAL (13.833s)
+    ! Discovery ran and logged real candidate URLs, but none reached a scraped price - see discoveries[].policy_status/is_manufacturer_or_wholesale for why each one didn't.
+    {"detected_vertical": {"vertical": "electronics_hobbyist", "confidence": 1.0, "matched_keywords": ["arduino", "raspberry", "sensor", "resistor", "capacitor", "led", "module", "breadboard", "diode", "transistor", "solder", "battery", "motor", "wire", "pcb", "usb", "relay", "stepper", "servo"]}, "discoveries": [{"product_name": "Raspberry Pi 4 (4GB)", "url": "https://www.sparkfun.com/raspberry-pi-4-model-b-4-gb.html", "title": "Raspberry Pi 4 Model B (4 GB) - SparkFun Electronics", "is_manufacturer_or_wholesale": false, "policy_status": "RESTRICTED", "terms_evidence": null, "scraped": false}, {"product_name": "Raspberry Pi 4 (4GB)", "url": "https://www.pishop.us/product/raspberry-pi-4-model-b-4gb/", "title": "Raspberry Pi 4 Model B 4GB | PiShop US - Official Reseller", "is_manufacturer_or_wholesale": false, "policy_status": "BLOCKED", "terms_evidence": null, "scraped": false}, {"product_name": "Digital Multimeter DT830B", "url": "https://www.impactbattery.com/yellow-digital-multimeter-dt
+
+[4_forecasting] OK (67.236s)
+    {"per_product": {"11a83ab7-b123-4b16-ab96-681336f43aa3": {"status": "OK", "source": "baseline", "forecast_id": "1c6ba830-355e-443f-aa44-f5b4f22ab141", "evidence_id": "9868f8bd-a382-4548-bf2a-14d4153ac7f5", "expected_demand": 2.142857142857143, "forecast_target_date": "2026-01-06", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 364, "minimum_required": 30, "confidence_status": "OK"}}, "0983ae17-0c61-438d-a7eb-85bd2ce9012e": {"status": "OK", "source": "baseline", "forecast_id": "5918d61b-f979-4e21-8443-61d14c70bd9c", "evidence_id": "ad7ad7f1-e323-4947-9117-d7e30ec6dc42", "expected_demand": 2.4285714285714284, "forecast_target_date": "2026-01-06", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 364, "minimum_required": 30, "confidence_status": "OK"}}, "06302158-07a0-4a44-b980-6f53d6ebbe88": {"status": "OK", "source": "baseline", "forecast_id": "92c60a6c-7fe3-4041-ba32-72d22bcc722b", "evidence_id": "cd0fabc7-6028-4514
+
+[5_pricing] OK (1.375s)
+    {"per_product": {"11a83ab7-b123-4b16-ab96-681336f43aa3": {"status": "UNKNOWN", "evidence_id": "d030c74a-d77c-4b18-a99a-4bd5143f1a8a"}, "07846707-c925-44a8-8101-ced22420ee72": {"status": "UNKNOWN", "evidence_id": "f2e72624-7464-4f6e-8b10-3d981ed612da"}, "0e6732e9-0779-4e71-be7e-e543257edae4": {"status": "UNKNOWN", "evidence_id": "8bb89840-c746-4ef2-a35e-b0df5820f8cd"}, "0a74fa0d-5aac-4e7d-ac84-13f58a4ae1e8": {"status": "UNKNOWN", "evidence_id": "fbaeb5c5-9b6d-46b1-912f-663b13ff8efb"}, "06302158-07a0-4a44-b980-6f53d6ebbe88": {"status": "UNKNOWN", "evidence_id": "e4594164-5bb1-46d5-b34d-926dc2a61a50"}, "0983ae17-0c61-438d-a7eb-85bd2ce9012e": {"status": "UNKNOWN", "evidence_id": "8259eded-55f9-4028-81a3-b748e0a5baca"}, "0bce5526-0502-4bb1-aaf9-a6fdefff5899": {"status": "UNKNOWN", "evidence_id": "be0d7dae-abf3-4848-85ff-6d5fca8d022a"}, "125656b2-e3ec-47ff-ac8b-416071100b88": {"status": "UNKNOWN", "evidence_id": "9f866156-b164-407c-8a83-c596ffd1b594"}, "18321d67-f424-49d9-8a04-feb3af6528c4":
+
+[6_rag_grounding] OK (26.692s)
+    {"object_key": "ff149016-0e12-4695-850a-5eaee73cc375/e2e-pipeline-summary-83e64459-f6f3-427e-9872-91e5fa20694c.txt", "documents_ingested": 1}
+
+[7_rag_chat_verification] PARTIAL (26.361s)
+    ! Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): GROQ_API_KEY is not set - cannot call the LLM provider.
+    {}
+

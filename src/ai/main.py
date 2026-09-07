@@ -35,7 +35,7 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Upload
 from fastapi.responses import FileResponse
 
 from src.ai import db
-from src.ai.extraction import file_dispatch, ingestion_pipeline, job_management
+from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.mpi import pipeline as mpi_pipeline
 from src.ai.pricing import pipeline as pricing_pipeline
@@ -186,7 +186,7 @@ def rag_query(
     """
     The complete RAG chatbot call: persisted hybrid retrieval -> Cross-
     Encoder re-ranking -> context assembly -> LLM reasoning
-    (rag/llm_client.py, Groq-hosted Qwen - see that module's docstring for
+    (rag/llm_client.py, Groq-hosted Llama - see that module's docstring for
     why). A provider/network failure (LLMError) is a 502, not a 500 - the
     retrieval half of this request genuinely succeeded, it's specifically
     the upstream LLM call that didn't, which is a meaningfully different
@@ -256,8 +256,11 @@ def _validate_upload_content(ext: str, contents: bytes) -> None:
         raise HTTPException(status_code=400, detail=f"File content doesn't match its '{ext}' extension.")
 
 
-def _summary_response(job_id: str, summary) -> dict:
-    return {
+def _summary_response(
+    job_id: str, summary, promotion_summary: Optional[promotion.PromotionSummary] = None,
+    currency_resolution: Optional[dict] = None,
+) -> dict:
+    response = {
         "job_id": job_id,
         "template_mode": summary.template_mode,
         "is_template_compliant": summary.is_template_compliant,
@@ -272,6 +275,21 @@ def _summary_response(job_id: str, summary) -> dict:
             for o in summary.row_outcomes
         ],
     }
+    if promotion_summary is not None:
+        response["promotion"] = {
+            "rows_promoted": promotion_summary.rows_promoted,
+            "rows_skipped_incomplete": promotion_summary.rows_skipped_incomplete,
+            "rows_failed": promotion_summary.rows_failed,
+            "products_created": promotion_summary.products_created,
+            "errors": promotion_summary.errors,
+        }
+    if currency_resolution is not None:
+        # needs_confirmation=True means this currency was guessed (USD
+        # fallback, no country on file) rather than derived or explicitly
+        # set - surfaced here so a real caller can prompt the user to
+        # confirm/correct companies.primary_currency, per spec.
+        response["currency_resolution"] = currency_resolution
+    return response
 
 
 @app.post("/extraction/upload")
@@ -340,9 +358,16 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
             commit_every=_EXTRACTION_COMMIT_EVERY,
         )
 
+        currency_resolution = geo_currency.resolve_company_currency(conn, ctx.tenant_id)
+
+        promotion_summary = promotion.promote_ingested_rows(
+            conn, ctx.tenant_id, job_id, summary, user_id=ctx.user_id,
+            default_currency=currency_resolution["currency"],
+        )
+
         job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "COMPLETED")
         conn.commit()
-        return _summary_response(job_id, summary)
+        return _summary_response(job_id, summary, promotion_summary, currency_resolution)
 
     except HTTPException:
         conn.rollback()
