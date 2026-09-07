@@ -51,7 +51,14 @@ _VARIANT_WORDS = {
     "xs", "s", "m", "l", "xl", "xxl", "xxxl", "small", "medium", "large",
 }
 
-_TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
+# \w is Unicode-aware by default in Python 3 (matches Arabic, and any
+# other script, not just ASCII) - a real, previously-live bug: an
+# ASCII-only [a-zA-Z0-9]+ pattern found zero tokens in any pure-Arabic
+# product name, so every Arabic-named product collapsed into one single
+# family (the empty-key fallback), regardless of whether they were
+# actually related - exactly the wrong behavior for a platform whose own
+# products.product_name is natively bilingual en/ar.
+_TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
 
 def family_key(product_name: str) -> str:
