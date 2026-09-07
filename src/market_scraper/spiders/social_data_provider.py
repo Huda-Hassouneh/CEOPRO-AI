@@ -56,20 +56,25 @@ from src.market_scraper.parsing import clean_text
 
 _DEFAULT_PROVIDER_BASE_URL = "https://api.apify.com/v2/acts"
 
-# Apify's own maintained actors (apify/<name> namespace) - the provider
-# default; override per-tenant via collector_config["actor_ids"] if a
-# different actor or provider is preferred.
+# Apify's own maintained actors (apify/<name> namespace on the actor's
+# store page). The REST API itself, however, requires the owner and actor
+# name joined with "~" (a literal "/" in the URL path is a separate path
+# segment, not the actor ID) - a real, previously-live bug: using the
+# store-page slash form here 404'd ("no API endpoint at this URL") on
+# every real call, since /v2/acts/apify/instagram-scraper/... does not
+# match Apify's routing, only /v2/acts/apify~instagram-scraper/... does.
+# See https://docs.apify.com/api/v2/actor-run-sync-get-dataset-items-post.
 _DEFAULT_ACTOR_IDS = {
-    "facebook": "apify/facebook-pages-scraper",
-    "instagram": "apify/instagram-scraper",
-    "tiktok": "apify/tiktok-scraper",
+    "facebook": "apify~facebook-pages-scraper",
+    "instagram": "apify~instagram-scraper",
+    "tiktok": "apify~tiktok-scraper",
 }
 
 # Dedicated comments actors - a second, separately-billed call per post.
 _DEFAULT_COMMENTS_ACTOR_IDS = {
-    "facebook": "apify/facebook-comments-scraper",
-    "instagram": "apify/instagram-comment-scraper",
-    "tiktok": "clockworks/tiktok-comments-scraper",
+    "facebook": "apify~facebook-comments-scraper",
+    "instagram": "apify~instagram-comment-scraper",
+    "tiktok": "clockworks~tiktok-comments-scraper",
 }
 
 _PLATFORM_HOSTS = {
