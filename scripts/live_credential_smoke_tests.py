@@ -26,6 +26,11 @@ unset is skipped, never guessed:
   APIFY_API_TOKEN, APIFY_TEST_URL (a real public FB/IG/TikTok profile or post URL)
   AMAZON_PAAPI_ACCESS_KEY, AMAZON_PAAPI_SECRET_KEY, AMAZON_PAAPI_PARTNER_TAG, AMAZON_PAAPI_TEST_ASIN
   DIGIKEY_CLIENT_ID, DIGIKEY_CLIENT_SECRET, DIGIKEY_TEST_PART_NUMBER
+  DIGIKEY_USE_SANDBOX=1 (optional - real sandbox-api.digikey.com, free
+    self-registration at developer.digikey.com, no production-app
+    approval needed; Digi-Key's own docs confirm the response structure
+    matches production, so this is the real way to check this module's
+    field-name guesses before trusting it with production spend)
   MOUSER_API_KEY, MOUSER_TEST_PART_NUMBER
 
 Run from the repo root:
@@ -152,12 +157,20 @@ def test_digikey():
         return
     from src.market_scraper.spiders.digikey_api import DigiKeyPricingSpider
 
+    # DIGIKEY_USE_SANDBOX=1 points at Digi-Key's real sandbox
+    # (sandbox-api.digikey.com) - free self-registration, no production-
+    # app approval needed, and Digi-Key's own docs confirm it returns the
+    # same response STRUCTURE as production (fake data, real field
+    # names) - the actual way to verify this module's field-name guesses
+    # without production credentials.
+    use_sandbox = os.getenv("DIGIKEY_USE_SANDBOX", "").lower() in ("1", "true", "yes")
     spider = DigiKeyPricingSpider(
         source_url="https://api.digikey.com/products/v4/search", source_name="Digi-Key smoke test",
         collection_method="OFFICIAL_API",
         targets_json=json.dumps([{**TEST_TARGET, "external_sku": part_number}]),
         tenant_id="smoke", source_id="smoke", job_id="smoke",
         credentials_json=json.dumps({"client_id": client_id, "client_secret": client_secret}),
+        collector_config_json=json.dumps({"use_sandbox": use_sandbox}),
     )
     try:
         request = next(iter(spider._initial_requests()))

@@ -33,6 +33,11 @@ from typing import Optional
 DEFAULT_MATCH_RATE_THRESHOLD = 0.5
 
 
+TIER_CANDIDATE = "CANDIDATE"
+TIER_RELEVANT = "RELEVANT"
+TIER_STRATEGIC = "STRATEGIC"
+
+
 @dataclass(frozen=True)
 class ClassificationResult:
     global_competitor_id: str
@@ -40,6 +45,7 @@ class ClassificationResult:
     is_manufacturer: bool
     in_operating_region: bool
     is_confirmed_competitor: bool
+    tier: str
     reason: str
 
 
@@ -129,25 +135,35 @@ def classify_competitor(
     if is_manufacturer:
         reason = "excluded: manufacturer/wholesaler, not a retail competitor"
         confirmed = False
+        tier = TIER_CANDIDATE
     elif not in_region:
         reason = f"excluded: competitor country {competitor_country!r} is outside the tenant's operating region"
         confirmed = False
+        tier = TIER_CANDIDATE
     elif match_rate < threshold:
         reason = f"below threshold: {match_rate:.0%} product overlap (needs >= {threshold:.0%})"
         confirmed = False
+        # Passed the manufacturer/region checks - a real, in-region retail
+        # seller, just not (yet) enough catalog overlap to call "strategic".
+        # This is the tier recommended_collector_config() (product_families.py)
+        # gates expensive deep-collection (paid comment/review depth) OFF for -
+        # a RELEVANT competitor still gets tracked and price-compared, just
+        # not the expensive social depth STRATEGIC gets.
+        tier = TIER_RELEVANT
     else:
         reason = f"confirmed: {match_rate:.0%} product overlap, in-region, not a manufacturer"
         confirmed = True
+        tier = TIER_STRATEGIC
 
     with conn.cursor() as cursor:
         cursor.execute(
             """
             UPDATE tenant_competitors
             SET product_match_rate = %s, is_confirmed_competitor = %s,
-                is_tracked = %s, classified_at = %s
+                is_tracked = %s, classified_at = %s, tier = %s
             WHERE tenant_id = %s AND global_competitor_id = %s;
             """,
-            (match_rate, confirmed, confirmed, datetime.now(timezone.utc), tenant_id, global_competitor_id),
+            (match_rate, confirmed, confirmed, datetime.now(timezone.utc), tier, tenant_id, global_competitor_id),
         )
         if cursor.rowcount != 1:
             raise ValueError("tenant_competitors row not found for this tenant/competitor pair")
@@ -159,5 +175,6 @@ def classify_competitor(
         is_manufacturer=bool(is_manufacturer),
         in_operating_region=in_region,
         is_confirmed_competitor=confirmed,
+        tier=tier,
         reason=reason,
     )
