@@ -47,6 +47,19 @@ Ikea included — without a bespoke spider):
 - **`amazon_paapi`** (`spiders/amazon_paapi.py`) — official Amazon Product Advertising API v5,
   exact-ASIN price/availability. AWS Signature Version 4 request signing is implemented with
   stdlib `hmac`/`hashlib` only, no extra dependency.
+- **`digikey_api`** (`spiders/digikey_api.py`) — official Digi-Key Product Information API v4,
+  exact-part-number price/availability. OAuth2 client-credentials token exchange, real endpoint/
+  header names confirmed from Digi-Key's own published docs. **Flagged, not silently hidden**: the
+  exact JSON response *field names* (`UnitPrice`, `QuantityAvailable`, etc.) are this module's
+  best-effort reading of public documentation, not confirmed against a real authenticated call — no
+  credentials are configured in this environment. `_field()`'s multi-candidate-key lookup degrades
+  safely if a guess is wrong; `collector_config["field_overrides"]` corrects it without a code
+  change. Needs a real credentialed smoke test before being trusted with real spend decisions.
+- **`mouser_api`** (`spiders/mouser_api.py`) — official Mouser Search API v1, exact-part-number
+  price/availability. Single API-key auth (query string, no OAuth) — real endpoint/request-shape
+  confirmed from Mouser's own docs. Same flagged field-name caveat as `digikey_api` above; price is
+  parsed via `parsing.py::parse_price()` since Mouser documents it as a currency-symbol string
+  (e.g. `"$0.4700"`), not a bare number.
 - **`social_data_provider`** (`spiders/social_data_provider.py`) — Instagram/Facebook/TikTok have no
   public API for competitor data and their ToS prohibits direct automated collection, so this repo
   never scrapes them itself (`social_cross_reference.py` is the free, ToS-compliant alternative for
@@ -400,8 +413,9 @@ lineage, validation, deduplication, PostgreSQL pipeline lifecycle, and Redis eve
 ## Adding another source
 
 1. Confirm authorization and run the policy review.
-2. Prefer an API/feed/structured-data collector when available. Google Places and Amazon PA-API
-   already have dedicated collectors (`google_places`, `amazon_paapi`) — just supply credentials via
+2. Prefer an API/feed/structured-data collector when available. Google Places, Amazon PA-API,
+   Digi-Key, and Mouser already have dedicated collectors (`google_places`, `amazon_paapi`,
+   `digikey_api`, `mouser_api`) — just supply credentials via
    `connection_credentials_vault`, no new code needed.
 3. If web collection is the approved fallback, prefer JSON-LD. Otherwise store reviewed CSS
    selectors under `data_sources.collector_config.selectors` (`product_name` and `price` are the

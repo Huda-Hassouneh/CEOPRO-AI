@@ -4,8 +4,10 @@ from dataclasses import dataclass
 
 from src.market_scraper.spiders.amazon_paapi import AmazonPricingSpider
 from src.market_scraper.spiders.books_to_scrape import BooksToScrapeSpider
+from src.market_scraper.spiders.digikey_api import DigiKeyPricingSpider
 from src.market_scraper.spiders.google_places import GooglePlacesSpider
 from src.market_scraper.spiders.market_source import MarketSourceSpider
+from src.market_scraper.spiders.mouser_api import MouserPricingSpider
 from src.market_scraper.spiders.scrape_creators import ScrapeCreatorsSpider
 from src.market_scraper.spiders.social_data_provider import SocialDataProviderSpider
 
@@ -21,6 +23,8 @@ COLLECTORS = {
     "standards": Collector(MarketSourceSpider),
     "google_places": Collector(GooglePlacesSpider),
     "amazon_paapi": Collector(AmazonPricingSpider),
+    "digikey_api": Collector(DigiKeyPricingSpider),
+    "mouser_api": Collector(MouserPricingSpider),
     "social_data_provider": Collector(SocialDataProviderSpider),
     "scrape_creators": Collector(ScrapeCreatorsSpider),
 }

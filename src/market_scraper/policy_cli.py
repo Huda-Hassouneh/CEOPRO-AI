@@ -26,7 +26,7 @@ def main():
         "--collector",
         choices=(
             "standards", "books_to_scrape", "google_places", "amazon_paapi",
-            "social_data_provider", "scrape_creators",
+            "digikey_api", "mouser_api", "social_data_provider", "scrape_creators",
         ),
         default="standards",
     )
