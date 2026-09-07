@@ -122,6 +122,41 @@ Apify's `social_data_provider` source row, if created at all ahead of time, is l
 `connection_credentials_vault` empty/unset and never approved — it exists in the vault as
 configuration, not as a running collector.
 
+## Industry-agnostic discovery orchestration
+
+`tenant_discovery.py::discover_competitors_for_tenant(conn, tenant_id, actor_user_id)` is the
+out-of-the-box entry point for "any company, any industry" competitor discovery — nothing about it
+is specific to electronics or any single vertical:
+
+1. Loads the tenant's own active product catalog (`products.product_name`).
+2. `sector_detection.py::detect_vertical()` reads that catalog and infers a business vertical from
+   keyword frequency (electronics/food_beverage/apparel_fashion/home_furniture, or the honest
+   `general_retail` fallback when nothing matches confidently) — used only to decide whether the free
+   `RETAILER_DOMAINS_BY_VERTICAL` path (below) also applies; it never gates whether discovery runs.
+3. `web_product_discovery.py::discover_product_candidates()` — one real Google Custom Search JSON
+   API call per product, built from `sector_detection.py::build_retail_search_query()`. This is the
+   actual industry-agnostic path: it runs identically for a coffee machine, a sofa, or a resistor.
+   Same free-tier setup as `social_cross_reference.py` (100 queries/day): export
+   `GOOGLE_CUSTOM_SEARCH_API_KEY` / `GOOGLE_CUSTOM_SEARCH_CX`. Missing credentials, an API error, or
+   genuinely no results all return `[]` — never a fabricated candidate.
+4. `direct_search.py::search_product_across_retailers()` layers in for free, zero-API-cost, but only
+   contributes candidates for a vertical that already has a hand-seeded `RETAILER_DOMAINS_BY_VERTICAL`
+   entry (today: `electronics_hobbyist` only, seeded and live-verified during this codebase's own
+   validation run — see `direct_search.py`'s docstring for the full verification record). An
+   optimization on top of step 3, never a substitute: a tenant in any other vertical still gets full
+   coverage from the Custom Search path alone.
+5. Every candidate from either path goes through the same `discovery.py::evaluate_candidate()` /
+   `register_tenant_scoped_competitor()` used everywhere else in this module — unchanged, already
+   fully generic.
+
+Nothing here auto-approves collection. `register_tenant_scoped_competitor()` only ever sets
+`approval_reference`/`approved_by` when real, quotable terms evidence is supplied, and a fully
+automated discovery run never has any — `policy.py::evaluate_source()`'s own decision table
+(`terms_permit_collection is None` is checked before every `ALLOWED` branch) guarantees every
+auto-discovered candidate lands as `BLOCKED` or `RESTRICTED`, never `ALLOWED`, regardless of whether
+its robots.txt fetch even succeeds. Discovery finds and records candidates; a human still has to
+review and approve each one (the existing `cli.py` gate) before any collection actually runs.
+
 ## Where competitor URLs and product matching come from
 
 `data_sources.source_url` is the reviewed base/API/feed URL and stores collection policy,
