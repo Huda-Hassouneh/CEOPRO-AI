@@ -145,6 +145,46 @@ def test_include_social_only_false_skips_the_social_search(conn):
     mocked_social.assert_not_called()
 
 
+def test_family_keyed_discovery_searches_once_and_maps_every_member(conn):
+    """
+    The real Architecture C cost claim, proven rather than asserted: two
+    SKU variants of the same family ("1k Ohm Resistor"/"2k Ohm Resistor")
+    trigger exactly ONE discover_product_candidates() call, not two, but
+    BOTH products still get a real competitor_product_mappings row for
+    the same found competitor.
+    """
+    tenant_id = _insert_company(conn)
+    low = _insert_product(conn, tenant_id, "1k Ohm Resistor")
+    high = _insert_product(conn, tenant_id, "2k Ohm Resistor")
+
+    candidate = [CandidateSource("2k Ohm Resistor", "https://example-electronics.test/2k-ohm-resistor", "2k Ohm Resistor - Example Electronics")]
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=candidate) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        results = discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    assert mocked_search.call_count == 1  # one search for the whole family, not one per SKU
+    mapped_product_ids = {r["product_id"] for r in results}
+    assert mapped_product_ids == {low, high}  # but every real SKU still gets a mapping
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;", (tenant_id,)
+        )
+        assert cursor.fetchone()[0] == 2
+
+
+def test_group_by_family_false_searches_every_product_individually(conn):
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "1k Ohm Resistor")
+    _insert_product(conn, tenant_id, "2k Ohm Resistor")
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), group_by_family=False)
+
+    assert mocked_search.call_count == 2  # same family, but grouping turned off
+
+
 def test_sitemap_domains_contribute_candidates_when_vertical_has_a_seeded_entry(conn):
     tenant_id = _insert_company(conn)
     _insert_product(conn, tenant_id, "Resistor Kit")  # electronics_hobbyist keyword
@@ -215,6 +255,74 @@ def test_same_domain_found_under_two_different_titles_dedupes_to_one_row(conn):
         count, identity_key = cursor.fetchone()
     assert count == 1
     assert identity_key == "acmecoffee.example"
+
+
+def test_skip_already_discovered_excludes_a_product_with_an_existing_mapping(conn):
+    """
+    The real "resume tomorrow for free" mechanism, proven end-to-end: a
+    product that already has a competitor_product_mappings row (from an
+    earlier discovery pass, or seeded directly) is excluded before the
+    next call even builds a search query for it - the same daily cron
+    call naturally skips what's already covered.
+    """
+    tenant_id = _insert_company(conn)
+    already_mapped = _insert_product(conn, tenant_id, "Espresso Machine")
+    not_yet_mapped = _insert_product(conn, tenant_id, "Pour Over Kettle")
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id) "
+            "VALUES ('Existing Competitor', 'https://existing.example', 'PRIVATE', %s) "
+            "RETURNING global_competitor_id;",
+            (tenant_id,),
+        )
+        competitor_id = cursor.fetchone()[0]
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s);",
+            (tenant_id, competitor_id),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_product_mappings (tenant_id, global_competitor_id, product_id) "
+            "VALUES (%s, %s, %s);",
+            (tenant_id, competitor_id, already_mapped),
+        )
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    mocked_search.assert_called_once_with(
+        "Pour Over Kettle", "JO", max_results=5, conn=conn, daily_query_limit=100,
+    )
+
+
+def test_skip_already_discovered_false_searches_everything_regardless(conn):
+    tenant_id = _insert_company(conn)
+    already_mapped = _insert_product(conn, tenant_id, "Espresso Machine")
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id) "
+            "VALUES ('Existing Competitor', 'https://existing.example', 'PRIVATE', %s) "
+            "RETURNING global_competitor_id;",
+            (tenant_id,),
+        )
+        competitor_id = cursor.fetchone()[0]
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s);",
+            (tenant_id, competitor_id),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_product_mappings (tenant_id, global_competitor_id, product_id) "
+            "VALUES (%s, %s, %s);",
+            (tenant_id, competitor_id, already_mapped),
+        )
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), skip_already_discovered=False)
+
+    mocked_search.assert_called_once()  # the already-mapped product is searched again
 
 
 def test_deleted_products_are_not_searched(conn):
