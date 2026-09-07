@@ -318,5 +318,6 @@ def register_tenant_scoped_competitor(
         "is_manufacturer": is_manufacturer,
         "product_match_rate": classification.product_match_rate,
         "is_confirmed_competitor": classification.is_confirmed_competitor,
+        "tier": classification.tier,
         "classification_reason": classification.reason,
     }

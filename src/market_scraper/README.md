@@ -181,6 +181,30 @@ auto-discovered candidate lands as `BLOCKED` or `RESTRICTED`, never `ALLOWED`, r
 its robots.txt fetch even succeeds. Discovery finds and records candidates; a human still has to
 review and approve each one (the existing `cli.py` gate) before any collection actually runs.
 
+## Architecture C: family-keyed discovery + the 3-tier intelligence gate
+
+The real scaling requirement agreed earlier this session: adding another customer must not multiply
+scraping cost the way SKU count does (a catalog of "1 Ohm resistor, 2 Ohm resistor, ..." should not
+cost N searches for N variants).
+
+- **`product_families.py::select_family_representatives()`** groups a tenant's catalog by
+  `family_key()` — a generic (not vertical-specific) heuristic stripping bare numbers and
+  measurement-unit/size words, so "1k Ohm Resistor"/"2k Ohm Resistor" and "T-Shirt Small"/
+  "T-Shirt Large" land in the same family. `tenant_discovery.py::discover_competitors_for_tenant()`
+  (`group_by_family=True` by default) searches **once per family**, using a real, sales-volume-
+  selected representative (`transactions.quantity_sold`; honestly falls back to alphabetical-first
+  when no sales data exists — never silently disguised as volume-based) — then applies whatever's
+  found to **every real SKU** in that family via `register_tenant_scoped_competitor()`, so
+  `competitor_product_mappings` coverage is still per-SKU, just without a redundant re-search per SKU.
+- **`tenant_competitors.tier`** (`CANDIDATE` / `RELEVANT` / `STRATEGIC`, migration
+  `20260907010000`) is computed and persisted by `competitor_classification.py::classify_competitor()`:
+  `CANDIDATE` (excluded — a manufacturer, or out of region), `RELEVANT` (passed those checks, below
+  the product-overlap threshold — the same as before this existed, `is_confirmed_competitor = FALSE`),
+  `STRATEGIC` (passed all three — `is_confirmed_competitor = TRUE`). `product_families.py::
+  recommended_collector_config(tier)` is the real point: only `STRATEGIC` gets `fetch_comments: True`
+  recommended — the expensive paid-provider comment/review depth is never spent on a competitor that
+  hasn't cleared the real bar, while `RELEVANT` still gets tracked and price-compared.
+
 ## Where competitor URLs and product matching come from
 
 `data_sources.source_url` is the reviewed base/API/feed URL and stores collection policy,

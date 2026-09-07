@@ -145,6 +145,46 @@ def test_include_social_only_false_skips_the_social_search(conn):
     mocked_social.assert_not_called()
 
 
+def test_family_keyed_discovery_searches_once_and_maps_every_member(conn):
+    """
+    The real Architecture C cost claim, proven rather than asserted: two
+    SKU variants of the same family ("1k Ohm Resistor"/"2k Ohm Resistor")
+    trigger exactly ONE discover_product_candidates() call, not two, but
+    BOTH products still get a real competitor_product_mappings row for
+    the same found competitor.
+    """
+    tenant_id = _insert_company(conn)
+    low = _insert_product(conn, tenant_id, "1k Ohm Resistor")
+    high = _insert_product(conn, tenant_id, "2k Ohm Resistor")
+
+    candidate = [CandidateSource("2k Ohm Resistor", "https://example-electronics.test/2k-ohm-resistor", "2k Ohm Resistor - Example Electronics")]
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=candidate) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        results = discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    assert mocked_search.call_count == 1  # one search for the whole family, not one per SKU
+    mapped_product_ids = {r["product_id"] for r in results}
+    assert mapped_product_ids == {low, high}  # but every real SKU still gets a mapping
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;", (tenant_id,)
+        )
+        assert cursor.fetchone()[0] == 2
+
+
+def test_group_by_family_false_searches_every_product_individually(conn):
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "1k Ohm Resistor")
+    _insert_product(conn, tenant_id, "2k Ohm Resistor")
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), group_by_family=False)
+
+    assert mocked_search.call_count == 2  # same family, but grouping turned off
+
+
 def test_sitemap_domains_contribute_candidates_when_vertical_has_a_seeded_entry(conn):
     tenant_id = _insert_company(conn)
     _insert_product(conn, tenant_id, "Resistor Kit")  # electronics_hobbyist keyword
