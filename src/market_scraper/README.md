@@ -410,6 +410,34 @@ RUN_MARKET_LIVE_TESTS=1 \
 The tests cover parsing, policy ordering and deny-by-default behavior, URL safety, mapped tenant
 lineage, validation, deduplication, PostgreSQL pipeline lifecycle, and Redis event validation.
 
+## Live validation scripts (`scripts/`)
+
+Every unit test above runs against a fixture, not a live vendor - real field-name/response-shape
+correctness for a paid or official API can only be confirmed with real credentials, which no
+environment this codebase has been developed in has ever had configured. These scripts are how that
+gets checked, for real, without ever fabricating a "pass":
+
+- **`live_credential_smoke_tests.py`** - runs ONE real API call per paid/official collector
+  (ScrapeCreators, Apify, Amazon PA-API, Digi-Key, Mouser) through that collector's own real
+  production code (`_initial_requests()` builds the real request, the real `parse_*` callback parses
+  whatever comes back) - not a reimplementation. Reads real credentials from environment variables
+  (see the script's own docstring for the exact names) and SKIPS - never fakes a result for - any
+  vendor whose credentials aren't set.
+- **`live_verify_retailer_domains.py`** / **`live_verify_sitemap_domains.py`** - grow
+  `RETAILER_DOMAINS_BY_VERTICAL`/`SITEMAP_DOMAINS_BY_VERTICAL` only with domains actually confirmed
+  live (robots.txt + a real SearchAction or sitemap), never a guessed well-known name.
+- **`live_widget_diagnostic.py`** - renders a real product page with a real headless browser and
+  prints real widget markup so `widget_review_*` selectors can be read off it, never guessed.
+- **`live_verify_ikea_product_data.py`** - audits whether the generic `standards` collector actually
+  finds price/rating/review data on a real Ikea product page (no dedicated Ikea spider exists, and
+  Ikea isn't in any seed list - this is the real check before assuming it works). Amazon is
+  deliberately not included here: the official `amazon_paapi` collector is the real path for Amazon,
+  smoke-tested above with real credentials, not generic scraping.
+
+All of these need real outbound internet and/or real credentials - this repository's own CI and
+development sandboxes have neither, which is exactly why these are scripts to run in an environment
+that does, not something bundled into the always-on test suite above.
+
 ## Adding another source
 
 1. Confirm authorization and run the policy review.
