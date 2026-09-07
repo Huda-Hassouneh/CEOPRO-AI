@@ -53,6 +53,12 @@ def test_initial_requests_skip_targets_without_a_part_number():
     assert requests[0].headers[b"X-DIGIKEY-Client-Id"] == b"client-abc"
 
 
+def test_use_sandbox_config_points_requests_at_the_real_sandbox_host():
+    with patch.object(DigiKeyPricingSpider, "_bearer_token", return_value="tok"):
+        requests = list(spider(collector_config={"use_sandbox": True})._initial_requests())
+    assert requests[0].url.startswith("https://sandbox-api.digikey.com/")
+
+
 def test_fetch_access_token_posts_client_credentials_grant():
     from src.market_scraper.spiders.digikey_api import fetch_access_token
 

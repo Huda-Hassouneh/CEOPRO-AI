@@ -54,7 +54,12 @@ Ikea included — without a bespoke spider):
   best-effort reading of public documentation, not confirmed against a real authenticated call — no
   credentials are configured in this environment. `_field()`'s multi-candidate-key lookup degrades
   safely if a guess is wrong; `collector_config["field_overrides"]` corrects it without a code
-  change. Needs a real credentialed smoke test before being trusted with real spend decisions.
+  change. `collector_config["use_sandbox"] = True` points at Digi-Key's real sandbox
+  (`sandbox-api.digikey.com`) — free self-registration at developer.digikey.com, no production-app
+  approval gate, and Digi-Key's own docs confirm the response *structure* matches production (fake
+  data, real field names) — the actual way to verify the guesses above before trusting this with
+  real spend, without needing production credentials. `scripts/live_credential_smoke_tests.py`'s
+  `DIGIKEY_USE_SANDBOX=1` env var drives this.
 - **`mouser_api`** (`spiders/mouser_api.py`) — official Mouser Search API v1, exact-part-number
   price/availability. Single API-key auth (query string, no OAuth) — real endpoint/request-shape
   confirmed from Mouser's own docs. Same flagged field-name caveat as `digikey_api` above; price is
@@ -65,8 +70,15 @@ Ikea included — without a bespoke spider):
   never scrapes them itself (`social_cross_reference.py` is the free, ToS-compliant alternative for
   finding *mentions* of a competitor via Google's own index). This collector instead wraps a paid
   third-party provider's REST API, modeled on Apify's Actor API
-  (`run-sync-get-dataset-items`) — one maintained actor per platform. It only ever talks to the
-  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly. Two-stage
+  (`run-sync-get-dataset-items`) — one maintained actor per platform, defaulting to Apify's own
+  published actors (`apify/instagram-scraper`, `apify/tiktok-scraper`,
+  `apify/facebook-pages-scraper`; `_first_present()`'s candidate field names — `diggCount` for
+  TikTok's like-count convention alongside `likesCount`/`like_count` — already anticipate these
+  actors' real output shape, not a hypothetical one), overridable per source via
+  `collector_config["actor_ids"]` for a different actor entirely. It only ever talks to the
+  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly — Apify (or
+  whichever provider) is the one taking on the operational scraping, same category as
+  `scrape_creators` below, not this codebase doing it itself. Two-stage
   collection: one call per competitor profile returns posts with their own like/share/comment-count
   aggregates, then (`collector_config["fetch_comments"]`, default on) one further call per post
   fetches the actual comment list — real text, author, and per-comment like/reply counts, landing in
@@ -106,34 +118,43 @@ field with no secrets-manager integration behind it yet — see `PENDING_ACTIONS
 
 ## Vendor policy for social collection
 
-`scrape_creators` is the primary, active social-data vendor for this deployment — the one
-provisioned with real `connection_credentials_vault.api_key` and an `ALLOWED` policy status.
-`social_data_provider` (Apify-shaped) stays registered in `collectors.py`/`policy_cli.py` and fully
-tested, but is kept **inactive**: no credentials configured, so `PaidProviderNotConfiguredError`
-fires immediately if anything ever tries to run it (same as before any credentials exist for it).
-This is intentional, not an oversight — it's a cold, ready-to-activate fallback, not a second live
-vendor. Switching to it later (a ScrapeCreators outage, a pricing change, wanting Apify's larger
-actor-redundancy ecosystem once budget allows) means populating its credentials and pointing
-`data_sources.collector_key` at `social_data_provider` for that source — a config/credentials
-change, never a code change, because both collectors already share the same constructor contract
-and yield the same item shape.
+**Revised 2026-09-07**: `social_data_provider` (Apify-shaped) is now the **primary, active**
+social-data vendor — a deliberate choice for the testing phase, since Apify's free starter tier
+($5/month credit) fits budget better than ScrapeCreators' pay-per-call model while validating the
+pipeline. This reverses the vendor's earlier active/inactive roles (documented below for history);
+nothing about *how* either collector works changed, only which one is provisioned with real
+credentials. `scrape_creators` stays fully registered and tested — same "cold, ready-to-activate"
+relationship Apify previously had — since a future volume/cost profile could make its per-call
+billing the better fit again, and switching back is a credentials/config change, never a code one:
+both collectors share the same constructor contract and yield the same item shape.
 
-Setting this up for a real tenant:
+Setting this up for a real tenant — `register-source` creates the policy decision,
+`set-credentials` writes the actual token (the real replacement for a raw SQL `UPDATE`, the only
+way this was previously done):
 
 ```bash
-# Primary: ScrapeCreators, active
-python -m src.market_scraper.policy_cli \
+# Primary: Apify (social_data_provider), active
+python -m src.market_scraper.policy_cli register-source \
   --tenant-id TENANT_UUID --source-id SOURCE_UUID \
-  --source-url https://api.scrapecreators.com --official-api-url https://api.scrapecreators.com \
+  --source-url https://api.apify.com --official-api-url https://api.apify.com \
   --terms-permit yes --technical-controls-permit yes \
-  --collector scrape_creators \
+  --collector social_data_provider \
   --approval-reference VENDOR-CONTRACT-REF --approved-by REVIEWER_USER_UUID --retention-days 30
-# then set that source's connection_credentials_vault to {"api_key": "<real ScrapeCreators key>"}
+
+python -m src.market_scraper.policy_cli set-credentials \
+  --tenant-id TENANT_UUID --source-id SOURCE_UUID \
+  --credentials-file /path/to/apify-token.json   # {"api_token": "<real Apify token>"}
+  # or --credentials '{"api_token": "..."}' inline (lands in shell history - prefer the file form)
 ```
 
-Apify's `social_data_provider` source row, if created at all ahead of time, is left with
-`connection_credentials_vault` empty/unset and never approved — it exists in the vault as
-configuration, not as a running collector.
+`register-source` only ever creates the *policy* row (`data_sources` itself must already exist,
+created by this platform's own onboarding flow, before this runs) — it never writes credentials,
+which is exactly why `set-credentials` exists as a separate step rather than one more flag on the
+same command.
+
+ScrapeCreators' source row, if created at all ahead of time, is left with `connection_credentials_vault`
+empty/unset and never approved — it exists in the vault as configuration, not as a running collector,
+mirroring how Apify's row was described here before this revision.
 
 ## Industry-agnostic discovery orchestration
 
@@ -151,7 +172,31 @@ is specific to electronics or any single vertical:
    actual industry-agnostic path: it runs identically for a coffee machine, a sofa, or a resistor.
    Same free-tier setup as `social_cross_reference.py` (100 queries/day): export
    `GOOGLE_CUSTOM_SEARCH_API_KEY` / `GOOGLE_CUSTOM_SEARCH_CX`. Missing credentials, an API error, or
-   genuinely no results all return `[]` — never a fabricated candidate.
+   genuinely no results all return `[]` — never a fabricated candidate. Three real mitigations for the
+   100/day cap, all wired in by default whenever `conn` is passed (as `tenant_discovery.py` already
+   does):
+   - **Cache** (`search_cache.py`, `web_search_cache` table, 7-day default TTL, deliberately **not**
+     tenant-scoped — identical searches across different tenants share one cache entry, since "what
+     URLs does Google return for this text" is public search-index metadata, not tenant data) skips
+     the live call entirely on a hit. Only a genuine Google response (including a real zero-result
+     answer) is cached — a failed/errored call never is, so a temporary quota exhaustion doesn't get
+     baked in as false "no results" for the cache's whole TTL.
+   - **Quota pacer** (`search_quota.py`, `search_quota_usage` table, `daily_query_limit` — default
+     `100`, Google's real free-tier cap) — the actual zero-dollar answer for a catalog too large to
+     fit in one day's free budget. Checked *before* every real call, never after: once today's tracked
+     count hits the limit, the live call is skipped for the rest of the day rather than risking an
+     accidental paid overage. Pairs with `tenant_discovery.py`'s `skip_already_discovered` default
+     (below) — a daily cron re-running the identical call each day naturally makes free, incremental
+     progress on whatever wasn't reached yesterday, with no separate resume/queue tracking needed.
+     This — not the fallback below — is the real lever for "the quota isn't enough for a large
+     catalog"; deliberately not SearXNG, which needs a real running instance (self-hosted, it competes
+     for RAM on the same box; a public one risks hammering someone else's free community resource with
+     a whole catalog's worth of queries, which many disable their JSON API by default to prevent).
+   - **SearXNG fallback** (`searxng_discovery.py`, `SEARXNG_INSTANCE_URL`) stays wired in as a genuine
+     resilience fallback for a real Google outage/error — not the primary volume strategy, for the
+     reason above. Raw HTML scraping of Bing/DuckDuckGo's own result pages was considered and
+     deliberately excluded — see `searxng_discovery.py`'s own docstring for why (same ToS-avoidance
+     precedent `social_cross_reference.py` already set for Google's result pages).
 4. `direct_search.py::search_product_across_retailers()` layers in for free, zero-API-cost, but only
    contributes candidates for a vertical that already has a hand-seeded `RETAILER_DOMAINS_BY_VERTICAL`
    entry (today: `electronics_hobbyist` only, seeded and live-verified during this codebase's own
@@ -169,6 +214,36 @@ automated discovery run never has any — `policy.py::evaluate_source()`'s own d
 auto-discovered candidate lands as `BLOCKED` or `RESTRICTED`, never `ALLOWED`, regardless of whether
 its robots.txt fetch even succeeds. Discovery finds and records candidates; a human still has to
 review and approve each one (the existing `cli.py` gate) before any collection actually runs.
+
+## Architecture C: family-keyed discovery + the 3-tier intelligence gate
+
+The real scaling requirement agreed earlier this session: adding another customer must not multiply
+scraping cost the way SKU count does (a catalog of "1 Ohm resistor, 2 Ohm resistor, ..." should not
+cost N searches for N variants).
+
+- **`product_families.py::select_family_representatives()`** groups a tenant's catalog by
+  `family_key()` — a generic (not vertical-specific) heuristic stripping bare numbers and
+  measurement-unit/size words, so "1k Ohm Resistor"/"2k Ohm Resistor" and "T-Shirt Small"/
+  "T-Shirt Large" land in the same family. `tenant_discovery.py::discover_competitors_for_tenant()`
+  (`group_by_family=True` by default) searches **once per family**, using a real, sales-volume-
+  selected representative (`transactions.quantity_sold`; honestly falls back to alphabetical-first
+  when no sales data exists — never silently disguised as volume-based) — then applies whatever's
+  found to **every real SKU** in that family via `register_tenant_scoped_competitor()`, so
+  `competitor_product_mappings` coverage is still per-SKU, just without a redundant re-search per SKU.
+- **`skip_already_discovered`** (default `True`) excludes a product that already has at least one
+  `competitor_product_mappings` row before family-grouping even runs — the actual mechanism behind
+  "the daily quota isn't enough for the whole catalog in one run": once `search_quota.py`'s budget
+  (above) is spent partway through a large catalog, the identical call re-run tomorrow (e.g. a daily
+  cron) naturally skips everything already covered and makes free, incremental progress on the rest —
+  no separate resume-index or queue to build.
+- **`tenant_competitors.tier`** (`CANDIDATE` / `RELEVANT` / `STRATEGIC`, migration
+  `20260907010000`) is computed and persisted by `competitor_classification.py::classify_competitor()`:
+  `CANDIDATE` (excluded — a manufacturer, or out of region), `RELEVANT` (passed those checks, below
+  the product-overlap threshold — the same as before this existed, `is_confirmed_competitor = FALSE`),
+  `STRATEGIC` (passed all three — `is_confirmed_competitor = TRUE`). `product_families.py::
+  recommended_collector_config(tier)` is the real point: only `STRATEGIC` gets `fetch_comments: True`
+  recommended — the expensive paid-provider comment/review depth is never spent on a competitor that
+  hasn't cleared the real bar, while `RELEVANT` still gets tracked and price-compared.
 
 ## Where competitor URLs and product matching come from
 
@@ -315,7 +390,7 @@ migration superuser. Configure `REDIS_URL` as shown in `.env.example`.
 A web source can only become `ALLOWED` after explicit terms and technical-control review:
 
 ```bash
-python -m src.market_scraper.policy_cli \
+python -m src.market_scraper.policy_cli register-source \
   --tenant-id TENANT_UUID \
   --source-id SOURCE_UUID \
   --source-url https://books.toscrape.com/ \
@@ -330,10 +405,12 @@ python -m src.market_scraper.policy_cli \
 
 If an official API or RSS URL is supplied, the engine selects it before scraping. API/RSS sources
 must be handled by their corresponding collector rather than being forced through Scrapy. Pass
-`--collector google_places`, `--collector amazon_paapi`, `--collector social_data_provider`, or
-`--collector scrape_creators` (in addition to the existing `standards`/`books_to_scrape`) to pick
-one of the API/paid-provider collectors explicitly, and populate that source's
-`connection_credentials_vault` with its required credentials before running a collection.
+`--collector google_places`, `--collector amazon_paapi`, `--collector digikey_api`,
+`--collector mouser_api`, `--collector social_data_provider`, or `--collector scrape_creators` (in
+addition to the existing `standards`/`books_to_scrape`) to pick one of the API/paid-provider
+collectors explicitly, then populate that source's credentials with
+`policy_cli.py set-credentials` (see "Vendor policy for social collection" above) before running a
+collection.
 
 Each `competitor_product_mappings` row scheduled for collection must reference the reviewed
 `source_id` and contain an approved `competitor_product_url`.

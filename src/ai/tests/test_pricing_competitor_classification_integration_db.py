@@ -12,7 +12,9 @@ import uuid
 import psycopg2
 import pytest
 
-from src.ai.pricing.competitor_classification import classify_competitor, compute_product_match_rate
+from src.ai.pricing.competitor_classification import (
+    TIER_CANDIDATE, TIER_RELEVANT, TIER_STRATEGIC, classify_competitor, compute_product_match_rate,
+)
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -194,3 +196,60 @@ def test_classify_rejects_invalid_threshold(conn):
     competitor_id = _insert_competitor(conn, tenant_id)
     with pytest.raises(ValueError, match="threshold"):
         classify_competitor(conn, tenant_id, competitor_id, threshold=1.5)
+
+
+def test_tier_is_strategic_when_confirmed(conn):
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="JO")
+    _map_product(conn, tenant_id, competitor_id, product_a)
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.tier == TIER_STRATEGIC
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT tier FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, competitor_id),
+        )
+        assert cursor.fetchone()[0] == TIER_STRATEGIC
+
+
+def test_tier_is_relevant_when_below_threshold_but_otherwise_real(conn):
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    _insert_product(conn, tenant_id, "Widget B")
+    _insert_product(conn, tenant_id, "Widget C")
+    competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="JO")
+    _map_product(conn, tenant_id, competitor_id, product_a)  # 1/3 = 33%, below default 50%
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.is_confirmed_competitor is False
+    assert result.tier == TIER_RELEVANT
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT tier FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, competitor_id),
+        )
+        assert cursor.fetchone()[0] == TIER_RELEVANT
+
+
+def test_tier_is_candidate_for_a_manufacturer(conn):
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=True, country_code="JO")
+    _map_product(conn, tenant_id, competitor_id, product_a)
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.tier == TIER_CANDIDATE
+
+
+def test_tier_is_candidate_for_an_out_of_region_seller(conn):
+    tenant_id = _insert_company(conn, country_code="JO", operating_countries=["AE"])
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="US")
+    _map_product(conn, tenant_id, competitor_id, product_a)
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.tier == TIER_CANDIDATE

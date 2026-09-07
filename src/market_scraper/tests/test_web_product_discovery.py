@@ -98,6 +98,104 @@ def test_social_discovery_one_platform_erroring_does_not_drop_the_other():
     assert candidates[0].url == "https://www.facebook.com/acme/"
 
 
+def test_cache_hit_skips_the_live_api_call_entirely():
+    with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=[
+        CandidateSource("Espresso Machine", "https://cached.example/espresso", "Cached Result"),
+    ]), patch("src.market_scraper.web_product_discovery._get") as mocked_get:
+        candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=object())
+
+    mocked_get.assert_not_called()
+    assert candidates[0].url == "https://cached.example/espresso"
+
+
+def test_cache_miss_calls_live_api_and_stores_the_result():
+    payload = {"items": [{"title": "Buy Espresso Machine", "link": "https://acme.example/espresso"}]}
+    with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
+         patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
+         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
+         patch("src.market_scraper.web_product_discovery.search_quota.record_query") as mocked_record, \
+         patch("src.market_scraper.web_product_discovery._get", return_value=payload):
+        candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=object())
+
+    assert len(candidates) == 1
+    mocked_set.assert_called_once()
+    mocked_record.assert_called_once()  # the real call that was made counts against today's budget
+
+
+def test_a_genuinely_empty_google_result_is_cached_not_treated_as_a_failure():
+    with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
+         patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
+         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
+         patch("src.market_scraper.web_product_discovery.search_quota.record_query"), \
+         patch("src.market_scraper.web_product_discovery._get", return_value={"items": []}), \
+         patch("src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates") as mocked_searxng:
+        candidates = discover_product_candidates("A product nobody sells", api_key="k", cx="c", conn=object())
+
+    assert candidates == []
+    mocked_set.assert_called_once()  # cached as a real "no results" answer
+    mocked_searxng.assert_not_called()  # not a failure, so no fallback needed
+
+
+def test_google_error_triggers_searxng_fallback_and_is_not_cached():
+    with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
+         patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
+         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
+         patch("src.market_scraper.web_product_discovery.search_quota.record_query"), \
+         patch("src.market_scraper.web_product_discovery._get", return_value={"error": {"code": 429}}), \
+         patch(
+             "src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates",
+             return_value=[CandidateSource("Espresso Machine", "https://searxng-result.example", "From SearXNG")],
+         ) as mocked_searxng:
+        candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=object())
+
+    assert candidates[0].url == "https://searxng-result.example"
+    mocked_set.assert_not_called()  # a failure is never cached
+    mocked_searxng.assert_called_once()
+
+
+def test_quota_exhausted_skips_the_live_call_and_tries_searxng():
+    with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
+         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=False), \
+         patch("src.market_scraper.web_product_discovery._get") as mocked_get, \
+         patch(
+             "src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates",
+             return_value=[CandidateSource("Espresso Machine", "https://searxng-result.example", "From SearXNG")],
+         ) as mocked_searxng:
+        candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=object())
+
+    mocked_get.assert_not_called()  # the real Google HTTP call is never even attempted over budget
+    mocked_searxng.assert_called_once()
+    assert candidates[0].url == "https://searxng-result.example"
+
+
+def test_daily_query_limit_none_disables_local_quota_tracking():
+    payload = {"items": [{"title": "Buy Espresso Machine", "link": "https://acme.example/espresso"}]}
+    with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
+         patch("src.market_scraper.web_product_discovery.search_cache.set_cached"), \
+         patch("src.market_scraper.web_product_discovery.search_quota.has_budget") as mocked_has_budget, \
+         patch("src.market_scraper.web_product_discovery.search_quota.record_query"), \
+         patch("src.market_scraper.web_product_discovery._get", return_value=payload):
+        candidates = discover_product_candidates(
+            "Espresso Machine", api_key="k", cx="c", conn=object(), daily_query_limit=None,
+        )
+
+    mocked_has_budget.assert_not_called()  # None means "don't track locally at all"
+    assert len(candidates) == 1
+
+
+def test_missing_google_credentials_go_straight_to_searxng(monkeypatch):
+    monkeypatch.delenv("GOOGLE_CUSTOM_SEARCH_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_CUSTOM_SEARCH_CX", raising=False)
+    with patch(
+        "src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates",
+        return_value=[CandidateSource("Espresso Machine", "https://searxng-result.example", "From SearXNG")],
+    ) as mocked_searxng:
+        candidates = discover_product_candidates("Espresso Machine")
+
+    assert candidates[0].url == "https://searxng-result.example"
+    mocked_searxng.assert_called_once()
+
+
 def test_query_passed_to_search_is_built_by_sector_detection_helper():
     captured = {}
 
