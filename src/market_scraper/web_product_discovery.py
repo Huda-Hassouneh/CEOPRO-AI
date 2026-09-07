@@ -97,6 +97,62 @@ def discover_product_candidates(
         return []
 
     query = build_retail_search_query(product_name, geo_scope or None)
+    return _run_query(product_name, query, max_results, api_key, cx)
+
+
+# Platforms a "pure social, no e-commerce site" competitor is realistically
+# found on - a business that only sells through a storefront-less social
+# profile. One CSE query per platform, each scoped with the site: operator
+# (documented Google search syntax, not a workaround) so results are
+# actual public profile/page URLs on that platform, never a guess.
+_SOCIAL_DISCOVERY_SITES = ["instagram.com", "facebook.com"]
+
+
+def discover_social_profile_candidates(
+    product_name: str,
+    api_key: Optional[str] = None, cx: Optional[str] = None,
+    max_results_per_site: int = 3,
+) -> List[CandidateSource]:
+    """
+    Finds competitors that only exist as a social profile - no e-commerce
+    website at all - which discover_product_candidates() and direct_
+    search.py's SearchAction approach both structurally miss (both only
+    ever look for a seller's own site). One real Google Custom Search
+    call per platform in _SOCIAL_DISCOVERY_SITES, `"<product_name>" site:
+    <platform>` - the exact same free, self-serve API/credentials this
+    module already uses, no new vendor.
+
+    Returns real CandidateSource records pointing at the actual profile/
+    post URL Google's index has - never a guessed handle. These still go
+    through the same evaluate_candidate()/register_tenant_scoped_
+    competitor() pipeline as any other candidate: Instagram/Facebook's
+    own robots.txt disallows most paths for a generic bot (live-verified
+    earlier this session - only Googlebot is allow-listed), so a
+    registered social-only competitor almost always lands BLOCKED for
+    direct collection of its profile page. That's correct, not a bug:
+    this function's job is discovering and recording that the competitor
+    exists, not deciding it's fetchable - actual data collection for a
+    tracked social-only competitor already has a real, legal path
+    (social_cross_reference.py's Google-index lookup, or the paid
+    ScrapeCreators/Apify collectors once configured), same as it does for
+    any other tracked competitor's social presence.
+    """
+    api_key = api_key or os.getenv("GOOGLE_CUSTOM_SEARCH_API_KEY")
+    cx = cx or os.getenv("GOOGLE_CUSTOM_SEARCH_CX")
+    if not api_key or not cx:
+        logger.info("GOOGLE_CUSTOM_SEARCH_API_KEY/GOOGLE_CUSTOM_SEARCH_CX not set - social profile discovery skipped.")
+        return []
+
+    candidates = []
+    for site in _SOCIAL_DISCOVERY_SITES:
+        query = f'"{product_name}" site:{site}'
+        candidates.extend(_run_query(product_name, query, max_results_per_site, api_key, cx))
+    return candidates
+
+
+def _run_query(
+    product_name: str, query: str, max_results: int, api_key: str, cx: str,
+) -> List[CandidateSource]:
     result = _get({"key": api_key, "cx": cx, "q": query, "num": min(max_results, 10)})
     if not result:
         return []

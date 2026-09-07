@@ -170,6 +170,37 @@ Every extracted product is checked in `spiders/market_source.py`: exact external
 `1.0`; otherwise the extracted name must reach fuzzy similarity `0.82`. `pipelines.py` independently
 enforces the recorded method and score before persistence.
 
+## Review-widget fallback (Trustpilot/Bazaarvoice/Yotpo-style)
+
+Live validation this session (real SparkFun/ImpactBattery pages) found reviews aren't always in a
+page's JSON-LD - some retailers publish them a different standard way, and some hide them behind a
+client-rendered widget with no structured markup at all. `spiders/market_source.py` tries three
+layers, in order, stopping at the first that finds anything:
+
+1. **JSON-LD** (`parse_structured`'s original path) - `<script type="application/ld+json">`.
+2. **Microdata** (`_extract_microdata_products`, via `extruct`) - the same schema.org vocabulary,
+   published as `itemscope`/`itemprop` HTML attributes instead of JSON-LD - a real, documented
+   alternative serialization some review-widget SEO integrations (e.g. Bazaarvoice's BVSEO fallback
+   markup) use specifically so search engines can index review content a browser only renders via JS.
+   Only tried when JSON-LD found nothing, so a normal JSON-LD page pays no extra parse cost.
+3. **Widget CSS selectors** (`_widget_reviews`) - last resort, for a widget that renders plain HTML
+   with no schema.org markup at all. Requires two things: `render_javascript=True` on the source (so
+   `response` is the widget's own post-JS-render DOM, not the pre-render HTML a plain fetch would
+   see - already a supported flag via `scrapy-playwright`), and real, reviewed
+   `widget_review_container`/`widget_review_text`/`widget_reviewer_name`/`widget_review_rating`/
+   `widget_review_date` CSS selectors in that source's `collector_config["selectors"]`. Never a
+   guessed vendor-wide selector - same "source-reviewed, not invented" discipline as every other
+   selector in this codebase; `widget_review_rating` is read as a bare number, not rescaled the way
+   a JSON-LD `aggregateRating` is, since a CSS-extracted value has no `bestRating`/`worstRating` to
+   read.
+
+`scripts/live_widget_diagnostic.py <product_url>` renders a real page (headless Chromium via
+`playwright`), runs layers 1-2 for real, and - only if both come back empty - scans the rendered DOM
+for known review-widget vendor signatures and prints the real surrounding HTML, so the actual
+selectors layer 3 needs can be read off real markup rather than guessed. Run it locally (this
+sandbox's own network egress can't reach third-party sites); its output is what tells you which
+selectors to configure for a given source, not something this codebase invents on its own.
+
 ## Real-competitor classification
 
 Discovery (`discovery.py::register_tenant_scoped_competitor`) records every seller found for a

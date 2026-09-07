@@ -60,6 +60,47 @@ def looks_like_manufacturer_or_wholesale(candidate: "CandidateSource", brand_tok
     return any(word in haystack for word in MANUFACTURER_SIGNAL_WORDS)
 
 
+# Hosts where the hostname alone is NOT a unique business identity -
+# every business on the platform shares it, so the profile path (handle/
+# page slug) has to be part of the dedup key too. Kept short and
+# maintained here rather than inferred, since getting this wrong in
+# either direction is a real bug: too narrow merges distinct businesses
+# that happen to share a host, too broad splits one real business across
+# several rows.
+SOCIAL_PLATFORM_HOSTS = {
+    "instagram.com", "facebook.com", "tiktok.com", "twitter.com", "x.com",
+}
+
+
+def compute_website_identity_key(url: str) -> Optional[str]:
+    """
+    The real fix for duplicate global_competitors rows: two discovery
+    passes finding the same seller under two different result titles
+    must land on the same row. A bare hostname is the right identity for
+    an ordinary seller domain (one hostname == one business), but NOT
+    for a social-only competitor's profile URL - every Instagram business
+    shares the host "instagram.com", so the key there is host + the
+    first path segment (the handle), which the social platform itself
+    treats as the actual per-business identity.
+
+    Returns None when no hostname can be parsed at all (never crashes on
+    a malformed candidate URL - the caller just doesn't dedupe that row
+    against anything, matching how a NULL website_identity_key already
+    degrades safely in the partial unique index).
+    """
+    parsed = urlsplit(url)
+    hostname = (parsed.hostname or "").lower()
+    if hostname.startswith("www."):
+        hostname = hostname[4:]
+    if not hostname:
+        return None
+    if hostname in SOCIAL_PLATFORM_HOSTS:
+        first_segment = next((part for part in parsed.path.split("/") if part), "")
+        if first_segment:
+            return f"{hostname}/{first_segment.lower()}"
+    return hostname
+
+
 @dataclass(frozen=True)
 class CandidateSource:
     """One result from an external search for `product_name` - url/title
@@ -187,18 +228,34 @@ def register_tenant_scoped_competitor(
             if text for token in str(text).lower().split()
         }
         is_manufacturer = looks_like_manufacturer_or_wholesale(candidate, brand_tokens)
+        identity_key = compute_website_identity_key(candidate.url)
+        website_url = candidate.url if identity_key and "/" in identity_key else f"{urlsplit(candidate.url).scheme}://{hostname}"
 
-        cursor.execute(
-            """
-            INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id, is_manufacturer)
-            VALUES (%s, %s, 'PRIVATE', %s, %s)
-            ON CONFLICT (added_by_tenant_id, LOWER(competitor_name)) WHERE (visibility = 'PRIVATE')
-            DO UPDATE SET website_url = EXCLUDED.website_url,
-                          is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer
-            RETURNING global_competitor_id;
-            """,
-            (candidate.title or hostname, f"{urlsplit(candidate.url).scheme}://{hostname}", tenant_id, is_manufacturer),
-        )
+        if identity_key is not None:
+            cursor.execute(
+                """
+                INSERT INTO global_competitors
+                    (competitor_name, website_url, website_identity_key, visibility, added_by_tenant_id, is_manufacturer)
+                VALUES (%s, %s, %s, 'PRIVATE', %s, %s)
+                ON CONFLICT (added_by_tenant_id, website_identity_key) WHERE (visibility = 'PRIVATE' AND website_identity_key IS NOT NULL)
+                DO UPDATE SET website_url = EXCLUDED.website_url,
+                              is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer
+                RETURNING global_competitor_id;
+                """,
+                (candidate.title or hostname, website_url, identity_key, tenant_id, is_manufacturer),
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id, is_manufacturer)
+                VALUES (%s, %s, 'PRIVATE', %s, %s)
+                ON CONFLICT (added_by_tenant_id, LOWER(competitor_name)) WHERE (visibility = 'PRIVATE')
+                DO UPDATE SET website_url = EXCLUDED.website_url,
+                              is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer
+                RETURNING global_competitor_id;
+                """,
+                (candidate.title or hostname, website_url, tenant_id, is_manufacturer),
+            )
         competitor_id = cursor.fetchone()[0]
 
         cursor.execute(
