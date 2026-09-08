@@ -15,6 +15,24 @@ from src.ai.rag import llm_client
 from src.ai.rag.retrieval_types import AssembledContext
 
 
+@pytest.fixture(autouse=True)
+def _isolated_from_local_llm_config(monkeypatch):
+    """
+    Every test in this file assumes the Groq backend unless it explicitly
+    sets up the local one - but LOCAL_LLM_BASE_URL is read into a
+    module-level constant at import time (llm_client.py's own
+    `LOCAL_LLM_BASE_URL = os.getenv(...)`), so monkeypatching the
+    environment variable alone does nothing once the module is already
+    imported; the attribute itself has to be patched. Without this, any
+    developer machine that happens to have LOCAL_LLM_BASE_URL exported
+    (e.g. for local Ollama/llama-server use) silently breaks these tests -
+    a real, previously-unisolated test environment leak, not a bug in the
+    tests' logic.
+    """
+    monkeypatch.setattr(llm_client, "LOCAL_LLM_BASE_URL", None)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+
 def _context(context_text="Sunscreen SPF 50 is our best seller.", query="what is our best seller?"):
     return AssembledContext(query=query, context_text=context_text, sources=[{"source_index": 1, "chunk_id": "c1", "score": 0.9}])
 
