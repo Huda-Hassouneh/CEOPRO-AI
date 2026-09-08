@@ -68,7 +68,7 @@ def test_initial_requests_target_only_the_provider_api_host():
     requests = list(spider()._initial_requests())
     assert len(requests) == 1
     request = requests[0]
-    assert request.url.startswith("https://api.apify.com/v2/acts/apify/instagram-scraper/run-sync-get-dataset-items")
+    assert request.url.startswith("https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items")
     assert "token=apify-token-123" in request.url
     assert request.method == "POST"
     body = json.loads(request.body)
@@ -89,13 +89,13 @@ def test_input_overrides_replace_the_default_payload_shape():
 
 def test_parse_dataset_items_issues_a_comments_request_per_post_by_default():
     requests = list(spider().parse_dataset_items(
-        json_response("https://api.apify.com/v2/acts/apify/instagram-scraper/run-sync-get-dataset-items", [POST]),
+        json_response("https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items", [POST]),
         TARGET_IG, "instagram",
     ))
     assert len(requests) == 1
     request = requests[0]
     assert request.url.startswith(
-        "https://api.apify.com/v2/acts/apify/instagram-comment-scraper/run-sync-get-dataset-items"
+        "https://api.apify.com/v2/acts/apify~instagram-comment-scraper/run-sync-get-dataset-items"
     )
     body = json.loads(request.body)
     assert body["startUrls"] == [{"url": POST["url"]}]
@@ -104,7 +104,7 @@ def test_parse_dataset_items_issues_a_comments_request_per_post_by_default():
 def test_parse_dataset_items_handles_multiple_posts():
     second_post = {**POST, "id": "post-2", "url": "https://www.instagram.com/p/post-2/"}
     requests = list(spider().parse_dataset_items(
-        json_response("https://api.apify.com/v2/acts/apify/instagram-scraper/run-sync-get-dataset-items", [POST, second_post]),
+        json_response("https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items", [POST, second_post]),
         TARGET_IG, "instagram",
     ))
     assert len(requests) == 2
@@ -113,7 +113,7 @@ def test_parse_dataset_items_handles_multiple_posts():
 def test_fetch_comments_false_yields_items_directly_with_no_comments_request():
     no_comments = spider(collector_config={"fetch_comments": False})
     results = list(no_comments.parse_dataset_items(
-        json_response("https://api.apify.com/v2/acts/apify/instagram-scraper/run-sync-get-dataset-items", [POST]),
+        json_response("https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items", [POST]),
         TARGET_IG, "instagram",
     ))
     assert len(results) == 1
@@ -127,7 +127,7 @@ def test_fetch_comments_false_yields_items_directly_with_no_comments_request():
 
 def test_parse_dataset_items_returns_nothing_for_an_empty_dataset():
     items = list(spider().parse_dataset_items(
-        json_response("https://api.apify.com/v2/acts/apify/instagram-scraper/run-sync-get-dataset-items", []),
+        json_response("https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items", []),
         TARGET_IG, "instagram",
     ))
     assert items == []
@@ -136,7 +136,7 @@ def test_parse_dataset_items_returns_nothing_for_an_empty_dataset():
 def test_parse_comments_builds_a_record_with_engagement_and_reviews():
     item = list(spider().parse_comments(
         json_response(
-            "https://api.apify.com/v2/acts/apify/instagram-comment-scraper/run-sync-get-dataset-items", COMMENTS
+            "https://api.apify.com/v2/acts/apify~instagram-comment-scraper/run-sync-get-dataset-items", COMMENTS
         ),
         TARGET_IG, "instagram", POST, POST["url"],
     ))[0]
@@ -159,7 +159,7 @@ def test_parse_comments_builds_a_record_with_engagement_and_reviews():
 def test_parse_comments_quarantines_unsafe_comment_text():
     item = list(spider().parse_comments(
         json_response(
-            "https://api.apify.com/v2/acts/apify/instagram-comment-scraper/run-sync-get-dataset-items", COMMENTS
+            "https://api.apify.com/v2/acts/apify~instagram-comment-scraper/run-sync-get-dataset-items", COMMENTS
         ),
         TARGET_IG, "instagram", POST, POST["url"],
     ))[0]
@@ -170,7 +170,7 @@ def test_parse_comments_quarantines_unsafe_comment_text():
 
 def test_parse_comments_handles_empty_comment_list():
     item = list(spider().parse_comments(
-        json_response("https://api.apify.com/v2/acts/apify/instagram-comment-scraper/run-sync-get-dataset-items", []),
+        json_response("https://api.apify.com/v2/acts/apify~instagram-comment-scraper/run-sync-get-dataset-items", []),
         TARGET_IG, "instagram", POST, POST["url"],
     ))[0]
     assert item["reviews"] == []

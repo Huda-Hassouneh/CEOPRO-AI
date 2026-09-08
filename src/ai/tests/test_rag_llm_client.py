@@ -15,6 +15,24 @@ from src.ai.rag import llm_client
 from src.ai.rag.retrieval_types import AssembledContext
 
 
+@pytest.fixture(autouse=True)
+def _isolated_from_local_llm_config(monkeypatch):
+    """
+    Every test in this file assumes the Groq backend unless it explicitly
+    sets up the local one - but LOCAL_LLM_BASE_URL is read into a
+    module-level constant at import time (llm_client.py's own
+    `LOCAL_LLM_BASE_URL = os.getenv(...)`), so monkeypatching the
+    environment variable alone does nothing once the module is already
+    imported; the attribute itself has to be patched. Without this, any
+    developer machine that happens to have LOCAL_LLM_BASE_URL exported
+    (e.g. for local Ollama/llama-server use) silently breaks these tests -
+    a real, previously-unisolated test environment leak, not a bug in the
+    tests' logic.
+    """
+    monkeypatch.setattr(llm_client, "LOCAL_LLM_BASE_URL", None)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+
 def _context(context_text="Sunscreen SPF 50 is our best seller.", query="what is our best seller?"):
     return AssembledContext(query=query, context_text=context_text, sources=[{"source_index": 1, "chunk_id": "c1", "score": 0.9}])
 
@@ -58,7 +76,7 @@ def test_generate_answer_raises_llm_error_on_non_200(monkeypatch):
 
 def test_generate_answer_raises_llm_error_on_malformed_response_shape(monkeypatch):
     monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: _FakeResponse(200, {"unexpected": "shape"}))
-    with pytest.raises(llm_client.LLMError, match="Unexpected Groq API response shape"):
+    with pytest.raises(llm_client.LLMError, match="Unexpected LLM provider response shape"):
         llm_client.generate_answer(_context(), api_key="test-key")
 
 
@@ -71,7 +89,7 @@ def test_generate_answer_raises_llm_error_on_network_failure_after_exhausting_re
         raise httpx.ConnectError("connection refused")
 
     monkeypatch.setattr(llm_client.httpx, "post", raise_network_error)
-    with pytest.raises(llm_client.LLMError, match="Groq API request failed"):
+    with pytest.raises(llm_client.LLMError, match="LLM provider request failed"):
         llm_client.generate_answer(_context(), api_key="test-key")
     assert len(calls) == llm_client.MAX_RETRIES + 1  # every retry was actually attempted, not skipped
 
