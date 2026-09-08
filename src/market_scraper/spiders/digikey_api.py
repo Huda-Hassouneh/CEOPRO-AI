@@ -9,7 +9,7 @@ token exchange at POST https://api.digikey.com/v1/oauth2/token
 response has access_token/expires_in/token_type), the real endpoint GET
 https://api.digikey.com/products/v4/search/{productNumber}/productdetails,
 and the real required headers (X-DIGIKEY-Client-Id, X-DIGIKEY-Locale-Site/
--Language/-Currency).
+-Language/-Currency)
 
 Honest, flagged limit - same category as this PR's own note on scrape_
 creators.py's Instagram/TikTok field names: the exact JSON response FIELD
