@@ -71,8 +71,9 @@ Ikea included — without a bespoke spider):
   finding *mentions* of a competitor via Google's own index). This collector instead wraps a paid
   third-party provider's REST API, modeled on Apify's Actor API
   (`run-sync-get-dataset-items`) — one maintained actor per platform, defaulting to Apify's own
-  published actors (`apify/instagram-scraper`, `apify/tiktok-scraper`,
-  `apify/facebook-pages-scraper`; `_first_present()`'s candidate field names — `diggCount` for
+  published actors (`apify~instagram-scraper`, `apify~tiktok-scraper`,
+  `apify~facebook-pages-scraper` — the REST API requires the owner/actor-name separator to be `~`,
+  not the `/` shown on the actor's store page; `_first_present()`'s candidate field names — `diggCount` for
   TikTok's like-count convention alongside `likesCount`/`like_count` — already anticipate these
   actors' real output shape, not a hypothetical one), overridable per source via
   `collector_config["actor_ids"]` for a different actor entirely. It only ever talks to the
