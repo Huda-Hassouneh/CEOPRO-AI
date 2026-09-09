@@ -2,40 +2,58 @@ generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
+
 datasource db {
   provider = "postgresql"
 }
 
-model Plan {
-  id               String         @id @default(uuid()) @db.Uuid
-  name             String         @unique @db.VarChar(50)
-  description      String?
-  price            Decimal        @db.Decimal(10, 2)
-  currency         String         @default("JOD") @db.VarChar(3)
-  billingInterval  String         @map("billing_interval") @db.VarChar(20)
-  isActive         Boolean        @default(true) @map("is_active")
-  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+enum BillingIntervalUnit {
+  day
+  week
+  month
+  year
+}
 
-  subscriptions    Subscription[]
-  promoCodes       PromoCodePlan[]
+enum TrialPeriodUnit {
+  day
+  week
+  month
+  year
+}
+
+model Plan {
+  id                   String               @id @default(uuid()) @db.Uuid
+  name                 String               @unique @db.VarChar(50)
+  description          String?
+  price                Decimal              @db.Decimal(10, 2)
+  currency             String               @default("JOD") @db.VarChar(3)
+  billingIntervalValue Int                  @map("billing_interval_value")
+  billingIntervalUnit  BillingIntervalUnit  @map("billing_interval_unit")
+  trialPeriodValue     Int                  @default(0) @map("trial_period_value")
+  trialPeriodUnit      TrialPeriodUnit?     @map("trial_period_unit")
+  isActive             Boolean              @default(true) @map("is_active")
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subscriptions        Subscription[]
+  promoCodes           PromoCodePlan[]
 
   @@map("plans")
 }
 
 model PromoCode {
-  id                String             @id @default(uuid()) @db.Uuid
-  code              String             @unique @db.VarChar(50)
-  discountType      String             @map("discount_type") @db.VarChar(20)
-  discountValue     Decimal            @map("discount_value") @db.Decimal(10, 2)
-  maxUses           Int                @map("max_uses")
-  usedCount         Int                @default(0) @map("used_count")
-  maxUsesPerUser    Int                @default(1) @map("max_uses_per_user")
-  startsAt          DateTime           @map("starts_at") @db.Timestamptz(6)
-  expiresAt         DateTime           @map("expires_at") @db.Timestamptz(6)
-  isActive          Boolean            @default(true) @map("is_active")
-  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String                  @id @default(uuid()) @db.Uuid
+  code              String                  @unique @db.VarChar(50)
+  discountType      String                  @map("discount_type") @db.VarChar(20)
+  discountValue     Decimal                 @map("discount_value") @db.Decimal(10, 2)
+  maxUses           Int                     @map("max_uses")
+  usedCount         Int                     @default(0) @map("used_count")
+  maxUsesPerUser    Int                     @default(1) @map("max_uses_per_user")
+  startsAt          DateTime                @map("starts_at") @db.Timestamptz(6)
+  expiresAt         DateTime                @map("expires_at") @db.Timestamptz(6)
+  isActive          Boolean                 @default(true) @map("is_active")
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   plans             PromoCodePlan[]
   redemptions       PromoCodeRedemption[]
@@ -55,22 +73,22 @@ model PromoCodePlan {
 }
 
 model Subscription {
-  id                    String                 @id @default(uuid()) @db.Uuid
-  tenantId              String                 @map("tenant_id") @db.Uuid
-  planId                String                 @map("plan_id") @db.Uuid
-  stripeCustomerId      String?                @unique @map("stripe_customer_id") @db.VarChar(255)
-  stripeSubscriptionId  String?                @unique @map("stripe_subscription_id") @db.VarChar(255)
-  status                String                 @db.VarChar(30)
-  currentPeriodStart    DateTime               @map("current_period_start") @db.Timestamptz(6)
-  currentPeriodEnd      DateTime               @map("current_period_end") @db.Timestamptz(6)
-  cancelAtPeriodEnd     Boolean                @default(false) @map("cancel_at_period_end")
-  cancelledAt           DateTime?              @map("cancelled_at") @db.Timestamptz(6)
-  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                   String                 @id @default(uuid()) @db.Uuid
+  tenantId             String                 @map("tenant_id") @db.Uuid
+  planId               String                 @map("plan_id") @db.Uuid
+  stripeCustomerId     String?                @unique @map("stripe_customer_id") @db.VarChar(255)
+  stripeSubscriptionId String?                @unique @map("stripe_subscription_id") @db.VarChar(255)
+  status               String                 @db.VarChar(30)
+  currentPeriodStart   DateTime               @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd     DateTime               @map("current_period_end") @db.Timestamptz(6)
+  cancelAtPeriodEnd    Boolean                @default(false) @map("cancel_at_period_end")
+  cancelledAt          DateTime?              @map("cancelled_at") @db.Timestamptz(6)
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  plan                  Plan                   @relation(fields: [planId], references: [id], onDelete: Restrict)
-  paymentTransactions   PaymentTransaction[]
-  promoCodeRedemptions  PromoCodeRedemption[]
+  plan                 Plan                   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  paymentTransactions  PaymentTransaction[]
+  promoCodeRedemptions PromoCodeRedemption[]
 
   @@map("subscriptions")
 }
@@ -84,7 +102,7 @@ model PaymentTransaction {
   currency              String        @db.VarChar(3)
   status                String        @default("pending") @db.VarChar(20)
   paidAt                DateTime?     @map("paid_at") @db.Timestamptz(6)
-  failureReason         String?       @map("failure_reason")
+  failureReason         String?
   createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -108,13 +126,13 @@ model PromoCodeRedemption {
 }
 
 model StripeWebhookEvent {
-  id             String   @id @default(uuid()) @db.Uuid
-  stripeEventId  String   @unique @map("stripe_event_id") @db.VarChar(255)
-  eventType      String   @map("event_type") @db.VarChar(100)
-  processed      Boolean  @default(false)
-  processedAt    DateTime? @map("processed_at") @db.Timestamptz(6)
-  payload        Json
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id            String   @id @default(uuid()) @db.Uuid
+  stripeEventId String   @unique @map("stripe_event_id") @db.VarChar(255)
+  eventType     String   @map("event_type") @db.VarChar(100)
+  processed     Boolean  @default(false)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
+  payload       Json
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("stripe_webhook_events")
 }
