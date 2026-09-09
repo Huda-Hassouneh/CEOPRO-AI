@@ -2,6 +2,7 @@
 -- Stores the subscription plans offered by CEOPRO.
 CREATE TABLE IF NOT EXISTS plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
     name VARCHAR(50) NOT NULL UNIQUE
         CHECK (name IN ('starter', 'growth', 'enterprise')),
 
@@ -13,13 +14,29 @@ CREATE TABLE IF NOT EXISTS plans (
     currency VARCHAR(3) NOT NULL DEFAULT 'JOD'
         CHECK (currency ~ '^[A-Z]{3}$'),
 
-    billing_interval VARCHAR(20) NOT NULL
-        CHECK (billing_interval IN ('monthly', 'yearly')),
+    billing_interval_value INTEGER NOT NULL
+        CHECK (billing_interval_value > 0),
+
+    billing_interval_unit VARCHAR(10) NOT NULL
+        CHECK (billing_interval_unit IN ('day', 'week', 'month', 'year')),
+
+    trial_period_value INTEGER NOT NULL DEFAULT 0
+        CHECK (trial_period_value >= 0),
+
+    trial_period_unit VARCHAR(10)
+        CHECK (trial_period_unit IN ('day', 'week', 'month', 'year')),
 
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Either both trial fields are provided or neither
+    CONSTRAINT trial_period_consistency CHECK (
+        (trial_period_value = 0 AND trial_period_unit IS NULL)
+        OR
+        (trial_period_value > 0 AND trial_period_unit IS NOT NULL)
+    )
 );
 
 
