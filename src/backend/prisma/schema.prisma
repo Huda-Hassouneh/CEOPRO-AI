@@ -64,8 +64,8 @@ model Subscription {
   id                   String                 @id @default(uuid()) @db.Uuid
   tenantId             String                 @map("tenant_id") @db.Uuid
   planId               String                 @map("plan_id") @db.Uuid
-  stripeCustomerId     String?                @unique @map("stripe_customer_id") @db.VarChar(255)
-  stripeSubscriptionId String?                @unique @map("stripe_subscription_id") @db.VarChar(255)
+  payment_providerCustomerId     String?                @unique @map("payment_provider_customer_id") @db.VarChar(255)
+  payment_providerSubscriptionId String?                @unique @map("payment_provider_subscription_id") @db.VarChar(255)
   status               String                 @db.VarChar(30)
   currentPeriodStart   DateTime               @map("current_period_start") @db.Timestamptz(6)
   currentPeriodEnd     DateTime               @map("current_period_end") @db.Timestamptz(6)
@@ -84,8 +84,8 @@ model Subscription {
 model PaymentTransaction {
   id                    String        @id @default(uuid()) @db.Uuid
   subscriptionId        String        @map("subscription_id") @db.Uuid
-  stripePaymentIntentId String?       @unique @map("stripe_payment_intent_id") @db.VarChar(255)
-  stripeInvoiceId       String?       @map("stripe_invoice_id") @db.VarChar(255)
+  payment_providerPaymentIntentId String?       @unique @map("payment_provider_payment_intent_id") @db.VarChar(255)
+  payment_providerInvoiceId       String?       @map("payment_provider_invoice_id") @db.VarChar(255)
   amount                Decimal       @db.Decimal(12, 2)
   currency              String        @db.VarChar(3)
   status                String        @default("pending") @db.VarChar(20)
@@ -113,14 +113,14 @@ model PromoCodeRedemption {
   @@map("promo_code_redemptions")
 }
 
-model StripeWebhookEvent {
+model payment_providerWebhookEvent {
   id            String   @id @default(uuid()) @db.Uuid
-  stripeEventId String   @unique @map("stripe_event_id") @db.VarChar(255)
+  payment_providerEventId String   @unique @map("payment_provider_event_id") @db.VarChar(255)
   eventType     String   @map("event_type") @db.VarChar(100)
   processed     Boolean  @default(false)
   processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
   payload       Json
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  @@map("stripe_webhook_events")
+  @@map("payment_provider_webhook_events")
 }

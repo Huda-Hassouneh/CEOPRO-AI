@@ -107,10 +107,10 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     tenant_id UUID NOT NULL,
 
     plan_id UUID NOT NULL,
+    payment_provider VARCHAR(50) NOT NULL,
+    payment_provider_customer_id VARCHAR(255) UNIQUE,
 
-    stripe_customer_id VARCHAR(255) UNIQUE,
-
-    stripe_subscription_id VARCHAR(255) UNIQUE,
+    payment_provider_subscription_id VARCHAR(255) UNIQUE,
 
     status VARCHAR(30) NOT NULL
         CHECK (
@@ -168,10 +168,10 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
 
     subscription_id UUID NOT NULL,
 
-    stripe_payment_intent_id VARCHAR(255) UNIQUE,
+    payment_intent_id VARCHAR(255) UNIQUE,
 
    
-    stripe_invoice_id VARCHAR(255),
+    payment_provider_invoice_id VARCHAR(255),
 
     amount NUMERIC(12, 2) NOT NULL
         CHECK (amount >= 0),
@@ -234,14 +234,14 @@ CREATE TABLE IF NOT EXISTS promo_code_redemptions (
 );
 
 
--- STRIPE WEBHOOK EVENTS
--- Stores received Stripe webhook events for auditing and
+-- Payment provider WEBHOOK EVENTS
+-- Stores received payment provider webhook events for auditing and
 -- idempotent event processing.
-CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+CREATE TABLE IF NOT EXISTS payment_provider_webhook_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     
-    stripe_event_id VARCHAR(255) NOT NULL UNIQUE,
+    payment_provider_event_id VARCHAR(255) NOT NULL UNIQUE,
 
     event_type VARCHAR(100) NOT NULL,
 
