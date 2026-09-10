@@ -118,6 +118,115 @@ def test_direct_page_rejects_product_below_mapping_threshold():
         raise AssertionError("unmatched mapped product was accepted")
 
 
+def test_microdata_product_is_parsed_when_no_jsonld_is_present():
+    """
+    Real fallback for the case this session's live validation actually
+    found: a site publishing schema.org Product/review data as HTML
+    microdata instead of JSON-LD (the documented pattern behind
+    Bazaarvoice's BVSEO-style fallback markup). Same price/rating/review
+    parsing logic as the JSON-LD path - only the serialization differs.
+    """
+    html = """
+    <div itemscope itemtype="http://schema.org/Product">
+      <span itemprop="name">Trail Shoe</span>
+      <span itemprop="sku">SKU-1</span>
+      <div itemprop="offers" itemscope itemtype="http://schema.org/Offer">
+        <span itemprop="price">89.50</span>
+        <span itemprop="priceCurrency">USD</span>
+      </div>
+      <div itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating">
+        <span itemprop="ratingValue">90</span>
+        <span itemprop="bestRating">100</span>
+        <span itemprop="worstRating">0</span>
+        <span itemprop="reviewCount">2</span>
+      </div>
+      <div itemprop="review" itemscope itemtype="http://schema.org/Review">
+        <span itemprop="reviewBody">Great grip on wet trails</span>
+      </div>
+    </div>
+    """
+    item = list(spider().parse_structured(response(TARGET["product_url"], html), TARGET))[0]
+    assert item["price_amount"] == 89.5
+    assert item["currency"] == "USD"
+    assert item["match_method"] == "EXACT_SKU"
+    assert item["rating"] == 4.5  # rescaled from the 100-point microdata scale, same as the JSON-LD path
+    assert item["reviews"][0]["review_text"] == "Great grip on wet trails"
+
+
+def test_jsonld_is_preferred_over_microdata_when_both_are_present():
+    document = {"@type": "Product", "name": "Trail Shoe", "sku": "SKU-1", "offers": {"price": "89.50", "priceCurrency": "USD"}}
+    html = (
+        f'<script type="application/ld+json">{json.dumps(document)}</script>'
+        '<div itemscope itemtype="http://schema.org/Product">'
+        '<span itemprop="name">Trail Shoe</span>'
+        '<span itemprop="sku">SKU-1</span>'
+        '<div itemprop="offers" itemscope itemtype="http://schema.org/Offer">'
+        '<span itemprop="price">999.00</span></div></div>'
+    )
+    item = list(spider().parse_structured(response(TARGET["product_url"], html), TARGET))[0]
+    assert item["price_amount"] == 89.5  # the JSON-LD price, not microdata's
+
+
+def test_widget_reviews_are_used_when_no_structured_review_data_exists():
+    """
+    The genuinely hard case this session diagnosed live on SparkFun: a
+    JS-rendered review widget with no schema.org markup at all - neither
+    JSON-LD nor microdata has anything, only plain rendered HTML. Only
+    usable with real, reviewed selectors for this exact source
+    (never a guessed vendor-wide selector).
+    """
+    document = {"@type": "Product", "name": "Trail Shoe", "sku": "SKU-1", "offers": {"price": "89.50", "priceCurrency": "USD"}}
+    html = (
+        f'<script type="application/ld+json">{json.dumps(document)}</script>'
+        '<div class="widget-review">'
+        '<span class="widget-review-body">Held up great on rocky trails</span>'
+        '<span class="widget-review-author">J. Runner</span>'
+        '<span class="widget-review-stars">4.5</span>'
+        '</div>'
+        '<div class="widget-review">'
+        '<span class="widget-review-body">Runs a half size small</span>'
+        '<span class="widget-review-author">K. Hiker</span>'
+        '<span class="widget-review-stars">3.5</span>'
+        '</div>'
+    )
+    selectors = {
+        "widget_review_container": ".widget-review",
+        "widget_review_text": ".widget-review-body::text",
+        "widget_reviewer_name": ".widget-review-author::text",
+        "widget_review_rating": ".widget-review-stars::text",
+    }
+    item = list(spider(collector_config={"selectors": selectors}).parse_structured(response(TARGET["product_url"], html), TARGET))[0]
+    assert len(item["reviews"]) == 2
+    assert item["reviews"][0]["review_text"] == "Held up great on rocky trails"
+    assert item["reviews"][0]["reviewer_name"] == "J. Runner"
+    assert item["reviews"][0]["review_rating"] == 4.5
+
+
+def test_widget_reviews_are_not_used_when_structured_reviews_already_exist():
+    document = {
+        "@type": "Product", "name": "Trail Shoe", "sku": "SKU-1", "offers": {"price": "89.50", "priceCurrency": "USD"},
+        "review": [{"reviewBody": "From JSON-LD"}],
+    }
+    html = (
+        f'<script type="application/ld+json">{json.dumps(document)}</script>'
+        '<div class="widget-review"><span class="widget-review-body">Should be ignored</span></div>'
+    )
+    selectors = {"widget_review_container": ".widget-review", "widget_review_text": ".widget-review-body::text"}
+    item = list(spider(collector_config={"selectors": selectors}).parse_structured(response(TARGET["product_url"], html), TARGET))[0]
+    assert len(item["reviews"]) == 1
+    assert item["reviews"][0]["review_text"] == "From JSON-LD"
+
+
+def test_widget_reviews_return_empty_when_selectors_are_not_configured():
+    document = {"@type": "Product", "name": "Trail Shoe", "sku": "SKU-1", "offers": {"price": "89.50", "priceCurrency": "USD"}}
+    html = (
+        f'<script type="application/ld+json">{json.dumps(document)}</script>'
+        '<div class="widget-review"><span class="widget-review-body">Never picked up - no selectors configured</span></div>'
+    )
+    item = list(spider().parse_structured(response(TARGET["product_url"], html), TARGET))[0]
+    assert item["reviews"] == []
+
+
 def test_source_and_targets_must_share_reviewed_host():
     bad = dict(TARGET, product_url="https://evil.example/item")
     try:

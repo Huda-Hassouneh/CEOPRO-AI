@@ -33,8 +33,10 @@ The repository's approved development target is `https://books.toscrape.com/`. T
    database. This exists for development and smoke testing, not competitor production collection.
 
 A real competitor gets its own source-specific spider. Selectors are not shared across unrelated
-sites; a giant conditional mega-spider would be neither reliable nor maintainable. Two official-API
-collectors exist alongside the general-purpose `standards`/`MarketSourceSpider` collector:
+sites; a giant conditional mega-spider would be neither reliable nor maintainable. Four
+API/paid-provider collectors exist alongside the general-purpose `standards`/`MarketSourceSpider`
+collector (which, being schema.org/JSON-LD-based, also covers most conventional retailer sites —
+Ikea included — without a bespoke spider):
 
 - **`google_places`** (`spiders/google_places.py`) — official Google Places API (Find Place →
   Details), reviews only. Places has no price to report, so every record it yields has
@@ -45,11 +47,204 @@ collectors exist alongside the general-purpose `standards`/`MarketSourceSpider` 
 - **`amazon_paapi`** (`spiders/amazon_paapi.py`) — official Amazon Product Advertising API v5,
   exact-ASIN price/availability. AWS Signature Version 4 request signing is implemented with
   stdlib `hmac`/`hashlib` only, no extra dependency.
+- **`digikey_api`** (`spiders/digikey_api.py`) — official Digi-Key Product Information API v4,
+  exact-part-number price/availability. OAuth2 client-credentials token exchange, real endpoint/
+  header names confirmed from Digi-Key's own published docs. **Flagged, not silently hidden**: the
+  exact JSON response *field names* (`UnitPrice`, `QuantityAvailable`, etc.) are this module's
+  best-effort reading of public documentation, not confirmed against a real authenticated call — no
+  credentials are configured in this environment. `_field()`'s multi-candidate-key lookup degrades
+  safely if a guess is wrong; `collector_config["field_overrides"]` corrects it without a code
+  change. `collector_config["use_sandbox"] = True` points at Digi-Key's real sandbox
+  (`sandbox-api.digikey.com`) — free self-registration at developer.digikey.com, no production-app
+  approval gate, and Digi-Key's own docs confirm the response *structure* matches production (fake
+  data, real field names) — the actual way to verify the guesses above before trusting this with
+  real spend, without needing production credentials. `scripts/live_credential_smoke_tests.py`'s
+  `DIGIKEY_USE_SANDBOX=1` env var drives this.
+- **`mouser_api`** (`spiders/mouser_api.py`) — official Mouser Search API v1, exact-part-number
+  price/availability. Single API-key auth (query string, no OAuth) — real endpoint/request-shape
+  confirmed from Mouser's own docs. Same flagged field-name caveat as `digikey_api` above; price is
+  parsed via `parsing.py::parse_price()` since Mouser documents it as a currency-symbol string
+  (e.g. `"$0.4700"`), not a bare number.
+- **`social_data_provider`** (`spiders/social_data_provider.py`) — Instagram/Facebook/TikTok have no
+  public API for competitor data and their ToS prohibits direct automated collection, so this repo
+  never scrapes them itself (`social_cross_reference.py` is the free, ToS-compliant alternative for
+  finding *mentions* of a competitor via Google's own index). This collector instead wraps a paid
+  third-party provider's REST API, modeled on Apify's Actor API
+  (`run-sync-get-dataset-items`) — one maintained actor per platform, defaulting to Apify's own
+  published actors (`apify~instagram-scraper`, `apify~tiktok-scraper`,
+  `apify~facebook-pages-scraper` — the REST API requires the owner/actor-name separator to be `~`,
+  not the `/` shown on the actor's store page; `_first_present()`'s candidate field names — `diggCount` for
+  TikTok's like-count convention alongside `likesCount`/`like_count` — already anticipate these
+  actors' real output shape, not a hypothetical one), overridable per source via
+  `collector_config["actor_ids"]` for a different actor entirely. It only ever talks to the
+  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly — Apify (or
+  whichever provider) is the one taking on the operational scraping, same category as
+  `scrape_creators` below, not this codebase doing it itself. Two-stage
+  collection: one call per competitor profile returns posts with their own like/share/comment-count
+  aggregates, then (`collector_config["fetch_comments"]`, default on) one further call per post
+  fetches the actual comment list — real text, author, and per-comment like/reply counts, landing in
+  `reviews.like_count`/`reply_count` and `market_observations.like_count`/`share_count`
+  (`20260906010000_add_engagement_metrics_columns.sql`). Comments are a second, separately-billed
+  provider call on top of the posts call — disable `fetch_comments` for the cheaper posts-only mode.
+- **`scrape_creators`** (`spiders/scrape_creators.py`) — **the primary, active social provider for
+  this deployment** (see "Vendor policy" below). [ScrapeCreators](https://docs.scrapecreators.com)
+  is a plain REST API (`x-api-key` header, cursor-based pagination via `cursor`/`has_next_page`),
+  not an actor-run platform like Apify. Confirmed live against a real Facebook comments payload
+  (2026-09-06): billing is **per call**, not per row returned — one request that returned 10
+  comments charged exactly 1 credit — which makes deep comment-thread mining (the actual product
+  goal: hidden negative sentiment, complaint themes) far cheaper than a per-row-billed provider once
+  a thread runs long. Each target's `competitor_product_url` is treated as a specific post/video URL
+  to monitor in depth, not a profile to browse. Instagram/TikTok endpoint paths exist in
+  ScrapeCreators' own docs but their exact response field names aren't independently confirmed the
+  way Facebook's is — `collector_config["endpoints"]`/`["field_overrides"]` correct that
+  per-platform without a code change once checked.
 
-Both require API credentials, supplied per-source via `data_sources.connection_credentials_vault`
-(a JSON object — `{"api_key": ...}` for Places, `{"access_key", "secret_key", "partner_tag"}` for
-PA-API) and passed through by `cli.py` as `credentials_json`. That column is a plain `TEXT` field
-with no secrets-manager integration behind it yet — see `PENDING_ACTIONS.md` #42.
+  **Full-thread capture is the default** — product requirement: a truncated thread can hide exactly
+  the negative-sentiment comments that matter most. `collector_config["max_comment_pages"]` and
+  `["max_credits_per_post"]` both default to `None` (no limit) — pagination for a post runs until
+  the provider itself reports `has_next_page: false`, however long the thread actually is. The only
+  default ceiling is `["max_credits_per_run"]` (`5000` credits across one whole crawl, roughly $9-10
+  at the confirmed Facebook rate) — a circuit breaker against a genuine anomaly (a bug causing a
+  runaway request loop, or an entire batch of tracked posts going viral in the same run
+  simultaneously), never a data-completeness limit; every response's own real `credits_charged` is
+  what's tracked against it, never an estimate. Every real thread should fit comfortably under that
+  default in normal operation — set any of the three explicitly (`max_credits_per_run` included, to
+  `None`) to change or remove it entirely.
+
+All four require credentials, supplied per-source via `data_sources.connection_credentials_vault`
+(a JSON object — `{"api_key": ...}` for Places and for ScrapeCreators, `{"access_key",
+"secret_key", "partner_tag"}` for PA-API, `{"api_token": ...}` for the Apify-shaped social
+provider) and passed through by `cli.py` as `credentials_json`. That column is a plain `TEXT`
+field with no secrets-manager integration behind it yet — see `PENDING_ACTIONS.md` #42.
+
+## Vendor policy for social collection
+
+**Revised 2026-09-07**: `social_data_provider` (Apify-shaped) is now the **primary, active**
+social-data vendor — a deliberate choice for the testing phase, since Apify's free starter tier
+($5/month credit) fits budget better than ScrapeCreators' pay-per-call model while validating the
+pipeline. This reverses the vendor's earlier active/inactive roles (documented below for history);
+nothing about *how* either collector works changed, only which one is provisioned with real
+credentials. `scrape_creators` stays fully registered and tested — same "cold, ready-to-activate"
+relationship Apify previously had — since a future volume/cost profile could make its per-call
+billing the better fit again, and switching back is a credentials/config change, never a code one:
+both collectors share the same constructor contract and yield the same item shape.
+
+Setting this up for a real tenant — `register-source` creates the policy decision,
+`set-credentials` writes the actual token (the real replacement for a raw SQL `UPDATE`, the only
+way this was previously done):
+
+```bash
+# Primary: Apify (social_data_provider), active
+python -m src.market_scraper.policy_cli register-source \
+  --tenant-id TENANT_UUID --source-id SOURCE_UUID \
+  --source-url https://api.apify.com --official-api-url https://api.apify.com \
+  --terms-permit yes --technical-controls-permit yes \
+  --collector social_data_provider \
+  --approval-reference VENDOR-CONTRACT-REF --approved-by REVIEWER_USER_UUID --retention-days 30
+
+python -m src.market_scraper.policy_cli set-credentials \
+  --tenant-id TENANT_UUID --source-id SOURCE_UUID \
+  --credentials-file /path/to/apify-token.json   # {"api_token": "<real Apify token>"}
+  # or --credentials '{"api_token": "..."}' inline (lands in shell history - prefer the file form)
+```
+
+`register-source` only ever creates the *policy* row (`data_sources` itself must already exist,
+created by this platform's own onboarding flow, before this runs) — it never writes credentials,
+which is exactly why `set-credentials` exists as a separate step rather than one more flag on the
+same command.
+
+ScrapeCreators' source row, if created at all ahead of time, is left with `connection_credentials_vault`
+empty/unset and never approved — it exists in the vault as configuration, not as a running collector,
+mirroring how Apify's row was described here before this revision.
+
+## Industry-agnostic discovery orchestration
+
+`tenant_discovery.py::discover_competitors_for_tenant(conn, tenant_id, actor_user_id)` is the
+out-of-the-box entry point for "any company, any industry" competitor discovery — nothing about it
+is specific to electronics or any single vertical:
+
+1. Loads the tenant's own active product catalog (`products.product_name`).
+2. `sector_detection.py::detect_vertical()` reads that catalog and infers a business vertical from
+   keyword frequency (electronics/food_beverage/apparel_fashion/home_furniture, or the honest
+   `general_retail` fallback when nothing matches confidently) — used only to decide whether the free
+   `RETAILER_DOMAINS_BY_VERTICAL` path (below) also applies; it never gates whether discovery runs.
+3. `web_product_discovery.py::discover_product_candidates()` — one real Google Custom Search JSON
+   API call per product, built from `sector_detection.py::build_retail_search_query()`. This is the
+   actual industry-agnostic path: it runs identically for a coffee machine, a sofa, or a resistor.
+   Same free-tier setup as `social_cross_reference.py` (100 queries/day): export
+   `GOOGLE_CUSTOM_SEARCH_API_KEY` / `GOOGLE_CUSTOM_SEARCH_CX`. Missing credentials, an API error, or
+   genuinely no results all return `[]` — never a fabricated candidate. Three real mitigations for the
+   100/day cap, all wired in by default whenever `conn` is passed (as `tenant_discovery.py` already
+   does):
+   - **Cache** (`search_cache.py`, `web_search_cache` table, 7-day default TTL, deliberately **not**
+     tenant-scoped — identical searches across different tenants share one cache entry, since "what
+     URLs does Google return for this text" is public search-index metadata, not tenant data) skips
+     the live call entirely on a hit. Only a genuine Google response (including a real zero-result
+     answer) is cached — a failed/errored call never is, so a temporary quota exhaustion doesn't get
+     baked in as false "no results" for the cache's whole TTL.
+   - **Quota pacer** (`search_quota.py`, `search_quota_usage` table, `daily_query_limit` — default
+     `100`, Google's real free-tier cap) — the actual zero-dollar answer for a catalog too large to
+     fit in one day's free budget. Checked *before* every real call, never after: once today's tracked
+     count hits the limit, the live call is skipped for the rest of the day rather than risking an
+     accidental paid overage. Pairs with `tenant_discovery.py`'s `skip_already_discovered` default
+     (below) — a daily cron re-running the identical call each day naturally makes free, incremental
+     progress on whatever wasn't reached yesterday, with no separate resume/queue tracking needed.
+     This — not the fallback below — is the real lever for "the quota isn't enough for a large
+     catalog"; deliberately not SearXNG, which needs a real running instance (self-hosted, it competes
+     for RAM on the same box; a public one risks hammering someone else's free community resource with
+     a whole catalog's worth of queries, which many disable their JSON API by default to prevent).
+   - **SearXNG fallback** (`searxng_discovery.py`, `SEARXNG_INSTANCE_URL`) stays wired in as a genuine
+     resilience fallback for a real Google outage/error — not the primary volume strategy, for the
+     reason above. Raw HTML scraping of Bing/DuckDuckGo's own result pages was considered and
+     deliberately excluded — see `searxng_discovery.py`'s own docstring for why (same ToS-avoidance
+     precedent `social_cross_reference.py` already set for Google's result pages).
+4. `direct_search.py::search_product_across_retailers()` layers in for free, zero-API-cost, but only
+   contributes candidates for a vertical that already has a hand-seeded `RETAILER_DOMAINS_BY_VERTICAL`
+   entry (today: `electronics_hobbyist` only, seeded and live-verified during this codebase's own
+   validation run — see `direct_search.py`'s docstring for the full verification record). An
+   optimization on top of step 3, never a substitute: a tenant in any other vertical still gets full
+   coverage from the Custom Search path alone.
+5. Every candidate from either path goes through the same `discovery.py::evaluate_candidate()` /
+   `register_tenant_scoped_competitor()` used everywhere else in this module — unchanged, already
+   fully generic.
+
+Nothing here auto-approves collection. `register_tenant_scoped_competitor()` only ever sets
+`approval_reference`/`approved_by` when real, quotable terms evidence is supplied, and a fully
+automated discovery run never has any — `policy.py::evaluate_source()`'s own decision table
+(`terms_permit_collection is None` is checked before every `ALLOWED` branch) guarantees every
+auto-discovered candidate lands as `BLOCKED` or `RESTRICTED`, never `ALLOWED`, regardless of whether
+its robots.txt fetch even succeeds. Discovery finds and records candidates; a human still has to
+review and approve each one (the existing `cli.py` gate) before any collection actually runs.
+
+## Architecture C: family-keyed discovery + the 3-tier intelligence gate
+
+The real scaling requirement agreed earlier this session: adding another customer must not multiply
+scraping cost the way SKU count does (a catalog of "1 Ohm resistor, 2 Ohm resistor, ..." should not
+cost N searches for N variants).
+
+- **`product_families.py::select_family_representatives()`** groups a tenant's catalog by
+  `family_key()` — a generic (not vertical-specific) heuristic stripping bare numbers and
+  measurement-unit/size words, so "1k Ohm Resistor"/"2k Ohm Resistor" and "T-Shirt Small"/
+  "T-Shirt Large" land in the same family. `tenant_discovery.py::discover_competitors_for_tenant()`
+  (`group_by_family=True` by default) searches **once per family**, using a real, sales-volume-
+  selected representative (`transactions.quantity_sold`; honestly falls back to alphabetical-first
+  when no sales data exists — never silently disguised as volume-based) — then applies whatever's
+  found to **every real SKU** in that family via `register_tenant_scoped_competitor()`, so
+  `competitor_product_mappings` coverage is still per-SKU, just without a redundant re-search per SKU.
+- **`skip_already_discovered`** (default `True`) excludes a product that already has at least one
+  `competitor_product_mappings` row before family-grouping even runs — the actual mechanism behind
+  "the daily quota isn't enough for the whole catalog in one run": once `search_quota.py`'s budget
+  (above) is spent partway through a large catalog, the identical call re-run tomorrow (e.g. a daily
+  cron) naturally skips everything already covered and makes free, incremental progress on the rest —
+  no separate resume-index or queue to build.
+- **`tenant_competitors.tier`** (`CANDIDATE` / `RELEVANT` / `STRATEGIC`, migration
+  `20260907010000`) is computed and persisted by `competitor_classification.py::classify_competitor()`:
+  `CANDIDATE` (excluded — a manufacturer, or out of region), `RELEVANT` (passed those checks, below
+  the product-overlap threshold — the same as before this existed, `is_confirmed_competitor = FALSE`),
+  `STRATEGIC` (passed all three — `is_confirmed_competitor = TRUE`). `product_families.py::
+  recommended_collector_config(tier)` is the real point: only `STRATEGIC` gets `fetch_comments: True`
+  recommended — the expensive paid-provider comment/review depth is never spent on a competitor that
+  hasn't cleared the real bar, while `RELEVANT` still gets tracked and price-compared.
 
 ## Where competitor URLs and product matching come from
 
@@ -63,6 +258,61 @@ page allocated to a tenant product comes from
 Every extracted product is checked in `spiders/market_source.py`: exact external SKU wins with score
 `1.0`; otherwise the extracted name must reach fuzzy similarity `0.82`. `pipelines.py` independently
 enforces the recorded method and score before persistence.
+
+## Review-widget fallback (Trustpilot/Bazaarvoice/Yotpo-style)
+
+Live validation this session (real SparkFun/ImpactBattery pages) found reviews aren't always in a
+page's JSON-LD - some retailers publish them a different standard way, and some hide them behind a
+client-rendered widget with no structured markup at all. `spiders/market_source.py` tries three
+layers, in order, stopping at the first that finds anything:
+
+1. **JSON-LD** (`parse_structured`'s original path) - `<script type="application/ld+json">`.
+2. **Microdata** (`_extract_microdata_products`, via `extruct`) - the same schema.org vocabulary,
+   published as `itemscope`/`itemprop` HTML attributes instead of JSON-LD - a real, documented
+   alternative serialization some review-widget SEO integrations (e.g. Bazaarvoice's BVSEO fallback
+   markup) use specifically so search engines can index review content a browser only renders via JS.
+   Only tried when JSON-LD found nothing, so a normal JSON-LD page pays no extra parse cost.
+3. **Widget CSS selectors** (`_widget_reviews`) - last resort, for a widget that renders plain HTML
+   with no schema.org markup at all. Requires two things: `render_javascript=True` on the source (so
+   `response` is the widget's own post-JS-render DOM, not the pre-render HTML a plain fetch would
+   see - already a supported flag via `scrapy-playwright`), and real, reviewed
+   `widget_review_container`/`widget_review_text`/`widget_reviewer_name`/`widget_review_rating`/
+   `widget_review_date` CSS selectors in that source's `collector_config["selectors"]`. Never a
+   guessed vendor-wide selector - same "source-reviewed, not invented" discipline as every other
+   selector in this codebase; `widget_review_rating` is read as a bare number, not rescaled the way
+   a JSON-LD `aggregateRating` is, since a CSS-extracted value has no `bestRating`/`worstRating` to
+   read.
+
+`scripts/live_widget_diagnostic.py <product_url>` renders a real page (headless Chromium via
+`playwright`), runs layers 1-2 for real, and - only if both come back empty - scans the rendered DOM
+for known review-widget vendor signatures and prints the real surrounding HTML, so the actual
+selectors layer 3 needs can be read off real markup rather than guessed. Run it locally (this
+sandbox's own network egress can't reach third-party sites); its output is what tells you which
+selectors to configure for a given source, not something this codebase invents on its own.
+
+## Real-competitor classification
+
+Discovery (`discovery.py::register_tenant_scoped_competitor`) records every seller found for a
+matched product — useful as an audit trail — but not every seller found that way is actually a
+competitor. `src/ai/pricing/competitor_classification.py::classify_competitor()` runs immediately
+after registration (and can be re-run any time a tenant's catalog/mappings grow) and gates
+`tenant_competitors.is_tracked` — the flag `data_access.py::load_scrape_targets()` requires — on
+three checks:
+
+1. **Not a manufacturer/wholesaler.** `discovery.py::looks_like_manufacturer_or_wholesale()`
+   (domain-matches-brand or a wholesale/distributor/OEM signal word) is persisted as
+   `global_competitors.is_manufacturer`; a manufacturer's own store is excluded regardless of
+   product overlap.
+2. **In the tenant's operating region.** `global_competitors.country_code` is compared against
+   `companies.country_code`/`operating_countries`; an unknown competitor country is not excluded
+   (no evidence either way), but a known out-of-region one is.
+3. **Product overlap meets a configurable threshold.** `product_match_rate` = (this tenant's active
+   products this competitor also has an active mapping to) / (this tenant's total active products).
+   Only `>= threshold` (default `0.5`, i.e. 50%, passed as a parameter — not hardcoded) confirms a
+   real competitor.
+
+`tenant_competitors.product_match_rate`/`is_confirmed_competitor`/`classified_at` record the result
+of the most recent classification.
 
 ## Collection policy
 
@@ -141,7 +391,7 @@ migration superuser. Configure `REDIS_URL` as shown in `.env.example`.
 A web source can only become `ALLOWED` after explicit terms and technical-control review:
 
 ```bash
-python -m src.market_scraper.policy_cli \
+python -m src.market_scraper.policy_cli register-source \
   --tenant-id TENANT_UUID \
   --source-id SOURCE_UUID \
   --source-url https://books.toscrape.com/ \
@@ -156,9 +406,12 @@ python -m src.market_scraper.policy_cli \
 
 If an official API or RSS URL is supplied, the engine selects it before scraping. API/RSS sources
 must be handled by their corresponding collector rather than being forced through Scrapy. Pass
-`--collector google_places` or `--collector amazon_paapi` (in addition to the existing `standards`/
-`books_to_scrape`) to pick one of the two API collectors explicitly, and populate that source's
-`connection_credentials_vault` with its required credentials before running a collection.
+`--collector google_places`, `--collector amazon_paapi`, `--collector digikey_api`,
+`--collector mouser_api`, `--collector social_data_provider`, or `--collector scrape_creators` (in
+addition to the existing `standards`/`books_to_scrape`) to pick one of the API/paid-provider
+collectors explicitly, then populate that source's credentials with
+`policy_cli.py set-credentials` (see "Vendor policy for social collection" above) before running a
+collection.
 
 Each `competitor_product_mappings` row scheduled for collection must reference the reviewed
 `source_id` and contain an approved `competitor_product_url`.
@@ -235,11 +488,40 @@ RUN_MARKET_LIVE_TESTS=1 \
 The tests cover parsing, policy ordering and deny-by-default behavior, URL safety, mapped tenant
 lineage, validation, deduplication, PostgreSQL pipeline lifecycle, and Redis event validation.
 
+## Live validation scripts (`scripts/`)
+
+Every unit test above runs against a fixture, not a live vendor - real field-name/response-shape
+correctness for a paid or official API can only be confirmed with real credentials, which no
+environment this codebase has been developed in has ever had configured. These scripts are how that
+gets checked, for real, without ever fabricating a "pass":
+
+- **`live_credential_smoke_tests.py`** - runs ONE real API call per paid/official collector
+  (ScrapeCreators, Apify, Amazon PA-API, Digi-Key, Mouser) through that collector's own real
+  production code (`_initial_requests()` builds the real request, the real `parse_*` callback parses
+  whatever comes back) - not a reimplementation. Reads real credentials from environment variables
+  (see the script's own docstring for the exact names) and SKIPS - never fakes a result for - any
+  vendor whose credentials aren't set.
+- **`live_verify_retailer_domains.py`** / **`live_verify_sitemap_domains.py`** - grow
+  `RETAILER_DOMAINS_BY_VERTICAL`/`SITEMAP_DOMAINS_BY_VERTICAL` only with domains actually confirmed
+  live (robots.txt + a real SearchAction or sitemap), never a guessed well-known name.
+- **`live_widget_diagnostic.py`** - renders a real product page with a real headless browser and
+  prints real widget markup so `widget_review_*` selectors can be read off it, never guessed.
+- **`live_verify_ikea_product_data.py`** - audits whether the generic `standards` collector actually
+  finds price/rating/review data on a real Ikea product page (no dedicated Ikea spider exists, and
+  Ikea isn't in any seed list - this is the real check before assuming it works). Amazon is
+  deliberately not included here: the official `amazon_paapi` collector is the real path for Amazon,
+  smoke-tested above with real credentials, not generic scraping.
+
+All of these need real outbound internet and/or real credentials - this repository's own CI and
+development sandboxes have neither, which is exactly why these are scripts to run in an environment
+that does, not something bundled into the always-on test suite above.
+
 ## Adding another source
 
 1. Confirm authorization and run the policy review.
-2. Prefer an API/feed/structured-data collector when available. Google Places and Amazon PA-API
-   already have dedicated collectors (`google_places`, `amazon_paapi`) — just supply credentials via
+2. Prefer an API/feed/structured-data collector when available. Google Places, Amazon PA-API,
+   Digi-Key, and Mouser already have dedicated collectors (`google_places`, `amazon_paapi`,
+   `digikey_api`, `mouser_api`) — just supply credentials via
    `connection_credentials_vault`, no new code needed.
 3. If web collection is the approved fallback, prefer JSON-LD. Otherwise store reviewed CSS
    selectors under `data_sources.collector_config.selectors` (`product_name` and `price` are the
