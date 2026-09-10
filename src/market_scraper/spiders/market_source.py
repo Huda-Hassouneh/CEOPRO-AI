@@ -5,6 +5,7 @@ import json
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
+import extruct
 import scrapy
 
 from src.ai.pricing.matching import similarity
@@ -16,6 +17,15 @@ MAX_PAGE_TEXT_LENGTH = 50_000
 HTML_SELECTOR_KEYS = {
     "product_name", "price", "currency", "category", "description",
     "availability", "image_url", "external_id", "rating", "review_count", "page_text",
+    # Widget-review fallback (see MarketSourceSpider._widget_reviews) - only
+    # reached when neither JSON-LD nor microdata produced any reviews.
+    # widget_review_container selects each individual review's root element;
+    # the other four are CSS selectors RELATIVE to that container, matching
+    # a real reviewed widget's DOM on this specific source - never a
+    # guessed vendor-wide selector, same "source-reviewed, not invented"
+    # discipline as every other key in this set.
+    "widget_review_container", "widget_review_text", "widget_reviewer_name",
+    "widget_review_rating", "widget_review_date",
 }
 
 
@@ -34,6 +44,60 @@ def _first(value, *keys):
         if isinstance(value, dict) and value.get(key) not in (None, ""):
             return value[key]
     return None
+
+
+def _microdata_node_to_jsonld_shape(node):
+    """
+    extruct's microdata items come back as {"type": "http://schema.org/X",
+    "properties": {...}} - not the flat {"@type": "X", ...} shape every
+    parser in this file (_is_product, _first, _record, _reviews,
+    _normalize_rating) already expects from JSON-LD. Converts recursively
+    (a microdata item's own property can itself be a nested itemscope,
+    same as JSON-LD nesting) so the SAME parsing logic runs unchanged
+    against microdata - this is a shape adapter, not a second parser.
+    """
+    if not isinstance(node, dict):
+        return node
+    type_uri = node.get("type") or ""
+    type_name = type_uri.rsplit("/", 1)[-1] if type_uri else None
+    converted = {"@type": type_name} if type_name else {}
+    for key, value in (node.get("properties") or {}).items():
+        if isinstance(value, dict):
+            converted[key] = _microdata_node_to_jsonld_shape(value)
+        elif isinstance(value, list):
+            converted[key] = [_microdata_node_to_jsonld_shape(v) for v in value]
+        else:
+            converted[key] = value
+    return converted
+
+
+def _extract_microdata_products(html_text):
+    """
+    Real fallback for a page that publishes schema.org Product markup as
+    HTML microdata (itemscope/itemprop attributes) instead of, or in
+    addition to, JSON-LD - a real, documented alternative schema.org
+    serialization some review-widget SEO integrations (e.g. Bazaarvoice's
+    "BVSEO" fallback markup) use specifically so search engines can index
+    review content that otherwise only renders via client-side JS. extruct
+    (github.com/scrapinghub/extruct) does the actual microdata parsing;
+    this only walks its output and converts matching Product nodes to the
+    shape the rest of this file's real parsing logic already expects.
+
+    Returns [] on any parse failure (malformed HTML extruct can't handle)
+    - never raises, matching parse_structured()'s existing degrade-to-
+    HTML-selectors-then-error behavior when nothing structured is found.
+    """
+    try:
+        data = extruct.extract(html_text, syntaxes=["microdata"], errors="log")
+    except Exception:
+        return []
+    return [
+        converted
+        for raw_node in _walk_json(data.get("microdata") or [])
+        if isinstance(raw_node, dict) and "properties" in raw_node
+        for converted in [_microdata_node_to_jsonld_shape(raw_node)]
+        if MarketSourceSpider._is_product(converted)
+    ]
 
 
 class MarketSourceSpider(scrapy.Spider):
@@ -134,14 +198,22 @@ class MarketSourceSpider(scrapy.Spider):
                 self.logger.warning("invalid JSON-LD ignored at %s", response.url)
                 continue
             products.extend(node for node in _walk_json(document) if self._is_product(node))
+        if not products:
+            # Real fallback, not a guess: some sites (notably review-widget
+            # SEO integrations like Bazaarvoice's BVSEO markup) publish
+            # schema.org data as HTML microdata instead of JSON-LD - same
+            # standard, different serialization. Only tried when JSON-LD
+            # found nothing, so a page with real JSON-LD never pays the
+            # extra parse cost.
+            products.extend(_extract_microdata_products(response.text))
         if not products and self.selectors:
             products.append(self._html_product(response))
         if not products:
-            raise ValueError(f"no Product JSON-LD or reviewed HTML selectors found at {response.url}")
+            raise ValueError(f"no Product JSON-LD, microdata, or reviewed HTML selectors found at {response.url}")
         for product in products:
             matched_context = self._verify_context(product, context)
             if matched_context:
-                yield self._record(product, matched_context, response.url)
+                yield self._record(product, matched_context, response.url, response=response)
                 return
         raise ValueError(f"collected product did not meet the {MATCH_THRESHOLD:.2f} mapping threshold")
 
@@ -193,7 +265,7 @@ class MarketSourceSpider(scrapy.Spider):
             return None
         return {**target, "match_score": score, "match_method": "FUZZY_NAME"}
 
-    def _record(self, product, context, fallback_url):
+    def _record(self, product, context, fallback_url, response=None):
         offers = _first(product, "offers") or {}
         if isinstance(offers, list):
             offers = offers[0] if offers else {}
@@ -206,6 +278,16 @@ class MarketSourceSpider(scrapy.Spider):
             currency = currency or parsed_currency
         aggregate = _first(product, "aggregateRating") or {}
         reviews = self._reviews(_first(product, "review", "reviews"), context)
+        if not reviews and response is not None:
+            # Neither JSON-LD nor microdata had review content - the real
+            # remaining case a review-widget (Bazaarvoice/Yotpo/Trustpilot-
+            # style) that renders plain HTML with no schema.org markup at
+            # all produces. Only reachable when render_javascript=True
+            # already rendered the widget's JS into `response`'s DOM
+            # before parse_structured ran, and only when this source has
+            # real, reviewed widget_review_* selectors configured (never a
+            # guessed vendor selector - see _widget_reviews()'s docstring).
+            reviews = self._widget_reviews(response)
         captured_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         candidate_url = str(_first(product, "url") or fallback_url)
         page_text = (clean_text(str(_first(product, "page_text") or "")) or "")[:MAX_PAGE_TEXT_LENGTH]
@@ -266,6 +348,63 @@ class MarketSourceSpider(scrapy.Spider):
                 "reviewer_name": _first(author, "name") if isinstance(author, dict) else str(author),
                 "review_rating": review_rating,
                 "review_date": _first(review, "datePublished"),
+                "safety_status": "QUARANTINED" if safety_flags else "SAFE",
+                "safety_flags": safety_flags,
+            })
+        return records
+
+    def _widget_reviews(self, response):
+        """
+        Last-resort review fallback: a client-rendered review widget
+        (Bazaarvoice/Yotpo/Trustpilot-style) that renders plain HTML with
+        NO schema.org markup at all - neither JSON-LD nor microdata sees
+        anything, so there's no structured data to parse, only visible
+        DOM text. Only usable with real, reviewed CSS selectors for THIS
+        specific source's widget (self.selectors["widget_review_*"],
+        validated at __init__ exactly like every other selector in this
+        class) - this function never guesses a vendor's class names, and
+        returns [] the moment the required selectors aren't configured.
+
+        Requires the page to already be JS-rendered (render_javascript=
+        True on this source) - a plain HTTP fetch's DOM never has the
+        widget's content in it at all, selectors or not, since the
+        widget's whole point is rendering itself client-side after load.
+
+        Rating is parsed as a bare number (self._float_or_none), NOT
+        rescaled the way _normalize_rating() rescales a JSON-LD
+        aggregateRating - a CSS-extracted rating has no bestRating/
+        worstRating scale to read, so a widget using a non-5 scale here
+        needs that handled in how the selector's own text is written
+        (e.g. a selector that already yields "4.5" not "90"), not
+        something this function can infer automatically. A real,
+        stated limitation, not a silent wrong answer.
+        """
+        container_selector = self.selectors.get("widget_review_container")
+        text_selector = self.selectors.get("widget_review_text")
+        if not container_selector or not text_selector:
+            return []
+
+        records = []
+        for index, container in enumerate(response.css(container_selector)):
+            body = self._css_value(container, text_selector)
+            if not body:
+                continue
+            safety_flags = scan_external_text(body)
+            reviewer_name = None
+            if self.selectors.get("widget_reviewer_name"):
+                reviewer_name = self._css_value(container, self.selectors["widget_reviewer_name"])
+            review_rating = None
+            if self.selectors.get("widget_review_rating"):
+                review_rating = self._float_or_none(self._css_value(container, self.selectors["widget_review_rating"]))
+            review_date = None
+            if self.selectors.get("widget_review_date"):
+                review_date = self._css_value(container, self.selectors["widget_review_date"])
+            records.append({
+                "external_review_id": f"widget:{index}",
+                "review_text": body,
+                "reviewer_name": reviewer_name,
+                "review_rating": review_rating,
+                "review_date": review_date,
                 "safety_status": "QUARANTINED" if safety_flags else "SAFE",
                 "safety_flags": safety_flags,
             })

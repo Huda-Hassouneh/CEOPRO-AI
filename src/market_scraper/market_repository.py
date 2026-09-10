@@ -118,9 +118,10 @@ def save_market_record(conn, item: dict) -> dict:
             INSERT INTO market_observations
                 (tenant_id, source_id, job_id, mapping_id, product_name, category, description,
                  canonical_url, image_url, external_id, rating, review_count, stock_quantity,
+                 like_count, share_count,
                  match_score, match_method, page_text, safety_status, safety_flags,
                  content_hash, raw_payload, observed_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s)
             RETURNING observation_id;
             """,
@@ -128,7 +129,8 @@ def save_market_record(conn, item: dict) -> dict:
                 item["tenant_id"], item["source_id"], item["job_id"], item["mapping_id"],
                 item["product_name"], item.get("category"), item.get("description"), item["product_url"],
                 item.get("image_url"), item.get("external_id"), item.get("rating"), item.get("review_count"),
-                item.get("stock_quantity"), item["match_score"], item["match_method"],
+                item.get("stock_quantity"), item.get("like_count"), item.get("share_count"),
+                item["match_score"], item["match_method"],
                 item.get("page_text"), item.get("safety_status", "SAFE"),
                 json.dumps(item.get("safety_flags", [])), _content_hash(item),
                 json.dumps(
@@ -166,14 +168,16 @@ def _save_reviews(cursor, item: dict) -> list[str]:
             INSERT INTO reviews
                 (tenant_id, product_id, source_platform, reviewer_name, review_text, review_rating,
                  review_date, subject_type, competitor_id, source_status, collection_method,
-                 source_id, external_review_id, safety_status, safety_flags)
+                 source_id, external_review_id, safety_status, safety_flags, like_count, reply_count)
             VALUES (%s, NULL, %s, %s, %s, %s, COALESCE(%s::timestamptz, NOW()),
-                    'COMPETITOR', %s, 'ALLOWED', %s, %s, %s, %s, %s::jsonb)
+                    'COMPETITOR', %s, 'ALLOWED', %s, %s, %s, %s, %s::jsonb, %s, %s)
             ON CONFLICT (tenant_id, source_id, external_review_id)
                 WHERE source_id IS NOT NULL AND external_review_id IS NOT NULL
             DO UPDATE SET review_text = EXCLUDED.review_text,
                           review_rating = EXCLUDED.review_rating,
-                          review_date = EXCLUDED.review_date
+                          review_date = EXCLUDED.review_date,
+                          like_count = EXCLUDED.like_count,
+                          reply_count = EXCLUDED.reply_count
             RETURNING review_id;
             """,
             (
@@ -181,6 +185,7 @@ def _save_reviews(cursor, item: dict) -> list[str]:
                 review.get("review_rating"), review.get("review_date"), item["global_competitor_id"],
                 method, item["source_id"], review["external_review_id"],
                 review.get("safety_status", "SAFE"), json.dumps(review.get("safety_flags", [])),
+                review.get("like_count"), review.get("reply_count"),
             ),
         )
         review_ids.append(str(cursor.fetchone()[0]))

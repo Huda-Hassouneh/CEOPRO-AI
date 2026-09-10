@@ -30,6 +30,31 @@ already used by this pipeline:
     guessing a URL pattern that might silently point at the wrong page.
   - homedepot.com, rei.com: block simple bot requests outright (403) -
     also correctly zero candidates, not a bug to route around.
+  - makershed.com, dfrobot.com: live-verified 2026-09-07 (repo owner's own
+    machine, normal outbound internet - this sandbox's own egress policy
+    blocks direct requests to arbitrary third-party domains) - both
+    publish a real SearchAction and both robots.txt-allow the homepage
+    and the resulting search path. Added to RETAILER_DOMAINS_BY_VERTICAL
+    on that basis.
+  - Also tested 2026-09-07, NOT added (each for a real, verified reason,
+    not a guess): digikey.com and jameco.com (homepage fetch failed -
+    bot-block or network-level rejection); mouser.com, newark.com,
+    tinkersphere.com (robots.txt disallows the homepage outright, same
+    category as adafruit.com below); robotshop.com, microcenter.com
+    (robots.txt disallows specifically); seeedstudio.com, pololu.com,
+    electromaker.io (robots.txt allows, but no SearchAction published -
+    same category as pishop.us/wayfair.com above).
+  - adafruit.com: live-verified 2026-09-07 - homepage fetch itself
+    succeeds and it DOES publish a real SearchAction
+    (https://www.adafruit.com/search?g=1&q={q}), unlike pishop.us/
+    wayfair.com - but its robots.txt disallows both the homepage and the
+    search path for this bot's user-agent. _get_search_template_cached()
+    checks robots.txt on the homepage BEFORE fetching it, so in the real
+    collection path this domain is correctly never even fetched, not just
+    excluded at the search-path check. A deliberate site policy, honored
+    exactly as it should be - not a bug, and not a candidate for the
+    RETAILER_DOMAINS list under any circumstance that doesn't change that
+    robots.txt.
 
 Robots.txt is checked before EVERY fetch (the homepage fetch to read the
 SearchAction, and the search-results fetch itself) via discovery.py's own
@@ -37,11 +62,14 @@ _fetch_robots_allows - a domain whose robots.txt disallows either path is
 skipped, never overridden. This is the same "never fabricate permission"
 discipline every other part of discovery.py already follows.
 
-RETAILER_DOMAINS is seeded only with domains this session has actually
-live-verified as real and reachable - currently just electronics_hobbyist.
-Extending it to other verticals means live-verifying real domains for
-them first (the same process documented above), not guessing well-known
-retailer names into the dict.
+RETAILER_DOMAINS is seeded only with domains actually live-verified as
+real and reachable - currently just electronics_hobbyist. Extending it to
+other verticals, or growing this one further, means live-verifying real
+candidate domains first (the same process documented above, and the same
+script - see scripts/live_verify_retailer_domains.py), not guessing
+well-known retailer names into the dict. Most real candidates fail this
+check, as the record above shows (10 of 12 tested here) - that's the
+mechanism working as intended, not a shortfall to route around.
 """
 import json
 import re
@@ -54,11 +82,17 @@ from src.market_scraper.discovery import CandidateSource, _fetch_robots_allows
 _USER_AGENT = "CEOPRO-MarketResearchBot/1.0"
 _FETCH_TIMEOUT = 15
 
-# Only domains actually live-verified reachable by this pipeline (see this
-# module's own docstring for the verification date/method). Adding a
-# vertical here means live-verifying its domains first, not guessing them.
+# Only domains that actually pass live verification (real SearchAction +
+# robots.txt allows both the homepage and the search path) - see this
+# module's own docstring for the full verification record, passes and
+# fails alike. adafruit.com and pishop.us were tested and are correctly
+# NOT here: adafruit.com's robots.txt disallows this bot outright,
+# pishop.us publishes no SearchAction at all - both real, permanent
+# findings, not a temporary gap. Adding a vertical, or growing this one
+# further, means live-verifying real candidate domains first
+# (scripts/live_verify_retailer_domains.py), not guessing them in.
 RETAILER_DOMAINS_BY_VERTICAL = {
-    "electronics_hobbyist": ["www.sparkfun.com", "www.impactbattery.com", "www.adafruit.com", "www.pishop.us"],
+    "electronics_hobbyist": ["www.sparkfun.com", "www.impactbattery.com", "www.makershed.com", "www.dfrobot.com"],
 }
 
 

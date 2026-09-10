@@ -73,6 +73,34 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
     }
 
 
+def set_source_credentials(conn, tenant_id: str, source_id: str, credentials: dict) -> None:
+    """
+    Writes connection_credentials_vault - the real replacement for a raw
+    SQL UPDATE (the only way this was previously done). Same plain-JSON-
+    TEXT column load_source() already reads (its own comment: no
+    secrets-manager integration exists in this repo, a real, flagged
+    limit, not hidden by this function). Validates the source actually
+    exists for this tenant first - never silently no-ops on a typo'd
+    source_id - and requires credentials to be a real dict, never a bare
+    string, so a malformed value fails loud here rather than becoming an
+    unparseable connection_credentials_vault a collector's own
+    json.loads() would otherwise silently degrade to {} for.
+    """
+    if not isinstance(credentials, dict):
+        raise ValueError('credentials must be a JSON object, e.g. {"api_token": "..."}')
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE data_sources SET connection_credentials_vault = %s WHERE tenant_id = %s AND source_id = %s;",
+            (json.dumps(credentials), tenant_id, source_id),
+        )
+        if cursor.rowcount != 1:
+            raise ValueError(
+                "source not found for this tenant - create it first with "
+                "`python -m src.market_scraper.policy_cli register-source`"
+            )
+    conn.commit()
+
+
 def load_scrape_targets(conn, tenant_id: str, source_id: str) -> list[dict]:
     """Allocate only active mappings tied to an explicitly ALLOWED web source."""
     with conn.cursor() as cursor:
