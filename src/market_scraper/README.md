@@ -86,8 +86,11 @@ Ikea included — without a bespoke spider):
   `reviews.like_count`/`reply_count` and `market_observations.like_count`/`share_count`
   (`20260906010000_add_engagement_metrics_columns.sql`). Comments are a second, separately-billed
   provider call on top of the posts call — disable `fetch_comments` for the cheaper posts-only mode.
-- **`scrape_creators`** (`spiders/scrape_creators.py`) — **the primary, active social provider for
-  this deployment** (see "Vendor policy" below). [ScrapeCreators](https://docs.scrapecreators.com)
+- **`scrape_creators`** (`spiders/scrape_creators.py`) — **the reserve, cold-configured social
+  provider** as of the 2026-09-07 vendor policy revision (see "Vendor policy" below — `social_data_
+  provider`/Apify is the primary, active vendor for this deployment; this stayed the primary/active
+  provider up to that revision, and the two share the same constructor contract so switching back is
+  a credentials/config change, not a code one). [ScrapeCreators](https://docs.scrapecreators.com)
   is a plain REST API (`x-api-key` header, cursor-based pagination via `cursor`/`has_next_page`),
   not an actor-run platform like Apify. Confirmed live against a real Facebook comments payload
   (2026-09-06): billing is **per call**, not per row returned — one request that returned 10
@@ -333,19 +336,35 @@ neither requiring a product name at all —
 
 Every real candidate from either source is registered via **`discovery.py::
 register_domain_level_competitor()`** — deliberately **no** `competitor_product_mappings`/
-`data_sources` row (there's no specific product page to scope a collection job to yet, only a
-business identity), but a real, classified `tenant_competitors` row. `classify_competitor()`
+`data_sources` row at registration time (there's no specific product page to scope a collection job
+to yet, only a business identity), but a real, classified `tenant_competitors` row. `classify_competitor()`
 (`src/ai/pricing/competitor_classification.py`) already knows how to confirm one of these: for a
 domain-sourced competitor with zero product mappings, passing the manufacturer/region checks *alone*
 is the confirmation bar — requiring product overlap here would make domain-level discovery pointless,
 since nothing it finds would ever have any. Its `competitor_scope` is `BROAD_DOMAIN`, not `NICHE_ITEM`
-— it was found *by being* a same-industry business, not by carrying one SKU. If/when this same
-competitor is later found genuinely carrying one of the tenant's products (an ordinary product-level
-discovery run), `website_identity_key` dedup converges both finds onto the **same**
-`global_competitors` row — one competitor identity, never a duplicate, regardless of which path found
-it first or second. `tenant_competitors.discovery_method` (`PRODUCT_SEARCH` / `PLACES_NEARBY` /
-`INDUSTRY_KEYWORD_SEARCH`) records whichever path found it *first* and is never overwritten by a
-later, different-path find.
+— it was found *by being* a same-industry business, not by carrying one SKU.
+
+**Closing the loop — "scrape data from their website if they have one":** immediately after a domain
+find is **confirmed**, `discover_domain_level_competitors_for_tenant()` calls
+**`map_products_on_domain_competitor_site()`** — real, zero-API-cost product discovery scoped to
+that ONE known competitor's own domain, combining `direct_search.py::search_product_across_retailers()`
+(schema.org SearchAction) and `sitemap_discovery.py::discover_products_via_sitemap()` (sitemap.xml).
+Both functions are domain-agnostic at the call site — the hand-seeded `*_BY_VERTICAL` dicts elsewhere
+are only an optimization for "which domains to try" when the domain isn't already known, irrelevant
+here since it is. Any real product match registers through the **ordinary product-level path**
+(`register_tenant_scoped_competitor()`) — `website_identity_key` dedup converges it onto the exact
+same `global_competitors` row `register_domain_level_competitor()` already created (proven directly:
+`test_domain_and_product_level_finds_converge_on_the_same_competitor_row`), and — unlike the
+domain-level registration — creates the real `competitor_product_mappings`/`data_sources` rows
+`load_scrape_targets()` requires. A confirmed domain-level competitor with a real product match is,
+from that point on, indistinguishable from one product-level discovery found directly: it flows into
+the same `standards` collector (`market_source.py`'s JSON-LD/microdata/widget-CSS layers), the same
+Tier-2 staging/validation/safety pipeline, the same policy-approval gate before any real collection
+runs. This never runs for an excluded manufacturer or out-of-region find — no point spending the
+crawl effort where `classify_competitor()` already said no. `tenant_competitors.discovery_method`
+(`PRODUCT_SEARCH` / `PLACES_NEARBY` / `INDUSTRY_KEYWORD_SEARCH`) records whichever path found the
+*competitor itself* first and is never overwritten by a later, different-path find — independent of
+how its products get mapped.
 
 **Known, flagged gap**: `global_competitors.industry_sector` backfill for a competitor already found
 by product-level discovery (inferring their industry from name/page text, `sector_detection.py::
