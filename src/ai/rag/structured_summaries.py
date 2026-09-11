@@ -43,6 +43,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from src.ai.rag.pipeline import DEFAULT_BUCKET, ingest_pending_documents
+from src.ai.sentiment.data_access import load_aggregate_sentiment_by_competitor
 from src.ai.sentiment.pipeline import get_subject_sentiment_summary
 
 logger = logging.getLogger("CEOPRO_AI_RAG_STRUCTURED_SUMMARIES")
@@ -200,10 +201,20 @@ def generate_competitor_landscape_summary(conn, tenant_id: str) -> str:
 
 def generate_sentiment_trends_summary(conn, tenant_id: str) -> str:
     """
-    Real narrative from sentiment_results, reusing sentiment/pipeline.py::
-    get_subject_sentiment_summary() (the exact same aggregate the
-    dedicated sentiment module itself produces - never a re-derived
-    number) for the overall business and for every confirmed competitor.
+    Real narrative from sentiment_results. The overall business figure
+    still reuses sentiment/pipeline.py::get_subject_sentiment_summary()
+    (the exact same aggregate the dedicated sentiment module itself
+    produces - never a re-derived number) since that's a single call.
+
+    Per-competitor figures use load_aggregate_sentiment_by_competitor()
+    instead of calling get_subject_sentiment_summary() once per tracked
+    competitor - a real N+1 fixed here (one batched query for every
+    competitor's sentiment instead of one round trip each, on every RAG
+    summary regeneration). This also means the per-competitor path no
+    longer writes an evidence_records row per competitor per
+    regeneration - see load_aggregate_sentiment_by_competitor()'s own
+    docstring for why that side effect belongs to a direct, user-facing
+    query, not a background narrative-summary loop.
     """
     lines = ["Sentiment trends (source: sentiment_results, aggregated via sentiment/pipeline.py):"]
 
@@ -230,9 +241,10 @@ def generate_sentiment_trends_summary(conn, tenant_id: str) -> str:
         )
         competitors = cursor.fetchall()
 
+    by_competitor = load_aggregate_sentiment_by_competitor(conn, tenant_id)
     for competitor_id, name in competitors:
-        result = get_subject_sentiment_summary(conn, tenant_id, "COMPETITOR", str(competitor_id))
-        if result["status"] == "OK":
+        result = by_competitor.get(str(competitor_id))
+        if result and result["analyzed_count"] > 0:
             counts = result["label_counts"]
             lines.append(
                 f"- {name}: sentiment score {result['sentiment_score']:.2f} "
