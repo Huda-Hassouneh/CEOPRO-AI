@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import redis
 
+from src.ai.forecasting import consumer as consumer_module
 from src.ai.forecasting.consumer import ForecastRequestConsumer
 
 REDIS_HOST = os.getenv("AI_TEST_REDIS_HOST")
@@ -167,6 +168,72 @@ def test_listen_continues_past_a_message_processing_error(consumer):
     consumer.listen()
 
     consumer.client.xack.assert_not_called()  # a message that raised must not be acked
+
+
+class FakeRedis:
+    """Mirrors src/market_scraper/tests/test_worker.py's own FakeRedis -
+    same attempt-tracking/dead-letter contract, same minimal double."""
+
+    def __init__(self):
+        self.attempts = 0
+        self.acked = []
+        self.dead = []
+
+    def hincrby(self, *_):
+        self.attempts += 1
+        return self.attempts
+
+    def hdel(self, *_):
+        pass
+
+    def xack(self, *args):
+        self.acked.append(args[-1])
+
+    def xadd(self, stream, payload):
+        self.dead.append((stream, payload))
+
+
+def test_process_message_retries_then_dead_letters_a_permanently_failing_message(consumer, monkeypatch):
+    """
+    The real fix: a permanently-failing message (a malformed payload, a
+    genuinely broken forecast request) used to sit in this consumer
+    group's PEL forever with nothing but a log line - no dead-letter, no
+    alert beyond that. Now it's retried up to MAX_ATTEMPTS times before
+    being moved to the dead-letter stream and acked, mirroring
+    market_scraper/worker.py's identical contract.
+    """
+    consumer.client = FakeRedis()
+    monkeypatch.setattr(consumer_module, "MAX_ATTEMPTS", 2)
+    monkeypatch.setattr(consumer, "_handle_message", lambda payload: (_ for _ in ()).throw(RuntimeError("boom")))
+
+    consumer._process_message("1-0", {"tenant_id": "t1", "product_id": "p1"})
+    assert consumer.client.acked == []  # first failure: still pending, not dead-lettered yet
+
+    consumer._process_message("1-0", {"tenant_id": "t1", "product_id": "p1"})
+    assert consumer.client.acked == ["1-0"]  # second failure hits MAX_ATTEMPTS - dead-lettered and acked
+    assert consumer.client.dead[0][0] == consumer_module.DEAD_STREAM
+    assert consumer.client.dead[0][1]["attempts"] == "2"
+
+
+def test_claimed_messages_reclaims_a_message_left_pending_by_a_failed_attempt(consumer, redis_client, monkeypatch):
+    """
+    Against a real Redis: a message read (but never acked, simulating a
+    failed/crashed attempt) must be reclaimable by xautoclaim rather than
+    permanently invisible to every future xreadgroup call (xreadgroup's
+    ">" ID only ever hands out messages no consumer has seen yet).
+    """
+    redis_client.xadd(consumer.stream_key, {"tenant_id": "t1", "product_id": "p1"})
+    # Read it once without acking, simulating a consumer that died mid-processing.
+    consumer.client.xreadgroup(
+        groupname=consumer.group_id, consumername=consumer.consumer_name,
+        streams={consumer.stream_key: ">"}, count=10, block=100,
+    )
+    monkeypatch.setattr(consumer_module, "CLAIM_IDLE_MS", 0)  # reclaim immediately, not the real default idle window
+
+    claimed = consumer._claimed_messages()
+
+    assert len(claimed) == 1
+    assert claimed[0][1] == {"tenant_id": "t1", "product_id": "p1"}
 
 
 def test_listen_acks_only_after_successful_processing(consumer):
