@@ -52,10 +52,41 @@ def test_classify_and_store_reviews_writes_one_sentiment_result_per_review(fake_
          patch.object(pipeline.evidence, "insert_sentiment_result", return_value="sentiment-1") as mock_insert:
         result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
 
-    assert result == {"status": "OK", "analyzed_count": 2}
+    assert result == {"status": "OK", "analyzed_count": 2, "failed_count": 0}
     assert mock_insert.call_count == 2
     mock_insert.assert_any_call(fake_conn, "r1", "tenant-1", "positive", 0.8, 0.1, 0.1, 0.8, "fake-model")
     fake_conn.commit.assert_called_once()
+
+
+def test_classify_and_store_reviews_isolates_a_failing_review_without_blocking_others(fake_conn):
+    """
+    The real fix: one review that fails at the DB level (e.g. a constraint
+    violation) must not poison the whole batch transaction and block every
+    review behind it - see the module's own docstring on
+    classify_and_store_reviews for the head-of-line-blocking failure mode
+    this SAVEPOINT isolation exists to prevent.
+    """
+    reviews = [_review("r1"), _review("r2")]
+    predictions = [_prediction("positive"), _prediction("negative")]
+
+    def _insert_side_effect(conn, review_id, *args):
+        if review_id == "r1":
+            raise Exception("simulated constraint violation")
+        return "sentiment-2"
+
+    with patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=reviews), \
+         patch.object(pipeline.model, "classify", return_value=predictions), \
+         patch.object(pipeline.evidence, "insert_sentiment_result", side_effect=_insert_side_effect) as mock_insert:
+        result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
+
+    assert result == {"status": "OK", "analyzed_count": 1, "failed_count": 1}
+    assert mock_insert.call_count == 2  # both reviews were attempted, not stopped after the first failure
+    fake_conn.commit.assert_called_once()  # the whole batch still commits despite one failure
+
+    cursor = fake_conn.cursor.return_value.__enter__.return_value
+    executed = [call.args[0] for call in cursor.execute.call_args_list]
+    assert any("ROLLBACK TO SAVEPOINT" in stmt for stmt in executed)
+    assert any("RELEASE SAVEPOINT" in stmt for stmt in executed)
 
 
 def test_summary_with_no_analyzed_reviews_records_unknown_evidence(fake_conn):
