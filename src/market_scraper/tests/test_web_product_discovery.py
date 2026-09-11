@@ -1,7 +1,9 @@
 from unittest.mock import patch
 
 from src.market_scraper.discovery import CandidateSource
-from src.market_scraper.web_product_discovery import discover_product_candidates, discover_social_profile_candidates
+from src.market_scraper.web_product_discovery import (
+    discover_industry_candidates, discover_product_candidates, discover_social_profile_candidates,
+)
 
 
 def test_returns_empty_list_when_credentials_are_not_configured(monkeypatch):
@@ -209,3 +211,36 @@ def test_query_passed_to_search_is_built_by_sector_detection_helper():
     assert captured["q"] == '"Running Shoes" buy shop store price Jordan'
     assert captured["key"] == "k"
     assert captured["cx"] == "c"
+
+
+def test_industry_discovery_builds_an_industry_not_product_query():
+    captured = {}
+
+    def fake_get(params):
+        captured.update(params)
+        return {"items": []}
+
+    with patch("src.market_scraper.web_product_discovery._get", side_effect=fake_get):
+        discover_industry_candidates("electronics_hobbyist", geo_scope="Jordan", api_key="k", cx="c")
+
+    assert captured["q"] == "electronics store buy shop store price Jordan"
+
+
+def test_industry_discovery_returns_real_candidate_sources():
+    payload = {
+        "items": [
+            {"title": "Downtown Electronics", "link": "https://downtown-electronics.example"},
+        ]
+    }
+    with patch("src.market_scraper.web_product_discovery._get", return_value=payload):
+        candidates = discover_industry_candidates("electronics_hobbyist", api_key="k", cx="c")
+
+    assert candidates == [
+        CandidateSource("electronics_hobbyist", "https://downtown-electronics.example", "Downtown Electronics"),
+    ]
+
+
+def test_industry_discovery_returns_empty_list_when_credentials_are_not_configured(monkeypatch):
+    monkeypatch.delenv("GOOGLE_CUSTOM_SEARCH_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_CUSTOM_SEARCH_CX", raising=False)
+    assert discover_industry_candidates("electronics_hobbyist") == []
