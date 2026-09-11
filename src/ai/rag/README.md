@@ -193,21 +193,77 @@ actual provider call yourself.
 ## 5. Architecture summary
 
 ```text
-Document upload (MinIO)
-        |
-ingest_pending_documents()  -- chunk, embed, persist (once, at ingest time)
-        |
-rag_document_chunks (Postgres + pgvector)
-        |
-run_retrieval()
-  |-- build_hybrid_index()        -- read persisted chunks, no MinIO/re-embed
-  |-- retrieve_hybrid()           -- BM25 + FAISS, wide candidate pool -> RRF fusion
-  |-- rerank()                    -- multilingual Cross-Encoder, narrows to top_k
-  |-- assemble_context()          -- source-labeled context text + citations
-        |
-AssembledContext
-        |
-generate_answer()  -- Groq API call (Llama), the only LLM-aware step in this whole path
-        |
-{"answer": ..., "sources": [...]}
-```.
+Document upload (MinIO)          structured_summaries.py
+        |                        (regenerate_all_structured_summaries)
+        |                                |
+        |                        real narrative text from
+        |                        invoices/tenant_competitors/
+        |                        sentiment_results/competitor_prices
+        |                                |
+        |                        written to MinIO as a real .txt file,
+        |                        registered in rag_documents_metadata
+        |                        (one stable "slot" per summary type -
+        |                        regeneration overwrites, never duplicates)
+        |                                |
+        +----------------+---------------+
+                         |
+        ingest_pending_documents()  -- chunk, embed, persist (once, at ingest time)
+                         |
+        rag_document_chunks (Postgres + pgvector)
+                         |
+        run_retrieval()
+          |-- build_hybrid_index()        -- read persisted chunks, no MinIO/re-embed
+          |-- retrieve_hybrid()           -- BM25 + FAISS, wide candidate pool -> RRF fusion
+          |-- rerank()                    -- multilingual Cross-Encoder, narrows to top_k
+          |-- assemble_context()          -- source-labeled context text + citations
+                         |
+                AssembledContext                    structured_context.py
+                         |                    (build_structured_facts_block)
+                         |                                |
+                         |                    real, LIVE current numbers -
+                         |                    sentiment score, competitor
+                         |                    tier counts, price gaps -
+                         |                    queried fresh, never chunked
+                         |                    or embedded
+                         |                                |
+                         +-------------------+------------+
+                                             |
+                        generate_answer()  -- Groq API call, both sections in
+                                              one prompt, separately labeled
+                                             |
+                        {"answer": ..., "sources": [...]}
+```
+
+## 6. Unified context: scraped market data + internal sales history
+
+The real fix for "the chatbot must leverage the interplay between internal sales history and
+external market/competitor data" (previously true only via a hand-built function bolted onto the
+answer afterward, bypassing retrieval entirely): **`structured_summaries.py`** and
+**`structured_context.py`** are the two halves of a deliberate hybrid design, not a single
+mechanism — see each module's own docstring for the full reasoning, summarized here:
+
+- **`structured_summaries.py`** turns structured data into real narrative text — sales history
+  (`invoices`/`invoice_items`), the confirmed competitor landscape (`tenant_competitors`/
+  `global_competitors`, tier/scope/distance), sentiment trends (`sentiment_results`, reusing
+  `sentiment/pipeline.py::get_subject_sentiment_summary()` — never a re-derived number), and market
+  pricing (`products.current_price` vs. `competitor_prices`) — and ingests it through the **exact
+  same** `ingest_pending_documents()` pipeline a human-uploaded file goes through. This is what
+  makes "what's been happening with sentiment about my competitors" answerable by ordinary hybrid
+  retrieval, same as a question about an uploaded PDF. Each summary type is one stable per-tenant
+  "slot" (`_generated/<slot>.txt`) — `regenerate_all_structured_summaries(conn, minio_client,
+  tenant_id)` overwrites it and re-arms ingestion (`processed_status` back to `'Pending'`); call it
+  on a schedule (after a scraping/sentiment run, or nightly), never accumulating duplicate documents.
+- **`structured_context.py::build_structured_facts_block()`** is the other half: real, CURRENT
+  numbers (current sentiment score, competitor tier counts, live price gaps) queried fresh on
+  **every** chat question and injected directly into the LLM prompt as a second, separately-labeled
+  section — never chunked or embedded. This is deliberate, not an oversight: an LLM asked for an
+  exact number should never have to rely on semantic search having retrieved the one chunk with the
+  precise right figure, a well-documented RAG failure mode for numeric precision. `llm_client.py::
+  answer_query()` calls this automatically (`include_structured_facts=True` by default) and now only
+  short-circuits to "I don't have any relevant information" when **neither** retrieval **nor**
+  structured facts have anything — a pure-numbers question with no matching document (e.g. "what's
+  my current price gap") still gets a real answer.
+
+**Known, flagged gap**: neither `regenerate_all_structured_summaries()` nor the four narrative
+generators are yet wired into an automatic schedule (a cron/webhook after a scraping run) — they're
+real, tested, callable functions, just not yet triggered automatically end-to-end.
