@@ -230,3 +230,102 @@ def test_orchestration_skips_places_for_an_explicit_country_scope_even_with_coor
     mock_places.assert_not_called()
     assert len(results) == 1
     assert results[0]["discovery_method"] == "INDUSTRY_KEYWORD_SEARCH"
+
+
+# map_products_on_domain_competitor_site() - the real fix for "a domain-
+# level competitor is discovered but nothing ever scrapes their site":
+# finds real product pages on that ONE known competitor's own domain and
+# registers them through the ordinary product-level path, which is what
+# actually creates the competitor_product_mappings/data_sources rows
+# load_scrape_targets() requires.
+
+def test_map_products_registers_real_matches_via_the_ordinary_product_level_path(conn):
+    from src.market_scraper.tenant_discovery import map_products_on_domain_competitor_site
+
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_id = _insert_product(conn, tenant_id, "Arduino Nano")
+
+    search_action_result = [CandidateSource("Arduino Nano", "https://same-shop.example/arduino-nano", "Arduino Nano - Same Shop")]
+
+    with patch("src.market_scraper.tenant_discovery.search_product_across_retailers", return_value=search_action_result), \
+         patch("src.market_scraper.tenant_discovery.discover_products_via_sitemap", return_value=[]):
+        results = map_products_on_domain_competitor_site(
+            conn, tenant_id, str(uuid.uuid4()), "https://same-shop.example/", [{"product_id": product_id, "product_name": "Arduino Nano"}],
+        )
+
+    assert len(results) == 1
+    assert results[0]["product_url"] == "https://same-shop.example/arduino-nano"
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;", (tenant_id,)
+        )
+        assert cursor.fetchone()[0] == 1  # the real mapping load_scrape_targets() needs
+
+
+def test_map_products_combines_both_free_discovery_mechanisms(conn):
+    from src.market_scraper.tenant_discovery import map_products_on_domain_competitor_site
+
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_id = _insert_product(conn, tenant_id, "Arduino Nano")
+
+    search_action_result = [CandidateSource("Arduino Nano", "https://same-shop.example/p1", "P1")]
+    sitemap_result = [CandidateSource("Arduino Nano", "https://same-shop.example/p2", "P2")]
+
+    with patch("src.market_scraper.tenant_discovery.search_product_across_retailers", return_value=search_action_result), \
+         patch("src.market_scraper.tenant_discovery.discover_products_via_sitemap", return_value=sitemap_result):
+        results = map_products_on_domain_competitor_site(
+            conn, tenant_id, str(uuid.uuid4()), "https://same-shop.example/", [{"product_id": product_id, "product_name": "Arduino Nano"}],
+        )
+
+    urls = {r["product_url"] for r in results}
+    assert urls == {"https://same-shop.example/p1", "https://same-shop.example/p2"}
+
+
+def test_map_products_returns_empty_when_neither_mechanism_finds_anything(conn):
+    from src.market_scraper.tenant_discovery import map_products_on_domain_competitor_site
+
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_id = _insert_product(conn, tenant_id, "Arduino Nano")
+
+    with patch("src.market_scraper.tenant_discovery.search_product_across_retailers", return_value=[]), \
+         patch("src.market_scraper.tenant_discovery.discover_products_via_sitemap", return_value=[]):
+        results = map_products_on_domain_competitor_site(
+            conn, tenant_id, str(uuid.uuid4()), "https://empty-shop.example/", [{"product_id": product_id, "product_name": "Arduino Nano"}],
+        )
+    assert results == []
+
+
+def test_confirmed_domain_competitor_triggers_a_real_product_mapping_attempt(conn):
+    """The end-to-end wiring: discover_domain_level_competitors_for_tenant()
+    itself calls map_products_on_domain_competitor_site() for a CONFIRMED
+    find (never for an excluded manufacturer/out-of-region one - no point
+    spending the crawl effort there)."""
+    tenant_id = _insert_company(conn, country_code="JO")
+    _insert_product(conn, tenant_id, "Arduino Nano")
+
+    industry_result = [CandidateSource("electronics_hobbyist", "https://real-competitor.example", "Real Competitor Co")]
+    mapped = [{"competitor_id": "x", "product_url": "https://real-competitor.example/arduino-nano"}]
+
+    with patch("src.market_scraper.tenant_discovery.discover_industry_candidates", return_value=industry_result), \
+         patch("src.market_scraper.tenant_discovery.map_products_on_domain_competitor_site", return_value=mapped) as mock_map:
+        results = discover_domain_level_competitors_for_tenant(conn, tenant_id, str(uuid.uuid4()))
+
+    assert results[0]["is_confirmed_competitor"] is True  # in-region, not a manufacturer - real confirmation
+    mock_map.assert_called_once()
+    assert results[0]["mapped_products"] == mapped
+
+
+def test_excluded_manufacturer_never_triggers_a_product_mapping_attempt(conn):
+    tenant_id = _insert_company(conn, country_code="JO")
+    _insert_product(conn, tenant_id, "Arduino Nano")
+
+    industry_result = [CandidateSource("electronics_hobbyist", "https://example.com/factory", "Example Wholesale Distributor")]
+
+    with patch("src.market_scraper.tenant_discovery.discover_industry_candidates", return_value=industry_result), \
+         patch("src.market_scraper.tenant_discovery.map_products_on_domain_competitor_site") as mock_map:
+        results = discover_domain_level_competitors_for_tenant(conn, tenant_id, str(uuid.uuid4()))
+
+    assert results[0]["is_confirmed_competitor"] is False
+    mock_map.assert_not_called()
+    assert "mapped_products" not in results[0]
