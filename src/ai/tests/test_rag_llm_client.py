@@ -30,6 +30,9 @@ def _isolated_from_local_llm_config(monkeypatch):
     tests' logic.
     """
     monkeypatch.setattr(llm_client, "LOCAL_LLM_BASE_URL", None)
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", None)
+    monkeypatch.setattr(llm_client, "PAID_LLM_API_KEY", None)
+    monkeypatch.setattr(llm_client, "PAID_LLM_MODEL", None)
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
 
 
@@ -136,12 +139,54 @@ def test_generate_answer_uses_env_model_when_not_overridden(monkeypatch):
     assert captured["model"] == "qwen/some-other-model"
 
 
-def test_answer_query_short_circuits_on_empty_retrieval_without_calling_the_llm(monkeypatch):
+def test_generate_answer_uses_the_paid_provider_when_configured(monkeypatch):
+    """The flexible placeholder: setting PAID_LLM_BASE_URL (+ API key)
+    routes generate_answer() at that vendor instead of Groq, with the
+    exact same request shape - no other code path change needed."""
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
+    monkeypatch.setattr(llm_client, "PAID_LLM_API_KEY", "paid-key")
+    monkeypatch.setattr(llm_client, "PAID_LLM_MODEL", "paid-vendor/best-model")
+
+    def fake_post(url, headers, json, timeout):
+        assert url == "https://paid-vendor.example/v1/chat/completions"
+        assert headers["Authorization"] == "Bearer paid-key"
+        assert json["model"] == "paid-vendor/best-model"
+        return _FakeResponse(200, {"choices": [{"message": {"content": "Sunscreen SPF 50."}}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    answer = llm_client.generate_answer(_context())
+    assert answer == "Sunscreen SPF 50."
+
+
+def test_generate_answer_paid_provider_takes_priority_over_local(monkeypatch):
+    monkeypatch.setattr(llm_client, "LOCAL_LLM_BASE_URL", "http://localhost:8080/v1/chat/completions")
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
+    monkeypatch.setattr(llm_client, "PAID_LLM_API_KEY", "paid-key")
+
+    captured = {}
+
+    def fake_post(url, headers, json, timeout):
+        captured["url"] = url
+        return _FakeResponse(200, {"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    llm_client.generate_answer(_context())
+    assert captured["url"] == "https://paid-vendor.example/v1/chat/completions"
+
+
+def test_generate_answer_raises_when_paid_base_url_set_without_an_api_key(monkeypatch):
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
+    with pytest.raises(llm_client.LLMError, match="PAID_LLM_API_KEY"):
+        llm_client.generate_answer(_context())
+
+
+def test_answer_query_short_circuits_when_neither_retrieval_nor_structured_facts_have_anything(monkeypatch):
     calls = []
     monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: calls.append(1))
     monkeypatch.setattr(
         llm_client, "run_retrieval", lambda *a, **k: AssembledContext(query="q", context_text="", sources=[])
     )
+    monkeypatch.setattr(llm_client, "build_structured_facts_block", lambda *a, **k: "")
 
     result = llm_client.answer_query(conn=None, tenant_id="t", query_text="q")
 
@@ -150,11 +195,56 @@ def test_answer_query_short_circuits_on_empty_retrieval_without_calling_the_llm(
     assert calls == []  # the LLM was never called
 
 
+def test_answer_query_still_answers_from_structured_facts_alone(monkeypatch):
+    """The real fix: a question with no matching document but real,
+    current structured data must still get a real answer, not a
+    reflexive "I don't have any relevant information"."""
+    monkeypatch.setattr(
+        llm_client, "run_retrieval", lambda *a, **k: AssembledContext(query="q", context_text="", sources=[])
+    )
+    monkeypatch.setattr(
+        llm_client, "build_structured_facts_block",
+        lambda *a, **k: "Current overall sentiment score: 0.42 (source: sentiment_results).",
+    )
+    captured = {}
+    monkeypatch.setattr(llm_client, "generate_answer", lambda context, **k: captured.update(k) or "0.42.")
+
+    result = llm_client.answer_query(conn=None, tenant_id="t", query_text="what's my sentiment score?")
+
+    assert result["answer"] == "0.42."
+    assert "0.42" in captured["structured_facts"]
+
+
 def test_answer_query_returns_answer_and_sources_together(monkeypatch):
     fake_context = _context()
     monkeypatch.setattr(llm_client, "run_retrieval", lambda *a, **k: fake_context)
+    monkeypatch.setattr(llm_client, "build_structured_facts_block", lambda *a, **k: "")
     monkeypatch.setattr(llm_client, "generate_answer", lambda context, **k: "Sunscreen SPF 50.")
 
     result = llm_client.answer_query(conn=None, tenant_id="t", query_text="what is our best seller?")
 
     assert result == {"answer": "Sunscreen SPF 50.", "sources": fake_context.sources}
+
+
+def test_answer_query_skips_structured_facts_when_disabled(monkeypatch):
+    fake_context = _context()
+    monkeypatch.setattr(llm_client, "run_retrieval", lambda *a, **k: fake_context)
+    calls = []
+    monkeypatch.setattr(llm_client, "build_structured_facts_block", lambda *a, **k: calls.append(1))
+    monkeypatch.setattr(llm_client, "generate_answer", lambda context, **k: "Sunscreen SPF 50.")
+
+    llm_client.answer_query(conn=None, tenant_id="t", query_text="q", include_structured_facts=False)
+
+    assert calls == []  # never even queried
+
+
+def test_build_user_prompt_includes_a_separately_labeled_structured_facts_section():
+    prompt = llm_client._build_user_prompt(_context(), structured_facts="Sentiment score: 0.42.")
+    assert "Context:" in prompt
+    assert "Current business data (live, queried for this question):" in prompt
+    assert "Sentiment score: 0.42." in prompt
+
+
+def test_build_user_prompt_omits_the_structured_facts_section_when_empty():
+    prompt = llm_client._build_user_prompt(_context(), structured_facts="")
+    assert "Current business data" not in prompt

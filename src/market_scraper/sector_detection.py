@@ -22,7 +22,7 @@ guess) when it isn't.
 import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 _VERTICAL_KEYWORDS: Dict[str, List[str]] = {
     "electronics_hobbyist": [
@@ -45,6 +45,19 @@ _VERTICAL_KEYWORDS: Dict[str, List[str]] = {
 }
 
 _WORD_RE = re.compile(r"[a-zA-Z]+")
+
+# A human/search-engine-facing label per vertical - "electronics_hobbyist"
+# is an internal key, nobody searches for that literal string. Used by
+# build_industry_search_query() (domain-level discovery: find same-industry
+# businesses, not sellers of one specific product) and infer_industry_sector()
+# (best-effort backfill for an already-discovered competitor's industry).
+VERTICAL_INDUSTRY_LABELS: Dict[str, str] = {
+    "electronics_hobbyist": "electronics store",
+    "food_beverage": "restaurant OR cafe",
+    "apparel_fashion": "clothing store",
+    "home_furniture": "furniture store",
+    "general_retail": "retail store",
+}
 
 
 @dataclass(frozen=True)
@@ -108,6 +121,43 @@ def build_retail_search_query(product_name: str, geo_scope: str = None) -> str:
     return query
 
 
+def build_industry_search_query(vertical: str, geo_scope: str = None) -> str:
+    """
+    The domain-level counterpart to build_retail_search_query() - instead
+    of "who sells THIS product", asks "who else operates in this INDUSTRY".
+    This is the real query behind industry-keyword discovery
+    (web_product_discovery.py::discover_industry_candidates()): no product
+    name involved at all, so it can find a same-industry rival regardless
+    of whether their product mix overlaps with the tenant's.
+
+    An unrecognized vertical key falls back to VERTICAL_INDUSTRY_LABELS'
+    "general_retail" entry rather than raising - same honest-degradation
+    convention detect_vertical() itself already uses.
+    """
+    label = VERTICAL_INDUSTRY_LABELS.get(vertical, VERTICAL_INDUSTRY_LABELS["general_retail"])
+    query = f"{label} " + " ".join(RETAIL_QUERY_HINTS)
+    if geo_scope:
+        query += f" {geo_scope}"
+    return query
+
+
+def infer_industry_sector(text: str) -> Optional[str]:
+    """
+    Best-effort industry_sector guess from a competitor's own name/title
+    text, reusing the exact same _VERTICAL_KEYWORDS vocabulary detect_
+    vertical() uses for a tenant's catalog - one shared vocabulary, two
+    directions (tenant catalog -> vertical, competitor name -> sector).
+
+    Cheap and local: no network call, no new dependency - just a keyword-
+    frequency match against a single string. Returns None (never a guessed
+    label) when nothing in the vocabulary matches - this is meant to
+    backfill global_competitors.industry_sector for a competitor that
+    already has a name on file, not to replace real classification.
+    """
+    detection = detect_vertical([text or ""])
+    return detection.vertical if detection.matched_keywords else None
+
+
 def resolve_tenant_geo_scope(conn, tenant_id: str, override: str = None) -> str:
     """
     Tenant-level default market scope for discovery, with no schema
@@ -125,3 +175,59 @@ def resolve_tenant_geo_scope(conn, tenant_id: str, override: str = None) -> str:
         cursor.execute("SELECT country_code FROM companies WHERE tenant_id = %s;", (tenant_id,))
         row = cursor.fetchone()
     return row[0] if row and row[0] else ""
+
+
+def resolve_tenant_search_radius(conn, tenant_id: str, override_km: Optional[float] = None) -> Optional[float]:
+    """
+    Same override-over-stored-default pattern as resolve_tenant_geo_scope()
+    above, for the proximity radius instead of the country scope - "expand
+    or narrow the search area radius directly from the interface" is
+    exactly override_km: a caller (the UI's request handler) passes
+    whatever the user just set the slider to for this one call, without
+    needing to persist it first via company_geo_profile.set_tenant_search_scope()
+    (that's for when the user wants the new radius to become their
+    standing default, a separate action from adjusting it for one search).
+
+    "If the target region data is missing/empty, automatically fall back to
+    the closest logically appropriate default scope or radius" - the real
+    fix this implements: a tenant who never explicitly called
+    company_geo_profile.py::set_tenant_search_scope() still has a real
+    search_scope_level (the column's own DB default is 'PROVINCE'), but
+    default_search_radius_km itself is NULL until that function resolves
+    and stores a real preset. Rather than every caller of this function
+    needing its own fallback constant, this resolves through the SAME
+    preset table set_tenant_search_scope() itself uses
+    (SCOPE_LEVEL_PRESET_RADIUS_KM) whenever the stored radius is missing
+    but a scope_level is known - which, given the DB default, is always.
+
+    The one genuine "no radius" case is COUNTRY scope: that's an explicit
+    choice (this tenant's whole operating_countries list, not a distance
+    ring), never confused with "never configured" - still returns None
+    there, and callers (list_tenant_competitors_by_proximity(),
+    tenant_discovery.py's Places gating) already treat that None correctly
+    as "no radius filter" rather than a fallback failure.
+    """
+    if override_km is not None:
+        return override_km
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT default_search_radius_km, search_scope_level FROM companies WHERE tenant_id = %s;",
+            (tenant_id,),
+        )
+        row = cursor.fetchone()
+    if row is None:
+        return None
+    radius_km, scope_level = row
+    if radius_km is not None:
+        return radius_km
+
+    from src.market_scraper.company_geo_profile import (
+        SCOPE_LEVEL_COUNTRY, SCOPE_LEVEL_PRESET_RADIUS_KM, SCOPE_LEVEL_PROVINCE,
+    )
+    if scope_level == SCOPE_LEVEL_COUNTRY:
+        return None
+    # Any other scope_level (including one this module doesn't recognize,
+    # defensively) falls back to PROVINCE's own preset - "closest logically
+    # appropriate default" per the product ask, never a silently-None
+    # radius for a tenant who simply never explicitly configured one.
+    return SCOPE_LEVEL_PRESET_RADIUS_KM.get(scope_level, SCOPE_LEVEL_PRESET_RADIUS_KM[SCOPE_LEVEL_PROVINCE])

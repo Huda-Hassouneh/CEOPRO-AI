@@ -30,12 +30,32 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+from src.market_scraper.geo import distance_km_if_known
+
 DEFAULT_MATCH_RATE_THRESHOLD = 0.5
+
+# Breadth classification thresholds - a separate axis from the tier above:
+# tier answers "is this a real, trackable competitor at all", scope answers
+# "how much of my catalog do they actually compete on". A NICHE_ITEM
+# competitor can still be STRATEGIC-tier confirmed (e.g. the one product
+# they carry is exactly matched, in-region, not a manufacturer) while only
+# ever covering one line item - "real but narrow" is a genuine, distinct
+# outcome from "real and broad", not a contradiction.
+NICHE_ITEM_MAX_MATCHED_PRODUCTS = 1
+# Reuses DEFAULT_MATCH_RATE_THRESHOLD's own value as the BROAD_DOMAIN bar
+# by default (both mean "clears half the catalog"), but is its own
+# parameter - a tenant could reasonably want a stricter/looser breadth bar
+# than the confirmation bar without the two being forced to move together.
+DEFAULT_BROAD_DOMAIN_THRESHOLD = DEFAULT_MATCH_RATE_THRESHOLD
 
 
 TIER_CANDIDATE = "CANDIDATE"
 TIER_RELEVANT = "RELEVANT"
 TIER_STRATEGIC = "STRATEGIC"
+
+SCOPE_NICHE_ITEM = "NICHE_ITEM"
+SCOPE_PARTIAL_OVERLAP = "PARTIAL_OVERLAP"
+SCOPE_BROAD_DOMAIN = "BROAD_DOMAIN"
 
 
 @dataclass(frozen=True)
@@ -47,15 +67,17 @@ class ClassificationResult:
     is_confirmed_competitor: bool
     tier: str
     reason: str
+    competitor_scope: str
+    matched_product_count: int
+    distance_km: Optional[float]
 
 
-def compute_product_match_rate(conn, tenant_id: str, global_competitor_id: str) -> float:
-    """
-    (this tenant's active products this competitor also has an active
-    mapping to) / (this tenant's total active products). 0.0 (not
-    undefined/None) when the tenant has zero active products - there is
-    nothing to overlap with, so no seller can clear a match-rate bar yet.
-    """
+def _matched_and_total_product_counts(conn, tenant_id: str, global_competitor_id: str) -> tuple:
+    """Shared query core for compute_product_match_rate() and
+    classify_competitor() - the breadth classification (NICHE_ITEM vs
+    BROAD_DOMAIN) needs the real matched-product COUNT, not just the
+    ratio compute_product_match_rate() returns, so this is computed once
+    and both derive from it instead of running the count query twice."""
     with conn.cursor() as cursor:
         cursor.execute(
             "SELECT COUNT(*) FROM products WHERE tenant_id = %s AND deleted_at IS NULL;",
@@ -63,7 +85,7 @@ def compute_product_match_rate(conn, tenant_id: str, global_competitor_id: str) 
         )
         total_products = cursor.fetchone()[0]
         if total_products == 0:
-            return 0.0
+            return 0, 0
 
         cursor.execute(
             """
@@ -79,7 +101,61 @@ def compute_product_match_rate(conn, tenant_id: str, global_competitor_id: str) 
         )
         matched_products = cursor.fetchone()[0]
 
+    return matched_products, total_products
+
+
+def compute_product_match_rate(conn, tenant_id: str, global_competitor_id: str) -> float:
+    """
+    (this tenant's active products this competitor also has an active
+    mapping to) / (this tenant's total active products). 0.0 (not
+    undefined/None) when the tenant has zero active products - there is
+    nothing to overlap with, so no seller can clear a match-rate bar yet.
+    """
+    matched_products, total_products = _matched_and_total_product_counts(
+        conn, tenant_id, global_competitor_id
+    )
+    if total_products == 0:
+        return 0.0
     return matched_products / total_products
+
+
+# discovery_method values that find a competitor by industry/domain rather
+# than by an exact product match - see market_scraper/discovery.py's
+# register_domain_level_competitor() and tenant_discovery.py's hybrid
+# discovery sources. Kept here (not imported from market_scraper) to avoid
+# a circular import - market_scraper/discovery.py already imports FROM
+# this module.
+DOMAIN_LEVEL_DISCOVERY_METHODS = {"PLACES_NEARBY", "INDUSTRY_KEYWORD_SEARCH"}
+
+
+def classify_competitor_scope(
+    matched_product_count: int, match_rate: float, broad_domain_threshold: float = DEFAULT_BROAD_DOMAIN_THRESHOLD,
+    discovery_method: Optional[str] = None,
+) -> str:
+    """
+    NICHE_ITEM: this competitor was only ever found selling a single
+    product (or none, for a not-yet-mapped row) - "just on a single
+    product" from the product owner's own wording. BROAD_DOMAIN: clears
+    the breadth threshold on real catalog overlap - "competing across
+    most products". Everything between the two is PARTIAL_OVERLAP - a
+    real, honest middle ground, never silently rounded to one extreme.
+
+    A competitor found via a domain-level discovery source (discovery_method
+    in DOMAIN_LEVEL_DISCOVERY_METHODS) with zero mapped products yet is the
+    one deliberate exception: it's labeled BROAD_DOMAIN, not NICHE_ITEM,
+    because it was found BY being a same-industry business, not by carrying
+    one specific SKU - mislabeling it "niche" would be backwards. Once real
+    competitor_product_mappings rows exist for it (a later product-level
+    match), the ordinary matched_product_count/match_rate logic takes back
+    over on the next classify_competitor() run, same as any other row.
+    """
+    if discovery_method in DOMAIN_LEVEL_DISCOVERY_METHODS and matched_product_count == 0:
+        return SCOPE_BROAD_DOMAIN
+    if matched_product_count <= NICHE_ITEM_MAX_MATCHED_PRODUCTS:
+        return SCOPE_NICHE_ITEM
+    if match_rate >= broad_domain_threshold:
+        return SCOPE_BROAD_DOMAIN
+    return SCOPE_PARTIAL_OVERLAP
 
 
 def _in_operating_region(competitor_country: Optional[str], tenant_country: str, tenant_operating_countries: list) -> bool:
@@ -99,6 +175,7 @@ def _in_operating_region(competitor_country: Optional[str], tenant_country: str,
 def classify_competitor(
     conn, tenant_id: str, global_competitor_id: str,
     threshold: float = DEFAULT_MATCH_RATE_THRESHOLD,
+    broad_domain_threshold: float = DEFAULT_BROAD_DOMAIN_THRESHOLD,
 ) -> ClassificationResult:
     """
     Computes and persists the classification for one tenant_competitors
@@ -106,31 +183,60 @@ def classify_competitor(
     (e.g. after each new discovery run or scrape), which is the intended
     usage: a seller found for one product today may cross the match-rate
     bar next week once more of the tenant's catalog is mapped to it.
+
+    Also computes and persists competitor_scope (NICHE_ITEM/PARTIAL_OVERLAP/
+    BROAD_DOMAIN - how much of the catalog this competitor covers) and, when
+    both sides have known coordinates, distance_km (real great-circle
+    distance from companies.latitude/longitude to global_competitors.
+    latitude/longitude) - None when either side's location is unknown,
+    never a fabricated distance. Neither of these is a new gate: an
+    out-of-radius or NICHE_ITEM competitor is still tracked exactly like
+    before - ranking/filtering by distance or scope is the caller's choice
+    at query time (see data_access.py::list_tenant_competitors_by_proximity),
+    not something baked into is_confirmed_competitor here.
     """
     if not 0.0 <= threshold <= 1.0:
         raise ValueError("threshold must be between 0.0 and 1.0")
+    if not 0.0 <= broad_domain_threshold <= 1.0:
+        raise ValueError("broad_domain_threshold must be between 0.0 and 1.0")
 
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT is_manufacturer, country_code FROM global_competitors WHERE global_competitor_id = %s;",
+            "SELECT is_manufacturer, country_code, latitude, longitude FROM global_competitors "
+            "WHERE global_competitor_id = %s;",
             (global_competitor_id,),
         )
         row = cursor.fetchone()
         if not row:
             raise ValueError("global_competitor_id not found")
-        is_manufacturer, competitor_country = row
+        is_manufacturer, competitor_country, competitor_lat, competitor_lon = row
 
         cursor.execute(
-            "SELECT country_code, operating_countries FROM companies WHERE tenant_id = %s;",
+            "SELECT country_code, operating_countries, latitude, longitude FROM companies WHERE tenant_id = %s;",
             (tenant_id,),
         )
         company_row = cursor.fetchone()
         if not company_row:
             raise ValueError("tenant_id not found")
-        tenant_country, tenant_operating_countries = company_row
+        tenant_country, tenant_operating_countries, tenant_lat, tenant_lon = company_row
 
-    match_rate = compute_product_match_rate(conn, tenant_id, global_competitor_id)
+        cursor.execute(
+            "SELECT discovery_method FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, global_competitor_id),
+        )
+        discovery_row = cursor.fetchone()
+        if discovery_row is None:
+            raise ValueError("tenant_competitors row not found for this tenant/competitor pair")
+        discovery_method = discovery_row[0]
+
+    matched_product_count, total_products = _matched_and_total_product_counts(
+        conn, tenant_id, global_competitor_id
+    )
+    match_rate = 0.0 if total_products == 0 else matched_product_count / total_products
     in_region = _in_operating_region(competitor_country, tenant_country, tenant_operating_countries)
+    scope = classify_competitor_scope(matched_product_count, match_rate, broad_domain_threshold, discovery_method)
+    distance_km = distance_km_if_known(tenant_lat, tenant_lon, competitor_lat, competitor_lon)
+    is_domain_level_find = discovery_method in DOMAIN_LEVEL_DISCOVERY_METHODS and matched_product_count == 0
 
     if is_manufacturer:
         reason = "excluded: manufacturer/wholesaler, not a retail competitor"
@@ -140,6 +246,20 @@ def classify_competitor(
         reason = f"excluded: competitor country {competitor_country!r} is outside the tenant's operating region"
         confirmed = False
         tier = TIER_CANDIDATE
+    elif is_domain_level_find:
+        # A domain-level find (Places nearby-search / industry-keyword
+        # search) has no product mappings to measure overlap against yet -
+        # requiring product_match_rate >= threshold here would mean NO
+        # domain-level competitor could ever be confirmed, defeating the
+        # entire point of discovering them: passing manufacturer+region IS
+        # the confirmation bar for this class, exactly matching "detect
+        # competitors by industry/domain even if product lines don't
+        # completely overlap". Once real product mappings appear for this
+        # competitor, a later run naturally falls through to the ordinary
+        # match-rate branches below instead.
+        reason = f"confirmed: same-industry, in-region, not a manufacturer (found via {discovery_method})"
+        confirmed = True
+        tier = TIER_STRATEGIC
     elif match_rate < threshold:
         reason = f"below threshold: {match_rate:.0%} product overlap (needs >= {threshold:.0%})"
         confirmed = False
@@ -160,10 +280,14 @@ def classify_competitor(
             """
             UPDATE tenant_competitors
             SET product_match_rate = %s, is_confirmed_competitor = %s,
-                is_tracked = %s, classified_at = %s, tier = %s
+                is_tracked = %s, classified_at = %s, tier = %s,
+                competitor_scope = %s, distance_km = %s
             WHERE tenant_id = %s AND global_competitor_id = %s;
             """,
-            (match_rate, confirmed, confirmed, datetime.now(timezone.utc), tier, tenant_id, global_competitor_id),
+            (
+                match_rate, confirmed, confirmed, datetime.now(timezone.utc), tier,
+                scope, distance_km, tenant_id, global_competitor_id,
+            ),
         )
         if cursor.rowcount != 1:
             raise ValueError("tenant_competitors row not found for this tenant/competitor pair")
@@ -177,4 +301,7 @@ def classify_competitor(
         is_confirmed_competitor=confirmed,
         tier=tier,
         reason=reason,
+        competitor_scope=scope,
+        matched_product_count=matched_product_count,
+        distance_km=distance_km,
     )

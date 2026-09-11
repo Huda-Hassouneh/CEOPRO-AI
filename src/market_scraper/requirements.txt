@@ -5,3 +5,11 @@ psycopg2-binary>=2.9,<3.0
 redis>=5.0,<7.0
 prometheus-client>=0.20,<1.0
 pytest>=7.4,<9.0
+# credential_vault.py - field-level envelope encryption for
+# data_sources.connection_credentials_vault (PENDING_ACTIONS.md #42).
+cryptography>=42.0,<51.0
+# Only required for CREDENTIAL_VAULT_KMS_BACKEND=aws_kms (credential_vault.py::
+# AWSKMSBackend) - imported lazily, so the default "local" backend never
+# needs this installed. Listed here for a production deployment that does
+# use AWS KMS; not imported anywhere at module load time.
+boto3>=1.34,<2.0
