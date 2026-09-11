@@ -221,6 +221,27 @@ def register_tenant_scoped_competitor(
     whether to actually run the collector based on that, this function
     only ever records what was found.
     """
+    try:
+        return _register_tenant_scoped_competitor(conn, tenant_id, actor_user_id, decision, product_id, rate_limit)
+    except Exception:
+        # classify_competitor() below is what actually commits this whole
+        # transaction (its own UPDATE plus every INSERT this function made
+        # earlier, since they all share one connection/transaction) - if
+        # anything raises before that commit is reached, nothing rolls
+        # back the earlier INSERTs on its own, leaving them either
+        # dangling uncommitted or the whole connection stuck in Postgres's
+        # aborted-transaction state for whatever the caller tries next.
+        # Own this transaction explicitly: any failure here rolls back
+        # everything this call did, so the connection comes back to the
+        # caller clean and reusable either way.
+        conn.rollback()
+        raise
+
+
+def _register_tenant_scoped_competitor(
+    conn, tenant_id: str, actor_user_id: str, decision: DiscoveryDecision,
+    product_id: str, rate_limit: int,
+) -> dict:
     candidate = decision.candidate
     hostname = urlsplit(candidate.url).hostname or candidate.url
 
@@ -390,6 +411,22 @@ def register_domain_level_competitor(
     if discovery_method not in DOMAIN_LEVEL_DISCOVERY_METHODS:
         raise ValueError(f"discovery_method must be one of {sorted(DOMAIN_LEVEL_DISCOVERY_METHODS)}, got {discovery_method!r}")
 
+    try:
+        return _register_domain_level_competitor(conn, tenant_id, candidate, discovery_method, industry_sector, country_code)
+    except Exception:
+        # See register_tenant_scoped_competitor()'s identical try/except
+        # for why: classify_competitor() below is what commits this whole
+        # transaction, so a failure before that point must explicitly roll
+        # back this function's own earlier INSERT rather than leave it
+        # dangling uncommitted or the connection stuck aborted.
+        conn.rollback()
+        raise
+
+
+def _register_domain_level_competitor(
+    conn, tenant_id: str, candidate: CandidateSource,
+    discovery_method: str, industry_sector: Optional[str], country_code: Optional[str],
+) -> dict:
     hostname = urlsplit(candidate.url).hostname or candidate.url
     identity_key = compute_website_identity_key(candidate.url)
     website_url = candidate.url if identity_key and "/" in identity_key else f"{urlsplit(candidate.url).scheme}://{hostname}"
