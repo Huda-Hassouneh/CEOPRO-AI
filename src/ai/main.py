@@ -26,11 +26,13 @@ confirmed contract with a real auth service - worth reconciling once one
 exists.
 """
 
+import logging
 import os
 import tempfile
 from typing import Optional
 
 import jwt
+import redis
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
@@ -56,6 +58,42 @@ _MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)
 # compute). 500 is a starting point (SCALING.md suggests 500-2,000), not a
 # value tuned against production write latency yet.
 _EXTRACTION_COMMIT_EVERY = int(os.getenv("EXTRACTION_COMMIT_EVERY", "500"))
+
+
+def _publish_discovery_request(tenant_id: str) -> None:
+    """
+    The real automatic trigger closing a gap found in the production-
+    hardening audit: tenant_discovery.py::discover_competitors_for_tenant()/
+    discover_domain_level_competitors_for_tenant() were fully built and
+    correctly wired to each other, but nothing in the live system ever
+    called them - only integration tests did. "Client uploads a file ->
+    products save to the DB -> the engine searches them on Social Media
+    and Google" was only true in tests before this: production discovery
+    was 100% a manual CLI operation.
+
+    Fired here, right after a real upload persists new products - the
+    same event-bus pattern src/market_scraper/persistence.py already
+    uses for market.analysis.requested (a bare redis client .xadd(...),
+    caught and logged rather than allowed to fail the request the upload
+    itself already succeeded at). Consumed by src/market_scraper/
+    discovery_worker.py, kept in that package (not here) for the same
+    reason analysis_worker.py lives in market_scraper rather than ai/ -
+    discovery is that service's own domain.
+
+    Uses REDIS_HOST/REDIS_PORT, not REDIS_URL: this file's own
+    docker-compose service (`ai`) sets those two, not REDIS_URL - see
+    src/ai/forecasting/consumer.py for the same convention already
+    established elsewhere in this package.
+    """
+    try:
+        redis.Redis(
+            host=os.getenv("REDIS_HOST", "localhost"), port=int(os.getenv("REDIS_PORT", "6379")),
+            decode_responses=True,
+        ).xadd(os.getenv("DISCOVERY_STREAM_KEY", "market.discovery.requested"), {"tenant_id": tenant_id})
+    except redis.RedisError as exc:
+        logging.getLogger("CEOPRO_AI_MAIN").error(
+            "could not enqueue downstream competitor discovery for tenant=%s: %s", tenant_id, exc
+        )
 
 # RAG query bounds (2026-09-01 security review). /rag/query's query_text
 # goes straight into a prompt sent to a paid, metered third-party API
@@ -367,6 +405,10 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
 
         job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "COMPLETED")
         conn.commit()
+
+        if promotion_summary.products_created > 0:
+            _publish_discovery_request(ctx.tenant_id)
+
         return _summary_response(job_id, summary, promotion_summary, currency_resolution)
 
     except HTTPException:
