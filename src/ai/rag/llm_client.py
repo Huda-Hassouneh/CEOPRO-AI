@@ -53,6 +53,7 @@ not the retrieval pipeline underneath it.
 
 import logging
 import os
+import random
 import time
 
 import httpx
@@ -132,6 +133,69 @@ MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "2"))
 RETRY_BACKOFF_SECONDS = float(os.getenv("GROQ_RETRY_BACKOFF_SECONDS", "0.5"))
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+# Jitter on top of the linear backoff above: under a real provider-wide
+# outage/429 event, many concurrent requests hitting this same process
+# would otherwise all retry in lockstep at the exact same 0.5s/1.0s
+# intervals, adding a synchronized retry spike right when the provider is
+# already struggling. A random fraction added to each wait spreads
+# retries out instead - RETRY_JITTER_FRACTION=0.5 means each backoff is
+# lengthened by 0%-50% of its base value, never shortened (never retrying
+# SOONER than the base backoff already calls for).
+RETRY_JITTER_FRACTION = float(os.getenv("GROQ_RETRY_JITTER_FRACTION", "0.5"))
+
+# Circuit breaker: /rag/query runs synchronously in a FastAPI request
+# handler (on the thread-pool executor), and a single failed request can
+# already cost close to MAX_RETRIES attempts x up to DEFAULT_TIMEOUT_SECONDS/
+# LOCAL_LLM_TIMEOUT_SECONDS each. Under a sustained provider outage, every
+# new incoming chat request keeps paying that same full retry cost against
+# a provider that's already known to be down - real risk of exhausting the
+# thread pool and queuing/timing out unrelated requests (pricing, sentiment,
+# etc. sharing the same process). After CIRCUIT_BREAKER_THRESHOLD consecutive
+# request-level failures (a failure meaning every retry within one call was
+# already exhausted - a transient blip that succeeds on retry never counts),
+# new calls fail fast for CIRCUIT_BREAKER_COOLDOWN_SECONDS instead of
+# attempting the full retry sequence again. Module-level, in-process state -
+# not shared across worker processes, which is fine: the goal is protecting
+# THIS process's own thread pool, not a global rate limit.
+CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("GROQ_CIRCUIT_BREAKER_THRESHOLD", "5"))
+CIRCUIT_BREAKER_COOLDOWN_SECONDS = float(os.getenv("GROQ_CIRCUIT_BREAKER_COOLDOWN_SECONDS", "30"))
+
+_circuit_state = {"consecutive_failures": 0, "opened_at": None}
+
+
+def _reset_circuit_breaker() -> None:
+    """Test-only reset hook - module-level state would otherwise leak
+    failure counts across unrelated test cases (and across requests for
+    different, independent backends in a real deployment that switches
+    providers at runtime)."""
+    _circuit_state["consecutive_failures"] = 0
+    _circuit_state["opened_at"] = None
+
+
+def _circuit_is_open() -> bool:
+    opened_at = _circuit_state["opened_at"]
+    if opened_at is None:
+        return False
+    if time.monotonic() - opened_at >= CIRCUIT_BREAKER_COOLDOWN_SECONDS:
+        _reset_circuit_breaker()  # cooldown elapsed - let the next call retry for real
+        return False
+    return True
+
+
+def _record_circuit_success() -> None:
+    _reset_circuit_breaker()
+
+
+def _record_circuit_failure() -> None:
+    _circuit_state["consecutive_failures"] += 1
+    if _circuit_state["consecutive_failures"] >= CIRCUIT_BREAKER_THRESHOLD:
+        _circuit_state["opened_at"] = time.monotonic()
+
+
+def _backoff_seconds(attempt: int) -> float:
+    base = RETRY_BACKOFF_SECONDS * (attempt + 1)
+    return base + random.uniform(0, base * RETRY_JITTER_FRACTION)
+
 # Low temperature: this is grounded question-answering over retrieved
 # business documents, not creative writing - the answer should track the
 # provided context closely, not improvise around it.
@@ -178,14 +242,26 @@ def _build_user_prompt(context: AssembledContext, structured_facts: str = "") ->
 def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> httpx.Response:
     """
     Up to MAX_RETRIES retries (MAX_RETRIES + 1 attempts total) with a
-    linear backoff, only for a network failure or a status code in
-    _RETRYABLE_STATUS_CODES - see those constants' own comment for why a
-    4xx outside that set (bad request, bad key, forbidden) is deliberately
-    not retried. Returns the last response/re-raises the last exception
-    once retries are exhausted, so the caller sees exactly the same shape
-    of failure it would have without retries, just after trying harder
-    first.
+    jittered linear backoff (see RETRY_JITTER_FRACTION), only for a
+    network failure or a status code in _RETRYABLE_STATUS_CODES - see
+    those constants' own comment for why a 4xx outside that set (bad
+    request, bad key, forbidden) is deliberately not retried. Returns the
+    last response/re-raises the last exception once retries are
+    exhausted, so the caller sees exactly the same shape of failure it
+    would have without retries, just after trying harder first.
+
+    Guarded by a circuit breaker (see CIRCUIT_BREAKER_* constants): after
+    enough consecutive request-level failures, a new call fails fast
+    instead of repeating the full retry sequence against a provider
+    that's already known to be down.
     """
+    if _circuit_is_open():
+        raise LLMError(
+            f"LLM provider ({url}) circuit breaker is open after {CIRCUIT_BREAKER_THRESHOLD} consecutive "
+            f"failures - failing fast for up to {CIRCUIT_BREAKER_COOLDOWN_SECONDS:.0f}s instead of retrying "
+            f"against a provider that's already known to be down."
+        )
+
     last_exception = None
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -194,17 +270,23 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             last_exception = err
             if attempt < MAX_RETRIES:
                 logger.warning(f"LLM request to {url} failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
-                time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+                time.sleep(_backoff_seconds(attempt))
                 continue
+            _record_circuit_failure()
             raise LLMError(f"LLM provider request failed: {err}") from err
 
-        if response.status_code not in _RETRYABLE_STATUS_CODES or attempt == MAX_RETRIES:
+        if response.status_code not in _RETRYABLE_STATUS_CODES:
+            if response.status_code == 200:
+                _record_circuit_success()
+            return response
+        if attempt == MAX_RETRIES:
+            _record_circuit_failure()
             return response
 
         logger.warning(
             f"LLM provider returned {response.status_code}, retrying (attempt {attempt + 1}/{MAX_RETRIES})"
         )
-        time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+        time.sleep(_backoff_seconds(attempt))
 
     # Unreachable in practice (the loop always returns or raises above),
     # kept only so this function has an explicit exhaustive return path.
