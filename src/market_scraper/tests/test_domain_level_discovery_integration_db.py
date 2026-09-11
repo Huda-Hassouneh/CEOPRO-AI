@@ -17,7 +17,7 @@ import psycopg2
 import pytest
 
 from src.ai.pricing.competitor_classification import SCOPE_BROAD_DOMAIN, TIER_CANDIDATE, TIER_STRATEGIC
-from src.market_scraper.company_geo_profile import SCOPE_LEVEL_CITY, set_tenant_search_scope
+from src.market_scraper.company_geo_profile import SCOPE_LEVEL_CITY, SCOPE_LEVEL_COUNTRY, set_tenant_search_scope
 from src.market_scraper.discovery import CandidateSource, register_domain_level_competitor
 from src.market_scraper.tenant_discovery import discover_domain_level_competitors_for_tenant
 
@@ -205,3 +205,28 @@ def test_domain_and_product_level_finds_converge_on_the_same_competitor_row(conn
             "SELECT COUNT(*) FROM global_competitors WHERE added_by_tenant_id = %s;", (tenant_id,)
         )
         assert cursor.fetchone()[0] == 1
+
+
+def test_orchestration_skips_places_for_an_explicit_country_scope_even_with_coordinates(conn):
+    """COUNTRY scope means 'no radius filter' by design - a radius-bounded
+    Nearby Search isn't a meaningful operation for it, so Places is
+    correctly skipped even though the tenant DOES have coordinates on
+    file; the industry-keyword search still covers this scope via its own
+    text-based geo_scope."""
+    tenant_id = _insert_company(conn, country_code="JO")
+    _insert_product(conn, tenant_id, "Arduino Nano")
+    set_tenant_search_scope(
+        conn, tenant_id, latitude=31.9539, longitude=35.9106, search_scope_level=SCOPE_LEVEL_COUNTRY,
+    )
+
+    industry_result = [CandidateSource("electronics_hobbyist", "https://country-scope.example", "Country Scope Co")]
+
+    with patch("src.market_scraper.tenant_discovery.discover_nearby_places") as mock_places, \
+         patch("src.market_scraper.tenant_discovery.discover_industry_candidates", return_value=industry_result):
+        results = discover_domain_level_competitors_for_tenant(
+            conn, tenant_id, str(uuid.uuid4()), google_places_api_key="fake-key",
+        )
+
+    mock_places.assert_not_called()
+    assert len(results) == 1
+    assert results[0]["discovery_method"] == "INDUSTRY_KEYWORD_SEARCH"

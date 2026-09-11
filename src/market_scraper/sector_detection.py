@@ -188,14 +188,46 @@ def resolve_tenant_search_radius(conn, tenant_id: str, override_km: Optional[flo
     (that's for when the user wants the new radius to become their
     standing default, a separate action from adjusting it for one search).
 
-    None (not a made-up number) when neither an override nor a stored
-    default exists - the caller (list_tenant_competitors_by_proximity())
-    already treats a None radius_km as "no radius filter, rank everything"
-    rather than needing a fake default here.
+    "If the target region data is missing/empty, automatically fall back to
+    the closest logically appropriate default scope or radius" - the real
+    fix this implements: a tenant who never explicitly called
+    company_geo_profile.py::set_tenant_search_scope() still has a real
+    search_scope_level (the column's own DB default is 'PROVINCE'), but
+    default_search_radius_km itself is NULL until that function resolves
+    and stores a real preset. Rather than every caller of this function
+    needing its own fallback constant, this resolves through the SAME
+    preset table set_tenant_search_scope() itself uses
+    (SCOPE_LEVEL_PRESET_RADIUS_KM) whenever the stored radius is missing
+    but a scope_level is known - which, given the DB default, is always.
+
+    The one genuine "no radius" case is COUNTRY scope: that's an explicit
+    choice (this tenant's whole operating_countries list, not a distance
+    ring), never confused with "never configured" - still returns None
+    there, and callers (list_tenant_competitors_by_proximity(),
+    tenant_discovery.py's Places gating) already treat that None correctly
+    as "no radius filter" rather than a fallback failure.
     """
     if override_km is not None:
         return override_km
     with conn.cursor() as cursor:
-        cursor.execute("SELECT default_search_radius_km FROM companies WHERE tenant_id = %s;", (tenant_id,))
+        cursor.execute(
+            "SELECT default_search_radius_km, search_scope_level FROM companies WHERE tenant_id = %s;",
+            (tenant_id,),
+        )
         row = cursor.fetchone()
-    return row[0] if row else None
+    if row is None:
+        return None
+    radius_km, scope_level = row
+    if radius_km is not None:
+        return radius_km
+
+    from src.market_scraper.company_geo_profile import (
+        SCOPE_LEVEL_COUNTRY, SCOPE_LEVEL_PRESET_RADIUS_KM, SCOPE_LEVEL_PROVINCE,
+    )
+    if scope_level == SCOPE_LEVEL_COUNTRY:
+        return None
+    # Any other scope_level (including one this module doesn't recognize,
+    # defensively) falls back to PROVINCE's own preset - "closest logically
+    # appropriate default" per the product ask, never a silently-None
+    # radius for a tenant who simply never explicitly configured one.
+    return SCOPE_LEVEL_PRESET_RADIUS_KM.get(scope_level, SCOPE_LEVEL_PRESET_RADIUS_KM[SCOPE_LEVEL_PROVINCE])

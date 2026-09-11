@@ -302,11 +302,20 @@ def discover_domain_level_competitors_for_tenant(
 
     candidates = []
 
-    if scope["latitude"] is not None and scope["longitude"] is not None and google_places_api_key:
+    # resolved_radius_km is None only for an explicit COUNTRY scope choice
+    # (resolve_tenant_search_radius()'s own contract) - a radius-bounded
+    # Nearby Search is not a meaningful operation for "this tenant's whole
+    # country", so Places is correctly skipped there, not fed a fabricated
+    # radius; the industry-keyword search below still covers that scope via
+    # its own text-based geo_scope, unaffected by this gate.
+    if (
+        scope["latitude"] is not None and scope["longitude"] is not None
+        and google_places_api_key and resolved_radius_km is not None
+    ):
         keyword = VERTICAL_INDUSTRY_LABELS.get(vertical, VERTICAL_INDUSTRY_LABELS["general_retail"])
         candidates.extend(discover_nearby_places(
             scope["latitude"], scope["longitude"], keyword,
-            radius_km=resolved_radius_km or places_nearby_discovery_default_radius_km(),
+            radius_km=resolved_radius_km,
             api_key=google_places_api_key, max_results=max_results,
         ))
 
@@ -324,13 +333,3 @@ def discover_domain_level_competitors_for_tenant(
         results.append({**registered, "policy_status": decision.policy_status})
     return results
 
-
-def places_nearby_discovery_default_radius_km() -> float:
-    """The fallback radius when a tenant has coordinates but no resolved
-    default_search_radius_km at all (e.g. set a location without ever
-    picking a search_scope_level) - PROVINCE's own preset value, kept as
-    one named constant rather than a bare number so the two stay in sync
-    if the preset is ever tuned. Real Nearby Search calls still clamp to
-    MAX_NEARBY_SEARCH_RADIUS_KM regardless."""
-    from src.market_scraper.company_geo_profile import SCOPE_LEVEL_PRESET_RADIUS_KM, SCOPE_LEVEL_PROVINCE
-    return SCOPE_LEVEL_PRESET_RADIUS_KM[SCOPE_LEVEL_PROVINCE]

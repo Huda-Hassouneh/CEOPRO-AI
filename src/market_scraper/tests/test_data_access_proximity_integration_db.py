@@ -16,6 +16,7 @@ from src.market_scraper.company_geo_profile import (
     get_tenant_search_scope, set_tenant_search_scope,
 )
 from src.market_scraper.data_access import list_tenant_competitors_by_proximity
+from src.market_scraper.sector_detection import resolve_tenant_search_radius
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -201,3 +202,33 @@ def test_proximity_listing_puts_unknown_distance_last(conn):
     results = list_tenant_competitors_by_proximity(conn, tenant_id)
     assert [r["global_competitor_id"] for r in results] == [known, unknown]
     assert results[1]["distance_km"] is None
+
+
+# "If the target region data is missing/empty, automatically fall back to
+# the closest logically appropriate default scope or radius" - a fresh
+# tenant who never called set_tenant_search_scope() at all still has a
+# real search_scope_level (the column's own DB default), so
+# resolve_tenant_search_radius() should still resolve a real number, not
+# silently return None.
+
+def test_radius_falls_back_to_the_province_preset_for_a_never_configured_tenant(conn):
+    tenant_id = _insert_company(conn)  # no set_tenant_search_scope() call at all
+    assert resolve_tenant_search_radius(conn, tenant_id) == 150  # PROVINCE is the DB default
+
+
+def test_radius_falls_back_to_the_stored_scope_levels_preset(conn):
+    tenant_id = _insert_company(conn)
+    set_tenant_search_scope(conn, tenant_id, search_scope_level=SCOPE_LEVEL_CITY)
+    assert resolve_tenant_search_radius(conn, tenant_id) == 25
+
+
+def test_radius_is_none_for_an_explicit_country_scope_not_a_fallback_failure(conn):
+    tenant_id = _insert_company(conn)
+    set_tenant_search_scope(conn, tenant_id, search_scope_level=SCOPE_LEVEL_COUNTRY)
+    assert resolve_tenant_search_radius(conn, tenant_id) is None
+
+
+def test_radius_override_always_wins_regardless_of_stored_scope(conn):
+    tenant_id = _insert_company(conn)
+    set_tenant_search_scope(conn, tenant_id, search_scope_level=SCOPE_LEVEL_COUNTRY)
+    assert resolve_tenant_search_radius(conn, tenant_id, override_km=42) == 42
