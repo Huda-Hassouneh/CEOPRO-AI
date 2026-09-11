@@ -67,6 +67,22 @@ def _upsert_summary_document(conn, minio_client, tenant_id: str, slot: str, text
     (a re-generation) or creates it fresh (the first generation for this
     tenant/slot). Either way, ingest_pending_documents() picks it up on
     its next run through the exact same path a real upload would.
+
+    A single INSERT ... ON CONFLICT DO UPDATE, not a SELECT-then-INSERT/
+    UPDATE: this is called from analysis_worker.py::analyze_tenant() on
+    every market.analysis.requested event, and Redis consumer groups only
+    guarantee exclusivity per MESSAGE, not per tenant - two scrapes
+    finishing close together for the same tenant can be popped by two
+    different worker processes concurrently. A check-then-act SELECT
+    followed by a separate INSERT has a real race window there: both
+    workers can see no existing row and both INSERT, producing two
+    rag_documents_metadata rows pointing at the same MinIO object key,
+    which ingest_pending_documents() then chunks/embeds twice - silently
+    duplicated retrieval context for the chatbot. The atomic upsert
+    (backed by migration 20260911010000's unique index on
+    (tenant_id, storage_bucket_path)) closes that window: whichever
+    worker's write loses the race updates the same row instead of
+    creating a second one.
     """
     import io
     payload = text.encode("utf-8")
@@ -75,31 +91,18 @@ def _upsert_summary_document(conn, minio_client, tenant_id: str, slot: str, text
 
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT document_id FROM rag_documents_metadata WHERE tenant_id = %s AND storage_bucket_path = %s;",
-            (tenant_id, object_key),
+            """
+            INSERT INTO rag_documents_metadata
+                (tenant_id, file_name, storage_bucket_path, file_size_bytes, content_type, processed_status)
+            VALUES (%s, %s, %s, %s, 'text/plain', 'Pending')
+            ON CONFLICT (tenant_id, storage_bucket_path) DO UPDATE
+                SET file_size_bytes = EXCLUDED.file_size_bytes,
+                    processed_status = 'Pending'
+            RETURNING document_id;
+            """,
+            (tenant_id, f"{slot}.txt", object_key, len(payload)),
         )
-        row = cursor.fetchone()
-        if row:
-            document_id = str(row[0])
-            cursor.execute(
-                "UPDATE rag_documents_metadata SET file_size_bytes = %s WHERE document_id = %s;",
-                (len(payload), document_id),
-            )
-            cursor.execute(
-                "UPDATE rag_documents_metadata SET processed_status = 'Pending' WHERE document_id = %s;",
-                (document_id,),
-            )
-        else:
-            cursor.execute(
-                """
-                INSERT INTO rag_documents_metadata
-                    (tenant_id, file_name, storage_bucket_path, file_size_bytes, content_type, processed_status)
-                VALUES (%s, %s, %s, %s, 'text/plain', 'Pending')
-                RETURNING document_id;
-                """,
-                (tenant_id, f"{slot}.txt", object_key, len(payload)),
-            )
-            document_id = str(cursor.fetchone()[0])
+        document_id = str(cursor.fetchone()[0])
     conn.commit()
     return document_id
 
