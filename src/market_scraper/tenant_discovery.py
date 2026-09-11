@@ -61,12 +61,20 @@ it's safe to scrape them.
 """
 from typing import List, Optional
 
+from src.market_scraper.company_geo_profile import get_tenant_search_scope
 from src.market_scraper.direct_search import RETAILER_DOMAINS_BY_VERTICAL, search_product_across_retailers
-from src.market_scraper.discovery import evaluate_candidate, register_tenant_scoped_competitor
+from src.market_scraper.discovery import (
+    evaluate_candidate, register_domain_level_competitor, register_tenant_scoped_competitor,
+)
+from src.market_scraper.places_nearby_discovery import discover_nearby_places
 from src.market_scraper.product_families import select_family_representatives
-from src.market_scraper.sector_detection import detect_vertical, resolve_tenant_geo_scope
+from src.market_scraper.sector_detection import (
+    VERTICAL_INDUSTRY_LABELS, detect_vertical, resolve_tenant_geo_scope, resolve_tenant_search_radius,
+)
 from src.market_scraper.sitemap_discovery import SITEMAP_DOMAINS_BY_VERTICAL, discover_products_via_sitemap
-from src.market_scraper.web_product_discovery import discover_product_candidates, discover_social_profile_candidates
+from src.market_scraper.web_product_discovery import (
+    discover_industry_candidates, discover_product_candidates, discover_social_profile_candidates,
+)
 
 
 def _load_active_tenant_products(conn, tenant_id: str, skip_already_discovered: bool = True) -> List[dict]:
@@ -226,3 +234,103 @@ def discover_competitors_for_tenant(
                     "product_name": member["product_name"],
                 })
     return results
+
+
+def discover_domain_level_competitors_for_tenant(
+    conn, tenant_id: str, actor_user_id: str,
+    google_places_api_key: Optional[str] = None,
+    geo_scope: Optional[str] = None, radius_km: Optional[float] = None,
+    max_results: int = 15, daily_query_limit: Optional[int] = 100,
+) -> List[dict]:
+    """
+    The real fix for "the system cannot rely only on exact product
+    matches": finds competitors by INDUSTRY/domain, not by matching a
+    specific product. discover_competitors_for_tenant() above can only
+    ever find a seller already seen carrying something the tenant also
+    sells - a same-industry rival with a genuinely different product mix
+    (spec example: "a large manufacturing factory is not a direct
+    competitor to a local retail shop" is the exclusion case; this
+    function's whole point is the inclusion case that product-matching
+    alone structurally misses) never shows up through that path at all.
+
+    Two real, combined discovery sources (the "hybrid" approach) run in
+    this one call:
+    1. **Places nearby-search** (places_nearby_discovery.py) - only runs
+       when the tenant has real coordinates on file (company_geo_profile.py)
+       AND a Google Places API key is supplied; searches a real radius
+       (resolve_tenant_search_radius() - the tenant's own CITY/PROVINCE/
+       COUNTRY/CUSTOM preference, see company_geo_profile.py - clamped to
+       Google's real 50km Nearby Search cap) around the tenant's own
+       location for the tenant's detected industry keyword.
+    2. **Industry-keyword Custom Search** (web_product_discovery.py::
+       discover_industry_candidates()) - always attempted (needs no
+       coordinates, only the tenant's detected vertical + country-level
+       geo_scope text, same as product-level discovery already uses);
+       the real fallback/complement when the tenant has no coordinates on
+       file yet, or as an additional source alongside Places either way.
+
+    Every real candidate from either source is registered via discovery.py
+    ::register_domain_level_competitor() - no competitor_product_mappings
+    row (there's no specific product to scope one to), but a real,
+    classified, potentially-confirmed tenant_competitors row, exactly the
+    same downstream shape discover_competitors_for_tenant() produces.
+
+    Nothing here auto-approves collection, same discipline as every other
+    discovery path in this module - these are business identities found
+    and recorded, not sources cleared for scraping.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT product_name FROM products WHERE tenant_id = %s AND deleted_at IS NULL;",
+            (tenant_id,),
+        )
+        product_names = []
+        for (product_name,) in cursor.fetchall():
+            if isinstance(product_name, dict):
+                text = next((v for v in product_name.values() if isinstance(v, str) and v), None)
+            elif isinstance(product_name, str):
+                text = product_name
+            else:
+                text = None
+            if text:
+                product_names.append(text)
+
+    vertical = detect_vertical(product_names).vertical
+    resolved_geo_scope = resolve_tenant_geo_scope(conn, tenant_id, override=geo_scope)
+    scope = get_tenant_search_scope(conn, tenant_id)
+    resolved_radius_km = resolve_tenant_search_radius(conn, tenant_id, override_km=radius_km)
+
+    candidates = []
+
+    if scope["latitude"] is not None and scope["longitude"] is not None and google_places_api_key:
+        keyword = VERTICAL_INDUSTRY_LABELS.get(vertical, VERTICAL_INDUSTRY_LABELS["general_retail"])
+        candidates.extend(discover_nearby_places(
+            scope["latitude"], scope["longitude"], keyword,
+            radius_km=resolved_radius_km or places_nearby_discovery_default_radius_km(),
+            api_key=google_places_api_key, max_results=max_results,
+        ))
+
+    candidates.extend(discover_industry_candidates(
+        vertical, resolved_geo_scope, max_results=max_results, conn=conn, daily_query_limit=daily_query_limit,
+    ))
+
+    results = []
+    for candidate in candidates:
+        decision = evaluate_candidate(candidate)
+        method = "PLACES_NEARBY" if candidate.latitude is not None else "INDUSTRY_KEYWORD_SEARCH"
+        registered = register_domain_level_competitor(
+            conn, tenant_id, actor_user_id, candidate, discovery_method=method, industry_sector=vertical,
+        )
+        results.append({**registered, "policy_status": decision.policy_status})
+    return results
+
+
+def places_nearby_discovery_default_radius_km() -> float:
+    """The fallback radius when a tenant has coordinates but no resolved
+    default_search_radius_km at all (e.g. set a location without ever
+    picking a search_scope_level) - PROVINCE's own preset value, kept as
+    one named constant rather than a bare number so the two stay in sync
+    if the preset is ever tuned. Real Nearby Search calls still clamp to
+    MAX_NEARBY_SEARCH_RADIUS_KM regardless."""
+    from src.market_scraper.company_geo_profile import SCOPE_LEVEL_PRESET_RADIUS_KM, SCOPE_LEVEL_PROVINCE
+    return SCOPE_LEVEL_PRESET_RADIUS_KM[SCOPE_LEVEL_PROVINCE]
