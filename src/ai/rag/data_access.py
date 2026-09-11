@@ -40,6 +40,7 @@ import docx
 import numpy as np
 import openpyxl
 import pdfplumber
+from psycopg2.extras import execute_values
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".xlsx"}
 
@@ -172,19 +173,30 @@ def replace_document_chunks(
     module yet, so this is the half of "solve the lifecycle" this module
     owns; the other half is a prerequisite outside its boundary.
     """
+    values = [
+        (tenant_id, document_id, chunk_index, text, _to_pgvector_literal(embedding), model_version)
+        for chunk_index, (text, embedding) in enumerate(zip(chunks, embeddings))
+    ]
     with conn.cursor() as cursor:
         cursor.execute(
             "DELETE FROM rag_document_chunks WHERE tenant_id = %s AND document_id = %s;",
             (tenant_id, document_id),
         )
-        for chunk_index, (text, embedding) in enumerate(zip(chunks, embeddings)):
-            cursor.execute(
+        if values:
+            # One multi-row INSERT instead of one round trip per chunk -
+            # a real N+1 for any document long enough to produce hundreds
+            # of chunks (chunking.py). Mirrors the same execute_values()
+            # pattern src/ai/extraction/ingestion_pipeline.py/promotion.py
+            # already use for their own bulk inserts.
+            execute_values(
+                cursor,
                 """
                 INSERT INTO rag_document_chunks
                     (tenant_id, document_id, chunk_index, chunk_text_content, embedding, embedding_model_version)
-                VALUES (%s, %s, %s, %s, %s::vector, %s);
+                VALUES %s;
                 """,
-                (tenant_id, document_id, chunk_index, text, _to_pgvector_literal(embedding), model_version),
+                values,
+                template="(%s, %s, %s, %s, %s::vector, %s)",
             )
 
 
