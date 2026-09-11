@@ -73,7 +73,16 @@ class PostgresPricePipeline:
             quarantined=self.quarantined,
         )
         self.connection.close()
-        if status == "COMPLETED" and self.review_count:
+        if self.review_count:
+            # Fire whenever real reviews were actually persisted, regardless
+            # of the job's overall status - a job with one failed target
+            # among several still durably wrote the other targets' reviews,
+            # and those already-persisted reviews deserve sentiment
+            # classification, a score refresh, and RAG summary regeneration
+            # the same as any other. Gating this on status == "COMPLETED"
+            # silently stranded that data: it stayed in Postgres forever with
+            # no sentiment score and no way to reach the RAG chatbot unless
+            # someone manually called POST /sentiment/analyze-pending.
             try:
                 redis.Redis.from_url(
                     os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True
