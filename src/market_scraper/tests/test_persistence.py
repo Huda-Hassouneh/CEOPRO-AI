@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from src.market_scraper.persistence import PostgresPricePipeline
 
@@ -76,6 +77,75 @@ def test_pipeline_counts_quarantine_without_creating_canonical_price(monkeypatch
     assert "competitor_price_id" not in result
     assert pipeline.quarantined == 1
     assert pipeline.persisted == 0
+
+
+def test_pipeline_publishes_analysis_event_even_when_job_status_is_failed(monkeypatch):
+    """
+    The real fix: a job with one failed target among several still
+    durably persisted the OTHER targets' reviews before failing - those
+    reviews must still get sentiment/score/RAG-summary treatment, not be
+    silently stranded just because the overall job status is FAILED.
+    """
+    crawler = SimpleNamespace(signals=FakeSignals())
+    connection = FakeConnection()
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.data_access.get_tenant_connection",
+        lambda tenant_id: connection,
+    )
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.market_repository.save_market_record",
+        lambda conn, item: {
+            "status": "PROMOTED", "price_id": "price-1",
+            "observation_id": "observation-1", "event_ids": [], "review_ids": ["review-1"],
+        },
+    )
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.data_access.finish_ingestion_job",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.data_access.heartbeat_ingestion_job",
+        lambda *args: None,
+    )
+    pipeline = PostgresPricePipeline.from_crawler(crawler)
+    item = {"tenant_id": "tenant-1", "job_id": "job-1", "mapping_id": "mapping-1"}
+    pipeline.process_item(item)
+    # Two targets expected, only one succeeded - the job is FAILED overall,
+    # but a review was still actually persisted for the one that succeeded.
+    spider = SimpleNamespace(
+        tenant_id="tenant-1", job_id="job-1",
+        targets=[{"mapping_id": "mapping-1"}, {"mapping_id": "mapping-2"}],
+    )
+
+    fake_redis = MagicMock()
+    with patch("src.market_scraper.persistence.redis.Redis.from_url", return_value=fake_redis):
+        pipeline.spider_closed(spider, "finished")
+
+    fake_redis.xadd.assert_called_once_with(
+        "market.analysis.requested",
+        {"tenant_id": "tenant-1", "job_id": "job-1", "review_count": "1"},
+    )
+
+
+def test_pipeline_does_not_publish_analysis_event_without_any_persisted_reviews(monkeypatch):
+    crawler = SimpleNamespace(signals=FakeSignals())
+    connection = FakeConnection()
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.data_access.get_tenant_connection",
+        lambda tenant_id: connection,
+    )
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.data_access.finish_ingestion_job",
+        lambda *args, **kwargs: None,
+    )
+    pipeline = PostgresPricePipeline.from_crawler(crawler)
+    spider = SimpleNamespace(tenant_id="tenant-1", job_id="job-1", targets=[])
+
+    fake_redis = MagicMock()
+    with patch("src.market_scraper.persistence.redis.Redis.from_url", return_value=fake_redis):
+        pipeline.spider_closed(spider, "finished")
+
+    fake_redis.xadd.assert_not_called()
 
 
 def test_pipeline_marks_missing_target_as_failed(monkeypatch):
