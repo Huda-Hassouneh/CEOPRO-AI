@@ -13,6 +13,7 @@ import psycopg2
 import pytest
 
 from src.ai.pricing.competitor_classification import (
+    SCOPE_BROAD_DOMAIN, SCOPE_NICHE_ITEM, SCOPE_PARTIAL_OVERLAP,
     TIER_CANDIDATE, TIER_RELEVANT, TIER_STRATEGIC, classify_competitor, compute_product_match_rate,
 )
 
@@ -30,13 +31,16 @@ def conn():
     connection.close()
 
 
-def _insert_company(conn, country_code: str = "JO", operating_countries=None) -> str:
+def _insert_company(
+    conn, country_code: str = "JO", operating_countries=None, latitude=None, longitude=None,
+) -> str:
     tenant_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency, operating_countries) "
-            "VALUES (%s, %s, %s, 'JOD', %s);",
-            (tenant_id, f"Test Co {tenant_id[:8]}", country_code, operating_countries or []),
+            "INSERT INTO companies "
+            "(tenant_id, business_name, country_code, primary_currency, operating_countries, latitude, longitude) "
+            "VALUES (%s, %s, %s, 'JOD', %s, %s, %s);",
+            (tenant_id, f"Test Co {tenant_id[:8]}", country_code, operating_countries or [], latitude, longitude),
         )
     return tenant_id
 
@@ -52,14 +56,21 @@ def _insert_product(conn, tenant_id: str, name: str) -> str:
     return product_id
 
 
-def _insert_competitor(conn, tenant_id: str, is_manufacturer: bool = False, country_code: str = None) -> str:
+def _insert_competitor(
+    conn, tenant_id: str, is_manufacturer: bool = False, country_code: str = None,
+    latitude=None, longitude=None,
+) -> str:
     competitor_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
             "INSERT INTO global_competitors "
-            "(global_competitor_id, competitor_name, visibility, added_by_tenant_id, is_manufacturer, country_code) "
-            "VALUES (%s, %s, 'PRIVATE', %s, %s, %s);",
-            (competitor_id, f"Competitor {competitor_id[:8]}", tenant_id, is_manufacturer, country_code),
+            "(global_competitor_id, competitor_name, visibility, added_by_tenant_id, is_manufacturer, "
+            " country_code, latitude, longitude) "
+            "VALUES (%s, %s, 'PRIVATE', %s, %s, %s, %s, %s);",
+            (
+                competitor_id, f"Competitor {competitor_id[:8]}", tenant_id, is_manufacturer, country_code,
+                latitude, longitude,
+            ),
         )
         cursor.execute(
             "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s);",
@@ -253,3 +264,99 @@ def test_tier_is_candidate_for_an_out_of_region_seller(conn):
 
     result = classify_competitor(conn, tenant_id, competitor_id)
     assert result.tier == TIER_CANDIDATE
+
+
+def test_scope_is_niche_item_for_a_single_mapped_product(conn):
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    _insert_product(conn, tenant_id, "Widget B")
+    _insert_product(conn, tenant_id, "Widget C")
+    _insert_product(conn, tenant_id, "Widget D")
+    competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="JO")
+    _map_product(conn, tenant_id, competitor_id, product_a)  # exactly one product - 1/4 = 25%
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.matched_product_count == 1
+    assert result.competitor_scope == SCOPE_NICHE_ITEM
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT competitor_scope FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, competitor_id),
+        )
+        assert cursor.fetchone()[0] == SCOPE_NICHE_ITEM
+
+
+def test_scope_is_broad_domain_when_most_of_the_catalog_overlaps(conn):
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    product_b = _insert_product(conn, tenant_id, "Widget B")
+    _insert_product(conn, tenant_id, "Widget C")
+    competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="JO")
+    _map_product(conn, tenant_id, competitor_id, product_a)
+    _map_product(conn, tenant_id, competitor_id, product_b)  # 2/3 = 67% - broad, and >=2 products
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.matched_product_count == 2
+    assert result.competitor_scope == SCOPE_BROAD_DOMAIN
+
+
+def test_scope_is_partial_overlap_between_the_two_extremes(conn):
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    product_b = _insert_product(conn, tenant_id, "Widget B")
+    for i in range(6):
+        _insert_product(conn, tenant_id, f"Widget X{i}")
+    competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="JO")
+    _map_product(conn, tenant_id, competitor_id, product_a)
+    _map_product(conn, tenant_id, competitor_id, product_b)  # 2/8 = 25%, and 2 products (not niche)
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.matched_product_count == 2
+    assert result.competitor_scope == SCOPE_PARTIAL_OVERLAP
+
+
+def test_scope_honors_a_custom_broad_domain_threshold(conn):
+    tenant_id = _insert_company(conn, country_code="JO")
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    product_b = _insert_product(conn, tenant_id, "Widget B")
+    for i in range(6):
+        _insert_product(conn, tenant_id, f"Widget X{i}")
+    competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="JO")
+    _map_product(conn, tenant_id, competitor_id, product_a)
+    _map_product(conn, tenant_id, competitor_id, product_b)  # 25% overlap
+
+    result = classify_competitor(conn, tenant_id, competitor_id, broad_domain_threshold=0.2)
+    assert result.competitor_scope == SCOPE_BROAD_DOMAIN
+
+
+def test_distance_km_is_none_when_either_side_has_no_coordinates(conn):
+    tenant_id = _insert_company(conn, country_code="JO")  # no lat/lon
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    competitor_id = _insert_competitor(
+        conn, tenant_id, is_manufacturer=False, country_code="JO", latitude=31.95, longitude=35.93,
+    )
+    _map_product(conn, tenant_id, competitor_id, product_a)
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.distance_km is None
+
+
+def test_distance_km_is_computed_and_persisted_when_both_sides_have_coordinates(conn):
+    tenant_id = _insert_company(conn, country_code="JO", latitude=31.9539, longitude=35.9106)
+    product_a = _insert_product(conn, tenant_id, "Widget A")
+    competitor_id = _insert_competitor(
+        conn, tenant_id, is_manufacturer=False, country_code="JO", latitude=31.9454, longitude=35.9284,
+    )
+    _map_product(conn, tenant_id, competitor_id, product_a)
+
+    result = classify_competitor(conn, tenant_id, competitor_id)
+    assert result.distance_km is not None
+    assert 0 < result.distance_km < 5  # two real, nearby Amman points
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT distance_km FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, competitor_id),
+        )
+        assert float(cursor.fetchone()[0]) == pytest.approx(result.distance_km)

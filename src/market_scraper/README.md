@@ -246,6 +246,69 @@ cost N searches for N variants).
   recommended — the expensive paid-provider comment/review depth is never spent on a competitor that
   hasn't cleared the real bar, while `RELEVANT` still gets tracked and price-compared.
 
+## Region-aware ranking: proximity + competitor breadth
+
+Two further, real product asks this session, both additive (nothing above changes): "the competitor
+must be located within the same target region... though we can ultimately rank or filter them based
+on the user's preference/input", and "determine whether they are competing across most products (a
+broad domain competitor) or just on a single product (a niche/item competitor)". Migration
+`20260911000000` adds the columns; nothing here changes whether a competitor gets confirmed/tracked —
+`tier`/`is_confirmed_competitor` above still answer that. These two are a separate axis each.
+
+- **Competitor breadth** (`tenant_competitors.competitor_scope`) — computed and persisted by
+  `competitor_classification.py::classify_competitor()` on every run, alongside tier:
+  `NICHE_ITEM` (this competitor's mapped-product count is `<= 1` — literally "just on a single
+  product"), `BROAD_DOMAIN` (product-overlap ratio clears `broad_domain_threshold`, default `0.5`,
+  its own parameter — not forced to equal the confirmation `threshold`, though they share the same
+  default value), `PARTIAL_OVERLAP` for the real, honest middle ground. A `NICHE_ITEM` competitor can
+  still be `STRATEGIC` tier (the one product they carry is an exact, in-region, non-manufacturer
+  match) — "real but narrow" is a genuine outcome, not a contradiction between the two axes.
+- **Proximity** — `companies.latitude`/`longitude` (set via `company_geo_profile.py::
+  set_tenant_search_scope()`, a partial-update function: a call updating just the scope level
+  doesn't require re-sending the tenant's country list or coordinates) and `global_competitors.
+  latitude`/`longitude` (populated by a discovery source that has real coordinates to offer — e.g. a
+  future Google Places nearby-search result; `discovery.py::CandidateSource.latitude/longitude` carry
+  this through today, though the only discovery source wired in so far, product-keyed Custom Search,
+  never sets them). `geo.py::haversine_km()` (pure stdlib, no geocoding API) computes real
+  great-circle distance whenever BOTH sides are known; `classify_competitor()` persists it as
+  `tenant_competitors.distance_km` — `NULL`, never a fabricated `0`, when either side's location is
+  unknown.
+- **The radius is never a number the end user types.** `companies.search_scope_level` (`CITY` /
+  `PROVINCE` / `COUNTRY` / `CUSTOM`, default `PROVINCE`) is the real UI-facing control — a
+  dropdown/segmented choice, not a "how many kilometers?" field nobody can answer intuitively.
+  `set_tenant_search_scope()` resolves the actual `default_search_radius_km` server-side:
+  `SCOPE_LEVEL_PRESET_RADIUS_KM` maps `CITY`→25km/`PROVINCE`→150km; `COUNTRY` explicitly clears the
+  radius to `NULL` (region becomes "this tenant's whole `operating_countries` list", not a distance
+  ring at all); `CUSTOM` is the one deliberate escape hatch for an advanced/API caller who wants an
+  exact km figure, and requires `custom_radius_km` be passed alongside it (rejected otherwise).
+- **Multi-country scope** — `companies.operating_countries` (pre-existing) is what
+  `set_tenant_search_scope()` writes a user's multi-country input into; `competitor_classification.py
+  ::_in_operating_region()` already checked it before this session's changes, so a tenant with several
+  operating countries was already correctly excluding sellers outside all of them, not just the
+  primary one.
+- **Ranking/filtering at query time, not at classification time** —
+  `data_access.py::list_tenant_competitors_by_proximity(conn, tenant_id, radius_km=None,
+  scope=None, limit=None)` sorts every tracked competitor closest-to-farthest (unknown distance
+  always sorts last, never first), optionally filtered to one `competitor_scope` and/or a
+  `radius_km` cap. Distance/scope are computed once by `classify_competitor()` and just sorted here —
+  this is deliberately a read-time choice, not baked into `is_confirmed_competitor`, so "expand or
+  narrow the search radius from the interface" is exactly widening/narrowing `radius_km` on this call
+  (or, to change the tenant's *standing* default rather than one request, `companies.
+  default_search_radius_km` via `set_tenant_search_scope()` — `sector_detection.py::
+  resolve_tenant_search_radius()` resolves whichever the caller wants: an explicit per-call
+  `override_km`, falling back to the tenant's stored default, falling back to `None` — never an
+  invented number). Widening the radius later never requires a new discovery run: it just admits more
+  of the already-computed rows.
+
+**Not yet built** (flagged, not silently skipped): the actual *hybrid discovery* sources that would
+find a domain-level competitor who doesn't happen to carry an exactly-matched product at all (Google
+Places nearby-search by category, an industry-keyword Custom Search variant, inferring
+`global_competitors.industry_sector` — present in the schema, still unpopulated — for competitors
+already found by product search). `tenant_competitors.discovery_method` (`PRODUCT_SEARCH` /
+`PLACES_NEARBY` / `INDUSTRY_KEYWORD_SEARCH`) already reserves the values so that work won't need a
+second migration; today every real discovery run sets it to `PRODUCT_SEARCH`, since that's still the
+only implemented source.
+
 ## Where competitor URLs and product matching come from
 
 `data_sources.source_url` is the reviewed base/API/feed URL and stores collection policy,
