@@ -30,6 +30,9 @@ def _isolated_from_local_llm_config(monkeypatch):
     tests' logic.
     """
     monkeypatch.setattr(llm_client, "LOCAL_LLM_BASE_URL", None)
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", None)
+    monkeypatch.setattr(llm_client, "PAID_LLM_API_KEY", None)
+    monkeypatch.setattr(llm_client, "PAID_LLM_MODEL", None)
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
 
 
@@ -134,6 +137,47 @@ def test_generate_answer_uses_env_model_when_not_overridden(monkeypatch):
     monkeypatch.setattr(llm_client.httpx, "post", fake_post)
     llm_client.generate_answer(_context(), api_key="test-key")
     assert captured["model"] == "qwen/some-other-model"
+
+
+def test_generate_answer_uses_the_paid_provider_when_configured(monkeypatch):
+    """The flexible placeholder: setting PAID_LLM_BASE_URL (+ API key)
+    routes generate_answer() at that vendor instead of Groq, with the
+    exact same request shape - no other code path change needed."""
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
+    monkeypatch.setattr(llm_client, "PAID_LLM_API_KEY", "paid-key")
+    monkeypatch.setattr(llm_client, "PAID_LLM_MODEL", "paid-vendor/best-model")
+
+    def fake_post(url, headers, json, timeout):
+        assert url == "https://paid-vendor.example/v1/chat/completions"
+        assert headers["Authorization"] == "Bearer paid-key"
+        assert json["model"] == "paid-vendor/best-model"
+        return _FakeResponse(200, {"choices": [{"message": {"content": "Sunscreen SPF 50."}}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    answer = llm_client.generate_answer(_context())
+    assert answer == "Sunscreen SPF 50."
+
+
+def test_generate_answer_paid_provider_takes_priority_over_local(monkeypatch):
+    monkeypatch.setattr(llm_client, "LOCAL_LLM_BASE_URL", "http://localhost:8080/v1/chat/completions")
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
+    monkeypatch.setattr(llm_client, "PAID_LLM_API_KEY", "paid-key")
+
+    captured = {}
+
+    def fake_post(url, headers, json, timeout):
+        captured["url"] = url
+        return _FakeResponse(200, {"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    llm_client.generate_answer(_context())
+    assert captured["url"] == "https://paid-vendor.example/v1/chat/completions"
+
+
+def test_generate_answer_raises_when_paid_base_url_set_without_an_api_key(monkeypatch):
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
+    with pytest.raises(llm_client.LLMError, match="PAID_LLM_API_KEY"):
+        llm_client.generate_answer(_context())
 
 
 def test_answer_query_short_circuits_when_neither_retrieval_nor_structured_facts_have_anything(monkeypatch):
