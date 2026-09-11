@@ -106,6 +106,71 @@ def test_load_unanalyzed_reviews_excludes_blocked_source_status(conn, seeded_ten
     assert reviews == []
 
 
+def _insert_competitor(conn, tenant_id: str, name: str) -> str:
+    competitor_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (global_competitor_id, competitor_name, visibility, added_by_tenant_id, is_manufacturer) "
+            "VALUES (%s, %s, 'PRIVATE', %s, FALSE);",
+            (competitor_id, name, tenant_id),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked) VALUES (%s, %s, TRUE);",
+            (tenant_id, competitor_id),
+        )
+    return competitor_id
+
+
+def _insert_competitor_review_with_sentiment(conn, tenant_id: str, competitor_id: str, label: str, positive: float, negative: float):
+    from src.ai.sentiment.evidence import insert_sentiment_result
+
+    review_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO reviews (review_id, tenant_id, subject_type, competitor_id, source_platform, review_text) "
+            "VALUES (%s, %s, 'COMPETITOR', %s, 'FACEBOOK', 'test review');",
+            (review_id, tenant_id, competitor_id),
+        )
+    insert_sentiment_result(conn, review_id, tenant_id, label, positive, 0.1, negative, 0.9, "test-model-v1")
+
+
+def test_load_aggregate_sentiment_by_competitor_matches_the_single_subject_query(conn, seeded_tenant_and_product):
+    """
+    The real fix: this batched function must return the exact same
+    per-competitor numbers load_aggregate_sentiment(subject_type=
+    "COMPETITOR", subject_id=...) already computes one competitor at a
+    time - just in one round trip for every tracked competitor instead
+    of one round trip each.
+    """
+    tenant_id, _ = seeded_tenant_and_product
+    competitor_a = _insert_competitor(conn, tenant_id, "Rival A")
+    competitor_b = _insert_competitor(conn, tenant_id, "Rival B")
+    conn.commit()
+
+    _insert_competitor_review_with_sentiment(conn, tenant_id, competitor_a, "POSITIVE", 0.8, 0.1)
+    _insert_competitor_review_with_sentiment(conn, tenant_id, competitor_a, "NEGATIVE", 0.1, 0.7)
+    _insert_competitor_review_with_sentiment(conn, tenant_id, competitor_b, "POSITIVE", 0.9, 0.05)
+    conn.commit()
+
+    by_competitor = data_access.load_aggregate_sentiment_by_competitor(conn, tenant_id)
+
+    expected_a = data_access.load_aggregate_sentiment(conn, tenant_id, "COMPETITOR", competitor_a)
+    expected_b = data_access.load_aggregate_sentiment(conn, tenant_id, "COMPETITOR", competitor_b)
+
+    assert by_competitor[competitor_a] == expected_a
+    assert by_competitor[competitor_b] == expected_b
+
+
+def test_load_aggregate_sentiment_by_competitor_omits_competitors_with_no_analyzed_reviews(conn, seeded_tenant_and_product):
+    tenant_id, _ = seeded_tenant_and_product
+    _insert_competitor(conn, tenant_id, "Untracked Sentiment Rival")
+    conn.commit()
+
+    by_competitor = data_access.load_aggregate_sentiment_by_competitor(conn, tenant_id)
+
+    assert by_competitor == {}
+
+
 def test_classify_and_store_reviews_writes_sentiment_results_and_excludes_reanalysis(conn, seeded_tenant_and_product):
     tenant_id, product_id = seeded_tenant_and_product
     _insert_review(conn, tenant_id, product_id, "Great product")
