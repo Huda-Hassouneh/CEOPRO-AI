@@ -60,6 +60,7 @@ Discovery finds and records candidates; it was never the thing deciding
 it's safe to scrape them.
 """
 from typing import List, Optional
+from urllib.parse import urlsplit
 
 from src.market_scraper.company_geo_profile import get_tenant_search_scope
 from src.market_scraper.direct_search import RETAILER_DOMAINS_BY_VERTICAL, search_product_across_retailers
@@ -323,6 +324,8 @@ def discover_domain_level_competitors_for_tenant(
         vertical, resolved_geo_scope, max_results=max_results, conn=conn, daily_query_limit=daily_query_limit,
     ))
 
+    active_products = _load_active_tenant_products(conn, tenant_id, skip_already_discovered=False)
+
     results = []
     for candidate in candidates:
         decision = evaluate_candidate(candidate)
@@ -330,6 +333,88 @@ def discover_domain_level_competitors_for_tenant(
         registered = register_domain_level_competitor(
             conn, tenant_id, actor_user_id, candidate, discovery_method=method, industry_sector=vertical,
         )
-        results.append({**registered, "policy_status": decision.policy_status})
+        result = {**registered, "policy_status": decision.policy_status}
+
+        # "Scrape data from their websites if they have one": a domain-level
+        # find has no product mapping yet (register_domain_level_competitor()
+        # deliberately creates none - see its own docstring), so it's
+        # invisible to load_scrape_targets() (mapping-driven) until one
+        # exists. Only worth the crawl effort for a CONFIRMED competitor -
+        # same "don't spend real work on an excluded manufacturer/out-of-
+        # region find" discipline as recommended_collector_config()'s own
+        # STRATEGIC-only gate elsewhere in this codebase.
+        if registered["is_confirmed_competitor"] and registered.get("website_url"):
+            result["mapped_products"] = map_products_on_domain_competitor_site(
+                conn, tenant_id, actor_user_id, registered["website_url"], active_products,
+            )
+        results.append(result)
+    return results
+
+
+def map_products_on_domain_competitor_site(
+    conn, tenant_id: str, actor_user_id: str, website_url: str, products: list,
+    group_by_family: bool = True, per_product_limit: int = 3,
+) -> list:
+    """
+    The real fix for "a domain-level competitor is discovered but nothing
+    ever scrapes their site": runs BOTH existing, free, zero-API-cost
+    product-discovery mechanisms - direct_search.py::
+    search_product_across_retailers() (schema.org SearchAction) and
+    sitemap_discovery.py::discover_products_via_sitemap() (sitemap.xml) -
+    against this ONE known competitor's own domain (both functions are
+    domain-agnostic at the call site; the hand-seeded *_BY_VERTICAL dicts
+    elsewhere are only an optimization for "which domains to try" when the
+    domain isn't already known - irrelevant here, since it IS known) for
+    every real product in the tenant's catalog.
+
+    Any real match found registers via the ordinary discovery.py::
+    register_tenant_scoped_competitor() path - the SAME function product-
+    level discovery already uses. This is what actually closes the loop:
+    website_identity_key dedup means this lands on the exact same
+    global_competitors row register_domain_level_competitor() already
+    created (proven by this session's own test_domain_and_product_level_
+    finds_converge_on_the_same_competitor_row), and - unlike the domain-
+    level registration - creates real competitor_product_mappings/
+    data_sources rows, which is exactly what load_scrape_targets()
+    requires to ever hand this competitor to a real collector. A domain-
+    level competitor with a real product match here becomes, from that
+    point on, indistinguishable from one product-level discovery found
+    directly.
+
+    group_by_family (default True) reuses Architecture C's cost fix here
+    too - not for API cost (there is none - both mechanisms are free),
+    but for politeness: searching once per family instead of once per
+    SKU means fewer real HTTP requests against this one competitor's own
+    server, not a shared API quota.
+    """
+    domain = urlsplit(website_url).hostname
+    if not domain:
+        return []
+
+    if group_by_family:
+        search_units = select_family_representatives(conn, tenant_id, products)
+    else:
+        search_units = [{**product, "family_members": [product]} for product in products]
+
+    results = []
+    for unit in search_units:
+        candidates = list(search_product_across_retailers(
+            unit["product_name"], [domain], per_domain_limit=per_product_limit,
+        ))
+        candidates.extend(discover_products_via_sitemap(
+            domain, unit["product_name"], limit=per_product_limit,
+        ))
+        if not candidates:
+            continue
+
+        decisions = [evaluate_candidate(candidate) for candidate in candidates]
+        for member in unit["family_members"]:
+            for decision in decisions:
+                registered = register_tenant_scoped_competitor(
+                    conn, tenant_id, actor_user_id, decision, member["product_id"],
+                )
+                results.append({
+                    **registered, "product_id": member["product_id"], "product_name": member["product_name"],
+                })
     return results
 
