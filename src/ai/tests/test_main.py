@@ -10,6 +10,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import jwt
+import redis
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
@@ -132,6 +133,76 @@ def test_upload_response_surfaces_compliance_and_loss_metrics():
     assert body["data_loss_pct"] == 20.0
     assert body["rows_partial"] == 1
     assert body["row_outcomes"][0]["field_errors"] == {"quantity": "bad"}
+
+
+def test_upload_publishes_a_discovery_request_when_new_products_are_created():
+    """
+    The real fix (production-hardening audit): nothing in production ever
+    triggered tenant_discovery.py's competitor discovery automatically -
+    this is that trigger. Fires only when promote_ingested_rows() actually
+    created new products, matching persistence.py's own "only publish on
+    real signal" convention for market.analysis.requested.
+    """
+    fake_conn = MagicMock()
+    fake_summary = MagicMock(
+        template_mode="TEMPLATE_COMPLIANT", is_template_compliant=True, rows_processed=1, rows_partial=0,
+        rows_failed=0, data_loss_pct=0.0, header_coverage_ratio=1.0, minio_object_key=None, row_outcomes=[],
+    )
+    fake_promotion_summary = MagicMock(
+        rows_promoted=1, rows_skipped_incomplete=0, rows_failed=0, products_created=1, errors=[],
+    )
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.db.minio_client", return_value=MagicMock()), \
+         patch("src.ai.main.file_dispatch.read_source_file", return_value=(["product_name"], [{"product_name": "x"}])), \
+         patch("src.ai.main.job_management.resolve_or_create_data_source", return_value="src-1"), \
+         patch("src.ai.main.job_management.create_ingestion_job", return_value="job-1"), \
+         patch("src.ai.main.job_management.finalize_ingestion_job"), \
+         patch("src.ai.main.ingestion_pipeline.process_records", return_value=fake_summary), \
+         patch("src.ai.main.promotion.promote_ingested_rows", return_value=fake_promotion_summary), \
+         patch("src.ai.main._publish_discovery_request") as mock_publish:
+        response = client.post(
+            "/extraction/upload", files={"file": ("t.csv", b"product_name\nx\n", "text/csv")}, headers=_auth()
+        )
+
+    assert response.status_code == 200
+    mock_publish.assert_called_once_with("t1")
+
+
+def test_upload_does_not_publish_a_discovery_request_when_no_products_were_created():
+    fake_conn = MagicMock()
+    fake_summary = MagicMock(
+        template_mode="TEMPLATE_COMPLIANT", is_template_compliant=True, rows_processed=1, rows_partial=0,
+        rows_failed=0, data_loss_pct=0.0, header_coverage_ratio=1.0, minio_object_key=None, row_outcomes=[],
+    )
+    fake_promotion_summary = MagicMock(
+        rows_promoted=1, rows_skipped_incomplete=0, rows_failed=0, products_created=0, errors=[],
+    )
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.db.minio_client", return_value=MagicMock()), \
+         patch("src.ai.main.file_dispatch.read_source_file", return_value=(["product_name"], [{"product_name": "x"}])), \
+         patch("src.ai.main.job_management.resolve_or_create_data_source", return_value="src-1"), \
+         patch("src.ai.main.job_management.create_ingestion_job", return_value="job-1"), \
+         patch("src.ai.main.job_management.finalize_ingestion_job"), \
+         patch("src.ai.main.ingestion_pipeline.process_records", return_value=fake_summary), \
+         patch("src.ai.main.promotion.promote_ingested_rows", return_value=fake_promotion_summary), \
+         patch("src.ai.main._publish_discovery_request") as mock_publish:
+        response = client.post(
+            "/extraction/upload", files={"file": ("t.csv", b"product_name\nx\n", "text/csv")}, headers=_auth()
+        )
+
+    assert response.status_code == 200
+    mock_publish.assert_not_called()
+
+
+def test_publish_discovery_request_swallows_redis_errors():
+    """A Redis hiccup must never fail the upload response the user is
+    already waiting on - matches persistence.py's identical convention
+    for market.analysis.requested."""
+    from src.ai.main import _publish_discovery_request
+
+    with patch("src.ai.main.redis.Redis") as mock_redis_cls:
+        mock_redis_cls.return_value.xadd.side_effect = redis.RedisError("boom")
+        _publish_discovery_request("t1")  # must not raise
 
 
 def test_upload_marks_job_failed_and_returns_500_on_unexpected_error():

@@ -207,6 +207,39 @@ services:
       timeout: 5s
       retries: 3
 
+  # Consumes market.discovery.requested, published by src/ai/main.py's
+  # POST /extraction/upload right after real new products are persisted -
+  # runs tenant_discovery.py's full competitor discovery (see
+  # discovery_worker.py's own module docstring for the gap this closes).
+  # Uses the market-scraper image, not market-analysis: this worker only
+  # ever imports from src/market_scraper/, never src/ai/.
+  market-discovery-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.discovery_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      REDIS_URL: redis://redis:6379/0
+      DISCOVERY_STREAM_KEY: ${DISCOVERY_STREAM_KEY:-market.discovery.requested}
+      DISCOVERY_DEAD_STREAM_KEY: ${DISCOVERY_DEAD_STREAM_KEY:-market.discovery.dead}
+      DISCOVERY_MAX_ATTEMPTS: ${DISCOVERY_MAX_ATTEMPTS:-3}
+      DISCOVERY_CLAIM_IDLE_MS: ${DISCOVERY_CLAIM_IDLE_MS:-300000}
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   market-maintenance:
     build:
       context: .
@@ -267,6 +300,10 @@ services:
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
       GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
+      # Published by POST /extraction/upload right after new products are
+      # persisted; consumed by the market-discovery-worker service below -
+      # must match that service's own DISCOVERY_STREAM_KEY.
+      DISCOVERY_STREAM_KEY: ${DISCOVERY_STREAM_KEY:-market.discovery.requested}
     ports:
       - "8001:8000"
     networks:
