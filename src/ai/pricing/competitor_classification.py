@@ -119,8 +119,18 @@ def compute_product_match_rate(conn, tenant_id: str, global_competitor_id: str) 
     return matched_products / total_products
 
 
+# discovery_method values that find a competitor by industry/domain rather
+# than by an exact product match - see market_scraper/discovery.py's
+# register_domain_level_competitor() and tenant_discovery.py's hybrid
+# discovery sources. Kept here (not imported from market_scraper) to avoid
+# a circular import - market_scraper/discovery.py already imports FROM
+# this module.
+DOMAIN_LEVEL_DISCOVERY_METHODS = {"PLACES_NEARBY", "INDUSTRY_KEYWORD_SEARCH"}
+
+
 def classify_competitor_scope(
     matched_product_count: int, match_rate: float, broad_domain_threshold: float = DEFAULT_BROAD_DOMAIN_THRESHOLD,
+    discovery_method: Optional[str] = None,
 ) -> str:
     """
     NICHE_ITEM: this competitor was only ever found selling a single
@@ -129,7 +139,18 @@ def classify_competitor_scope(
     the breadth threshold on real catalog overlap - "competing across
     most products". Everything between the two is PARTIAL_OVERLAP - a
     real, honest middle ground, never silently rounded to one extreme.
+
+    A competitor found via a domain-level discovery source (discovery_method
+    in DOMAIN_LEVEL_DISCOVERY_METHODS) with zero mapped products yet is the
+    one deliberate exception: it's labeled BROAD_DOMAIN, not NICHE_ITEM,
+    because it was found BY being a same-industry business, not by carrying
+    one specific SKU - mislabeling it "niche" would be backwards. Once real
+    competitor_product_mappings rows exist for it (a later product-level
+    match), the ordinary matched_product_count/match_rate logic takes back
+    over on the next classify_competitor() run, same as any other row.
     """
+    if discovery_method in DOMAIN_LEVEL_DISCOVERY_METHODS and matched_product_count == 0:
+        return SCOPE_BROAD_DOMAIN
     if matched_product_count <= NICHE_ITEM_MAX_MATCHED_PRODUCTS:
         return SCOPE_NICHE_ITEM
     if match_rate >= broad_domain_threshold:
@@ -199,13 +220,23 @@ def classify_competitor(
             raise ValueError("tenant_id not found")
         tenant_country, tenant_operating_countries, tenant_lat, tenant_lon = company_row
 
+        cursor.execute(
+            "SELECT discovery_method FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, global_competitor_id),
+        )
+        discovery_row = cursor.fetchone()
+        if discovery_row is None:
+            raise ValueError("tenant_competitors row not found for this tenant/competitor pair")
+        discovery_method = discovery_row[0]
+
     matched_product_count, total_products = _matched_and_total_product_counts(
         conn, tenant_id, global_competitor_id
     )
     match_rate = 0.0 if total_products == 0 else matched_product_count / total_products
     in_region = _in_operating_region(competitor_country, tenant_country, tenant_operating_countries)
-    scope = classify_competitor_scope(matched_product_count, match_rate, broad_domain_threshold)
+    scope = classify_competitor_scope(matched_product_count, match_rate, broad_domain_threshold, discovery_method)
     distance_km = distance_km_if_known(tenant_lat, tenant_lon, competitor_lat, competitor_lon)
+    is_domain_level_find = discovery_method in DOMAIN_LEVEL_DISCOVERY_METHODS and matched_product_count == 0
 
     if is_manufacturer:
         reason = "excluded: manufacturer/wholesaler, not a retail competitor"
@@ -215,6 +246,20 @@ def classify_competitor(
         reason = f"excluded: competitor country {competitor_country!r} is outside the tenant's operating region"
         confirmed = False
         tier = TIER_CANDIDATE
+    elif is_domain_level_find:
+        # A domain-level find (Places nearby-search / industry-keyword
+        # search) has no product mappings to measure overlap against yet -
+        # requiring product_match_rate >= threshold here would mean NO
+        # domain-level competitor could ever be confirmed, defeating the
+        # entire point of discovering them: passing manufacturer+region IS
+        # the confirmation bar for this class, exactly matching "detect
+        # competitors by industry/domain even if product lines don't
+        # completely overlap". Once real product mappings appear for this
+        # competitor, a later run naturally falls through to the ordinary
+        # match-rate branches below instead.
+        reason = f"confirmed: same-industry, in-region, not a manufacturer (found via {discovery_method})"
+        confirmed = True
+        tier = TIER_STRATEGIC
     elif match_rate < threshold:
         reason = f"below threshold: {match_rate:.0%} product overlap (needs >= {threshold:.0%})"
         confirmed = False

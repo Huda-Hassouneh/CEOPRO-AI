@@ -300,14 +300,49 @@ broad domain competitor) or just on a single product (a niche/item competitor)".
   invented number). Widening the radius later never requires a new discovery run: it just admits more
   of the already-computed rows.
 
-**Not yet built** (flagged, not silently skipped): the actual *hybrid discovery* sources that would
-find a domain-level competitor who doesn't happen to carry an exactly-matched product at all (Google
-Places nearby-search by category, an industry-keyword Custom Search variant, inferring
-`global_competitors.industry_sector` — present in the schema, still unpopulated — for competitors
-already found by product search). `tenant_competitors.discovery_method` (`PRODUCT_SEARCH` /
-`PLACES_NEARBY` / `INDUSTRY_KEYWORD_SEARCH`) already reserves the values so that work won't need a
-second migration; today every real discovery run sets it to `PRODUCT_SEARCH`, since that's still the
-only implemented source.
+## Domain-level discovery: competitors by industry, not just by exact product match
+
+Product-level discovery above (`discover_competitors_for_tenant()`) can only ever find a seller
+already seen carrying something the tenant also sells — a same-industry rival with a genuinely
+different product mix is structurally invisible to it. `tenant_discovery.py::
+discover_domain_level_competitors_for_tenant()` is the fix: two real, combined ("hybrid") sources,
+neither requiring a product name at all —
+
+- **`places_nearby_discovery.py::discover_nearby_places()`** — official Google Places Nearby Search
+  around the tenant's own `companies.latitude`/`longitude` (only runs when both a Places API key and
+  tenant coordinates are on file), for the tenant's detected industry keyword
+  (`sector_detection.py::VERTICAL_INDUSTRY_LABELS`). Radius comes from the tenant's own
+  `search_scope_level` (see above), clamped to Google's real, hard `50km` Nearby Search cap
+  (`MAX_NEARBY_SEARCH_RADIUS_KM`) — flagged, not silently exceeded. A result with no real `website`
+  field (common for small local businesses) is skipped, never guessed at; a result that does have one
+  carries its own real coordinates (`geometry.location` from Place Details, not the search center),
+  so `classify_competitor()` computes a genuine, per-competitor `distance_km`.
+- **`web_product_discovery.py::discover_industry_candidates()`** — the same Google Custom Search
+  API/cache/quota-pacer/SearXNG-fallback machinery `discover_product_candidates()` already uses, but
+  queried with `sector_detection.py::build_industry_search_query()` ("electronics store buy shop
+  store price Jordan", not a product name) — always attempted, since it needs no coordinates, only
+  the tenant's detected vertical.
+
+Every real candidate from either source is registered via **`discovery.py::
+register_domain_level_competitor()`** — deliberately **no** `competitor_product_mappings`/
+`data_sources` row (there's no specific product page to scope a collection job to yet, only a
+business identity), but a real, classified `tenant_competitors` row. `classify_competitor()`
+(`src/ai/pricing/competitor_classification.py`) already knows how to confirm one of these: for a
+domain-sourced competitor with zero product mappings, passing the manufacturer/region checks *alone*
+is the confirmation bar — requiring product overlap here would make domain-level discovery pointless,
+since nothing it finds would ever have any. Its `competitor_scope` is `BROAD_DOMAIN`, not `NICHE_ITEM`
+— it was found *by being* a same-industry business, not by carrying one SKU. If/when this same
+competitor is later found genuinely carrying one of the tenant's products (an ordinary product-level
+discovery run), `website_identity_key` dedup converges both finds onto the **same**
+`global_competitors` row — one competitor identity, never a duplicate, regardless of which path found
+it first or second. `tenant_competitors.discovery_method` (`PRODUCT_SEARCH` / `PLACES_NEARBY` /
+`INDUSTRY_KEYWORD_SEARCH`) records whichever path found it *first* and is never overwritten by a
+later, different-path find.
+
+**Known, flagged gap**: `global_competitors.industry_sector` backfill for a competitor already found
+by product-level discovery (inferring their industry from name/page text, `sector_detection.py::
+infer_industry_sector()` is built and tested standalone) isn't yet wired into an automatic batch job —
+it's a real, callable function, just not yet scheduled to run over existing rows.
 
 ## Where competitor URLs and product matching come from
 
