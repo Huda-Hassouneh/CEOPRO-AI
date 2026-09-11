@@ -6,6 +6,8 @@ from typing import Optional
 
 import psycopg2
 
+from src.market_scraper.credential_vault import decrypt_credentials, encrypt_credentials, get_default_kms_backend
+
 
 def get_tenant_connection(tenant_id: str):
     db_url = os.getenv("SCRAPER_DATABASE_URL") or os.getenv("DATABASE_URL")
@@ -45,13 +47,19 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
         row = cursor.fetchone()
     if not row:
         return None
-    # connection_credentials_vault is a plain TEXT column (no secrets-manager
-    # integration exists in this repo); it holds a JSON object of API
-    # credentials for collectors that need them (e.g. {"api_key": "..."}).
-    try:
-        credentials = json.loads(row[16]) if row[16] else {}
-    except (TypeError, ValueError):
+    # connection_credentials_vault holds an encrypted envelope (see
+    # credential_vault.py - PENDING_ACTIONS.md #42's real fix: field-level
+    # envelope encryption, not plaintext JSON). Empty/unset stays {} (the
+    # normal "no credentials configured yet" case, e.g. before Digi-Key/
+    # Mouser are set up) - but a NON-empty value that isn't a recognized
+    # envelope fails loud, never silently degrades to {}, since that would
+    # otherwise surface as a confusing "not configured" error from whatever
+    # collector needed the real credential instead of the actual problem
+    # (wrong KMS backend, wrong master key, a pre-encryption legacy value).
+    if not row[16]:
         credentials = {}
+    else:
+        credentials = decrypt_credentials(row[16], get_default_kms_backend())
     return {
         "source_id": str(row[0]),
         "source_name": row[1],
@@ -73,25 +81,32 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
     }
 
 
-def set_source_credentials(conn, tenant_id: str, source_id: str, credentials: dict) -> None:
+def set_source_credentials(
+    conn, tenant_id: str, source_id: str, credentials: dict, kms=None,
+) -> None:
     """
     Writes connection_credentials_vault - the real replacement for a raw
-    SQL UPDATE (the only way this was previously done). Same plain-JSON-
-    TEXT column load_source() already reads (its own comment: no
-    secrets-manager integration exists in this repo, a real, flagged
-    limit, not hidden by this function). Validates the source actually
-    exists for this tenant first - never silently no-ops on a typo'd
-    source_id - and requires credentials to be a real dict, never a bare
-    string, so a malformed value fails loud here rather than becoming an
-    unparseable connection_credentials_vault a collector's own
-    json.loads() would otherwise silently degrade to {} for.
+    SQL UPDATE (the only way this was previously done). The stored value
+    is a real encrypted envelope (credential_vault.py), never the
+    plaintext JSON this column used to hold directly - PENDING_ACTIONS.md
+    #42's actual fix, not a documentation-only acknowledgment of the gap.
+    Validates the source actually exists for this tenant first - never
+    silently no-ops on a typo'd source_id - and requires credentials to
+    be a real dict, never a bare string, so a malformed value fails loud
+    here rather than becoming something unparseable later.
+
+    kms: the KMS backend to encrypt with - defaults to
+    credential_vault.get_default_kms_backend() (env-configured); pass one
+    explicitly to use a specific backend/key for this one write without
+    changing the process-wide default (mainly a test/tooling hook).
     """
     if not isinstance(credentials, dict):
         raise ValueError('credentials must be a JSON object, e.g. {"api_token": "..."}')
+    envelope = encrypt_credentials(credentials, kms or get_default_kms_backend())
     with conn.cursor() as cursor:
         cursor.execute(
             "UPDATE data_sources SET connection_credentials_vault = %s WHERE tenant_id = %s AND source_id = %s;",
-            (json.dumps(credentials), tenant_id, source_id),
+            (envelope, tenant_id, source_id),
         )
         if cursor.rowcount != 1:
             raise ValueError(

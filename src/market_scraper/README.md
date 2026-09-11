@@ -114,8 +114,16 @@ Ikea included — without a bespoke spider):
 All four require credentials, supplied per-source via `data_sources.connection_credentials_vault`
 (a JSON object — `{"api_key": ...}` for Places and for ScrapeCreators, `{"access_key",
 "secret_key", "partner_tag"}` for PA-API, `{"api_token": ...}` for the Apify-shaped social
-provider) and passed through by `cli.py` as `credentials_json`. That column is a plain `TEXT`
-field with no secrets-manager integration behind it yet — see `PENDING_ACTIONS.md` #42.
+provider) and passed through by `cli.py` as `credentials_json`. **That column is field-level
+encrypted** (`credential_vault.py`, closing `PENDING_ACTIONS.md` #42) — real envelope encryption,
+not plaintext: `policy_cli.py set-credentials` (below) encrypts before writing, `data_access.py::
+load_source()` decrypts after reading, and a stolen database dump alone is useless without also
+compromising the separate KMS backend (`CREDENTIAL_VAULT_KMS_BACKEND` — `local`, a real working
+default needing no cloud account, or `aws_kms`, the real production recommendation; see
+`.env.example`). Honest framing, not oversold: this is envelope encryption at rest, not literal
+"zero-knowledge" — a collector actually calling a vendor's API still needs the real plaintext in
+memory at that moment, same as any system that itself makes the call. What it does guarantee: the
+database and the KMS key are two separate compromises, not one.
 
 ## Vendor policy for social collection
 
@@ -471,6 +479,43 @@ injection patterns. Flagged text is retained with source lineage for audit/repro
 The richer JSONL/demo record additionally includes product name, category, description, UPC,
 rating, review count, stock quantity, canonical URL, image URL, collection method, and capture
 time. Nullable fields remain `null`; absent facts are not invented.
+
+## Live client database sync (real-time, not file-based-only)
+
+`connector_sync.py` is the real fix for "we are NOT building a static reporting tool - a
+file-based-only system is completely rejected": a client's Postgres-compatible database can be
+registered as a **live, polled connector** instead of requiring a file re-upload for every
+update.
+
+- **`policy_cli.py register-source --collector db_connector`** registers one, same policy-review
+  gate as every other source (`--terms-permit`/`--technical-controls-permit`/`--approval-reference`
+  — a connector is never synced just because a row exists for it). `collector_config` (JSONB) holds
+  `{"host", "port", "dbname", "query", "field_mapping"}` — the query and column names are the
+  tenant's own configuration, same as any other explicit integration. `set-credentials` writes the
+  client database's `{"user", "password"}` — encrypted, see below.
+- **`connector_sync.py::sync_db_connector_source()`** runs one real sync: opens a **read-only**
+  connection to the client's database (`.set_session(readonly=True)` — real defense-in-depth, this
+  module is a reader and must never be able to write to a client's production database), runs the
+  configured query (`db_adapter.py::read_db_query()`), and feeds the results through the exact same
+  `ingestion_pipeline.process_records()` every file upload already uses — same savepoint-per-row,
+  nothing-silently-dropped guarantee, `trusted_field_mapping` (the caller already knows its own
+  schema, no header-guessing needed). `data_sources.last_synced_at` (a real, pre-existing column)
+  only advances on success — a failed sync is retried next cycle, never marked as if it succeeded.
+- **`run_due_connector_syncs(conn, tenant_id)`** — the real scheduler entry point, call it on an
+  interval (a cron/beat task). Each due source is a real, independent attempt; one source's failure
+  never blocks another's.
+- **`DEFAULT_SYNC_INTERVAL_MINUTES = 15`** — a real trade-off, not arbitrary: near-real-time enough
+  that an inventory/price change is reflected within a quarter hour (materially useful for a
+  stockout alert or a price recommendation), without hammering a client's production database every
+  few seconds. `data_sources.sync_frequency_minutes` (pre-existing column) is per-source, not
+  uniform — set it tighter for a high-velocity POS, looser for a slow-moving catalog.
+
+**Scope, stated plainly**: this pass covers a Postgres-compatible client database. An API connector
+(POS/ERP vendor REST APIs) reuses the exact same scheduling/watermark mechanism, just with a
+per-vendor `fetch_page()` (`api_adapter.py`'s existing contract) instead of a SQL query — there's no
+way to poll an arbitrary REST API without knowing its pagination shape. A true multi-dialect DB
+driver (MySQL, SQL Server, Oracle, ...) — the "Universal Connector Layer" for the top Middle East
+POS/ERP systems — is a distinct, larger piece of work, not built in this pass.
 
 ## Setup
 
