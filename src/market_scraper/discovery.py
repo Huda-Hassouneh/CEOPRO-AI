@@ -105,10 +105,18 @@ def compute_website_identity_key(url: str) -> Optional[str]:
 class CandidateSource:
     """One result from an external search for `product_name` - url/title
     come from whatever search backend the caller used; nothing here is
-    hardcoded per-product."""
+    hardcoded per-product. latitude/longitude are optional - only a
+    location-aware discovery source (e.g. Google Places nearby-search,
+    the next planned discovery method) has real coordinates to offer;
+    the plain Custom-Search-driven path today never sets them, and
+    register_tenant_scoped_competitor() below treats that as "location
+    unknown", never a guessed 0,0."""
     product_name: str
     url: str
     title: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    city: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -235,32 +243,49 @@ def register_tenant_scoped_competitor(
             cursor.execute(
                 """
                 INSERT INTO global_competitors
-                    (competitor_name, website_url, website_identity_key, visibility, added_by_tenant_id, is_manufacturer)
-                VALUES (%s, %s, %s, 'PRIVATE', %s, %s)
+                    (competitor_name, website_url, website_identity_key, visibility, added_by_tenant_id,
+                     is_manufacturer, latitude, longitude, city)
+                VALUES (%s, %s, %s, 'PRIVATE', %s, %s, %s, %s, %s)
                 ON CONFLICT (added_by_tenant_id, website_identity_key) WHERE (visibility = 'PRIVATE' AND website_identity_key IS NOT NULL)
                 DO UPDATE SET website_url = EXCLUDED.website_url,
-                              is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer
+                              is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer,
+                              latitude = COALESCE(global_competitors.latitude, EXCLUDED.latitude),
+                              longitude = COALESCE(global_competitors.longitude, EXCLUDED.longitude),
+                              city = COALESCE(global_competitors.city, EXCLUDED.city)
                 RETURNING global_competitor_id;
                 """,
-                (candidate.title or hostname, website_url, identity_key, tenant_id, is_manufacturer),
+                (
+                    candidate.title or hostname, website_url, identity_key, tenant_id, is_manufacturer,
+                    candidate.latitude, candidate.longitude, candidate.city,
+                ),
             )
         else:
             cursor.execute(
                 """
-                INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id, is_manufacturer)
-                VALUES (%s, %s, 'PRIVATE', %s, %s)
+                INSERT INTO global_competitors
+                    (competitor_name, website_url, visibility, added_by_tenant_id, is_manufacturer,
+                     latitude, longitude, city)
+                VALUES (%s, %s, 'PRIVATE', %s, %s, %s, %s, %s)
                 ON CONFLICT (added_by_tenant_id, LOWER(competitor_name)) WHERE (visibility = 'PRIVATE')
                 DO UPDATE SET website_url = EXCLUDED.website_url,
-                              is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer
+                              is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer,
+                              latitude = COALESCE(global_competitors.latitude, EXCLUDED.latitude),
+                              longitude = COALESCE(global_competitors.longitude, EXCLUDED.longitude),
+                              city = COALESCE(global_competitors.city, EXCLUDED.city)
                 RETURNING global_competitor_id;
                 """,
-                (candidate.title or hostname, website_url, tenant_id, is_manufacturer),
+                (
+                    candidate.title or hostname, website_url, tenant_id, is_manufacturer,
+                    candidate.latitude, candidate.longitude, candidate.city,
+                ),
             )
         competitor_id = cursor.fetchone()[0]
 
         cursor.execute(
-            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s) "
-            "ON CONFLICT DO NOTHING;",
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, discovery_method) "
+            "VALUES (%s, %s, 'PRODUCT_SEARCH') "
+            "ON CONFLICT (tenant_id, global_competitor_id) DO UPDATE "
+            "SET discovery_method = COALESCE(tenant_competitors.discovery_method, EXCLUDED.discovery_method);",
             (tenant_id, competitor_id),
         )
 
@@ -320,4 +345,7 @@ def register_tenant_scoped_competitor(
         "is_confirmed_competitor": classification.is_confirmed_competitor,
         "tier": classification.tier,
         "classification_reason": classification.reason,
+        "competitor_scope": classification.competitor_scope,
+        "matched_product_count": classification.matched_product_count,
+        "distance_km": classification.distance_km,
     }
