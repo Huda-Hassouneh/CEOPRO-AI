@@ -20,7 +20,7 @@ from unittest.mock import patch
 import psycopg2
 import pytest
 
-from src.market_scraper.discovery import CandidateSource
+from src.market_scraper.discovery import CandidateSource, DiscoveryDecision, register_tenant_scoped_competitor
 from src.market_scraper.tenant_discovery import discover_competitors_for_tenant
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
@@ -337,3 +337,50 @@ def test_deleted_products_are_not_searched(conn):
         discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
 
     mocked.assert_not_called()
+
+
+def test_register_tenant_scoped_competitor_rolls_back_cleanly_on_classification_failure(conn):
+    """
+    Same fix as register_domain_level_competitor's equivalent test in
+    test_domain_level_discovery_integration_db.py: classify_competitor()
+    is what commits this whole transaction, so a failure before that
+    point must roll back this function's own earlier INSERTs
+    (global_competitors, tenant_competitors, data_sources,
+    competitor_product_mappings) rather than leave them dangling
+    uncommitted or the connection stuck aborted.
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine")
+    conn.commit()
+
+    decision = DiscoveryDecision(
+        candidate=CandidateSource("Espresso Machine", "https://rival-example.com/espresso", "Rival Co"),
+        technical_controls_permit_collection=True,
+        policy_status="RESTRICTED",
+        justification="unreviewed",
+        robots_evidence=None,
+    )
+
+    with patch(
+        "src.market_scraper.discovery.classify_competitor",
+        side_effect=RuntimeError("simulated classification failure"),
+    ):
+        with pytest.raises(RuntimeError, match="simulated classification failure"):
+            register_tenant_scoped_competitor(conn, tenant_id, str(uuid.uuid4()), decision, product_id)
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM global_competitors WHERE added_by_tenant_id = %s;",
+            (tenant_id,),
+        )
+        assert cursor.fetchone()[0] == 0
+        cursor.execute(
+            "SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;",
+            (tenant_id,),
+        )
+        assert cursor.fetchone()[0] == 0
+
+    # And the connection must come back usable, not stuck aborted.
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT 1;")
+        assert cursor.fetchone()[0] == 1
