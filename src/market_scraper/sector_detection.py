@@ -46,6 +46,19 @@ _VERTICAL_KEYWORDS: Dict[str, List[str]] = {
 
 _WORD_RE = re.compile(r"[a-zA-Z]+")
 
+# A human/search-engine-facing label per vertical - "electronics_hobbyist"
+# is an internal key, nobody searches for that literal string. Used by
+# build_industry_search_query() (domain-level discovery: find same-industry
+# businesses, not sellers of one specific product) and infer_industry_sector()
+# (best-effort backfill for an already-discovered competitor's industry).
+VERTICAL_INDUSTRY_LABELS: Dict[str, str] = {
+    "electronics_hobbyist": "electronics store",
+    "food_beverage": "restaurant OR cafe",
+    "apparel_fashion": "clothing store",
+    "home_furniture": "furniture store",
+    "general_retail": "retail store",
+}
+
 
 @dataclass(frozen=True)
 class VerticalDetection:
@@ -106,6 +119,43 @@ def build_retail_search_query(product_name: str, geo_scope: str = None) -> str:
     if geo_scope:
         query += f" {geo_scope}"
     return query
+
+
+def build_industry_search_query(vertical: str, geo_scope: str = None) -> str:
+    """
+    The domain-level counterpart to build_retail_search_query() - instead
+    of "who sells THIS product", asks "who else operates in this INDUSTRY".
+    This is the real query behind industry-keyword discovery
+    (web_product_discovery.py::discover_industry_candidates()): no product
+    name involved at all, so it can find a same-industry rival regardless
+    of whether their product mix overlaps with the tenant's.
+
+    An unrecognized vertical key falls back to VERTICAL_INDUSTRY_LABELS'
+    "general_retail" entry rather than raising - same honest-degradation
+    convention detect_vertical() itself already uses.
+    """
+    label = VERTICAL_INDUSTRY_LABELS.get(vertical, VERTICAL_INDUSTRY_LABELS["general_retail"])
+    query = f"{label} " + " ".join(RETAIL_QUERY_HINTS)
+    if geo_scope:
+        query += f" {geo_scope}"
+    return query
+
+
+def infer_industry_sector(text: str) -> Optional[str]:
+    """
+    Best-effort industry_sector guess from a competitor's own name/title
+    text, reusing the exact same _VERTICAL_KEYWORDS vocabulary detect_
+    vertical() uses for a tenant's catalog - one shared vocabulary, two
+    directions (tenant catalog -> vertical, competitor name -> sector).
+
+    Cheap and local: no network call, no new dependency - just a keyword-
+    frequency match against a single string. Returns None (never a guessed
+    label) when nothing in the vocabulary matches - this is meant to
+    backfill global_competitors.industry_sector for a competitor that
+    already has a name on file, not to replace real classification.
+    """
+    detection = detect_vertical([text or ""])
+    return detection.vertical if detection.matched_keywords else None
 
 
 def resolve_tenant_geo_scope(conn, tenant_id: str, override: str = None) -> str:

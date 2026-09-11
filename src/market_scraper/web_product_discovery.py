@@ -77,7 +77,7 @@ from typing import List, Optional, Tuple
 
 from src.market_scraper import search_cache, search_quota, searxng_discovery
 from src.market_scraper.discovery import CandidateSource
-from src.market_scraper.sector_detection import build_retail_search_query
+from src.market_scraper.sector_detection import build_industry_search_query, build_retail_search_query
 
 logger = logging.getLogger("CEOPRO_AI_WEB_PRODUCT_DISCOVERY")
 
@@ -261,3 +261,33 @@ def discover_social_profile_candidates(
             conn, product_name, query, max_results_per_site, api_key, cx, searxng_instance_url, daily_query_limit,
         ))
     return candidates
+
+
+def discover_industry_candidates(
+    vertical: str, geo_scope: str = "",
+    api_key: Optional[str] = None, cx: Optional[str] = None,
+    max_results: int = _MAX_RESULTS_PER_QUERY,
+    conn=None, searxng_instance_url: Optional[str] = None,
+    daily_query_limit: Optional[int] = 100,
+) -> List[CandidateSource]:
+    """
+    Domain-level discovery: "who else operates in this industry", not "who
+    sells this specific product" - the real fix for a same-industry rival
+    whose product mix doesn't overlap with the tenant's at all, which
+    discover_product_candidates() structurally cannot find (it only ever
+    searches for a seller of one named product). One real Google Custom
+    Search call using build_industry_search_query() (sector_detection.py) -
+    same cache/quota-pacer/SearXNG-fallback machinery as every other query
+    in this module, so this doesn't add a second, ungoverned path against
+    the shared 100/day free-tier budget.
+
+    Returns CandidateSource records with product_name set to the vertical
+    label used for the query (there is no specific product here) - callers
+    hand these to discovery.py::register_domain_level_competitor(), not
+    register_tenant_scoped_competitor() (which requires a real product_id
+    to scope a mapping to).
+    """
+    query = build_industry_search_query(vertical, geo_scope or None)
+    return _with_cache_and_fallback(
+        conn, vertical, query, max_results, api_key, cx, searxng_instance_url, daily_query_limit,
+    )
