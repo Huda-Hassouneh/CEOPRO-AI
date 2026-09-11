@@ -25,6 +25,7 @@ python scripts/apply_migrations.py   # needs DATABASE_URL + APP_DB_PASSWORD set
 | `GROQ_MAX_TOKENS` | No | `400` | Caps response length — a real, free latency lever on both backends, not just a Groq nicety |
 | `LOCAL_LLM_BASE_URL` | No | unset (uses Groq) | Set to route generation at a local `llama.cpp` server instead — see "Zero-cost local LLM option" below |
 | `LOCAL_LLM_TIMEOUT_SECONDS` | No | `90` | Only applies when `LOCAL_LLM_BASE_URL` is set — local generation is genuinely slower than Groq's hosted hardware |
+| `PAID_LLM_BASE_URL` / `PAID_LLM_API_KEY` / `PAID_LLM_MODEL` | No | unset (uses Groq/local) | The flexible placeholder for swapping Groq for a paid subscription vendor later — see "Swapping in a paid provider later" below |
 | `RAG_EMBEDDING_MODEL` | No | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Dense retrieval embedding model |
 | `RAG_RERANKER_MODEL` | No | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Multilingual Cross-Encoder (spec §8 Arabic-English requirement — do not swap for an English-only reranker) |
 
@@ -53,6 +54,26 @@ Q5_K_M): ~6 tokens/sec generation, a real 32.6s for one full grounded answer thr
 that's the real trade for zero cost and full privacy, not a bug. This was a single smoke test, not
 an accuracy evaluation — a real side-by-side comparison against Groq's answers on a batch of
 questions is the honest next step for quantified confidence, not yet done.
+
+### Swapping in a paid provider later
+
+Groq stays the active default. When a paid subscription is actually provisioned (OpenAI,
+Together AI, Azure OpenAI, Fireworks, or any other vendor that speaks the same OpenAI-compatible
+`/v1/chat/completions` schema Groq and llama-server already do), point `generate_answer()` at it
+with three env vars and nothing else changes:
+
+```bash
+export PAID_LLM_BASE_URL=https://api.your-paid-vendor.example/v1/chat/completions
+export PAID_LLM_API_KEY=your-real-key-here
+export PAID_LLM_MODEL=vendor/model-name   # optional — defaults to GROQ_MODEL's value
+```
+
+`PAID_LLM_BASE_URL` takes priority over both Groq and `LOCAL_LLM_BASE_URL` when set, and is unset
+by default (zero behavior change until a real vendor is chosen). A vendor with a genuinely
+different request/response schema — Anthropic's Messages API, Google's Gemini API — needs its own
+code path in [`llm_client.py`](llm_client.py), not just these env vars; that is a real vendor
+decision this pass deliberately leaves open, the same way `credential_vault.py` leaves the choice
+of a HashiCorp Vault backend open.
 
 ## 2. Ingest a document
 

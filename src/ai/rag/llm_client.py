@@ -74,12 +74,35 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 # leave unset and the Groq path behaves exactly as before this change.
 LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL")
 
+# Optional paid-provider override - the flexible placeholder for swapping
+# Groq for a paid subscription later (OpenAI, Together AI, Azure OpenAI,
+# Fireworks, or any other vendor that speaks the same OpenAI-compatible
+# `/v1/chat/completions` schema Groq and llama-server already do) without a
+# rewrite: set PAID_LLM_BASE_URL (+ PAID_LLM_API_KEY, and optionally
+# PAID_LLM_MODEL) and generate_answer() routes here instead of Groq or the
+# local llama-server, with zero code change. All three are unset by
+# default, so Groq stays the active provider until a real vendor decision
+# is made - this is a config slot, not a live integration. Takes priority
+# over LOCAL_LLM_BASE_URL when both happen to be set.
+#
+# A genuinely different-schema provider (Anthropic's Messages API, Google's
+# Gemini API) would need a new code path here, not just these env vars -
+# that's a real vendor decision, not made in this pass.
+PAID_LLM_BASE_URL = os.getenv("PAID_LLM_BASE_URL")
+PAID_LLM_API_KEY = os.getenv("PAID_LLM_API_KEY")
+PAID_LLM_MODEL = os.getenv("PAID_LLM_MODEL")
+
 # See this module's own docstring: verified live with a real key on
 # 2026-09-03 - override via GROQ_MODEL for a different size/provider.
 DEFAULT_MODEL = "openai/gpt-oss-20b"
 MODEL_NAME = os.getenv("GROQ_MODEL", DEFAULT_MODEL)
 
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("GROQ_TIMEOUT_SECONDS", "20"))
+
+# Defaults to DEFAULT_TIMEOUT_SECONDS (Groq's own budget) since a paid
+# hosted provider is presumed comparably fast until proven otherwise -
+# override with PAID_LLM_TIMEOUT_SECONDS if the chosen vendor needs more.
+PAID_LLM_TIMEOUT_SECONDS = float(os.getenv("PAID_LLM_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS)))
 
 # Local llama-server generates at real-measured ~6 tokens/sec on this
 # platform's reference hardware (i5-1135G7, 4 threads, Qwen2.5-3B Q5_K_M -
@@ -207,32 +230,54 @@ def generate_answer(
     not three. Transient failures (network errors, 429/5xx) are retried
     with backoff first - see _post_with_retry().
 
-    Backend selection: LOCAL_LLM_BASE_URL (module-level, from the
-    LOCAL_LLM_BASE_URL env var) takes priority over Groq when set - e.g. a
-    llama.cpp `llama-server` running on this machine for zero-cost, fully
-    local inference. llama-server doesn't validate the Authorization
-    header at all, so no real key is required for it - GROQ_API_KEY stays
-    mandatory only on the Groq path, exactly as before this change.
+    Backend selection, in priority order: PAID_LLM_BASE_URL (a paid
+    subscription vendor, once one is actually provisioned - see this
+    module's PAID_LLM_* constants) > LOCAL_LLM_BASE_URL (a llama.cpp
+    `llama-server` running on this machine for zero-cost, fully local
+    inference) > Groq (the default while neither override is set).
+    llama-server doesn't validate the Authorization header at all, so no
+    real key is required for it - GROQ_API_KEY stays mandatory only on the
+    Groq path, exactly as before this change; the paid path requires
+    PAID_LLM_API_KEY (or an explicit api_key argument) since a real paid
+    vendor does validate its key.
 
     timeout defaults to None so it can pick the right budget for whichever
     backend is actually active (DEFAULT_TIMEOUT_SECONDS for Groq,
-    LOCAL_LLM_TIMEOUT_SECONDS for a local server) rather than a single
-    fixed default that's only correct for one of them - a real
-    httpx.ReadTimeout in testing is what caught this needing to be backend-
-    aware at all.
+    LOCAL_LLM_TIMEOUT_SECONDS for a local server, PAID_LLM_TIMEOUT_SECONDS
+    for a paid vendor) rather than a single fixed default that's only
+    correct for one of them - a real httpx.ReadTimeout in testing is what
+    caught this needing to be backend-aware at all.
     """
-    using_local = bool(LOCAL_LLM_BASE_URL)
-    url = LOCAL_LLM_BASE_URL if using_local else GROQ_API_URL
+    using_paid = bool(PAID_LLM_BASE_URL)
+    using_local = bool(LOCAL_LLM_BASE_URL) and not using_paid
+
+    if using_paid:
+        url = PAID_LLM_BASE_URL
+    elif using_local:
+        url = LOCAL_LLM_BASE_URL
+    else:
+        url = GROQ_API_URL
+
     if timeout is None:
-        timeout = LOCAL_LLM_TIMEOUT_SECONDS if using_local else DEFAULT_TIMEOUT_SECONDS
+        if using_paid:
+            timeout = PAID_LLM_TIMEOUT_SECONDS
+        elif using_local:
+            timeout = LOCAL_LLM_TIMEOUT_SECONDS
+        else:
+            timeout = DEFAULT_TIMEOUT_SECONDS
 
-    api_key = api_key or os.getenv("GROQ_API_KEY")
-    if not api_key:
-        if not using_local:
-            raise LLMError("GROQ_API_KEY is not set - cannot call the LLM provider.")
-        api_key = "local"  # llama-server ignores this; only Groq actually validates it.
+    if using_paid:
+        api_key = api_key or PAID_LLM_API_KEY
+        if not api_key:
+            raise LLMError("PAID_LLM_BASE_URL is set but PAID_LLM_API_KEY is not - cannot call the paid LLM provider.")
+    else:
+        api_key = api_key or os.getenv("GROQ_API_KEY")
+        if not api_key:
+            if not using_local:
+                raise LLMError("GROQ_API_KEY is not set - cannot call the LLM provider.")
+            api_key = "local"  # llama-server ignores this; only Groq actually validates it.
 
-    model = model or MODEL_NAME
+    model = model or (PAID_LLM_MODEL if using_paid else None) or MODEL_NAME
     payload = {
         "model": model,
         "messages": [
