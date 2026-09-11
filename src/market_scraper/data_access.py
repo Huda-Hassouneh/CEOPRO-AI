@@ -302,3 +302,70 @@ def record_policy_decision(
             ),
         )
     conn.commit()
+
+
+def list_tenant_competitors_by_proximity(
+    conn, tenant_id: str, radius_km: Optional[float] = None, scope: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> list:
+    """
+    Real proximity ranking, closest to farthest - the query-time half of
+    "rank or filter them based on the user's preference/input": distance_km
+    is already computed and persisted by competitor_classification.py::
+    classify_competitor(), so this is a plain sort, not a recomputation.
+
+    radius_km: when given, filters OUT anything farther than this (or with
+    unknown distance) - the "narrow the search area" direction. Omit it
+    (default) to rank every tracked competitor by distance without
+    excluding any, which is also how "expand the radius" ends up working
+    from a caller's point of view: a wider radius_km simply admits more of
+    the same already-computed rows, no new discovery run required.
+
+    A competitor with distance_km still NULL (neither side ever had
+    coordinates set) sorts last, never first - unknown distance must never
+    look closer than a real, known one.
+
+    scope: optional filter to one competitor_scope value ('NICHE_ITEM',
+    'PARTIAL_OVERLAP', 'BROAD_DOMAIN') - e.g. "show me only broad domain
+    rivals near me". Omit for every scope.
+    """
+    conditions = ["tc.tenant_id = %s", "tc.is_tracked = TRUE"]
+    params: list = [tenant_id]
+    if radius_km is not None:
+        conditions.append("tc.distance_km IS NOT NULL AND tc.distance_km <= %s")
+        params.append(radius_km)
+    if scope is not None:
+        conditions.append("tc.competitor_scope = %s")
+        params.append(scope)
+
+    query = f"""
+        SELECT gc.global_competitor_id, gc.competitor_name, gc.website_url, gc.city,
+               tc.distance_km, tc.competitor_scope, tc.tier, tc.product_match_rate,
+               tc.discovery_method
+        FROM tenant_competitors tc
+        JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
+        WHERE {' AND '.join(conditions)}
+        ORDER BY (tc.distance_km IS NULL), tc.distance_km ASC, gc.competitor_name ASC
+    """
+    if limit is not None:
+        query += " LIMIT %s"
+        params.append(limit)
+
+    with conn.cursor() as cursor:
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+    return [
+        {
+            "global_competitor_id": str(row[0]),
+            "competitor_name": row[1],
+            "website_url": row[2],
+            "city": row[3],
+            "distance_km": row[4],
+            "competitor_scope": row[5],
+            "tier": row[6],
+            "product_match_rate": row[7],
+            "discovery_method": row[8],
+        }
+        for row in rows
+    ]

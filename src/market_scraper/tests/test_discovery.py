@@ -46,3 +46,20 @@ def test_identity_key_falls_back_to_bare_host_for_a_social_platform_root():
 
 def test_identity_key_is_none_for_an_unparseable_url():
     assert compute_website_identity_key("not-a-url") is None
+
+
+def test_candidate_source_coordinates_default_to_unknown():
+    candidate = CandidateSource(product_name="Widget", url="https://example.com/item", title="Widget")
+    assert candidate.latitude is None
+    assert candidate.longitude is None
+    assert candidate.city is None
+
+
+def test_candidate_source_accepts_real_coordinates_from_a_location_aware_discovery_source():
+    candidate = CandidateSource(
+        product_name="Widget", url="https://example.com/item", title="Widget",
+        latitude=31.9539, longitude=35.9106, city="Amman",
+    )
+    assert candidate.latitude == 31.9539
+    assert candidate.longitude == 35.9106
+    assert candidate.city == "Amman"

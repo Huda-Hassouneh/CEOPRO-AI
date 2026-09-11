@@ -22,7 +22,7 @@ guess) when it isn't.
 import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 _VERTICAL_KEYWORDS: Dict[str, List[str]] = {
     "electronics_hobbyist": [
@@ -125,3 +125,27 @@ def resolve_tenant_geo_scope(conn, tenant_id: str, override: str = None) -> str:
         cursor.execute("SELECT country_code FROM companies WHERE tenant_id = %s;", (tenant_id,))
         row = cursor.fetchone()
     return row[0] if row and row[0] else ""
+
+
+def resolve_tenant_search_radius(conn, tenant_id: str, override_km: Optional[float] = None) -> Optional[float]:
+    """
+    Same override-over-stored-default pattern as resolve_tenant_geo_scope()
+    above, for the proximity radius instead of the country scope - "expand
+    or narrow the search area radius directly from the interface" is
+    exactly override_km: a caller (the UI's request handler) passes
+    whatever the user just set the slider to for this one call, without
+    needing to persist it first via company_geo_profile.set_tenant_search_scope()
+    (that's for when the user wants the new radius to become their
+    standing default, a separate action from adjusting it for one search).
+
+    None (not a made-up number) when neither an override nor a stored
+    default exists - the caller (list_tenant_competitors_by_proximity())
+    already treats a None radius_km as "no radius filter, rank everything"
+    rather than needing a fake default here.
+    """
+    if override_km is not None:
+        return override_km
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT default_search_radius_km FROM companies WHERE tenant_id = %s;", (tenant_id,))
+        row = cursor.fetchone()
+    return row[0] if row else None
