@@ -257,6 +257,77 @@ def test_upsert_summary_document_creates_then_updates_the_same_slot(conn, minio_
 
 
 @_needs_minio
+def test_upsert_summary_document_skips_the_write_entirely_when_content_is_unchanged(conn, minio_client):
+    """
+    The real fix: regenerate_all_structured_summaries() runs on every
+    scrape event, but it's common for a given slot's text to be
+    byte-identical to what's already stored (e.g. only sentiment changed
+    this run). Re-uploading and re-embedding unchanged content on every
+    single event was a real, avoidable cost - this verifies the skip
+    actually happens: no MinIO write, and processed_status is NOT flipped
+    back to 'Pending' (which would re-trigger a real chunk/embed cycle
+    for nothing).
+    """
+    from unittest.mock import patch
+
+    tenant_id = _insert_company(conn)
+    conn.commit()
+
+    doc_id_1 = structured_summaries._upsert_summary_document(
+        conn, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, "Same content.", TEST_BUCKET,
+    )
+    # Simulate ingest_pending_documents() having already run for this doc.
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE rag_documents_metadata SET processed_status = 'Processed' WHERE document_id = %s;",
+            (doc_id_1,),
+        )
+    conn.commit()
+
+    with patch.object(minio_client, "put_object", wraps=minio_client.put_object) as spy_put:
+        doc_id_2 = structured_summaries._upsert_summary_document(
+            conn, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, "Same content.", TEST_BUCKET,
+        )
+        spy_put.assert_not_called()
+
+    assert doc_id_2 == doc_id_1
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT processed_status FROM rag_documents_metadata WHERE document_id = %s;", (doc_id_1,))
+        assert cursor.fetchone()[0] == "Processed"  # NOT re-armed for ingestion - nothing actually changed
+
+
+@_needs_minio
+def test_upsert_summary_document_still_regenerates_when_content_actually_changes(conn, minio_client):
+    """Companion to the skip test above: a real content change must
+    still go through the full write + re-ingestion-trigger path, exactly
+    as before this fix."""
+    tenant_id = _insert_company(conn)
+    conn.commit()
+
+    doc_id_1 = structured_summaries._upsert_summary_document(
+        conn, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, "Version one.", TEST_BUCKET,
+    )
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE rag_documents_metadata SET processed_status = 'Processed' WHERE document_id = %s;",
+            (doc_id_1,),
+        )
+    conn.commit()
+
+    doc_id_2 = structured_summaries._upsert_summary_document(
+        conn, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, "Version two - actually different.", TEST_BUCKET,
+    )
+
+    assert doc_id_2 == doc_id_1
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT processed_status FROM rag_documents_metadata WHERE document_id = %s;", (doc_id_1,))
+        assert cursor.fetchone()[0] == "Pending"  # re-armed - content genuinely changed
+
+    text = minio_client.get_object(TEST_BUCKET, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY)).read()
+    assert text.decode("utf-8") == "Version two - actually different."
+
+
+@_needs_minio
 def test_upsert_summary_document_is_race_safe_across_two_concurrent_connections(conn, minio_client):
     """
     The real fix: analysis_worker.py can process two market.analysis.

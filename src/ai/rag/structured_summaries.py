@@ -69,39 +69,69 @@ def _upsert_summary_document(conn, minio_client, tenant_id: str, slot: str, text
     tenant/slot). Either way, ingest_pending_documents() picks it up on
     its next run through the exact same path a real upload would.
 
-    A single INSERT ... ON CONFLICT DO UPDATE, not a SELECT-then-INSERT/
-    UPDATE: this is called from analysis_worker.py::analyze_tenant() on
-    every market.analysis.requested event, and Redis consumer groups only
-    guarantee exclusivity per MESSAGE, not per tenant - two scrapes
-    finishing close together for the same tenant can be popped by two
-    different worker processes concurrently. A check-then-act SELECT
-    followed by a separate INSERT has a real race window there: both
-    workers can see no existing row and both INSERT, producing two
-    rag_documents_metadata rows pointing at the same MinIO object key,
-    which ingest_pending_documents() then chunks/embeds twice - silently
-    duplicated retrieval context for the chatbot. The atomic upsert
-    (backed by migration 20260911010000's unique index on
-    (tenant_id, storage_bucket_path)) closes that window: whichever
-    worker's write loses the race updates the same row instead of
-    creating a second one.
+    Skips the MinIO write and the re-ingestion trigger entirely when
+    `text` is byte-identical to what's already stored for this slot
+    (content_hash, migration 20260911020000) - regenerate_all_structured_
+    summaries() runs on every market.analysis.requested event, and it's
+    common for only one or two of the four slots to have actually
+    changed since the last run (e.g. only sentiment changed this time).
+    Re-uploading and re-embedding unchanged text on every single scrape
+    event was a real, avoidable cost this closes. A document with no
+    stored hash yet (pre-migration row, or truly the first generation)
+    always regenerates - unchanged is never assumed without real
+    evidence, only detected from an actual matching hash.
+
+    The real INSERT/UPDATE path is a single atomic INSERT ... ON CONFLICT
+    DO UPDATE, not a SELECT-then-INSERT/UPDATE: this is called from
+    analysis_worker.py::analyze_tenant() on every market.analysis.
+    requested event, and Redis consumer groups only guarantee exclusivity
+    per MESSAGE, not per tenant - two scrapes finishing close together
+    for the same tenant can be popped by two different worker processes
+    concurrently. A check-then-act SELECT followed by a separate INSERT
+    has a real race window there: both workers can see no existing row
+    and both INSERT, producing two rag_documents_metadata rows pointing
+    at the same MinIO object key, which ingest_pending_documents() then
+    chunks/embeds twice - silently duplicated retrieval context for the
+    chatbot. The atomic upsert (backed by migration 20260911010000's
+    unique index on (tenant_id, storage_bucket_path)) closes that window:
+    whichever worker's write loses the race updates the same row instead
+    of creating a second one. The unchanged-content short-circuit above
+    only ever SKIPS that write path on a real hash match - two
+    concurrent writers with genuinely DIFFERENT new content still both
+    fall through to it exactly as before, so it doesn't reopen that race.
     """
+    import hashlib
     import io
+
     payload = text.encode("utf-8")
+    content_hash = hashlib.sha256(payload).hexdigest()
     object_key = _object_key(slot)
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT document_id, content_hash FROM rag_documents_metadata "
+            "WHERE tenant_id = %s AND storage_bucket_path = %s;",
+            (tenant_id, object_key),
+        )
+        existing = cursor.fetchone()
+    if existing and existing[1] == content_hash:
+        return str(existing[0])
+
     minio_client.put_object(bucket, object_key, io.BytesIO(payload), length=len(payload), content_type="text/plain")
 
     with conn.cursor() as cursor:
         cursor.execute(
             """
             INSERT INTO rag_documents_metadata
-                (tenant_id, file_name, storage_bucket_path, file_size_bytes, content_type, processed_status)
-            VALUES (%s, %s, %s, %s, 'text/plain', 'Pending')
+                (tenant_id, file_name, storage_bucket_path, file_size_bytes, content_type, processed_status, content_hash)
+            VALUES (%s, %s, %s, %s, 'text/plain', 'Pending', %s)
             ON CONFLICT (tenant_id, storage_bucket_path) DO UPDATE
                 SET file_size_bytes = EXCLUDED.file_size_bytes,
-                    processed_status = 'Pending'
+                    processed_status = 'Pending',
+                    content_hash = EXCLUDED.content_hash
             RETURNING document_id;
             """,
-            (tenant_id, f"{slot}.txt", object_key, len(payload)),
+            (tenant_id, f"{slot}.txt", object_key, len(payload), content_hash),
         )
         document_id = str(cursor.fetchone()[0])
     conn.commit()
