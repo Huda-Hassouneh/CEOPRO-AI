@@ -9,6 +9,7 @@ import uuid
 
 import psycopg2
 import pytest
+from cryptography.fernet import Fernet
 
 from src.market_scraper.data_access import load_source, set_source_credentials
 
@@ -24,6 +25,15 @@ def conn():
     yield connection
     connection.rollback()
     connection.close()
+
+
+@pytest.fixture(autouse=True)
+def _local_kms_master_key(monkeypatch):
+    """set_source_credentials()/load_source() now encrypt/decrypt through
+    credential_vault.py's default (local) KMS backend, which requires a
+    real Fernet master key - set one for the duration of each test here
+    rather than in every test function."""
+    monkeypatch.setenv("CREDENTIAL_VAULT_MASTER_KEY", Fernet.generate_key().decode())
 
 
 def _insert_company(conn) -> str:

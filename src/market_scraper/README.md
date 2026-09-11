@@ -86,8 +86,11 @@ Ikea included — without a bespoke spider):
   `reviews.like_count`/`reply_count` and `market_observations.like_count`/`share_count`
   (`20260906010000_add_engagement_metrics_columns.sql`). Comments are a second, separately-billed
   provider call on top of the posts call — disable `fetch_comments` for the cheaper posts-only mode.
-- **`scrape_creators`** (`spiders/scrape_creators.py`) — **the primary, active social provider for
-  this deployment** (see "Vendor policy" below). [ScrapeCreators](https://docs.scrapecreators.com)
+- **`scrape_creators`** (`spiders/scrape_creators.py`) — **the reserve, cold-configured social
+  provider** as of the 2026-09-07 vendor policy revision (see "Vendor policy" below — `social_data_
+  provider`/Apify is the primary, active vendor for this deployment; this stayed the primary/active
+  provider up to that revision, and the two share the same constructor contract so switching back is
+  a credentials/config change, not a code one). [ScrapeCreators](https://docs.scrapecreators.com)
   is a plain REST API (`x-api-key` header, cursor-based pagination via `cursor`/`has_next_page`),
   not an actor-run platform like Apify. Confirmed live against a real Facebook comments payload
   (2026-09-06): billing is **per call**, not per row returned — one request that returned 10
@@ -114,8 +117,16 @@ Ikea included — without a bespoke spider):
 All four require credentials, supplied per-source via `data_sources.connection_credentials_vault`
 (a JSON object — `{"api_key": ...}` for Places and for ScrapeCreators, `{"access_key",
 "secret_key", "partner_tag"}` for PA-API, `{"api_token": ...}` for the Apify-shaped social
-provider) and passed through by `cli.py` as `credentials_json`. That column is a plain `TEXT`
-field with no secrets-manager integration behind it yet — see `PENDING_ACTIONS.md` #42.
+provider) and passed through by `cli.py` as `credentials_json`. **That column is field-level
+encrypted** (`credential_vault.py`, closing `PENDING_ACTIONS.md` #42) — real envelope encryption,
+not plaintext: `policy_cli.py set-credentials` (below) encrypts before writing, `data_access.py::
+load_source()` decrypts after reading, and a stolen database dump alone is useless without also
+compromising the separate KMS backend (`CREDENTIAL_VAULT_KMS_BACKEND` — `local`, a real working
+default needing no cloud account, or `aws_kms`, the real production recommendation; see
+`.env.example`). Honest framing, not oversold: this is envelope encryption at rest, not literal
+"zero-knowledge" — a collector actually calling a vendor's API still needs the real plaintext in
+memory at that moment, same as any system that itself makes the call. What it does guarantee: the
+database and the KMS key are two separate compromises, not one.
 
 ## Vendor policy for social collection
 
@@ -246,6 +257,120 @@ cost N searches for N variants).
   recommended — the expensive paid-provider comment/review depth is never spent on a competitor that
   hasn't cleared the real bar, while `RELEVANT` still gets tracked and price-compared.
 
+## Region-aware ranking: proximity + competitor breadth
+
+Two further, real product asks this session, both additive (nothing above changes): "the competitor
+must be located within the same target region... though we can ultimately rank or filter them based
+on the user's preference/input", and "determine whether they are competing across most products (a
+broad domain competitor) or just on a single product (a niche/item competitor)". Migration
+`20260911000000` adds the columns; nothing here changes whether a competitor gets confirmed/tracked —
+`tier`/`is_confirmed_competitor` above still answer that. These two are a separate axis each.
+
+- **Competitor breadth** (`tenant_competitors.competitor_scope`) — computed and persisted by
+  `competitor_classification.py::classify_competitor()` on every run, alongside tier:
+  `NICHE_ITEM` (this competitor's mapped-product count is `<= 1` — literally "just on a single
+  product"), `BROAD_DOMAIN` (product-overlap ratio clears `broad_domain_threshold`, default `0.5`,
+  its own parameter — not forced to equal the confirmation `threshold`, though they share the same
+  default value), `PARTIAL_OVERLAP` for the real, honest middle ground. A `NICHE_ITEM` competitor can
+  still be `STRATEGIC` tier (the one product they carry is an exact, in-region, non-manufacturer
+  match) — "real but narrow" is a genuine outcome, not a contradiction between the two axes.
+- **Proximity** — `companies.latitude`/`longitude` (set via `company_geo_profile.py::
+  set_tenant_search_scope()`, a partial-update function: a call updating just the scope level
+  doesn't require re-sending the tenant's country list or coordinates) and `global_competitors.
+  latitude`/`longitude` (populated by a discovery source that has real coordinates to offer — e.g. a
+  future Google Places nearby-search result; `discovery.py::CandidateSource.latitude/longitude` carry
+  this through today, though the only discovery source wired in so far, product-keyed Custom Search,
+  never sets them). `geo.py::haversine_km()` (pure stdlib, no geocoding API) computes real
+  great-circle distance whenever BOTH sides are known; `classify_competitor()` persists it as
+  `tenant_competitors.distance_km` — `NULL`, never a fabricated `0`, when either side's location is
+  unknown.
+- **The radius is never a number the end user types.** `companies.search_scope_level` (`CITY` /
+  `PROVINCE` / `COUNTRY` / `CUSTOM`, default `PROVINCE`) is the real UI-facing control — a
+  dropdown/segmented choice, not a "how many kilometers?" field nobody can answer intuitively.
+  `set_tenant_search_scope()` resolves the actual `default_search_radius_km` server-side:
+  `SCOPE_LEVEL_PRESET_RADIUS_KM` maps `CITY`→25km/`PROVINCE`→150km; `COUNTRY` explicitly clears the
+  radius to `NULL` (region becomes "this tenant's whole `operating_countries` list", not a distance
+  ring at all); `CUSTOM` is the one deliberate escape hatch for an advanced/API caller who wants an
+  exact km figure, and requires `custom_radius_km` be passed alongside it (rejected otherwise).
+- **Multi-country scope** — `companies.operating_countries` (pre-existing) is what
+  `set_tenant_search_scope()` writes a user's multi-country input into; `competitor_classification.py
+  ::_in_operating_region()` already checked it before this session's changes, so a tenant with several
+  operating countries was already correctly excluding sellers outside all of them, not just the
+  primary one.
+- **Ranking/filtering at query time, not at classification time** —
+  `data_access.py::list_tenant_competitors_by_proximity(conn, tenant_id, radius_km=None,
+  scope=None, limit=None)` sorts every tracked competitor closest-to-farthest (unknown distance
+  always sorts last, never first), optionally filtered to one `competitor_scope` and/or a
+  `radius_km` cap. Distance/scope are computed once by `classify_competitor()` and just sorted here —
+  this is deliberately a read-time choice, not baked into `is_confirmed_competitor`, so "expand or
+  narrow the search radius from the interface" is exactly widening/narrowing `radius_km` on this call
+  (or, to change the tenant's *standing* default rather than one request, `companies.
+  default_search_radius_km` via `set_tenant_search_scope()` — `sector_detection.py::
+  resolve_tenant_search_radius()` resolves whichever the caller wants: an explicit per-call
+  `override_km`, falling back to the tenant's stored default, falling back to `None` — never an
+  invented number). Widening the radius later never requires a new discovery run: it just admits more
+  of the already-computed rows.
+
+## Domain-level discovery: competitors by industry, not just by exact product match
+
+Product-level discovery above (`discover_competitors_for_tenant()`) can only ever find a seller
+already seen carrying something the tenant also sells — a same-industry rival with a genuinely
+different product mix is structurally invisible to it. `tenant_discovery.py::
+discover_domain_level_competitors_for_tenant()` is the fix: two real, combined ("hybrid") sources,
+neither requiring a product name at all —
+
+- **`places_nearby_discovery.py::discover_nearby_places()`** — official Google Places Nearby Search
+  around the tenant's own `companies.latitude`/`longitude` (only runs when both a Places API key and
+  tenant coordinates are on file), for the tenant's detected industry keyword
+  (`sector_detection.py::VERTICAL_INDUSTRY_LABELS`). Radius comes from the tenant's own
+  `search_scope_level` (see above), clamped to Google's real, hard `50km` Nearby Search cap
+  (`MAX_NEARBY_SEARCH_RADIUS_KM`) — flagged, not silently exceeded. A result with no real `website`
+  field (common for small local businesses) is skipped, never guessed at; a result that does have one
+  carries its own real coordinates (`geometry.location` from Place Details, not the search center),
+  so `classify_competitor()` computes a genuine, per-competitor `distance_km`.
+- **`web_product_discovery.py::discover_industry_candidates()`** — the same Google Custom Search
+  API/cache/quota-pacer/SearXNG-fallback machinery `discover_product_candidates()` already uses, but
+  queried with `sector_detection.py::build_industry_search_query()` ("electronics store buy shop
+  store price Jordan", not a product name) — always attempted, since it needs no coordinates, only
+  the tenant's detected vertical.
+
+Every real candidate from either source is registered via **`discovery.py::
+register_domain_level_competitor()`** — deliberately **no** `competitor_product_mappings`/
+`data_sources` row at registration time (there's no specific product page to scope a collection job
+to yet, only a business identity), but a real, classified `tenant_competitors` row. `classify_competitor()`
+(`src/ai/pricing/competitor_classification.py`) already knows how to confirm one of these: for a
+domain-sourced competitor with zero product mappings, passing the manufacturer/region checks *alone*
+is the confirmation bar — requiring product overlap here would make domain-level discovery pointless,
+since nothing it finds would ever have any. Its `competitor_scope` is `BROAD_DOMAIN`, not `NICHE_ITEM`
+— it was found *by being* a same-industry business, not by carrying one SKU.
+
+**Closing the loop — "scrape data from their website if they have one":** immediately after a domain
+find is **confirmed**, `discover_domain_level_competitors_for_tenant()` calls
+**`map_products_on_domain_competitor_site()`** — real, zero-API-cost product discovery scoped to
+that ONE known competitor's own domain, combining `direct_search.py::search_product_across_retailers()`
+(schema.org SearchAction) and `sitemap_discovery.py::discover_products_via_sitemap()` (sitemap.xml).
+Both functions are domain-agnostic at the call site — the hand-seeded `*_BY_VERTICAL` dicts elsewhere
+are only an optimization for "which domains to try" when the domain isn't already known, irrelevant
+here since it is. Any real product match registers through the **ordinary product-level path**
+(`register_tenant_scoped_competitor()`) — `website_identity_key` dedup converges it onto the exact
+same `global_competitors` row `register_domain_level_competitor()` already created (proven directly:
+`test_domain_and_product_level_finds_converge_on_the_same_competitor_row`), and — unlike the
+domain-level registration — creates the real `competitor_product_mappings`/`data_sources` rows
+`load_scrape_targets()` requires. A confirmed domain-level competitor with a real product match is,
+from that point on, indistinguishable from one product-level discovery found directly: it flows into
+the same `standards` collector (`market_source.py`'s JSON-LD/microdata/widget-CSS layers), the same
+Tier-2 staging/validation/safety pipeline, the same policy-approval gate before any real collection
+runs. This never runs for an excluded manufacturer or out-of-region find — no point spending the
+crawl effort where `classify_competitor()` already said no. `tenant_competitors.discovery_method`
+(`PRODUCT_SEARCH` / `PLACES_NEARBY` / `INDUSTRY_KEYWORD_SEARCH`) records whichever path found the
+*competitor itself* first and is never overwritten by a later, different-path find — independent of
+how its products get mapped.
+
+**Known, flagged gap**: `global_competitors.industry_sector` backfill for a competitor already found
+by product-level discovery (inferring their industry from name/page text, `sector_detection.py::
+infer_industry_sector()` is built and tested standalone) isn't yet wired into an automatic batch job —
+it's a real, callable function, just not yet scheduled to run over existing rows.
+
 ## Where competitor URLs and product matching come from
 
 `data_sources.source_url` is the reviewed base/API/feed URL and stores collection policy,
@@ -373,6 +498,43 @@ injection patterns. Flagged text is retained with source lineage for audit/repro
 The richer JSONL/demo record additionally includes product name, category, description, UPC,
 rating, review count, stock quantity, canonical URL, image URL, collection method, and capture
 time. Nullable fields remain `null`; absent facts are not invented.
+
+## Live client database sync (real-time, not file-based-only)
+
+`connector_sync.py` is the real fix for "we are NOT building a static reporting tool - a
+file-based-only system is completely rejected": a client's Postgres-compatible database can be
+registered as a **live, polled connector** instead of requiring a file re-upload for every
+update.
+
+- **`policy_cli.py register-source --collector db_connector`** registers one, same policy-review
+  gate as every other source (`--terms-permit`/`--technical-controls-permit`/`--approval-reference`
+  — a connector is never synced just because a row exists for it). `collector_config` (JSONB) holds
+  `{"host", "port", "dbname", "query", "field_mapping"}` — the query and column names are the
+  tenant's own configuration, same as any other explicit integration. `set-credentials` writes the
+  client database's `{"user", "password"}` — encrypted, see below.
+- **`connector_sync.py::sync_db_connector_source()`** runs one real sync: opens a **read-only**
+  connection to the client's database (`.set_session(readonly=True)` — real defense-in-depth, this
+  module is a reader and must never be able to write to a client's production database), runs the
+  configured query (`db_adapter.py::read_db_query()`), and feeds the results through the exact same
+  `ingestion_pipeline.process_records()` every file upload already uses — same savepoint-per-row,
+  nothing-silently-dropped guarantee, `trusted_field_mapping` (the caller already knows its own
+  schema, no header-guessing needed). `data_sources.last_synced_at` (a real, pre-existing column)
+  only advances on success — a failed sync is retried next cycle, never marked as if it succeeded.
+- **`run_due_connector_syncs(conn, tenant_id)`** — the real scheduler entry point, call it on an
+  interval (a cron/beat task). Each due source is a real, independent attempt; one source's failure
+  never blocks another's.
+- **`DEFAULT_SYNC_INTERVAL_MINUTES = 15`** — a real trade-off, not arbitrary: near-real-time enough
+  that an inventory/price change is reflected within a quarter hour (materially useful for a
+  stockout alert or a price recommendation), without hammering a client's production database every
+  few seconds. `data_sources.sync_frequency_minutes` (pre-existing column) is per-source, not
+  uniform — set it tighter for a high-velocity POS, looser for a slow-moving catalog.
+
+**Scope, stated plainly**: this pass covers a Postgres-compatible client database. An API connector
+(POS/ERP vendor REST APIs) reuses the exact same scheduling/watermark mechanism, just with a
+per-vendor `fetch_page()` (`api_adapter.py`'s existing contract) instead of a SQL query — there's no
+way to poll an arbitrary REST API without knowing its pagination shape. A true multi-dialect DB
+driver (MySQL, SQL Server, Oracle, ...) — the "Universal Connector Layer" for the top Middle East
+POS/ERP systems — is a distinct, larger piece of work, not built in this pass.
 
 ## Setup
 

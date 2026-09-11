@@ -25,6 +25,7 @@ python scripts/apply_migrations.py   # needs DATABASE_URL + APP_DB_PASSWORD set
 | `GROQ_MAX_TOKENS` | No | `400` | Caps response length — a real, free latency lever on both backends, not just a Groq nicety |
 | `LOCAL_LLM_BASE_URL` | No | unset (uses Groq) | Set to route generation at a local `llama.cpp` server instead — see "Zero-cost local LLM option" below |
 | `LOCAL_LLM_TIMEOUT_SECONDS` | No | `90` | Only applies when `LOCAL_LLM_BASE_URL` is set — local generation is genuinely slower than Groq's hosted hardware |
+| `PAID_LLM_BASE_URL` / `PAID_LLM_API_KEY` / `PAID_LLM_MODEL` | No | unset (uses Groq/local) | The flexible placeholder for swapping Groq for a paid subscription vendor later — see "Swapping in a paid provider later" below |
 | `RAG_EMBEDDING_MODEL` | No | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Dense retrieval embedding model |
 | `RAG_RERANKER_MODEL` | No | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Multilingual Cross-Encoder (spec §8 Arabic-English requirement — do not swap for an English-only reranker) |
 
@@ -53,6 +54,26 @@ Q5_K_M): ~6 tokens/sec generation, a real 32.6s for one full grounded answer thr
 that's the real trade for zero cost and full privacy, not a bug. This was a single smoke test, not
 an accuracy evaluation — a real side-by-side comparison against Groq's answers on a batch of
 questions is the honest next step for quantified confidence, not yet done.
+
+### Swapping in a paid provider later
+
+Groq stays the active default. When a paid subscription is actually provisioned (OpenAI,
+Together AI, Azure OpenAI, Fireworks, or any other vendor that speaks the same OpenAI-compatible
+`/v1/chat/completions` schema Groq and llama-server already do), point `generate_answer()` at it
+with three env vars and nothing else changes:
+
+```bash
+export PAID_LLM_BASE_URL=https://api.your-paid-vendor.example/v1/chat/completions
+export PAID_LLM_API_KEY=your-real-key-here
+export PAID_LLM_MODEL=vendor/model-name   # optional — defaults to GROQ_MODEL's value
+```
+
+`PAID_LLM_BASE_URL` takes priority over both Groq and `LOCAL_LLM_BASE_URL` when set, and is unset
+by default (zero behavior change until a real vendor is chosen). A vendor with a genuinely
+different request/response schema — Anthropic's Messages API, Google's Gemini API — needs its own
+code path in [`llm_client.py`](llm_client.py), not just these env vars; that is a real vendor
+decision this pass deliberately leaves open, the same way `credential_vault.py` leaves the choice
+of a HashiCorp Vault backend open.
 
 ## 2. Ingest a document
 
@@ -193,21 +214,77 @@ actual provider call yourself.
 ## 5. Architecture summary
 
 ```text
-Document upload (MinIO)
-        |
-ingest_pending_documents()  -- chunk, embed, persist (once, at ingest time)
-        |
-rag_document_chunks (Postgres + pgvector)
-        |
-run_retrieval()
-  |-- build_hybrid_index()        -- read persisted chunks, no MinIO/re-embed
-  |-- retrieve_hybrid()           -- BM25 + FAISS, wide candidate pool -> RRF fusion
-  |-- rerank()                    -- multilingual Cross-Encoder, narrows to top_k
-  |-- assemble_context()          -- source-labeled context text + citations
-        |
-AssembledContext
-        |
-generate_answer()  -- Groq API call (Llama), the only LLM-aware step in this whole path
-        |
-{"answer": ..., "sources": [...]}
-```.
+Document upload (MinIO)          structured_summaries.py
+        |                        (regenerate_all_structured_summaries)
+        |                                |
+        |                        real narrative text from
+        |                        invoices/tenant_competitors/
+        |                        sentiment_results/competitor_prices
+        |                                |
+        |                        written to MinIO as a real .txt file,
+        |                        registered in rag_documents_metadata
+        |                        (one stable "slot" per summary type -
+        |                        regeneration overwrites, never duplicates)
+        |                                |
+        +----------------+---------------+
+                         |
+        ingest_pending_documents()  -- chunk, embed, persist (once, at ingest time)
+                         |
+        rag_document_chunks (Postgres + pgvector)
+                         |
+        run_retrieval()
+          |-- build_hybrid_index()        -- read persisted chunks, no MinIO/re-embed
+          |-- retrieve_hybrid()           -- BM25 + FAISS, wide candidate pool -> RRF fusion
+          |-- rerank()                    -- multilingual Cross-Encoder, narrows to top_k
+          |-- assemble_context()          -- source-labeled context text + citations
+                         |
+                AssembledContext                    structured_context.py
+                         |                    (build_structured_facts_block)
+                         |                                |
+                         |                    real, LIVE current numbers -
+                         |                    sentiment score, competitor
+                         |                    tier counts, price gaps -
+                         |                    queried fresh, never chunked
+                         |                    or embedded
+                         |                                |
+                         +-------------------+------------+
+                                             |
+                        generate_answer()  -- Groq API call, both sections in
+                                              one prompt, separately labeled
+                                             |
+                        {"answer": ..., "sources": [...]}
+```
+
+## 6. Unified context: scraped market data + internal sales history
+
+The real fix for "the chatbot must leverage the interplay between internal sales history and
+external market/competitor data" (previously true only via a hand-built function bolted onto the
+answer afterward, bypassing retrieval entirely): **`structured_summaries.py`** and
+**`structured_context.py`** are the two halves of a deliberate hybrid design, not a single
+mechanism — see each module's own docstring for the full reasoning, summarized here:
+
+- **`structured_summaries.py`** turns structured data into real narrative text — sales history
+  (`invoices`/`invoice_items`), the confirmed competitor landscape (`tenant_competitors`/
+  `global_competitors`, tier/scope/distance), sentiment trends (`sentiment_results`, reusing
+  `sentiment/pipeline.py::get_subject_sentiment_summary()` — never a re-derived number), and market
+  pricing (`products.current_price` vs. `competitor_prices`) — and ingests it through the **exact
+  same** `ingest_pending_documents()` pipeline a human-uploaded file goes through. This is what
+  makes "what's been happening with sentiment about my competitors" answerable by ordinary hybrid
+  retrieval, same as a question about an uploaded PDF. Each summary type is one stable per-tenant
+  "slot" (`_generated/<slot>.txt`) — `regenerate_all_structured_summaries(conn, minio_client,
+  tenant_id)` overwrites it and re-arms ingestion (`processed_status` back to `'Pending'`); call it
+  on a schedule (after a scraping/sentiment run, or nightly), never accumulating duplicate documents.
+- **`structured_context.py::build_structured_facts_block()`** is the other half: real, CURRENT
+  numbers (current sentiment score, competitor tier counts, live price gaps) queried fresh on
+  **every** chat question and injected directly into the LLM prompt as a second, separately-labeled
+  section — never chunked or embedded. This is deliberate, not an oversight: an LLM asked for an
+  exact number should never have to rely on semantic search having retrieved the one chunk with the
+  precise right figure, a well-documented RAG failure mode for numeric precision. `llm_client.py::
+  answer_query()` calls this automatically (`include_structured_facts=True` by default) and now only
+  short-circuits to "I don't have any relevant information" when **neither** retrieval **nor**
+  structured facts have anything — a pure-numbers question with no matching document (e.g. "what's
+  my current price gap") still gets a real answer.
+
+**Known, flagged gap**: neither `regenerate_all_structured_summaries()` nor the four narrative
+generators are yet wired into an automatic schedule (a cron/webhook after a scraping run) — they're
+real, tested, callable functions, just not yet triggered automatically end-to-end.
