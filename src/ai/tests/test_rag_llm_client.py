@@ -34,6 +34,10 @@ def _isolated_from_local_llm_config(monkeypatch):
     monkeypatch.setattr(llm_client, "PAID_LLM_API_KEY", None)
     monkeypatch.setattr(llm_client, "PAID_LLM_MODEL", None)
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    # The circuit breaker is module-level, in-process state - without this,
+    # a test earlier in the run that pushes it past CIRCUIT_BREAKER_THRESHOLD
+    # consecutive failures would leave it open for every test after it.
+    llm_client._reset_circuit_breaker()
 
 
 def _context(context_text="Sunscreen SPF 50 is our best seller.", query="what is our best seller?"):
@@ -123,6 +127,87 @@ def test_generate_answer_does_not_retry_a_client_error(monkeypatch):
     with pytest.raises(llm_client.LLMError, match="401"):
         llm_client.generate_answer(_context(), api_key="test-key")
     assert len(calls) == 1  # no retry attempted at all
+
+
+def test_backoff_seconds_is_never_shorter_than_the_unjittered_base(monkeypatch):
+    """RETRY_JITTER_FRACTION only ever lengthens a wait, never shortens it -
+    a real retry storm made worse by retrying SOONER would defeat the point."""
+    monkeypatch.setattr(llm_client, "RETRY_BACKOFF_SECONDS", 0.5)
+    monkeypatch.setattr(llm_client, "RETRY_JITTER_FRACTION", 0.5)
+    for attempt in range(3):
+        base = 0.5 * (attempt + 1)
+        for _ in range(20):  # random - sample enough to catch a bug in either bound
+            waited = llm_client._backoff_seconds(attempt)
+            assert base <= waited <= base * 1.5
+
+
+def test_circuit_breaker_opens_after_threshold_consecutive_failures(monkeypatch):
+    """
+    The real fix: after enough consecutive request-level failures (each
+    one already exhausted its own retries), a NEW call must fail fast -
+    without even attempting an HTTP call - instead of repeating the full
+    retry sequence against a provider that's already known to be down.
+    """
+    monkeypatch.setattr(llm_client, "MAX_RETRIES", 0)  # one attempt per call, fail fast for this test
+    monkeypatch.setattr(llm_client, "CIRCUIT_BREAKER_THRESHOLD", 2)
+    monkeypatch.setattr(llm_client.time, "sleep", lambda *a: None)
+    calls = []
+    monkeypatch.setattr(
+        llm_client.httpx, "post",
+        lambda *a, **k: calls.append(1) or _FakeResponse(503, text="service unavailable"),
+    )
+
+    with pytest.raises(llm_client.LLMError, match="503"):
+        llm_client.generate_answer(_context(), api_key="test-key")
+    with pytest.raises(llm_client.LLMError, match="503"):
+        llm_client.generate_answer(_context(), api_key="test-key")
+    assert len(calls) == 2  # both real failures, circuit not open yet
+
+    with pytest.raises(llm_client.LLMError, match="circuit breaker is open"):
+        llm_client.generate_answer(_context(), api_key="test-key")
+    assert len(calls) == 2  # the third call never even attempted an HTTP request
+
+
+def test_circuit_breaker_resets_after_a_successful_call(monkeypatch):
+    monkeypatch.setattr(llm_client, "MAX_RETRIES", 0)
+    monkeypatch.setattr(llm_client, "CIRCUIT_BREAKER_THRESHOLD", 2)
+    monkeypatch.setattr(llm_client.time, "sleep", lambda *a: None)
+    responses = iter([
+        _FakeResponse(503, text="service unavailable"),
+        _FakeResponse(200, {"choices": [{"message": {"content": "ok"}}]}),
+        _FakeResponse(503, text="service unavailable"),
+    ])
+    monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: next(responses))
+
+    with pytest.raises(llm_client.LLMError):
+        llm_client.generate_answer(_context(), api_key="test-key")  # 1 consecutive failure
+    llm_client.generate_answer(_context(), api_key="test-key")  # succeeds - resets the counter
+    with pytest.raises(llm_client.LLMError, match="503"):
+        # a real failure again, not "circuit breaker is open" - the earlier
+        # failure no longer counts toward the threshold after the reset
+        llm_client.generate_answer(_context(), api_key="test-key")
+
+
+def test_circuit_breaker_closes_again_after_the_cooldown_elapses(monkeypatch):
+    monkeypatch.setattr(llm_client, "MAX_RETRIES", 0)
+    monkeypatch.setattr(llm_client, "CIRCUIT_BREAKER_THRESHOLD", 1)
+    monkeypatch.setattr(llm_client, "CIRCUIT_BREAKER_COOLDOWN_SECONDS", 10)
+    monkeypatch.setattr(llm_client.time, "sleep", lambda *a: None)
+    monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: _FakeResponse(503, text="service unavailable"))
+
+    fake_now = [1000.0]
+    monkeypatch.setattr(llm_client.time, "monotonic", lambda: fake_now[0])
+
+    with pytest.raises(llm_client.LLMError, match="503"):
+        llm_client.generate_answer(_context(), api_key="test-key")  # opens the circuit
+
+    with pytest.raises(llm_client.LLMError, match="circuit breaker is open"):
+        llm_client.generate_answer(_context(), api_key="test-key")
+
+    fake_now[0] += 11  # past the 10s cooldown
+    with pytest.raises(llm_client.LLMError, match="503"):
+        # cooldown elapsed - a real attempt is made again, not "circuit breaker is open"
+        llm_client.generate_answer(_context(), api_key="test-key")
 
 
 def test_generate_answer_uses_env_model_when_not_overridden(monkeypatch):
