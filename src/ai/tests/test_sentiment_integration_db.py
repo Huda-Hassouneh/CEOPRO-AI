@@ -114,7 +114,7 @@ def test_classify_and_store_reviews_writes_sentiment_results_and_excludes_reanal
     with patch.object(pipeline.model, "classify", return_value=_fake_predictions(2)):
         result = pipeline.classify_and_store_reviews(conn, tenant_id)
 
-    assert result == {"status": "OK", "analyzed_count": 2}
+    assert result == {"status": "OK", "analyzed_count": 2, "failed_count": 0}
 
     with conn.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM sentiment_results WHERE tenant_id = %s;", (tenant_id,))
@@ -123,6 +123,46 @@ def test_classify_and_store_reviews_writes_sentiment_results_and_excludes_reanal
     # Already-analyzed reviews must not be picked up again.
     remaining = data_access.load_unanalyzed_reviews(conn, tenant_id)
     assert remaining == []
+
+
+def test_classify_and_store_reviews_one_bad_review_does_not_block_the_others_against_real_db(
+    conn, seeded_tenant_and_product
+):
+    """
+    The real fix, against a real transaction/SAVEPOINT (not a mock): one
+    review whose insert fails at the database level must not abort the
+    whole transaction and silently drop the OTHER reviews in the same
+    batch - before the SAVEPOINT isolation, a single failed INSERT would
+    have left the transaction aborted for every statement after it.
+    """
+    tenant_id, product_id = seeded_tenant_and_product
+    _insert_review(conn, tenant_id, product_id, "Great product")
+    _insert_review(conn, tenant_id, product_id, "Terrible experience")
+
+    reviews = data_access.load_unanalyzed_reviews(conn, tenant_id)
+    good_predictions = _fake_predictions(2)
+
+    real_insert = pipeline.evidence.insert_sentiment_result
+
+    def _flaky_insert(conn, review_id, *args):
+        if review_id == reviews[0]["review_id"]:
+            raise ValueError("simulated bad review")
+        return real_insert(conn, review_id, *args)
+
+    with patch.object(pipeline.model, "classify", return_value=good_predictions), \
+         patch.object(pipeline.evidence, "insert_sentiment_result", side_effect=_flaky_insert):
+        result = pipeline.classify_and_store_reviews(conn, tenant_id)
+
+    assert result == {"status": "OK", "analyzed_count": 1, "failed_count": 1}
+
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM sentiment_results WHERE tenant_id = %s;", (tenant_id,))
+        assert cursor.fetchone()[0] == 1  # the good review's result really did commit
+
+    # The failing review is still unanalyzed and eligible for a future retry.
+    remaining = data_access.load_unanalyzed_reviews(conn, tenant_id)
+    assert len(remaining) == 1
+    assert remaining[0]["review_id"] == reviews[0]["review_id"]
 
 
 def test_get_subject_sentiment_summary_with_no_reviews_writes_unknown_evidence(conn, seeded_tenant_and_product):
