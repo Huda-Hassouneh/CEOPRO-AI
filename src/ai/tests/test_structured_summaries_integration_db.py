@@ -257,6 +257,60 @@ def test_upsert_summary_document_creates_then_updates_the_same_slot(conn, minio_
 
 
 @_needs_minio
+def test_upsert_summary_document_is_race_safe_across_two_concurrent_connections(conn, minio_client):
+    """
+    The real fix: analysis_worker.py can process two market.analysis.
+    requested events for the SAME tenant on two different worker
+    processes concurrently (Redis consumer groups only guarantee
+    exclusivity per message, not per tenant). Before the unique index +
+    ON CONFLICT upsert, a check-then-act SELECT-then-INSERT let both
+    connections see no existing row and both INSERT, producing two
+    rag_documents_metadata rows for the same slot. This drives two REAL,
+    separate connections through the same race window with actual
+    threads (not just sequential calls on one connection, which could
+    never have exhibited the bug) and verifies exactly one row survives.
+    """
+    import threading
+
+    tenant_id = _insert_company(conn)
+    conn.commit()
+
+    conn_a = psycopg2.connect(DATABASE_URL)
+    conn_a.autocommit = False
+    conn_b = psycopg2.connect(DATABASE_URL)
+    conn_b.autocommit = False
+
+    barrier = threading.Barrier(2)
+    results = {}
+
+    def _race(name, connection, text):
+        barrier.wait()  # line both threads up to maximize the chance of a genuine overlap
+        results[name] = structured_summaries._upsert_summary_document(
+            connection, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, text, TEST_BUCKET,
+        )
+
+    try:
+        thread_a = threading.Thread(target=_race, args=("a", conn_a, "From worker A."))
+        thread_b = threading.Thread(target=_race, args=("b", conn_b, "From worker B."))
+        thread_a.start()
+        thread_b.start()
+        thread_a.join()
+        thread_b.join()
+
+        assert results["a"] == results["b"]  # both races resolved to the same document row
+
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) FROM rag_documents_metadata WHERE tenant_id = %s AND storage_bucket_path = %s;",
+                (tenant_id, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY)),
+            )
+            assert cursor.fetchone()[0] == 1  # never two rows for the same slot
+    finally:
+        conn_a.close()
+        conn_b.close()
+
+
+@_needs_minio
 @_needs_embeddings
 def test_regenerate_all_structured_summaries_ingests_real_chunks(conn, minio_client):
     tenant_id = _insert_company(conn)
