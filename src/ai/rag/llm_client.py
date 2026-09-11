@@ -59,6 +59,7 @@ import httpx
 
 from src.ai.rag.pipeline import run_retrieval
 from src.ai.rag.retrieval_types import AssembledContext
+from src.ai.rag.structured_context import build_structured_facts_block
 
 logger = logging.getLogger("CEOPRO_AI_RAG_LLM")
 
@@ -133,12 +134,22 @@ class LLMError(Exception):
     """Raised when the LLM provider call fails or returns an unusable response."""
 
 
-def _build_user_prompt(context: AssembledContext) -> str:
-    return (
-        f"Context:\n{context.context_text}\n\n"
-        f"Question: {context.query}\n\n"
-        "Answer using only the context above."
-    )
+def _build_user_prompt(context: AssembledContext, structured_facts: str = "") -> str:
+    """
+    structured_facts (structured_context.py::build_structured_facts_block())
+    is a second, separately-labeled section - real, current numbers
+    queried live, never retrieved via semantic search. Kept visually and
+    textually distinct from the retrieved "Context" section so the model
+    (and SYSTEM_PROMPT's own provenance instruction, which already tells
+    it to cite the exact table/field a number came from) can tell "a
+    retrieved passage" apart from "a live database fact" - both are real,
+    grounded input, just sourced two different ways.
+    """
+    sections = [f"Context:\n{context.context_text}"]
+    if structured_facts:
+        sections.append(f"Current business data (live, queried for this question):\n{structured_facts}")
+    sections.append(f"Question: {context.query}\n\nAnswer using only the information above.")
+    return "\n\n".join(sections)
 
 
 def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> httpx.Response:
@@ -184,6 +195,7 @@ def generate_answer(
     temperature: float = DEFAULT_TEMPERATURE,
     timeout: float = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
+    structured_facts: str = "",
 ) -> str:
     """
     Calls the LLM provider with `context` (from pipeline.run_retrieval() or
@@ -225,7 +237,7 @@ def generate_answer(
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_prompt(context)},
+            {"role": "user", "content": _build_user_prompt(context, structured_facts)},
         ],
         "temperature": temperature,
         "max_tokens": max_tokens,
@@ -243,23 +255,37 @@ def generate_answer(
         raise LLMError(f"Unexpected LLM provider response shape: {response.text[:500]}") from err
 
 
-def answer_query(conn, tenant_id: str, query_text: str, top_k: int = 5, **retrieval_kwargs) -> dict:
+def answer_query(
+    conn, tenant_id: str, query_text: str, top_k: int = 5,
+    include_structured_facts: bool = True, **retrieval_kwargs,
+) -> dict:
     """
     The complete, end-to-end RAG chatbot call: retrieval
     (pipeline.run_retrieval() - persisted hybrid index -> RRF fusion ->
-    Cross-Encoder re-rank -> context assembly) followed by LLM reasoning
-    (generate_answer()). Returns {"answer": str, "sources": list[dict]} -
-    sources are the same chunk citations AssembledContext already carries,
-    passed through so a caller can show "grounded in these N sources"
-    alongside the answer.
+    Cross-Encoder re-rank -> context assembly), live structured facts
+    (structured_context.py - real current numbers, not retrieved),
+    followed by LLM reasoning (generate_answer()). Returns
+    {"answer": str, "sources": list[dict]} - sources are the same chunk
+    citations AssembledContext already carries; structured facts have no
+    "chunk" to cite (they're a live query, not a persisted document), so
+    they never appear in `sources`, only inline in the answer text
+    itself when the model chooses to use them.
 
-    An empty retrieval result (nothing in the tenant's knowledge base
-    matched) short-circuits before ever calling the LLM - there is
-    nothing to ground an answer in, and no context to send.
+    Short-circuits before ever calling the LLM only when there is
+    NEITHER retrieved context NOR any structured facts - a question with
+    no matching document but real, current structured data (e.g. "what's
+    my current price gap") should still get a real answer, not a
+    reflexive "I don't have any relevant information".
+
+    include_structured_facts=True by default; set False for a caller
+    that wants retrieval-only behavior (e.g. testing, or a context where
+    live structured queries aren't desired for this one call).
     """
     context = run_retrieval(conn, tenant_id, query_text, top_k=top_k, **retrieval_kwargs)
-    if not context.context_text:
+    structured_facts = build_structured_facts_block(conn, tenant_id) if include_structured_facts else ""
+
+    if not context.context_text and not structured_facts:
         return {"answer": "I don't have any relevant information to answer that question.", "sources": []}
 
-    answer = generate_answer(context)
+    answer = generate_answer(context, structured_facts=structured_facts)
     return {"answer": answer, "sources": context.sources}
