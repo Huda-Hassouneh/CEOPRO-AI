@@ -329,3 +329,40 @@ def test_excluded_manufacturer_never_triggers_a_product_mapping_attempt(conn):
     assert results[0]["is_confirmed_competitor"] is False
     mock_map.assert_not_called()
     assert "mapped_products" not in results[0]
+
+
+def test_register_domain_level_competitor_rolls_back_cleanly_on_classification_failure(conn):
+    """
+    The real fix: classify_competitor() is what commits this whole
+    transaction (its own UPDATE plus register_domain_level_competitor()'s
+    earlier global_competitors/tenant_competitors INSERTs, all on one
+    connection). If it raises before reaching that commit,
+    register_domain_level_competitor() must roll back its own earlier
+    work rather than leave it dangling uncommitted or the connection
+    stuck in Postgres's aborted-transaction state for whatever the
+    caller tries on it next.
+    """
+    tenant_id = _insert_company(conn, country_code="JO")
+    conn.commit()
+    candidate = CandidateSource("", "https://rival-example.com", "Rival Co")
+
+    with patch(
+        "src.market_scraper.discovery.classify_competitor",
+        side_effect=RuntimeError("simulated classification failure"),
+    ):
+        with pytest.raises(RuntimeError, match="simulated classification failure"):
+            register_domain_level_competitor(conn, tenant_id, "actor-1", candidate, "PLACES_NEARBY")
+
+    # The earlier global_competitors INSERT must have actually been rolled
+    # back, not left dangling uncommitted.
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM global_competitors WHERE added_by_tenant_id = %s;",
+            (tenant_id,),
+        )
+        assert cursor.fetchone()[0] == 0
+
+    # And the connection must come back usable, not stuck aborted.
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT 1;")
+        assert cursor.fetchone()[0] == 1
