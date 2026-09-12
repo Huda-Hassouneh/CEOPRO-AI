@@ -28,30 +28,60 @@ SOURCE_MODULE = "ai.sentiment"
 CONFIDENCE_SUFFICIENT_SAMPLE = 0.8
 CONFIDENCE_LOW_SAMPLE = 0.3
 
+_SAVEPOINT_NAME = "sentiment_pipeline_write"
+
 
 def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> dict:
+    """
+    Each review's insert_sentiment_result() call is isolated in its own
+    SAVEPOINT (mirrors src/ai/extraction/ingestion_pipeline.py's
+    _execute_in_savepoint - the same fix for the same class of problem).
+    Without this, one review that fails at the database level (a
+    constraint violation, an encoding edge case) leaves the whole
+    transaction aborted, so nothing in this batch commits - and because
+    load_unanalyzed_reviews() selects deterministically oldest-first, that
+    same review is first in line again on the very next run, permanently
+    blocking every review behind it. A per-review SAVEPOINT means one bad
+    review is skipped (still unanalyzed, still eligible for a future
+    retry/fix) without blocking the other reviews in this same batch from
+    being classified and committed now.
+    """
     reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=batch_size)
     if not reviews:
         return {"status": "OK", "analyzed_count": 0}
 
     predictions = model.classify([r["review_text"] for r in reviews])
 
+    analyzed_count = 0
+    failed_count = 0
     for review, prediction in zip(reviews, predictions):
-        evidence.insert_sentiment_result(
-            conn,
-            review["review_id"],
-            tenant_id,
-            prediction.label,
-            prediction.positive_probability,
-            prediction.neutral_probability,
-            prediction.negative_probability,
-            prediction.confidence,
-            prediction.model_version,
-        )
+        with conn.cursor() as cursor:
+            cursor.execute(f"SAVEPOINT {_SAVEPOINT_NAME};")
+        try:
+            evidence.insert_sentiment_result(
+                conn,
+                review["review_id"],
+                tenant_id,
+                prediction.label,
+                prediction.positive_probability,
+                prediction.neutral_probability,
+                prediction.negative_probability,
+                prediction.confidence,
+                prediction.model_version,
+            )
+        except Exception as exc:
+            with conn.cursor() as cursor:
+                cursor.execute(f"ROLLBACK TO SAVEPOINT {_SAVEPOINT_NAME};")
+            failed_count += 1
+            logger.error(f"failed to persist sentiment result for review={review['review_id']}: {exc}")
+        else:
+            with conn.cursor() as cursor:
+                cursor.execute(f"RELEASE SAVEPOINT {_SAVEPOINT_NAME};")
+            analyzed_count += 1
     conn.commit()
 
-    logger.info(f"Classified {len(reviews)} reviews for tenant={tenant_id}")
-    return {"status": "OK", "analyzed_count": len(reviews)}
+    logger.info(f"Classified {analyzed_count} reviews for tenant={tenant_id} ({failed_count} failed)")
+    return {"status": "OK", "analyzed_count": analyzed_count, "failed_count": failed_count}
 
 
 def get_subject_sentiment_summary(

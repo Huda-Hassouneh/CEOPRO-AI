@@ -6,6 +6,7 @@ package: skipped unless AI_TEST_DATABASE_URL is set.
 import json
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import psycopg2
 import pytest
@@ -112,6 +113,68 @@ def test_includes_real_price_gap(conn):
     assert "Widget" in block
     assert "60.00 JOD" in block
     assert "45.00 JOD" in block
+
+
+def _insert_forecast(conn, tenant_id, product_id, expected_demand, target_date):
+    forecast_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO demand_forecasts (forecast_id, tenant_id, product_id, expected_demand, forecast_target_date, model_version) "
+            "VALUES (%s, %s, %s, %s, %s, 'test-model');",
+            (forecast_id, tenant_id, product_id, expected_demand, target_date),
+        )
+    return forecast_id
+
+
+def test_includes_real_demand_forecast(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    conn.commit()
+    target_date = (datetime.now(timezone.utc) + timedelta(days=7)).date()
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=42, target_date=target_date)
+    conn.commit()
+
+    block = build_structured_facts_block(conn, tenant_id)
+    assert "Widget" in block
+    assert "42 units" in block
+    assert target_date.isoformat() in block
+
+
+def test_includes_a_real_proactive_insight_without_being_asked(conn):
+    """
+    The real requirement this covers: the chatbot must weave in a
+    relevant strategic observation on ANY question, not only when the
+    user explicitly asks for "advice" or "recommendations" - so the top
+    cross-signal insights must appear in the ALWAYS-injected facts block,
+    not only in the separately-retrieved strategic_insights RAG slot.
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine", current_price=100.0)
+    competitor_id = _insert_competitor(conn, tenant_id, "Cheaper Co")
+    conn.commit()
+    _insert_competitor_price(conn, tenant_id, product_id, competitor_id, scraped_price=70.0)
+    now = datetime.now(timezone.utc)
+    with conn.cursor() as cursor:
+        for quantity, days_ago, unit_price in ((2, 5, 100.0), (20, 45, 100.0)):
+            invoice_id = str(uuid.uuid4())
+            issue_date = now - timedelta(days=days_ago)
+            total = quantity * unit_price
+            cursor.execute(
+                "INSERT INTO invoices (invoice_id, tenant_id, invoice_number, issue_date, subtotal, total_amount, currency) "
+                "VALUES (%s, %s, %s, %s, %s, %s, 'JOD');",
+                (invoice_id, tenant_id, f"INV-{invoice_id[:8]}", issue_date, total, total),
+            )
+            cursor.execute(
+                "INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price) "
+                "VALUES (%s, %s, %s, %s, %s, %s);",
+                (tenant_id, invoice_id, product_id, quantity, unit_price, total),
+            )
+    conn.commit()
+
+    block = build_structured_facts_block(conn, tenant_id)
+
+    assert "Proactive insights" in block
+    assert "Espresso Machine" in block
 
 
 def test_includes_real_business_sentiment_score(conn):

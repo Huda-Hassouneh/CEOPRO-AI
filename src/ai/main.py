@@ -26,15 +26,22 @@ confirmed contract with a real auth service - worth reconciling once one
 exists.
 """
 
+import logging
 import os
 import tempfile
 from typing import Optional
 
 import jwt
+import redis
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from src.ai import db
+from src.ai.dashboard import competitor_pricing as dashboard_competitor_pricing
+from src.ai.dashboard import forecast as dashboard_forecast
+from src.ai.dashboard import metrics as dashboard_metrics
+from src.ai.dashboard import recommendations as dashboard_recommendations
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.mpi import pipeline as mpi_pipeline
@@ -42,6 +49,8 @@ from src.ai.pricing import pipeline as pricing_pipeline
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
 from src.ai.sentiment import pipeline as sentiment_pipeline
+from src.market_scraper import api_connector_sync, connector_sync
+from src.market_scraper import data_access as market_scraper_data_access
 
 app = FastAPI(title="CEOPRO AI Service")
 
@@ -56,6 +65,42 @@ _MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)
 # compute). 500 is a starting point (SCALING.md suggests 500-2,000), not a
 # value tuned against production write latency yet.
 _EXTRACTION_COMMIT_EVERY = int(os.getenv("EXTRACTION_COMMIT_EVERY", "500"))
+
+
+def _publish_discovery_request(tenant_id: str) -> None:
+    """
+    The real automatic trigger closing a gap found in the production-
+    hardening audit: tenant_discovery.py::discover_competitors_for_tenant()/
+    discover_domain_level_competitors_for_tenant() were fully built and
+    correctly wired to each other, but nothing in the live system ever
+    called them - only integration tests did. "Client uploads a file ->
+    products save to the DB -> the engine searches them on Social Media
+    and Google" was only true in tests before this: production discovery
+    was 100% a manual CLI operation.
+
+    Fired here, right after a real upload persists new products - the
+    same event-bus pattern src/market_scraper/persistence.py already
+    uses for market.analysis.requested (a bare redis client .xadd(...),
+    caught and logged rather than allowed to fail the request the upload
+    itself already succeeded at). Consumed by src/market_scraper/
+    discovery_worker.py, kept in that package (not here) for the same
+    reason analysis_worker.py lives in market_scraper rather than ai/ -
+    discovery is that service's own domain.
+
+    Uses REDIS_HOST/REDIS_PORT, not REDIS_URL: this file's own
+    docker-compose service (`ai`) sets those two, not REDIS_URL - see
+    src/ai/forecasting/consumer.py for the same convention already
+    established elsewhere in this package.
+    """
+    try:
+        redis.Redis(
+            host=os.getenv("REDIS_HOST", "localhost"), port=int(os.getenv("REDIS_PORT", "6379")),
+            decode_responses=True,
+        ).xadd(os.getenv("DISCOVERY_STREAM_KEY", "market.discovery.requested"), {"tenant_id": tenant_id})
+    except redis.RedisError as exc:
+        logging.getLogger("CEOPRO_AI_MAIN").error(
+            "could not enqueue downstream competitor discovery for tenant=%s: %s", tenant_id, exc
+        )
 
 # RAG query bounds (2026-09-01 security review). /rag/query's query_text
 # goes straight into a prompt sent to a paid, metered third-party API
@@ -75,6 +120,40 @@ _MAX_QUERY_TEXT_LENGTH = int(os.getenv("RAG_MAX_QUERY_TEXT_LENGTH", "2000"))
 _MAGIC_BYTES = {".pdf": b"%PDF-", ".xlsx": b"PK\x03\x04", ".xlsm": b"PK\x03\x04"}
 
 _TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "templates")
+
+
+class DatabaseConnectorRequest(BaseModel):
+    """Onboarding: connect the tenant's own Postgres-compatible database
+    as a live, scheduled connector (src/market_scraper/connector_sync.py).
+    field_mapping/credentials shape matches that module's own contract
+    exactly - see its docstring."""
+    source_name: str
+    host: str
+    port: int
+    dbname: str
+    query: str
+    field_mapping: dict
+    credentials: dict
+    sync_frequency_minutes: Optional[int] = None
+
+
+class ApiConnectorRequest(BaseModel):
+    """Onboarding: connect the tenant's own POS/ERP/e-commerce REST API as
+    a live, scheduled connector (src/market_scraper/api_connector_sync.py).
+    Only base_url/field_mapping are required - see that module's
+    build_api_fetch_page() docstring for every optional key's meaning."""
+    source_name: str
+    base_url: str
+    field_mapping: dict
+    records_path: Optional[str] = None
+    page_param: Optional[str] = None
+    page_size_param: Optional[str] = None
+    page_size: Optional[int] = None
+    extra_query_params: Optional[dict] = None
+    auth_header: Optional[str] = None
+    auth_scheme: Optional[str] = None
+    credentials: Optional[dict] = None
+    sync_frequency_minutes: Optional[int] = None
 
 
 class TenantContext:
@@ -367,6 +446,10 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
 
         job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "COMPLETED")
         conn.commit()
+
+        if promotion_summary.products_created > 0:
+            _publish_discovery_request(ctx.tenant_id)
+
         return _summary_response(job_id, summary, promotion_summary, currency_resolution)
 
     except HTTPException:
@@ -385,3 +468,199 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
         conn.close()
         if tmp_path is not None and os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+@app.get("/onboarding/status")
+def onboarding_status(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The backend half of the vision's guided first-time-user "How do you
+    currently manage your business data?" step - see
+    market_scraper.data_access.get_onboarding_status()'s own docstring
+    for exactly what counts as "connected".
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = market_scraper_data_access.get_onboarding_status(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/onboarding/connect/database")
+def onboarding_connect_database(
+    request: DatabaseConnectorRequest, ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    Registers the tenant's own Postgres-compatible database as a live,
+    scheduled connector (src/market_scraper/connector_sync.py + the new
+    connector_worker.py that actually runs it on a schedule). Every
+    required field is enforced by DatabaseConnectorRequest's own Pydantic
+    schema (a 422 before this body ever runs) - the same "let FastAPI
+    validate structure, the handler only does real work" split every
+    other endpoint here already follows.
+    """
+    config = {
+        "host": request.host, "port": request.port, "dbname": request.dbname,
+        "query": request.query, "field_mapping": request.field_mapping,
+    }
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        source_id = market_scraper_data_access.register_self_service_data_source(
+            conn, ctx.tenant_id, ctx.user_id, request.source_name,
+            connector_sync.DB_CONNECTOR_COLLECTOR_KEY, config, request.credentials,
+            request.sync_frequency_minutes,
+        )
+        return {"source_id": source_id, "collector_key": connector_sync.DB_CONNECTOR_COLLECTOR_KEY}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/onboarding/connect/api")
+def onboarding_connect_api(
+    request: ApiConnectorRequest, ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    Registers the tenant's own POS/ERP/e-commerce REST API as a live,
+    scheduled connector (src/market_scraper/api_connector_sync.py +
+    connector_worker.py). Same validation split as
+    onboarding_connect_database() above - only base_url/field_mapping are
+    required (ApiConnectorRequest's own schema), everything else is an
+    optional, vendor-specific detail (see api_connector_sync.
+    build_api_fetch_page()'s own docstring for what each one controls).
+    """
+    config = {
+        key: value for key, value in {
+            "base_url": request.base_url,
+            "field_mapping": request.field_mapping,
+            "records_path": request.records_path,
+            "page_param": request.page_param,
+            "page_size_param": request.page_size_param,
+            "page_size": request.page_size,
+            "extra_query_params": request.extra_query_params,
+            "auth_header": request.auth_header,
+            "auth_scheme": request.auth_scheme,
+        }.items() if value is not None
+    }
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        source_id = market_scraper_data_access.register_self_service_data_source(
+            conn, ctx.tenant_id, ctx.user_id, request.source_name,
+            api_connector_sync.API_CONNECTOR_COLLECTOR_KEY, config, request.credentials,
+            request.sync_frequency_minutes,
+        )
+        return {"source_id": source_id, "collector_key": api_connector_sync.API_CONNECTOR_COLLECTOR_KEY}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/metrics")
+def dashboard_metrics_endpoint(
+    window_days: int = Query(default=dashboard_metrics.DEFAULT_WINDOW_DAYS, ge=1, le=365),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The dashboard's top metric cards (Revenue, Sales/units, Growth,
+    Competitors Tracked) - pure aggregation over invoices/invoice_items/
+    tenant_competitors, no new model and no change to any existing
+    model's own input/output shape. See dashboard/metrics.py's own
+    docstring for exactly how each number is defined - none of these are
+    self-evidently unambiguous, so the definitions live there, not just
+    in this endpoint's response.
+
+    Deliberately excludes Inventory Status: the `inventory` table isn't
+    populated by any real ingestion/sales path yet, so returning a number
+    for it here would be fabricating data, not aggregating it.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_metrics.get_dashboard_metrics(conn, ctx.tenant_id, window_days=window_days)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/recommendations")
+def dashboard_recommendations_endpoint(
+    limit: int = Query(default=dashboard_recommendations.DEFAULT_LIMIT, ge=1, le=20),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The dashboard's Top Recommendations feed - a single unified engine
+    across pricing, sentiment, sales, and demand (not just marketing),
+    surfacing the top actionable business alerts. Wraps the existing
+    insights.generate_insights_for_tenant() (already merges all of those
+    signals for the chatbot) and relabels its output for the dashboard;
+    no new detection logic, no changed signature.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_recommendations.get_top_recommendations(conn, ctx.tenant_id, limit=limit)
+        conn.commit()
+        return {"recommendations": result}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/forecast")
+def dashboard_forecast_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The dashboard's Forecast KPI card - total predicted units across all
+    products, replacing the mockup's daily line/bar chart since
+    forecasting/pipeline.py::run_forecast() only ever produces a single
+    integer (expected_demand) per product per call and that signature is
+    not changing. Sums the most recent persisted forecast per product;
+    products with no forecast yet simply don't contribute, rather than
+    being counted as a fabricated zero.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_forecast.get_forecast_summary(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/competitor-pricing")
+def dashboard_competitor_pricing_endpoint(
+    limit: int = Query(default=dashboard_competitor_pricing.DEFAULT_LIMIT, ge=1, le=50),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The dashboard's Competitor Price Positioning bar chart, replacing the
+    mockup's Market Share pie chart - this platform tracks competitor
+    PRICES, not overall market share, so a price-positioning comparison
+    is the honest data to show instead. Per product: your price vs. the
+    market average of its mapped competitors' most recent scraped
+    prices, capped to the biggest gaps so the chart stays readable.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_competitor_pricing.get_competitor_price_positioning(conn, ctx.tenant_id, limit=limit)
+        conn.commit()
+        return {"products": result}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

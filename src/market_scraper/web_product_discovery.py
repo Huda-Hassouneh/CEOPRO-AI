@@ -159,10 +159,25 @@ def _with_cache_and_fallback(
     if api_key and cx and quota_available:
         if conn is not None:
             search_quota.record_query(conn)
+            # Commit immediately, not later: this is real, money-relevant
+            # Google API spend (the call already happened - success or
+            # failure both count against the real quota either way), and
+            # neither search_quota.record_query() nor search_cache.
+            # set_cached() ever commits on its own. Without this, the
+            # write only ever became durable as a side effect of some
+            # LATER caller (e.g. discovery.py registering a competitor
+            # elsewhere in the same transaction) - if this exact query
+            # found zero candidates, nothing downstream would touch this
+            # connection again, and the spend that already happened would
+            # never actually get recorded, silently under-counting real
+            # usage against the daily budget this whole module exists to
+            # protect.
+            conn.commit()
         candidates, succeeded = _run_query(product_name, query, max_results, api_key, cx)
         if succeeded:
             if conn is not None:
                 search_cache.set_cached(conn, cache_key, candidates)
+                conn.commit()
             if candidates:
                 return candidates
             return []  # a real, cacheable "no results" answer - no fallback needed

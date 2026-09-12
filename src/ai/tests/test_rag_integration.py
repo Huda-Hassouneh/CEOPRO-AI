@@ -10,6 +10,7 @@ import io
 import os
 import uuid
 
+import numpy as np
 import psycopg2
 import pytest
 from minio import Minio
@@ -113,6 +114,54 @@ def test_ingest_pending_documents_marks_failed_on_missing_object(conn, minio_cli
     assert processed_count == 0
     docs = data_access.list_documents(conn, seeded_tenant, status="Failed")
     assert len(docs) == 1
+
+
+def test_replace_document_chunks_bulk_inserts_preserve_chunk_order(conn, seeded_tenant):
+    """
+    Production-hardening audit finding: replace_document_chunks() used to
+    INSERT one row at a time (one round trip per chunk). Now a single
+    execute_values() bulk INSERT - this verifies the bulk path still
+    preserves chunk_index ordering and the real vector content correctly,
+    not just that it's faster. Doesn't need AI_TEST_EMBEDDINGS - fake,
+    deterministic embeddings are enough to check persistence/ordering.
+    """
+    document_id = _insert_document(conn, seeded_tenant, "multi.txt", f"test/{uuid.uuid4()}.txt")
+    chunks = [f"chunk number {i}" for i in range(5)]
+    embeddings = np.stack([np.full(384, float(i), dtype=np.float32) for i in range(5)])
+
+    data_access.replace_document_chunks(conn, seeded_tenant, document_id, chunks, embeddings, "test-model-v1")
+    conn.commit()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT chunk_index, chunk_text_content FROM rag_document_chunks "
+            "WHERE tenant_id = %s AND document_id = %s ORDER BY chunk_index;",
+            (seeded_tenant, document_id),
+        )
+        rows = cursor.fetchall()
+
+    assert [r[0] for r in rows] == [0, 1, 2, 3, 4]
+    assert [r[1] for r in rows] == chunks
+
+    loaded = data_access.load_tenant_chunks(conn, seeded_tenant)
+    assert len(loaded) == 5
+    for _, _, embedding in loaded:
+        assert embedding is not None
+        assert embedding.shape == (384,)
+
+
+def test_replace_document_chunks_handles_zero_chunks_without_error(conn, seeded_tenant):
+    """An empty chunk list (e.g. a document that produced no usable text)
+    must still correctly wipe any previous chunk set, not crash on an
+    empty execute_values() call."""
+    document_id = _insert_document(conn, seeded_tenant, "empty.txt", f"test/{uuid.uuid4()}.txt")
+
+    data_access.replace_document_chunks(
+        conn, seeded_tenant, document_id, [], np.empty((0, 384), dtype=np.float32), "test-model-v1"
+    )
+    conn.commit()
+
+    assert data_access.load_tenant_chunks(conn, seeded_tenant) == []
 
 
 def test_ingest_persists_chunks_and_embeddings_not_just_status(conn, minio_client, seeded_tenant):

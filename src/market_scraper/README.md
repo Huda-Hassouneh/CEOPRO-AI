@@ -606,6 +606,46 @@ Publish requests to Redis Stream `market.scrape.requested` with string fields:
 Messages are acknowledged only after the isolated collection subprocess succeeds. Multiple worker
 processes can share the `ceopro-market-scrapers` consumer group for horizontal allocation.
 
+## Automatic competitor discovery (production-hardening audit fix)
+
+Until this fix, `tenant_discovery.py`'s discovery orchestration (`discover_competitors_for_tenant()`,
+`discover_domain_level_competitors_for_tenant()`) was fully built and correctly wired internally, but
+**nothing in the live system ever called it** — only integration tests did. Production discovery was
+100% a manual `policy_cli.py`/CLI operation, despite in-repo documentation describing an automatic
+"client uploads a file → the engine searches for competitors" flow.
+
+`discovery_worker.py` closes that gap:
+
+```text
+POST /extraction/upload (src/ai/main.py) persists new products
+        ↓ only when new products were actually created
+Redis stream: market.discovery.requested — {"tenant_id": ...}
+        ↓
+discovery_worker.py::discover_for_tenant()
+        ↓
+tenant_discovery.discover_competitors_for_tenant() + discover_domain_level_competitors_for_tenant()
+        ↓
+enqueue_collection() for any result whose policy_status is ALREADY 'ALLOWED'
+```
+
+**Does not bypass the human policy-approval workflow.** A fully automated discovery run never
+supplies `terms_evidence`, so `policy.py::evaluate_source()` can only ever return `RESTRICTED` for a
+brand-new source — `ALLOWED` requires `terms_evidence`, which only the existing manual approval step
+(`data_access.record_policy_decision`'s approval fields) ever supplies. `discovery_worker.py` only
+auto-enqueues collection for a result whose `policy_status` **already** reads `ALLOWED` — meaning a
+human already approved that exact website for a different product, and discovery just found it also
+carries one of the tenant's newly-uploaded products. That extends an already-approved site's coverage
+to a new product mapping; it never auto-approves a genuinely new, unreviewed source.
+
+Start the worker the same way as the others:
+
+```bash
+python -m src.market_scraper.discovery_worker
+```
+
+Same attempt-tracking/dead-letter/reclaim contract as `worker.py`/`analysis_worker.py`
+(`DISCOVERY_MAX_ATTEMPTS`, `DISCOVERY_DEAD_STREAM_KEY`, `DISCOVERY_CLAIM_IDLE_MS` — see `.env.example`).
+
 ## Safe demo crawl
 
 No database is needed for demo mode:

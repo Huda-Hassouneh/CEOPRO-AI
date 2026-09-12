@@ -2,30 +2,49 @@
 
 import json
 import os
+import uuid
 from typing import Optional
 
-import psycopg2
-
+from src.infrastructure.db_pool import PooledTenantConnection, TenantConnectionPool
 from src.market_scraper.credential_vault import decrypt_credentials, encrypt_credentials, get_default_kms_backend
 
+_POOL: Optional[TenantConnectionPool] = None
 
-def get_tenant_connection(tenant_id: str):
-    db_url = os.getenv("SCRAPER_DATABASE_URL") or os.getenv("DATABASE_URL")
+
+def _get_pool() -> TenantConnectionPool:
+    """
+    Lazy, module-level, one per process - mirrors src/ai/db.py::_get_pool()
+    exactly (see src/infrastructure/db_pool.py's own docstring for the full
+    RLS-under-pooling reasoning). A separate pool from the ai service's:
+    this is a different, independently-deployed service/process
+    (docker-compose.yml's market-scraper/market-analysis-worker/
+    market-discovery-worker containers), each with its own pool for its
+    own process lifetime - there is no cross-process pool to share even
+    though both ultimately connect as the same ceopro_app role.
+    """
+    global _POOL
+    if _POOL is None:
+        db_url = os.getenv("SCRAPER_DATABASE_URL") or os.getenv("DATABASE_URL")
+        if not db_url:
+            raise RuntimeError("SCRAPER_DATABASE_URL or DATABASE_URL must be set")
+        minconn = int(os.getenv("SCRAPER_DB_POOL_MIN_SIZE", "1"))
+        maxconn = int(os.getenv("SCRAPER_DB_POOL_MAX_SIZE", "10"))
+        _POOL = TenantConnectionPool(db_url, minconn=minconn, maxconn=maxconn)
+    return _POOL
+
+
+def get_tenant_connection(tenant_id: str) -> PooledTenantConnection:
+    """
+    Pooled tenant-scoped connection (production-hardening audit follow-up -
+    see src/infrastructure/db_pool.py's own docstring for why a pooled
+    connection needs SET LOCAL, not the session-scoped SET this used to
+    issue, to stay RLS-safe across reuse). No caller needs to change: this
+    still returns something that duck-types a plain psycopg2 connection.
+    """
     actor_user_id = os.getenv("SCRAPER_ACTOR_USER_ID")
-    if not db_url:
-        raise RuntimeError("SCRAPER_DATABASE_URL or DATABASE_URL must be set")
     if not actor_user_id:
         raise RuntimeError("SCRAPER_ACTOR_USER_ID must identify an active tenant service principal")
-    conn = psycopg2.connect(db_url)
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SET app.current_tenant_id = %s;", (str(tenant_id),))
-            cursor.execute("SET app.current_user_id = %s;", (actor_user_id,))
-        conn.commit()
-        return conn
-    except Exception:
-        conn.close()
-        raise
+    return _get_pool().get_tenant_connection(tenant_id, actor_user_id)
 
 
 def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
@@ -384,3 +403,93 @@ def list_tenant_competitors_by_proximity(
         }
         for row in rows
     ]
+
+
+def register_self_service_data_source(
+    conn, tenant_id: str, actor_user_id: str, source_name: str, collector_key: str,
+    collector_config: dict, credentials: Optional[dict] = None, sync_frequency_minutes: Optional[int] = None,
+) -> str:
+    """
+    The onboarding flow's real INSERT - the one missing piece between the
+    fully-working DB/API connector SYNC logic (connector_sync.py,
+    api_connector_sync.py) and a tenant actually being able to create one
+    of these sources at all. Neither record_policy_decision() (an UPDATE
+    that assumes a source_id already exists - the CLI's register-source
+    command has always required one to be created some other way first)
+    nor job_management.resolve_or_create_data_source() (a bare, policy-
+    free INSERT correct for a manual file upload, which isn't "collection"
+    in the scraping-policy sense at all) covers this.
+
+    A tenant connecting THEIR OWN business system is not the compliance
+    risk record_policy_decision()'s scraping-policy framework exists for
+    (getting permission to collect a THIRD PARTY's data under someone
+    else's terms of service) - so this auto-approves at registration time
+    rather than requiring a human reviewer's sign-off on someone else's
+    site, while still writing the exact same real, audited approval trail
+    chk_allowed_source_has_approval requires of every ALLOWED row in this
+    table: approval_reference names this as a self-service connection,
+    approved_by is the real acting user (never a placeholder), approved_at/
+    privacy_reviewed_at are both NOW().
+
+    Deliberately narrow: registers the source only. Wiring credentials
+    reuses set_source_credentials() (the same real field-level-encrypted
+    envelope every other credentialed collector already uses) rather than
+    a second, parallel encryption path.
+    """
+    source_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO data_sources
+                (source_id, tenant_id, source_name, source_type, collector_key, collector_config,
+                 policy_status, is_active, approval_reference, approved_by, approved_at,
+                 privacy_reviewed_at, sync_frequency_minutes)
+            VALUES (%s, %s, %s, 'OWN_SYSTEM_CONNECTOR', %s, %s::jsonb, 'ALLOWED', TRUE,
+                    %s, %s, NOW(), NOW(), %s);
+            """,
+            (
+                source_id, tenant_id, source_name, collector_key, json.dumps(collector_config),
+                "Self-service connection to the tenant's own business system", actor_user_id,
+                sync_frequency_minutes,
+            ),
+        )
+    if credentials:
+        set_source_credentials(conn, tenant_id, source_id, credentials)  # commits
+    else:
+        conn.commit()
+    return source_id
+
+
+def get_onboarding_status(conn, tenant_id: str) -> dict:
+    """
+    The backend half of the vision's guided first-time-user "How do you
+    currently manage your business data?" step: reports whether this
+    tenant has already connected any data source (a live connector, a
+    past file upload) or recorded any sale by any means, so a caller
+    (a future onboarding UI, or a chatbot answering "have I set
+    everything up?") never has to re-derive this by hand.
+
+    invoices is checked too, not just data_sources: a tenant who used
+    Quick Sale, or whose upload never registered a formal data_sources
+    row for some historical reason, should still report as genuinely
+    connected rather than "not started" - the real signal onboarding
+    cares about is "does this business have any real data in the system
+    yet", not "does a specific bookkeeping row exist".
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT collector_key, source_type FROM data_sources WHERE tenant_id = %s AND is_active = TRUE;",
+            (tenant_id,),
+        )
+        sources = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) FROM invoices WHERE tenant_id = %s;", (tenant_id,))
+        invoice_count = cursor.fetchone()[0]
+
+    connected_methods = sorted({(collector_key or source_type) for collector_key, source_type in sources})
+    has_any_connection = bool(connected_methods) or invoice_count > 0
+
+    return {
+        "status": "connected" if has_any_connection else "not_started",
+        "connected_methods": connected_methods,
+        "invoice_count": invoice_count,
+    }
