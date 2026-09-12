@@ -29,9 +29,17 @@ fix applied to per-competitor sentiment).
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
+from src.ai.insights.causal_chain import detect_causal_price_sales_insight, detect_price_drop_events
 from src.ai.insights.cross_signal import Insight, ProductSignals, detect_insights
 
 SALES_TREND_WINDOW_DAYS = 30
+
+# How far back to look for competitor price-drop events and the tenant's
+# own matching daily sales history. Long enough to contain a real event
+# plus a full COMPARISON_WINDOW_DAYS (causal_chain.py) on both sides of
+# it; short enough that a years-old price change never gets correlated
+# against today's sales.
+CAUSAL_LOOKBACK_DAYS = 180
 
 
 def _load_price_gaps(conn, tenant_id: str) -> Dict[str, float]:
@@ -247,8 +255,113 @@ def load_product_signals(conn, tenant_id: str) -> List[ProductSignals]:
     return all_signals
 
 
+def _load_competitor_price_histories(conn, tenant_id: str) -> Dict["tuple[str, str]", list]:
+    """
+    {(product_id, competitor_name): [(observed_date, price), ...]} sorted
+    ascending by date - the real, append-only price-observation history
+    (competitor_prices, one row per scrape) causal_chain.py needs to find
+    genuine price-DROP EVENTS, as opposed to _load_price_gaps()' single
+    latest-observation snapshot above. One batched query across every
+    product/competitor pairing for the tenant, ordered so no in-Python
+    re-sort is needed per group.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT cpm.product_id, gc.competitor_name, cpr.observed_at::date, cpr.scraped_price
+            FROM competitor_product_mappings cpm
+            JOIN global_competitors gc ON gc.global_competitor_id = cpm.global_competitor_id
+            JOIN competitor_prices cpr ON cpr.tenant_id = cpm.tenant_id AND cpr.mapping_id = cpm.mapping_id
+            WHERE cpm.tenant_id = %(tenant_id)s
+              AND cpr.observed_at >= %(since)s
+            ORDER BY cpm.product_id, gc.competitor_name, cpr.observed_at ASC;
+            """,
+            {"tenant_id": tenant_id, "since": datetime.now(timezone.utc) - timedelta(days=CAUSAL_LOOKBACK_DAYS)},
+        )
+        rows = cursor.fetchall()
+
+    histories: Dict["tuple[str, str]", list] = {}
+    for product_id, competitor_name, observed_date, price in rows:
+        key = (str(product_id), competitor_name)
+        histories.setdefault(key, []).append((observed_date, float(price)))
+    return histories
+
+
+def _load_daily_sales_series(conn, tenant_id: str) -> Dict[str, Dict]:
+    """{product_id: {sale_date: total_units}} over CAUSAL_LOOKBACK_DAYS -
+    the day-by-day series causal_chain.py needs to compare sales pace
+    before vs. after a price-drop event's exact date, as opposed to
+    _load_sales_trends()' two-bucket (recent/prior) summary above."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT ii.product_id, i.issue_date::date AS sale_date, SUM(ii.quantity) AS units
+            FROM invoice_items ii
+            JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
+            WHERE ii.tenant_id = %(tenant_id)s AND i.issue_date >= %(since)s
+            GROUP BY ii.product_id, i.issue_date::date;
+            """,
+            {"tenant_id": tenant_id, "since": datetime.now(timezone.utc) - timedelta(days=CAUSAL_LOOKBACK_DAYS)},
+        )
+        rows = cursor.fetchall()
+
+    series: Dict[str, Dict] = {}
+    for product_id, sale_date, units in rows:
+        series.setdefault(str(product_id), {})[sale_date] = float(units)
+    return series
+
+
+def generate_causal_insights_for_tenant(conn, tenant_id: str) -> List[Insight]:
+    """
+    The event-timing half of insight detection (see causal_chain.py's own
+    docstring for how this differs from cross_signal.py's current-
+    snapshot correlations): for every product/competitor pairing with at
+    least two real price observations, checks whether a genuine
+    competitor price-drop event was followed by a real decline in the
+    tenant's own sales pace for that product - the vision's own "sales
+    fell after a competitor cut their price" example.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT product_id, COALESCE(product_name->>'en', product_name->>'ar', product_name::text)
+            FROM products WHERE tenant_id = %s AND deleted_at IS NULL;
+            """,
+            (tenant_id,),
+        )
+        product_names = {str(product_id): name for product_id, name in cursor.fetchall()}
+
+    price_histories = _load_competitor_price_histories(conn, tenant_id)
+    daily_sales_by_product = _load_daily_sales_series(conn, tenant_id)
+
+    insights = []
+    for (product_id, competitor_name), history in price_histories.items():
+        if len(history) < 2:
+            continue
+        daily_sales = daily_sales_by_product.get(product_id)
+        if not daily_sales:
+            continue
+        events = detect_price_drop_events(history)
+        if not events:
+            continue
+        insight = detect_causal_price_sales_insight(
+            product_id, product_names.get(product_id, "this product"), competitor_name, events, daily_sales,
+        )
+        if insight is not None:
+            insights.append(insight)
+    return insights
+
+
 def generate_insights_for_tenant(conn, tenant_id: str, max_insights: int = 5) -> List[Insight]:
     """The one function rag/structured_summaries.py's strategic-insights
-    slot (and, via that, the chatbot) actually calls."""
+    slot (and, via that, the chatbot) actually calls. Merges both
+    detection types - current-snapshot (cross_signal.py) and event-timing
+    (causal_chain.py) - before ranking and capping together, so the
+    single strongest finding surfaces regardless of which detector found
+    it."""
     signals = load_product_signals(conn, tenant_id)
-    return detect_insights(signals, max_insights=max_insights)
+    snapshot_insights = detect_insights(signals, max_insights=max_insights)
+    causal_insights = generate_causal_insights_for_tenant(conn, tenant_id)
+
+    combined = sorted(snapshot_insights + causal_insights, key=lambda insight: insight.confidence, reverse=True)
+    return combined[:max_insights]
