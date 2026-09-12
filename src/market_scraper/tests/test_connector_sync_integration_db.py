@@ -57,18 +57,31 @@ def _insert_company(conn) -> str:
 def _insert_allowed_db_connector_source(
     conn, tenant_id: str, collector_config: dict, last_synced_at=None, sync_frequency_minutes=15,
 ) -> str:
+    """
+    policy_status='ALLOWED' requires approval_reference/approved_by/
+    approved_at/privacy_reviewed_at to all be set - chk_allowed_source_
+    has_approval (20260829030000_harden_market_collection_production.sql)
+    enforces this on real Postgres for every new row. This fixture
+    represents a source that has already gone through that review, so it
+    fills in a synthetic but complete approval record rather than
+    weakening the constraint or the fixture's intent.
+    """
     source_id = str(uuid.uuid4())
+    approved_by = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
     with conn.cursor() as cursor:
         cursor.execute(
             """
             INSERT INTO data_sources
                 (source_id, tenant_id, source_name, source_type, collector_key,
-                 collector_config, policy_status, is_active, last_synced_at, sync_frequency_minutes)
-            VALUES (%s, %s, 'Client POS DB', 'DB_CONNECTOR', %s, %s::jsonb, 'ALLOWED', TRUE, %s, %s);
+                 collector_config, policy_status, is_active, last_synced_at, sync_frequency_minutes,
+                 approval_reference, approved_by, approved_at, privacy_reviewed_at)
+            VALUES (%s, %s, 'Client POS DB', 'DB_CONNECTOR', %s, %s::jsonb, 'ALLOWED', TRUE, %s, %s,
+                    'test-fixture-approval', %s, %s, %s);
             """,
             (
                 source_id, tenant_id, DB_CONNECTOR_COLLECTOR_KEY, json.dumps(collector_config),
-                last_synced_at, sync_frequency_minutes,
+                last_synced_at, sync_frequency_minutes, approved_by, now, now,
             ),
         )
     conn.commit()
