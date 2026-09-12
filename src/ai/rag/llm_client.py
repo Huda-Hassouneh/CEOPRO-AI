@@ -1,5 +1,5 @@
 """
-CEOPRO AI - LLM Reasoning (spec S21's "LLM REASONING" stage).
+CEOPRO AI - LLM Reasoning (spec S21's "LLM REASONING" stage)
 
 Completes the RAG chatbot pipeline that pipeline.py deliberately stopped
 short of (see its own module docstring): takes the AssembledContext
