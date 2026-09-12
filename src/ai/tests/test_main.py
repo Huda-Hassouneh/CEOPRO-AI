@@ -487,3 +487,95 @@ def test_dashboard_metrics_rejects_an_out_of_bounds_window():
 
     response = client.get("/dashboard/metrics", params={"window_days": 400}, headers=_auth())
     assert response.status_code == 422
+
+
+def test_dashboard_recommendations_requires_auth():
+    response = client.get("/dashboard/recommendations")
+    assert response.status_code == 401
+
+
+def test_dashboard_recommendations_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = [{"product_id": "p1", "category": "Pricing", "priority": "high", "message": "..."}]
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_recommendations.get_top_recommendations", return_value=fake_result) as mock_recs:
+        response = client.get("/dashboard/recommendations", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == {"recommendations": fake_result}
+    fake_conn.commit.assert_called_once()
+    mock_recs.assert_called_once_with(fake_conn, "t1", limit=3)
+
+
+def test_dashboard_recommendations_accepts_a_custom_limit():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_recommendations.get_top_recommendations", return_value=[]) as mock_recs:
+        response = client.get("/dashboard/recommendations", params={"limit": 5}, headers=_auth())
+
+    assert response.status_code == 200
+    mock_recs.assert_called_once_with(fake_conn, "t1", limit=5)
+
+
+def test_dashboard_recommendations_rejects_an_out_of_bounds_limit():
+    response = client.get("/dashboard/recommendations", params={"limit": 0}, headers=_auth())
+    assert response.status_code == 422
+
+    response = client.get("/dashboard/recommendations", params={"limit": 21}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_dashboard_forecast_requires_auth():
+    response = client.get("/dashboard/forecast")
+    assert response.status_code == 401
+
+
+def test_dashboard_forecast_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"total_predicted_units": 40, "products_forecasted": 2, "forecast_target_date": "2026-09-19"}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_forecast.get_forecast_summary", return_value=fake_result) as mock_forecast:
+        response = client.get("/dashboard/forecast", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_forecast.assert_called_once_with(fake_conn, "t1")
+
+
+def test_dashboard_competitor_pricing_requires_auth():
+    response = client.get("/dashboard/competitor-pricing")
+    assert response.status_code == 401
+
+
+def test_dashboard_competitor_pricing_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = [{"product_id": "p1", "product_name": "Widget", "currency": "JOD",
+                     "your_price": 120.0, "market_average_price": 100.0, "price_gap_pct": 20.0,
+                     "competitors_compared": 1}]
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_competitor_pricing.get_competitor_price_positioning", return_value=fake_result) as mock_pricing:
+        response = client.get("/dashboard/competitor-pricing", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == {"products": fake_result}
+    fake_conn.commit.assert_called_once()
+    mock_pricing.assert_called_once_with(fake_conn, "t1", limit=10)
+
+
+def test_dashboard_competitor_pricing_accepts_a_custom_limit():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_competitor_pricing.get_competitor_price_positioning", return_value=[]) as mock_pricing:
+        response = client.get("/dashboard/competitor-pricing", params={"limit": 5}, headers=_auth())
+
+    assert response.status_code == 200
+    mock_pricing.assert_called_once_with(fake_conn, "t1", limit=5)
+
+
+def test_dashboard_competitor_pricing_rejects_an_out_of_bounds_limit():
+    response = client.get("/dashboard/competitor-pricing", params={"limit": 0}, headers=_auth())
+    assert response.status_code == 422
+
+    response = client.get("/dashboard/competitor-pricing", params={"limit": 51}, headers=_auth())
+    assert response.status_code == 422
