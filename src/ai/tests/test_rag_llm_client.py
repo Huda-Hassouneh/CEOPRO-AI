@@ -366,3 +366,32 @@ def test_system_prompt_includes_a_teaching_mode_for_confused_users():
     prompt_lower = llm_client.SYSTEM_PROMPT.lower()
     assert "teach" in prompt_lower
     assert "explain" in prompt_lower
+
+
+def test_system_prompt_mandates_exact_language_matching_never_defaulting_to_english():
+    prompt_lower = llm_client.SYSTEM_PROMPT.lower()
+    assert "exact same language" in prompt_lower
+    assert "never" in prompt_lower and "default" in prompt_lower and "english" in prompt_lower
+
+
+def test_system_prompt_mandates_dialect_and_tone_matching():
+    """
+    The vision's own example: Jordanian Arabic -> natural Jordanian Arabic,
+    formal English -> professional English, casual -> casual. Plain
+    Modern Standard Arabic for every Arabic speaker regardless of their
+    own dialect would fail this - the prompt must name dialect and
+    register matching explicitly, not just "respond in Arabic".
+    """
+    prompt_lower = llm_client.SYSTEM_PROMPT.lower()
+    assert "dialect" in prompt_lower
+    assert "jordanian" in prompt_lower or "levantine" in prompt_lower
+    assert "register" in prompt_lower or "tone" in prompt_lower
+
+
+def test_system_prompt_says_dialect_matching_never_excuses_jargon():
+    """Guards against a real failure mode: a model told to "match the
+    user's casual dialect" could misread that as license to relax the
+    Extreme Simplicity rule too - the prompt must say explicitly that it
+    doesn't."""
+    prompt_lower = llm_client.SYSTEM_PROMPT.lower()
+    assert "excuses using jargon" in prompt_lower or "excuse" in prompt_lower
