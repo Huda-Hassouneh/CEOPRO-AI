@@ -35,6 +35,7 @@ import jwt
 import redis
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from src.ai import db
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
@@ -44,6 +45,8 @@ from src.ai.pricing import pipeline as pricing_pipeline
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
 from src.ai.sentiment import pipeline as sentiment_pipeline
+from src.market_scraper import api_connector_sync, connector_sync
+from src.market_scraper import data_access as market_scraper_data_access
 
 app = FastAPI(title="CEOPRO AI Service")
 
@@ -113,6 +116,40 @@ _MAX_QUERY_TEXT_LENGTH = int(os.getenv("RAG_MAX_QUERY_TEXT_LENGTH", "2000"))
 _MAGIC_BYTES = {".pdf": b"%PDF-", ".xlsx": b"PK\x03\x04", ".xlsm": b"PK\x03\x04"}
 
 _TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "templates")
+
+
+class DatabaseConnectorRequest(BaseModel):
+    """Onboarding: connect the tenant's own Postgres-compatible database
+    as a live, scheduled connector (src/market_scraper/connector_sync.py).
+    field_mapping/credentials shape matches that module's own contract
+    exactly - see its docstring."""
+    source_name: str
+    host: str
+    port: int
+    dbname: str
+    query: str
+    field_mapping: dict
+    credentials: dict
+    sync_frequency_minutes: Optional[int] = None
+
+
+class ApiConnectorRequest(BaseModel):
+    """Onboarding: connect the tenant's own POS/ERP/e-commerce REST API as
+    a live, scheduled connector (src/market_scraper/api_connector_sync.py).
+    Only base_url/field_mapping are required - see that module's
+    build_api_fetch_page() docstring for every optional key's meaning."""
+    source_name: str
+    base_url: str
+    field_mapping: dict
+    records_path: Optional[str] = None
+    page_param: Optional[str] = None
+    page_size_param: Optional[str] = None
+    page_size: Optional[int] = None
+    extra_query_params: Optional[dict] = None
+    auth_header: Optional[str] = None
+    auth_scheme: Optional[str] = None
+    credentials: Optional[dict] = None
+    sync_frequency_minutes: Optional[int] = None
 
 
 class TenantContext:
@@ -427,3 +464,96 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
         conn.close()
         if tmp_path is not None and os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+@app.get("/onboarding/status")
+def onboarding_status(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The backend half of the vision's guided first-time-user "How do you
+    currently manage your business data?" step - see
+    market_scraper.data_access.get_onboarding_status()'s own docstring
+    for exactly what counts as "connected".
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = market_scraper_data_access.get_onboarding_status(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/onboarding/connect/database")
+def onboarding_connect_database(
+    request: DatabaseConnectorRequest, ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    Registers the tenant's own Postgres-compatible database as a live,
+    scheduled connector (src/market_scraper/connector_sync.py + the new
+    connector_worker.py that actually runs it on a schedule). Every
+    required field is enforced by DatabaseConnectorRequest's own Pydantic
+    schema (a 422 before this body ever runs) - the same "let FastAPI
+    validate structure, the handler only does real work" split every
+    other endpoint here already follows.
+    """
+    config = {
+        "host": request.host, "port": request.port, "dbname": request.dbname,
+        "query": request.query, "field_mapping": request.field_mapping,
+    }
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        source_id = market_scraper_data_access.register_self_service_data_source(
+            conn, ctx.tenant_id, ctx.user_id, request.source_name,
+            connector_sync.DB_CONNECTOR_COLLECTOR_KEY, config, request.credentials,
+            request.sync_frequency_minutes,
+        )
+        return {"source_id": source_id, "collector_key": connector_sync.DB_CONNECTOR_COLLECTOR_KEY}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/onboarding/connect/api")
+def onboarding_connect_api(
+    request: ApiConnectorRequest, ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    Registers the tenant's own POS/ERP/e-commerce REST API as a live,
+    scheduled connector (src/market_scraper/api_connector_sync.py +
+    connector_worker.py). Same validation split as
+    onboarding_connect_database() above - only base_url/field_mapping are
+    required (ApiConnectorRequest's own schema), everything else is an
+    optional, vendor-specific detail (see api_connector_sync.
+    build_api_fetch_page()'s own docstring for what each one controls).
+    """
+    config = {
+        key: value for key, value in {
+            "base_url": request.base_url,
+            "field_mapping": request.field_mapping,
+            "records_path": request.records_path,
+            "page_param": request.page_param,
+            "page_size_param": request.page_size_param,
+            "page_size": request.page_size,
+            "extra_query_params": request.extra_query_params,
+            "auth_header": request.auth_header,
+            "auth_scheme": request.auth_scheme,
+        }.items() if value is not None
+    }
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        source_id = market_scraper_data_access.register_self_service_data_source(
+            conn, ctx.tenant_id, ctx.user_id, request.source_name,
+            api_connector_sync.API_CONNECTOR_COLLECTOR_KEY, config, request.credentials,
+            request.sync_frequency_minutes,
+        )
+        return {"source_id": source_id, "collector_key": api_connector_sync.API_CONNECTOR_COLLECTOR_KEY}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
