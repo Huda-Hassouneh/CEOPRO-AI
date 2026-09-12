@@ -4,28 +4,46 @@ import json
 import os
 from typing import Optional
 
-import psycopg2
-
+from src.infrastructure.db_pool import PooledTenantConnection, TenantConnectionPool
 from src.market_scraper.credential_vault import decrypt_credentials, encrypt_credentials, get_default_kms_backend
 
+_POOL: Optional[TenantConnectionPool] = None
 
-def get_tenant_connection(tenant_id: str):
-    db_url = os.getenv("SCRAPER_DATABASE_URL") or os.getenv("DATABASE_URL")
+
+def _get_pool() -> TenantConnectionPool:
+    """
+    Lazy, module-level, one per process - mirrors src/ai/db.py::_get_pool()
+    exactly (see src/infrastructure/db_pool.py's own docstring for the full
+    RLS-under-pooling reasoning). A separate pool from the ai service's:
+    this is a different, independently-deployed service/process
+    (docker-compose.yml's market-scraper/market-analysis-worker/
+    market-discovery-worker containers), each with its own pool for its
+    own process lifetime - there is no cross-process pool to share even
+    though both ultimately connect as the same ceopro_app role.
+    """
+    global _POOL
+    if _POOL is None:
+        db_url = os.getenv("SCRAPER_DATABASE_URL") or os.getenv("DATABASE_URL")
+        if not db_url:
+            raise RuntimeError("SCRAPER_DATABASE_URL or DATABASE_URL must be set")
+        minconn = int(os.getenv("SCRAPER_DB_POOL_MIN_SIZE", "1"))
+        maxconn = int(os.getenv("SCRAPER_DB_POOL_MAX_SIZE", "10"))
+        _POOL = TenantConnectionPool(db_url, minconn=minconn, maxconn=maxconn)
+    return _POOL
+
+
+def get_tenant_connection(tenant_id: str) -> PooledTenantConnection:
+    """
+    Pooled tenant-scoped connection (production-hardening audit follow-up -
+    see src/infrastructure/db_pool.py's own docstring for why a pooled
+    connection needs SET LOCAL, not the session-scoped SET this used to
+    issue, to stay RLS-safe across reuse). No caller needs to change: this
+    still returns something that duck-types a plain psycopg2 connection.
+    """
     actor_user_id = os.getenv("SCRAPER_ACTOR_USER_ID")
-    if not db_url:
-        raise RuntimeError("SCRAPER_DATABASE_URL or DATABASE_URL must be set")
     if not actor_user_id:
         raise RuntimeError("SCRAPER_ACTOR_USER_ID must identify an active tenant service principal")
-    conn = psycopg2.connect(db_url)
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SET app.current_tenant_id = %s;", (str(tenant_id),))
-            cursor.execute("SET app.current_user_id = %s;", (actor_user_id,))
-        conn.commit()
-        return conn
-    except Exception:
-        conn.close()
-        raise
+    return _get_pool().get_tenant_connection(tenant_id, actor_user_id)
 
 
 def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:

@@ -339,15 +339,25 @@ def test_deleted_products_are_not_searched(conn):
     mocked.assert_not_called()
 
 
-def test_register_tenant_scoped_competitor_rolls_back_cleanly_on_classification_failure(conn):
+def test_register_tenant_scoped_competitor_leaves_the_connection_usable_on_classification_failure(conn):
     """
-    Same fix as register_domain_level_competitor's equivalent test in
-    test_domain_level_discovery_integration_db.py: classify_competitor()
-    is what commits this whole transaction, so a failure before that
-    point must roll back this function's own earlier INSERTs
-    (global_competitors, tenant_competitors, data_sources,
-    competitor_product_mappings) rather than leave them dangling
-    uncommitted or the connection stuck aborted.
+    NOT full atomicity end to end - a real Postgres run is what caught
+    an earlier, overclaiming version of this test (it asserted zero rows
+    survived, which is false): data_access.record_policy_decision(),
+    called before classify_competitor() inside register_tenant_scoped_
+    competitor(), commits its OWN work internally (policy_cli.py relies
+    on exactly that commit when using it standalone), so the earlier
+    global_competitors/tenant_competitors/data_sources/
+    competitor_product_mappings inserts are already durably committed
+    before classify_competitor() ever runs. That's a safe partial-
+    progress state to leave (the competitor really is registered, just
+    not yet (re-)classified - a later discovery re-run naturally
+    reclassifies it via the same idempotent path). What this test
+    actually verifies: the registration rows genuinely persisted despite
+    the later failure, AND the connection comes back clean and reusable
+    rather than stuck in Postgres's aborted-transaction state - see
+    register_tenant_scoped_competitor()'s own comment on its except
+    block for the full reasoning.
     """
     tenant_id = _insert_company(conn)
     product_id = _insert_product(conn, tenant_id, "Espresso Machine")
@@ -373,14 +383,62 @@ def test_register_tenant_scoped_competitor_rolls_back_cleanly_on_classification_
             "SELECT COUNT(*) FROM global_competitors WHERE added_by_tenant_id = %s;",
             (tenant_id,),
         )
-        assert cursor.fetchone()[0] == 0
+        assert cursor.fetchone()[0] == 1  # record_policy_decision()'s own commit already landed this
         cursor.execute(
             "SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;",
             (tenant_id,),
         )
-        assert cursor.fetchone()[0] == 0
+        assert cursor.fetchone()[0] == 1
 
-    # And the connection must come back usable, not stuck aborted.
+    # The connection must come back usable, not stuck aborted, despite
+    # the failure - this is the real, achievable guarantee here.
     with conn.cursor() as cursor:
         cursor.execute("SELECT 1;")
         assert cursor.fetchone()[0] == 1
+
+
+def test_register_tenant_scoped_competitor_dedupes_two_candidates_on_the_same_domain(conn):
+    """
+    Real bug, caught against real Postgres (also seen live in
+    reports/e2e_pipeline/20260904T093616Z and .../20260905T193202Z, not
+    just here): two different discovery mechanisms commonly return two
+    different candidate URLs on the SAME domain for the SAME product
+    (e.g. a retailer search and a sitemap crawl both finding
+    same-shop.example, at different paths). website_identity_key dedup
+    already resolves both onto the same global_competitor_id - but
+    without the fix this test guards, the second call's
+    competitor_product_mappings INSERT then crashed with a real
+    UniqueViolation on uq_tenant_competitor_product instead of being
+    treated as "already registered."
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine")
+    conn.commit()
+
+    decision_1 = DiscoveryDecision(
+        candidate=CandidateSource("Espresso Machine", "https://same-shop.example/p1", "Same Shop"),
+        technical_controls_permit_collection=True,
+        policy_status="RESTRICTED",
+        justification="unreviewed",
+        robots_evidence=None,
+    )
+    decision_2 = DiscoveryDecision(
+        candidate=CandidateSource("Espresso Machine", "https://same-shop.example/p2", "Same Shop"),
+        technical_controls_permit_collection=True,
+        policy_status="RESTRICTED",
+        justification="unreviewed",
+        robots_evidence=None,
+    )
+
+    result_1 = register_tenant_scoped_competitor(conn, tenant_id, str(uuid.uuid4()), decision_1, product_id)
+    result_2 = register_tenant_scoped_competitor(conn, tenant_id, str(uuid.uuid4()), decision_2, product_id)
+
+    assert result_1["competitor_id"] == result_2["competitor_id"]  # same identity_key, same row
+    assert result_2["product_url"] == "https://same-shop.example/p2"  # reflects the candidate actually passed in
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s AND global_competitor_id = %s AND product_id = %s;",
+            (tenant_id, result_1["competitor_id"], product_id),
+        )
+        assert cursor.fetchone()[0] == 1  # one row, not two - the second call reused it rather than crashing

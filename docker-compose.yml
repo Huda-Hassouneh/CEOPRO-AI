@@ -161,6 +161,10 @@ services:
     environment:
       SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      # src/infrastructure/db_pool.py connection pool sizing for this
+      # process's ceopro_app connections - see .env.example.
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
       REDIS_URL: redis://redis:6379/0
       SCRAPER_STREAM_KEY: ${SCRAPER_STREAM_KEY:-market.scrape.requested}
       SCRAPER_DEAD_STREAM_KEY: ${SCRAPER_DEAD_STREAM_KEY:-market.scrape.dead}
@@ -193,6 +197,8 @@ services:
     environment:
       SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
       REDIS_URL: redis://redis:6379/0
     networks:
       - ceopro_core_net
@@ -222,6 +228,8 @@ services:
     environment:
       SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
       REDIS_URL: redis://redis:6379/0
       DISCOVERY_STREAM_KEY: ${DISCOVERY_STREAM_KEY:-market.discovery.requested}
       DISCOVERY_DEAD_STREAM_KEY: ${DISCOVERY_DEAD_STREAM_KEY:-market.discovery.dead}
@@ -278,6 +286,10 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      # src/infrastructure/db_pool.py connection pool sizing for this
+      # process's ceopro_app connections - see .env.example.
+      APP_DB_POOL_MIN_SIZE: ${APP_DB_POOL_MIN_SIZE:-1}
+      APP_DB_POOL_MAX_SIZE: ${APP_DB_POOL_MAX_SIZE:-10}
       JWT_SECRET: ${JWT_SECRET}
       REDIS_HOST: redis
       REDIS_PORT: 6379
