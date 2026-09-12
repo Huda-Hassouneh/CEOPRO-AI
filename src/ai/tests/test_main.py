@@ -445,3 +445,45 @@ def test_onboarding_connect_api_includes_optional_fields_when_given():
         "records_path": "data.results", "page_size_param": "per_page", "page_size": 50,
     }
     assert args[6] == {"api_key": "secret"}
+
+
+def test_dashboard_metrics_requires_auth():
+    response = client.get("/dashboard/metrics")
+    assert response.status_code == 401
+
+
+def test_dashboard_metrics_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {
+        "window_days": 30,
+        "revenue": {"amount": 12420.0, "currency": "JOD", "change_pct": 12.0},
+        "units_sold": {"units": 1482, "change_pct": 8.0},
+        "transaction_growth_pct": 18.0,
+        "competitors_tracked": {"count": 12, "new_this_window": 2},
+    }
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_metrics.get_dashboard_metrics", return_value=fake_result) as mock_metrics:
+        response = client.get("/dashboard/metrics", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_metrics.assert_called_once_with(fake_conn, "t1", window_days=30)
+
+
+def test_dashboard_metrics_accepts_a_custom_window():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_metrics.get_dashboard_metrics", return_value={}) as mock_metrics:
+        response = client.get("/dashboard/metrics", params={"window_days": 7}, headers=_auth())
+
+    assert response.status_code == 200
+    mock_metrics.assert_called_once_with(fake_conn, "t1", window_days=7)
+
+
+def test_dashboard_metrics_rejects_an_out_of_bounds_window():
+    response = client.get("/dashboard/metrics", params={"window_days": 0}, headers=_auth())
+    assert response.status_code == 422
+
+    response = client.get("/dashboard/metrics", params={"window_days": 400}, headers=_auth())
+    assert response.status_code == 422

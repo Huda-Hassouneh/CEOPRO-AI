@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from src.ai import db
+from src.ai.dashboard import metrics as dashboard_metrics
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.mpi import pipeline as mpi_pipeline
@@ -552,6 +553,36 @@ def onboarding_connect_api(
             request.sync_frequency_minutes,
         )
         return {"source_id": source_id, "collector_key": api_connector_sync.API_CONNECTOR_COLLECTOR_KEY}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/metrics")
+def dashboard_metrics_endpoint(
+    window_days: int = Query(default=dashboard_metrics.DEFAULT_WINDOW_DAYS, ge=1, le=365),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The dashboard's top metric cards (Revenue, Sales/units, Growth,
+    Competitors Tracked) - pure aggregation over invoices/invoice_items/
+    tenant_competitors, no new model and no change to any existing
+    model's own input/output shape. See dashboard/metrics.py's own
+    docstring for exactly how each number is defined - none of these are
+    self-evidently unambiguous, so the definitions live there, not just
+    in this endpoint's response.
+
+    Deliberately excludes Inventory Status: the `inventory` table isn't
+    populated by any real ingestion/sales path yet, so returning a number
+    for it here would be fabricating data, not aggregating it.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_metrics.get_dashboard_metrics(conn, ctx.tenant_id, window_days=window_days)
+        conn.commit()
+        return result
     except Exception:
         conn.rollback()
         raise
