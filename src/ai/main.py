@@ -38,7 +38,10 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from src.ai import db
+from src.ai.dashboard import competitor_pricing as dashboard_competitor_pricing
+from src.ai.dashboard import forecast as dashboard_forecast
 from src.ai.dashboard import metrics as dashboard_metrics
+from src.ai.dashboard import recommendations as dashboard_recommendations
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.mpi import pipeline as mpi_pipeline
@@ -583,6 +586,79 @@ def dashboard_metrics_endpoint(
         result = dashboard_metrics.get_dashboard_metrics(conn, ctx.tenant_id, window_days=window_days)
         conn.commit()
         return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/recommendations")
+def dashboard_recommendations_endpoint(
+    limit: int = Query(default=dashboard_recommendations.DEFAULT_LIMIT, ge=1, le=20),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The dashboard's Top Recommendations feed - a single unified engine
+    across pricing, sentiment, sales, and demand (not just marketing),
+    surfacing the top actionable business alerts. Wraps the existing
+    insights.generate_insights_for_tenant() (already merges all of those
+    signals for the chatbot) and relabels its output for the dashboard;
+    no new detection logic, no changed signature.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_recommendations.get_top_recommendations(conn, ctx.tenant_id, limit=limit)
+        conn.commit()
+        return {"recommendations": result}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/forecast")
+def dashboard_forecast_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The dashboard's Forecast KPI card - total predicted units across all
+    products, replacing the mockup's daily line/bar chart since
+    forecasting/pipeline.py::run_forecast() only ever produces a single
+    integer (expected_demand) per product per call and that signature is
+    not changing. Sums the most recent persisted forecast per product;
+    products with no forecast yet simply don't contribute, rather than
+    being counted as a fabricated zero.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_forecast.get_forecast_summary(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/competitor-pricing")
+def dashboard_competitor_pricing_endpoint(
+    limit: int = Query(default=dashboard_competitor_pricing.DEFAULT_LIMIT, ge=1, le=50),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The dashboard's Competitor Price Positioning bar chart, replacing the
+    mockup's Market Share pie chart - this platform tracks competitor
+    PRICES, not overall market share, so a price-positioning comparison
+    is the honest data to show instead. Per product: your price vs. the
+    market average of its mapped competitors' most recent scraped
+    prices, capped to the biggest gaps so the chart stays readable.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_competitor_pricing.get_competitor_price_positioning(conn, ctx.tenant_id, limit=limit)
+        conn.commit()
+        return {"products": result}
     except Exception:
         conn.rollback()
         raise
