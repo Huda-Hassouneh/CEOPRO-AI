@@ -248,6 +248,35 @@ services:
       timeout: 5s
       retries: 3
 
+  # Scheduled polling for both connector types - direct-database
+  # (connector_sync.py) and generic POS/ERP/API (api_connector_sync.py).
+  # Neither had ever been wired into a running process before this
+  # worker existed - see connector_worker.py's own module docstring.
+  # Not event-driven (no Redis dependency): a client's own database or
+  # API doesn't publish an event when it changes, so this polls instead.
+  market-connector-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.connector_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      CONNECTOR_WORKER_POLL_INTERVAL_SECONDS: ${CONNECTOR_WORKER_POLL_INTERVAL_SECONDS:-300}
+    networks:
+      - ceopro_core_net
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   market-maintenance:
     build:
       context: .

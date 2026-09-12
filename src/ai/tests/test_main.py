@@ -316,3 +316,132 @@ def test_rag_query_rejects_top_k_out_of_bounds():
 
     response = client.post("/rag/query", params={"query_text": "q", "top_k": 999}, headers=_auth())
     assert response.status_code == 422
+
+
+def test_onboarding_status_requires_auth():
+    response = client.get("/onboarding/status")
+    assert response.status_code == 401
+
+
+def test_onboarding_status_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"status": "not_started", "connected_methods": [], "invoice_count": 0}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.market_scraper_data_access.get_onboarding_status", return_value=fake_result) as mock_status:
+        response = client.get("/onboarding/status", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_status.assert_called_once_with(fake_conn, "t1")
+
+
+def test_onboarding_connect_database_requires_auth():
+    response = client.post("/onboarding/connect/database", json={
+        "source_name": "My DB", "host": "h", "port": 5432, "dbname": "d",
+        "query": "SELECT 1", "field_mapping": {}, "credentials": {"user": "u", "password": "p"},
+    })
+    assert response.status_code == 401
+
+
+def test_onboarding_connect_database_rejects_missing_required_fields():
+    response = client.post(
+        "/onboarding/connect/database", json={"source_name": "My DB"}, headers=_auth(),
+    )
+    assert response.status_code == 422
+
+
+def test_onboarding_connect_database_registers_a_source_on_success():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch(
+             "src.ai.main.market_scraper_data_access.register_self_service_data_source",
+             return_value="new-source-id",
+         ) as mock_register:
+        response = client.post(
+            "/onboarding/connect/database",
+            json={
+                "source_name": "My POS DB", "host": "db.example.com", "port": 5432, "dbname": "pos",
+                "query": "SELECT * FROM sales", "field_mapping": {"a": "b"},
+                "credentials": {"user": "u", "password": "p"}, "sync_frequency_minutes": 30,
+            },
+            headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"source_id": "new-source-id", "collector_key": "db_connector"}
+    args = mock_register.call_args.args
+    assert args[0] is fake_conn
+    assert args[1] == "t1"
+    assert args[2] == "u1"
+    assert args[3] == "My POS DB"
+    assert args[4] == "db_connector"
+    assert args[5] == {
+        "host": "db.example.com", "port": 5432, "dbname": "pos",
+        "query": "SELECT * FROM sales", "field_mapping": {"a": "b"},
+    }
+    assert args[6] == {"user": "u", "password": "p"}
+    assert args[7] == 30
+
+
+def test_onboarding_connect_api_requires_auth():
+    response = client.post("/onboarding/connect/api", json={
+        "source_name": "My API", "base_url": "https://x.example", "field_mapping": {},
+    })
+    assert response.status_code == 401
+
+
+def test_onboarding_connect_api_rejects_missing_required_fields():
+    response = client.post("/onboarding/connect/api", json={"source_name": "My API"}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_onboarding_connect_api_registers_a_source_with_only_required_fields():
+    """base_url/field_mapping are the only required fields - every other
+    vendor-specific detail is optional and must be omitted from the
+    stored config entirely when not supplied, not stored as a null."""
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch(
+             "src.ai.main.market_scraper_data_access.register_self_service_data_source",
+             return_value="new-source-id",
+         ) as mock_register:
+        response = client.post(
+            "/onboarding/connect/api",
+            json={"source_name": "My POS API", "base_url": "https://pos.example.com", "field_mapping": {"a": "b"}},
+            headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"source_id": "new-source-id", "collector_key": "api_connector"}
+    args = mock_register.call_args.args
+    assert args[4] == "api_connector"
+    assert args[5] == {"base_url": "https://pos.example.com", "field_mapping": {"a": "b"}}
+    assert args[6] is None
+    assert args[7] is None
+
+
+def test_onboarding_connect_api_includes_optional_fields_when_given():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch(
+             "src.ai.main.market_scraper_data_access.register_self_service_data_source",
+             return_value="new-source-id",
+         ) as mock_register:
+        response = client.post(
+            "/onboarding/connect/api",
+            json={
+                "source_name": "My POS API", "base_url": "https://pos.example.com", "field_mapping": {"a": "b"},
+                "records_path": "data.results", "page_size_param": "per_page", "page_size": 50,
+                "credentials": {"api_key": "secret"},
+            },
+            headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    args = mock_register.call_args.args
+    assert args[5] == {
+        "base_url": "https://pos.example.com", "field_mapping": {"a": "b"},
+        "records_path": "data.results", "page_size_param": "per_page", "page_size": 50,
+    }
+    assert args[6] == {"api_key": "secret"}
