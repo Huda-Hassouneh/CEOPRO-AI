@@ -86,6 +86,50 @@ def test_handle_message_opens_a_tenant_scoped_connection_and_closes_it(consumer)
     fake_conn.rollback.assert_not_called()
 
 
+def test_handle_message_regenerates_structured_summaries_after_a_successful_forecast(consumer):
+    """
+    The real fix: forecasts were never wired into the chatbot's RAG
+    context at all - analysis_worker.py already regenerates the RAG
+    summary slots after a scrape, but a forecast completes on a totally
+    separate trigger (this consumer), so it needs its own call. Verifies
+    the wiring fires with the SAME connection run_forecast() just used
+    (never a second, separate connection - the whole point of the
+    pooled/RLS-scoped connection already open here).
+    """
+    fake_conn = MagicMock()
+    fake_minio = MagicMock()
+    with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast, \
+         patch("src.ai.forecasting.consumer.minio_client", return_value=fake_minio), \
+         patch("src.ai.forecasting.consumer.regenerate_all_structured_summaries") as mock_regenerate:
+        consumer._handle_message(payload={"tenant_id": "t1", "product_id": "p1", "horizon_days": "7"})
+
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7)
+    mock_regenerate.assert_called_once_with(fake_conn, fake_minio, "t1")
+    fake_conn.rollback.assert_not_called()
+    fake_conn.close.assert_called_once()
+
+
+def test_handle_message_survives_a_structured_summary_regeneration_failure(consumer):
+    """
+    A forecast that already succeeded (and was already committed inside
+    run_forecast()) must not be rolled back or re-raised just because the
+    lower-priority RAG-summary refresh afterward failed (e.g. MinIO
+    unreachable) - same discipline as analysis_worker.py::analyze_tenant()
+    applies to its own regeneration call.
+    """
+    fake_conn = MagicMock()
+    with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast, \
+         patch("src.ai.forecasting.consumer.minio_client", return_value=MagicMock()), \
+         patch("src.ai.forecasting.consumer.regenerate_all_structured_summaries", side_effect=RuntimeError("minio down")):
+        consumer._handle_message(payload={"tenant_id": "t1", "product_id": "p1", "horizon_days": "7"})  # must not raise
+
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7)
+    fake_conn.rollback.assert_not_called()
+    fake_conn.close.assert_called_once()
+
+
 def test_handle_message_defaults_horizon_days_to_seven(consumer):
     fake_conn = MagicMock()
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \

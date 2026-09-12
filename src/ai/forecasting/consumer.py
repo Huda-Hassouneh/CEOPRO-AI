@@ -18,8 +18,9 @@ from typing import Optional
 
 import redis
 
-from src.ai.db import app_role_connection
+from src.ai.db import app_role_connection, minio_client
 from src.ai.forecasting.pipeline import run_forecast
+from src.ai.rag.structured_summaries import regenerate_all_structured_summaries
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("CEOPRO_AI_FORECAST_CONSUMER")
@@ -84,6 +85,21 @@ class ForecastRequestConsumer:
         conn = app_role_connection(tenant_id, self.actor_user_id)
         try:
             run_forecast(conn, tenant_id, product_id, horizon_days)
+
+            # The real fix for "forecasts never reach the chatbot": nothing
+            # else in the platform ever refreshed the demand_forecast/
+            # strategic_insights RAG slots after a forecast completed -
+            # analysis_worker.py already does this after a scrape, but a
+            # forecast is produced on a completely separate trigger
+            # (this consumer, driven by demand_forecast_requested events),
+            # so it needs its own call here. Same discipline as analysis_
+            # worker.py's own regeneration call: a failure here (e.g. MinIO
+            # unreachable) is logged, never allowed to fail or retry a
+            # forecast that already succeeded and was already committed.
+            try:
+                regenerate_all_structured_summaries(conn, minio_client(), tenant_id)
+            except Exception as exc:
+                logger.error(f"structured summary regeneration failed after forecast for tenant={tenant_id}: {exc}")
         except Exception:
             conn.rollback()
             raise

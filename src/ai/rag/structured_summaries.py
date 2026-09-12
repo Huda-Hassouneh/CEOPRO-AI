@@ -52,8 +52,13 @@ SLOT_SALES_HISTORY = "sales_history"
 SLOT_COMPETITOR_LANDSCAPE = "competitor_landscape"
 SLOT_SENTIMENT_TRENDS = "sentiment_trends"
 SLOT_MARKET_PRICING = "market_pricing"
+SLOT_DEMAND_FORECAST = "demand_forecast"
+SLOT_STRATEGIC_INSIGHTS = "strategic_insights"
 
-ALL_SLOTS = (SLOT_SALES_HISTORY, SLOT_COMPETITOR_LANDSCAPE, SLOT_SENTIMENT_TRENDS, SLOT_MARKET_PRICING)
+ALL_SLOTS = (
+    SLOT_SALES_HISTORY, SLOT_COMPETITOR_LANDSCAPE, SLOT_SENTIMENT_TRENDS, SLOT_MARKET_PRICING,
+    SLOT_DEMAND_FORECAST, SLOT_STRATEGIC_INSIGHTS,
+)
 
 
 def _object_key(slot: str) -> str:
@@ -333,11 +338,114 @@ def generate_market_pricing_summary(conn, tenant_id: str) -> str:
     return "\n".join(lines)
 
 
+def _plain_confidence_label(confidence_score: Optional[float]) -> str:
+    """
+    Translates a raw 0-1 confidence_score into a plain qualitative phrase -
+    never surfaces the number itself. Mirrors llm_client.py's SYSTEM_PROMPT
+    instruction to talk about forecast confidence in plain, everyday terms
+    rather than a statistic, applied here at the source so a jargon-free
+    phrase is the only thing that ever reaches the vector DB/chatbot in
+    the first place, rather than relying solely on the LLM to translate it
+    correctly on every single call.
+    """
+    if confidence_score is None:
+        return "an early, rough estimate since we don't have much sales history yet"
+    if confidence_score >= 0.7:
+        return "a solid estimate based on your own sales history"
+    if confidence_score >= 0.4:
+        return "a reasonable estimate, and it will get more accurate as more sales come in"
+    return "an early, rough estimate since we don't have much sales history yet"
+
+
+def generate_demand_forecast_summary(conn, tenant_id: str) -> str:
+    """
+    Real narrative from demand_forecasts (forecasting/pipeline.py's own
+    output) - the fix for "forecasts never reach the chatbot" (run_forecast()
+    computes and persists expected_demand/confidence bounds, but nothing
+    downstream of the forecasting consumer ever surfaced it). Deliberately
+    does NOT reuse run_forecast()'s own `explanation` field verbatim - that
+    field is intentionally technical (cites the model name, MASE/RMSE, and
+    which baselines it beat, for a human data-science audit trail - see
+    forecasting/pipeline.py's own docstring) and would violate the Extreme
+    Simplicity product principle the moment it reached a merchant. Only the
+    plain-language shape of the forecast (expected units, a plain-English
+    range, a plain confidence phrase via _plain_confidence_label()) is
+    written here.
+
+    One row per product (its most recent forecast, DISTINCT ON product_id
+    ordered by created_at DESC) - a product can accumulate many forecast
+    rows over time as horizon_days requests repeat, and only the latest is
+    ever the current answer.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT DISTINCT ON (df.product_id)
+                COALESCE(p.product_name->>'en', p.product_name->>'ar', p.product_name::text) AS name,
+                df.expected_demand, df.confidence_range_lower, df.confidence_range_upper,
+                df.forecast_target_date, er.confidence_score
+            FROM demand_forecasts df
+            JOIN products p ON p.tenant_id = df.tenant_id AND p.product_id = df.product_id
+            LEFT JOIN evidence_records er ON er.tenant_id = df.tenant_id AND er.forecast_id = df.forecast_id
+            WHERE df.tenant_id = %s AND p.deleted_at IS NULL
+            ORDER BY df.product_id, df.created_at DESC
+            LIMIT 20;
+            """,
+            (tenant_id,),
+        )
+        rows = cursor.fetchall()
+
+    if not rows:
+        return "Demand forecast (source: demand_forecasts): no forecast has been generated yet for any product."
+
+    lines = ["Demand forecast for your products (source: demand_forecasts, generated automatically from your sales history):"]
+    for name, expected_demand, lower, upper, target_date, confidence_score in rows:
+        range_text = f" (likely between {int(lower)} and {int(upper)} units)" if lower is not None and upper is not None else ""
+        confidence_value = float(confidence_score) if confidence_score is not None else None
+        lines.append(
+            f"- {name}: about {int(expected_demand)} units expected by {target_date.isoformat()}{range_text}. "
+            f"This is {_plain_confidence_label(confidence_value)}."
+        )
+    return "\n".join(lines)
+
+
+def generate_strategic_insights_summary(conn, tenant_id: str) -> str:
+    """
+    The cross-signal insight layer: rather than the chatbot only being
+    able to answer about pricing, sentiment, sales, or forecasts one at a
+    time when directly asked, this generator (src.ai.insights.pipeline)
+    correlates them together - e.g. "your price is above the market AND
+    sales are falling AND demand is forecast to keep falling" is one
+    actionable insight, not three separate facts the user has to notice
+    and connect themselves. Written into its own RAG slot (retrievable by
+    any "how is my business doing"/"any advice" style question) and ALSO
+    injected into structured_context.py's always-on facts block (see that
+    module) so the top insights surface proactively on every question,
+    not only when explicitly asked for - the real requirement this closes.
+    """
+    from src.ai.insights.pipeline import generate_insights_for_tenant
+
+    insights = generate_insights_for_tenant(conn, tenant_id)
+    if not insights:
+        return (
+            "Strategic insights (source: cross-signal analysis of your pricing, sentiment, sales, and "
+            "forecasts): nothing stands out yet - either there isn't enough data across these signals "
+            "yet, or everything currently looks healthy."
+        )
+
+    lines = ["Strategic insights - patterns found by cross-checking your pricing, customer sentiment, sales, and demand forecasts together:"]
+    for insight in insights:
+        lines.append(f"- {insight.message}")
+    return "\n".join(lines)
+
+
 _GENERATORS = {
     SLOT_SALES_HISTORY: generate_sales_history_summary,
     SLOT_COMPETITOR_LANDSCAPE: generate_competitor_landscape_summary,
     SLOT_SENTIMENT_TRENDS: generate_sentiment_trends_summary,
     SLOT_MARKET_PRICING: generate_market_pricing_summary,
+    SLOT_DEMAND_FORECAST: generate_demand_forecast_summary,
+    SLOT_STRATEGIC_INSIGHTS: generate_strategic_insights_summary,
 }
 
 

@@ -333,3 +333,36 @@ def test_build_user_prompt_includes_a_separately_labeled_structured_facts_sectio
 def test_build_user_prompt_omits_the_structured_facts_section_when_empty():
     prompt = llm_client._build_user_prompt(_context(), structured_facts="")
     assert "Current business data" not in prompt
+
+
+def test_system_prompt_explicitly_bans_ml_jargon_terms():
+    """
+    Extreme Simplicity is a hard product requirement: the merchant-facing
+    chatbot must never surface statistical/ML jargon (MASE, RMSE, XGBoost,
+    raw confidence scores), even if the retrieved context or structured
+    facts happen to contain it (forecasting/pipeline.py's own internal
+    technical explanation does, by design - see its own docstring). The
+    instruction to strip it has to live in SYSTEM_PROMPT itself since the
+    model can't be trusted to omit it on its own once it's already in
+    front of it as "the source material" - so the prompt must both name
+    the specific terms to ban AND say plainly never to use them.
+    """
+    jargon_terms = ["MASE", "RMSE", "XGBoost", "confidence 0.73"]
+    for term in jargon_terms:
+        assert term in llm_client.SYSTEM_PROMPT  # named as an example of banned jargon
+
+    prompt_lower = llm_client.SYSTEM_PROMPT.lower()
+    assert "never" in prompt_lower and "jargon" in prompt_lower
+    assert "plain" in prompt_lower
+
+
+def test_system_prompt_mandates_plain_spoken_arabic_not_formal_or_transliterated():
+    prompt_lower = llm_client.SYSTEM_PROMPT.lower()
+    assert "arabic" in prompt_lower
+    assert "formal" in prompt_lower  # explicitly rules out stiff/formal register
+
+
+def test_system_prompt_includes_a_teaching_mode_for_confused_users():
+    prompt_lower = llm_client.SYSTEM_PROMPT.lower()
+    assert "teach" in prompt_lower
+    assert "explain" in prompt_lower

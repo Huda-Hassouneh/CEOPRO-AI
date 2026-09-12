@@ -233,6 +233,106 @@ def test_market_pricing_summary_handles_no_observations_honestly(conn):
     assert "no real competitor price observations yet" in summary
 
 
+def _insert_forecast(conn, tenant_id, product_id, expected_demand, target_date, confidence_score=None, created_at=None):
+    import uuid as uuid_module
+    forecast_id = str(uuid_module.uuid4())
+    with conn.cursor() as cursor:
+        if created_at is not None:
+            cursor.execute(
+                "INSERT INTO demand_forecasts (forecast_id, tenant_id, product_id, expected_demand, "
+                "confidence_range_lower, confidence_range_upper, forecast_target_date, model_version, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, 'test-model', %s);",
+                (forecast_id, tenant_id, product_id, expected_demand, expected_demand - 5, expected_demand + 5, target_date, created_at),
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO demand_forecasts (forecast_id, tenant_id, product_id, expected_demand, "
+                "confidence_range_lower, confidence_range_upper, forecast_target_date, model_version) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, 'test-model');",
+                (forecast_id, tenant_id, product_id, expected_demand, expected_demand - 5, expected_demand + 5, target_date),
+            )
+        if confidence_score is not None:
+            cursor.execute(
+                "INSERT INTO evidence_records (tenant_id, forecast_id, category, source_module, "
+                "explanation_text, confidence_score) VALUES (%s, %s, 'PREDICTION', 'ai.forecasting', "
+                "'MASE=0.12, RMSE=1.4, XGBoost outperformed baselines', %s);",
+                (tenant_id, forecast_id, confidence_score),
+            )
+    return forecast_id
+
+
+def test_demand_forecast_summary_is_plain_language_and_never_leaks_jargon(conn):
+    """
+    The real fix for "forecasting outputs must completely drop raw
+    technical jargon": run_forecast()'s own internal explanation_text
+    (persisted to evidence_records for audit purposes - see forecasting/
+    pipeline.py's own docstring) is intentionally technical. This
+    generator must NEVER read or repeat that field - it derives its own
+    plain-language narrative straight from demand_forecasts' numeric
+    columns instead.
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine")
+    conn.commit()
+    target_date = (datetime.now(timezone.utc) + timedelta(days=7)).date()
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=42, target_date=target_date, confidence_score=0.8)
+    conn.commit()
+
+    summary = structured_summaries.generate_demand_forecast_summary(conn, tenant_id)
+
+    assert "Espresso Machine" in summary
+    assert "42 units" in summary
+    assert target_date.isoformat() in summary
+    for jargon in ("MASE", "RMSE", "XGBoost", "0.8", "0.80"):
+        assert jargon not in summary
+
+
+def test_demand_forecast_summary_handles_no_forecast_yet_honestly(conn):
+    tenant_id = _insert_company(conn)
+    conn.commit()
+    summary = structured_summaries.generate_demand_forecast_summary(conn, tenant_id)
+    assert "no forecast has been generated yet" in summary
+
+
+def test_demand_forecast_summary_uses_only_the_latest_forecast_per_product(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    conn.commit()
+    target_date = (datetime.now(timezone.utc) + timedelta(days=7)).date()
+    now = datetime.now(timezone.utc)
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=10, target_date=target_date, created_at=now - timedelta(days=1))
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=99, target_date=target_date, created_at=now)
+    conn.commit()
+
+    summary = structured_summaries.generate_demand_forecast_summary(conn, tenant_id)
+
+    assert "99 units" in summary
+    assert "10 units" not in summary
+
+
+def test_strategic_insights_summary_surfaces_a_real_cross_signal_insight(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine", current_price=100.0)
+    competitor_id = _insert_competitor(conn, tenant_id, "Cheaper Co")
+    conn.commit()
+    _insert_competitor_price(conn, tenant_id, product_id, competitor_id, scraped_price=70.0)
+    now = datetime.now(timezone.utc)
+    _insert_invoice_with_item(conn, tenant_id, product_id, quantity=2, unit_price=100.0, issue_date=now - timedelta(days=5))
+    _insert_invoice_with_item(conn, tenant_id, product_id, quantity=20, unit_price=100.0, issue_date=now - timedelta(days=45))
+    conn.commit()
+
+    summary = structured_summaries.generate_strategic_insights_summary(conn, tenant_id)
+
+    assert "Espresso Machine" in summary
+
+
+def test_strategic_insights_summary_handles_nothing_notable_honestly(conn):
+    tenant_id = _insert_company(conn)
+    conn.commit()
+    summary = structured_summaries.generate_strategic_insights_summary(conn, tenant_id)
+    assert "nothing stands out yet" in summary
+
+
 @_needs_minio
 def test_upsert_summary_document_creates_then_updates_the_same_slot(conn, minio_client):
     tenant_id = _insert_company(conn)
