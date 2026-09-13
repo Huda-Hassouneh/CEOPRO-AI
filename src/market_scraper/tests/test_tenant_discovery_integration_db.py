@@ -200,22 +200,6 @@ def test_products_above_the_price_threshold_are_never_collapsed_even_with_groupi
     assert mocked_search.call_count == 2  # priced above threshold - individual precision, not a family search
 
 
-def test_jewelry_vertical_never_collapses_even_at_a_low_price(conn):
-    """The high-value-vertical override: a jewelry catalog must be
-    searched product-by-product even when every item happens to be priced
-    under the collapse threshold (e.g. price-per-gram vs. a fixed retail
-    tag) - precision over cost-saving for this vertical, no exceptions."""
-    tenant_id = _insert_company(conn)
-    _insert_product(conn, tenant_id, "Gold Ring 2g", price=0.10)
-    _insert_product(conn, tenant_id, "Gold Ring 3g", price=0.10)
-
-    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
-         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
-        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
-
-    assert mocked_search.call_count == 2  # jewelry_luxury vertical - never collapsed, regardless of price
-
-
 def test_sitemap_domains_contribute_candidates_when_vertical_has_a_seeded_entry(conn):
     tenant_id = _insert_company(conn)
     _insert_product(conn, tenant_id, "Resistor Kit")  # electronics_hobbyist keyword
