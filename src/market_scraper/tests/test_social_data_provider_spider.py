@@ -57,7 +57,7 @@ def test_missing_api_token_is_rejected_before_any_request():
 @pytest.mark.parametrize("url,expected", [
     ("https://www.instagram.com/examplebrand/", "instagram"),
     ("https://facebook.com/examplebrand", "facebook"),
-    ("https://www.tiktok.com/@examplebrand", "tiktok"),
+    ("https://www.tiktok.com/@examplebrand", None),  # TikTok deliberately unsupported
     ("https://examplebrand.com", None),
 ])
 def test_platform_for_recognizes_known_social_hosts(url, expected):
@@ -174,3 +174,83 @@ def test_parse_comments_handles_empty_comment_list():
         TARGET_IG, "instagram", POST, POST["url"],
     ))[0]
     assert item["reviews"] == []
+
+
+def test_top_level_comments_have_no_parent_external_id():
+    item = list(spider().parse_comments(
+        json_response(
+            "https://api.apify.com/v2/acts/apify~instagram-comment-scraper/run-sync-get-dataset-items", COMMENTS
+        ),
+        TARGET_IG, "instagram", POST, POST["url"],
+    ))[0]
+    for review in item["reviews"]:
+        assert review["parent_external_id"] is None
+
+
+def test_nested_replies_array_is_flattened_and_linked_to_its_parent():
+    """Some Apify comment actors nest a comment's replies under it rather
+    than returning one flat list - a real shape this codebase's own
+    best-effort field-name guessing needs to handle without inventing a
+    parent-id field that isn't there."""
+    threaded_comments = [
+        {
+            "id": "c1", "text": "This is overpriced.", "ownerUsername": "fan1", "likesCount": 10,
+            "replies": [
+                {"id": "c1-r1", "text": "Agreed, way too much.", "ownerUsername": "fan2", "likesCount": 2},
+            ],
+        },
+    ]
+    item = list(spider().parse_comments(
+        json_response(
+            "https://api.apify.com/v2/acts/apify~instagram-comment-scraper/run-sync-get-dataset-items",
+            threaded_comments,
+        ),
+        TARGET_IG, "instagram", POST, POST["url"],
+    ))[0]
+    reviews = {review["external_review_id"]: review for review in item["reviews"]}
+    assert len(reviews) == 2
+    assert reviews["c1"]["parent_external_id"] is None
+    assert reviews["c1-r1"]["parent_external_id"] == "c1"
+
+
+def test_flat_parent_id_field_is_recognized_when_present():
+    """The other real shape an actor might use: a flat list where each
+    reply carries its own parent-id field instead of nesting."""
+    flat_comments = [
+        {"id": "c1", "text": "This is overpriced.", "ownerUsername": "fan1"},
+        {"id": "c1-r1", "text": "Agreed.", "ownerUsername": "fan2", "parentCommentId": "c1"},
+    ]
+    item = list(spider().parse_comments(
+        json_response(
+            "https://api.apify.com/v2/acts/apify~instagram-comment-scraper/run-sync-get-dataset-items",
+            flat_comments,
+        ),
+        TARGET_IG, "instagram", POST, POST["url"],
+    ))[0]
+    reviews = {review["external_review_id"]: review for review in item["reviews"]}
+    assert reviews["c1-r1"]["parent_external_id"] == "c1"
+
+
+def test_a_parent_comment_with_no_text_still_lets_its_replies_be_linked():
+    """A parent that itself has no real text (e.g. a deleted/media-only
+    comment) must not swallow its replies - they still get collected and
+    still carry the real parent_external_id, even though the parent
+    itself never becomes its own reviews row."""
+    threaded_comments = [
+        {
+            "id": "c1", "text": "", "ownerUsername": "fan1",
+            "replies": [
+                {"id": "c1-r1", "text": "Replying anyway.", "ownerUsername": "fan2"},
+            ],
+        },
+    ]
+    item = list(spider().parse_comments(
+        json_response(
+            "https://api.apify.com/v2/acts/apify~instagram-comment-scraper/run-sync-get-dataset-items",
+            threaded_comments,
+        ),
+        TARGET_IG, "instagram", POST, POST["url"],
+    ))[0]
+    assert len(item["reviews"]) == 1
+    assert item["reviews"][0]["external_review_id"] == "c1-r1"
+    assert item["reviews"][0]["parent_external_id"] == "c1"

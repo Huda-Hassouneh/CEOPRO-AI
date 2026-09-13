@@ -53,6 +53,7 @@ not the retrieval pipeline underneath it.
 
 import logging
 import os
+import random
 import time
 
 import httpx
@@ -132,24 +133,132 @@ MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "2"))
 RETRY_BACKOFF_SECONDS = float(os.getenv("GROQ_RETRY_BACKOFF_SECONDS", "0.5"))
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+# Jitter on top of the linear backoff above: under a real provider-wide
+# outage/429 event, many concurrent requests hitting this same process
+# would otherwise all retry in lockstep at the exact same 0.5s/1.0s
+# intervals, adding a synchronized retry spike right when the provider is
+# already struggling. A random fraction added to each wait spreads
+# retries out instead - RETRY_JITTER_FRACTION=0.5 means each backoff is
+# lengthened by 0%-50% of its base value, never shortened (never retrying
+# SOONER than the base backoff already calls for).
+RETRY_JITTER_FRACTION = float(os.getenv("GROQ_RETRY_JITTER_FRACTION", "0.5"))
+
+# Circuit breaker: /rag/query runs synchronously in a FastAPI request
+# handler (on the thread-pool executor), and a single failed request can
+# already cost close to MAX_RETRIES attempts x up to DEFAULT_TIMEOUT_SECONDS/
+# LOCAL_LLM_TIMEOUT_SECONDS each. Under a sustained provider outage, every
+# new incoming chat request keeps paying that same full retry cost against
+# a provider that's already known to be down - real risk of exhausting the
+# thread pool and queuing/timing out unrelated requests (pricing, sentiment,
+# etc. sharing the same process). After CIRCUIT_BREAKER_THRESHOLD consecutive
+# request-level failures (a failure meaning every retry within one call was
+# already exhausted - a transient blip that succeeds on retry never counts),
+# new calls fail fast for CIRCUIT_BREAKER_COOLDOWN_SECONDS instead of
+# attempting the full retry sequence again. Module-level, in-process state -
+# not shared across worker processes, which is fine: the goal is protecting
+# THIS process's own thread pool, not a global rate limit.
+CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("GROQ_CIRCUIT_BREAKER_THRESHOLD", "5"))
+CIRCUIT_BREAKER_COOLDOWN_SECONDS = float(os.getenv("GROQ_CIRCUIT_BREAKER_COOLDOWN_SECONDS", "30"))
+
+_circuit_state = {"consecutive_failures": 0, "opened_at": None}
+
+
+def _reset_circuit_breaker() -> None:
+    """Test-only reset hook - module-level state would otherwise leak
+    failure counts across unrelated test cases (and across requests for
+    different, independent backends in a real deployment that switches
+    providers at runtime)."""
+    _circuit_state["consecutive_failures"] = 0
+    _circuit_state["opened_at"] = None
+
+
+def _circuit_is_open() -> bool:
+    opened_at = _circuit_state["opened_at"]
+    if opened_at is None:
+        return False
+    if time.monotonic() - opened_at >= CIRCUIT_BREAKER_COOLDOWN_SECONDS:
+        _reset_circuit_breaker()  # cooldown elapsed - let the next call retry for real
+        return False
+    return True
+
+
+def _record_circuit_success() -> None:
+    _reset_circuit_breaker()
+
+
+def _record_circuit_failure() -> None:
+    _circuit_state["consecutive_failures"] += 1
+    if _circuit_state["consecutive_failures"] >= CIRCUIT_BREAKER_THRESHOLD:
+        _circuit_state["opened_at"] = time.monotonic()
+
+
+def _backoff_seconds(attempt: int) -> float:
+    base = RETRY_BACKOFF_SECONDS * (attempt + 1)
+    return base + random.uniform(0, base * RETRY_JITTER_FRACTION)
+
 # Low temperature: this is grounded question-answering over retrieved
 # business documents, not creative writing - the answer should track the
 # provided context closely, not improvise around it.
 DEFAULT_TEMPERATURE = 0.2
 
 SYSTEM_PROMPT = (
-    "You are CEOPRO AI's business assistant. Answer the user's question using ONLY the "
-    "information in the provided context. If the context does not contain enough "
-    "information to answer, say so explicitly rather than guessing or using outside "
-    "knowledge. Respond in the same language as the question - the platform supports "
-    "Arabic, English, and mixed Arabic-English (code-switched) queries.\n\n"
+    "You are CEOPRO AI's business assistant - a friendly, supportive advisor for an "
+    "ordinary small-business owner (a shop or restaurant owner, not a data analyst, "
+    "engineer, or accountant). Answer the user's question using ONLY the information in "
+    "the provided context. If the context does not contain enough information to answer, "
+    "say so explicitly and simply, rather than guessing or using outside knowledge.\n\n"
+    "Language, dialect, and tone - match the user exactly, every time: respond in the "
+    "EXACT SAME language the user just wrote in, never switching languages on your own and "
+    "never defaulting to English. If they wrote in Arabic, answer entirely in Arabic; if "
+    "English, entirely in English; if they mixed Arabic and English in the same message "
+    "(code-switching), mirror that same natural mix rather than forcing the reply into one "
+    "pure language. This applies to every single reply, including a follow-up later in the "
+    "same conversation - re-check the language of the CURRENT message each time rather than "
+    "sticking with whatever language was used earlier.\n\n"
+    "Go further than just the language: match the user's specific dialect and register too, "
+    "so the reply sounds like it's coming from someone who actually talks the way they do, "
+    "not a generic translation. If they write in a regional Arabic dialect (e.g. Jordanian/"
+    "Levantine, Gulf, Egyptian), reply naturally in that same dialect, not formal Modern "
+    "Standard Arabic and never English technical terms transliterated into Arabic letters. "
+    "If they write formal, correct Arabic or English, reply in an equally professional "
+    "register; if they write casually (short sentences, colloquial phrasing, emoji), reply "
+    "just as casually and warmly back. When the dialect or register genuinely isn't clear "
+    "from a short message, default to plain, everyday spoken business Arabic or English (the "
+    "way a shopkeeper actually talks with a trusted advisor) rather than guessing at a "
+    "specific dialect. None of this dialect/tone matching ever excuses using jargon - a "
+    "casual Jordanian-dialect reply and a formal English reply must both stay equally free "
+    "of it, per the Extreme Simplicity rule below.\n\n"
+    "Extreme Simplicity - this is a hard rule, not a style preference: never use technical, "
+    "statistical, or machine-learning jargon in any language, no matter how it appears in "
+    "the context. This includes (but isn't limited to) model/algorithm names (XGBoost, "
+    "baseline model, walk-forward validation), statistical metrics (MASE, RMSE, MAE, "
+    "p-value, standard deviation), and raw confidence scores or probabilities (\"confidence "
+    "0.73\"). If the context contains any of these, silently translate them into a plain, "
+    "everyday statement before answering - never repeat the technical term or number "
+    "itself, even if asked to cite where a figure came from. For confidence/uncertainty, "
+    "use plain qualitative language instead of numbers - for example: 'this is a solid "
+    "estimate based on your own sales history' (high confidence), 'this is a reasonable "
+    "estimate, but it will get more accurate over time' (moderate confidence), or 'this is "
+    "an early, rough estimate since we don't have much history yet' (low confidence). "
+    "Every answer should read like straightforward, practical business advice a friend "
+    "who understands the shop's numbers would give over coffee - short sentences, concrete "
+    "next steps, no filler.\n\n"
+    "Teaching mode: if the user seems confused, asks what something means, or asks you to "
+    "explain a concept (pricing, demand, sentiment, competition, or anything else about "
+    "how the business works), switch into a patient, supportive teacher. Explain it using "
+    "everyday language and a simple, relatable example (a small shop, a market stall, a "
+    "familiar situation) rather than a definition or technical explanation. Never make the "
+    "user feel talked down to for not knowing something, and always check afterward "
+    "whether they'd like it explained a different way.\n\n"
     "Provenance: the context is labeled with [Source N] markers, and each fact within a "
     "source is itself annotated with where it came from (e.g. a database table and column, "
     "or a market data snapshot with its origin and capture time). When asked what your "
-    "answer is based on, or where a number came from, cite the exact table/field/source "
-    "annotation as written in the context - never invent a source, generalize to 'our "
-    "database' without naming the specific table, or claim a source that isn't literally "
-    "present in the context above."
+    "answer is based on, or where a number came from, describe the source in plain, "
+    "everyday terms the same way the rest of your answer is phrased (e.g. 'based on your "
+    "own sales records' or 'based on what we've seen from your competitors online') - never "
+    "invent a source, generalize to 'our database' without saying what kind of information "
+    "it is, claim a source that isn't literally present in the context above, or read out "
+    "the raw table/column name itself."
 )
 
 
@@ -178,14 +287,26 @@ def _build_user_prompt(context: AssembledContext, structured_facts: str = "") ->
 def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> httpx.Response:
     """
     Up to MAX_RETRIES retries (MAX_RETRIES + 1 attempts total) with a
-    linear backoff, only for a network failure or a status code in
-    _RETRYABLE_STATUS_CODES - see those constants' own comment for why a
-    4xx outside that set (bad request, bad key, forbidden) is deliberately
-    not retried. Returns the last response/re-raises the last exception
-    once retries are exhausted, so the caller sees exactly the same shape
-    of failure it would have without retries, just after trying harder
-    first.
+    jittered linear backoff (see RETRY_JITTER_FRACTION), only for a
+    network failure or a status code in _RETRYABLE_STATUS_CODES - see
+    those constants' own comment for why a 4xx outside that set (bad
+    request, bad key, forbidden) is deliberately not retried. Returns the
+    last response/re-raises the last exception once retries are
+    exhausted, so the caller sees exactly the same shape of failure it
+    would have without retries, just after trying harder first.
+
+    Guarded by a circuit breaker (see CIRCUIT_BREAKER_* constants): after
+    enough consecutive request-level failures, a new call fails fast
+    instead of repeating the full retry sequence against a provider
+    that's already known to be down.
     """
+    if _circuit_is_open():
+        raise LLMError(
+            f"LLM provider ({url}) circuit breaker is open after {CIRCUIT_BREAKER_THRESHOLD} consecutive "
+            f"failures - failing fast for up to {CIRCUIT_BREAKER_COOLDOWN_SECONDS:.0f}s instead of retrying "
+            f"against a provider that's already known to be down."
+        )
+
     last_exception = None
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -194,17 +315,23 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             last_exception = err
             if attempt < MAX_RETRIES:
                 logger.warning(f"LLM request to {url} failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
-                time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+                time.sleep(_backoff_seconds(attempt))
                 continue
+            _record_circuit_failure()
             raise LLMError(f"LLM provider request failed: {err}") from err
 
-        if response.status_code not in _RETRYABLE_STATUS_CODES or attempt == MAX_RETRIES:
+        if response.status_code not in _RETRYABLE_STATUS_CODES:
+            if response.status_code == 200:
+                _record_circuit_success()
+            return response
+        if attempt == MAX_RETRIES:
+            _record_circuit_failure()
             return response
 
         logger.warning(
             f"LLM provider returned {response.status_code}, retrying (attempt {attempt + 1}/{MAX_RETRIES})"
         )
-        time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+        time.sleep(_backoff_seconds(attempt))
 
     # Unreachable in practice (the loop always returns or raises above),
     # kept only so this function has an explicit exhaustive return path.

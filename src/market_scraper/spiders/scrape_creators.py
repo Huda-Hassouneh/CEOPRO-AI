@@ -22,12 +22,12 @@ against this collector):
                    "author": {"id", "name", "gender", "short_name"}}],
      "cursor": "...", "has_next_page": true}
 
-Instagram/TikTok endpoint paths below are ScrapeCreators' own documented
-URLs (confirmed to exist) but their exact response field names have NOT
-been confirmed the same way Facebook's was - collector_config's
+Instagram's endpoint path below is ScrapeCreators' own documented URL
+(confirmed to exist) but its exact response field names have NOT been
+confirmed the same way Facebook's was - collector_config's
 "endpoints"/"field_overrides" cover that gap until a real payload is
-checked for each, same "best-effort default, verify before production"
-convention as spiders/social_data_provider.py.
+checked, same "best-effort default, verify before production" convention
+as spiders/social_data_provider.py.
 
 Deliberately a "paid feature, nothing paid configured yet" module: with
 no connection_credentials_vault.api_key, __init__ raises
@@ -70,7 +70,6 @@ _DEFAULT_BASE_URL = "https://api.scrapecreators.com"
 _DEFAULT_ENDPOINTS = {
     "facebook": {"post": "/v1/facebook/post/", "comments": "/v1/facebook/post/comments", "url_param": "url"},
     "instagram": {"post": "/v1/instagram/post/", "comments": "/v1/instagram/post/comments", "url_param": "url"},
-    "tiktok": {"post": "/v1/tiktok/video/", "comments": "/v1/tiktok/video/comments", "url_param": "url"},
 }
 
 _PLATFORM_HOSTS = {
@@ -78,8 +77,6 @@ _PLATFORM_HOSTS = {
     "www.facebook.com": "facebook",
     "instagram.com": "instagram",
     "www.instagram.com": "instagram",
-    "tiktok.com": "tiktok",
-    "www.tiktok.com": "tiktok",
 }
 
 
@@ -103,7 +100,7 @@ class ScrapeCreatorsSpider(scrapy.Spider):
     Each target's product_url is treated as a direct post/video URL, not
     a competitor's profile URL - this is the confirmed, working mode:
     monitor a specific competitor post's real comment thread in depth.
-    Never requests facebook.com/instagram.com/tiktok.com directly, only
+    Never requests facebook.com/instagram.com directly, only
     api.scrapecreators.com. Same constructor contract as every other
     collector in this repo (see collectors.py) so cli.py's dispatch
     needs no change.
