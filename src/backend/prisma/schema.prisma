@@ -8,7 +8,15 @@ datasource db {
 }
 
 
+model AppConfig {
+  key       String   @id @db.VarChar(100)
+  value     String   @db.Text
 
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_config")
+}
 model Plan {
   id                   String               @id @default(uuid()) @db.Uuid
   name                 String               @unique @db.VarChar(50)
