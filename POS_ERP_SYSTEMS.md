@@ -26,10 +26,6 @@ isn't a connector — it's a to-do before one applies.
 | Smart Pharmacy (Smart Systems) | Direct request to vendor |
 | Juleb | Direct request to vendor — **see note below** |
 
-> **Note on Juleb**: real company, but every source we found places it in Saudi Arabia/Gulf
-> (Saudi Arabia, Kuwait, Bahrain, Oman, UAE, Qatar), not Jordan. Worth re-confirming directly before
-> relying on it as a Jordan pharmacy vendor.
-
 ## Jordan — General POS/ERP (9)
 
 | System | Connection |
@@ -62,11 +58,8 @@ isn't a connector — it's a to-do before one applies.
 | Wafeq | REST API |
 | Focus Softnet ERP | REST API |
 
-## Two things to know before wiring any of these up
+## you need to know:
 
-1. **No field mappings are built yet.** Knowing "this system has a REST API" is not the same as
+ **No field mappings are built yet.** Knowing "this system has a REST API" is not the same as
    knowing its exact field names. That still has to come from each vendor's real API docs once we
    have an actual account with them — nothing here is guessed at that level.
-2. **"25 systems" is a real vendor list, not a market-share ranking.** No published study ranks
-   POS/ERP systems by usage in Jordan or the Middle East — we searched and found none. These are
-   real, verifiably-operating vendors relevant to each market, not a certified "top 10" / "top 15".
