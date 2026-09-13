@@ -233,6 +233,106 @@ def test_market_pricing_summary_handles_no_observations_honestly(conn):
     assert "no real competitor price observations yet" in summary
 
 
+def _insert_forecast(conn, tenant_id, product_id, expected_demand, target_date, confidence_score=None, created_at=None):
+    import uuid as uuid_module
+    forecast_id = str(uuid_module.uuid4())
+    with conn.cursor() as cursor:
+        if created_at is not None:
+            cursor.execute(
+                "INSERT INTO demand_forecasts (forecast_id, tenant_id, product_id, expected_demand, "
+                "confidence_range_lower, confidence_range_upper, forecast_target_date, model_version, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, 'test-model', %s);",
+                (forecast_id, tenant_id, product_id, expected_demand, expected_demand - 5, expected_demand + 5, target_date, created_at),
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO demand_forecasts (forecast_id, tenant_id, product_id, expected_demand, "
+                "confidence_range_lower, confidence_range_upper, forecast_target_date, model_version) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, 'test-model');",
+                (forecast_id, tenant_id, product_id, expected_demand, expected_demand - 5, expected_demand + 5, target_date),
+            )
+        if confidence_score is not None:
+            cursor.execute(
+                "INSERT INTO evidence_records (tenant_id, forecast_id, category, source_module, "
+                "explanation_text, confidence_score) VALUES (%s, %s, 'PREDICTION', 'ai.forecasting', "
+                "'MASE=0.12, RMSE=1.4, XGBoost outperformed baselines', %s);",
+                (tenant_id, forecast_id, confidence_score),
+            )
+    return forecast_id
+
+
+def test_demand_forecast_summary_is_plain_language_and_never_leaks_jargon(conn):
+    """
+    The real fix for "forecasting outputs must completely drop raw
+    technical jargon": run_forecast()'s own internal explanation_text
+    (persisted to evidence_records for audit purposes - see forecasting/
+    pipeline.py's own docstring) is intentionally technical. This
+    generator must NEVER read or repeat that field - it derives its own
+    plain-language narrative straight from demand_forecasts' numeric
+    columns instead.
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine")
+    conn.commit()
+    target_date = (datetime.now(timezone.utc) + timedelta(days=7)).date()
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=42, target_date=target_date, confidence_score=0.8)
+    conn.commit()
+
+    summary = structured_summaries.generate_demand_forecast_summary(conn, tenant_id)
+
+    assert "Espresso Machine" in summary
+    assert "42 units" in summary
+    assert target_date.isoformat() in summary
+    for jargon in ("MASE", "RMSE", "XGBoost", "0.8", "0.80"):
+        assert jargon not in summary
+
+
+def test_demand_forecast_summary_handles_no_forecast_yet_honestly(conn):
+    tenant_id = _insert_company(conn)
+    conn.commit()
+    summary = structured_summaries.generate_demand_forecast_summary(conn, tenant_id)
+    assert "no forecast has been generated yet" in summary
+
+
+def test_demand_forecast_summary_uses_only_the_latest_forecast_per_product(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    conn.commit()
+    target_date = (datetime.now(timezone.utc) + timedelta(days=7)).date()
+    now = datetime.now(timezone.utc)
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=10, target_date=target_date, created_at=now - timedelta(days=1))
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=99, target_date=target_date, created_at=now)
+    conn.commit()
+
+    summary = structured_summaries.generate_demand_forecast_summary(conn, tenant_id)
+
+    assert "99 units" in summary
+    assert "10 units" not in summary
+
+
+def test_strategic_insights_summary_surfaces_a_real_cross_signal_insight(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine", current_price=100.0)
+    competitor_id = _insert_competitor(conn, tenant_id, "Cheaper Co")
+    conn.commit()
+    _insert_competitor_price(conn, tenant_id, product_id, competitor_id, scraped_price=70.0)
+    now = datetime.now(timezone.utc)
+    _insert_invoice_with_item(conn, tenant_id, product_id, quantity=2, unit_price=100.0, issue_date=now - timedelta(days=5))
+    _insert_invoice_with_item(conn, tenant_id, product_id, quantity=20, unit_price=100.0, issue_date=now - timedelta(days=45))
+    conn.commit()
+
+    summary = structured_summaries.generate_strategic_insights_summary(conn, tenant_id)
+
+    assert "Espresso Machine" in summary
+
+
+def test_strategic_insights_summary_handles_nothing_notable_honestly(conn):
+    tenant_id = _insert_company(conn)
+    conn.commit()
+    summary = structured_summaries.generate_strategic_insights_summary(conn, tenant_id)
+    assert "nothing stands out yet" in summary
+
+
 @_needs_minio
 def test_upsert_summary_document_creates_then_updates_the_same_slot(conn, minio_client):
     tenant_id = _insert_company(conn)
@@ -254,6 +354,131 @@ def test_upsert_summary_document_creates_then_updates_the_same_slot(conn, minio_
 
     text = minio_client.get_object(TEST_BUCKET, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY)).read()
     assert text.decode("utf-8") == "Second version."
+
+
+@_needs_minio
+def test_upsert_summary_document_skips_the_write_entirely_when_content_is_unchanged(conn, minio_client):
+    """
+    The real fix: regenerate_all_structured_summaries() runs on every
+    scrape event, but it's common for a given slot's text to be
+    byte-identical to what's already stored (e.g. only sentiment changed
+    this run). Re-uploading and re-embedding unchanged content on every
+    single event was a real, avoidable cost - this verifies the skip
+    actually happens: no MinIO write, and processed_status is NOT flipped
+    back to 'Pending' (which would re-trigger a real chunk/embed cycle
+    for nothing).
+    """
+    from unittest.mock import patch
+
+    tenant_id = _insert_company(conn)
+    conn.commit()
+
+    doc_id_1 = structured_summaries._upsert_summary_document(
+        conn, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, "Same content.", TEST_BUCKET,
+    )
+    # Simulate ingest_pending_documents() having already run for this doc.
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE rag_documents_metadata SET processed_status = 'Processed' WHERE document_id = %s;",
+            (doc_id_1,),
+        )
+    conn.commit()
+
+    with patch.object(minio_client, "put_object", wraps=minio_client.put_object) as spy_put:
+        doc_id_2 = structured_summaries._upsert_summary_document(
+            conn, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, "Same content.", TEST_BUCKET,
+        )
+        spy_put.assert_not_called()
+
+    assert doc_id_2 == doc_id_1
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT processed_status FROM rag_documents_metadata WHERE document_id = %s;", (doc_id_1,))
+        assert cursor.fetchone()[0] == "Processed"  # NOT re-armed for ingestion - nothing actually changed
+
+
+@_needs_minio
+def test_upsert_summary_document_still_regenerates_when_content_actually_changes(conn, minio_client):
+    """Companion to the skip test above: a real content change must
+    still go through the full write + re-ingestion-trigger path, exactly
+    as before this fix."""
+    tenant_id = _insert_company(conn)
+    conn.commit()
+
+    doc_id_1 = structured_summaries._upsert_summary_document(
+        conn, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, "Version one.", TEST_BUCKET,
+    )
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE rag_documents_metadata SET processed_status = 'Processed' WHERE document_id = %s;",
+            (doc_id_1,),
+        )
+    conn.commit()
+
+    doc_id_2 = structured_summaries._upsert_summary_document(
+        conn, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, "Version two - actually different.", TEST_BUCKET,
+    )
+
+    assert doc_id_2 == doc_id_1
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT processed_status FROM rag_documents_metadata WHERE document_id = %s;", (doc_id_1,))
+        assert cursor.fetchone()[0] == "Pending"  # re-armed - content genuinely changed
+
+    text = minio_client.get_object(TEST_BUCKET, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY)).read()
+    assert text.decode("utf-8") == "Version two - actually different."
+
+
+@_needs_minio
+def test_upsert_summary_document_is_race_safe_across_two_concurrent_connections(conn, minio_client):
+    """
+    The real fix: analysis_worker.py can process two market.analysis.
+    requested events for the SAME tenant on two different worker
+    processes concurrently (Redis consumer groups only guarantee
+    exclusivity per message, not per tenant). Before the unique index +
+    ON CONFLICT upsert, a check-then-act SELECT-then-INSERT let both
+    connections see no existing row and both INSERT, producing two
+    rag_documents_metadata rows for the same slot. This drives two REAL,
+    separate connections through the same race window with actual
+    threads (not just sequential calls on one connection, which could
+    never have exhibited the bug) and verifies exactly one row survives.
+    """
+    import threading
+
+    tenant_id = _insert_company(conn)
+    conn.commit()
+
+    conn_a = psycopg2.connect(DATABASE_URL)
+    conn_a.autocommit = False
+    conn_b = psycopg2.connect(DATABASE_URL)
+    conn_b.autocommit = False
+
+    barrier = threading.Barrier(2)
+    results = {}
+
+    def _race(name, connection, text):
+        barrier.wait()  # line both threads up to maximize the chance of a genuine overlap
+        results[name] = structured_summaries._upsert_summary_document(
+            connection, minio_client, tenant_id, structured_summaries.SLOT_SALES_HISTORY, text, TEST_BUCKET,
+        )
+
+    try:
+        thread_a = threading.Thread(target=_race, args=("a", conn_a, "From worker A."))
+        thread_b = threading.Thread(target=_race, args=("b", conn_b, "From worker B."))
+        thread_a.start()
+        thread_b.start()
+        thread_a.join()
+        thread_b.join()
+
+        assert results["a"] == results["b"]  # both races resolved to the same document row
+
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) FROM rag_documents_metadata WHERE tenant_id = %s AND storage_bucket_path = %s;",
+                (tenant_id, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY)),
+            )
+            assert cursor.fetchone()[0] == 1  # never two rows for the same slot
+    finally:
+        conn_a.close()
+        conn_b.close()
 
 
 @_needs_minio

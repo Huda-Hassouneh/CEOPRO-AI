@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from src.market_scraper.discovery import CandidateSource
 from src.market_scraper.web_product_discovery import (
@@ -112,12 +112,13 @@ def test_cache_hit_skips_the_live_api_call_entirely():
 
 def test_cache_miss_calls_live_api_and_stores_the_result():
     payload = {"items": [{"title": "Buy Espresso Machine", "link": "https://acme.example/espresso"}]}
+    conn = MagicMock()
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
          patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
          patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
          patch("src.market_scraper.web_product_discovery.search_quota.record_query") as mocked_record, \
          patch("src.market_scraper.web_product_discovery._get", return_value=payload):
-        candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=object())
+        candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=conn)
 
     assert len(candidates) == 1
     mocked_set.assert_called_once()
@@ -125,13 +126,14 @@ def test_cache_miss_calls_live_api_and_stores_the_result():
 
 
 def test_a_genuinely_empty_google_result_is_cached_not_treated_as_a_failure():
+    conn = MagicMock()
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
          patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
          patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
          patch("src.market_scraper.web_product_discovery.search_quota.record_query"), \
          patch("src.market_scraper.web_product_discovery._get", return_value={"items": []}), \
          patch("src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates") as mocked_searxng:
-        candidates = discover_product_candidates("A product nobody sells", api_key="k", cx="c", conn=object())
+        candidates = discover_product_candidates("A product nobody sells", api_key="k", cx="c", conn=conn)
 
     assert candidates == []
     mocked_set.assert_called_once()  # cached as a real "no results" answer
@@ -139,6 +141,7 @@ def test_a_genuinely_empty_google_result_is_cached_not_treated_as_a_failure():
 
 
 def test_google_error_triggers_searxng_fallback_and_is_not_cached():
+    conn = MagicMock()
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
          patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
          patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
@@ -148,11 +151,39 @@ def test_google_error_triggers_searxng_fallback_and_is_not_cached():
              "src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates",
              return_value=[CandidateSource("Espresso Machine", "https://searxng-result.example", "From SearXNG")],
          ) as mocked_searxng:
-        candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=object())
+        candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=conn)
 
     assert candidates[0].url == "https://searxng-result.example"
     mocked_set.assert_not_called()  # a failure is never cached
     mocked_searxng.assert_called_once()
+
+
+def test_record_query_commits_immediately_even_when_the_result_is_zero_candidates():
+    """
+    The real fix: a real Google API call's quota spend must be durably
+    recorded the instant it happens, not only as a side effect of some
+    later caller (e.g. discovery.py registering a competitor elsewhere in
+    the same transaction) committing the connection. Before this, a query
+    that found zero candidates - exactly this scenario - left the spend
+    uncommitted with nothing downstream to ever commit it, silently
+    under-counting real usage against the daily budget.
+    """
+    conn = MagicMock()
+    call_order = []
+    conn.commit.side_effect = lambda: call_order.append("commit")
+
+    with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
+         patch("src.market_scraper.web_product_discovery.search_cache.set_cached"), \
+         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
+         patch(
+             "src.market_scraper.web_product_discovery.search_quota.record_query",
+             side_effect=lambda *a, **k: call_order.append("record_query"),
+         ), \
+         patch("src.market_scraper.web_product_discovery._get", return_value={"items": []}):
+        discover_product_candidates("A product nobody sells", api_key="k", cx="c", conn=conn)
+
+    assert "commit" in call_order
+    assert call_order.index("record_query") < call_order.index("commit")
 
 
 def test_quota_exhausted_skips_the_live_call_and_tries_searxng():
@@ -178,7 +209,7 @@ def test_daily_query_limit_none_disables_local_quota_tracking():
          patch("src.market_scraper.web_product_discovery.search_quota.record_query"), \
          patch("src.market_scraper.web_product_discovery._get", return_value=payload):
         candidates = discover_product_candidates(
-            "Espresso Machine", api_key="k", cx="c", conn=object(), daily_query_limit=None,
+            "Espresso Machine", api_key="k", cx="c", conn=MagicMock(), daily_query_limit=None,
         )
 
     mocked_has_budget.assert_not_called()  # None means "don't track locally at all"
