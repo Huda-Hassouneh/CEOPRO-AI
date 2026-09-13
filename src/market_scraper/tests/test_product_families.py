@@ -1,4 +1,6 @@
-from src.market_scraper.product_families import family_key, recommended_collector_config
+from src.market_scraper.product_families import (
+    family_key, is_price_collapse_eligible, recommended_collector_config,
+)
 
 
 def test_products_differing_only_by_a_numeric_value_share_a_family():
@@ -60,3 +62,32 @@ def test_recommended_config_enables_deep_collection_only_for_strategic_tier():
     assert recommended_collector_config("RELEVANT") == {"fetch_comments": False}
     assert recommended_collector_config("CANDIDATE") == {"fetch_comments": False}
     assert recommended_collector_config(None) == {"fetch_comments": False}
+
+
+def test_price_below_threshold_is_collapse_eligible():
+    assert is_price_collapse_eligible(0.50, "JOD") is True
+    assert is_price_collapse_eligible(0.99, "USD") is True
+
+
+def test_price_at_or_above_threshold_is_not_collapse_eligible():
+    # Strictly below, not at-or-below - a product priced exactly at the
+    # threshold still gets individual precision.
+    assert is_price_collapse_eligible(0.70, "JOD") is False
+    assert is_price_collapse_eligible(10.0, "JOD") is False
+
+
+def test_missing_price_or_currency_is_never_collapse_eligible():
+    assert is_price_collapse_eligible(None, "JOD") is False
+    assert is_price_collapse_eligible(0.10, None) is False
+    assert is_price_collapse_eligible(0.10, "") is False
+
+
+def test_unrecognized_currency_is_never_collapse_eligible():
+    """A currency this codebase has no threshold for is never silently
+    treated as cheap - "track it individually" is the safe fallback, not
+    a guessed FX conversion."""
+    assert is_price_collapse_eligible(0.01, "EGP") is False
+
+
+def test_currency_code_is_case_insensitive():
+    assert is_price_collapse_eligible(0.50, "jod") is True
