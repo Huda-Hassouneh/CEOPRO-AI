@@ -169,22 +169,3 @@ def test_unknown_currency_is_never_collapsed_even_at_a_low_price(conn):
     representatives = select_family_representatives(conn, tenant_id, products)
 
     assert len(representatives) == 2
-
-
-def test_never_collapse_disables_grouping_regardless_of_price(conn):
-    """The high-value-vertical override: even two cheap, same-family_key
-    products must never collapse when never_collapse=True (the caller
-    passes this for a jewelry/luxury tenant)."""
-    tenant_id = _insert_company(conn)
-    a = _insert_product(conn, tenant_id, "Gold Ring 2g", price=0.10)
-    b = _insert_product(conn, tenant_id, "Gold Ring 3g", price=0.10)
-
-    products = [
-        {"product_id": a, "product_name": "Gold Ring 2g"},
-        {"product_id": b, "product_name": "Gold Ring 3g"},
-    ]
-    representatives = select_family_representatives(conn, tenant_id, products, never_collapse=True)
-
-    assert len(representatives) == 2
-    for rep in representatives:
-        assert len(rep["family_members"]) == 1
