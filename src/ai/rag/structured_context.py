@@ -19,6 +19,7 @@ indexed queries - not a full report.
 """
 from typing import Optional
 
+from src.ai.insights.pipeline import generate_insights_for_tenant
 from src.ai.sentiment.pipeline import get_subject_sentiment_summary
 
 
@@ -80,5 +81,40 @@ def build_structured_facts_block(conn, tenant_id: str) -> str:
         lines.append("Current largest price gaps vs. the most recent competitor observation (source: products.current_price vs. latest competitor_prices.scraped_price):")
         for name, own_price, currency, competitor_price in price_rows:
             lines.append(f"- {name}: you {float(own_price):.2f} {currency} vs. competitor {float(competitor_price):.2f} {currency}.")
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT DISTINCT ON (df.product_id)
+                COALESCE(p.product_name->>'en', p.product_name->>'ar', p.product_name::text) AS name,
+                df.expected_demand, df.forecast_target_date
+            FROM demand_forecasts df
+            JOIN products p ON p.tenant_id = df.tenant_id AND p.product_id = df.product_id
+            WHERE df.tenant_id = %s AND p.deleted_at IS NULL
+            ORDER BY df.product_id, df.created_at DESC
+            LIMIT 5;
+            """,
+            (tenant_id,),
+        )
+        forecast_rows = cursor.fetchall()
+    if forecast_rows:
+        lines.append("Current demand forecasts, most recent per product (source: demand_forecasts):")
+        for name, expected_demand, target_date in forecast_rows:
+            lines.append(f"- {name}: about {int(expected_demand)} units expected by {target_date.isoformat()}.")
+
+    # Proactive cross-signal insights (src.ai.insights) - injected on every
+    # single question, not only when explicitly asked for "advice" or
+    # "recommendations": the whole point of automating this synthesis is
+    # that the chatbot can weave a relevant strategic observation into any
+    # answer without the user having to know to ask for it separately.
+    # Capped small (top 3, not all 5 generate_insights_for_tenant() can
+    # return) since this block is injected on every question regardless
+    # of relevance to what was actually asked - keep it a nudge, not a
+    # wall of unrelated text competing with the real answer.
+    insights = generate_insights_for_tenant(conn, tenant_id, max_insights=3)
+    if insights:
+        lines.append("Proactive insights worth mentioning if relevant (source: cross-signal analysis of pricing, sentiment, sales, and forecasts):")
+        for insight in insights:
+            lines.append(f"- {insight.message}")
 
     return "\n".join(lines)

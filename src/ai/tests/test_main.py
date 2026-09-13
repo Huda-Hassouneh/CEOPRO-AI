@@ -10,6 +10,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import jwt
+import redis
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
@@ -134,6 +135,76 @@ def test_upload_response_surfaces_compliance_and_loss_metrics():
     assert body["row_outcomes"][0]["field_errors"] == {"quantity": "bad"}
 
 
+def test_upload_publishes_a_discovery_request_when_new_products_are_created():
+    """
+    The real fix (production-hardening audit): nothing in production ever
+    triggered tenant_discovery.py's competitor discovery automatically -
+    this is that trigger. Fires only when promote_ingested_rows() actually
+    created new products, matching persistence.py's own "only publish on
+    real signal" convention for market.analysis.requested.
+    """
+    fake_conn = MagicMock()
+    fake_summary = MagicMock(
+        template_mode="TEMPLATE_COMPLIANT", is_template_compliant=True, rows_processed=1, rows_partial=0,
+        rows_failed=0, data_loss_pct=0.0, header_coverage_ratio=1.0, minio_object_key=None, row_outcomes=[],
+    )
+    fake_promotion_summary = MagicMock(
+        rows_promoted=1, rows_skipped_incomplete=0, rows_failed=0, products_created=1, errors=[],
+    )
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.db.minio_client", return_value=MagicMock()), \
+         patch("src.ai.main.file_dispatch.read_source_file", return_value=(["product_name"], [{"product_name": "x"}])), \
+         patch("src.ai.main.job_management.resolve_or_create_data_source", return_value="src-1"), \
+         patch("src.ai.main.job_management.create_ingestion_job", return_value="job-1"), \
+         patch("src.ai.main.job_management.finalize_ingestion_job"), \
+         patch("src.ai.main.ingestion_pipeline.process_records", return_value=fake_summary), \
+         patch("src.ai.main.promotion.promote_ingested_rows", return_value=fake_promotion_summary), \
+         patch("src.ai.main._publish_discovery_request") as mock_publish:
+        response = client.post(
+            "/extraction/upload", files={"file": ("t.csv", b"product_name\nx\n", "text/csv")}, headers=_auth()
+        )
+
+    assert response.status_code == 200
+    mock_publish.assert_called_once_with("t1")
+
+
+def test_upload_does_not_publish_a_discovery_request_when_no_products_were_created():
+    fake_conn = MagicMock()
+    fake_summary = MagicMock(
+        template_mode="TEMPLATE_COMPLIANT", is_template_compliant=True, rows_processed=1, rows_partial=0,
+        rows_failed=0, data_loss_pct=0.0, header_coverage_ratio=1.0, minio_object_key=None, row_outcomes=[],
+    )
+    fake_promotion_summary = MagicMock(
+        rows_promoted=1, rows_skipped_incomplete=0, rows_failed=0, products_created=0, errors=[],
+    )
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.db.minio_client", return_value=MagicMock()), \
+         patch("src.ai.main.file_dispatch.read_source_file", return_value=(["product_name"], [{"product_name": "x"}])), \
+         patch("src.ai.main.job_management.resolve_or_create_data_source", return_value="src-1"), \
+         patch("src.ai.main.job_management.create_ingestion_job", return_value="job-1"), \
+         patch("src.ai.main.job_management.finalize_ingestion_job"), \
+         patch("src.ai.main.ingestion_pipeline.process_records", return_value=fake_summary), \
+         patch("src.ai.main.promotion.promote_ingested_rows", return_value=fake_promotion_summary), \
+         patch("src.ai.main._publish_discovery_request") as mock_publish:
+        response = client.post(
+            "/extraction/upload", files={"file": ("t.csv", b"product_name\nx\n", "text/csv")}, headers=_auth()
+        )
+
+    assert response.status_code == 200
+    mock_publish.assert_not_called()
+
+
+def test_publish_discovery_request_swallows_redis_errors():
+    """A Redis hiccup must never fail the upload response the user is
+    already waiting on - matches persistence.py's identical convention
+    for market.analysis.requested."""
+    from src.ai.main import _publish_discovery_request
+
+    with patch("src.ai.main.redis.Redis") as mock_redis_cls:
+        mock_redis_cls.return_value.xadd.side_effect = redis.RedisError("boom")
+        _publish_discovery_request("t1")  # must not raise
+
+
 def test_upload_marks_job_failed_and_returns_500_on_unexpected_error():
     fake_conn = MagicMock()
     with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
@@ -244,4 +315,267 @@ def test_rag_query_rejects_top_k_out_of_bounds():
     assert response.status_code == 422
 
     response = client.post("/rag/query", params={"query_text": "q", "top_k": 999}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_onboarding_status_requires_auth():
+    response = client.get("/onboarding/status")
+    assert response.status_code == 401
+
+
+def test_onboarding_status_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"status": "not_started", "connected_methods": [], "invoice_count": 0}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.market_scraper_data_access.get_onboarding_status", return_value=fake_result) as mock_status:
+        response = client.get("/onboarding/status", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_status.assert_called_once_with(fake_conn, "t1")
+
+
+def test_onboarding_connect_database_requires_auth():
+    response = client.post("/onboarding/connect/database", json={
+        "source_name": "My DB", "host": "h", "port": 5432, "dbname": "d",
+        "query": "SELECT 1", "field_mapping": {}, "credentials": {"user": "u", "password": "p"},
+    })
+    assert response.status_code == 401
+
+
+def test_onboarding_connect_database_rejects_missing_required_fields():
+    response = client.post(
+        "/onboarding/connect/database", json={"source_name": "My DB"}, headers=_auth(),
+    )
+    assert response.status_code == 422
+
+
+def test_onboarding_connect_database_registers_a_source_on_success():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch(
+             "src.ai.main.market_scraper_data_access.register_self_service_data_source",
+             return_value="new-source-id",
+         ) as mock_register:
+        response = client.post(
+            "/onboarding/connect/database",
+            json={
+                "source_name": "My POS DB", "host": "db.example.com", "port": 5432, "dbname": "pos",
+                "query": "SELECT * FROM sales", "field_mapping": {"a": "b"},
+                "credentials": {"user": "u", "password": "p"}, "sync_frequency_minutes": 30,
+            },
+            headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"source_id": "new-source-id", "collector_key": "db_connector"}
+    args = mock_register.call_args.args
+    assert args[0] is fake_conn
+    assert args[1] == "t1"
+    assert args[2] == "u1"
+    assert args[3] == "My POS DB"
+    assert args[4] == "db_connector"
+    assert args[5] == {
+        "host": "db.example.com", "port": 5432, "dbname": "pos",
+        "query": "SELECT * FROM sales", "field_mapping": {"a": "b"},
+    }
+    assert args[6] == {"user": "u", "password": "p"}
+    assert args[7] == 30
+
+
+def test_onboarding_connect_api_requires_auth():
+    response = client.post("/onboarding/connect/api", json={
+        "source_name": "My API", "base_url": "https://x.example", "field_mapping": {},
+    })
+    assert response.status_code == 401
+
+
+def test_onboarding_connect_api_rejects_missing_required_fields():
+    response = client.post("/onboarding/connect/api", json={"source_name": "My API"}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_onboarding_connect_api_registers_a_source_with_only_required_fields():
+    """base_url/field_mapping are the only required fields - every other
+    vendor-specific detail is optional and must be omitted from the
+    stored config entirely when not supplied, not stored as a null."""
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch(
+             "src.ai.main.market_scraper_data_access.register_self_service_data_source",
+             return_value="new-source-id",
+         ) as mock_register:
+        response = client.post(
+            "/onboarding/connect/api",
+            json={"source_name": "My POS API", "base_url": "https://pos.example.com", "field_mapping": {"a": "b"}},
+            headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"source_id": "new-source-id", "collector_key": "api_connector"}
+    args = mock_register.call_args.args
+    assert args[4] == "api_connector"
+    assert args[5] == {"base_url": "https://pos.example.com", "field_mapping": {"a": "b"}}
+    assert args[6] is None
+    assert args[7] is None
+
+
+def test_onboarding_connect_api_includes_optional_fields_when_given():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch(
+             "src.ai.main.market_scraper_data_access.register_self_service_data_source",
+             return_value="new-source-id",
+         ) as mock_register:
+        response = client.post(
+            "/onboarding/connect/api",
+            json={
+                "source_name": "My POS API", "base_url": "https://pos.example.com", "field_mapping": {"a": "b"},
+                "records_path": "data.results", "page_size_param": "per_page", "page_size": 50,
+                "credentials": {"api_key": "secret"},
+            },
+            headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    args = mock_register.call_args.args
+    assert args[5] == {
+        "base_url": "https://pos.example.com", "field_mapping": {"a": "b"},
+        "records_path": "data.results", "page_size_param": "per_page", "page_size": 50,
+    }
+    assert args[6] == {"api_key": "secret"}
+
+
+def test_dashboard_metrics_requires_auth():
+    response = client.get("/dashboard/metrics")
+    assert response.status_code == 401
+
+
+def test_dashboard_metrics_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {
+        "window_days": 30,
+        "revenue": {"amount": 12420.0, "currency": "JOD", "change_pct": 12.0},
+        "units_sold": {"units": 1482, "change_pct": 8.0},
+        "transaction_growth_pct": 18.0,
+        "competitors_tracked": {"count": 12, "new_this_window": 2},
+    }
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_metrics.get_dashboard_metrics", return_value=fake_result) as mock_metrics:
+        response = client.get("/dashboard/metrics", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_metrics.assert_called_once_with(fake_conn, "t1", window_days=30)
+
+
+def test_dashboard_metrics_accepts_a_custom_window():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_metrics.get_dashboard_metrics", return_value={}) as mock_metrics:
+        response = client.get("/dashboard/metrics", params={"window_days": 7}, headers=_auth())
+
+    assert response.status_code == 200
+    mock_metrics.assert_called_once_with(fake_conn, "t1", window_days=7)
+
+
+def test_dashboard_metrics_rejects_an_out_of_bounds_window():
+    response = client.get("/dashboard/metrics", params={"window_days": 0}, headers=_auth())
+    assert response.status_code == 422
+
+    response = client.get("/dashboard/metrics", params={"window_days": 400}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_dashboard_recommendations_requires_auth():
+    response = client.get("/dashboard/recommendations")
+    assert response.status_code == 401
+
+
+def test_dashboard_recommendations_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = [{"product_id": "p1", "category": "Pricing", "priority": "high", "message": "..."}]
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_recommendations.get_top_recommendations", return_value=fake_result) as mock_recs:
+        response = client.get("/dashboard/recommendations", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == {"recommendations": fake_result}
+    fake_conn.commit.assert_called_once()
+    mock_recs.assert_called_once_with(fake_conn, "t1", limit=3)
+
+
+def test_dashboard_recommendations_accepts_a_custom_limit():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_recommendations.get_top_recommendations", return_value=[]) as mock_recs:
+        response = client.get("/dashboard/recommendations", params={"limit": 5}, headers=_auth())
+
+    assert response.status_code == 200
+    mock_recs.assert_called_once_with(fake_conn, "t1", limit=5)
+
+
+def test_dashboard_recommendations_rejects_an_out_of_bounds_limit():
+    response = client.get("/dashboard/recommendations", params={"limit": 0}, headers=_auth())
+    assert response.status_code == 422
+
+    response = client.get("/dashboard/recommendations", params={"limit": 21}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_dashboard_forecast_requires_auth():
+    response = client.get("/dashboard/forecast")
+    assert response.status_code == 401
+
+
+def test_dashboard_forecast_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"total_predicted_units": 40, "products_forecasted": 2, "forecast_target_date": "2026-09-19"}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_forecast.get_forecast_summary", return_value=fake_result) as mock_forecast:
+        response = client.get("/dashboard/forecast", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_forecast.assert_called_once_with(fake_conn, "t1")
+
+
+def test_dashboard_competitor_pricing_requires_auth():
+    response = client.get("/dashboard/competitor-pricing")
+    assert response.status_code == 401
+
+
+def test_dashboard_competitor_pricing_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = [{"product_id": "p1", "product_name": "Widget", "currency": "JOD",
+                     "your_price": 120.0, "market_average_price": 100.0, "price_gap_pct": 20.0,
+                     "competitors_compared": 1}]
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_competitor_pricing.get_competitor_price_positioning", return_value=fake_result) as mock_pricing:
+        response = client.get("/dashboard/competitor-pricing", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == {"products": fake_result}
+    fake_conn.commit.assert_called_once()
+    mock_pricing.assert_called_once_with(fake_conn, "t1", limit=10)
+
+
+def test_dashboard_competitor_pricing_accepts_a_custom_limit():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_competitor_pricing.get_competitor_price_positioning", return_value=[]) as mock_pricing:
+        response = client.get("/dashboard/competitor-pricing", params={"limit": 5}, headers=_auth())
+
+    assert response.status_code == 200
+    mock_pricing.assert_called_once_with(fake_conn, "t1", limit=5)
+
+
+def test_dashboard_competitor_pricing_rejects_an_out_of_bounds_limit():
+    response = client.get("/dashboard/competitor-pricing", params={"limit": 0}, headers=_auth())
+    assert response.status_code == 422
+
+    response = client.get("/dashboard/competitor-pricing", params={"limit": 51}, headers=_auth())
     assert response.status_code == 422
