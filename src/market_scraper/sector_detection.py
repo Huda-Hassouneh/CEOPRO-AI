@@ -42,22 +42,7 @@ _VERTICAL_KEYWORDS: Dict[str, List[str]] = {
         "chair", "table", "sofa", "lamp", "shelf", "cabinet", "mattress", "rug", "curtain",
         "furniture", "desk", "drawer", "mirror", "cushion",
     ],
-    "jewelry_luxury": [
-        "gold", "jewelry", "jewellery", "diamond", "ring", "necklace", "bracelet", "earring",
-        "silver", "platinum", "watch", "gemstone", "pendant", "bangle", "brooch", "ruby",
-        "sapphire", "emerald", "pearl", "anklet",
-    ],
 }
-
-# Verticals where every item is individually valuable/high-margin, so the
-# per-SKU price-threshold collapse product_families.py otherwise applies
-# (grouping cheap, rarely-moving SKUs like basic resistors into one family
-# search) must never fire, regardless of any one item's price - a cheap-
-# looking gold chain by weight is still a product this tenant needs
-# tracked on its own, never folded into "all gold jewelry" as if it were
-# a commodity resistor. Consulted by product_families.py::
-# select_family_representatives() via its own never_collapse param.
-HIGH_VALUE_VERTICALS = {"jewelry_luxury"}
 
 _WORD_RE = re.compile(r"[a-zA-Z]+")
 
@@ -71,7 +56,6 @@ VERTICAL_INDUSTRY_LABELS: Dict[str, str] = {
     "food_beverage": "restaurant OR cafe",
     "apparel_fashion": "clothing store",
     "home_furniture": "furniture store",
-    "jewelry_luxury": "jewelry store",
     "general_retail": "retail store",
 }
 

@@ -1,6 +1,5 @@
 from src.market_scraper.sector_detection import (
-    HIGH_VALUE_VERTICALS, VERTICAL_INDUSTRY_LABELS, build_industry_search_query, detect_vertical,
-    infer_industry_sector,
+    VERTICAL_INDUSTRY_LABELS, build_industry_search_query, infer_industry_sector,
 )
 
 
@@ -41,16 +40,3 @@ def test_infer_industry_sector_returns_none_when_nothing_matches():
 def test_infer_industry_sector_handles_empty_text():
     assert infer_industry_sector("") is None
     assert infer_industry_sector(None) is None
-
-
-def test_jewelry_catalog_detects_as_jewelry_luxury():
-    detection = detect_vertical(["Gold Ring 2g", "Silver Necklace", "Diamond Earring"])
-    assert detection.vertical == "jewelry_luxury"
-
-
-def test_jewelry_luxury_is_a_high_value_vertical():
-    # product_families.select_family_representatives()'s never_collapse
-    # gate depends on this membership - every _VERTICAL_KEYWORDS entry
-    # that should never be price-collapsed must be listed here.
-    assert "jewelry_luxury" in HIGH_VALUE_VERTICALS
-    assert HIGH_VALUE_VERTICALS <= set(VERTICAL_INDUSTRY_LABELS)
