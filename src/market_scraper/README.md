@@ -65,19 +65,18 @@ Ikea included — without a bespoke spider):
   confirmed from Mouser's own docs. Same flagged field-name caveat as `digikey_api` above; price is
   parsed via `parsing.py::parse_price()` since Mouser documents it as a currency-symbol string
   (e.g. `"$0.4700"`), not a bare number.
-- **`social_data_provider`** (`spiders/social_data_provider.py`) — Instagram/Facebook/TikTok have no
+- **`social_data_provider`** (`spiders/social_data_provider.py`) — Instagram/Facebook have no
   public API for competitor data and their ToS prohibits direct automated collection, so this repo
   never scrapes them itself (`social_cross_reference.py` is the free, ToS-compliant alternative for
   finding *mentions* of a competitor via Google's own index). This collector instead wraps a paid
   third-party provider's REST API, modeled on Apify's Actor API
   (`run-sync-get-dataset-items`) — one maintained actor per platform, defaulting to Apify's own
-  published actors (`apify~instagram-scraper`, `apify~tiktok-scraper`,
-  `apify~facebook-pages-scraper` — the REST API requires the owner/actor-name separator to be `~`,
-  not the `/` shown on the actor's store page; `_first_present()`'s candidate field names — `diggCount` for
-  TikTok's like-count convention alongside `likesCount`/`like_count` — already anticipate these
-  actors' real output shape, not a hypothetical one), overridable per source via
-  `collector_config["actor_ids"]` for a different actor entirely. It only ever talks to the
-  provider's own API host, never to facebook.com/instagram.com/tiktok.com directly — Apify (or
+  published actors (`apify~instagram-scraper`, `apify~facebook-pages-scraper` — the REST API
+  requires the owner/actor-name separator to be `~`, not the `/` shown on the actor's store page),
+  overridable per source via `collector_config["actor_ids"]` for a different actor entirely.
+  TikTok is deliberately not supported — no actor is configured for it, and a TikTok URL is not
+  recognized as a valid platform by this collector. It only ever talks to the
+  provider's own API host, never to facebook.com/instagram.com directly — Apify (or
   whichever provider) is the one taking on the operational scraping, same category as
   `scrape_creators` below, not this codebase doing it itself. Two-stage
   collection: one call per competitor profile returns posts with their own like/share/comment-count
@@ -86,6 +85,11 @@ Ikea included — without a bespoke spider):
   `reviews.like_count`/`reply_count` and `market_observations.like_count`/`share_count`
   (`20260906010000_add_engagement_metrics_columns.sql`). Comments are a second, separately-billed
   provider call on top of the posts call — disable `fetch_comments` for the cheaper posts-only mode.
+  A reply is also linked to its real parent comment (`reviews.parent_review_id`,
+  `20260913000000_add_reply_threading_to_reviews.sql`) — see `_flatten_comments()`'s own docstring
+  in `social_data_provider.py` for which field-name/nesting shapes are recognized, and
+  `market_repository.py::_link_reply_parents()` for how the link is resolved at persistence time
+  (including across separate collection runs, not just within one batch).
 - **`scrape_creators`** (`spiders/scrape_creators.py`) — **the reserve, cold-configured social
   provider** as of the 2026-09-07 vendor policy revision (see "Vendor policy" below — `social_data_
   provider`/Apify is the primary, active vendor for this deployment; this stayed the primary/active
@@ -97,10 +101,10 @@ Ikea included — without a bespoke spider):
   comments charged exactly 1 credit — which makes deep comment-thread mining (the actual product
   goal: hidden negative sentiment, complaint themes) far cheaper than a per-row-billed provider once
   a thread runs long. Each target's `competitor_product_url` is treated as a specific post/video URL
-  to monitor in depth, not a profile to browse. Instagram/TikTok endpoint paths exist in
-  ScrapeCreators' own docs but their exact response field names aren't independently confirmed the
+  to monitor in depth, not a profile to browse. Instagram's endpoint path exists in
+  ScrapeCreators' own docs but its exact response field names aren't independently confirmed the
   way Facebook's is — `collector_config["endpoints"]`/`["field_overrides"]` correct that
-  per-platform without a code change once checked.
+  once checked. TikTok is deliberately not supported here either, same as `social_data_provider`.
 
   **Full-thread capture is the default** — product requirement: a truncated thread can hide exactly
   the negative-sentiment comments that matter most. `collector_config["max_comment_pages"]` and
@@ -114,7 +118,31 @@ Ikea included — without a bespoke spider):
   default in normal operation — set any of the three explicitly (`max_credits_per_run` included, to
   `None`) to change or remove it entirely.
 
-All four require credentials, supplied per-source via `data_sources.connection_credentials_vault`
+- **`video_transcript_provider`** (`spiders/video_transcript_provider.py`) — a competitor's video
+  post (Instagram/Facebook, same TikTok exclusion as the two collectors above), transcribed to text
+  plus its own post metadata: caption, creator handle, publish date, view count
+  (`market_observations.view_count`/`creator_handle`/`content_date`,
+  `20260913010000_add_video_metadata_columns.sql`; the transcript itself lands in `page_text`, same
+  column `social_data_provider` uses for a caption, just holding the richer transcript text here).
+  Apify's Store lists many independently-published (not Apify-authored) actors that do this —
+  [memo23/video-audio-transcriber](https://apify.com/memo23/video-audio-transcriber),
+  [zaver.api/universal-video-audio-transcriber](https://apify.com/zaver.api/universal-video-audio-transcriber),
+  [lergassy/speech-to-text](https://apify.com/lergassy/speech-to-text),
+  [almoutasem_nabil/video-transcript-summary](https://apify.com/almoutasem_nabil/video-transcript-summary)
+  (markets itself specifically as Arabic-first: dialect preserved verbatim in the transcript,
+  summaries in Modern Standard Arabic) among others — but there is no single Apify-maintained "the"
+  video-transcript actor the way `apify~instagram-scraper` is Apify's own post scraper, so unlike
+  `social_data_provider`'s `actor_ids`, this collector has **no default actor id**:
+  `collector_config["actor_id"]` must be set explicitly to whichever actor is actually chosen and
+  paid for, or `VideoActorNotConfiguredError` is raised before any request is sent — the same
+  "nothing works until a human picks and configures a real vendor" contract as every other paid
+  collector here, just without a starting guess. Field names in the response are a best-effort
+  default across the candidate actors above (`transcript`/`transcriptText`/`text`/`spokenText`/
+  `fullText`, `viewCount`/`videoViewCount`/`playCount`/`views`, etc.) — verify against whichever
+  actor is actually selected before production use, same flagged-guess caveat as every other
+  paid-provider field mapping in this file.
+
+All five require credentials, supplied per-source via `data_sources.connection_credentials_vault`
 (a JSON object — `{"api_key": ...}` for Places and for ScrapeCreators, `{"access_key",
 "secret_key", "partner_tag"}` for PA-API, `{"api_token": ...}` for the Apify-shaped social
 provider) and passed through by `cli.py` as `credentials_json`. **That column is field-level
@@ -167,6 +195,24 @@ same command.
 ScrapeCreators' source row, if created at all ahead of time, is left with `connection_credentials_vault`
 empty/unset and never approved — it exists in the vault as configuration, not as a running collector,
 mirroring how Apify's row was described here before this revision.
+
+`video_transcript_provider` uses the exact same two commands and the same `{"api_token": ...}`
+credentials shape (same Apify Actor API, different actor) — the only difference is it also requires
+`collector_config` to carry the chosen `actor_id` (see that collector's own section above, and its
+own docstring for why there's no default to fall back on):
+
+```bash
+python -m src.market_scraper.policy_cli register-source \
+  --tenant-id TENANT_UUID --source-id SOURCE_UUID \
+  --source-url https://api.apify.com --official-api-url https://api.apify.com \
+  --terms-permit yes --technical-controls-permit yes \
+  --collector video_transcript_provider \
+  --approval-reference VENDOR-CONTRACT-REF --approved-by REVIEWER_USER_UUID --retention-days 30
+
+python -m src.market_scraper.policy_cli set-credentials \
+  --tenant-id TENANT_UUID --source-id SOURCE_UUID \
+  --credentials-file /path/to/apify-token.json   # {"api_token": "<real Apify token>"}
+```
 
 ## Industry-agnostic discovery orchestration
 
@@ -535,6 +581,30 @@ per-vendor `fetch_page()` (`api_adapter.py`'s existing contract) instead of a SQ
 way to poll an arbitrary REST API without knowing its pagination shape. A true multi-dialect DB
 driver (MySQL, SQL Server, Oracle, ...) — the "Universal Connector Layer" for the top Middle East
 POS/ERP systems — is a distinct, larger piece of work, not built in this pass.
+
+### Named POS/ERP vendor presets (`pos_erp_presets.py`)
+
+Real vendor names for Jordan pharmacy/general POS and Middle East ERP, researched via live web
+search (2026-09-13) rather than invented, plus which of the two connectors above (`connect/api` vs
+`connect/database`) realistically fits each one — see the module's own docstring for the full
+methodology and its limits. Three important caveats, stated plainly rather than glossed over:
+
+1. **No vendor-specific field mapping is included.** A preset only says *which* generic connector
+   applies and *why* — the real `base_url`/`host`/`field_mapping`/credentials for any one tenant's
+   actual account still has to come from that vendor's own docs or dashboard, exactly like every
+   other paid-provider integration in this file (this codebase has no account with any of these
+   vendors to confirm field names against).
+2. **There is no published, market-share-ranked "top 10 in Jordan" / "top 15 in the Middle East"
+   study for POS/ERP vendors** — that was searched for and not found. `JORDAN_GENERAL_PRESETS`
+   (10 entries) and `MIDDLE_EAST_PRESETS` (15 entries) are real, verifiably-operating vendors
+   grouped by category instead, not a claim of definitive ranking by installed base or revenue.
+3. **`JORDAN_PHARMACY_PRESETS["juleb"]` carries a flagged discrepancy**: Dawatech and Smart Systems
+   (Smart Pharmacy) are confirmed Amman, Jordan-headquartered pharmacy vendors. Juleb is a real
+   pharmacy ERP vendor, but sources found it headquartered in Jeddah, Saudi Arabia, serving 700+
+   pharmacy branches across Saudi Arabia/Kuwait/Bahrain/Oman/UAE/Qatar — Jordan was not named as one
+   of its confirmed markets in any source checked. It's included since it was explicitly requested,
+   but the `mechanism_note` on that entry says so rather than silently treating the claim as
+   confirmed.
 
 ## Setup
 

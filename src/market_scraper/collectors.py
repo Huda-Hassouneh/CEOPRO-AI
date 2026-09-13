@@ -10,6 +10,7 @@ from src.market_scraper.spiders.market_source import MarketSourceSpider
 from src.market_scraper.spiders.mouser_api import MouserPricingSpider
 from src.market_scraper.spiders.scrape_creators import ScrapeCreatorsSpider
 from src.market_scraper.spiders.social_data_provider import SocialDataProviderSpider
+from src.market_scraper.spiders.video_transcript_provider import VideoTranscriptProviderSpider
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,7 @@ COLLECTORS = {
     "mouser_api": Collector(MouserPricingSpider),
     "social_data_provider": Collector(SocialDataProviderSpider),
     "scrape_creators": Collector(ScrapeCreatorsSpider),
+    "video_transcript_provider": Collector(VideoTranscriptProviderSpider),
 }
 
 DEFAULT_BY_METHOD = {
