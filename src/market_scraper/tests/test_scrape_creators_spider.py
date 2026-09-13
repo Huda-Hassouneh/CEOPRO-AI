@@ -130,7 +130,7 @@ def test_missing_api_key_is_rejected_before_any_request():
 @pytest.mark.parametrize("url,expected", [
     ("https://www.facebook.com/examplebrand/posts/1", "facebook"),
     ("https://www.instagram.com/p/abc/", "instagram"),
-    ("https://www.tiktok.com/@brand/video/1", "tiktok"),
+    ("https://www.tiktok.com/@brand/video/1", None),  # TikTok deliberately unsupported
     ("https://examplebrand.com", None),
 ])
 def test_platform_for_recognizes_known_social_hosts(url, expected):
