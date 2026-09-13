@@ -26,7 +26,6 @@ model Plan {
   billingIntervalValue      Int                  @map("billing_interval_value")
   billingIntervalUnit       String               @map("billing_interval_unit") @db.VarChar(10)
   trialPeriodValue          Int                  @default(0) @map("trial_period_value")
-  trialPeriodUnit           String?              @map("trial_period_unit") @db.VarChar(10)
 
   paymentProviderProductId  String?              @map("payment_provider_product_id") @db.VarChar(255)
   paymentProviderPlanId     String?              @map("payment_provider_plan_id") @db.VarChar(255)
