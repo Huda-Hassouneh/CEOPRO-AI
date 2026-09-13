@@ -75,6 +75,7 @@ model Subscription {
   id                   String                 @id @default(uuid()) @db.Uuid
   tenantId             String                 @map("tenant_id") @db.Uuid
   planId               String                 @map("plan_id") @db.Uuid
+  paymentProvider             String    @map("payment_provider") @db.VarChar(50)
   payment_providerCustomerId     String?                @unique @map("payment_provider_customer_id") @db.VarChar(255)
   payment_providerSubscriptionId String?                @unique @map("payment_provider_subscription_id") @db.VarChar(255)
   status               String                 @db.VarChar(30)
