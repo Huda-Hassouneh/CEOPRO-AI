@@ -1,7 +1,7 @@
 """
-Paid third-party social-data provider collector (Instagram/Facebook/TikTok).
+Paid third-party social-data provider collector (Instagram/Facebook).
 
-Instagram, Facebook, and TikTok offer no public API for competitor
+Instagram and Facebook offer no public API for competitor
 product/engagement data, and each platform's own Terms of Service
 prohibits direct automated collection of their pages - this repo does not
 scrape them itself (see social_cross_reference.py for the free,
@@ -9,7 +9,7 @@ ToS-compliant alternative: finding *mentions* of a competitor via Google's
 own index, which Googlebot is explicitly permitted to crawl). This
 collector instead wraps a paid third-party provider's REST API - modeled
 on Apify's Actor API (https://docs.apify.com/api/v2), which publishes and
-maintains actors for all three platforms and is a real, low-cost
+maintains actors for both platforms and is a real, low-cost
 (pay-per-use, no monthly minimum) commercially-licensed channel, same
 category of "credential-gated, paid, nothing configured yet" collector as
 amazon_paapi.py/google_places.py.
@@ -35,6 +35,17 @@ Two-stage collection, matching the shared item schema
    are a second billed provider call on top of the posts call - disable
    fetch_comments for the cheaper posts-only mode when comment-level
    detail isn't needed.
+
+   A reply's own comment record is tagged with which comment it's
+   replying to (`parent_external_id`, resolved to a real reviews.
+   parent_review_id at persistence time - see market_repository.py::
+   _link_reply_parents() and the 20260913000000_add_reply_threading_to_
+   reviews.sql migration), whether the provider returns replies nested
+   under their parent ("replies"/"childComments") or as a flat list with
+   their own parent-id field - see _flatten_comments()'s own docstring
+   for exactly which field names are recognized. Never fabricated: a
+   comment with no discoverable parent link is simply a top-level
+   comment, same as before this existed.
 
 Per-platform request/response shape (collector_config["actor_ids"]/
 ["comments_actor_ids"], the run-sync-get-dataset-items input body and
@@ -67,14 +78,12 @@ _DEFAULT_PROVIDER_BASE_URL = "https://api.apify.com/v2/acts"
 _DEFAULT_ACTOR_IDS = {
     "facebook": "apify~facebook-pages-scraper",
     "instagram": "apify~instagram-scraper",
-    "tiktok": "apify~tiktok-scraper",
 }
 
 # Dedicated comments actors - a second, separately-billed call per post.
 _DEFAULT_COMMENTS_ACTOR_IDS = {
     "facebook": "apify~facebook-comments-scraper",
     "instagram": "apify~instagram-comment-scraper",
-    "tiktok": "clockworks~tiktok-comments-scraper",
 }
 
 _PLATFORM_HOSTS = {
@@ -82,8 +91,6 @@ _PLATFORM_HOSTS = {
     "www.facebook.com": "facebook",
     "instagram.com": "instagram",
     "www.instagram.com": "instagram",
-    "tiktok.com": "tiktok",
-    "www.tiktok.com": "tiktok",
 }
 
 
@@ -127,7 +134,7 @@ def _normalize_timestamp(value) -> Optional[str]:
 class SocialDataProviderSpider(scrapy.Spider):
     """Collect competitor social-presence data via a paid third-party API.
 
-    Never requests facebook.com/instagram.com/tiktok.com directly - the
+    Never requests facebook.com/instagram.com directly - the
     only host this spider's allowed_domains permits is the paid provider's
     own API, exactly like amazon_paapi.py only ever talks to
     webservices.amazon.com. Same constructor contract as every other
@@ -218,7 +225,7 @@ class SocialDataProviderSpider(scrapy.Spider):
             return
 
         for post in posts:
-            post_url = post.get("url") or post.get("webVideoUrl") or post.get("permalink") or target["product_url"]
+            post_url = post.get("url") or post.get("permalink") or target["product_url"]
             comments_actor = self.comments_actor_ids.get(platform)
             if self.fetch_comments and comments_actor:
                 payload = self.comments_input_overrides.get(platform) or _default_input(
@@ -249,10 +256,10 @@ class SocialDataProviderSpider(scrapy.Spider):
             post.get("caption") or post.get("text") or post.get("bio") or post.get("description") or ""
         )
         safety_flags = scan_external_text(caption) if caption else []
-        like_count = _first_present(post, "likesCount", "like_count", "diggCount", "likes")
+        like_count = _first_present(post, "likesCount", "like_count", "likes")
         share_count = _first_present(post, "sharesCount", "share_count", "shares")
         comment_count = _first_present(post, "commentsCount", "comment_count", "commentCount")
-        external_id = post.get("id") or post.get("shortCode") or post.get("videoId") or platform
+        external_id = post.get("id") or post.get("shortCode") or platform
         captured_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         return {
             "tenant_id": self.tenant_id, "source_id": self.source_id, "job_id": self.job_id,
@@ -278,26 +285,55 @@ class SocialDataProviderSpider(scrapy.Spider):
             "reviews": reviews, "captured_at": captured_at,
         }
 
-    @staticmethod
-    def _build_reviews(comments: list) -> list:
+    @classmethod
+    def _build_reviews(cls, comments: list) -> list:
         reviews = []
-        for index, comment in enumerate(comments):
-            text = clean_text(comment.get("text") or comment.get("comment") or "")
-            if not text:
-                continue
-            safety_flags = scan_external_text(text)
-            comment_id = comment.get("id") or comment.get("cid") or index
-            reviews.append({
-                "external_review_id": str(comment_id),
-                "review_text": text,
-                "reviewer_name": comment.get("ownerUsername") or comment.get("username") or comment.get("author"),
-                "review_rating": None,
-                "review_date": _normalize_timestamp(
-                    _first_present(comment, "timestamp", "createTime", "created_at", "createdAt")
-                ),
-                "like_count": _first_present(comment, "likesCount", "like_count", "diggCount"),
-                "reply_count": _first_present(comment, "repliesCount", "reply_count", "replyCommentTotal", "reply_comment_total"),
-                "safety_status": "QUARANTINED" if safety_flags else "SAFE",
-                "safety_flags": safety_flags,
-            })
+        cls._flatten_comments(comments, parent_external_id=None, out=reviews, index_offset=[0])
         return reviews
+
+    @classmethod
+    def _flatten_comments(cls, comments: list, parent_external_id: Optional[str], out: list, index_offset: list) -> None:
+        """
+        Walks a comment list, tagging each real review with which comment
+        it's a reply to (parent_external_id) so a reply and its parent can
+        be reconstructed as a real thread downstream, rather than every
+        comment landing as an independent, contextless row.
+
+        Handles both shapes real Apify comment actors commonly use for a
+        top-level comment's replies - a flat record carrying its own
+        parent-id field (candidates: parentCommentId/parentId/
+        repliedToCommentId/replyToId), or a nested "replies"/"childComments"
+        array on the parent record - not independently confirmed against a
+        live payload for any specific actor (same "best-effort default,
+        verify before production" caveat as every other field-name guess in
+        this module), but never silently dropped when present: absent
+        either shape, parent_external_id is simply None, exactly like a
+        genuine top-level comment.
+        """
+        for comment in comments:
+            index_offset[0] += 1
+            text = clean_text(comment.get("text") or comment.get("comment") or "")
+            comment_id = comment.get("id") or index_offset[0]
+            own_parent_id = parent_external_id or _first_present(
+                comment, "parentCommentId", "parentId", "repliedToCommentId", "replyToId",
+            )
+            if text:
+                safety_flags = scan_external_text(text)
+                reviews_entry = {
+                    "external_review_id": str(comment_id),
+                    "parent_external_id": str(own_parent_id) if own_parent_id is not None else None,
+                    "review_text": text,
+                    "reviewer_name": comment.get("ownerUsername") or comment.get("username") or comment.get("author"),
+                    "review_rating": None,
+                    "review_date": _normalize_timestamp(
+                        _first_present(comment, "timestamp", "created_at", "createdAt")
+                    ),
+                    "like_count": _first_present(comment, "likesCount", "like_count"),
+                    "reply_count": _first_present(comment, "repliesCount", "reply_count"),
+                    "safety_status": "QUARANTINED" if safety_flags else "SAFE",
+                    "safety_flags": safety_flags,
+                }
+                out.append(reviews_entry)
+            nested_replies = comment.get("replies") or comment.get("childComments") or []
+            if isinstance(nested_replies, list) and nested_replies:
+                cls._flatten_comments(nested_replies, str(comment_id), out, index_offset)

@@ -12,7 +12,7 @@ and the real required headers (X-DIGIKEY-Client-Id, X-DIGIKEY-Locale-Site/
 -Language/-Currency)
 
 Honest, flagged limit - same category as this PR's own note on scrape_
-creators.py's Instagram/TikTok field names: the exact JSON response FIELD
+creators.py's Instagram field names: the exact JSON response FIELD
 NAMES below (UnitPrice, QuantityAvailable, ProductDescription, etc.) are
 this module's best-effort reading of Digi-Key's public documentation, not
 independently confirmed against a real authenticated call - no
