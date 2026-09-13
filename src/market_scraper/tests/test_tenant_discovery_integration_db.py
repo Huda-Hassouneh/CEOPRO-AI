@@ -48,13 +48,13 @@ def _insert_company(conn, country_code: str = "JO") -> str:
     return tenant_id
 
 
-def _insert_product(conn, tenant_id: str, name: str) -> str:
+def _insert_product(conn, tenant_id: str, name: str, price: float = 10.0, currency: str = "JOD") -> str:
     product_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
             "INSERT INTO products (product_id, tenant_id, product_name, current_price, currency) "
-            "VALUES (%s, %s, %s, 10.0, 'JOD');",
-            (product_id, tenant_id, json.dumps({"en": name})),
+            "VALUES (%s, %s, %s, %s, %s);",
+            (product_id, tenant_id, json.dumps({"en": name}), price, currency),
         )
     return product_id
 
@@ -154,8 +154,8 @@ def test_family_keyed_discovery_searches_once_and_maps_every_member(conn):
     the same found competitor.
     """
     tenant_id = _insert_company(conn)
-    low = _insert_product(conn, tenant_id, "1k Ohm Resistor")
-    high = _insert_product(conn, tenant_id, "2k Ohm Resistor")
+    low = _insert_product(conn, tenant_id, "1k Ohm Resistor", price=0.10)
+    high = _insert_product(conn, tenant_id, "2k Ohm Resistor", price=0.10)
 
     candidate = [CandidateSource("2k Ohm Resistor", "https://example-electronics.test/2k-ohm-resistor", "2k Ohm Resistor - Example Electronics")]
     with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=candidate) as mocked_search, \
@@ -183,6 +183,37 @@ def test_group_by_family_false_searches_every_product_individually(conn):
         discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), group_by_family=False)
 
     assert mocked_search.call_count == 2  # same family, but grouping turned off
+
+
+def test_products_above_the_price_threshold_are_never_collapsed_even_with_grouping_on(conn):
+    """group_by_family=True (the default) no longer means "always collapse
+    a family_key match" - two same-family products priced well above the
+    0.70 JOD threshold must still get one search each."""
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "1k Ohm Resistor", price=10.0)
+    _insert_product(conn, tenant_id, "2k Ohm Resistor", price=10.0)
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    assert mocked_search.call_count == 2  # priced above threshold - individual precision, not a family search
+
+
+def test_jewelry_vertical_never_collapses_even_at_a_low_price(conn):
+    """The high-value-vertical override: a jewelry catalog must be
+    searched product-by-product even when every item happens to be priced
+    under the collapse threshold (e.g. price-per-gram vs. a fixed retail
+    tag) - precision over cost-saving for this vertical, no exceptions."""
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "Gold Ring 2g", price=0.10)
+    _insert_product(conn, tenant_id, "Gold Ring 3g", price=0.10)
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    assert mocked_search.call_count == 2  # jewelry_luxury vertical - never collapsed, regardless of price
 
 
 def test_sitemap_domains_contribute_candidates_when_vertical_has_a_seeded_entry(conn):

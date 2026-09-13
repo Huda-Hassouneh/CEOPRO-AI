@@ -70,7 +70,8 @@ from src.market_scraper.discovery import (
 from src.market_scraper.places_nearby_discovery import discover_nearby_places
 from src.market_scraper.product_families import select_family_representatives
 from src.market_scraper.sector_detection import (
-    VERTICAL_INDUSTRY_LABELS, detect_vertical, resolve_tenant_geo_scope, resolve_tenant_search_radius,
+    HIGH_VALUE_VERTICALS, VERTICAL_INDUSTRY_LABELS, detect_vertical, resolve_tenant_geo_scope,
+    resolve_tenant_search_radius,
 )
 from src.market_scraper.sitemap_discovery import SITEMAP_DOMAINS_BY_VERTICAL, discover_products_via_sitemap
 from src.market_scraper.web_product_discovery import (
@@ -164,6 +165,15 @@ def discover_competitors_for_tenant(
     already small enough not to need this can skip the extra DB queries
     select_family_representatives() itself does).
 
+    Collapsing is precision-gated even when group_by_family=True: only a
+    product priced below product_families.COLLAPSE_ELIGIBLE_PRICE_
+    THRESHOLD for its own currency ever shares a family search with
+    another SKU - see select_family_representatives()'s own docstring.
+    On top of that per-product gate, a tenant whose detected vertical is
+    in sector_detection.HIGH_VALUE_VERTICALS (jewelry/luxury today) never
+    collapses at all, regardless of any item's price - every product in
+    that catalog is searched individually.
+
     skip_already_discovered (default True) is the real zero-dollar answer
     to "the daily quota isn't enough for the whole catalog in one run":
     a product that already has at least one competitor_product_mappings
@@ -199,7 +209,8 @@ def discover_competitors_for_tenant(
     resolved_geo_scope = resolve_tenant_geo_scope(conn, tenant_id, override=geo_scope)
 
     if group_by_family:
-        search_units = select_family_representatives(conn, tenant_id, products)
+        never_collapse = vertical in HIGH_VALUE_VERTICALS
+        search_units = select_family_representatives(conn, tenant_id, products, never_collapse=never_collapse)
     else:
         search_units = [{**product, "family_members": [product]} for product in products]
 
@@ -385,14 +396,19 @@ def map_products_on_domain_competitor_site(
     too - not for API cost (there is none - both mechanisms are free),
     but for politeness: searching once per family instead of once per
     SKU means fewer real HTTP requests against this one competitor's own
-    server, not a shared API quota.
+    server, not a shared API quota. Same precision gate as the other
+    caller: collapsing only ever applies to a product priced below
+    product_families.COLLAPSE_ELIGIBLE_PRICE_THRESHOLD, and not at all
+    for a tenant in sector_detection.HIGH_VALUE_VERTICALS.
     """
     domain = urlsplit(website_url).hostname
     if not domain:
         return []
 
     if group_by_family:
-        search_units = select_family_representatives(conn, tenant_id, products)
+        vertical = detect_vertical([p["product_name"] for p in products]).vertical
+        never_collapse = vertical in HIGH_VALUE_VERTICALS
+        search_units = select_family_representatives(conn, tenant_id, products, never_collapse=never_collapse)
     else:
         search_units = [{**product, "family_members": [product]} for product in products]
 
