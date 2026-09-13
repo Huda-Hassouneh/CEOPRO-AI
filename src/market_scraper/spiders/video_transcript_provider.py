@@ -1,37 +1,40 @@
 """
 Paid third-party video-transcript collector (Instagram/Facebook video posts).
 
-Apify's Store lists many independently-published (not Apify-authored)
-actors that download a public video, run it through a speech-to-text
-model, and return the spoken-word transcript plus the post's own
-metadata (caption, creator handle, publish date, view count) - e.g.
-memo23/video-audio-transcriber, zaver.api/universal-video-audio-transcriber,
-lergassy/speech-to-text, almoutasem_nabil/video-transcript-summary (this
-last one specifically markets Arabic-first handling: dialect preserved
-verbatim in the transcript, summaries in Modern Standard Arabic). There is
-no single Apify-maintained "the" video-transcript actor the way
-apify~instagram-scraper is Apify's own post scraper - it is a marketplace
-of competing community actors with different pricing, language coverage,
-and output field names, and which one is live/best changes over time.
-This module does NOT hardcode one of them as a default: collector_config
-["actor_id"] must be set explicitly (see VideoActorNotConfiguredError),
-same "nothing works until a human picks and configures a real vendor"
-contract as social_data_provider.py's actor_ids, just without a
-starting guess to fall back on.
+Fixed to a specific chosen actor: hgservices/instagram-ai-transcript-scraper
+(https://apify.com/hgservices/instagram-ai-transcript-scraper) - a real,
+live Apify actor (confirmed via web search 2026-09-13: speaker-labeled,
+multilingual transcription with automatic language detection, priced
+per-second, no external API key beyond the tenant's own Apify token).
+apify.com itself is not directly fetchable from this environment's network
+egress, so this actor's exact input/output JSON field names were not
+independently confirmed against its own schema page - its Apify Console
+"Input" tab is described (via search) as taking "Instagram Post URLs", but
+the literal JSON key for that field, and the exact output field names,
+remain a best-effort guess below, same caveat as every other unconfirmed
+field mapping in this codebase (see _default_input()/_build_item()'s own
+notes). Verify both against a real run before production use, and use
+collector_config["input_overrides"] to correct the request body once
+confirmed, without a code change.
+
+Its REST API id uses Apify's owner~actor-name routing (see
+social_data_provider.py's own docstring for the "~" vs "/" gotcha):
+"hgservices~instagram-ai-transcript-scraper" - this is now the fixed
+default (_DEFAULT_ACTOR_ID below), not left unset. Other actors exist in
+Apify's Store for the same job (memo23/video-audio-transcriber,
+zaver.api/universal-video-audio-transcriber, lergassy/speech-to-text,
+almoutasem_nabil/video-transcript-summary, among others) -
+collector_config["actor_id"] can still override the default to switch to
+one of those without a code change.
 
 Same "paid feature, nothing paid configured yet" contract as
 social_data_provider.py/scrape_creators.py: with no
-connection_credentials_vault.api_token, or no collector_config
-["actor_id"], __init__ raises before any request is sent.
+connection_credentials_vault.api_token, __init__ raises before any request
+is sent.
 
 One request per target video URL to the configured actor -
 run-sync-get-dataset-items, same Apify Actor API shape as
-social_data_provider.py (see its own docstring for the "~" vs "/" actor-id
-routing gotcha). The response's field names are a best-effort default
-across the candidate actors above - verify against whichever actor is
-actually selected before production use, and use collector_config
-["input_overrides"] to override the request body per-actor without a
-code change.
+social_data_provider.py.
 
 TikTok is deliberately not a supported platform here, same as
 social_data_provider.py/scrape_creators.py.
@@ -49,16 +52,17 @@ from src.market_scraper.spiders.social_data_provider import PaidProviderNotConfi
 
 _DEFAULT_PROVIDER_BASE_URL = "https://api.apify.com/v2/acts"
 
+# The chosen actor - see this module's own docstring for how it was picked
+# and confirmed real. Apify's "~" (not "/") owner/actor-name separator,
+# same routing gotcha social_data_provider.py's own default actor ids need.
+_DEFAULT_ACTOR_ID = "hgservices~instagram-ai-transcript-scraper"
+
 _PLATFORM_HOSTS = {
     "facebook.com": "facebook",
     "www.facebook.com": "facebook",
     "instagram.com": "instagram",
     "www.instagram.com": "instagram",
 }
-
-
-class VideoActorNotConfiguredError(PaidProviderNotConfiguredError):
-    """Raised when no specific transcript actor has been chosen for this tenant."""
 
 
 def _platform_for(url: str) -> Optional[str]:
@@ -76,12 +80,19 @@ def _first_present(record: dict, *keys) -> Optional[object]:
 
 def _default_input(video_url: str) -> dict:
     """
-    Best-effort default input shape - real actors vary (some want
-    "videoUrl", others "videos"/"startUrls"); override per-platform via
-    collector_config["input_overrides"][platform] once the chosen actor's
-    real schema is confirmed.
+    Best-effort default input shape for hgservices/instagram-ai-transcript-
+    scraper - its Apify Console "Input" tab is described (via search) as
+    taking "Instagram Post URLs", but the literal JSON key for that field
+    was not independently confirmed (apify.com is not fetchable from this
+    environment). Sends several plausible candidate keys at once
+    ("videoUrl", "postUrls"/"startUrls" as arrays) so a real run reveals
+    which one the actor actually reads; override via
+    collector_config["input_overrides"][platform] once confirmed.
     """
-    return {"videoUrl": video_url, "startUrls": [{"url": video_url}], "language": "auto"}
+    return {
+        "videoUrl": video_url, "postUrls": [video_url],
+        "startUrls": [{"url": video_url}], "language": "auto",
+    }
 
 
 def _normalize_timestamp(value) -> Optional[str]:
@@ -134,14 +145,7 @@ class VideoTranscriptProviderSpider(scrapy.Spider):
                 "not configured, so no request will be sent."
             )
         collector_config = json.loads(collector_config_json or "{}")
-        self.actor_id = collector_config.get("actor_id")
-        if not self.actor_id:
-            raise VideoActorNotConfiguredError(
-                "video_transcript_provider collector requires collector_config['actor_id'] "
-                "(the specific Apify video-transcript actor chosen for this tenant, e.g. "
-                "one of the candidates listed in this module's docstring) - there is no "
-                "single default actor for this feature, so none will be guessed."
-            )
+        self.actor_id = collector_config.get("actor_id") or _DEFAULT_ACTOR_ID
         self.provider_base_url = collector_config.get("provider_base_url", _DEFAULT_PROVIDER_BASE_URL)
         self.input_overrides = collector_config.get("input_overrides") or {}
         self.allowed_domains = [urlsplit(self.provider_base_url).hostname]

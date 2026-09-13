@@ -124,23 +124,24 @@ Ikea included — without a bespoke spider):
   (`market_observations.view_count`/`creator_handle`/`content_date`,
   `20260913010000_add_video_metadata_columns.sql`; the transcript itself lands in `page_text`, same
   column `social_data_provider` uses for a caption, just holding the richer transcript text here).
-  Apify's Store lists many independently-published (not Apify-authored) actors that do this —
-  [memo23/video-audio-transcriber](https://apify.com/memo23/video-audio-transcriber),
-  [zaver.api/universal-video-audio-transcriber](https://apify.com/zaver.api/universal-video-audio-transcriber),
-  [lergassy/speech-to-text](https://apify.com/lergassy/speech-to-text),
-  [almoutasem_nabil/video-transcript-summary](https://apify.com/almoutasem_nabil/video-transcript-summary)
-  (markets itself specifically as Arabic-first: dialect preserved verbatim in the transcript,
-  summaries in Modern Standard Arabic) among others — but there is no single Apify-maintained "the"
-  video-transcript actor the way `apify~instagram-scraper` is Apify's own post scraper, so unlike
-  `social_data_provider`'s `actor_ids`, this collector has **no default actor id**:
-  `collector_config["actor_id"]` must be set explicitly to whichever actor is actually chosen and
-  paid for, or `VideoActorNotConfiguredError` is raised before any request is sent — the same
-  "nothing works until a human picks and configures a real vendor" contract as every other paid
-  collector here, just without a starting guess. Field names in the response are a best-effort
-  default across the candidate actors above (`transcript`/`transcriptText`/`text`/`spokenText`/
-  `fullText`, `viewCount`/`videoViewCount`/`playCount`/`views`, etc.) — verify against whichever
-  actor is actually selected before production use, same flagged-guess caveat as every other
-  paid-provider field mapping in this file.
+  Fixed to a specific chosen actor: [hgservices/instagram-ai-transcript-scraper]
+  (https://apify.com/hgservices/instagram-ai-transcript-scraper) — a real, live Apify actor
+  (confirmed via web search 2026-09-13: speaker-labeled, multilingual transcription with automatic
+  language detection, priced per-second). `_DEFAULT_ACTOR_ID` (`"hgservices~instagram-ai-transcript-
+  scraper"`, Apify's `~` owner/actor-name routing) is used automatically —
+  `collector_config["actor_id"]` can still override it to switch to a different actor (Apify's Store
+  has other options for the same job — memo23/video-audio-transcriber, zaver.api/universal-video-
+  audio-transcriber, lergassy/speech-to-text, almoutasem_nabil/video-transcript-summary among them —
+  without a code change), but nothing is left unconfigured by default anymore. apify.com itself is
+  not directly fetchable from this environment's network egress, so this specific actor's exact
+  input/output JSON field names were **not** independently confirmed against its own schema page —
+  its Console "Input" tab is described (via search) as taking "Instagram Post URLs", but the literal
+  JSON key remains a best-effort guess (`_default_input()` sends several plausible candidates at
+  once — `videoUrl`, `postUrls`, `startUrls` — so a real run reveals which one it actually reads);
+  same for output field names (`transcript`/`transcriptText`/`text`/`spokenText`/`fullText`,
+  `viewCount`/`videoViewCount`/`playCount`/`views`, etc.). Verify both against a real run before
+  production use and correct via `collector_config["input_overrides"]` if needed — same flagged-guess
+  caveat as every other paid-provider field mapping in this file.
 
 All five require credentials, supplied per-source via `data_sources.connection_credentials_vault`
 (a JSON object — `{"api_key": ...}` for Places and for ScrapeCreators, `{"access_key",

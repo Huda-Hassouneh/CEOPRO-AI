@@ -5,7 +5,7 @@ from scrapy.http import Request, TextResponse
 
 from src.market_scraper.spiders.social_data_provider import PaidProviderNotConfiguredError
 from src.market_scraper.spiders.video_transcript_provider import (
-    VideoActorNotConfiguredError,
+    _DEFAULT_ACTOR_ID,
     VideoTranscriptProviderSpider,
     _platform_for,
 )
@@ -53,9 +53,13 @@ def test_missing_api_token_is_rejected_before_any_request():
         )
 
 
-def test_missing_actor_id_is_rejected_before_any_request():
-    with pytest.raises(VideoActorNotConfiguredError, match="actor_id"):
-        spider(collector_config_json="{}")
+def test_default_actor_id_is_used_when_none_is_configured():
+    default_spider = spider(collector_config_json="{}")
+    request = list(default_spider._initial_requests())[0]
+    assert request.url.startswith(
+        f"https://api.apify.com/v2/acts/{_DEFAULT_ACTOR_ID}/run-sync-get-dataset-items"
+    )
+    assert _DEFAULT_ACTOR_ID == "hgservices~instagram-ai-transcript-scraper"
 
 
 @pytest.mark.parametrize("url,expected", [
