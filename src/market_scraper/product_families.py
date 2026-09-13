@@ -12,6 +12,17 @@ family member - one real search instead of one per SKU, with zero loss
 of per-SKU competitor_product_mappings coverage (every real SKU still
 gets a real mapping row, just without a redundant re-search for it).
 
+Collapsing into a family search is gated on price, not applied blindly:
+only a product priced below COLLAPSE_ELIGIBLE_PRICE_THRESHOLD for its own
+currency is eligible to share a search with same-family_key() products at
+all (see is_price_collapse_eligible()) - a family_key match on its own
+groups nothing. A tenant/vertical where every item is individually
+valuable regardless of price (jewelry, for example) can disable
+collapsing entirely via select_family_representatives()'s never_collapse
+param. Precision is the priority this gate protects: an ineligible
+product is always returned as its own single-member family, tracked and
+searched on its own, never folded into a group for the sake of cost.
+
 Representative selection is sales-volume-based when real transaction
 data exists (the highest-selling variant is the one worth searching for
 - it's the one a competitor is most likely to also carry and the one
@@ -74,6 +85,52 @@ def family_key(product_name: str) -> str:
     return " ".join(sorted(set(significant)))
 
 
+# Below this price (exclusive), in the product's OWN currency, a product
+# is *eligible* to be collapsed into a family search - collapsing is a
+# cost/politeness optimization that only makes sense when the item's own
+# value is negligible (the vision's own example: basic resistors, whose
+# price essentially never moves and whose per-SKU tracking precision the
+# business doesn't need). A currency this map doesn't recognize is never
+# treated as eligible - a silent FX guess would be a fake precision claim,
+# and "track it individually" is the safe fallback, never "assume it's
+# cheap". Values are a dynamic baseline (~1 USD), not a fixed calendar
+# schedule - this replaces the earlier "poll cheap items monthly" idea
+# entirely: an eligible item still gets searched every real discovery run,
+# just once per family instead of once per SKU.
+COLLAPSE_ELIGIBLE_PRICE_THRESHOLD: Dict[str, float] = {
+    "JOD": 0.70,
+    "USD": 1.00,
+}
+
+
+def is_price_collapse_eligible(current_price: Optional[float], currency: Optional[str]) -> bool:
+    """True only when both the price and currency are known and the price
+    is strictly below this currency's threshold. Missing price, missing
+    currency, or an unrecognized currency code all return False - grouping
+    is an optimization the system must earn evidence for, not a default."""
+    if current_price is None or not currency:
+        return False
+    threshold = COLLAPSE_ELIGIBLE_PRICE_THRESHOLD.get(currency.upper())
+    if threshold is None:
+        return False
+    return float(current_price) < threshold
+
+
+def _load_prices(conn, tenant_id: str, product_ids: List[str]) -> Dict[str, "tuple[Optional[float], Optional[str]]"]:
+    if not product_ids:
+        return {}
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT product_id, current_price, currency FROM products "
+            "WHERE tenant_id = %s AND product_id = ANY(%s::uuid[]);",
+            (tenant_id, product_ids),
+        )
+        return {
+            str(product_id): (float(price) if price is not None else None, currency)
+            for product_id, price, currency in cursor.fetchall()
+        }
+
+
 def _load_sales_volumes(conn, tenant_id: str, product_ids: List[str]) -> Dict[str, int]:
     if not product_ids:
         return {}
@@ -90,7 +147,9 @@ def _load_sales_volumes(conn, tenant_id: str, product_ids: List[str]) -> Dict[st
         return {str(product_id): int(total) for product_id, total in cursor.fetchall()}
 
 
-def select_family_representatives(conn, tenant_id: str, products: List[dict]) -> List[dict]:
+def select_family_representatives(
+    conn, tenant_id: str, products: List[dict], never_collapse: bool = False,
+) -> List[dict]:
     """
     Groups `products` ([{"product_id", "product_name"}]) by family_key()
     and returns one representative dict per family, with two extra keys:
@@ -99,14 +158,37 @@ def select_family_representatives(conn, tenant_id: str, products: List[dict]) ->
     the representative's search results to every real SKU without
     re-searching.
 
+    Precision-first collapse gate (the real fix for "cheap resistors
+    should share one search, but a gold ring never should"): a product
+    only ever enters a multi-member family when its OWN current_price is
+    below COLLAPSE_ELIGIBLE_PRICE_THRESHOLD for its OWN currency (see
+    is_price_collapse_eligible()) - matching family_key() alone is never
+    enough. Any product that fails that price check - missing price,
+    unrecognized currency, or price at/above the threshold - is returned
+    as its own single-member family regardless of what family_key()
+    would have grouped it with; a family_key match still narrows WHICH
+    eligible products can share a search, it just no longer decides
+    collapse on its own. never_collapse=True (pass this for a tenant/
+    vertical where every item is individually valuable - see
+    sector_detection.HIGH_VALUE_VERTICALS) disables collapsing entirely
+    regardless of any product's price: every product comes back as its
+    own single-member family.
+
     Representative = highest total transactions.quantity_sold in this
     family; a family with no sales data anywhere falls back to the first
     product alphabetically by name (deterministic, not random) - real
     and stated, not disguised as volume-based.
     """
+    prices = _load_prices(conn, tenant_id, [p["product_id"] for p in products])
+
     families: Dict[str, List[dict]] = defaultdict(list)
+    singles: List[dict] = []
     for product in products:
-        families[family_key(product["product_name"])].append(product)
+        price, currency = prices.get(product["product_id"], (None, None))
+        if never_collapse or not is_price_collapse_eligible(price, currency):
+            singles.append(product)
+        else:
+            families[family_key(product["product_name"])].append(product)
 
     volumes = _load_sales_volumes(conn, tenant_id, [p["product_id"] for p in products])
 
@@ -117,6 +199,13 @@ def select_family_representatives(conn, tenant_id: str, products: List[dict]) ->
         representative["family_key"] = key
         representative["family_members"] = members
         representatives.append(representative)
+
+    for product in singles:
+        representative = dict(product)
+        representative["family_key"] = family_key(product["product_name"])
+        representative["family_members"] = [product]
+        representatives.append(representative)
+
     return representatives
 
 
