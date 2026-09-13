@@ -38,13 +38,17 @@ def _insert_company(conn) -> str:
     return tenant_id
 
 
-def _insert_product(conn, tenant_id: str, name: str) -> str:
+def _insert_product(conn, tenant_id: str, name: str, price: float = 0.30, currency: str = "JOD") -> str:
+    """Defaults to a collapse-eligible price (below the 0.70 JOD
+    threshold) so existing family-grouping tests keep testing what they
+    say they test without every call site needing to know about the
+    price gate; tests of the gate itself pass an explicit price."""
     product_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
             "INSERT INTO products (product_id, tenant_id, product_name, current_price, currency) "
-            "VALUES (%s, %s, %s, 10.0, 'JOD');",
-            (product_id, tenant_id, json.dumps({"en": name})),
+            "VALUES (%s, %s, %s, %s, %s);",
+            (product_id, tenant_id, json.dumps({"en": name}), price, currency),
         )
     return product_id
 
@@ -102,6 +106,65 @@ def test_genuinely_different_products_produce_separate_families(conn):
     products = [
         {"product_id": resistor, "product_name": "1k Ohm Resistor"},
         {"product_id": pi, "product_name": "Raspberry Pi 4"},
+    ]
+    representatives = select_family_representatives(conn, tenant_id, products)
+
+    assert len(representatives) == 2
+
+
+def test_products_at_or_above_the_price_threshold_are_never_collapsed(conn):
+    """The actual precision guarantee, proven rather than asserted: two
+    same-family_key products priced at 10 JOD (well above the 0.70
+    threshold) must come back as two separate single-member families,
+    even though a plain family_key() match would group them."""
+    tenant_id = _insert_company(conn)
+    low = _insert_product(conn, tenant_id, "1k Ohm Resistor", price=10.0)
+    high = _insert_product(conn, tenant_id, "2k Ohm Resistor", price=10.0)
+
+    products = [
+        {"product_id": low, "product_name": "1k Ohm Resistor"},
+        {"product_id": high, "product_name": "2k Ohm Resistor"},
+    ]
+    representatives = select_family_representatives(conn, tenant_id, products)
+
+    assert len(representatives) == 2
+    for rep in representatives:
+        assert len(rep["family_members"]) == 1
+
+
+def test_a_mixed_batch_only_collapses_the_eligible_side(conn):
+    """Same family_key on both sides, but only the cheap pair is below
+    threshold - the expensive one must stand alone while the cheap pair
+    still collapses together."""
+    tenant_id = _insert_company(conn)
+    cheap_a = _insert_product(conn, tenant_id, "1k Ohm Resistor", price=0.10)
+    cheap_b = _insert_product(conn, tenant_id, "2k Ohm Resistor", price=0.10)
+    pricey = _insert_product(conn, tenant_id, "10k Ohm Resistor", price=10.0)
+
+    products = [
+        {"product_id": cheap_a, "product_name": "1k Ohm Resistor"},
+        {"product_id": cheap_b, "product_name": "2k Ohm Resistor"},
+        {"product_id": pricey, "product_name": "10k Ohm Resistor"},
+    ]
+    representatives = select_family_representatives(conn, tenant_id, products)
+
+    by_size = {len(rep["family_members"]): rep for rep in representatives}
+    assert set(by_size.keys()) == {1, 2}
+    assert by_size[1]["product_id"] == pricey
+    assert {m["product_id"] for m in by_size[2]["family_members"]} == {cheap_a, cheap_b}
+
+
+def test_unknown_currency_is_never_collapsed_even_at_a_low_price(conn):
+    """Precision over cost-saving: a currency the threshold map doesn't
+    recognize is never treated as cheap, no matter how low the raw
+    number is - avoids a fake, unconverted-FX precision claim."""
+    tenant_id = _insert_company(conn)
+    a = _insert_product(conn, tenant_id, "1k Ohm Resistor", price=0.01, currency="EGP")
+    b = _insert_product(conn, tenant_id, "2k Ohm Resistor", price=0.01, currency="EGP")
+
+    products = [
+        {"product_id": a, "product_name": "1k Ohm Resistor"},
+        {"product_id": b, "product_name": "2k Ohm Resistor"},
     ]
     representatives = select_family_representatives(conn, tenant_id, products)
 
