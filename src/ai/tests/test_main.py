@@ -637,3 +637,26 @@ def test_dashboard_competitor_pricing_rejects_an_out_of_bounds_limit():
 
     response = client.get("/dashboard/competitor-pricing", params={"limit": 51}, headers=_auth())
     assert response.status_code == 422
+
+
+def test_dashboard_competitors_requires_auth():
+    response = client.get("/dashboard/competitors")
+    assert response.status_code == 401
+
+
+def test_dashboard_competitors_returns_the_directory_result():
+    fake_conn = MagicMock()
+    fake_result = {
+        "strategic": [{"name": "SparkFun Electronics", "tier": "STRATEGIC",
+                        "website_url": "https://sparkfun.com", "overlap_pct": 75.0}],
+        "relevant": [{"name": "PiShop US", "tier": "RELEVANT", "website_url": None,
+                       "price_comparisons": []}],
+    }
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_competitors.get_competitor_directory", return_value=fake_result) as mock_directory:
+        response = client.get("/dashboard/competitors", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_directory.assert_called_once_with(fake_conn, "t1")
