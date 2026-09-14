@@ -753,3 +753,64 @@ def test_dashboard_search_returns_the_pipeline_result():
     assert response.status_code == 200
     assert response.json() == fake_result
     mock_search.assert_called_once_with(fake_conn, "t1", "widget", limit=10)
+
+
+def test_dashboard_forecast_movers_requires_auth():
+    response = client.get("/dashboard/forecast-movers")
+    assert response.status_code == 401
+
+
+def test_dashboard_forecast_movers_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"products_forecasted": 1, "increasing_count": 1, "decreasing_count": 0,
+                    "stable_count": 0, "top_increasing": [], "top_decreasing": []}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_forecast_movers.get_forecast_movers", return_value=fake_result) as mock_movers:
+        response = client.get("/dashboard/forecast-movers", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    mock_movers.assert_called_once_with(fake_conn, "t1", limit=5)
+
+
+def test_dashboard_inventory_recommendations_requires_auth():
+    response = client.get("/dashboard/inventory-recommendations")
+    assert response.status_code == 401
+
+
+def test_dashboard_inventory_recommendations_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"restock_now_count": 1, "reduce_order_count": 0, "monitor_count": 0, "recommendations": []}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_inventory_recommendations.get_inventory_recommendations", return_value=fake_result) as mock_recs:
+        response = client.get("/dashboard/inventory-recommendations", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    mock_recs.assert_called_once_with(fake_conn, "t1", limit=20)
+
+
+def test_dashboard_product_forecast_requires_auth():
+    response = client.get("/dashboard/products/p1/forecast")
+    assert response.status_code == 401
+
+
+def test_dashboard_product_forecast_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"product_id": "p1", "product_name": "Widget", "current_stock": 620}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_forecast_detail.get_product_forecast_detail", return_value=fake_result) as mock_detail:
+        response = client.get("/dashboard/products/p1/forecast", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    mock_detail.assert_called_once_with(fake_conn, "t1", "p1")
+
+
+def test_dashboard_product_forecast_returns_404_for_a_missing_product():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_forecast_detail.get_product_forecast_detail", return_value=None):
+        response = client.get("/dashboard/products/missing/forecast", headers=_auth())
+
+    assert response.status_code == 404
