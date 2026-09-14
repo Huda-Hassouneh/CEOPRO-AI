@@ -17,6 +17,24 @@ that's a real, honest absence, not a bug.
 """
 DEFAULT_LIMIT = 10
 
+# Market Activity (High/Medium/Low) - the mockup's own per-competitor
+# "activity level" badge. There is no marketing/social-activity signal
+# anywhere in this platform (see this module's own docstring above), so
+# this is a real, honestly-scoped proxy: how many actual price CHANGES
+# (not just observations) were detected for this competitor in the
+# trailing window - a competitor whose price keeps moving is one we're
+# genuinely seeing more activity from, which is the one real signal this
+# platform has for "how active is this rival right now". Thresholds are a
+# deliberate, documented judgment call, not a discovered constant - a
+# tenant that wants a stricter/looser bar can ask for these to become
+# parameters later.
+MARKET_ACTIVITY_WINDOW_DAYS = 30
+MARKET_ACTIVITY_HIGH_THRESHOLD = 3   # >= this many real price changes in the window
+MARKET_ACTIVITY_MEDIUM_THRESHOLD = 1  # >= this many, below the High bar
+LEVEL_HIGH = "High"
+LEVEL_MEDIUM = "Medium"
+LEVEL_LOW = "Low"
+
 
 def get_recent_competitor_price_changes(conn, tenant_id: str, limit: int = DEFAULT_LIMIT) -> list:
     with conn.cursor() as cursor:
@@ -61,3 +79,45 @@ def get_recent_competitor_price_changes(conn, tenant_id: str, limit: int = DEFAU
             "observed_at": observed_at.isoformat(),
         })
     return changes
+
+
+def _level_for_change_count(change_count: int) -> str:
+    if change_count >= MARKET_ACTIVITY_HIGH_THRESHOLD:
+        return LEVEL_HIGH
+    if change_count >= MARKET_ACTIVITY_MEDIUM_THRESHOLD:
+        return LEVEL_MEDIUM
+    return LEVEL_LOW
+
+
+def get_market_activity_levels(conn, tenant_id: str, window_days: int = MARKET_ACTIVITY_WINDOW_DAYS) -> dict:
+    """
+    {global_competitor_id (str): "High"|"Medium"|"Low"} for every
+    competitor with at least one price observation in the trailing
+    window - see this module's own MARKET_ACTIVITY_* constants for
+    exactly what "activity" means here and why. A competitor with zero
+    observations in the window simply isn't in the returned dict; callers
+    (dashboard/competitors.py) default a missing key to Low rather than
+    treating it as unknown - no detected change is itself the real,
+    honest signal for "quiet right now", not a missing-data case.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            WITH ranked AS (
+                SELECT cpm.global_competitor_id, cpr.scraped_price,
+                       LAG(cpr.scraped_price) OVER (PARTITION BY cpr.mapping_id ORDER BY cpr.observed_at) AS prior_price
+                FROM competitor_prices cpr
+                JOIN competitor_product_mappings cpm ON cpm.tenant_id = cpr.tenant_id AND cpm.mapping_id = cpr.mapping_id
+                WHERE cpr.tenant_id = %(tenant_id)s
+                  AND cpr.observed_at >= NOW() - (%(window_days)s || ' days')::interval
+            )
+            SELECT global_competitor_id,
+                   COUNT(*) FILTER (WHERE prior_price IS NOT NULL AND prior_price != scraped_price)
+            FROM ranked
+            GROUP BY global_competitor_id;
+            """,
+            {"tenant_id": tenant_id, "window_days": window_days},
+        )
+        rows = cursor.fetchall()
+
+    return {str(competitor_id): _level_for_change_count(int(change_count)) for competitor_id, change_count in rows}
