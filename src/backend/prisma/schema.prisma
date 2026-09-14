@@ -73,23 +73,29 @@ model PromoCodePlan {
 }
 
 model Subscription {
-  id                   String                 @id @default(uuid()) @db.Uuid
-  tenantId             String                 @map("tenant_id") @db.Uuid
-  planId               String                 @map("plan_id") @db.Uuid
-  paymentProvider             String    @map("payment_provider") @db.VarChar(50)
-  payment_providerCustomerId     String?                @unique @map("payment_provider_customer_id") @db.VarChar(255)
-  payment_providerSubscriptionId String?                @unique @map("payment_provider_subscription_id") @db.VarChar(255)
-  status               String                 @db.VarChar(30)
-  currentPeriodStart   DateTime               @map("current_period_start") @db.Timestamptz(6)
-  currentPeriodEnd     DateTime               @map("current_period_end") @db.Timestamptz(6)
-  cancelAtPeriodEnd    Boolean                @default(false) @map("cancel_at_period_end")
-  cancelledAt          DateTime?              @map("cancelled_at") @db.Timestamptz(6)
-  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
-  plan                 Plan                   @relation(fields: [planId], references: [id], onDelete: Restrict)
-  paymentTransactions  PaymentTransaction[]
-  promoCodeRedemptions PromoCodeRedemption[]
+  tenantId                        String    @map("tenant_id") @db.Uuid
+  planId                          String    @map("plan_id") @db.Uuid
+
+  paymentProvider                 String    @map("payment_provider") @db.VarChar(50)
+  paymentProviderCustomerId       String?   @unique @map("payment_provider_customer_id") @db.VarChar(255)
+  paymentProviderSubscriptionId   String?   @unique @map("payment_provider_subscription_id") @db.VarChar(255)
+
+  status                          String    @db.VarChar(30)
+
+  currentPeriodStart              DateTime  @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd                DateTime  @map("current_period_end") @db.Timestamptz(6)
+
+  cancelAtPeriodEnd               Boolean   @default(false) @map("cancel_at_period_end")
+  cancelledAt                     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+
+  createdAt                       DateTime  @default(dbgenerated("NOW()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime  @default(dbgenerated("NOW()")) @map("updated_at") @db.Timestamptz(6)
+
+  plan                            Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  paymentTransactions             PaymentTransaction[]
+  promoCodeRedemptions            PromoCodeRedemption[]
 
   @@map("subscriptions")
 }
