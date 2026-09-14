@@ -1,6 +1,6 @@
 """
 CEOPRO AI - Dashboard Recent Competitor Activity (presentation layer, not
-a new model, no new tables).
+a new model, no new tables)
 
 The mockup's "Recent Competitor Changes"/"Recent Competitor Activity"
 feeds ask for real detected events (new product launched, marketing
