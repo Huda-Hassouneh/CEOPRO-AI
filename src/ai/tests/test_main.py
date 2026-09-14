@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
 
 from src.ai.main import app  # noqa: E402
+from src.ai.sales import quick_sale as quick_sale_module  # noqa: E402
 
 client = TestClient(app)
 _SECRET = os.environ["JWT_SECRET"]
@@ -814,3 +815,55 @@ def test_dashboard_product_forecast_returns_404_for_a_missing_product():
         response = client.get("/dashboard/products/missing/forecast", headers=_auth())
 
     assert response.status_code == 404
+
+
+def test_quick_sale_requires_auth():
+    response = client.post("/sales/quick-sale", json={"product_id": "p1", "quantity": 1})
+    assert response.status_code == 401
+
+
+def test_quick_sale_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"invoice_id": "i1", "invoice_number": "QS-ABC", "product_id": "p1",
+                   "product_name": "Widget", "quantity": 2, "unit_price": 10.0,
+                   "total_amount": 20.0, "currency": "JOD"}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.quick_sale.record_quick_sale", return_value=fake_result) as mock_sale:
+        response = client.post("/sales/quick-sale", json={"product_id": "p1", "quantity": 2}, headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_sale.assert_called_once_with(fake_conn, "t1", "u1", "p1", 2, None)
+
+
+def test_quick_sale_returns_404_for_a_missing_product():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.quick_sale.record_quick_sale",
+               side_effect=quick_sale_module.ProductNotFoundError("no such product")):
+        response = client.post("/sales/quick-sale", json={"product_id": "missing", "quantity": 1}, headers=_auth())
+
+    assert response.status_code == 404
+
+
+def test_add_competitor_requires_auth():
+    response = client.post("/competitors", json={"name": "Rival", "website_url": "https://rival.example"})
+    assert response.status_code == 401
+
+
+def test_add_competitor_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"competitor_id": "c1", "competitor_name": "Rival Co", "website_url": "https://rival.example",
+                   "is_manufacturer": False, "is_confirmed_competitor": True, "tier": "STRATEGIC",
+                   "classification_reason": "confirmed"}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.market_scraper_discovery.register_manual_competitor", return_value=fake_result) as mock_add:
+        response = client.post(
+            "/competitors", json={"name": "Rival Co", "website_url": "https://rival.example"}, headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_add.assert_called_once_with(fake_conn, "t1", "Rival Co", "https://rival.example")
