@@ -272,3 +272,62 @@ def test_price_competitiveness_reflects_a_real_price_match_for_a_strategic_compe
 
     row = get_competitor_directory(conn, tenant_id)["strategic"][0]
     assert row["price_competitiveness"] == 10.0  # priced exactly at market
+
+
+def test_relevance_score_is_none_with_no_real_signals_at_all(conn):
+    """No price comparisons, no analyzed reviews, no price observations -
+    a genuinely blank competitor gets an honest None, not a score
+    manufactured from the display-only "Low" activity default."""
+    tenant_id = _insert_company(conn)
+    _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["relevance_score"] is None
+    assert row["strengths"] == []
+    assert row["weaknesses"] == []
+
+
+def test_relevance_score_is_real_when_price_and_sentiment_signals_exist(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    competitor_id = _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+    _map_product_with_price(conn, tenant_id, product_id, competitor_id, your_price=100.0, their_price=100.0)
+    _insert_competitor_review_with_sentiment(conn, tenant_id, competitor_id, positive_probability=0.9, negative_probability=0.05)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["relevance_score"] is not None
+    assert 0 <= row["relevance_score"] <= 100
+    assert "Priced competitively against the market" in row["strengths"]
+    assert "Positive customer sentiment" in row["strengths"]
+
+
+def test_weaknesses_reflect_real_poor_signals(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    competitor_id = _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+    _map_product_with_price(conn, tenant_id, product_id, competitor_id, your_price=100.0, their_price=60.0)
+    _insert_competitor_review_with_sentiment(conn, tenant_id, competitor_id, positive_probability=0.05, negative_probability=0.9)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert "Priced less competitively than the market" in row["weaknesses"]
+    assert "Negative customer sentiment" in row["weaknesses"]
+    assert row["strengths"] == []
+
+
+def test_summary_line_is_factual_and_tier_specific(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    strategic_id = _insert_tracked_competitor(conn, tenant_id, "Strategic Co", TIER_STRATEGIC, match_rate=0.75)
+    relevant_id = _insert_tracked_competitor(conn, tenant_id, "Relevant Co", TIER_RELEVANT, match_rate=0.3)
+    conn.commit()
+    _map_product_with_price(conn, tenant_id, product_id, relevant_id, your_price=100.0, their_price=90.0)
+    conn.commit()
+
+    directory = get_competitor_directory(conn, tenant_id)
+    assert directory["strategic"][0]["summary_line"] == "Strategic competitor — 75% product overlap with your catalog."
+    assert directory["relevant"][0]["summary_line"] == "Relevant competitor — 1 of your product matched for price comparison."
