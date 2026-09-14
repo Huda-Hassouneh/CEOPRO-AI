@@ -39,11 +39,16 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from src.ai import db
+from src.ai.dashboard import activity as dashboard_activity
+from src.ai.dashboard import competitor_activity as dashboard_competitor_activity
 from src.ai.dashboard import competitor_pricing as dashboard_competitor_pricing
 from src.ai.dashboard import competitors as dashboard_competitors
 from src.ai.dashboard import forecast as dashboard_forecast
+from src.ai.dashboard import inventory as dashboard_inventory
 from src.ai.dashboard import metrics as dashboard_metrics
+from src.ai.dashboard import price_competitiveness as dashboard_price_competitiveness
 from src.ai.dashboard import recommendations as dashboard_recommendations
+from src.ai.dashboard import search as dashboard_search
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.mpi import pipeline as mpi_pipeline
@@ -718,6 +723,115 @@ def dashboard_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_conte
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         result = dashboard_competitors.get_competitor_directory(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/activity")
+def dashboard_activity_endpoint(
+    limit: int = Query(default=dashboard_activity.DEFAULT_LIMIT, ge=1, le=50),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The dashboard's Recent Activity feed - real timestamped events the
+    platform already writes (file uploads, competitors tracked, forecasts
+    generated, products added), not a new audit log. See dashboard/
+    activity.py's own docstring.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_activity.get_recent_activity(conn, ctx.tenant_id, limit=limit)
+        conn.commit()
+        return {"activity": result}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/competitor-activity")
+def dashboard_competitor_activity_endpoint(
+    limit: int = Query(default=dashboard_competitor_activity.DEFAULT_LIMIT, ge=1, le=50),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The dashboard's Recent Competitor Changes/Activity feed - real,
+    detected price changes only (see dashboard/competitor_activity.py's
+    own docstring on why "new product launched"/"marketing campaign
+    detected" are deliberately not fabricated here).
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_competitor_activity.get_recent_competitor_price_changes(conn, ctx.tenant_id, limit=limit)
+        conn.commit()
+        return {"changes": result}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/price-competitiveness")
+def dashboard_price_competitiveness_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The dashboard's Price Competitiveness headline score (1-10) - reuses
+    market_scraper/scoring.py's existing scoring function, averaged
+    across all products with a real competitor price observation. See
+    dashboard/price_competitiveness.py's own docstring.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_price_competitiveness.get_price_competitiveness(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/inventory")
+def dashboard_inventory_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The dashboard's Inventory Status card - reads the real `inventory`
+    table honestly: has_data=False (never a fabricated percentage) for a
+    tenant with no inventory rows yet. See dashboard/inventory.py's own
+    docstring for why this was previously out of scope entirely.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_inventory.get_inventory_status(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/search")
+def dashboard_search_endpoint(
+    q: str = Query(..., min_length=1, max_length=200),
+    limit: int = Query(default=dashboard_search.DEFAULT_LIMIT, ge=1, le=50),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The top-bar unified search - real products and tracked competitors
+    only. See dashboard/search.py's own docstring on why "insights" are
+    deliberately not included.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_search.search(conn, ctx.tenant_id, q, limit=limit)
         conn.commit()
         return result
     except Exception:

@@ -660,3 +660,96 @@ def test_dashboard_competitors_returns_the_directory_result():
     assert response.json() == fake_result
     fake_conn.commit.assert_called_once()
     mock_directory.assert_called_once_with(fake_conn, "t1")
+
+
+def test_dashboard_activity_requires_auth():
+    response = client.get("/dashboard/activity")
+    assert response.status_code == 401
+
+
+def test_dashboard_activity_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = [{"activity_type": "PRODUCT_ADDED", "title": "Product Added", "detail": "Widget",
+                     "status": None, "occurred_at": "2026-09-08T10:24:00+00:00"}]
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_activity.get_recent_activity", return_value=fake_result) as mock_activity:
+        response = client.get("/dashboard/activity", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == {"activity": fake_result}
+    mock_activity.assert_called_once_with(fake_conn, "t1", limit=10)
+
+
+def test_dashboard_competitor_activity_requires_auth():
+    response = client.get("/dashboard/competitor-activity")
+    assert response.status_code == 401
+
+
+def test_dashboard_competitor_activity_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = [{"competitor_name": "Umniah", "product_name": "Widget", "latest_price": 90.0,
+                     "prior_price": 100.0, "currency": "JOD", "price_change_pct": -10.0,
+                     "direction": "decrease", "observed_at": "2026-09-08T10:24:00+00:00"}]
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_competitor_activity.get_recent_competitor_price_changes", return_value=fake_result) as mock_changes:
+        response = client.get("/dashboard/competitor-activity", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == {"changes": fake_result}
+    mock_changes.assert_called_once_with(fake_conn, "t1", limit=10)
+
+
+def test_dashboard_price_competitiveness_requires_auth():
+    response = client.get("/dashboard/price-competitiveness")
+    assert response.status_code == 401
+
+
+def test_dashboard_price_competitiveness_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"score": 7.8, "change": -0.4}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_price_competitiveness.get_price_competitiveness", return_value=fake_result) as mock_score:
+        response = client.get("/dashboard/price-competitiveness", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    mock_score.assert_called_once_with(fake_conn, "t1")
+
+
+def test_dashboard_inventory_requires_auth():
+    response = client.get("/dashboard/inventory")
+    assert response.status_code == 401
+
+
+def test_dashboard_inventory_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"has_data": False, "in_stock_pct": None, "low_stock_count": None, "tracked_products": 0}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_inventory.get_inventory_status", return_value=fake_result) as mock_status:
+        response = client.get("/dashboard/inventory", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    mock_status.assert_called_once_with(fake_conn, "t1")
+
+
+def test_dashboard_search_requires_auth():
+    response = client.get("/dashboard/search", params={"q": "widget"})
+    assert response.status_code == 401
+
+
+def test_dashboard_search_requires_a_query_param():
+    response = client.get("/dashboard/search", headers=_auth())
+    assert response.status_code == 422
+
+
+def test_dashboard_search_returns_the_pipeline_result():
+    fake_conn = MagicMock()
+    fake_result = {"products": [{"product_id": "p1", "name": "Widget"}], "competitors": []}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_search.search", return_value=fake_result) as mock_search:
+        response = client.get("/dashboard/search", params={"q": "widget"}, headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    mock_search.assert_called_once_with(fake_conn, "t1", "widget", limit=10)
