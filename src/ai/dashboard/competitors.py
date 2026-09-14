@@ -24,7 +24,7 @@ of region - from tracking at all), so a CANDIDATE never appears here;
 there's nothing an ordinary shop owner should do with a competitor this
 platform already decided isn't real.
 
-Every row also carries three fields added for the "Your Competitors"
+Every row also carries four fields added for the "Your Competitors"
 table view (additive - nothing above changes): market_sentiment_label
 (Positive/Neutral/Negative, or None with no analyzed reviews for this
 competitor yet - reuses sentiment/data_access.py::
@@ -35,11 +35,16 @@ would be a real, unwanted side effect fired once per competitor on every
 dashboard load), price_competitiveness (reuses market_scraper/scoring.py's
 existing 1-10 score, same building block price_competitiveness.py's own
 headline KPI uses, averaged across this one competitor's own mapped
-products - None with no real price observation yet), and last_updated
+products - None with no real price observation yet), last_updated
 (tenant_competitors.classified_at - the real timestamp
 classify_competitor() already stamps every time this competitor is
-reclassified, not a new computation).
+reclassified, not a new computation), and market_activity (High/Medium/
+Low - see competitor_activity.py::get_market_activity_levels()'s own
+docstring for exactly what real signal this is built from and why; a
+competitor with no price observations in the window defaults to "Low",
+matching "no detected change" rather than "unknown").
 """
+from src.ai.dashboard.competitor_activity import get_market_activity_levels, LEVEL_LOW
 from src.ai.pricing.competitor_classification import TIER_RELEVANT, TIER_STRATEGIC
 from src.ai.sentiment.data_access import load_aggregate_sentiment_by_competitor
 from src.market_scraper.scoring import price_competitiveness
@@ -123,6 +128,7 @@ def get_competitor_directory(conn, tenant_id: str) -> dict:
         rows = cursor.fetchall()
 
     sentiment_by_competitor = load_aggregate_sentiment_by_competitor(conn, tenant_id)
+    activity_by_competitor = get_market_activity_levels(conn, tenant_id)
 
     strategic = []
     relevant = []
@@ -147,6 +153,7 @@ def get_competitor_directory(conn, tenant_id: str) -> dict:
             "market_sentiment_label": sentiment_label,
             "price_competitiveness": _price_competitiveness_for_competitor(price_pairs),
             "last_updated": classified_at.isoformat() if classified_at else None,
+            "market_activity": activity_by_competitor.get(global_competitor_id, LEVEL_LOW),
         }
 
         if tier == TIER_STRATEGIC:
