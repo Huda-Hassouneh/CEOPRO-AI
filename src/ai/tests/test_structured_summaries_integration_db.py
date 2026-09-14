@@ -252,11 +252,18 @@ def _insert_forecast(conn, tenant_id, product_id, expected_demand, target_date, 
                 (forecast_id, tenant_id, product_id, expected_demand, expected_demand - 5, expected_demand + 5, target_date),
             )
         if confidence_score is not None:
+            # Matches forecasting/evidence.py::insert_evidence_record()'s
+            # REAL write path: forecast_id lives inside source_record_ids
+            # JSON, not the forecast_id column (which the real code never
+            # sets) - a real bug this test used to mask by writing
+            # directly to the column instead of going through the shape
+            # generate_demand_forecast_summary()'s query actually has to
+            # match against production data.
             cursor.execute(
-                "INSERT INTO evidence_records (tenant_id, forecast_id, category, source_module, "
-                "explanation_text, confidence_score) VALUES (%s, %s, 'PREDICTION', 'ai.forecasting', "
-                "'MASE=0.12, RMSE=1.4, XGBoost outperformed baselines', %s);",
-                (tenant_id, forecast_id, confidence_score),
+                "INSERT INTO evidence_records (tenant_id, category, source_module, "
+                "source_record_ids, explanation_text, confidence_score) VALUES (%s, 'PREDICTION', 'ai.forecasting', "
+                "%s::jsonb, 'MASE=0.12, RMSE=1.4, XGBoost outperformed baselines', %s);",
+                (tenant_id, json.dumps({"forecast_id": forecast_id, "product_id": product_id}), confidence_score),
             )
     return forecast_id
 
@@ -285,6 +292,30 @@ def test_demand_forecast_summary_is_plain_language_and_never_leaks_jargon(conn):
     assert target_date.isoformat() in summary
     for jargon in ("MASE", "RMSE", "XGBoost", "0.8", "0.80"):
         assert jargon not in summary
+
+
+def test_demand_forecast_summary_reflects_a_real_high_confidence_score(conn):
+    """
+    Regression test for a real, previously-undiscovered bug: the query's
+    evidence_records join used to key on the forecast_id COLUMN, which
+    forecasting/evidence.py::insert_evidence_record() never actually
+    populates (the real forecast_id lives inside source_record_ids JSON
+    instead) - so confidence_score was silently always NULL in
+    production, and every forecast summary read as "an early, rough
+    estimate" no matter how confident the real model was. A genuinely
+    high confidence_score (0.9) must now produce the "solid estimate"
+    phrase, not the low-confidence fallback.
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine")
+    conn.commit()
+    target_date = (datetime.now(timezone.utc) + timedelta(days=7)).date()
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=42, target_date=target_date, confidence_score=0.9)
+    conn.commit()
+
+    summary = structured_summaries.generate_demand_forecast_summary(conn, tenant_id)
+    assert "solid estimate based on your own sales history" in summary
+    assert "early, rough estimate" not in summary
 
 
 def test_demand_forecast_summary_handles_no_forecast_yet_honestly(conn):
