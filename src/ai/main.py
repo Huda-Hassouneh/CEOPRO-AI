@@ -44,7 +44,10 @@ from src.ai.dashboard import competitor_activity as dashboard_competitor_activit
 from src.ai.dashboard import competitor_pricing as dashboard_competitor_pricing
 from src.ai.dashboard import competitors as dashboard_competitors
 from src.ai.dashboard import forecast as dashboard_forecast
+from src.ai.dashboard import forecast_detail as dashboard_forecast_detail
+from src.ai.dashboard import forecast_movers as dashboard_forecast_movers
 from src.ai.dashboard import inventory as dashboard_inventory
+from src.ai.dashboard import inventory_recommendations as dashboard_inventory_recommendations
 from src.ai.dashboard import metrics as dashboard_metrics
 from src.ai.dashboard import price_competitiveness as dashboard_price_competitiveness
 from src.ai.dashboard import recommendations as dashboard_recommendations
@@ -834,6 +837,79 @@ def dashboard_search_endpoint(
         result = dashboard_search.search(conn, ctx.tenant_id, q, limit=limit)
         conn.commit()
         return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/forecast-movers")
+def dashboard_forecast_movers_endpoint(
+    limit: int = Query(default=dashboard_forecast_movers.DEFAULT_LIMIT, ge=1, le=50),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The Demand Prediction overview's "Top Products by Predicted Demand
+    Increase/Decrease" tables and increasing/decreasing/stable counts.
+    See dashboard/forecast_movers.py's own docstring for exactly what
+    "change" means here (predicted 30-day demand vs. real current stock).
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_forecast_movers.get_forecast_movers(conn, ctx.tenant_id, limit=limit)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/inventory-recommendations")
+def dashboard_inventory_recommendations_endpoint(
+    limit: int = Query(default=dashboard_inventory_recommendations.DEFAULT_LIMIT, ge=1, le=100),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The "Priority Inventory Actions"/"Inventory Recommendations" tables -
+    a transparent, rule-based Restock Now/Reduce Order/Monitor action per
+    product, from real predicted demand vs. real current stock. See
+    dashboard/inventory_recommendations.py's own docstring - never an
+    invented "AI reasoning" narrative.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_inventory_recommendations.get_inventory_recommendations(conn, ctx.tenant_id, limit=limit)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/products/{product_id}/forecast")
+def dashboard_product_forecast_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The product detail page's forecast section - real current stock,
+    latest forecast (with its real confidence interval), real average
+    daily demand, and the real history of every forecast run for this
+    product. See dashboard/forecast_detail.py's own docstring for what's
+    deliberately NOT here (no seasonality heatmap, no causal narrative).
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_forecast_detail.get_product_forecast_detail(conn, ctx.tenant_id, product_id)
+        conn.commit()
+        if result is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        return result
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception:
         conn.rollback()
         raise
