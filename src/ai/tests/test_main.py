@@ -663,6 +663,28 @@ def test_dashboard_competitors_returns_the_directory_result():
     mock_directory.assert_called_once_with(fake_conn, "t1")
 
 
+def test_dashboard_market_overview_requires_auth():
+    response = client.get("/dashboard/market-overview")
+    assert response.status_code == 401
+
+
+def test_dashboard_market_overview_returns_the_overview_result():
+    fake_conn = MagicMock()
+    fake_result = {
+        "price_trend": {"direction": "Up", "increases": 3, "decreases": 1},
+        "sentiment": {"label": "Bullish", "positive_pct": 80.0, "competitors_with_sentiment": 5},
+        "category_activity": {"Electronics": "High"},
+    }
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.dashboard_market_overview.get_market_overview", return_value=fake_result) as mock_overview:
+        response = client.get("/dashboard/market-overview", headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json() == fake_result
+    fake_conn.commit.assert_called_once()
+    mock_overview.assert_called_once_with(fake_conn, "t1")
+
+
 def test_dashboard_activity_requires_auth():
     response = client.get("/dashboard/activity")
     assert response.status_code == 401
