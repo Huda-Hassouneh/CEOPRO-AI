@@ -21,7 +21,7 @@ call touches only ever sends and receives text over HTTPS). This is why
 a hosted inference API was the right call here, not a locally-run model:
 a model small enough to run lightly on a typical machine would trade
 away the multilingual accuracy this platform's 16-country, cross-dialect
-Arabic requirement needs.
+Arabic requirement needs
 
 DEFAULT_MODEL has moved twice, both times because a hosted provider's
 catalog changed under us - re-check https://console.groq.com/docs/models
