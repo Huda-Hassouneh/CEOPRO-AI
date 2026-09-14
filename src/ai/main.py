@@ -26,6 +26,7 @@ confirmed contract with a real auth service - worth reconciling once one
 exists.
 """
 
+import json
 import logging
 import os
 import tempfile
@@ -113,6 +114,15 @@ def _publish_discovery_request(tenant_id: str) -> None:
 # anyway, so capping it here is just an honest error instead of a
 # silently-smaller-than-requested response.
 _MAX_QUERY_TEXT_LENGTH = int(os.getenv("RAG_MAX_QUERY_TEXT_LENGTH", "2000"))
+
+# Same reasoning as _MAX_QUERY_TEXT_LENGTH above, applied to the optional
+# conversation-history payload (rag/llm_client.py::answer_query()'s new
+# `history` parameter) - an unbounded JSON blob is the same cost/abuse
+# vector query_text already guards against, just for a bigger field.
+# llm_client._sanitize_history() separately caps the *number* of turns
+# actually sent to the LLM (MAX_HISTORY_MESSAGES) - this bound is only
+# about the raw request size before it ever gets that far.
+_MAX_HISTORY_JSON_LENGTH = int(os.getenv("RAG_MAX_HISTORY_JSON_LENGTH", "20000"))
 
 # Content sniffing beyond the file extension - catches a trivial extension
 # spoof (e.g. an arbitrary file renamed to .xlsx). CSV has no reliable magic
@@ -260,6 +270,16 @@ def mpi_summary(
 def rag_query(
     query_text: str = Query(..., min_length=1, max_length=_MAX_QUERY_TEXT_LENGTH),
     top_k: int = Query(default=5, ge=1, le=rag_pipeline.DEFAULT_RERANK_CANDIDATES),
+    history_json: Optional[str] = Query(
+        default=None, max_length=_MAX_HISTORY_JSON_LENGTH,
+        description=(
+            'Optional prior turns of this same conversation, as a JSON-encoded array of '
+            '{"role": "user"|"assistant", "content": str} objects, oldest first. Without '
+            "this, every call is answered with no memory of earlier turns - a real "
+            "conversational assistant needs a caller to keep sending its own running "
+            "chat log back here, the same way a real chat client already has to."
+        ),
+    ),
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict:
     """
@@ -271,14 +291,29 @@ def rag_query(
     the upstream LLM call that didn't, which is a meaningfully different
     failure for a caller to distinguish and retry.
 
-    query_text/top_k are bounded (FastAPI validation, a 422 before this
-    body ever runs) - see _MAX_QUERY_TEXT_LENGTH's own comment for why an
-    unbounded query_text is a real cost/abuse vector against a paid
-    upstream API, not just a correctness nicety.
+    query_text/top_k/history_json are bounded (FastAPI validation, a 422
+    before this body ever runs, plus an explicit 422 below for malformed
+    JSON) - see _MAX_QUERY_TEXT_LENGTH/_MAX_HISTORY_JSON_LENGTH's own
+    comments for why an unbounded value is a real cost/abuse vector
+    against a paid upstream API, not just a correctness nicety. Individual
+    malformed history *entries* inside an otherwise-valid JSON array (a
+    bad role, empty content, etc.) are not rejected here - they're
+    silently dropped by llm_client._sanitize_history() instead, same
+    "degrade, don't break the turn" philosophy as everywhere else history
+    is handled.
     """
+    history = None
+    if history_json:
+        try:
+            history = json.loads(history_json)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="history_json must be valid JSON.")
+        if not isinstance(history, list):
+            raise HTTPException(status_code=422, detail="history_json must be a JSON array.")
+
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = rag_llm_client.answer_query(conn, ctx.tenant_id, query_text, top_k=top_k)
+        result = rag_llm_client.answer_query(conn, ctx.tenant_id, query_text, top_k=top_k, history=history)
         conn.commit()
         return result
     except rag_llm_client.LLMError as err:
