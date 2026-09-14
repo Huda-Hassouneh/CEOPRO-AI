@@ -564,3 +564,95 @@ def _register_domain_level_competitor(
         "competitor_scope": classification.competitor_scope,
         "distance_km": classification.distance_km,
     }
+
+
+def register_manual_competitor(conn, tenant_id: str, name: str, website_url: str) -> dict:
+    """
+    Registers a competitor a business owner adds directly (the "Add
+    Competitor" UI action) - not found by any discovery run, so it needs
+    its own entry point rather than being forced through
+    register_domain_level_competitor(), which requires a real
+    discovery_method value from DOMAIN_LEVEL_DISCOVERY_METHODS (labeling a
+    manual add as "PLACES_NEARBY"/"INDUSTRY_KEYWORD_SEARCH" would be a
+    real provenance lie). tenant_competitors.discovery_method is left NULL
+    instead - already a valid, honest state per that column's own CHECK
+    constraint (migration 20260911000000): "no discovery method" is
+    exactly what a manual add is, not a new enum value invented for this.
+
+    Same real identity-dedup/upsert path _register_domain_level_competitor()
+    already uses (website_identity_key when the URL parses to one, else a
+    name-based key) - a business added manually today that a later
+    discovery run also finds converges onto this same global_competitors
+    row, never a duplicate.
+
+    No product_id, no policy decision, no data_sources/competitor_product_
+    mappings rows - same as a domain-level find, there is no specific
+    product page to scope a collection job to yet. classify_competitor()
+    still runs immediately so tier/is_tracked reflect real values (not a
+    manufacturer, in-region-or-unknown) the moment this returns, exactly
+    like every other registration path in this module.
+    """
+    hostname = urlsplit(website_url).hostname or website_url
+    identity_key = compute_website_identity_key(website_url)
+    normalized_url = website_url if identity_key and "/" in identity_key else f"{urlsplit(website_url).scheme}://{hostname}"
+    candidate = CandidateSource(product_name="", url=website_url, title=name)
+
+    try:
+        with conn.cursor() as cursor:
+            is_manufacturer = looks_like_manufacturer_or_wholesale(candidate, brand_tokens=set())
+
+            if identity_key is not None:
+                cursor.execute(
+                    """
+                    INSERT INTO global_competitors
+                        (competitor_name, website_url, website_identity_key, visibility, added_by_tenant_id, is_manufacturer)
+                    VALUES (%s, %s, %s, 'PRIVATE', %s, %s)
+                    ON CONFLICT (added_by_tenant_id, website_identity_key) WHERE (visibility = 'PRIVATE' AND website_identity_key IS NOT NULL)
+                    DO UPDATE SET website_url = EXCLUDED.website_url,
+                                  is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer
+                    RETURNING global_competitor_id;
+                    """,
+                    (name, normalized_url, identity_key, tenant_id, is_manufacturer),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO global_competitors
+                        (competitor_name, website_url, visibility, added_by_tenant_id, is_manufacturer)
+                    VALUES (%s, %s, 'PRIVATE', %s, %s)
+                    ON CONFLICT (added_by_tenant_id, LOWER(competitor_name)) WHERE (visibility = 'PRIVATE')
+                    DO UPDATE SET website_url = EXCLUDED.website_url,
+                                  is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer
+                    RETURNING global_competitor_id;
+                    """,
+                    (name, normalized_url, tenant_id, is_manufacturer),
+                )
+            competitor_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s) "
+                "ON CONFLICT (tenant_id, global_competitor_id) DO NOTHING;",
+                (tenant_id, competitor_id),
+            )
+
+        classification = classify_competitor(conn, tenant_id, str(competitor_id))
+    except Exception:
+        # Same reasoning as register_tenant_scoped_competitor()/
+        # register_domain_level_competitor()'s identical try/except: any
+        # earlier insert above already committed via classify_competitor()
+        # itself (it commits internally - see its own docstring), so this
+        # only ever guards against classify_competitor() failing mid-
+        # statement and leaving the connection in Postgres's aborted-
+        # transaction state for the caller's next query.
+        conn.rollback()
+        raise
+
+    return {
+        "competitor_id": str(competitor_id),
+        "competitor_name": name,
+        "website_url": normalized_url,
+        "is_manufacturer": is_manufacturer,
+        "is_confirmed_competitor": classification.is_confirmed_competitor,
+        "tier": classification.tier,
+        "classification_reason": classification.reason,
+    }

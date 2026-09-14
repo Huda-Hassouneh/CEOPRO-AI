@@ -11,7 +11,9 @@ from datetime import datetime, timedelta, timezone
 import psycopg2
 import pytest
 
-from src.ai.dashboard.competitor_activity import get_recent_competitor_price_changes
+from src.ai.dashboard.competitor_activity import (
+    LEVEL_HIGH, LEVEL_LOW, LEVEL_MEDIUM, get_market_activity_levels, get_recent_competitor_price_changes,
+)
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -138,3 +140,93 @@ def test_detects_a_real_price_increase(conn):
     assert len(changes) == 1
     assert changes[0]["price_change_pct"] == pytest.approx(10.0)
     assert changes[0]["direction"] == "increase"
+
+
+def _insert_mapping_with_competitor_id(conn, tenant_id, product_id, competitor_name="Rival Co"):
+    competitor_id = str(uuid.uuid4())
+    source_id = str(uuid.uuid4())
+    mapping_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (global_competitor_id, competitor_name, visibility, added_by_tenant_id, is_manufacturer) "
+            "VALUES (%s, %s, 'PRIVATE', %s, FALSE);",
+            (competitor_id, competitor_name, tenant_id),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked) VALUES (%s, %s, TRUE);",
+            (tenant_id, competitor_id),
+        )
+        cursor.execute(
+            "INSERT INTO data_sources (source_id, tenant_id, source_name, source_type) VALUES (%s, %s, 'Test Source', 'WEB_SCRAPE');",
+            (source_id, tenant_id),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_product_mappings (mapping_id, tenant_id, global_competitor_id, product_id, source_id) "
+            "VALUES (%s, %s, %s, %s, %s);",
+            (mapping_id, tenant_id, competitor_id, product_id, source_id),
+        )
+    return competitor_id, mapping_id
+
+
+def test_market_activity_defaults_to_low_with_no_price_history(conn):
+    tenant_id = _insert_company(conn)
+    conn.commit()
+    assert get_market_activity_levels(conn, tenant_id) == {}
+
+
+def test_market_activity_stays_low_with_no_detected_changes(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    competitor_id, mapping_id = _insert_mapping_with_competitor_id(conn, tenant_id, product_id)
+    conn.commit()
+    now = datetime.now(timezone.utc)
+    _insert_price(conn, tenant_id, mapping_id, 100.0, now - timedelta(days=2))
+    _insert_price(conn, tenant_id, mapping_id, 100.0, now)  # same price - not a real change
+    conn.commit()
+
+    levels = get_market_activity_levels(conn, tenant_id)
+    assert levels[competitor_id] == LEVEL_LOW
+
+
+def test_market_activity_is_medium_with_one_or_two_real_changes(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    competitor_id, mapping_id = _insert_mapping_with_competitor_id(conn, tenant_id, product_id)
+    conn.commit()
+    now = datetime.now(timezone.utc)
+    _insert_price(conn, tenant_id, mapping_id, 100.0, now - timedelta(days=3))
+    _insert_price(conn, tenant_id, mapping_id, 90.0, now - timedelta(days=1))
+    conn.commit()
+
+    levels = get_market_activity_levels(conn, tenant_id)
+    assert levels[competitor_id] == LEVEL_MEDIUM
+
+
+def test_market_activity_is_high_with_three_or_more_real_changes(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    competitor_id, mapping_id = _insert_mapping_with_competitor_id(conn, tenant_id, product_id)
+    conn.commit()
+    now = datetime.now(timezone.utc)
+    _insert_price(conn, tenant_id, mapping_id, 100.0, now - timedelta(days=4))
+    _insert_price(conn, tenant_id, mapping_id, 90.0, now - timedelta(days=3))
+    _insert_price(conn, tenant_id, mapping_id, 95.0, now - timedelta(days=2))
+    _insert_price(conn, tenant_id, mapping_id, 85.0, now - timedelta(days=1))
+    conn.commit()
+
+    levels = get_market_activity_levels(conn, tenant_id)
+    assert levels[competitor_id] == LEVEL_HIGH
+
+
+def test_market_activity_ignores_price_observations_outside_the_window(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    competitor_id, mapping_id = _insert_mapping_with_competitor_id(conn, tenant_id, product_id)
+    conn.commit()
+    now = datetime.now(timezone.utc)
+    _insert_price(conn, tenant_id, mapping_id, 100.0, now - timedelta(days=90))
+    _insert_price(conn, tenant_id, mapping_id, 50.0, now - timedelta(days=45))  # outside the 30-day window
+    conn.commit()
+
+    levels = get_market_activity_levels(conn, tenant_id, window_days=30)
+    assert competitor_id not in levels  # no observations inside the window at all
