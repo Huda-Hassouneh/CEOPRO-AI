@@ -221,6 +221,42 @@ def register_tenant_scoped_competitor(
     whether to actually run the collector based on that, this function
     only ever records what was found.
     """
+    try:
+        return _register_tenant_scoped_competitor(conn, tenant_id, actor_user_id, decision, product_id, rate_limit)
+    except Exception:
+        # NOT full atomicity end to end - be precise about what this
+        # actually buys, confirmed against a real Postgres instance (a
+        # live-DB test is what caught the earlier, overclaiming version
+        # of this comment): data_access.record_policy_decision(), called
+        # from inside _register_tenant_scoped_competitor() below, commits
+        # its OWN work internally (it's also used standalone by
+        # policy_cli.py, which relies on exactly that commit) - so by the
+        # time classify_competitor() runs afterward, the earlier
+        # global_competitors/tenant_competitors/data_sources/
+        # competitor_product_mappings inserts are already durably
+        # committed, before this function ever gets a chance to roll
+        # anything back. That's an acceptable, safe partial-progress
+        # state to leave: the competitor is genuinely registered, just
+        # not yet (re-)classified - the same ON CONFLICT DO UPDATE path
+        # a later re-run of discovery already uses naturally reclassifies
+        # it (classify_competitor() is explicitly idempotent, see its own
+        # docstring). What this rollback DOES guarantee, and the real
+        # reason it exists: classify_competitor() failing via a genuine
+        # DB-level error mid-statement leaves the connection in
+        # Postgres's aborted-transaction state; without rolling back,
+        # the caller's very next statement on this same connection would
+        # raise a confusing InFailedSqlTransaction instead of the real
+        # error. This ensures the connection always comes back clean and
+        # reusable, never stuck aborted - it does not undo already-
+        # committed work from earlier in this same call.
+        conn.rollback()
+        raise
+
+
+def _register_tenant_scoped_competitor(
+    conn, tenant_id: str, actor_user_id: str, decision: DiscoveryDecision,
+    product_id: str, rate_limit: int,
+) -> dict:
     candidate = decision.candidate
     hostname = urlsplit(candidate.url).hostname or candidate.url
 
@@ -289,41 +325,77 @@ def register_tenant_scoped_competitor(
             (tenant_id, competitor_id),
         )
 
+        # uq_tenant_competitor_product (tenant_id, global_competitor_id,
+        # product_id) is a real constraint that fires in production, not
+        # just in tests: two different discovery mechanisms (e.g. a
+        # retailer search and a sitemap crawl) commonly return different
+        # candidate URLs on the SAME domain for the SAME product, which
+        # the website_identity_key dedup above already resolves to one
+        # global_competitor_id - see reports/e2e_pipeline/20260904T093616Z
+        # and 20260905T193202Z for real UniqueViolation crashes this
+        # caused before this check existed. Reusing the existing mapping
+        # (rather than ON CONFLICT DO UPDATE here) avoids creating an
+        # orphaned data_sources row and a redundant policy re-evaluation
+        # for a competitor/product pair already fully registered - safe
+        # because this function is only ever called sequentially within
+        # one discovery run (see tenant_discovery.py's plain for-loops),
+        # never concurrently, so there is no check-then-insert race.
         cursor.execute(
-            "INSERT INTO data_sources (tenant_id, source_name, source_type) "
-            "VALUES (%s, %s, 'WEB_SCRAPE') RETURNING source_id;",
-            (tenant_id, f"Dynamically discovered: {hostname}"),
+            "SELECT mapping_id, source_id, competitor_product_url FROM competitor_product_mappings "
+            "WHERE tenant_id = %s AND global_competitor_id = %s AND product_id = %s;",
+            (tenant_id, competitor_id, product_id),
         )
-        source_id = cursor.fetchone()[0]
+        existing_mapping = cursor.fetchone()
 
-        cursor.execute(
-            "INSERT INTO competitor_product_mappings "
-            "(tenant_id, global_competitor_id, product_id, competitor_product_url, source_id) "
-            "VALUES (%s, %s, %s, %s, %s) RETURNING mapping_id;",
-            (tenant_id, competitor_id, product_id, candidate.url, source_id),
+        if existing_mapping is not None:
+            mapping_id, source_id, _existing_url = existing_mapping
+            cursor.execute("SELECT policy_status FROM data_sources WHERE tenant_id = %s AND source_id = %s;", (tenant_id, source_id))
+            existing_policy_status = cursor.fetchone()[0]
+        else:
+            cursor.execute(
+                "INSERT INTO data_sources (tenant_id, source_name, source_type) "
+                "VALUES (%s, %s, 'WEB_SCRAPE') RETURNING source_id;",
+                (tenant_id, f"Dynamically discovered: {hostname}"),
+            )
+            source_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                "INSERT INTO competitor_product_mappings "
+                "(tenant_id, global_competitor_id, product_id, competitor_product_url, source_id) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING mapping_id;",
+                (tenant_id, competitor_id, product_id, candidate.url, source_id),
+            )
+            mapping_id = cursor.fetchone()[0]
+
+    if existing_mapping is not None:
+        # Already registered and policy-evaluated by an earlier candidate
+        # in this same discovery run (see the uq_tenant_competitor_product
+        # comment above) - re-running record_policy_decision here would
+        # just overwrite an already-correct decision with an equivalent
+        # one for no benefit, and cost an extra commit on this connection.
+        policy_status_value = existing_policy_status
+    else:
+        decision_obj = evaluate_source(SourceCapabilities(
+            source_url=candidate.url,
+            public_web_collection_possible=True,
+            terms_permit_collection=True if decision.robots_evidence else None,
+            technical_controls_permit_collection=decision.technical_controls_permit_collection,
+        ))
+        data_access.record_policy_decision(
+            conn, tenant_id, str(source_id), decision_obj,
+            restrictions={
+                "discovery_method": "dynamic_search",
+                "robots_evidence": decision.robots_evidence,
+                "candidate_title": candidate.title,
+            },
+            rate_limit=rate_limit,
+            collector_key="standards",
+            approval_reference=decision.robots_evidence,
+            approved_by=actor_user_id if decision.robots_evidence else None,
+            retention_days=30,
+            contains_personal_data=False,
         )
-        mapping_id = cursor.fetchone()[0]
-
-    decision_obj = evaluate_source(SourceCapabilities(
-        source_url=candidate.url,
-        public_web_collection_possible=True,
-        terms_permit_collection=True if decision.robots_evidence else None,
-        technical_controls_permit_collection=decision.technical_controls_permit_collection,
-    ))
-    data_access.record_policy_decision(
-        conn, tenant_id, str(source_id), decision_obj,
-        restrictions={
-            "discovery_method": "dynamic_search",
-            "robots_evidence": decision.robots_evidence,
-            "candidate_title": candidate.title,
-        },
-        rate_limit=rate_limit,
-        collector_key="standards",
-        approval_reference=decision.robots_evidence,
-        approved_by=actor_user_id if decision.robots_evidence else None,
-        retention_days=30,
-        contains_personal_data=False,
-    )
+        policy_status_value = decision_obj.status.value
 
     # Re-evaluates this competitor's product_match_rate/is_tracked against
     # the mapping just inserted above - real-competitor status (spec:
@@ -337,7 +409,7 @@ def register_tenant_scoped_competitor(
         "competitor_id": str(competitor_id),
         "source_id": str(source_id),
         "mapping_id": str(mapping_id),
-        "policy_status": decision_obj.status.value,
+        "policy_status": policy_status_value,
         "product_url": candidate.url,
         "competitor_name": candidate.title or hostname,
         "is_manufacturer": is_manufacturer,
@@ -390,6 +462,22 @@ def register_domain_level_competitor(
     if discovery_method not in DOMAIN_LEVEL_DISCOVERY_METHODS:
         raise ValueError(f"discovery_method must be one of {sorted(DOMAIN_LEVEL_DISCOVERY_METHODS)}, got {discovery_method!r}")
 
+    try:
+        return _register_domain_level_competitor(conn, tenant_id, candidate, discovery_method, industry_sector, country_code)
+    except Exception:
+        # See register_tenant_scoped_competitor()'s identical try/except
+        # for why: classify_competitor() below is what commits this whole
+        # transaction, so a failure before that point must explicitly roll
+        # back this function's own earlier INSERT rather than leave it
+        # dangling uncommitted or the connection stuck aborted.
+        conn.rollback()
+        raise
+
+
+def _register_domain_level_competitor(
+    conn, tenant_id: str, candidate: CandidateSource,
+    discovery_method: str, industry_sector: Optional[str], country_code: Optional[str],
+) -> dict:
     hostname = urlsplit(candidate.url).hostname or candidate.url
     identity_key = compute_website_identity_key(candidate.url)
     website_url = candidate.url if identity_key and "/" in identity_key else f"{urlsplit(candidate.url).scheme}://{hostname}"

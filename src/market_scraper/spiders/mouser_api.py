@@ -12,7 +12,7 @@ than Digi-Key's flow, real not assumed (Mouser's docs are explicit that
 apiKey is a query-string credential, not a bearer token).
 
 Honest, flagged limit - same category as digikey_api.py's own note and
-this PR's original note on scrape_creators.py's Instagram/TikTok field
+this PR's original note on scrape_creators.py's Instagram field
 names: the exact JSON response FIELD NAMES below (MouserPartNumber,
 PriceBreaks, Availability, etc.) are this module's best-effort reading
 of Mouser's public JSON REST API (distinct from their older SOAP API,

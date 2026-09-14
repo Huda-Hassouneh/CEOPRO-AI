@@ -161,6 +161,10 @@ services:
     environment:
       SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      # src/infrastructure/db_pool.py connection pool sizing for this
+      # process's ceopro_app connections - see .env.example.
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
       REDIS_URL: redis://redis:6379/0
       SCRAPER_STREAM_KEY: ${SCRAPER_STREAM_KEY:-market.scrape.requested}
       SCRAPER_DEAD_STREAM_KEY: ${SCRAPER_DEAD_STREAM_KEY:-market.scrape.dead}
@@ -193,12 +197,78 @@ services:
     environment:
       SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
       REDIS_URL: redis://redis:6379/0
     networks:
       - ceopro_core_net
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Consumes market.discovery.requested, published by src/ai/main.py's
+  # POST /extraction/upload right after real new products are persisted -
+  # runs tenant_discovery.py's full competitor discovery (see
+  # discovery_worker.py's own module docstring for the gap this closes).
+  # Uses the market-scraper image, not market-analysis: this worker only
+  # ever imports from src/market_scraper/, never src/ai/.
+  market-discovery-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.discovery_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      REDIS_URL: redis://redis:6379/0
+      DISCOVERY_STREAM_KEY: ${DISCOVERY_STREAM_KEY:-market.discovery.requested}
+      DISCOVERY_DEAD_STREAM_KEY: ${DISCOVERY_DEAD_STREAM_KEY:-market.discovery.dead}
+      DISCOVERY_MAX_ATTEMPTS: ${DISCOVERY_MAX_ATTEMPTS:-3}
+      DISCOVERY_CLAIM_IDLE_MS: ${DISCOVERY_CLAIM_IDLE_MS:-300000}
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Scheduled polling for both connector types - direct-database
+  # (connector_sync.py) and generic POS/ERP/API (api_connector_sync.py).
+  # Neither had ever been wired into a running process before this
+  # worker existed - see connector_worker.py's own module docstring.
+  # Not event-driven (no Redis dependency): a client's own database or
+  # API doesn't publish an event when it changes, so this polls instead.
+  market-connector-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.connector_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      CONNECTOR_WORKER_POLL_INTERVAL_SECONDS: ${CONNECTOR_WORKER_POLL_INTERVAL_SECONDS:-300}
+    networks:
+      - ceopro_core_net
+    depends_on:
       migrate:
         condition: service_completed_successfully
     healthcheck:
@@ -245,6 +315,10 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      # src/infrastructure/db_pool.py connection pool sizing for this
+      # process's ceopro_app connections - see .env.example.
+      APP_DB_POOL_MIN_SIZE: ${APP_DB_POOL_MIN_SIZE:-1}
+      APP_DB_POOL_MAX_SIZE: ${APP_DB_POOL_MAX_SIZE:-10}
       JWT_SECRET: ${JWT_SECRET}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -267,6 +341,10 @@ services:
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
       GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
+      # Published by POST /extraction/upload right after new products are
+      # persisted; consumed by the market-discovery-worker service below -
+      # must match that service's own DISCOVERY_STREAM_KEY.
+      DISCOVERY_STREAM_KEY: ${DISCOVERY_STREAM_KEY:-market.discovery.requested}
     ports:
       - "8001:8000"
     networks:

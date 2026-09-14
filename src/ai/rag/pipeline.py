@@ -256,9 +256,11 @@ def run_retrieval(
     Grounding / anti-hallucination (2026-09-01 review): min_confidence_score,
     when set, drops any ranked chunk scoring below it before context
     assembly - if that empties the result entirely, the caller
-    (llm_client.answer_query()) already short-circuits on empty
-    context_text into "I don't have any relevant information", never
-    calling the LLM on a corpus that plainly didn't match. Deliberately
+    (llm_client.answer_query()) still calls the LLM (with empty
+    context_text), but SYSTEM_PROMPT itself instructs it to say so
+    explicitly rather than guess, in the user's own language, so a corpus
+    that plainly didn't match still gets a real, correctly-localized
+    decline instead of guessed content. Deliberately
     NOT given a default value: Cross-Encoder score ranges are model- and
     corpus-specific (this deployment's reranker was never calibrated
     against a labeled relevance dataset), so a made-up "safe-looking"

@@ -227,6 +227,116 @@ def test_engagement_metrics_round_trip_through_observation_and_reviews(seeded):
         (promoted["review_ids"][0],),
     )
     assert cursor.fetchone() == (10, 1)
+
+
+def test_reply_thread_parent_is_linked_within_the_same_batch(seeded):
+    """A reply and its parent comment arriving in the same collector batch
+    (the normal case - a comments actor returns a whole thread together)
+    must end up with the reply's parent_review_id pointing at the real
+    parent row, not just two independent, contextless reviews rows."""
+    first, _ = seeded
+    connection, cursor = scoped_app_connection(first)
+    thread_item = market_item(
+        first, price_amount=None, currency=None,
+        reviews=[
+            {
+                "external_review_id": "comment-1", "review_text": "This is overpriced.",
+                "reviewer_name": "shopper1", "review_rating": None, "review_date": None,
+                "safety_status": "SAFE", "safety_flags": [],
+            },
+            {
+                "external_review_id": "comment-1-reply-1", "parent_external_id": "comment-1",
+                "review_text": "Agreed, way too expensive.",
+                "reviewer_name": "shopper2", "review_rating": None, "review_date": None,
+                "safety_status": "SAFE", "safety_flags": [],
+            },
+        ],
+    )
+    thread_item["_staging_id"] = stage_record(connection, thread_item)
+    promoted = save_market_record(connection, thread_item)
+    assert promoted["status"] == "PROMOTED"
+    assert len(promoted["review_ids"]) == 2
+
+    cursor.execute(
+        "SELECT external_review_id, review_id, parent_review_id FROM reviews "
+        "WHERE review_id = ANY(%s::uuid[]);",
+        (promoted["review_ids"],),
+    )
+    rows = {external_id: (review_id, parent_id) for external_id, review_id, parent_id in cursor.fetchall()}
+    parent_review_id, parent_of_parent = rows["comment-1"]
+    reply_review_id, reply_parent_id = rows["comment-1-reply-1"]
+    assert parent_of_parent is None  # the top-level comment has no parent of its own
+    assert reply_parent_id == parent_review_id  # the reply resolves to the real parent row
+    connection.close()
+
+
+def test_reply_parent_from_an_earlier_job_run_is_still_linked(seeded):
+    """The parent doesn't have to be in the SAME batch - a reply whose
+    parent was collected (and persisted) in an earlier run for the same
+    source must still resolve via the real reviews table, not just the
+    in-batch map."""
+    first, _ = seeded
+    connection, cursor = scoped_app_connection(first)
+
+    earlier_run = market_item(
+        first, price_amount=None, currency=None,
+        reviews=[{
+            "external_review_id": "comment-2", "review_text": "Great product overall.",
+            "reviewer_name": "shopper3", "review_rating": None, "review_date": None,
+            "safety_status": "SAFE", "safety_flags": [],
+        }],
+    )
+    earlier_run["_staging_id"] = stage_record(connection, earlier_run)
+    earlier_promoted = save_market_record(connection, earlier_run)
+    parent_review_id = earlier_promoted["review_ids"][0]
+
+    later_run = market_item(
+        first, price_amount=None, currency=None, captured_at="2026-08-31T00:00:00Z",
+        reviews=[{
+            "external_review_id": "comment-2-reply-1", "parent_external_id": "comment-2",
+            "review_text": "Totally agree!",
+            "reviewer_name": "shopper4", "review_rating": None, "review_date": None,
+            "safety_status": "SAFE", "safety_flags": [],
+        }],
+    )
+    later_run["_staging_id"] = stage_record(connection, later_run)
+    later_promoted = save_market_record(connection, later_run)
+
+    cursor.execute(
+        "SELECT parent_review_id FROM reviews WHERE review_id = %s;",
+        (later_promoted["review_ids"][0],),
+    )
+    assert cursor.fetchone()[0] == uuid.UUID(parent_review_id)
+    connection.close()
+
+
+def test_reply_with_an_unknown_parent_stays_unlinked(seeded):
+    """A parent that was never collected at all (paginated out, filtered
+    by the provider, or genuinely deleted upstream) must leave
+    parent_review_id NULL - honest, not fabricated - and must never raise,
+    since the reply's own text/engagement data is still real and worth
+    saving either way."""
+    first, _ = seeded
+    connection, cursor = scoped_app_connection(first)
+    orphan_reply = market_item(
+        first, price_amount=None, currency=None,
+        reviews=[{
+            "external_review_id": "comment-3-reply-1", "parent_external_id": "comment-3-never-collected",
+            "review_text": "Replying to a comment we never saw.",
+            "reviewer_name": "shopper5", "review_rating": None, "review_date": None,
+            "safety_status": "SAFE", "safety_flags": [],
+        }],
+    )
+    orphan_reply["_staging_id"] = stage_record(connection, orphan_reply)
+    promoted = save_market_record(connection, orphan_reply)
+    assert promoted["status"] == "PROMOTED"
+
+    cursor.execute(
+        "SELECT parent_review_id FROM reviews WHERE review_id = %s;",
+        (promoted["review_ids"][0],),
+    )
+    assert cursor.fetchone()[0] is None
+    connection.close()
     connection.close()
 
 
