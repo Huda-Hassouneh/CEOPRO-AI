@@ -59,6 +59,40 @@ def build_structured_facts_block(conn, tenant_id: str) -> str:
     with conn.cursor() as cursor:
         cursor.execute(
             """
+            SELECT gc.competitor_name, tc.tier, gc.website_url
+            FROM tenant_competitors tc
+            JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
+            WHERE tc.tenant_id = %s AND tc.is_tracked = TRUE
+            ORDER BY tc.tier = 'STRATEGIC' DESC, gc.competitor_name ASC
+            LIMIT 15;
+            """,
+            (tenant_id,),
+        )
+        competitor_rows = cursor.fetchall()
+    if competitor_rows:
+        # The real fix for "who are my competitors?" getting only a bare
+        # tier count back: a competitor's own NAME already exists (real,
+        # persisted - global_competitors.competitor_name/website_url) the
+        # moment discovery registers it, regardless of whether it was ever
+        # actually scraped for a price. This is injected here (always-on,
+        # never chunked, never dependent on semantic search having ranked
+        # the right RAG chunk highly enough) rather than relying only on
+        # structured_summaries.py::generate_competitor_landscape_summary()'s
+        # retrieved narrative - the guarantee this module's own docstring
+        # already promises for exact numbers applies just as much to a
+        # simple "name a competitor" question.
+        lines.append(
+            "Your actual tracked competitors by name (source: global_competitors.competitor_name, "
+            "joined via tenant_competitors) - cite these real names directly when asked who your "
+            "competitors are, rather than only stating a count or tier:"
+        )
+        for name, tier, website_url in competitor_rows:
+            site_text = f" ({website_url})" if website_url else ""
+            lines.append(f"- {name}{site_text}: {tier} tier.")
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
             SELECT COALESCE(p.product_name->>'en', p.product_name->>'ar', p.product_name::text) AS name,
                    p.current_price, p.currency, latest.scraped_price
             FROM products p
