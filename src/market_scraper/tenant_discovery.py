@@ -164,6 +164,11 @@ def discover_competitors_for_tenant(
     already small enough not to need this can skip the extra DB queries
     select_family_representatives() itself does).
 
+    Collapsing is precision-gated even when group_by_family=True: only a
+    product priced below product_families.COLLAPSE_ELIGIBLE_PRICE_
+    THRESHOLD for its own currency ever shares a family search with
+    another SKU - see select_family_representatives()'s own docstring.
+
     skip_already_discovered (default True) is the real zero-dollar answer
     to "the daily quota isn't enough for the whole catalog in one run":
     a product that already has at least one competitor_product_mappings
@@ -385,7 +390,9 @@ def map_products_on_domain_competitor_site(
     too - not for API cost (there is none - both mechanisms are free),
     but for politeness: searching once per family instead of once per
     SKU means fewer real HTTP requests against this one competitor's own
-    server, not a shared API quota.
+    server, not a shared API quota. Same precision gate as the other
+    caller: collapsing only ever applies to a product priced below
+    product_families.COLLAPSE_ELIGIBLE_PRICE_THRESHOLD.
     """
     domain = urlsplit(website_url).hostname
     if not domain:
