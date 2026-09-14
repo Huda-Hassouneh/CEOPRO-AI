@@ -22,9 +22,20 @@ collector (market_scraper/data_access.py::load_scrape_targets() already
 filters on tc.is_tracked = TRUE) - this module is what makes that flag mean
 something instead of being unconditionally TRUE at insert time.
 
-DEFAULT_MATCH_RATE_THRESHOLD is 0.5 (50%, the exact bar CEOPRO's product
-owner specified) but is a parameter, not a constant baked into the query -
-different tenants/verticals may reasonably want a stricter or looser bar.
+DEFAULT_MATCH_RATE_THRESHOLD is 0.6 (60%, the product owner's chosen
+balanced middle ground for the STRATEGIC bar - raised from an earlier 0.5
+- but is a parameter, not a constant baked into the query - different
+tenants/verticals may reasonably want a stricter or looser bar.
+
+is_confirmed_competitor/is_tracked mean "not excluded" (passed the
+manufacturer/region gates), NOT "cleared the STRATEGIC match-rate bar" -
+a real, in-region, non-manufacturer seller is a real competitor worth
+tracking and price-comparing the moment it clears those two gates,
+whether or not enough of the tenant's catalog overlaps with theirs yet
+to call it STRATEGIC. tier is the separate axis that answers "how much
+of my catalog do they compete on" (RELEVANT below the bar, STRATEGIC at
+or above it) - only TIER_CANDIDATE (manufacturer, or out of region) is
+ever excluded from tracking.
 """
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -32,7 +43,7 @@ from typing import Optional
 
 from src.market_scraper.geo import distance_km_if_known
 
-DEFAULT_MATCH_RATE_THRESHOLD = 0.5
+DEFAULT_MATCH_RATE_THRESHOLD = 0.6
 
 # Breadth classification thresholds - a separate axis from the tier above:
 # tier answers "is this a real, trackable competitor at all", scope answers
@@ -240,11 +251,9 @@ def classify_competitor(
 
     if is_manufacturer:
         reason = "excluded: manufacturer/wholesaler, not a retail competitor"
-        confirmed = False
         tier = TIER_CANDIDATE
     elif not in_region:
         reason = f"excluded: competitor country {competitor_country!r} is outside the tenant's operating region"
-        confirmed = False
         tier = TIER_CANDIDATE
     elif is_domain_level_find:
         # A domain-level find (Places nearby-search / industry-keyword
@@ -258,22 +267,29 @@ def classify_competitor(
         # competitor, a later run naturally falls through to the ordinary
         # match-rate branches below instead.
         reason = f"confirmed: same-industry, in-region, not a manufacturer (found via {discovery_method})"
-        confirmed = True
         tier = TIER_STRATEGIC
     elif match_rate < threshold:
-        reason = f"below threshold: {match_rate:.0%} product overlap (needs >= {threshold:.0%})"
-        confirmed = False
         # Passed the manufacturer/region checks - a real, in-region retail
         # seller, just not (yet) enough catalog overlap to call "strategic".
-        # This is the tier recommended_collector_config() (product_families.py)
-        # gates expensive deep-collection (paid comment/review depth) OFF for -
+        # Still tracked and price-compared (real bug fix: this used to also
+        # mark is_tracked/is_confirmed_competitor FALSE here, silently
+        # dropping every RELEVANT competitor from tracking entirely - tier
+        # is the axis that answers "how much of my catalog do they cover",
+        # not "is this a real competitor at all"). This is the tier
+        # recommended_collector_config() (product_families.py) gates
+        # expensive deep-collection (paid comment/review depth) OFF for -
         # a RELEVANT competitor still gets tracked and price-compared, just
         # not the expensive social depth STRATEGIC gets.
+        reason = f"tracked (RELEVANT): {match_rate:.0%} product overlap - below the {threshold:.0%} STRATEGIC bar, but a real, in-region, non-manufacturer competitor"
         tier = TIER_RELEVANT
     else:
-        reason = f"confirmed: {match_rate:.0%} product overlap, in-region, not a manufacturer"
-        confirmed = True
+        reason = f"confirmed (STRATEGIC): {match_rate:.0%} product overlap, in-region, not a manufacturer"
         tier = TIER_STRATEGIC
+
+    # is_confirmed_competitor/is_tracked = "not excluded" (see this
+    # function's own docstring) - true for every tier except CANDIDATE,
+    # regardless of which match-rate branch above produced it.
+    confirmed = tier != TIER_CANDIDATE
 
     with conn.cursor() as cursor:
         cursor.execute(

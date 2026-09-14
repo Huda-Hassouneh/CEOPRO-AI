@@ -40,6 +40,7 @@ from pydantic import BaseModel
 
 from src.ai import db
 from src.ai.dashboard import competitor_pricing as dashboard_competitor_pricing
+from src.ai.dashboard import competitors as dashboard_competitors
 from src.ai.dashboard import forecast as dashboard_forecast
 from src.ai.dashboard import metrics as dashboard_metrics
 from src.ai.dashboard import recommendations as dashboard_recommendations
@@ -694,6 +695,31 @@ def dashboard_competitor_pricing_endpoint(
         result = dashboard_competitor_pricing.get_competitor_price_positioning(conn, ctx.tenant_id, limit=limit)
         conn.commit()
         return {"products": result}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/competitors")
+def dashboard_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The dashboard's Competitor Directory - the frontend's final backend
+    contract for the competitor UI, grouped by tier (see dashboard/
+    competitors.py's own docstring for exactly why the two groups carry
+    different fields): STRATEGIC competitors (>= the classification
+    threshold's product overlap) with their exact overlap percentage,
+    RELEVANT competitors (a real, in-region, tracked competitor below
+    that bar) with a per-product price comparison instead. Excludes
+    CANDIDATE (manufacturer, or out of region) entirely - those were
+    never confirmed as real competitors in the first place.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_competitors.get_competitor_directory(conn, ctx.tenant_id)
+        conn.commit()
+        return result
     except Exception:
         conn.rollback()
         raise
