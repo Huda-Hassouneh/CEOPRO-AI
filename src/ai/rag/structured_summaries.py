@@ -377,6 +377,17 @@ def generate_demand_forecast_summary(conn, tenant_id: str) -> str:
     ordered by created_at DESC) - a product can accumulate many forecast
     rows over time as horizon_days requests repeat, and only the latest is
     ever the current answer.
+
+    Real bug fix: evidence_records.forecast_id is NEVER actually set for a
+    forecasting evidence row - forecasting/pipeline.py::run_forecast()
+    writes the real forecast_id inside source_record_ids (a JSONB blob:
+    {"forecast_id": ..., "product_id": ...}), not the forecast_id column,
+    which stays NULL. The previous join here (`er.forecast_id =
+    df.forecast_id`) could therefore never match anything -
+    confidence_score has silently been NULL for every forecast summary
+    ever generated, meaning _plain_confidence_label() always fell back to
+    "an early, rough estimate" regardless of the model's real confidence.
+    Fixed by joining on the real location instead.
     """
     with conn.cursor() as cursor:
         cursor.execute(
@@ -387,7 +398,9 @@ def generate_demand_forecast_summary(conn, tenant_id: str) -> str:
                 df.forecast_target_date, er.confidence_score
             FROM demand_forecasts df
             JOIN products p ON p.tenant_id = df.tenant_id AND p.product_id = df.product_id
-            LEFT JOIN evidence_records er ON er.tenant_id = df.tenant_id AND er.forecast_id = df.forecast_id
+            LEFT JOIN evidence_records er ON er.tenant_id = df.tenant_id
+                AND er.source_module = 'ai.forecasting'
+                AND (er.source_record_ids->>'forecast_id')::uuid = df.forecast_id
             WHERE df.tenant_id = %s AND p.deleted_at IS NULL
             ORDER BY df.product_id, df.created_at DESC
             LIMIT 20;
