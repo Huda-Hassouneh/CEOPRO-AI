@@ -429,6 +429,15 @@ def test_system_prompt_explains_how_to_use_conversation_history():
     assert "follow-up" in prompt_lower
 
 
+def test_system_prompt_forbids_repeating_the_same_answer_verbatim_on_a_follow_up():
+    """Targets the exact observed failure mode: 'who are my competitors?'
+    -> a vague summary, then 'who are they?' -> the IDENTICAL sentence
+    repeated, never elaborating or explaining the real limit even once."""
+    prompt_lower = llm_client.SYSTEM_PROMPT.lower()
+    assert "never repeat a prior answer verbatim" in prompt_lower
+    assert "repeated non-answer" in prompt_lower
+
+
 def test_build_user_prompt_includes_a_separately_labeled_structured_facts_section():
     prompt = llm_client._build_user_prompt(_context(), structured_facts="Sentiment score: 0.42.")
     assert "Context:" in prompt
