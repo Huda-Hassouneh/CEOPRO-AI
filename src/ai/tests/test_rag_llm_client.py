@@ -423,6 +423,19 @@ def test_system_prompt_reinforces_language_matching_on_the_no_info_fallback():
     assert "even though this is an 'i don't know' reply" in prompt_lower or "don't know' reply" in prompt_lower
 
 
+def test_system_prompt_matches_reply_length_to_a_bare_greeting():
+    """Targets the exact observed failure mode: a user says 'hi' and the
+    bot dumps the entire always-injected structured-facts block (sentiment
+    score, competitor names, price gaps, demand forecasts) into what
+    should be a one-line hello - because that block is unconditionally
+    present in the context for every question, greetings included, and
+    nothing previously told the model not to recite it in full."""
+    prompt_lower = llm_client.SYSTEM_PROMPT.lower()
+    assert "proportionality" in prompt_lower
+    assert "greeting" in prompt_lower
+    assert "not a report to recite, list, or summarize in full" in prompt_lower
+
+
 def test_system_prompt_explains_how_to_use_conversation_history():
     prompt_lower = llm_client.SYSTEM_PROMPT.lower()
     assert "conversation history" in prompt_lower

@@ -358,6 +358,18 @@ def test_platform_help_summary_names_the_real_implemented_capabilities():
         assert real_capability in summary
 
 
+def test_platform_help_summary_names_the_platforms_own_identity_and_mission():
+    """The other half of the "chatbot can't answer questions about itself"
+    gap: "who are you"/"what is this platform" used to have nothing
+    grounded to answer from, same as "how do I use this" before this
+    slot existed at all. Sourced from MASTER_SPEC_v4.md's own System
+    Definition section - the real project spec, not invented copy."""
+    summary = structured_summaries.generate_platform_help_summary()
+    assert "CEOPRO AI is an" in summary
+    assert "business intelligence platform" in summary.lower()
+    assert "small and medium" in summary.lower()
+
+
 def test_platform_help_summary_stays_free_of_ml_jargon():
     summary = structured_summaries.generate_platform_help_summary()
     for jargon in ("MASE", "RMSE", "XGBoost", "confidence score"):
