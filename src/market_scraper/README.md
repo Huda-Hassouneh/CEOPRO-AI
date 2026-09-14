@@ -297,12 +297,14 @@ cost N searches for N variants).
   no separate resume-index or queue to build.
 - **`tenant_competitors.tier`** (`CANDIDATE` / `RELEVANT` / `STRATEGIC`, migration
   `20260907010000`) is computed and persisted by `competitor_classification.py::classify_competitor()`:
-  `CANDIDATE` (excluded — a manufacturer, or out of region), `RELEVANT` (passed those checks, below
-  the product-overlap threshold — the same as before this existed, `is_confirmed_competitor = FALSE`),
-  `STRATEGIC` (passed all three — `is_confirmed_competitor = TRUE`). `product_families.py::
-  recommended_collector_config(tier)` is the real point: only `STRATEGIC` gets `fetch_comments: True`
-  recommended — the expensive paid-provider comment/review depth is never spent on a competitor that
-  hasn't cleared the real bar, while `RELEVANT` still gets tracked and price-compared.
+  `CANDIDATE` (excluded — a manufacturer, or out of region — the only tier that's ever
+  `is_confirmed_competitor = FALSE`/`is_tracked = FALSE`), `RELEVANT` (passed those two checks, below
+  the product-overlap threshold — confirmed and tracked, just not `STRATEGIC`), `STRATEGIC` (passed
+  all three — the overlap threshold too). `product_families.py::recommended_collector_config(tier)`
+  is the real point of the tier split: only `STRATEGIC` gets `fetch_comments: True` recommended — the
+  expensive paid-provider comment/review depth is never spent on a competitor that hasn't cleared the
+  overlap bar — while `RELEVANT` still gets tracked and price-compared exactly like `STRATEGIC`, just
+  without that extra paid depth.
 
 ## Region-aware ranking: proximity + competitor breadth
 
@@ -316,7 +318,7 @@ broad domain competitor) or just on a single product (a niche/item competitor)".
 - **Competitor breadth** (`tenant_competitors.competitor_scope`) — computed and persisted by
   `competitor_classification.py::classify_competitor()` on every run, alongside tier:
   `NICHE_ITEM` (this competitor's mapped-product count is `<= 1` — literally "just on a single
-  product"), `BROAD_DOMAIN` (product-overlap ratio clears `broad_domain_threshold`, default `0.5`,
+  product"), `BROAD_DOMAIN` (product-overlap ratio clears `broad_domain_threshold`, default `0.6`,
   its own parameter — not forced to equal the confirmation `threshold`, though they share the same
   default value), `PARTIAL_OVERLAP` for the real, honest middle ground. A `NICHE_ITEM` competitor can
   still be `STRATEGIC` tier (the one product they carry is an exact, in-region, non-manufacturer
@@ -478,10 +480,11 @@ three checks:
 2. **In the tenant's operating region.** `global_competitors.country_code` is compared against
    `companies.country_code`/`operating_countries`; an unknown competitor country is not excluded
    (no evidence either way), but a known out-of-region one is.
-3. **Product overlap meets a configurable threshold.** `product_match_rate` = (this tenant's active
+3. **Product overlap decides the tier, not tracking.** `product_match_rate` = (this tenant's active
    products this competitor also has an active mapping to) / (this tenant's total active products).
-   Only `>= threshold` (default `0.5`, i.e. 50%, passed as a parameter — not hardcoded) confirms a
-   real competitor.
+   `>= threshold` (default `0.6`, i.e. 60%, passed as a parameter — not hardcoded) earns `STRATEGIC`
+   tier instead of `RELEVANT` — both tiers are confirmed/tracked, since both already passed checks
+   1 and 2 above; only `CANDIDATE` (failed 1 or 2) is ever excluded.
 
 `tenant_competitors.product_match_rate`/`is_confirmed_competitor`/`classified_at` record the result
 of the most recent classification.

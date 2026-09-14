@@ -177,17 +177,33 @@ def test_classify_does_not_exclude_a_competitor_with_unknown_country(conn):
     assert result.is_confirmed_competitor is True
 
 
-def test_classify_rejects_below_threshold_overlap(conn):
+def test_classify_still_confirms_and_tracks_below_threshold_overlap(conn):
+    """Real bug fix: a below-threshold seller is RELEVANT-tier, not
+    excluded - it already passed the manufacturer/region gates, so it's
+    a real, in-region competitor and must stay confirmed/tracked, just
+    not STRATEGIC. Only TIER_CANDIDATE (manufacturer or out-of-region)
+    is ever excluded from tracking."""
     tenant_id = _insert_company(conn, country_code="JO")
     product_a = _insert_product(conn, tenant_id, "Widget A")
     _insert_product(conn, tenant_id, "Widget B")
     _insert_product(conn, tenant_id, "Widget C")
     competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="JO")
-    _map_product(conn, tenant_id, competitor_id, product_a)  # 1/3 = 33%, below default 50%
+    _map_product(conn, tenant_id, competitor_id, product_a)  # 1/3 = 33%, below default 60%
 
     result = classify_competitor(conn, tenant_id, competitor_id)
-    assert result.is_confirmed_competitor is False
+    assert result.is_confirmed_competitor is True
+    assert result.tier == TIER_RELEVANT
     assert result.product_match_rate == pytest.approx(1 / 3)
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT is_tracked, is_confirmed_competitor FROM tenant_competitors "
+            "WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, competitor_id),
+        )
+        is_tracked, is_confirmed = cursor.fetchone()
+    assert is_tracked is True
+    assert is_confirmed is True
 
 
 def test_classify_honors_a_custom_threshold(conn):
@@ -232,10 +248,10 @@ def test_tier_is_relevant_when_below_threshold_but_otherwise_real(conn):
     _insert_product(conn, tenant_id, "Widget B")
     _insert_product(conn, tenant_id, "Widget C")
     competitor_id = _insert_competitor(conn, tenant_id, is_manufacturer=False, country_code="JO")
-    _map_product(conn, tenant_id, competitor_id, product_a)  # 1/3 = 33%, below default 50%
+    _map_product(conn, tenant_id, competitor_id, product_a)  # 1/3 = 33%, below default 60%
 
     result = classify_competitor(conn, tenant_id, competitor_id)
-    assert result.is_confirmed_competitor is False
+    assert result.is_confirmed_competitor is True  # RELEVANT is still a real, tracked competitor
     assert result.tier == TIER_RELEVANT
 
     with conn.cursor() as cursor:
