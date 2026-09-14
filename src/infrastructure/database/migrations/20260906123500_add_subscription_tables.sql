@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS plans (
     -- Payment provider identifiers
     payment_provider_product_id VARCHAR(255),
     -- PayPal's Billing Plan ID
-    payment_provider_plan_id VARCHAR(255),
+    payment_provider_plan_id VARCHAR(255) UNIQUE,
 
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
