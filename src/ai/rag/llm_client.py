@@ -1,5 +1,5 @@
 """
-CEOPRO AI - LLM Reasoning (spec S21's "LLM REASONING" stage).
+CEOPRO AI - LLM Reasoning (spec S21's "LLM REASONING" stage)
 
 Completes the RAG chatbot pipeline that pipeline.py deliberately stopped
 short of (see its own module docstring): takes the AssembledContext
@@ -21,7 +21,7 @@ call touches only ever sends and receives text over HTTPS). This is why
 a hosted inference API was the right call here, not a locally-run model:
 a model small enough to run lightly on a typical machine would trade
 away the multilingual accuracy this platform's 16-country, cross-dialect
-Arabic requirement needs.
+Arabic requirement needs
 
 DEFAULT_MODEL has moved twice, both times because a hosted provider's
 catalog changed under us - re-check https://console.groq.com/docs/models
@@ -53,6 +53,7 @@ not the retrieval pipeline underneath it.
 
 import logging
 import os
+import random
 import time
 
 import httpx
@@ -132,29 +133,220 @@ MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "2"))
 RETRY_BACKOFF_SECONDS = float(os.getenv("GROQ_RETRY_BACKOFF_SECONDS", "0.5"))
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+# Jitter on top of the linear backoff above: under a real provider-wide
+# outage/429 event, many concurrent requests hitting this same process
+# would otherwise all retry in lockstep at the exact same 0.5s/1.0s
+# intervals, adding a synchronized retry spike right when the provider is
+# already struggling. A random fraction added to each wait spreads
+# retries out instead - RETRY_JITTER_FRACTION=0.5 means each backoff is
+# lengthened by 0%-50% of its base value, never shortened (never retrying
+# SOONER than the base backoff already calls for).
+RETRY_JITTER_FRACTION = float(os.getenv("GROQ_RETRY_JITTER_FRACTION", "0.5"))
+
+# Circuit breaker: /rag/query runs synchronously in a FastAPI request
+# handler (on the thread-pool executor), and a single failed request can
+# already cost close to MAX_RETRIES attempts x up to DEFAULT_TIMEOUT_SECONDS/
+# LOCAL_LLM_TIMEOUT_SECONDS each. Under a sustained provider outage, every
+# new incoming chat request keeps paying that same full retry cost against
+# a provider that's already known to be down - real risk of exhausting the
+# thread pool and queuing/timing out unrelated requests (pricing, sentiment,
+# etc. sharing the same process). After CIRCUIT_BREAKER_THRESHOLD consecutive
+# request-level failures (a failure meaning every retry within one call was
+# already exhausted - a transient blip that succeeds on retry never counts),
+# new calls fail fast for CIRCUIT_BREAKER_COOLDOWN_SECONDS instead of
+# attempting the full retry sequence again. Module-level, in-process state -
+# not shared across worker processes, which is fine: the goal is protecting
+# THIS process's own thread pool, not a global rate limit.
+CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("GROQ_CIRCUIT_BREAKER_THRESHOLD", "5"))
+CIRCUIT_BREAKER_COOLDOWN_SECONDS = float(os.getenv("GROQ_CIRCUIT_BREAKER_COOLDOWN_SECONDS", "30"))
+
+# Real bug this constant fixes: every call into this module used to send
+# exactly one message (system prompt + the current turn) - the LLM had
+# zero memory of anything said earlier in the same conversation, so a
+# natural follow-up ("I meant jumper wire", "why isn't that clear?") had
+# no way to resolve what it was referring to and the reply came back
+# disconnected from what was just discussed. history (a list of
+# {"role": "user"|"assistant", "content": str} dicts, oldest first, the
+# same shape the caller's own chat log already tracks) is now threaded
+# into the real chat-completion `messages` array between the system
+# prompt and the current turn, giving the model the actual prior
+# exchange to reason over - the same mechanism every real chat product
+# (Claude, NotebookLM, ChatGPT) relies on for this exact behavior.
+# Capped rather than sent in full: a long-running conversation would
+# otherwise grow the prompt (and the cost/latency of every future turn)
+# without bound. 12 messages = 6 full user/assistant turns - enough for
+# real short-term context (a clarification, a "why", a "tell me more")
+# without paying to re-send an entire session's history on every message.
+MAX_HISTORY_MESSAGES = int(os.getenv("RAG_MAX_HISTORY_MESSAGES", "12"))
+
+_circuit_state = {"consecutive_failures": 0, "opened_at": None}
+
+
+def _reset_circuit_breaker() -> None:
+    """Test-only reset hook - module-level state would otherwise leak
+    failure counts across unrelated test cases (and across requests for
+    different, independent backends in a real deployment that switches
+    providers at runtime)."""
+    _circuit_state["consecutive_failures"] = 0
+    _circuit_state["opened_at"] = None
+
+
+def _circuit_is_open() -> bool:
+    opened_at = _circuit_state["opened_at"]
+    if opened_at is None:
+        return False
+    if time.monotonic() - opened_at >= CIRCUIT_BREAKER_COOLDOWN_SECONDS:
+        _reset_circuit_breaker()  # cooldown elapsed - let the next call retry for real
+        return False
+    return True
+
+
+def _record_circuit_success() -> None:
+    _reset_circuit_breaker()
+
+
+def _record_circuit_failure() -> None:
+    _circuit_state["consecutive_failures"] += 1
+    if _circuit_state["consecutive_failures"] >= CIRCUIT_BREAKER_THRESHOLD:
+        _circuit_state["opened_at"] = time.monotonic()
+
+
+def _backoff_seconds(attempt: int) -> float:
+    base = RETRY_BACKOFF_SECONDS * (attempt + 1)
+    return base + random.uniform(0, base * RETRY_JITTER_FRACTION)
+
 # Low temperature: this is grounded question-answering over retrieved
 # business documents, not creative writing - the answer should track the
 # provided context closely, not improvise around it.
 DEFAULT_TEMPERATURE = 0.2
 
 SYSTEM_PROMPT = (
-    "You are CEOPRO AI's business assistant. Answer the user's question using ONLY the "
-    "information in the provided context. If the context does not contain enough "
-    "information to answer, say so explicitly rather than guessing or using outside "
-    "knowledge. Respond in the same language as the question - the platform supports "
-    "Arabic, English, and mixed Arabic-English (code-switched) queries.\n\n"
+    "You are CEOPRO AI's business assistant - a friendly, supportive advisor for an "
+    "ordinary small-business owner (a shop or restaurant owner, not a data analyst, "
+    "engineer, or accountant). Answer the user's question using ONLY the information in "
+    "the provided context. If the context does not contain enough information to answer, "
+    "say so explicitly and simply - in the exact same language and dialect the user's "
+    "CURRENT message is written in, never switching to English or any other language just "
+    "because this is an 'I don't know' reply - rather than guessing or using outside "
+    "knowledge.\n\n"
+    "Proportionality - this matters as much as accuracy: match your reply's length and content "
+    "to what was actually asked, exactly the way a normal chat assistant (ChatGPT, Claude) "
+    "would, never a report generator. A greeting or small talk on its own ('hi', 'hello', "
+    "'thanks', 'how are you', 'مرحبا', 'مساء الخير', 'شكرا') gets a short, warm, natural reply "
+    "back - one or two sentences, in the same language/dialect, maybe a brief offer to help - "
+    "and nothing else. The 'Current business data' section below (when present) is real, live "
+    "data made available for you to draw specific facts from IF AND ONLY IF the user's actual "
+    "question calls for them - it is not a report to recite, list, or summarize in full just "
+    "because it's there. Silently ignore every line in it that isn't relevant to the current "
+    "question, the same way you would silently ignore an irrelevant retrieved passage. Never "
+    "let the mere presence of data in the context turn a simple greeting or an unrelated "
+    "question into a dump of unrelated numbers.\n\n"
+    "Conversation history: earlier turns from this same conversation may be included before "
+    "the current question, oldest first. Use them only to understand what the CURRENT "
+    "question is actually asking - resolving a pronoun, a correction ('I meant X'), or a "
+    "follow-up ('why?', 'tell me more') against what was just discussed. Never treat "
+    "something said earlier in the conversation (by either you or the user) as a new fact "
+    "on its own - every factual claim in your answer must still come from the context/"
+    "business data provided for THIS turn, exactly as the provenance rule below requires.\n\n"
+    "Never repeat a prior answer verbatim when the user is clearly asking a follow-up (e.g. "
+    "'who are they?' after you already mentioned some, 'why?', 'tell me more') - check the "
+    "conversation history above for what you already said before answering. If the current "
+    "context genuinely has more detail than you gave last time, give that detail now instead "
+    "of restating the same summary. If it truly doesn't have anything more, say plainly, ONCE, "
+    "exactly what's missing and why (e.g. 'I only have how many competitors you have, not their "
+    "individual names, because those weren't collected yet') rather than repeating the identical "
+    "sentence again - a repeated non-answer helps no one even when it's honest.\n\n"
+    "Language, dialect, and tone - match the user exactly, every time: respond in the "
+    "EXACT SAME language the user just wrote in, never switching languages on your own and "
+    "never defaulting to English. If they wrote in Arabic, answer entirely in Arabic; if "
+    "English, entirely in English; if they mixed Arabic and English in the same message "
+    "(code-switching), mirror that same natural mix rather than forcing the reply into one "
+    "pure language. This applies to every single reply, including a follow-up later in the "
+    "same conversation - re-check the language of the CURRENT message each time rather than "
+    "sticking with whatever language was used earlier.\n\n"
+    "Go further than just the language: match the user's specific dialect and register too, "
+    "so the reply sounds like it's coming from someone who actually talks the way they do, "
+    "not a generic translation. If they write in a regional Arabic dialect (e.g. Jordanian/"
+    "Levantine, Gulf, Egyptian), reply naturally in that same dialect, not formal Modern "
+    "Standard Arabic and never English technical terms transliterated into Arabic letters. "
+    "If they write formal, correct Arabic or English, reply in an equally professional "
+    "register; if they write casually (short sentences, colloquial phrasing, emoji), reply "
+    "just as casually and warmly back. When the dialect or register genuinely isn't clear "
+    "from a short message, default to plain, everyday spoken business Arabic or English (the "
+    "way a shopkeeper actually talks with a trusted advisor) rather than guessing at a "
+    "specific dialect. None of this dialect/tone matching ever excuses using jargon - a "
+    "casual Jordanian-dialect reply and a formal English reply must both stay equally free "
+    "of it, per the Extreme Simplicity rule below.\n\n"
+    "Extreme Simplicity - this is a hard rule, not a style preference: never use technical, "
+    "statistical, or machine-learning jargon in any language, no matter how it appears in "
+    "the context. This includes (but isn't limited to) model/algorithm names (XGBoost, "
+    "baseline model, walk-forward validation), statistical metrics (MASE, RMSE, MAE, "
+    "p-value, standard deviation), and raw confidence scores or probabilities (\"confidence "
+    "0.73\"). If the context contains any of these, silently translate them into a plain, "
+    "everyday statement before answering - never repeat the technical term or number "
+    "itself, even if asked to cite where a figure came from. For confidence/uncertainty, "
+    "use plain qualitative language instead of numbers - for example: 'this is a solid "
+    "estimate based on your own sales history' (high confidence), 'this is a reasonable "
+    "estimate, but it will get more accurate over time' (moderate confidence), or 'this is "
+    "an early, rough estimate since we don't have much history yet' (low confidence). "
+    "Every answer should read like straightforward, practical business advice a friend "
+    "who understands the shop's numbers would give over coffee - short sentences, concrete "
+    "next steps, no filler.\n\n"
+    "Teaching mode: if the user seems confused, asks what something means, or asks you to "
+    "explain a concept (pricing, demand, sentiment, competition, or anything else about "
+    "how the business works), switch into a patient, supportive teacher. Explain it using "
+    "everyday language and a simple, relatable example (a small shop, a market stall, a "
+    "familiar situation) rather than a definition or technical explanation. Never make the "
+    "user feel talked down to for not knowing something, and always check afterward "
+    "whether they'd like it explained a different way.\n\n"
     "Provenance: the context is labeled with [Source N] markers, and each fact within a "
     "source is itself annotated with where it came from (e.g. a database table and column, "
     "or a market data snapshot with its origin and capture time). When asked what your "
-    "answer is based on, or where a number came from, cite the exact table/field/source "
-    "annotation as written in the context - never invent a source, generalize to 'our "
-    "database' without naming the specific table, or claim a source that isn't literally "
-    "present in the context above."
+    "answer is based on, or where a number came from, describe the source in plain, "
+    "everyday terms the same way the rest of your answer is phrased (e.g. 'based on your "
+    "own sales records' or 'based on what we've seen from your competitors online') - never "
+    "invent a source, generalize to 'our database' without saying what kind of information "
+    "it is, claim a source that isn't literally present in the context above, or read out "
+    "the raw table/column name itself."
 )
 
 
 class LLMError(Exception):
     """Raised when the LLM provider call fails or returns an unusable response."""
+
+
+def _sanitize_history(history) -> list:
+    """
+    Defensive normalization for the caller-supplied conversation history,
+    not just a pass-through - a caller building this from a UI's own chat
+    log (a plain list of (role, text) pairs, or a request body from an
+    untrusted client) can hand this function almost anything. Silently
+    drops/fixes what it can rather than raising, since a malformed history
+    entry should degrade to "less context", never break the whole chat
+    turn:
+    - keeps only {"role", "content"} keys (drops anything else a caller
+      might have included, e.g. a UI's own internal message id/timestamp);
+    - coerces role to "user"/"assistant" only - anything else (including
+      an accidental "system") is dropped rather than risk a caller
+      injecting a second system-level instruction into the payload;
+    - drops empty/non-string content;
+    - keeps only the most recent MAX_HISTORY_MESSAGES entries (oldest of
+      the kept ones first) - see that constant's own comment for why.
+    """
+    if not history:
+        return []
+    cleaned = []
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        role = entry.get("role")
+        content = entry.get("content")
+        if role not in ("user", "assistant"):
+            continue
+        if not isinstance(content, str) or not content.strip():
+            continue
+        cleaned.append({"role": role, "content": content})
+    return cleaned[-MAX_HISTORY_MESSAGES:]
 
 
 def _build_user_prompt(context: AssembledContext, structured_facts: str = "") -> str:
@@ -178,14 +370,26 @@ def _build_user_prompt(context: AssembledContext, structured_facts: str = "") ->
 def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> httpx.Response:
     """
     Up to MAX_RETRIES retries (MAX_RETRIES + 1 attempts total) with a
-    linear backoff, only for a network failure or a status code in
-    _RETRYABLE_STATUS_CODES - see those constants' own comment for why a
-    4xx outside that set (bad request, bad key, forbidden) is deliberately
-    not retried. Returns the last response/re-raises the last exception
-    once retries are exhausted, so the caller sees exactly the same shape
-    of failure it would have without retries, just after trying harder
-    first.
+    jittered linear backoff (see RETRY_JITTER_FRACTION), only for a
+    network failure or a status code in _RETRYABLE_STATUS_CODES - see
+    those constants' own comment for why a 4xx outside that set (bad
+    request, bad key, forbidden) is deliberately not retried. Returns the
+    last response/re-raises the last exception once retries are
+    exhausted, so the caller sees exactly the same shape of failure it
+    would have without retries, just after trying harder first.
+
+    Guarded by a circuit breaker (see CIRCUIT_BREAKER_* constants): after
+    enough consecutive request-level failures, a new call fails fast
+    instead of repeating the full retry sequence against a provider
+    that's already known to be down.
     """
+    if _circuit_is_open():
+        raise LLMError(
+            f"LLM provider ({url}) circuit breaker is open after {CIRCUIT_BREAKER_THRESHOLD} consecutive "
+            f"failures - failing fast for up to {CIRCUIT_BREAKER_COOLDOWN_SECONDS:.0f}s instead of retrying "
+            f"against a provider that's already known to be down."
+        )
+
     last_exception = None
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -194,17 +398,23 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             last_exception = err
             if attempt < MAX_RETRIES:
                 logger.warning(f"LLM request to {url} failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
-                time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+                time.sleep(_backoff_seconds(attempt))
                 continue
+            _record_circuit_failure()
             raise LLMError(f"LLM provider request failed: {err}") from err
 
-        if response.status_code not in _RETRYABLE_STATUS_CODES or attempt == MAX_RETRIES:
+        if response.status_code not in _RETRYABLE_STATUS_CODES:
+            if response.status_code == 200:
+                _record_circuit_success()
+            return response
+        if attempt == MAX_RETRIES:
+            _record_circuit_failure()
             return response
 
         logger.warning(
             f"LLM provider returned {response.status_code}, retrying (attempt {attempt + 1}/{MAX_RETRIES})"
         )
-        time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+        time.sleep(_backoff_seconds(attempt))
 
     # Unreachable in practice (the loop always returns or raises above),
     # kept only so this function has an explicit exhaustive return path.
@@ -219,10 +429,24 @@ def generate_answer(
     timeout: float = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     structured_facts: str = "",
+    history: list = None,
 ) -> str:
     """
     Calls the LLM provider with `context` (from pipeline.run_retrieval() or
     pipeline.assemble_context()) and returns the generated answer text.
+
+    history (optional): prior turns of this same conversation, as
+    {"role": "user"|"assistant", "content": str} dicts, oldest first -
+    normalized/truncated via _sanitize_history() (see its own docstring)
+    before being placed between the system prompt and the current turn in
+    the real chat-completion `messages` array. Without this, every call
+    was a fresh, memory-less single-turn exchange - a real defect for a
+    conversational assistant, not a design choice: a user's own follow-up
+    ("I meant X", "why isn't that clear?") had nothing to resolve against.
+    Only the CURRENT turn gets a freshly retrieved context/structured-facts
+    block; earlier turns carry their own plain conversational text only,
+    so the prompt doesn't re-send the same grounding material on every
+    message.
 
     Raises LLMError (never a bare httpx/JSON exception) on a missing API
     key, a non-2xx response, a network failure, or an unexpected response
@@ -282,6 +506,7 @@ def generate_answer(
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
+            *_sanitize_history(history),
             {"role": "user", "content": _build_user_prompt(context, structured_facts)},
         ],
         "temperature": temperature,
@@ -302,25 +527,33 @@ def generate_answer(
 
 def answer_query(
     conn, tenant_id: str, query_text: str, top_k: int = 5,
-    include_structured_facts: bool = True, **retrieval_kwargs,
+    include_structured_facts: bool = True, history: list = None, **retrieval_kwargs,
 ) -> dict:
     """
     The complete, end-to-end RAG chatbot call: retrieval
     (pipeline.run_retrieval() - persisted hybrid index -> RRF fusion ->
     Cross-Encoder re-rank -> context assembly), live structured facts
     (structured_context.py - real current numbers, not retrieved),
-    followed by LLM reasoning (generate_answer()). Returns
+    followed by LLM reasoning (generate_answer(), which now also takes
+    this same `history` - see its own docstring). Returns
     {"answer": str, "sources": list[dict]} - sources are the same chunk
     citations AssembledContext already carries; structured facts have no
     "chunk" to cite (they're a live query, not a persisted document), so
     they never appear in `sources`, only inline in the answer text
     itself when the model chooses to use them.
 
-    Short-circuits before ever calling the LLM only when there is
-    NEITHER retrieved context NOR any structured facts - a question with
-    no matching document but real, current structured data (e.g. "what's
-    my current price gap") should still get a real answer, not a
-    reflexive "I don't have any relevant information".
+    Always calls the LLM, even when retrieval and structured facts both
+    come back empty - SYSTEM_PROMPT already tells the model exactly how
+    to decline gracefully AND in the user's own language/dialect when
+    there's genuinely nothing to answer from (see its own text). A
+    hardcoded English "I don't have any relevant information" string used
+    to short-circuit this case instead, skipping the LLM (and therefore
+    skipping SYSTEM_PROMPT's language-matching) entirely - a real bug: an
+    Arabic-speaking user asking anything with no matching data got an
+    English sentence back no matter what language they'd been using.
+    Removed rather than translated, since duplicating SYSTEM_PROMPT's own
+    language logic in a second, non-LLM code path is exactly the kind of
+    drift that caused this bug in the first place.
 
     include_structured_facts=True by default; set False for a caller
     that wants retrieval-only behavior (e.g. testing, or a context where
@@ -329,8 +562,5 @@ def answer_query(
     context = run_retrieval(conn, tenant_id, query_text, top_k=top_k, **retrieval_kwargs)
     structured_facts = build_structured_facts_block(conn, tenant_id) if include_structured_facts else ""
 
-    if not context.context_text and not structured_facts:
-        return {"answer": "I don't have any relevant information to answer that question.", "sources": []}
-
-    answer = generate_answer(context, structured_facts=structured_facts)
+    answer = generate_answer(context, structured_facts=structured_facts, history=history)
     return {"answer": answer, "sources": context.sources}
