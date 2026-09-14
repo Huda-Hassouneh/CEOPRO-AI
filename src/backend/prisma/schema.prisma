@@ -46,6 +46,7 @@ model PromoCode {
   discountType      String                  @map("discount_type") @db.VarChar(20)
   discountValue     Decimal                 @map("discount_value") @db.Decimal(10, 2)
   maxUses           Int                     @map("max_uses")
+  paymentProviderCoupon  String             @map(payment_provider_coupon_id)
   usedCount         Int                     @default(0) @map("used_count")
   maxUsesPerUser    Int                     @default(1) @map("max_uses_per_user")
   startsAt          DateTime                @map("starts_at") @db.Timestamptz(6)
