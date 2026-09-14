@@ -57,11 +57,17 @@ def _insert_competitor_price(conn, tenant_id, product_id, scraped_price):
     competitor_id = str(uuid.uuid4())
     source_id = str(uuid.uuid4())
     mapping_id = str(uuid.uuid4())
+    # Real, pre-existing bug this fix closes: a hardcoded literal 'Rival Co'
+    # here collided with global_competitors' own real uq_competitor_private
+    # unique index (added_by_tenant_id, LOWER(competitor_name)) the moment a
+    # single test called this helper more than once for the same tenant -
+    # only ever exercised (and only ever caught) with a real Postgres
+    # instance, which is exactly what this live-DB-gated file is for.
     with conn.cursor() as cursor:
         cursor.execute(
             "INSERT INTO global_competitors (global_competitor_id, competitor_name, visibility, added_by_tenant_id, is_manufacturer) "
-            "VALUES (%s, 'Rival Co', 'PRIVATE', %s, FALSE);",
-            (competitor_id, tenant_id),
+            "VALUES (%s, %s, 'PRIVATE', %s, FALSE);",
+            (competitor_id, f"Rival Co {competitor_id[:8]}", tenant_id),
         )
         cursor.execute(
             "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked) VALUES (%s, %s, TRUE);",

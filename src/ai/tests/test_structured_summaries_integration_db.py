@@ -333,6 +333,45 @@ def test_strategic_insights_summary_handles_nothing_notable_honestly(conn):
     assert "nothing stands out yet" in summary
 
 
+def test_platform_help_slot_is_registered_alongside_the_data_slots():
+    """The real fix for "the chatbot can't answer how do I use this
+    platform" questions: unlike every other slot, this one is content-
+    independent of any tenant's own data - registering it in ALL_SLOTS/
+    _GENERATORS is what makes regenerate_all_structured_summaries()
+    (already run automatically after every scrape/forecast event) ingest
+    it for every tenant with no separate wiring needed."""
+    assert structured_summaries.SLOT_PLATFORM_HELP in structured_summaries.ALL_SLOTS
+    assert structured_summaries.SLOT_PLATFORM_HELP in structured_summaries._GENERATORS
+    assert structured_summaries._GENERATORS[structured_summaries.SLOT_PLATFORM_HELP] is structured_summaries.generate_platform_help_summary
+
+
+def test_platform_help_summary_names_the_real_implemented_capabilities():
+    """Every capability named here must be real (src/ai/main.py's actual
+    endpoints), not aspirational - this is what makes "how do I add a
+    product"/"how do I connect my database" finally answerable."""
+    summary = structured_summaries.generate_platform_help_summary()
+    for real_capability in (
+        "Upload a file", ".csv", ".xlsx", "Connect your own system",
+        "Competitor discovery", "Demand forecasting", "Price recommendations",
+        "dashboard",
+    ):
+        assert real_capability in summary
+
+
+def test_platform_help_summary_stays_free_of_ml_jargon():
+    summary = structured_summaries.generate_platform_help_summary()
+    for jargon in ("MASE", "RMSE", "XGBoost", "confidence score"):
+        assert jargon not in summary
+
+
+def test_platform_help_summary_accepts_and_ignores_conn_and_tenant_id():
+    """Matches every other slot generator's (conn, tenant_id) -> str call
+    signature so regenerate_all_structured_summaries()'s single dispatch
+    loop needs no special case for this one content-independent slot."""
+    assert structured_summaries.generate_platform_help_summary(conn=None, tenant_id="anything") == \
+        structured_summaries.generate_platform_help_summary()
+
+
 @_needs_minio
 def test_upsert_summary_document_creates_then_updates_the_same_slot(conn, minio_client):
     tenant_id = _insert_company(conn)
