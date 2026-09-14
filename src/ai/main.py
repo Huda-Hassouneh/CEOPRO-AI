@@ -48,6 +48,7 @@ from src.ai.dashboard import forecast_detail as dashboard_forecast_detail
 from src.ai.dashboard import forecast_movers as dashboard_forecast_movers
 from src.ai.dashboard import inventory as dashboard_inventory
 from src.ai.dashboard import inventory_recommendations as dashboard_inventory_recommendations
+from src.ai.dashboard import market_overview as dashboard_market_overview
 from src.ai.dashboard import metrics as dashboard_metrics
 from src.ai.dashboard import price_competitiveness as dashboard_price_competitiveness
 from src.ai.dashboard import recommendations as dashboard_recommendations
@@ -747,6 +748,30 @@ def dashboard_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_conte
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         result = dashboard_competitors.get_competitor_directory(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/dashboard/market-overview")
+def dashboard_market_overview_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The Industry Trends / Market Intelligence Overview page's three
+    market-wide aggregates - price_trend, sentiment, category_activity -
+    each a real rollup of a signal already computed per-competitor
+    elsewhere (see dashboard/market_overview.py's own docstring for
+    exactly what each one is and, just as importantly, what it
+    deliberately is NOT: no weighted year-over-year index, no seasonal
+    decomposition, no market-share % - those need data this platform
+    doesn't collect).
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = dashboard_market_overview.get_market_overview(conn, ctx.tenant_id)
         conn.commit()
         return result
     except Exception:

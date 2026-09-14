@@ -44,10 +44,29 @@ docstring for exactly what real signal this is built from and why; a
 competitor with no price observations in the window defaults to "Low",
 matching "no detected change" rather than "unknown").
 """
-from src.ai.dashboard.competitor_activity import get_market_activity_levels, LEVEL_LOW
+from typing import Optional
+
+from src.ai.dashboard.competitor_activity import LEVEL_HIGH, LEVEL_LOW, LEVEL_MEDIUM, get_market_activity_levels
 from src.ai.pricing.competitor_classification import TIER_RELEVANT, TIER_STRATEGIC
 from src.ai.sentiment.data_access import load_aggregate_sentiment_by_competitor
-from src.market_scraper.scoring import price_competitiveness
+from src.market_scraper.scoring import composite_score, price_competitiveness
+
+# A deliberately coarse numeric stand-in for market_activity's own High/
+# Medium/Low label, used ONLY as one of composite_score()'s three 0-100
+# inputs below - the real, precise signal stays the label itself
+# (untouched, still returned as market_activity). scoring.py's own
+# composite_score() already renormalizes across whichever inputs are
+# actually available, so a missing price/sentiment/activity signal is
+# still handled honestly (see relevance_score below), not padded to zero.
+_ACTIVITY_SCORE_100 = {LEVEL_LOW: 15.0, LEVEL_MEDIUM: 50.0, LEVEL_HIGH: 90.0}
+
+# Bar for calling a real price_competitiveness/sentiment reading a
+# "strength" or "weakness" bullet - both thresholds intentionally mirror
+# the "clearly on one side, not borderline" discipline already used for
+# _SENTIMENT_LABEL_THRESHOLD below, so a middling score earns neither
+# bullet rather than being forced into one.
+_PRICE_STRENGTH_THRESHOLD = 7.0
+_PRICE_WEAKNESS_THRESHOLD = 4.0
 
 # Thresholds for turning a continuous -1..1 sentiment_score into a plain
 # label for a table column - a shop owner reads "Positive/Neutral/
@@ -98,7 +117,13 @@ def _load_price_comparisons(conn, tenant_id: str, global_competitor_id: str) -> 
     ]
 
 
-def _price_competitiveness_for_competitor(price_pairs: list):
+def _avg_raw_price_competitiveness(price_pairs: list) -> Optional[float]:
+    """The same average price_competitiveness().value scoring.py returns -
+    on its native ~10-100 scale, BEFORE _price_competitiveness_for_
+    competitor() below rescales it to this table's 0-10 display column.
+    Kept as its own function so composite_score() (relevance_score) can
+    consume the real 0-100-ish number directly, instead of re-deriving it
+    from the already-rescaled display value."""
     scores = [
         price_competitiveness(pair["your_price"], pair["their_price"]).value
         for pair in price_pairs
@@ -106,7 +131,60 @@ def _price_competitiveness_for_competitor(price_pairs: list):
     scores = [s for s in scores if s is not None]
     if not scores:
         return None
-    return round(sum(scores) / len(scores) / 10, 2)  # scoring.py's 0-100 scale -> this table's 0-10 scale
+    return sum(scores) / len(scores)
+
+
+def _price_competitiveness_for_competitor(price_pairs: list) -> Optional[float]:
+    raw = _avg_raw_price_competitiveness(price_pairs)
+    if raw is None:
+        return None
+    return round(raw / 10, 2)  # scoring.py's 0-100 scale -> this table's 0-10 scale
+
+
+def _relevance_score(raw_price_100: Optional[float], sentiment_score: Optional[float], activity_level: Optional[str]) -> Optional[float]:
+    """0-100 composite via scoring.py's existing composite_score()
+    (price 45% / sentiment 35% / activity 20%, renormalized across
+    whichever of the three are actually available) - the same real
+    inputs the table already computes, just combined into the one
+    ranking number "Relevance Score" and the Leaderboard's "Composite
+    Score" both ask for. None only when none of the three signals exist
+    yet for this competitor, never a fabricated default."""
+    sentiment_100 = None if sentiment_score is None else (sentiment_score + 1) / 2 * 100
+    activity_100 = None if activity_level is None else _ACTIVITY_SCORE_100[activity_level]
+    result = composite_score(raw_price_100, sentiment_100, activity_100)
+    return result.value
+
+
+def _strengths_and_weaknesses(price_competitiveness_10: Optional[float], sentiment_label: Optional[str]) -> "tuple[list, list]":
+    """Plain-language bullets derived directly from the two real signals
+    above that are naturally positive/negative (price_competitiveness,
+    sentiment) - market_activity is deliberately excluded here, since a
+    competitor changing prices often isn't inherently good or bad for the
+    tenant, just active; forcing it into "strength"/"weakness" would be
+    exactly the kind of invented framing this platform's own SYSTEM_PROMPT
+    already forbids the chatbot from doing."""
+    strengths, weaknesses = [], []
+    if price_competitiveness_10 is not None:
+        if price_competitiveness_10 >= _PRICE_STRENGTH_THRESHOLD:
+            strengths.append("Priced competitively against the market")
+        elif price_competitiveness_10 <= _PRICE_WEAKNESS_THRESHOLD:
+            weaknesses.append("Priced less competitively than the market")
+    if sentiment_label == "Positive":
+        strengths.append("Positive customer sentiment")
+    elif sentiment_label == "Negative":
+        weaknesses.append("Negative customer sentiment")
+    return strengths, weaknesses
+
+
+def _summary_line(tier: str, overlap_pct: Optional[float], matched_product_count: int) -> str:
+    """One factual sentence built only from fields this table already
+    computes - never a researched "who they are" narrative (this
+    platform doesn't scrape a competitor's own About page), just what
+    the real classification and matching already established about them."""
+    if tier == TIER_STRATEGIC:
+        return f"Strategic competitor — {overlap_pct:.0f}% product overlap with your catalog."
+    plural = "product" if matched_product_count == 1 else "products"
+    return f"Relevant competitor — {matched_product_count} of your {plural} matched for price comparison."
 
 
 def get_competitor_directory(conn, tenant_id: str) -> dict:
@@ -146,18 +224,36 @@ def get_competitor_directory(conn, tenant_id: str) -> dict:
             else:
                 sentiment_label = "Neutral"
 
+        price_competitiveness_10 = _price_competitiveness_for_competitor(price_pairs)
+        # activity_for_composite stays None with no real observation in the
+        # window - distinct from the displayed market_activity field below,
+        # which defaults an unobserved competitor to "Low" for the UI
+        # ("no detected change"). Feeding that same default into
+        # relevance_score would quietly manufacture a non-zero composite
+        # score for a competitor with zero real activity signal - exactly
+        # the false-precision this platform's own honesty discipline (see
+        # cold_start.py, UNKNOWN evidence records) exists to avoid.
+        activity_for_composite = activity_by_competitor.get(global_competitor_id)
+        market_activity = activity_for_composite or LEVEL_LOW
+        strengths, weaknesses = _strengths_and_weaknesses(price_competitiveness_10, sentiment_label)
+        overlap_pct = round(float(match_rate) * 100, 1) if tier == TIER_STRATEGIC else None
+
         common_fields = {
             "name": name,
             "tier": tier,
             "website_url": website_url,
             "market_sentiment_label": sentiment_label,
-            "price_competitiveness": _price_competitiveness_for_competitor(price_pairs),
+            "price_competitiveness": price_competitiveness_10,
             "last_updated": classified_at.isoformat() if classified_at else None,
-            "market_activity": activity_by_competitor.get(global_competitor_id, LEVEL_LOW),
+            "market_activity": market_activity,
+            "relevance_score": _relevance_score(_avg_raw_price_competitiveness(price_pairs), sentiment_score, activity_for_composite),
+            "strengths": strengths,
+            "weaknesses": weaknesses,
+            "summary_line": _summary_line(tier, overlap_pct, len(price_pairs)),
         }
 
         if tier == TIER_STRATEGIC:
-            strategic.append({**common_fields, "overlap_pct": round(float(match_rate) * 100, 1)})
+            strategic.append({**common_fields, "overlap_pct": overlap_pct})
         else:
             relevant.append({**common_fields, "price_comparisons": price_pairs})
 
