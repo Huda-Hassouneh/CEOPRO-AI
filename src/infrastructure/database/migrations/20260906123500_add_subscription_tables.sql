@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS promo_codes (
 
     starts_at TIMESTAMPTZ NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
-
+    payment_provider_coupon_id VARCHAR(255),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
