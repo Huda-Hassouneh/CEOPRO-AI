@@ -100,6 +100,7 @@ def test_returns_honest_zeros_for_a_brand_new_tenant(conn):
     assert result["units_sold"]["units"] == 0
     assert result["transaction_growth_pct"] is None
     assert result["competitors_tracked"] == {"count": 0, "new_this_window": 0}
+    assert result["market_sentiment"] is None  # no analyzed reviews yet, never a fabricated score
 
 
 def test_revenue_and_units_reflect_real_invoices_in_the_recent_window(conn):
@@ -177,6 +178,49 @@ def test_competitors_tracked_new_this_window_uses_added_at(conn):
 
     assert result["competitors_tracked"]["count"] == 2
     assert result["competitors_tracked"]["new_this_window"] == 1
+
+
+def _insert_business_review_with_sentiment(conn, tenant_id, positive_probability, negative_probability, review_date):
+    review_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO reviews (review_id, tenant_id, subject_type, source_platform, review_text, review_date) "
+            "VALUES (%s, %s, 'BUSINESS', 'GOOGLE', 'Great service.', %s);",
+            (review_id, tenant_id, review_date),
+        )
+    from src.ai.sentiment.evidence import insert_sentiment_result
+    neutral_probability = 1.0 - positive_probability - negative_probability
+    insert_sentiment_result(
+        conn, review_id, tenant_id, "POSITIVE", positive_probability, neutral_probability,
+        negative_probability, 0.9, "test-model-v1",
+    )
+
+
+def test_market_sentiment_reflects_real_analyzed_reviews_in_the_recent_window(conn):
+    tenant_id = _insert_company(conn)
+    conn.commit()
+    now = datetime.now(timezone.utc)
+    _insert_business_review_with_sentiment(conn, tenant_id, 0.8, 0.1, review_date=now)
+    conn.commit()
+
+    result = get_dashboard_metrics(conn, tenant_id)
+
+    assert result["market_sentiment"]["score"] == pytest.approx(85.0)  # (0.8-0.1+1)/2*100
+    assert result["market_sentiment"]["change_pts"] is None  # nothing in the prior window to compare against
+
+
+def test_market_sentiment_change_pts_compares_recent_window_against_prior_window(conn):
+    tenant_id = _insert_company(conn)
+    conn.commit()
+    now = datetime.now(timezone.utc)
+    _insert_business_review_with_sentiment(conn, tenant_id, 0.5, 0.5, review_date=now - timedelta(days=45))  # score=50
+    _insert_business_review_with_sentiment(conn, tenant_id, 0.9, 0.1, review_date=now)  # score=90
+    conn.commit()
+
+    result = get_dashboard_metrics(conn, tenant_id, window_days=30)
+
+    assert result["market_sentiment"]["score"] == pytest.approx(90.0)
+    assert result["market_sentiment"]["change_pts"] == pytest.approx(40.0)
 
 
 def test_window_days_is_configurable(conn):

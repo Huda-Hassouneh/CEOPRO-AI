@@ -34,6 +34,15 @@ self-evidently unambiguous):
   competitors_tracked
                  Count of tenant_competitors with is_tracked = TRUE, plus
                  how many of those were added within the trailing window.
+  market_sentiment
+                 Business-wide sentiment (reviews.subject_type = 'BUSINESS'),
+                 the exact same weighted (avg positive_probability - avg
+                 negative_probability) formula sentiment/data_access.py::
+                 load_aggregate_sentiment() already uses - just windowed
+                 here (that function isn't) so a trend can be shown, and
+                 rescaled from that function's native -1..1 range to a
+                 0..100 display score via (score + 1) / 2 * 100, purely a
+                 presentation transform, not a different metric.
 """
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -101,6 +110,35 @@ def get_dashboard_metrics(conn, tenant_id: str, window_days: int = DEFAULT_WINDO
         cursor.execute("SELECT primary_currency FROM companies WHERE tenant_id = %s;", (tenant_id,))
         currency_row = cursor.fetchone()
 
+        cursor.execute(
+            """
+            SELECT
+                CASE WHEN COUNT(*) FILTER (WHERE r.review_date >= %(recent_start)s) = 0 THEN NULL ELSE
+                    SUM(sr.positive_probability - sr.negative_probability) FILTER (WHERE r.review_date >= %(recent_start)s)
+                    / COUNT(*) FILTER (WHERE r.review_date >= %(recent_start)s)
+                END AS recent_score,
+                CASE WHEN COUNT(*) FILTER (WHERE r.review_date >= %(prior_start)s AND r.review_date < %(recent_start)s) = 0 THEN NULL ELSE
+                    SUM(sr.positive_probability - sr.negative_probability)
+                        FILTER (WHERE r.review_date >= %(prior_start)s AND r.review_date < %(recent_start)s)
+                    / COUNT(*) FILTER (WHERE r.review_date >= %(prior_start)s AND r.review_date < %(recent_start)s)
+                END AS prior_score
+            FROM reviews r
+            JOIN sentiment_results sr ON sr.review_id = r.review_id
+            WHERE r.tenant_id = %(tenant_id)s AND r.subject_type = 'BUSINESS' AND r.review_date >= %(prior_start)s;
+            """,
+            {"tenant_id": tenant_id, "recent_start": recent_start, "prior_start": prior_start},
+        )
+        recent_sentiment, prior_sentiment = cursor.fetchone()
+
+    market_sentiment = None
+    if recent_sentiment is not None:
+        recent_display_score = round((float(recent_sentiment) + 1) / 2 * 100, 1)
+        change_pts = None
+        if prior_sentiment is not None:
+            prior_display_score = round((float(prior_sentiment) + 1) / 2 * 100, 1)
+            change_pts = round(recent_display_score - prior_display_score, 1)
+        market_sentiment = {"score": recent_display_score, "change_pts": change_pts}
+
     return {
         "window_days": window_days,
         "revenue": {
@@ -117,4 +155,5 @@ def get_dashboard_metrics(conn, tenant_id: str, window_days: int = DEFAULT_WINDO
             "count": int(tracked_count),
             "new_this_window": int(new_this_window),
         },
+        "market_sentiment": market_sentiment,
     }
