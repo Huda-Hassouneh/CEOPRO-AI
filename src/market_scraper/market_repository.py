@@ -118,10 +118,10 @@ def save_market_record(conn, item: dict) -> dict:
             INSERT INTO market_observations
                 (tenant_id, source_id, job_id, mapping_id, product_name, category, description,
                  canonical_url, image_url, external_id, rating, review_count, stock_quantity,
-                 like_count, share_count,
+                 like_count, share_count, view_count, creator_handle, content_date,
                  match_score, match_method, page_text, safety_status, safety_flags,
                  content_hash, raw_payload, observed_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s)
             RETURNING observation_id;
             """,
@@ -130,6 +130,7 @@ def save_market_record(conn, item: dict) -> dict:
                 item["product_name"], item.get("category"), item.get("description"), item["product_url"],
                 item.get("image_url"), item.get("external_id"), item.get("rating"), item.get("review_count"),
                 item.get("stock_quantity"), item.get("like_count"), item.get("share_count"),
+                item.get("view_count"), item.get("creator_handle"), item.get("content_date"),
                 item["match_score"], item["match_method"],
                 item.get("page_text"), item.get("safety_status", "SAFE"),
                 json.dumps(item.get("safety_flags", [])), _content_hash(item),
@@ -162,6 +163,8 @@ def save_market_record(conn, item: dict) -> dict:
 def _save_reviews(cursor, item: dict) -> list[str]:
     review_ids = []
     method = METHOD_TO_REVIEW_METHOD[item["collection_method"]]
+    external_to_review_id: dict[str, str] = {}
+    pending_parents: list[tuple[str, str]] = []  # (review_id, parent_external_id)
     for review in item.get("reviews") or []:
         cursor.execute(
             """
@@ -188,8 +191,61 @@ def _save_reviews(cursor, item: dict) -> list[str]:
                 review.get("like_count"), review.get("reply_count"),
             ),
         )
-        review_ids.append(str(cursor.fetchone()[0]))
+        review_id = str(cursor.fetchone()[0])
+        review_ids.append(review_id)
+        external_to_review_id[review["external_review_id"]] = review_id
+        parent_external_id = review.get("parent_external_id")
+        if parent_external_id is not None:
+            pending_parents.append((review_id, parent_external_id))
+
+    if pending_parents:
+        _link_reply_parents(cursor, item["tenant_id"], item["source_id"], external_to_review_id, pending_parents)
     return review_ids
+
+
+def _link_reply_parents(
+    cursor, tenant_id: str, source_id: str,
+    external_to_review_id: dict[str, str], pending_parents: "list[tuple[str, str]]",
+) -> None:
+    """
+    Resolves each reply's parent_external_id to a real parent_review_id and
+    records the thread link - a reply and its parent can now be
+    reconstructed as a real conversation for sentiment analysis, instead of
+    every comment landing as an independent, contextless row.
+
+    The parent is usually in THIS SAME batch (a comments actor typically
+    returns a whole thread together), so the in-batch map is checked first
+    to avoid a redundant query per reply. A parent collected in an earlier
+    job run (this run's pagination window didn't include it) is still
+    found via one query against already-persisted reviews for this same
+    source. A parent that was never collected at all (paginated out,
+    filtered by the provider, or genuinely deleted upstream) is left
+    unlinked - honest, not fabricated: this reply's own reply_count/text
+    are still real and saved either way.
+    """
+    unresolved = {
+        parent_external_id for _review_id, parent_external_id in pending_parents
+        if parent_external_id not in external_to_review_id
+    }
+    if unresolved:
+        cursor.execute(
+            """
+            SELECT external_review_id, review_id FROM reviews
+            WHERE tenant_id = %s AND source_id = %s AND external_review_id = ANY(%s);
+            """,
+            (tenant_id, source_id, list(unresolved)),
+        )
+        for external_review_id, review_id in cursor.fetchall():
+            external_to_review_id[external_review_id] = str(review_id)
+
+    for review_id, parent_external_id in pending_parents:
+        parent_review_id = external_to_review_id.get(parent_external_id)
+        if parent_review_id is None or parent_review_id == review_id:
+            continue  # unresolved, or a self-referencing parent id - never link either
+        cursor.execute(
+            "UPDATE reviews SET parent_review_id = %s WHERE tenant_id = %s AND review_id = %s;",
+            (parent_review_id, tenant_id, review_id),
+        )
 
 
 def _derive_events(cursor, item: dict, previous) -> list[str]:

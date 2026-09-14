@@ -20,7 +20,7 @@ from unittest.mock import patch
 import psycopg2
 import pytest
 
-from src.market_scraper.discovery import CandidateSource
+from src.market_scraper.discovery import CandidateSource, DiscoveryDecision, register_tenant_scoped_competitor
 from src.market_scraper.tenant_discovery import discover_competitors_for_tenant
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
@@ -48,13 +48,13 @@ def _insert_company(conn, country_code: str = "JO") -> str:
     return tenant_id
 
 
-def _insert_product(conn, tenant_id: str, name: str) -> str:
+def _insert_product(conn, tenant_id: str, name: str, price: float = 10.0, currency: str = "JOD") -> str:
     product_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
             "INSERT INTO products (product_id, tenant_id, product_name, current_price, currency) "
-            "VALUES (%s, %s, %s, 10.0, 'JOD');",
-            (product_id, tenant_id, json.dumps({"en": name})),
+            "VALUES (%s, %s, %s, %s, %s);",
+            (product_id, tenant_id, json.dumps({"en": name}), price, currency),
         )
     return product_id
 
@@ -154,8 +154,8 @@ def test_family_keyed_discovery_searches_once_and_maps_every_member(conn):
     the same found competitor.
     """
     tenant_id = _insert_company(conn)
-    low = _insert_product(conn, tenant_id, "1k Ohm Resistor")
-    high = _insert_product(conn, tenant_id, "2k Ohm Resistor")
+    low = _insert_product(conn, tenant_id, "1k Ohm Resistor", price=0.10)
+    high = _insert_product(conn, tenant_id, "2k Ohm Resistor", price=0.10)
 
     candidate = [CandidateSource("2k Ohm Resistor", "https://example-electronics.test/2k-ohm-resistor", "2k Ohm Resistor - Example Electronics")]
     with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=candidate) as mocked_search, \
@@ -183,6 +183,21 @@ def test_group_by_family_false_searches_every_product_individually(conn):
         discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), group_by_family=False)
 
     assert mocked_search.call_count == 2  # same family, but grouping turned off
+
+
+def test_products_above_the_price_threshold_are_never_collapsed_even_with_grouping_on(conn):
+    """group_by_family=True (the default) no longer means "always collapse
+    a family_key match" - two same-family products priced well above the
+    0.70 JOD threshold must still get one search each."""
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "1k Ohm Resistor", price=10.0)
+    _insert_product(conn, tenant_id, "2k Ohm Resistor", price=10.0)
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    assert mocked_search.call_count == 2  # priced above threshold - individual precision, not a family search
 
 
 def test_sitemap_domains_contribute_candidates_when_vertical_has_a_seeded_entry(conn):
@@ -337,3 +352,108 @@ def test_deleted_products_are_not_searched(conn):
         discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
 
     mocked.assert_not_called()
+
+
+def test_register_tenant_scoped_competitor_leaves_the_connection_usable_on_classification_failure(conn):
+    """
+    NOT full atomicity end to end - a real Postgres run is what caught
+    an earlier, overclaiming version of this test (it asserted zero rows
+    survived, which is false): data_access.record_policy_decision(),
+    called before classify_competitor() inside register_tenant_scoped_
+    competitor(), commits its OWN work internally (policy_cli.py relies
+    on exactly that commit when using it standalone), so the earlier
+    global_competitors/tenant_competitors/data_sources/
+    competitor_product_mappings inserts are already durably committed
+    before classify_competitor() ever runs. That's a safe partial-
+    progress state to leave (the competitor really is registered, just
+    not yet (re-)classified - a later discovery re-run naturally
+    reclassifies it via the same idempotent path). What this test
+    actually verifies: the registration rows genuinely persisted despite
+    the later failure, AND the connection comes back clean and reusable
+    rather than stuck in Postgres's aborted-transaction state - see
+    register_tenant_scoped_competitor()'s own comment on its except
+    block for the full reasoning.
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine")
+    conn.commit()
+
+    decision = DiscoveryDecision(
+        candidate=CandidateSource("Espresso Machine", "https://rival-example.com/espresso", "Rival Co"),
+        technical_controls_permit_collection=True,
+        policy_status="RESTRICTED",
+        justification="unreviewed",
+        robots_evidence=None,
+    )
+
+    with patch(
+        "src.market_scraper.discovery.classify_competitor",
+        side_effect=RuntimeError("simulated classification failure"),
+    ):
+        with pytest.raises(RuntimeError, match="simulated classification failure"):
+            register_tenant_scoped_competitor(conn, tenant_id, str(uuid.uuid4()), decision, product_id)
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM global_competitors WHERE added_by_tenant_id = %s;",
+            (tenant_id,),
+        )
+        assert cursor.fetchone()[0] == 1  # record_policy_decision()'s own commit already landed this
+        cursor.execute(
+            "SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s;",
+            (tenant_id,),
+        )
+        assert cursor.fetchone()[0] == 1
+
+    # The connection must come back usable, not stuck aborted, despite
+    # the failure - this is the real, achievable guarantee here.
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT 1;")
+        assert cursor.fetchone()[0] == 1
+
+
+def test_register_tenant_scoped_competitor_dedupes_two_candidates_on_the_same_domain(conn):
+    """
+    Real bug, caught against real Postgres (also seen live in
+    reports/e2e_pipeline/20260904T093616Z and .../20260905T193202Z, not
+    just here): two different discovery mechanisms commonly return two
+    different candidate URLs on the SAME domain for the SAME product
+    (e.g. a retailer search and a sitemap crawl both finding
+    same-shop.example, at different paths). website_identity_key dedup
+    already resolves both onto the same global_competitor_id - but
+    without the fix this test guards, the second call's
+    competitor_product_mappings INSERT then crashed with a real
+    UniqueViolation on uq_tenant_competitor_product instead of being
+    treated as "already registered."
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine")
+    conn.commit()
+
+    decision_1 = DiscoveryDecision(
+        candidate=CandidateSource("Espresso Machine", "https://same-shop.example/p1", "Same Shop"),
+        technical_controls_permit_collection=True,
+        policy_status="RESTRICTED",
+        justification="unreviewed",
+        robots_evidence=None,
+    )
+    decision_2 = DiscoveryDecision(
+        candidate=CandidateSource("Espresso Machine", "https://same-shop.example/p2", "Same Shop"),
+        technical_controls_permit_collection=True,
+        policy_status="RESTRICTED",
+        justification="unreviewed",
+        robots_evidence=None,
+    )
+
+    result_1 = register_tenant_scoped_competitor(conn, tenant_id, str(uuid.uuid4()), decision_1, product_id)
+    result_2 = register_tenant_scoped_competitor(conn, tenant_id, str(uuid.uuid4()), decision_2, product_id)
+
+    assert result_1["competitor_id"] == result_2["competitor_id"]  # same identity_key, same row
+    assert result_2["product_url"] == "https://same-shop.example/p2"  # reflects the candidate actually passed in
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM competitor_product_mappings WHERE tenant_id = %s AND global_competitor_id = %s AND product_id = %s;",
+            (tenant_id, result_1["competitor_id"], product_id),
+        )
+        assert cursor.fetchone()[0] == 1  # one row, not two - the second call reused it rather than crashing
