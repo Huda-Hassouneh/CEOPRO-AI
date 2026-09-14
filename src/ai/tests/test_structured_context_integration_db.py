@@ -6,6 +6,7 @@ package: skipped unless AI_TEST_DATABASE_URL is set.
 import json
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import psycopg2
 import pytest
@@ -48,17 +49,17 @@ def _insert_product(conn, tenant_id, name, current_price=50.0) -> str:
     return product_id
 
 
-def _insert_competitor(conn, tenant_id, name, tier="STRATEGIC") -> str:
+def _insert_competitor(conn, tenant_id, name, tier="STRATEGIC", website_url=None, is_tracked=True) -> str:
     competitor_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO global_competitors (global_competitor_id, competitor_name, visibility, added_by_tenant_id, is_manufacturer) "
-            "VALUES (%s, %s, 'PRIVATE', %s, FALSE);",
-            (competitor_id, name, tenant_id),
+            "INSERT INTO global_competitors (global_competitor_id, competitor_name, website_url, visibility, added_by_tenant_id, is_manufacturer) "
+            "VALUES (%s, %s, %s, 'PRIVATE', %s, FALSE);",
+            (competitor_id, name, website_url, tenant_id),
         )
         cursor.execute(
-            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked, tier) VALUES (%s, %s, TRUE, %s);",
-            (tenant_id, competitor_id, tier),
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked, tier) VALUES (%s, %s, %s, %s);",
+            (tenant_id, competitor_id, is_tracked, tier),
         )
     return competitor_id
 
@@ -100,6 +101,33 @@ def test_includes_real_competitor_tier_counts(conn):
     assert "1 RELEVANT" in block
 
 
+def test_includes_real_competitor_names_not_just_a_count(conn):
+    """The real fix: "who are my competitors?" used to get only a bare
+    tier count back (no way to name anyone) even though the competitor's
+    real name is already persisted the moment discovery registers it -
+    this is injected always-on (never dependent on retrieval having
+    ranked the right RAG chunk highly enough), same guarantee this
+    module already gives exact numbers."""
+    tenant_id = _insert_company(conn)
+    _insert_competitor(conn, tenant_id, "SparkFun Electronics", tier="STRATEGIC", website_url="https://sparkfun.com")
+    _insert_competitor(conn, tenant_id, "PiShop US", tier="RELEVANT")
+    conn.commit()
+
+    block = build_structured_facts_block(conn, tenant_id)
+    assert "SparkFun Electronics" in block
+    assert "https://sparkfun.com" in block
+    assert "PiShop US" in block
+
+
+def test_omits_untracked_competitors_from_the_named_list(conn):
+    tenant_id = _insert_company(conn)
+    _insert_competitor(conn, tenant_id, "Untracked Rival", tier="CANDIDATE", is_tracked=False)
+    conn.commit()
+
+    block = build_structured_facts_block(conn, tenant_id)
+    assert "Untracked Rival" not in block
+
+
 def test_includes_real_price_gap(conn):
     tenant_id = _insert_company(conn)
     product_id = _insert_product(conn, tenant_id, "Widget", current_price=60.0)
@@ -112,6 +140,68 @@ def test_includes_real_price_gap(conn):
     assert "Widget" in block
     assert "60.00 JOD" in block
     assert "45.00 JOD" in block
+
+
+def _insert_forecast(conn, tenant_id, product_id, expected_demand, target_date):
+    forecast_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO demand_forecasts (forecast_id, tenant_id, product_id, expected_demand, forecast_target_date, model_version) "
+            "VALUES (%s, %s, %s, %s, %s, 'test-model');",
+            (forecast_id, tenant_id, product_id, expected_demand, target_date),
+        )
+    return forecast_id
+
+
+def test_includes_real_demand_forecast(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    conn.commit()
+    target_date = (datetime.now(timezone.utc) + timedelta(days=7)).date()
+    _insert_forecast(conn, tenant_id, product_id, expected_demand=42, target_date=target_date)
+    conn.commit()
+
+    block = build_structured_facts_block(conn, tenant_id)
+    assert "Widget" in block
+    assert "42 units" in block
+    assert target_date.isoformat() in block
+
+
+def test_includes_a_real_proactive_insight_without_being_asked(conn):
+    """
+    The real requirement this covers: the chatbot must weave in a
+    relevant strategic observation on ANY question, not only when the
+    user explicitly asks for "advice" or "recommendations" - so the top
+    cross-signal insights must appear in the ALWAYS-injected facts block,
+    not only in the separately-retrieved strategic_insights RAG slot.
+    """
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Espresso Machine", current_price=100.0)
+    competitor_id = _insert_competitor(conn, tenant_id, "Cheaper Co")
+    conn.commit()
+    _insert_competitor_price(conn, tenant_id, product_id, competitor_id, scraped_price=70.0)
+    now = datetime.now(timezone.utc)
+    with conn.cursor() as cursor:
+        for quantity, days_ago, unit_price in ((2, 5, 100.0), (20, 45, 100.0)):
+            invoice_id = str(uuid.uuid4())
+            issue_date = now - timedelta(days=days_ago)
+            total = quantity * unit_price
+            cursor.execute(
+                "INSERT INTO invoices (invoice_id, tenant_id, invoice_number, issue_date, subtotal, total_amount, currency) "
+                "VALUES (%s, %s, %s, %s, %s, %s, 'JOD');",
+                (invoice_id, tenant_id, f"INV-{invoice_id[:8]}", issue_date, total, total),
+            )
+            cursor.execute(
+                "INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price) "
+                "VALUES (%s, %s, %s, %s, %s, %s);",
+                (tenant_id, invoice_id, product_id, quantity, unit_price, total),
+            )
+    conn.commit()
+
+    block = build_structured_facts_block(conn, tenant_id)
+
+    assert "Proactive insights" in block
+    assert "Espresso Machine" in block
 
 
 def test_includes_real_business_sentiment_score(conn):

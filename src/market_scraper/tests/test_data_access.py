@@ -41,18 +41,72 @@ class FakeConnection:
         self.closed = True
 
 
-def test_tenant_connection_sets_tenant_and_actor_rls_context(monkeypatch):
-    connection = FakeConnection()
+@pytest.fixture(autouse=True)
+def _reset_pool_singleton():
+    """
+    _get_pool() caches a module-level pool for the process's lifetime -
+    without resetting it between tests, whichever test runs first would
+    permanently decide every later test's pool (and its fake double).
+    """
+    data_access._POOL = None
+    yield
+    data_access._POOL = None
+
+
+def test_get_tenant_connection_delegates_to_the_pool_with_the_right_ids(monkeypatch):
+    """
+    The real fix (production-hardening audit follow-up): get_tenant_
+    connection() no longer opens its own psycopg2.connect() and issues
+    SET statements directly - it delegates to a pooled
+    TenantConnectionPool (src/infrastructure/db_pool.py), which is what
+    actually applies RLS context (via SET LOCAL, safe under reuse - see
+    that module's own tests for the SET LOCAL/pooling-safety proof this
+    file doesn't need to re-verify). This test only checks the
+    orchestration: the right tenant_id/actor_user_id reach the pool.
+    """
     monkeypatch.setenv("SCRAPER_DATABASE_URL", "postgresql://example/test")
     monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", "user-1")
-    monkeypatch.setattr(data_access.psycopg2, "connect", lambda url: connection)
+    fake_pooled_conn = object()
+    captured = {}
 
-    assert data_access.get_tenant_connection("tenant-1") is connection
-    assert connection.fake_cursor.calls == [
-        ("SET app.current_tenant_id = %s;", ("tenant-1",)),
-        ("SET app.current_user_id = %s;", ("user-1",)),
-    ]
-    assert connection.committed is True
+    def fake_get_tenant_connection(tenant_id, user_id):
+        captured["tenant_id"] = tenant_id
+        captured["user_id"] = user_id
+        return fake_pooled_conn
+
+    fake_pool = SimpleNamespace(get_tenant_connection=fake_get_tenant_connection)
+    monkeypatch.setattr(data_access, "_get_pool", lambda: fake_pool)
+
+    result = data_access.get_tenant_connection("tenant-1")
+
+    assert result is fake_pooled_conn
+    assert captured == {"tenant_id": "tenant-1", "user_id": "user-1"}
+
+
+def test_get_pool_constructs_a_pool_from_scraper_env_vars_once(monkeypatch):
+    monkeypatch.setenv("SCRAPER_DATABASE_URL", "postgresql://example/test")
+    monkeypatch.setenv("SCRAPER_DB_POOL_MIN_SIZE", "2")
+    monkeypatch.setenv("SCRAPER_DB_POOL_MAX_SIZE", "7")
+    construction_calls = []
+
+    class FakePool:
+        def __init__(self, dsn, minconn, maxconn):
+            construction_calls.append((dsn, minconn, maxconn))
+
+    monkeypatch.setattr(data_access, "TenantConnectionPool", FakePool)
+
+    pool_a = data_access._get_pool()
+    pool_b = data_access._get_pool()
+
+    assert pool_a is pool_b  # cached - constructed exactly once
+    assert construction_calls == [("postgresql://example/test", 2, 7)]
+
+
+def test_get_pool_raises_without_a_database_url(monkeypatch):
+    monkeypatch.delenv("SCRAPER_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with pytest.raises(RuntimeError, match="SCRAPER_DATABASE_URL or DATABASE_URL"):
+        data_access._get_pool()
 
 
 def test_allowed_policy_requires_accountable_approval():
