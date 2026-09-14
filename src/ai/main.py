@@ -58,9 +58,11 @@ from src.ai.mpi import pipeline as mpi_pipeline
 from src.ai.pricing import pipeline as pricing_pipeline
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
+from src.ai.sales import quick_sale
 from src.ai.sentiment import pipeline as sentiment_pipeline
 from src.market_scraper import api_connector_sync, connector_sync
 from src.market_scraper import data_access as market_scraper_data_access
+from src.market_scraper import discovery as market_scraper_discovery
 
 app = FastAPI(title="CEOPRO AI Service")
 
@@ -154,6 +156,25 @@ class DatabaseConnectorRequest(BaseModel):
     field_mapping: dict
     credentials: dict
     sync_frequency_minutes: Optional[int] = None
+
+
+class QuickSaleRequest(BaseModel):
+    """The dashboard's "Quick Sale" quick action - one manual sale entry.
+    unit_price is optional: defaults to the product's own current_price
+    when omitted (see sales/quick_sale.py's own docstring)."""
+    product_id: str
+    quantity: int
+    unit_price: Optional[float] = None
+
+
+class AddCompetitorRequest(BaseModel):
+    """The "Add Competitor" modal's two required fields (Marketplace
+    Links/Social Media Handles aren't stored anywhere yet - see
+    market_scraper/discovery.py::register_manual_competitor()'s own
+    docstring for why this is a distinct entry point from the automated
+    discovery paths, not a shortcut through them)."""
+    name: str
+    website_url: str
 
 
 class ApiConnectorRequest(BaseModel):
@@ -906,6 +927,61 @@ def dashboard_product_forecast_endpoint(product_id: str, ctx: TenantContext = De
         conn.commit()
         if result is None:
             raise HTTPException(status_code=404, detail="Product not found")
+        return result
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/sales/quick-sale")
+def quick_sale_endpoint(body: QuickSaleRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The "Quick Sale" quick action - records one manual sale immediately
+    (one invoice + one invoice_item). See sales/quick_sale.py's own
+    docstring for why this writes to invoices/invoice_items specifically
+    (the platform's real manual-sales record, previously unreachable from
+    any endpoint) rather than the separate `transactions` table uploads/
+    POS syncs use.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = quick_sale.record_quick_sale(
+            conn, ctx.tenant_id, ctx.user_id, body.product_id, body.quantity, body.unit_price,
+        )
+        conn.commit()
+        return result
+    except quick_sale.ProductNotFoundError as err:
+        conn.rollback()
+        raise HTTPException(status_code=404, detail=str(err))
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/competitors")
+def add_competitor_endpoint(body: AddCompetitorRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The "Add Competitor" modal - registers a competitor the business
+    owner names directly. See market_scraper/discovery.py::
+    register_manual_competitor()'s own docstring for why this is a
+    distinct, honestly-labeled entry point (discovery_method left NULL)
+    rather than routed through the automated discovery functions, which
+    require a real discovery_method value this action doesn't have.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = market_scraper_discovery.register_manual_competitor(conn, ctx.tenant_id, body.name, body.website_url)
+        conn.commit()
         return result
     except HTTPException:
         conn.rollback()
