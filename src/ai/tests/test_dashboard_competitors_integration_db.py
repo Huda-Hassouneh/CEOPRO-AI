@@ -6,7 +6,7 @@ skipped unless AI_TEST_DATABASE_URL is set.
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import psycopg2
 import pytest
@@ -225,6 +225,41 @@ def test_price_competitiveness_is_none_with_no_real_price_observation(conn):
 
     row = get_competitor_directory(conn, tenant_id)["strategic"][0]
     assert row["price_competitiveness"] is None
+
+
+def test_market_activity_defaults_to_low_with_no_price_history(conn):
+    tenant_id = _insert_company(conn)
+    _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["market_activity"] == "Low"
+
+
+def test_market_activity_reflects_real_detected_price_changes(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    competitor_id = _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+    _map_product_with_price(conn, tenant_id, product_id, competitor_id, your_price=100.0, their_price=90.0)
+    conn.commit()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT mapping_id FROM competitor_product_mappings WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, competitor_id),
+        )
+        mapping_id = cursor.fetchone()[0]
+        now = datetime.now(timezone.utc)
+        for i, price in enumerate([90.0, 85.0, 80.0]):
+            cursor.execute(
+                "INSERT INTO competitor_prices (tenant_id, mapping_id, scraped_price, currency, observed_at) "
+                "VALUES (%s, %s, %s, 'JOD', %s);",
+                (tenant_id, mapping_id, price, now - timedelta(days=3 - i)),
+            )
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["market_activity"] == "High"
 
 
 def test_price_competitiveness_reflects_a_real_price_match_for_a_strategic_competitor(conn):
