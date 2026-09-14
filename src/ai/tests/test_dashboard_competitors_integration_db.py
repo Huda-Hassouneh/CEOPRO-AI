@@ -6,6 +6,7 @@ skipped unless AI_TEST_DATABASE_URL is set.
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 
 import psycopg2
 import pytest
@@ -50,7 +51,7 @@ def _insert_product(conn, tenant_id, name, current_price=50.0) -> str:
 
 
 def _insert_tracked_competitor(
-    conn, tenant_id, name, tier, match_rate, website_url=None, is_tracked=True,
+    conn, tenant_id, name, tier, match_rate, website_url=None, is_tracked=True, classified_at=None,
 ) -> str:
     competitor_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
@@ -60,11 +61,27 @@ def _insert_tracked_competitor(
             (competitor_id, name, website_url, tenant_id),
         )
         cursor.execute(
-            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, tier, product_match_rate, is_tracked, is_confirmed_competitor) "
-            "VALUES (%s, %s, %s, %s, %s, %s);",
-            (tenant_id, competitor_id, tier, match_rate, is_tracked, is_tracked),
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, tier, product_match_rate, is_tracked, is_confirmed_competitor, classified_at) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s);",
+            (tenant_id, competitor_id, tier, match_rate, is_tracked, is_tracked, classified_at),
         )
     return competitor_id
+
+
+def _insert_competitor_review_with_sentiment(conn, tenant_id, competitor_id, positive_probability, negative_probability):
+    review_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO reviews (review_id, tenant_id, subject_type, competitor_id, source_platform, review_text) "
+            "VALUES (%s, %s, 'COMPETITOR', %s, 'GOOGLE', 'A review.');",
+            (review_id, tenant_id, competitor_id),
+        )
+    from src.ai.sentiment.evidence import insert_sentiment_result
+    neutral_probability = 1.0 - positive_probability - negative_probability
+    insert_sentiment_result(
+        conn, review_id, tenant_id, "POSITIVE", positive_probability, neutral_probability,
+        negative_probability, 0.9, "test-model-v1",
+    )
 
 
 def _map_product_with_price(conn, tenant_id, product_id, competitor_id, your_price, their_price):
@@ -160,3 +177,63 @@ def test_groups_are_sorted_alphabetically_by_name(conn):
 
     directory = get_competitor_directory(conn, tenant_id)
     assert [row["name"] for row in directory["strategic"]] == ["Acme Inc", "Zebra Corp"]
+
+
+def test_last_updated_is_none_when_never_classified(conn):
+    tenant_id = _insert_company(conn)
+    _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["last_updated"] is None
+
+
+def test_last_updated_reflects_the_real_classified_at_timestamp(conn):
+    tenant_id = _insert_company(conn)
+    classified_at = datetime(2026, 9, 1, 12, 0, 0, tzinfo=timezone.utc)
+    _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9, classified_at=classified_at)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["last_updated"] == classified_at.isoformat()
+
+
+def test_market_sentiment_label_is_none_with_no_analyzed_reviews(conn):
+    tenant_id = _insert_company(conn)
+    _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["market_sentiment_label"] is None
+
+
+def test_market_sentiment_label_reflects_real_analyzed_reviews(conn):
+    tenant_id = _insert_company(conn)
+    competitor_id = _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+    _insert_competitor_review_with_sentiment(conn, tenant_id, competitor_id, positive_probability=0.8, negative_probability=0.1)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["market_sentiment_label"] == "Positive"
+
+
+def test_price_competitiveness_is_none_with_no_real_price_observation(conn):
+    tenant_id = _insert_company(conn)
+    _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["price_competitiveness"] is None
+
+
+def test_price_competitiveness_reflects_a_real_price_match_for_a_strategic_competitor(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    competitor_id = _insert_tracked_competitor(conn, tenant_id, "Rival Co", TIER_STRATEGIC, match_rate=0.9)
+    conn.commit()
+    _map_product_with_price(conn, tenant_id, product_id, competitor_id, your_price=100.0, their_price=100.0)
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+    assert row["price_competitiveness"] == 10.0  # priced exactly at market
