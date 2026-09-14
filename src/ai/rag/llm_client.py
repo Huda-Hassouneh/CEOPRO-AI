@@ -160,6 +160,25 @@ RETRY_JITTER_FRACTION = float(os.getenv("GROQ_RETRY_JITTER_FRACTION", "0.5"))
 CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("GROQ_CIRCUIT_BREAKER_THRESHOLD", "5"))
 CIRCUIT_BREAKER_COOLDOWN_SECONDS = float(os.getenv("GROQ_CIRCUIT_BREAKER_COOLDOWN_SECONDS", "30"))
 
+# Real bug this constant fixes: every call into this module used to send
+# exactly one message (system prompt + the current turn) - the LLM had
+# zero memory of anything said earlier in the same conversation, so a
+# natural follow-up ("I meant jumper wire", "why isn't that clear?") had
+# no way to resolve what it was referring to and the reply came back
+# disconnected from what was just discussed. history (a list of
+# {"role": "user"|"assistant", "content": str} dicts, oldest first, the
+# same shape the caller's own chat log already tracks) is now threaded
+# into the real chat-completion `messages` array between the system
+# prompt and the current turn, giving the model the actual prior
+# exchange to reason over - the same mechanism every real chat product
+# (Claude, NotebookLM, ChatGPT) relies on for this exact behavior.
+# Capped rather than sent in full: a long-running conversation would
+# otherwise grow the prompt (and the cost/latency of every future turn)
+# without bound. 12 messages = 6 full user/assistant turns - enough for
+# real short-term context (a clarification, a "why", a "tell me more")
+# without paying to re-send an entire session's history on every message.
+MAX_HISTORY_MESSAGES = int(os.getenv("RAG_MAX_HISTORY_MESSAGES", "12"))
+
 _circuit_state = {"consecutive_failures": 0, "opened_at": None}
 
 
@@ -206,7 +225,17 @@ SYSTEM_PROMPT = (
     "ordinary small-business owner (a shop or restaurant owner, not a data analyst, "
     "engineer, or accountant). Answer the user's question using ONLY the information in "
     "the provided context. If the context does not contain enough information to answer, "
-    "say so explicitly and simply, rather than guessing or using outside knowledge.\n\n"
+    "say so explicitly and simply - in the exact same language and dialect the user's "
+    "CURRENT message is written in, never switching to English or any other language just "
+    "because this is an 'I don't know' reply - rather than guessing or using outside "
+    "knowledge.\n\n"
+    "Conversation history: earlier turns from this same conversation may be included before "
+    "the current question, oldest first. Use them only to understand what the CURRENT "
+    "question is actually asking - resolving a pronoun, a correction ('I meant X'), or a "
+    "follow-up ('why?', 'tell me more') against what was just discussed. Never treat "
+    "something said earlier in the conversation (by either you or the user) as a new fact "
+    "on its own - every factual claim in your answer must still come from the context/"
+    "business data provided for THIS turn, exactly as the provenance rule below requires.\n\n"
     "Language, dialect, and tone - match the user exactly, every time: respond in the "
     "EXACT SAME language the user just wrote in, never switching languages on your own and "
     "never defaulting to English. If they wrote in Arabic, answer entirely in Arabic; if "
@@ -264,6 +293,40 @@ SYSTEM_PROMPT = (
 
 class LLMError(Exception):
     """Raised when the LLM provider call fails or returns an unusable response."""
+
+
+def _sanitize_history(history) -> list:
+    """
+    Defensive normalization for the caller-supplied conversation history,
+    not just a pass-through - a caller building this from a UI's own chat
+    log (a plain list of (role, text) pairs, or a request body from an
+    untrusted client) can hand this function almost anything. Silently
+    drops/fixes what it can rather than raising, since a malformed history
+    entry should degrade to "less context", never break the whole chat
+    turn:
+    - keeps only {"role", "content"} keys (drops anything else a caller
+      might have included, e.g. a UI's own internal message id/timestamp);
+    - coerces role to "user"/"assistant" only - anything else (including
+      an accidental "system") is dropped rather than risk a caller
+      injecting a second system-level instruction into the payload;
+    - drops empty/non-string content;
+    - keeps only the most recent MAX_HISTORY_MESSAGES entries (oldest of
+      the kept ones first) - see that constant's own comment for why.
+    """
+    if not history:
+        return []
+    cleaned = []
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        role = entry.get("role")
+        content = entry.get("content")
+        if role not in ("user", "assistant"):
+            continue
+        if not isinstance(content, str) or not content.strip():
+            continue
+        cleaned.append({"role": role, "content": content})
+    return cleaned[-MAX_HISTORY_MESSAGES:]
 
 
 def _build_user_prompt(context: AssembledContext, structured_facts: str = "") -> str:
@@ -346,10 +409,24 @@ def generate_answer(
     timeout: float = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     structured_facts: str = "",
+    history: list = None,
 ) -> str:
     """
     Calls the LLM provider with `context` (from pipeline.run_retrieval() or
     pipeline.assemble_context()) and returns the generated answer text.
+
+    history (optional): prior turns of this same conversation, as
+    {"role": "user"|"assistant", "content": str} dicts, oldest first -
+    normalized/truncated via _sanitize_history() (see its own docstring)
+    before being placed between the system prompt and the current turn in
+    the real chat-completion `messages` array. Without this, every call
+    was a fresh, memory-less single-turn exchange - a real defect for a
+    conversational assistant, not a design choice: a user's own follow-up
+    ("I meant X", "why isn't that clear?") had nothing to resolve against.
+    Only the CURRENT turn gets a freshly retrieved context/structured-facts
+    block; earlier turns carry their own plain conversational text only,
+    so the prompt doesn't re-send the same grounding material on every
+    message.
 
     Raises LLMError (never a bare httpx/JSON exception) on a missing API
     key, a non-2xx response, a network failure, or an unexpected response
@@ -409,6 +486,7 @@ def generate_answer(
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
+            *_sanitize_history(history),
             {"role": "user", "content": _build_user_prompt(context, structured_facts)},
         ],
         "temperature": temperature,
@@ -429,25 +507,33 @@ def generate_answer(
 
 def answer_query(
     conn, tenant_id: str, query_text: str, top_k: int = 5,
-    include_structured_facts: bool = True, **retrieval_kwargs,
+    include_structured_facts: bool = True, history: list = None, **retrieval_kwargs,
 ) -> dict:
     """
     The complete, end-to-end RAG chatbot call: retrieval
     (pipeline.run_retrieval() - persisted hybrid index -> RRF fusion ->
     Cross-Encoder re-rank -> context assembly), live structured facts
     (structured_context.py - real current numbers, not retrieved),
-    followed by LLM reasoning (generate_answer()). Returns
+    followed by LLM reasoning (generate_answer(), which now also takes
+    this same `history` - see its own docstring). Returns
     {"answer": str, "sources": list[dict]} - sources are the same chunk
     citations AssembledContext already carries; structured facts have no
     "chunk" to cite (they're a live query, not a persisted document), so
     they never appear in `sources`, only inline in the answer text
     itself when the model chooses to use them.
 
-    Short-circuits before ever calling the LLM only when there is
-    NEITHER retrieved context NOR any structured facts - a question with
-    no matching document but real, current structured data (e.g. "what's
-    my current price gap") should still get a real answer, not a
-    reflexive "I don't have any relevant information".
+    Always calls the LLM, even when retrieval and structured facts both
+    come back empty - SYSTEM_PROMPT already tells the model exactly how
+    to decline gracefully AND in the user's own language/dialect when
+    there's genuinely nothing to answer from (see its own text). A
+    hardcoded English "I don't have any relevant information" string used
+    to short-circuit this case instead, skipping the LLM (and therefore
+    skipping SYSTEM_PROMPT's language-matching) entirely - a real bug: an
+    Arabic-speaking user asking anything with no matching data got an
+    English sentence back no matter what language they'd been using.
+    Removed rather than translated, since duplicating SYSTEM_PROMPT's own
+    language logic in a second, non-LLM code path is exactly the kind of
+    drift that caused this bug in the first place.
 
     include_structured_facts=True by default; set False for a caller
     that wants retrieval-only behavior (e.g. testing, or a context where
@@ -456,8 +542,5 @@ def answer_query(
     context = run_retrieval(conn, tenant_id, query_text, top_k=top_k, **retrieval_kwargs)
     structured_facts = build_structured_facts_block(conn, tenant_id) if include_structured_facts else ""
 
-    if not context.context_text and not structured_facts:
-        return {"answer": "I don't have any relevant information to answer that question.", "sources": []}
-
-    answer = generate_answer(context, structured_facts=structured_facts)
+    answer = generate_answer(context, structured_facts=structured_facts, history=history)
     return {"answer": answer, "sources": context.sources}
