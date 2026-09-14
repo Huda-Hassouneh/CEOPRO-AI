@@ -6,6 +6,7 @@ upload landing in Postgres + MinIO) is covered separately by
 test_main_integration_db.py, matching this repo's established
 offline-unit/live-integration split.
 """
+import json
 import os
 from unittest.mock import MagicMock, patch
 
@@ -315,6 +316,63 @@ def test_rag_query_rejects_top_k_out_of_bounds():
     assert response.status_code == 422
 
     response = client.post("/rag/query", params={"query_text": "q", "top_k": 999}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_rag_query_passes_parsed_history_through_to_answer_query():
+    """The real fix: without a way to send prior turns back in, every call
+    was answered with zero memory of the conversation so far - a real
+    conversational assistant needs the caller's own running chat log."""
+    fake_conn = MagicMock()
+    fake_result = {"answer": "Sunscreen SPF 50.", "sources": []}
+    history = [
+        {"role": "user", "content": "what's our best seller?"},
+        {"role": "assistant", "content": "Sunscreen SPF 50."},
+    ]
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.rag_llm_client.answer_query", return_value=fake_result) as mock_answer:
+        response = client.post(
+            "/rag/query",
+            params={"query_text": "why is that?", "history_json": json.dumps(history)},
+            headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    assert mock_answer.call_args.kwargs["history"] == history
+
+
+def test_rag_query_treats_a_missing_history_json_as_no_history():
+    fake_conn = MagicMock()
+    fake_result = {"answer": "ok", "sources": []}
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.rag_llm_client.answer_query", return_value=fake_result) as mock_answer:
+        response = client.post("/rag/query", params={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 200
+    assert mock_answer.call_args.kwargs["history"] is None
+
+
+def test_rag_query_rejects_malformed_history_json():
+    response = client.post(
+        "/rag/query", params={"query_text": "q", "history_json": "{not valid json"}, headers=_auth(),
+    )
+    assert response.status_code == 422
+
+
+def test_rag_query_rejects_history_json_that_is_not_an_array():
+    response = client.post(
+        "/rag/query", params={"query_text": "q", "history_json": json.dumps({"role": "user"})}, headers=_auth(),
+    )
+    assert response.status_code == 422
+
+
+def test_rag_query_rejects_history_json_over_the_length_cap():
+    from src.ai.main import _MAX_HISTORY_JSON_LENGTH
+
+    oversized = json.dumps([{"role": "user", "content": "x" * _MAX_HISTORY_JSON_LENGTH}])
+    response = client.post(
+        "/rag/query", params={"query_text": "q", "history_json": oversized}, headers=_auth(),
+    )
     assert response.status_code == 422
 
 
