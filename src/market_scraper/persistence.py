@@ -6,7 +6,7 @@ import os
 import redis
 from scrapy import signals
 
-from src.market_scraper import data_access, market_repository
+from src.market_scraper import cost_ledger, data_access, market_repository
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,15 @@ class PostgresPricePipeline:
             if self.connection is None:
                 self.connection = data_access.get_tenant_connection(item["tenant_id"])
             persisted = market_repository.save_market_record(self.connection, item)
+            # Real spend happened whether this item landed in reviews/
+            # competitor_prices or got quarantined - a quarantined item is a
+            # data-quality outcome, not a refund, so the ledger records the
+            # attempt either way (see cost_ledger.py's own docstring on why
+            # a missing row would hide an unmetered collector's real cost
+            # rather than honestly showing it as unknown).
+            cost_ledger.record_scrape_cost(
+                self.connection, item["tenant_id"], item["mapping_id"], self.crawler.spider.name,
+            )
             if persisted["status"] == "QUARANTINED":
                 self.quarantined += 1
             else:
