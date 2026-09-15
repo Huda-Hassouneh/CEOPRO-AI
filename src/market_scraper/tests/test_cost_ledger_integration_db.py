@@ -272,6 +272,83 @@ def test_floor_still_yields_to_insufficient_data_when_no_price_exists(conn):
     assert "no positive margin or price" in decision.reason
 
 
+# ---------------------------------------------------------------------------
+# family_size amortization - forced family-keyed group routing instead of
+# a blind floor block (product_families.py::find_cost_sharing_family_size)
+# ---------------------------------------------------------------------------
+
+def test_family_size_bypasses_the_floor_and_allows_when_amortized_cost_is_low(conn, monkeypatch):
+    """A sub-floor product with real family siblings is never blocked by
+    the floor alone - it falls through to the ordinary ratio check with
+    cost amortized across the family, and a family big enough to absorb
+    the real cost stays allowed."""
+    monkeypatch.setenv("SCRAPE_COST_PER_REQUEST_MARKET_SOURCE", "0.10")
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Cheap Widget", current_price=0.50, cost_price=None)
+    mapping_id = _insert_mapping(conn, tenant_id, product_id)
+    conn.commit()
+    record_scrape_cost(conn, tenant_id, mapping_id, "market_source")  # 0.10
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(
+        conn, tenant_id, product_id, min_product_price=1.00, max_ratio=0.20, family_size=5,
+    )
+    # amortized cost = 0.10 / 5 = 0.02, basis 0.50 -> ratio 4%, well under 20%
+    assert decision.allow is True
+    assert decision.family_size == 5
+    assert decision.ratio == pytest.approx(0.04)
+    assert "family" in decision.reason.lower()
+
+
+def test_family_size_still_blocks_when_amortized_ratio_is_still_over(conn, monkeypatch):
+    """Family sharing lowers the effective cost, but doesn't fabricate a
+    pass when even the amortized share is still too expensive."""
+    monkeypatch.setenv("SCRAPE_COST_PER_REQUEST_MARKET_SOURCE", "0.50")
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Cheap Widget", current_price=0.50, cost_price=None)
+    mapping_id = _insert_mapping(conn, tenant_id, product_id)
+    conn.commit()
+    record_scrape_cost(conn, tenant_id, mapping_id, "market_source")  # 0.50
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(
+        conn, tenant_id, product_id, min_product_price=1.00, max_ratio=0.20, family_size=2,
+    )
+    # amortized cost = 0.50 / 2 = 0.25, basis 0.50 -> ratio 50%, still >= 20%
+    assert decision.allow is False
+    assert decision.ratio == pytest.approx(0.5)
+    assert "shared across 2 real family members" in decision.reason
+    assert "at or above the 20% limit" in decision.reason
+
+
+def test_family_size_allows_a_sub_floor_product_with_no_cost_data_yet(conn):
+    """First real request for a family - no ledger row exists yet for
+    this exact product, but it's still allowed through (never blocked by
+    the floor) because a real family exists to eventually share cost
+    with."""
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Cheap Widget", current_price=0.50, cost_price=None)
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, min_product_price=1.00, family_size=4)
+    assert decision.allow is True
+    assert decision.cumulative_cost is None
+    assert "family-keyed group scraping" in decision.reason
+
+
+def test_family_size_of_one_leaves_the_floor_block_unchanged(conn):
+    """No real family (family_size=1, the default) - the original hard
+    floor block still applies exactly as before this feature existed."""
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Cheap Widget", current_price=0.50, cost_price=None)
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, min_product_price=1.00, family_size=1)
+    assert decision.allow is False
+    assert "minimum price floor" in decision.reason
+    assert decision.family_size == 1
+
+
 def test_unknown_cost_rows_do_not_count_as_zero_or_as_known(conn):
     """A collector with no configured rate writes NULL-cost rows (see
     record_scrape_cost tests above) - the gate must treat those as no
