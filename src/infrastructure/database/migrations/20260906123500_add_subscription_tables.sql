@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
     plan_id UUID NOT NULL,
     payment_provider VARCHAR(50) NOT NULL,
-    payment_provider_customer_id VARCHAR(255) UNIQUE,
+    payment_provider_customer_id VARCHAR(255) ,
 
     payment_provider_subscription_id VARCHAR(255) UNIQUE,
 

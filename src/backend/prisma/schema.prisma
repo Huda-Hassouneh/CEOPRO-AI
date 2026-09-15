@@ -79,7 +79,7 @@ model Subscription {
   planId                          String    @map("plan_id") @db.Uuid
 
   paymentProvider                 String    @map("payment_provider") @db.VarChar(50)
-  paymentProviderCustomerId       String?   @unique @map("payment_provider_customer_id") @db.VarChar(255)
+  paymentProviderCustomerId       String?    @map("payment_provider_customer_id") @db.VarChar(255)
   paymentProviderSubscriptionId   String?   @unique @map("payment_provider_subscription_id") @db.VarChar(255)
 
   status                          String    @db.VarChar(30)
