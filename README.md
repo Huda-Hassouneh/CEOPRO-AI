@@ -66,7 +66,14 @@ quarantined:
   team overhead means tracking a product priced (or margined) below this floor can never yield real
   profit, no matter how cheap the scraping cost is - so the gate blocks it immediately, from day
   one, with zero ledger rows needed. A product must clear the floor before the ratio is even
-  evaluated.
+  evaluated. **A sub-floor product is never simply dropped when it belongs to a real product
+  family** (`src/market_scraper/product_families.py`): instead of a blind block, it's routed
+  through family-keyed group cost-sharing - the real scraping cost is amortized across every other
+  active, price-collapse-eligible product in the tenant's catalog sharing its family (the same
+  grouping `select_family_representatives()` already applies at discovery time), lowering the
+  effective per-item cost and keeping the family trackable and profitable instead of losing the
+  data outright. A genuinely solo low-value product with no real family still falls back to the
+  hard floor block.
 
 Per-collector costs are configured per paid vendor via `SCRAPE_COST_PER_REQUEST_<COLLECTOR>` env
 vars with no baked-in defaults (an unconfigured collector's ledger rows record `cost_amount = NULL`
