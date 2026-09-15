@@ -45,6 +45,7 @@ from typing import Optional
 from src.ai.rag.pipeline import DEFAULT_BUCKET, ingest_pending_documents
 from src.ai.sentiment.data_access import load_aggregate_sentiment_by_competitor
 from src.ai.sentiment.pipeline import get_subject_sentiment_summary
+from src.market_scraper.pos_erp_presets import ALL_PRESETS, CONNECTION_MECHANISMS
 
 logger = logging.getLogger("CEOPRO_AI_RAG_STRUCTURED_SUMMARIES")
 
@@ -55,10 +56,11 @@ SLOT_MARKET_PRICING = "market_pricing"
 SLOT_DEMAND_FORECAST = "demand_forecast"
 SLOT_STRATEGIC_INSIGHTS = "strategic_insights"
 SLOT_PLATFORM_HELP = "platform_help"
+SLOT_POS_ERP_SYSTEMS = "pos_erp_systems"
 
 ALL_SLOTS = (
     SLOT_SALES_HISTORY, SLOT_COMPETITOR_LANDSCAPE, SLOT_SENTIMENT_TRENDS, SLOT_MARKET_PRICING,
-    SLOT_DEMAND_FORECAST, SLOT_STRATEGIC_INSIGHTS, SLOT_PLATFORM_HELP,
+    SLOT_DEMAND_FORECAST, SLOT_STRATEGIC_INSIGHTS, SLOT_PLATFORM_HELP, SLOT_POS_ERP_SYSTEMS,
 )
 
 
@@ -526,6 +528,95 @@ def generate_platform_help_summary(conn=None, tenant_id: str = None) -> str:
     )
 
 
+_CATEGORY_LABELS = {
+    "pharmacy_pos": "Pharmacy POS/ERP",
+    "general_pos": "General POS/ERP",
+    "enterprise_erp": "Enterprise/Regional ERP",
+}
+
+_MECHANISM_EXPLAINER = {
+    "generic_api": (
+        "REST API - the system has its own web API. The business gives us a URL plus an "
+        "access key/token, and we pull their data through it on a schedule, via "
+        "POST /onboarding/connect/api."
+    ),
+    "generic_database": (
+        "DB Connector - the system doesn't have a usable API for us, so instead we get "
+        "read-only access to the business's own database and pull data with a SQL query "
+        "(we never write to it), via POST /onboarding/connect/database."
+    ),
+    "vendor_direct_request": (
+        "Direct request to vendor - neither a REST API nor database access is confirmed to "
+        "exist yet for this system. Before it can be connected at all, someone has to "
+        "contact the vendor and ask for API access, a webhook, or a scheduled data export - "
+        "this is a to-do, not a connector that works today."
+    ),
+}
+
+
+def generate_pos_erp_summary(conn=None, tenant_id: str = None) -> str:
+    """
+    Real, named POS/ERP/e-commerce systems and exactly how each one would
+    connect - generated directly from market_scraper/pos_erp_presets.py
+    (the single source of truth also used by onboarding_connector_hint())
+    rather than hand-written prose, so this can never drift out of sync
+    with that module. Closes the gap the platform-help slot above
+    deliberately left generic ("connect your own POS/ERP system's API") -
+    a question naming a SPECIFIC vendor ("can you connect Foodics",
+    "does Odoo work", "how do I connect SAP Business One") had nothing
+    more specific than that generic sentence to retrieve, until now.
+
+    conn/tenant_id accepted (unused) for the same _GENERATORS shared-
+    signature reason SLOT_PLATFORM_HELP's generator already documents -
+    this content is identical for every tenant, not a per-tenant query.
+
+    Deliberately still honest about what ISN'T known even for a
+    generic_api/generic_database vendor: no field mappings are pre-built
+    for any of them (see onboarding_connector_hint()'s own docstring) -
+    the real field names still have to come from that vendor's own docs
+    once a tenant has an actual account, never guessed here.
+    """
+    lines = [
+        "Named POS/ERP/e-commerce systems this platform knows about, and exactly how each "
+        "one would connect (source: market_scraper/pos_erp_presets.py - real vendor names, "
+        "researched via web search, not guessed).\n",
+        "There are three ways a system can connect, and only two of them work today:\n",
+    ]
+    for mechanism in CONNECTION_MECHANISMS:
+        lines.append(f"- {_MECHANISM_EXPLAINER[mechanism]}")
+    lines.append(
+        "\nImportant limit that applies to every vendor below, even ones with a real REST "
+        "API or DB Connector: no field mappings are pre-built for any of them. Knowing a "
+        "system has a REST API is not the same as knowing its exact field names - those "
+        "still have to come from that vendor's own API docs once there's an actual account "
+        "with them, never guessed at that level.\n"
+    )
+
+    by_category: dict = {}
+    for preset in ALL_PRESETS.values():
+        by_category.setdefault(preset["category"], []).append(preset)
+
+    for category, label in _CATEGORY_LABELS.items():
+        presets = by_category.get(category)
+        if not presets:
+            continue
+        lines.append(f"\n{label}:")
+        for preset in sorted(presets, key=lambda p: p["display_name"]):
+            countries = ", ".join(preset["confirmed_countries"]) if preset["confirmed_countries"] else "region not independently confirmed"
+            mechanism_word = {
+                "generic_api": "REST API",
+                "generic_database": "DB Connector",
+                "vendor_direct_request": "direct request to vendor needed - not connectable yet",
+            }[preset["connection_mechanism"]]
+            confidence_note = "" if preset["verified_live"] else " (general industry knowledge, not independently re-confirmed via live search)"
+            lines.append(
+                f"- {preset['display_name']} ({preset['vendor_of']}), confirmed operating in: "
+                f"{countries}. Connection: {mechanism_word}.{confidence_note} {preset['mechanism_note']}"
+            )
+
+    return "\n".join(lines)
+
+
 _GENERATORS = {
     SLOT_SALES_HISTORY: generate_sales_history_summary,
     SLOT_COMPETITOR_LANDSCAPE: generate_competitor_landscape_summary,
@@ -534,6 +625,7 @@ _GENERATORS = {
     SLOT_DEMAND_FORECAST: generate_demand_forecast_summary,
     SLOT_STRATEGIC_INSIGHTS: generate_strategic_insights_summary,
     SLOT_PLATFORM_HELP: generate_platform_help_summary,
+    SLOT_POS_ERP_SYSTEMS: generate_pos_erp_summary,
 }
 
 
