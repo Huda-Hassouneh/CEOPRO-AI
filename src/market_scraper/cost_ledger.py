@@ -68,6 +68,15 @@ DEFAULT_GATE_WINDOW_DAYS = int(os.getenv("COST_GATE_WINDOW_DAYS", "30"))
 # ledger data exists to see what tracking actually costs in practice.
 DEFAULT_MAX_COST_TO_MARGIN_RATIO = float(os.getenv("COST_GATE_MAX_RATIO", "0.20"))
 
+# The hard floor underneath the dynamic ratio above - also a business
+# policy choice, not a researched constant. A product whose real price (or
+# margin, whichever the ratio itself would use) never clears this floor is
+# blocked on day one, before a single real ledger row exists to judge a
+# ratio from: fixed team/overhead costs mean a sub-floor product can never
+# be made profitable purely by scraping it less often, so there is no
+# rolling-window cost pattern that would ever legitimately clear it either.
+DEFAULT_MIN_PRODUCT_PRICE = float(os.getenv("COST_GATE_MIN_PRODUCT_PRICE", "1.00"))
+
 
 def _cost_per_request(collector_key: str) -> Optional[float]:
     """None (never a guessed number) when this collector's real per-
@@ -111,6 +120,7 @@ class CostMarginGateDecision:
     ratio: Optional[float]
     threshold: float
     window_days: int
+    min_product_price: float
 
     def as_dict(self) -> dict:
         return {
@@ -122,6 +132,7 @@ class CostMarginGateDecision:
             "ratio": self.ratio,
             "threshold": self.threshold,
             "window_days": self.window_days,
+            "min_product_price": self.min_product_price,
         }
 
 
@@ -162,15 +173,31 @@ def _load_cumulative_known_cost(conn, tenant_id: str, product_id: str, window_st
 def evaluate_cost_margin_gate(
     conn, tenant_id: str, product_id: str,
     window_days: int = DEFAULT_GATE_WINDOW_DAYS, max_ratio: float = DEFAULT_MAX_COST_TO_MARGIN_RATIO,
+    min_product_price: float = DEFAULT_MIN_PRODUCT_PRICE,
 ) -> CostMarginGateDecision:
     """
-    The real decision: has real, known scraping cost for this product in
-    the trailing `window_days` crossed `max_ratio` of what the product is
-    actually worth? Always ALLOWS (never blocks) when there isn't enough
-    real information to judge - no product record, no real cost data yet,
-    or a product priced at 0 - "insufficient data" is never treated as
-    "over budget", the same discipline this codebase applies everywhere
-    else a real number might simply not exist yet.
+    Two checks, in order:
+
+    1. The hard floor: does this product's real basis (margin when a real
+       cost_price is on file, else price) clear `min_product_price` at
+       all? Below it, this BLOCKS immediately - day one, before a single
+       ledger row exists - since fixed team/overhead costs mean no amount
+       of real scraping-cost data could ever justify tracking a product
+       priced beneath the floor; there's no ratio pattern worth waiting
+       for. This is the only branch that can block without first checking
+       real cost data.
+
+    2. The dynamic ratio (unchanged from before this floor existed): has
+       real, known scraping cost for this product in the trailing
+       `window_days` crossed `max_ratio` of that same basis?
+
+    Both checks ALLOW (never block) when there isn't enough real
+    information to judge at all - no product record, or a product with no
+    positive price/margin on file whatsoever - "insufficient data" is
+    never treated as "over budget", the same discipline this codebase
+    applies everywhere else a real number might simply not exist yet. That
+    is different from the floor case above: a real, known basis that is
+    simply too low is a confirmed fact, not missing data, so it blocks.
 
     basis_kind="margin" (current_price - cost_price) is used whenever a
     real, positive cost_price is on file - the true profit at stake, not
@@ -183,8 +210,9 @@ def evaluate_cost_margin_gate(
     row = _load_product_pricing(conn, tenant_id, product_id)
     if row is None:
         return CostMarginGateDecision(
-            True, "no real product record found - nothing to gate",
-            None, None, None, None, max_ratio, window_days,
+            allow=True, reason="no real product record found - nothing to gate",
+            cumulative_cost=None, basis_amount=None, basis_kind=None, ratio=None,
+            threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
         )
     current_price, cost_price = row
     current_price = float(current_price)
@@ -200,16 +228,30 @@ def evaluate_cost_margin_gate(
 
     if basis_amount is None:
         return CostMarginGateDecision(
-            True, "no positive margin or price on file to weigh cost against",
-            None, None, None, None, max_ratio, window_days,
+            allow=True, reason="no positive margin or price on file to weigh cost against",
+            cumulative_cost=None, basis_amount=None, basis_kind=None, ratio=None,
+            threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+        )
+
+    if basis_amount < min_product_price:
+        reason = (
+            f"this product's real {basis_kind} ({basis_amount:.4f}) is below the "
+            f"{min_product_price:.2f} minimum price floor - blocked on day one, before any "
+            f"scraping cost has even been recorded"
+        )
+        return CostMarginGateDecision(
+            allow=False, reason=reason,
+            cumulative_cost=None, basis_amount=basis_amount, basis_kind=basis_kind, ratio=None,
+            threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
         )
 
     window_start = datetime.now(timezone.utc) - timedelta(days=window_days)
     cumulative_cost = _load_cumulative_known_cost(conn, tenant_id, product_id, window_start)
     if cumulative_cost is None:
         return CostMarginGateDecision(
-            True, "no real scraping cost data recorded yet for this product",
-            None, basis_amount, basis_kind, None, max_ratio, window_days,
+            allow=True, reason="no real scraping cost data recorded yet for this product",
+            cumulative_cost=None, basis_amount=basis_amount, basis_kind=basis_kind, ratio=None,
+            threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
         )
 
     ratio = round(cumulative_cost / basis_amount, 4)
@@ -219,11 +261,19 @@ def evaluate_cost_margin_gate(
             f"{basis_kind} ({basis_amount:.4f}) over the last {window_days} days - at or above "
             f"the {max_ratio:.0%} limit"
         )
-        return CostMarginGateDecision(False, reason, cumulative_cost, basis_amount, basis_kind, ratio, max_ratio, window_days)
+        return CostMarginGateDecision(
+            allow=False, reason=reason,
+            cumulative_cost=cumulative_cost, basis_amount=basis_amount, basis_kind=basis_kind, ratio=ratio,
+            threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+        )
 
     reason = (
         f"real scraping cost ({cumulative_cost:.4f}) is {ratio:.0%} of this product's "
         f"{basis_kind} ({basis_amount:.4f}) over the last {window_days} days - under the "
         f"{max_ratio:.0%} limit"
     )
-    return CostMarginGateDecision(True, reason, cumulative_cost, basis_amount, basis_kind, ratio, max_ratio, window_days)
+    return CostMarginGateDecision(
+        allow=True, reason=reason,
+        cumulative_cost=cumulative_cost, basis_amount=basis_amount, basis_kind=basis_kind, ratio=ratio,
+        threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+    )

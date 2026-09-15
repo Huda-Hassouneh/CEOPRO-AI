@@ -154,26 +154,31 @@ def test_falls_back_to_price_when_cost_price_is_unset(conn):
 
 
 def test_allows_a_product_well_under_the_ratio(conn, monkeypatch):
+    """Margin priced at exactly the $1.00 minimum price floor (current_price
+    1.50, cost_price 0.50) so this test exercises the ratio path, not the
+    floor - the floor has its own dedicated tests above."""
     monkeypatch.setenv("SCRAPE_COST_PER_REQUEST_MARKET_SOURCE", "0.01")
     tenant_id = _insert_company(conn)
-    product_id = _insert_product(conn, tenant_id, "Widget", current_price=1.0, cost_price=0.50)
+    product_id = _insert_product(conn, tenant_id, "Widget", current_price=1.50, cost_price=0.50)
     mapping_id = _insert_mapping(conn, tenant_id, product_id)
     conn.commit()
-    record_scrape_cost(conn, tenant_id, mapping_id, "market_source")  # 0.01 / 0.50 margin = 2%
+    record_scrape_cost(conn, tenant_id, mapping_id, "market_source")  # 0.01 / 1.00 margin = 1%
     conn.commit()
 
     decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, max_ratio=0.20)
     assert decision.allow is True
-    assert decision.ratio == pytest.approx(0.02)
+    assert decision.ratio == pytest.approx(0.01)
 
 
 def test_blocks_a_product_at_or_over_the_ratio(conn, monkeypatch):
+    """Priced above the $1.00 minimum price floor so this test exercises the
+    ratio-blocking path specifically, not the floor."""
     monkeypatch.setenv("SCRAPE_COST_PER_REQUEST_MARKET_SOURCE", "0.15")
     tenant_id = _insert_company(conn)
-    product_id = _insert_product(conn, tenant_id, "Cheap Widget", current_price=0.80, cost_price=None)
+    product_id = _insert_product(conn, tenant_id, "Pricier Widget", current_price=5.00, cost_price=None)
     mapping_id = _insert_mapping(conn, tenant_id, product_id)
     conn.commit()
-    for _ in range(20):  # 20 x 0.15 = 3.00, vs 0.80 price -> 375%
+    for _ in range(20):  # 20 x 0.15 = 3.00, vs 5.00 price -> 60%
         record_scrape_cost(conn, tenant_id, mapping_id, "market_source")
     conn.commit()
 
@@ -202,6 +207,69 @@ def test_ignores_scrapes_outside_the_window(conn, monkeypatch):
     decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, window_days=30)
     assert decision.allow is True
     assert "no real scraping cost data" in decision.reason
+
+
+# ---------------------------------------------------------------------------
+# The hard minimum-price floor (COST_GATE_MIN_PRODUCT_PRICE)
+# ---------------------------------------------------------------------------
+
+def test_floor_blocks_a_cheap_product_on_day_one_with_zero_ledger_rows(conn):
+    """The real point of the floor: no scrape has ever run for this
+    product, no ledger row exists at all - the floor still blocks it,
+    proving this check never waits on the rolling-window ledger."""
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Cheap Widget", current_price=0.80, cost_price=None)
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, min_product_price=1.00)
+    assert decision.allow is False
+    assert decision.cumulative_cost is None  # never even queried the ledger
+    assert "below the 1.00 minimum price floor" in decision.reason
+    assert "blocked on day one" in decision.reason
+
+
+def test_floor_blocks_on_margin_when_margin_is_the_real_basis(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Thin Margin Widget", current_price=5.00, cost_price=4.50)
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, min_product_price=1.00)
+    assert decision.allow is False
+    assert decision.basis_kind == "margin"
+    assert decision.basis_amount == pytest.approx(0.50)
+    assert "below the 1.00 minimum price floor" in decision.reason
+
+
+def test_floor_does_not_block_a_product_at_or_above_it(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget", current_price=1.00, cost_price=None)
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, min_product_price=1.00)
+    assert decision.allow is True  # exactly at the floor, not below it
+    assert "no real scraping cost data" in decision.reason
+
+
+def test_floor_is_configurable_and_does_not_affect_a_product_above_a_lower_floor(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Cheap Widget", current_price=0.80, cost_price=None)
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, min_product_price=0.50)
+    assert decision.allow is True
+
+
+def test_floor_still_yields_to_insufficient_data_when_no_price_exists(conn):
+    """The floor only fires on a real, known, too-low basis - a product
+    with no usable price/margin at all stays in the honest "insufficient
+    data, never blocked" branch instead."""
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Free Sample", current_price=0.0, cost_price=None)
+    conn.commit()
+
+    decision = evaluate_cost_margin_gate(conn, tenant_id, product_id, min_product_price=1.00)
+    assert decision.allow is True
+    assert "no positive margin or price" in decision.reason
 
 
 def test_unknown_cost_rows_do_not_count_as_zero_or_as_known(conn):
