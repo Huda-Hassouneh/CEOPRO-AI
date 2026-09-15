@@ -20,28 +20,20 @@ CREATE TABLE IF NOT EXISTS plans (
     billing_interval_unit VARCHAR(10) NOT NULL
         CHECK (billing_interval_unit IN ('day', 'week', 'month', 'year')),
 
-    -- trial value in days .
+    -- Trial period is always in days
     trial_period_value INTEGER NOT NULL DEFAULT 0
         CHECK (trial_period_value >= 0),
-  
 
     -- Payment provider identifiers
     payment_provider_product_id VARCHAR(255),
-    -- PayPal's Billing Plan ID
+
     payment_provider_plan_id VARCHAR(255) UNIQUE,
 
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT trial_period_consistency CHECK (
-        (trial_period_value = 0 AND trial_period_unit IS NULL)
-        OR
-        (trial_period_value > 0 AND trial_period_unit IS NOT NULL)
-    )
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 
 
 -- PROMO CODES
