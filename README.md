@@ -46,3 +46,33 @@ To spin up the entire isolated technical mock environment and seed the data brok
 ```powershell
 docker compose up -d; python src/infrastructure/init_broker.py; python src/infrastructure/check_connectivity.py
 ```
+
+## 7. Scraping Cost Ledger & Dynamic Cost-to-Margin Gate
+Every real scrape attempt is money spent, and low-value products can't absorb that cost forever.
+`src/market_scraper/cost_ledger.py` protects margins with two checks run before a scrape is
+enqueued (`enqueue.py`), both against a real `scraping_cost_ledger` table that
+`persistence.py`'s `PostgresPricePipeline` writes to automatically for every attempt, promoted or
+quarantined:
+
+- **Dynamic cost-to-margin ratio** (`COST_GATE_MAX_RATIO`, default `0.20` / 20%, looked back over
+  `COST_GATE_WINDOW_DAYS`, default 30) - blocks a product once its trailing known scraping cost
+  reaches that percentage of its real margin (`current_price - cost_price`, or `current_price`
+  alone when no cost price is on file). This scales automatically with each product's own value
+  instead of a flat dollar rule, and always **allows** when there isn't yet enough real data to
+  judge (no product record, no cost data, no positive price/margin) - insufficient data is never
+  treated as over budget.
+- **Minimum product price floor** (`COST_GATE_MIN_PRODUCT_PRICE`, default `1.00`) - a hard baseline
+  checked *before* the ratio or the ledger are even queried. Heavy operational, distribution, and
+  team overhead means tracking a product priced (or margined) below this floor can never yield real
+  profit, no matter how cheap the scraping cost is - so the gate blocks it immediately, from day
+  one, with zero ledger rows needed. A product must clear the floor before the ratio is even
+  evaluated.
+
+Per-collector costs are configured per paid vendor via `SCRAPE_COST_PER_REQUEST_<COLLECTOR>` env
+vars with no baked-in defaults (an unconfigured collector's ledger rows record `cost_amount = NULL`
+- honestly unknown, never a fabricated `$0.00`). Server/hardware depreciation, electricity, and
+marketing spend are deliberately excluded from this formula - they're real costs, but period costs
+and (for marketing) customer-acquisition cost, not per-request cost-of-service, so they belong in a
+separate periodic margin report rather than a live per-scrape gate. Full details, the env var list,
+and the underlying reasoning live in
+[`src/market_scraper/README.md`](src/market_scraper/README.md#scraping-cost-ledger-and-the-dynamic-cost-to-margin-gate-cost_ledgerpy).

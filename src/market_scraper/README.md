@@ -549,6 +549,62 @@ The richer JSONL/demo record additionally includes product name, category, descr
 rating, review count, stock quantity, canonical URL, image URL, collection method, and capture
 time. Nullable fields remain `null`; absent facts are not invented.
 
+## Scraping cost ledger and the dynamic cost-to-margin gate (`cost_ledger.py`)
+
+Every real scrape attempt against a mapped product writes one row to `scraping_cost_ledger`
+(`persistence.py`'s `PostgresPricePipeline` does this automatically - promoted or quarantined,
+the money was spent either way). Before a new scrape is enqueued at all, `enqueue.py` checks a
+real cost-to-margin ratio: has known scraping spend for this product in the trailing window
+crossed a configured % of what the product is actually worth? A source mapped to more than one
+product stays eligible as long as any one of them is still under the ratio.
+
+Set the real per-request cost for each paid collector as an env var - none has a baked-in
+default, since a guessed number would defeat the whole point:
+
+```
+SCRAPE_COST_PER_REQUEST_MARKET_SOURCE=0.00
+SCRAPE_COST_PER_REQUEST_DIGIKEY_API=0.02
+SCRAPE_COST_PER_REQUEST_MOUSER_API=0.02
+SCRAPE_COST_PER_REQUEST_SOCIAL_DATA_PROVIDER=0.05
+SCRAPE_COST_PER_REQUEST_SCRAPE_CREATORS=0.03
+SCRAPE_COST_PER_REQUEST_VIDEO_TRANSCRIPT_PROVIDER=0.08
+SCRAPE_COST_PER_REQUEST_AMAZON_PAAPI=0.00
+SCRAPE_COST_PER_REQUEST_GOOGLE_PLACES=0.00
+```
+
+(the values above are illustrative placeholders, not researched vendor pricing - confirm each
+against the real vendor's current rate before relying on this). An unconfigured collector still
+gets a ledger row, with `cost_amount = NULL` - honestly unknown, never a fabricated `$0.00` that
+would make an unmetered collector look free.
+
+Two more knobs, both real business-policy choices rather than researched constants:
+
+- `COST_GATE_WINDOW_DAYS` (default 30) - the rolling window the gate looks back over.
+- `COST_GATE_MAX_RATIO` (default 0.20, i.e. 20%) - the ratio itself. Tune it once real ledger data
+  exists to see what tracking actually costs in practice.
+
+The ratio is computed against the product's real margin (`current_price - cost_price`) when
+`cost_price` is on file, falling back to `current_price` alone (labeled `basis_kind: "price"`,
+never silently presented as a margin) when it isn't - `cost_price` is frequently unset on a real
+product record. The gate always **allows** when there isn't enough real data to judge (no product
+record, no cost data yet, no positive price/margin) - insufficient data is never treated as over
+budget.
+
+- `COST_GATE_MIN_PRODUCT_PRICE` (default `1.00`) - a hard minimum price/margin floor, checked
+  before the ratio or the ledger are even looked at. If a product's real margin (or price, when no
+  margin is on file) is below this floor, the gate blocks it immediately - on day one, with zero
+  ledger rows - rather than waiting for 30 days of accumulated cost to prove what's already obvious:
+  heavy operational and distribution overhead means tracking a very low-value item can never turn a
+  real profit no matter how cheap the scraping cost is. This is a separate, earlier check from the
+  ratio above: a product can clear the floor and still get blocked later by the ratio, but a
+  product that never clears the floor is never even weighed against the ratio.
+
+Deliberately NOT part of this formula: server/hardware depreciation, electricity, and marketing
+spend. Those are real costs, but period costs (a monthly bill), not per-request events - they
+belong in a separate periodic margin report (real infra bills ÷ real request volume for that
+period), never a live per-request gate, and marketing spend specifically is customer-acquisition
+cost, not cost-of-service, so it doesn't belong in this formula at all.
+
 ## Live client database sync (real-time, not file-based-only)
 
 `connector_sync.py` is the real fix for "we are NOT building a static reporting tool - a
