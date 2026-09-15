@@ -187,3 +187,35 @@ def test_gate_blocks_a_cheap_product_through_the_minimum_price_floor(conn):
     blocked, reason = _cost_margin_gate_blocks(conn, tenant_id, source_id)
     assert blocked is True
     assert "minimum price floor" in reason
+
+
+def test_gate_routes_a_family_eligible_cheap_product_instead_of_blocking(conn):
+    """A sub-floor product with a real, price-collapse-eligible sibling in
+    the tenant's own catalog is never blocked outright - forced
+    family-keyed group routing (product_families.py::
+    find_cost_sharing_family_size(), wired through cost_ledger.py's
+    family_size) instead of a blind per-SKU block."""
+    tenant_id = _insert_company(conn)
+    cheap = _insert_product(conn, tenant_id, "1k Ohm Resistor", current_price=0.50)
+    _insert_product(conn, tenant_id, "2k Ohm Resistor", current_price=0.50)  # real sibling, same family
+    source_id = _insert_source(conn, tenant_id)
+    _insert_mapping_for_source(conn, tenant_id, cheap, source_id)
+    conn.commit()
+
+    blocked, reason = _cost_margin_gate_blocks(conn, tenant_id, source_id)
+    assert blocked is False
+
+
+def test_gate_still_blocks_a_solo_cheap_product_with_no_real_family(conn):
+    """A sub-floor product with no real sibling anywhere in the tenant's
+    catalog has no group to route through - the original hard floor
+    block still applies, exactly as before this feature existed."""
+    tenant_id = _insert_company(conn)
+    solo = _insert_product(conn, tenant_id, "Unique One-Off Item", current_price=0.50)
+    source_id = _insert_source(conn, tenant_id)
+    _insert_mapping_for_source(conn, tenant_id, solo, source_id)
+    conn.commit()
+
+    blocked, reason = _cost_margin_gate_blocks(conn, tenant_id, source_id)
+    assert blocked is True
+    assert "minimum price floor" in reason
