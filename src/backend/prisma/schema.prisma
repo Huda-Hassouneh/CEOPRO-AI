@@ -109,7 +109,7 @@ model PaymentTransaction {
   currency                        String       @db.VarChar(3)
   status                          String       @default("pending") @db.VarChar(20)
   paidAt                          DateTime?    @map("paid_at") @db.Timestamptz(6)
-  failureReason                   String?
+  failureReason                   String?      @map("failure_reason")
   createdAt                       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime     @updatedAt @map("updated_at")
 
