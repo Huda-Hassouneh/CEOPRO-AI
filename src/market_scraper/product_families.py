@@ -29,6 +29,13 @@ when no sales data exists for a family - never silently pretended to be
 volume-based when it wasn't (same "flag the real limit" discipline as
 sector_detection.py's own keyword-heuristic caveat).
 
+find_cost_sharing_family_size() reuses this same collapse-eligibility rule
+for the cost-margin gate (cost_ledger.py/enqueue.py): a product that is
+itself too low-value to track alone is never simply dropped when it has a
+real family to share scraping cost with - the gate amortizes real cost
+across the real family size this function computes instead of blocking on
+sight.
+
 family_key() is a real, generic (not electronics-specific) heuristic:
 strips bare numbers and common measurement-unit/size words, keeps the
 remaining significant tokens. Two products differing only by a numeric
@@ -198,6 +205,75 @@ def select_family_representatives(conn, tenant_id: str, products: List[dict]) ->
         representatives.append(representative)
 
     return representatives
+
+
+def _product_name_text(product_name) -> Optional[str]:
+    """Same JSONB-or-plain-string convention every other reader of
+    products.product_name already applies (tenant_discovery.py's own
+    _load_active_tenant_products, load_known_product_names() in the
+    extraction track) - the first non-empty language variant wins when
+    it's the bilingual en/ar dict, kept local since this is a two-line
+    pattern, not worth a cross-module import for."""
+    if isinstance(product_name, dict):
+        return next((v for v in product_name.values() if isinstance(v, str) and v), None)
+    if isinstance(product_name, str):
+        return product_name or None
+    return None
+
+
+def find_cost_sharing_family_size(conn, tenant_id: str, product_id: str) -> int:
+    """
+    Real family size for the cost-margin gate's amortized cost-sharing
+    (cost_ledger.py's `family_size` parameter, wired in by enqueue.py's
+    _cost_margin_gate_blocks() instead of blocking a sub-floor product
+    outright): 1 (itself) plus every OTHER active product in this
+    tenant's own catalog that shares family_key() with it AND is itself
+    price-collapse-eligible (is_price_collapse_eligible()) - the exact
+    same real grouping rule select_family_representatives() already
+    applies at discovery time, reused here so a fair, honest cost share
+    is only ever computed against a family discovery itself would
+    actually group together, never a new heuristic invented just for the
+    cost gate.
+
+    Returns 1 (no sharing to apply) when this product itself isn't
+    collapse-eligible, or when no other real sibling in the tenant's
+    catalog shares its family_key - there is no real family to route
+    scraping cost through, so the gate correctly falls back to unshared,
+    per-item accounting for it.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT product_name, current_price, currency FROM products "
+            "WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;",
+            (tenant_id, product_id),
+        )
+        row = cursor.fetchone()
+    if row is None:
+        return 1
+    product_name, current_price, currency = row
+    text = _product_name_text(product_name)
+    if not text or not is_price_collapse_eligible(
+        float(current_price) if current_price is not None else None, currency
+    ):
+        return 1
+    target_key = family_key(text)
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT product_name, current_price, currency FROM products "
+            "WHERE tenant_id = %s AND product_id != %s AND deleted_at IS NULL;",
+            (tenant_id, product_id),
+        )
+        rows = cursor.fetchall()
+
+    family_size = 1
+    for other_name, other_price, other_currency in rows:
+        other_text = _product_name_text(other_name)
+        if not other_text or family_key(other_text) != target_key:
+            continue
+        if is_price_collapse_eligible(float(other_price) if other_price is not None else None, other_currency):
+            family_size += 1
+    return family_size
 
 
 def recommended_collector_config(tier: Optional[str]) -> dict:

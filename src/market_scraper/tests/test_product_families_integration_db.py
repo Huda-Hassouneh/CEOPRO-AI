@@ -11,7 +11,7 @@ import uuid
 import psycopg2
 import pytest
 
-from src.market_scraper.product_families import select_family_representatives
+from src.market_scraper.product_families import find_cost_sharing_family_size, select_family_representatives
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -169,3 +169,76 @@ def test_unknown_currency_is_never_collapsed_even_at_a_low_price(conn):
     representatives = select_family_representatives(conn, tenant_id, products)
 
     assert len(representatives) == 2
+
+
+# ---------------------------------------------------------------------------
+# find_cost_sharing_family_size() - the cost-margin gate's real family-size
+# lookup (cost_ledger.py's family_size parameter, wired in by enqueue.py)
+# ---------------------------------------------------------------------------
+
+def test_family_size_is_one_with_no_siblings_at_all(conn):
+    tenant_id = _insert_company(conn)
+    solo = _insert_product(conn, tenant_id, "1k Ohm Resistor")  # default: 0.30 JOD, eligible
+    conn.commit()
+
+    assert find_cost_sharing_family_size(conn, tenant_id, solo) == 1
+
+
+def test_family_size_counts_a_real_eligible_sibling(conn):
+    tenant_id = _insert_company(conn)
+    a = _insert_product(conn, tenant_id, "1k Ohm Resistor")
+    b = _insert_product(conn, tenant_id, "2k Ohm Resistor")
+    conn.commit()
+
+    assert find_cost_sharing_family_size(conn, tenant_id, a) == 2
+    assert find_cost_sharing_family_size(conn, tenant_id, b) == 2
+
+
+def test_family_size_counts_several_real_eligible_siblings(conn):
+    tenant_id = _insert_company(conn)
+    a = _insert_product(conn, tenant_id, "1k Ohm Resistor")
+    b = _insert_product(conn, tenant_id, "2k Ohm Resistor")
+    c = _insert_product(conn, tenant_id, "3k Ohm Resistor")
+    conn.commit()
+
+    assert find_cost_sharing_family_size(conn, tenant_id, a) == 3
+
+
+def test_family_size_is_one_when_the_product_itself_is_not_collapse_eligible(conn):
+    """A product priced at/above the collapse threshold never shares cost
+    through this path, regardless of what siblings exist - matches
+    select_family_representatives()'s own precision-first gate."""
+    tenant_id = _insert_company(conn)
+    pricey = _insert_product(conn, tenant_id, "1k Ohm Resistor", price=10.0)
+    _insert_product(conn, tenant_id, "2k Ohm Resistor", price=0.10)
+    conn.commit()
+
+    assert find_cost_sharing_family_size(conn, tenant_id, pricey) == 1
+
+
+def test_family_size_excludes_a_sibling_that_is_not_itself_eligible(conn):
+    """The product being evaluated is eligible, but its only same-family
+    sibling is priced too high to share cost with - no real family exists
+    to amortize against, so the size stays 1."""
+    tenant_id = _insert_company(conn)
+    cheap = _insert_product(conn, tenant_id, "1k Ohm Resistor", price=0.10)
+    _insert_product(conn, tenant_id, "2k Ohm Resistor", price=10.0)
+    conn.commit()
+
+    assert find_cost_sharing_family_size(conn, tenant_id, cheap) == 1
+
+
+def test_family_size_ignores_a_genuinely_different_product(conn):
+    tenant_id = _insert_company(conn)
+    resistor = _insert_product(conn, tenant_id, "1k Ohm Resistor")
+    _insert_product(conn, tenant_id, "Raspberry Pi 4")
+    conn.commit()
+
+    assert find_cost_sharing_family_size(conn, tenant_id, resistor) == 1
+
+
+def test_family_size_is_one_for_an_unknown_product(conn):
+    tenant_id = _insert_company(conn)
+    conn.commit()
+
+    assert find_cost_sharing_family_size(conn, tenant_id, str(uuid.uuid4())) == 1

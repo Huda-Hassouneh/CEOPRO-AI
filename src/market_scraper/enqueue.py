@@ -6,7 +6,7 @@ import os
 
 import redis
 
-from src.market_scraper import cost_ledger, data_access
+from src.market_scraper import cost_ledger, data_access, product_families
 from src.market_scraper.collectors import resolve_collector
 
 logger = logging.getLogger(__name__)
@@ -32,12 +32,29 @@ def _cost_margin_gate_blocks(connection, tenant_id: str, source_id: str) -> "tup
     to weigh yet for anything else. Blocks only when every real mapped
     product is over its own configured ratio - a source mapped to several
     products stays worth scraping as long as even one of them still is.
+
+    A product priced below the gate's minimum price floor is never
+    blocked on that basis alone here: product_families.py::
+    find_cost_sharing_family_size() resolves how many REAL, active,
+    price-collapse-eligible siblings this product shares a family with
+    in the tenant's own catalog (1 = no real family to share with, the
+    floor still applies), and that real size is passed into the gate so
+    it amortizes cost across the family instead of judging one cheap
+    member alone - forced family-keyed group routing instead of a blind
+    per-SKU block, the same real grouping tenant_discovery.py already
+    applies at discovery time.
     """
     product_ids = _load_mapped_product_ids(connection, tenant_id, source_id)
     if not product_ids:
         return False, "no mapped product yet - gate does not apply"
 
-    decisions = [cost_ledger.evaluate_cost_margin_gate(connection, tenant_id, pid) for pid in product_ids]
+    decisions = [
+        cost_ledger.evaluate_cost_margin_gate(
+            connection, tenant_id, pid,
+            family_size=product_families.find_cost_sharing_family_size(connection, tenant_id, pid),
+        )
+        for pid in product_ids
+    ]
     if any(decision.allow for decision in decisions):
         return False, "at least one mapped product is still within its cost-to-margin limit"
 
