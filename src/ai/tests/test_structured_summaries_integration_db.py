@@ -415,6 +415,43 @@ def test_platform_help_summary_accepts_and_ignores_conn_and_tenant_id():
         structured_summaries.generate_platform_help_summary()
 
 
+def test_pos_erp_slot_is_registered_alongside_the_data_slots():
+    assert structured_summaries.SLOT_POS_ERP_SYSTEMS in structured_summaries.ALL_SLOTS
+    assert structured_summaries.SLOT_POS_ERP_SYSTEMS in structured_summaries._GENERATORS
+    assert structured_summaries._GENERATORS[structured_summaries.SLOT_POS_ERP_SYSTEMS] is structured_summaries.generate_pos_erp_summary
+
+
+def test_pos_erp_summary_names_every_real_preset_vendor():
+    """Generated directly from pos_erp_presets.ALL_PRESETS - every real
+    vendor in that module must appear by name, so this can never silently
+    drift out of sync with the source of truth as presets are added."""
+    from src.market_scraper.pos_erp_presets import ALL_PRESETS
+    summary = structured_summaries.generate_pos_erp_summary()
+    for preset in ALL_PRESETS.values():
+        assert preset["display_name"] in summary
+
+
+def test_pos_erp_summary_names_the_real_onboarding_endpoints():
+    summary = structured_summaries.generate_pos_erp_summary()
+    assert "POST /onboarding/connect/api" in summary
+    assert "POST /onboarding/connect/database" in summary
+
+
+def test_pos_erp_summary_is_honest_about_vendor_direct_request_not_working_yet():
+    summary = structured_summaries.generate_pos_erp_summary()
+    assert "not connectable yet" in summary
+
+
+def test_pos_erp_summary_flags_no_field_mappings_are_prebuilt():
+    summary = structured_summaries.generate_pos_erp_summary()
+    assert "no field mappings are pre-built" in summary.lower()
+
+
+def test_pos_erp_summary_accepts_and_ignores_conn_and_tenant_id():
+    assert structured_summaries.generate_pos_erp_summary(conn=None, tenant_id="anything") == \
+        structured_summaries.generate_pos_erp_summary()
+
+
 @_needs_minio
 def test_upsert_summary_document_creates_then_updates_the_same_slot(conn, minio_client):
     tenant_id = _insert_company(conn)
