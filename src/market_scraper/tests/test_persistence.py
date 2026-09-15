@@ -17,8 +17,16 @@ class FakeConnection:
         self.closed = True
 
 
+def _crawler_with_spider(spider_name="market_source"):
+    """A real Scrapy crawler has `.spider` set before process_item() is
+    ever called - matches that, since PostgresPricePipeline now reads
+    self.crawler.spider.name to record which collector a real scrape cost
+    is attributed to (cost_ledger.py)."""
+    return SimpleNamespace(signals=FakeSignals(), spider=SimpleNamespace(name=spider_name))
+
+
 def test_pipeline_persists_mapped_item_and_completes_job(monkeypatch):
-    crawler = SimpleNamespace(signals=FakeSignals())
+    crawler = _crawler_with_spider()
     connection = FakeConnection()
     finished = []
     monkeypatch.setattr(
@@ -31,6 +39,10 @@ def test_pipeline_persists_mapped_item_and_completes_job(monkeypatch):
             "status": "PROMOTED", "price_id": "price-1",
             "observation_id": "observation-1", "event_ids": [], "review_ids": [],
         },
+    )
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.cost_ledger.record_scrape_cost",
+        lambda *args, **kwargs: "cost-1",
     )
     monkeypatch.setattr(
         "src.market_scraper.persistence.data_access.finish_ingestion_job",
@@ -54,7 +66,7 @@ def test_pipeline_persists_mapped_item_and_completes_job(monkeypatch):
 
 
 def test_pipeline_counts_quarantine_without_creating_canonical_price(monkeypatch):
-    crawler = SimpleNamespace(signals=FakeSignals())
+    crawler = _crawler_with_spider()
     connection = FakeConnection()
     monkeypatch.setattr(
         "src.market_scraper.persistence.data_access.get_tenant_connection",
@@ -68,6 +80,10 @@ def test_pipeline_counts_quarantine_without_creating_canonical_price(monkeypatch
         },
     )
     monkeypatch.setattr(
+        "src.market_scraper.persistence.cost_ledger.record_scrape_cost",
+        lambda *args, **kwargs: "cost-1",
+    )
+    monkeypatch.setattr(
         "src.market_scraper.persistence.data_access.heartbeat_ingestion_job",
         lambda *args: None,
     )
@@ -79,6 +95,45 @@ def test_pipeline_counts_quarantine_without_creating_canonical_price(monkeypatch
     assert pipeline.persisted == 0
 
 
+def test_pipeline_records_real_scrape_cost_for_every_attempt_persisted_or_quarantined(monkeypatch):
+    """The real fix this session's cost-margin gate depends on: a scrape
+    costs real money whether the item ends up promoted or quarantined -
+    the ledger must record both, attributed to the real collector
+    (self.crawler.spider.name), not just the successful ones."""
+    for status in ("PROMOTED", "QUARANTINED"):
+        crawler = _crawler_with_spider(spider_name="digikey_api")
+        connection = FakeConnection()
+        recorded = []
+        monkeypatch.setattr(
+            "src.market_scraper.persistence.data_access.get_tenant_connection",
+            lambda tenant_id: connection,
+        )
+        monkeypatch.setattr(
+            "src.market_scraper.persistence.market_repository.save_market_record",
+            lambda conn, item, status=status: {
+                "status": status,
+                "price_id": "price-1" if status == "PROMOTED" else None,
+                "observation_id": "observation-1" if status == "PROMOTED" else None,
+                "event_ids": [], "review_ids": [],
+            },
+        )
+        monkeypatch.setattr(
+            "src.market_scraper.persistence.cost_ledger.record_scrape_cost",
+            lambda conn, tenant_id, mapping_id, collector_key: recorded.append(
+                (tenant_id, mapping_id, collector_key)
+            ) or "cost-1",
+        )
+        monkeypatch.setattr(
+            "src.market_scraper.persistence.data_access.heartbeat_ingestion_job",
+            lambda *args: None,
+        )
+        pipeline = PostgresPricePipeline.from_crawler(crawler)
+        item = {"tenant_id": "tenant-1", "job_id": "job-1", "mapping_id": "mapping-1"}
+        pipeline.process_item(item)
+
+        assert recorded == [("tenant-1", "mapping-1", "digikey_api")]
+
+
 def test_pipeline_publishes_analysis_event_even_when_job_status_is_failed(monkeypatch):
     """
     The real fix: a job with one failed target among several still
@@ -86,7 +141,7 @@ def test_pipeline_publishes_analysis_event_even_when_job_status_is_failed(monkey
     reviews must still get sentiment/score/RAG-summary treatment, not be
     silently stranded just because the overall job status is FAILED.
     """
-    crawler = SimpleNamespace(signals=FakeSignals())
+    crawler = _crawler_with_spider()
     connection = FakeConnection()
     monkeypatch.setattr(
         "src.market_scraper.persistence.data_access.get_tenant_connection",
@@ -98,6 +153,10 @@ def test_pipeline_publishes_analysis_event_even_when_job_status_is_failed(monkey
             "status": "PROMOTED", "price_id": "price-1",
             "observation_id": "observation-1", "event_ids": [], "review_ids": ["review-1"],
         },
+    )
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.cost_ledger.record_scrape_cost",
+        lambda *args, **kwargs: "cost-1",
     )
     monkeypatch.setattr(
         "src.market_scraper.persistence.data_access.finish_ingestion_job",
