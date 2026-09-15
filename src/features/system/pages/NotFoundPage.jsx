@@ -1,0 +1,1 @@
+export default function NotFoundPage() {\n  return <section className='page'><h1>Not Found</h1></section>;\n}\n

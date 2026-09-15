@@ -1,0 +1,1 @@
+export default function SiteFooter() {\n  return <footer className='site-footer'>CEOPRO AI</footer>;\n}\n

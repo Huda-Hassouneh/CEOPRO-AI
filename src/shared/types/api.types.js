@@ -1,0 +1,1 @@
+export const ApiResponse = {};\nexport const PaginatedResponse = {};\n

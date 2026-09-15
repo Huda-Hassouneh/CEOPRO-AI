@@ -1,0 +1,1 @@
+export default function MarketingHero() {\n  return <section className='hero'><h1>Marketing Hero</h1></section>;\n}\n

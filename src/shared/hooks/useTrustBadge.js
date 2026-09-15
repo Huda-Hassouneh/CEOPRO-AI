@@ -1,0 +1,1 @@
+export function useTrustBadge() {\n  return 'Verified';\n}\n

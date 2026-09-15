@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+import { can, ROLE_PERMISSIONS, PLATFORM_ROLES, protectLastSuperAdmin } from '../src/features/platform-admin/permissions/platformPermissions.js';
+import { previewAdapter as api, setPreviewRole } from '../src/features/platform-admin/api/previewAdapter.js';
+import { validatePlan } from '../src/features/platform-admin/api/validation.js';
+import { PREVIEW_PLANS, getPreviewPlanPrice, replacePreviewPlan } from '../src/shared/catalog/planCatalog.js';
+import { PREVIEW_PLANS as billingPlans } from '../src/features/billing/config/billingPreviewData.js';
+import { en, ar } from '../src/features/platform-admin/locales/messages.js';
+
+assert.deepEqual(Object.keys(en).sort(), Object.keys(ar).sort(), 'English / Arabic key parity');
+assert.equal(can({ role: 'owner', status: 'active' }, 'plans.manage'), false, 'Tenant owner is not platform staff');
+assert.equal(can({ roles: ['SUPER_ADMIN'], status: 'active' }, 'plans.manage'), false, 'Tenant roles array does not grant platform access');
+assert.equal(can({ role: 'SUPER_ADMIN', status: 'inactive' }, 'plans.manage'), false);
+assert.equal(can(null, 'companies.read'), false);
+for (const role of PLATFORM_ROLES) {
+  setPreviewRole(role);
+  const principal = await api.me();
+  assert.equal(can(principal, 'plans.manage'), role === 'SUPER_ADMIN');
+  assert.equal(can(principal, 'features.manage'), role === 'SUPER_ADMIN');
+  assert.equal(can(principal, 'adminTeam.invite'), role === 'SUPER_ADMIN');
+  assert.equal(can(principal, 'adminTeam.read'), ['SUPER_ADMIN', 'ADMIN'].includes(role));
+  assert.equal(can(principal, 'companies.update'), role !== 'VIEWER');
+  assert.equal(can(principal, 'users.manage'), ['SUPER_ADMIN', 'ADMIN'].includes(role));
+  assert.equal(can(principal, 'platformSettings.manage'), role === 'SUPER_ADMIN');
+  if (role !== 'SUPER_ADMIN') {
+    await assert.rejects(api.mutate('plans', 'pro', 'update', PREVIEW_PLANS.pro), { code: 'forbidden' });
+    await assert.rejects(api.mutate('admin-team', null, 'invite', { email: 'test@example.test', role: 'ADMIN' }), { code: 'forbidden' });
+    await assert.rejects(api.list('settings'), { code: 'forbidden' });
+  }
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(role)) await assert.rejects(api.mutate('companies', 'company-1', 'status', { status: 'suspended' }), { code: 'forbidden' });
+  if (role === 'VIEWER') await assert.rejects(api.mutate('companies', 'company-1', 'metadata', { notes: 'blocked' }), { code: 'forbidden' });
+}
+assert.equal(ROLE_PERMISSIONS.VIEWER.every(p => p.endsWith('.read')), true);
+setPreviewRole('SUPER_ADMIN');
+for (const [action, payload] of [['remove', {}], ['status', { status: 'inactive' }], ['role', { role: 'ADMIN' }]]) await assert.rejects(api.mutate('admin-team', 'preview-admin', action, payload), { code: 'lastAdmin' });
+const only = { id: 'a', role: 'SUPER_ADMIN', status: 'active' };
+assert.throws(() => protectLastSuperAdmin([only, { id: 'b', role: 'SUPER_ADMIN', status: 'pending' }], only, { remove: true }), { code: 'lastAdmin' });
+assert.doesNotThrow(() => protectLastSuperAdmin([only, { id: 'b', role: 'SUPER_ADMIN', status: 'active' }], only, { remove: true }));
+await assert.rejects(api.mutate('admin-team', null, 'invite', { email: 'invalid', role: 'ADMIN' }), { code: 'invalid' });
+await api.mutate('admin-team', null, 'invite', { email: 'invite@example.test', role: 'VIEWER' });
+await assert.rejects(api.mutate('admin-team', null, 'invite', { email: 'INVITE@example.test', role: 'ADMIN' }), { code: 'duplicate' });
+const original = structuredClone(PREVIEW_PLANS.pro);
+assert.equal(billingPlans, PREVIEW_PLANS, 'Billing compatibility export shares one catalog');
+for (const monthlyPrice of [-1, NaN, Infinity]) assert.throws(() => validatePlan({ ...original, monthlyPrice }), { code: 'invalid' });
+assert.throws(() => validatePlan({ ...original, discounts: { 'three-months': 100 } }), { code: 'invalid' });
+assert.throws(() => validatePlan({ ...original, limits: { products: -1 } }), { code: 'invalid' });
+assert.doesNotThrow(() => validatePlan({ ...original, limits: { products: null } }));
+const updated = await api.mutate('plans', 'pro', 'update', { ...original, monthlyPrice: 109, discounts: { ...original.discounts, 'three-months': 15 }, limits: { ...original.limits, products: null } });
+assert.equal(getPreviewPlanPrice('pro', 'three-months').total, 277.95, 'Checkout pricing uses updated plan discount');
+assert.equal(billingPlans.pro.limits.products, null);
+await assert.rejects(api.mutate('plans', 'pro', 'update', original), { code: 'conflict' });
+const logs = await api.list('audit-logs', { action: 'planUpdated' });
+assert.equal(logs.total, 1);
+assert.ok(logs.items[0].changes.some(change => change.key === 'monthlyPrice' && change.before === 99 && change.after === 109));
+assert.ok(logs.items[0].changes.some(change => change.key === 'discounts.three-months'));
+replacePreviewPlan(original);
+const companyUsers = await api.list('users', { companyId: 'company-2' });
+assert.equal(companyUsers.total, 2); assert.ok(companyUsers.items.every(u => u.companyId === 'company-2'));
+const paginated = await api.list('companies', { pageSize: 8, page: 2, sort: 'name', direction: 'asc' });
+assert.equal(paginated.total, 12); assert.equal(paginated.items.length, 4);
+assert.equal((await api.list('companies', { q: 'no-matches-123' })).total, 0);
+await assert.rejects(api.detail('companies', 'missing'), { code: 'notFound' });
+setPreviewRole('EDITOR'); await api.mutate('companies', 'company-2', 'metadata', { notes: 'Reviewed' });
+const scoped = await api.list('audit-logs', { companyId: 'company-2' });
+assert.equal(scoped.total, 1); assert.equal(scoped.items[0].actorRole, 'EDITOR');
+setPreviewRole(null); await assert.rejects(api.list('overview'), { code: 'forbidden' });
+console.log('PASS: role matrix, denied actions, last-Super-Admin invariants, plan validation/version conflict, shared pricing, audit diffs, scoped tenant counts, filters/pagination, locale parity.');

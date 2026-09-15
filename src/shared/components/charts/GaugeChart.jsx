@@ -1,0 +1,1 @@
+export default function GaugeChart() {\n  return <div className='chart'>GaugeChart</div>;\n}\n

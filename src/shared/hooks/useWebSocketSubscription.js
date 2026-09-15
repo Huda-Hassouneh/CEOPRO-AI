@@ -1,0 +1,1 @@
+export function useWebSocketSubscription() {\n  return null;\n}\n

@@ -1,0 +1,1 @@
+export default function GenerateReportModal() {\n  return <section className='panel'><h2>Generate Report</h2></section>;\n}\n

@@ -1,0 +1,1 @@
+export default function PricingTeaser() {\n  return <section className='price-card'><h2>Pricing</h2></section>;\n}\n

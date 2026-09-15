@@ -1,0 +1,1 @@
+export default function ReportTypeFilter() {\n  return <div className='filter'>Report Type Filter</div>;\n}\n

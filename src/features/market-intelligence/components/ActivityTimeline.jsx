@@ -1,0 +1,2 @@
+import Badge from '../../../shared/components/ui/Badge.jsx';
+export function ActivityTimeline({ t, items }) { return <div className="market-activity-timeline">{items.map((item) => <div className="market-activity-item" key={`${item.name}-${item.activityKey}`}><span className="market-activity-dot" style={{ background: item.color }} /><small>{t(item.timeKey)}</small><strong>{item.name}</strong><span>{t(item.activityKey)}</span><Badge variant="neutral">{t(item.badgeKey)}</Badge></div>)}</div>; }

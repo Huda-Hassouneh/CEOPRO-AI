@@ -1,0 +1,1 @@
+export const reportsApi = {\n  listReports: async () => ({ reports: [] }),\n  generateReport: async (payload) => ({ ok: true, payload }),\n};\n

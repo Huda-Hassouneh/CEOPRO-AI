@@ -1,0 +1,1 @@
+export default function Breadcrumbs() {\n  return <nav className='breadcrumbs'>Breadcrumbs</nav>;\n}\n

@@ -1,0 +1,1 @@
+import { useMutation } from '@tanstack/react-query';\n\nexport function useDownloadReport() {\n  return useMutation({\n    mutationFn: async (url) => ({ url }),\n  });\n}\n

@@ -1,0 +1,1 @@
+export default function LineChart() {\n  return <div className='chart'>LineChart</div>;\n}\n

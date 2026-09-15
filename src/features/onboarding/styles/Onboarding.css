@@ -1,0 +1,478 @@
+.ceopro-setup {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 100% 15%, rgba(81, 68, 231, 0.055) 0 150px, transparent 151px),
+    radial-gradient(circle at 0 90%, rgba(81, 68, 231, 0.05) 0 180px, transparent 181px),
+    #fbfaff;
+  color: #12132b;
+}
+
+.ceopro-setup-header {
+  position: sticky;
+  z-index: 50;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 0 clamp(20px, 4vw, 58px);
+  border-bottom: 1px solid #dedcf0;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.ceopro-setup-header__identity,
+.ceopro-setup-header__controls,
+.ceopro-setup-language {
+  display: flex;
+  align-items: center;
+}
+
+.ceopro-setup-header__identity {
+  gap: 11px;
+}
+
+.ceopro-setup-header__brand {
+  color: #3328ce;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.ceopro-setup-header__divider {
+  width: 1px;
+  height: 20px;
+  background: #dad8e8;
+}
+
+.ceopro-setup-header__label {
+  color: #707286;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ceopro-setup-header__controls {
+  gap: 20px;
+}
+
+.ceopro-setup-language {
+  gap: 6px;
+  color: #55576d;
+  font-size: 12px;
+}
+
+.ceopro-setup-language b {
+  font-weight: 700;
+}
+
+.ceopro-setup .ceopro-select-wrapper select:focus-visible,
+.ceopro-setup-url-input:focus-visible,
+.ceopro-payment-field input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ceopro-auth-focus-ring);
+}
+
+.ceopro-account {
+  position: relative;
+}
+
+.ceopro-account__trigger {
+  display: flex;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ceopro-account__trigger:focus-visible {
+  outline: 3px solid var(--ceopro-auth-focus-ring);
+  outline-offset: 2px;
+}
+
+.ceopro-account-popover {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 10px);
+  inset-inline-end: 0;
+  width: min(290px, calc(100vw - 28px));
+  padding: 15px;
+  border: 1px solid #dedbea;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 16px 38px rgba(35, 27, 96, 0.16);
+}
+
+.ceopro-account-popover:focus {
+  outline: none;
+}
+
+.ceopro-account-popover__close {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ceopro-text-muted);
+  cursor: pointer;
+}
+
+.ceopro-account-popover__close:hover,
+.ceopro-account-popover__close:focus-visible {
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+  outline: none;
+}
+
+.ceopro-account-popover__person {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding-inline-end: 25px;
+}
+
+.ceopro-account-popover__person > span,
+.ceopro-account-popover__company {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ceopro-account-popover strong,
+.ceopro-account-popover small {
+  overflow-wrap: anywhere;
+}
+
+.ceopro-account-popover__person strong,
+.ceopro-account-popover__company strong {
+  color: var(--ceopro-text-primary);
+  font-size: 12px;
+}
+
+.ceopro-account-popover__person small,
+.ceopro-account-popover__company small {
+  color: var(--ceopro-text-muted);
+  font-size: 10px;
+}
+
+.ceopro-account-popover__company {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid #eceaf3;
+}
+
+.ceopro-setup-main {
+  width: 100%;
+  padding: clamp(34px, 6vh, 72px) 20px 44px;
+}
+
+.ceopro-setup-page {
+  width: min(820px, 100%);
+  margin: 0 auto;
+}
+
+.ceopro-setup-page--wide {
+  width: min(1120px, 100%);
+}
+
+.ceopro-setup-progress {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.ceopro-setup-progress > strong {
+  color: #4943ba;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ceopro-setup-page__heading {
+  margin: 0 auto 34px;
+  text-align: center;
+}
+
+.ceopro-setup-page__heading h1 {
+  margin: 0;
+  color: #111329;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.ceopro-setup-page__heading h1:focus {
+  outline: none;
+}
+
+.ceopro-setup-page__heading p {
+  max-width: 650px;
+  margin: 9px auto 0;
+  color: #77798c;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ceopro-setup-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ceopro-industry-card {
+  min-height: 116px;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.ceopro-industry-card .ceopro-selectable-card__copy {
+  margin: 10px 0 0;
+}
+
+.ceopro-industry-card .ceopro-selectable-card__indicator {
+  position: absolute;
+  top: 11px;
+  inset-inline-end: 11px;
+}
+
+.ceopro-business-section {
+  margin-bottom: 30px;
+}
+
+.ceopro-business-section h2,
+.ceopro-region-field > label {
+  display: block;
+  margin: 0 0 4px;
+  color: #1e2036;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ceopro-business-section > p,
+.ceopro-region-field > small {
+  display: block;
+  margin: 0 0 10px;
+  color: #858698;
+  font-size: 11px;
+}
+
+.ceopro-business-card {
+  min-height: 82px;
+}
+
+.ceopro-region-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.ceopro-required-mark {
+  color: var(--ceopro-error);
+}
+
+.ceopro-region-grid .ceopro-select-wrapper {
+  margin: 0;
+}
+
+.ceopro-region-grid select {
+  min-height: 52px !important;
+  box-shadow: 0 5px 16px rgba(43, 35, 118, 0.05);
+}
+
+.ceopro-region-note,
+.ceopro-security-note,
+.ceopro-trial-banner,
+.ceopro-template-banner,
+.ceopro-preview-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #f1efff;
+  color: #5553a9;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ceopro-region-note {
+  margin-top: 25px;
+}
+
+.ceopro-region-note > svg {
+  flex: 0 0 auto;
+}
+
+.ceopro-region-note > span,
+.ceopro-region-note strong,
+.ceopro-region-note small {
+  display: block;
+  min-width: 0;
+}
+
+.ceopro-region-note strong {
+  color: var(--ceopro-primary-dark);
+  font-size: 12px;
+}
+
+.ceopro-region-note small {
+  margin-top: 3px;
+  color: var(--ceopro-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ceopro-objective-list {
+  display: grid;
+  width: min(650px, 100%);
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+}
+
+.ceopro-objective-card {
+  min-height: 88px;
+  border: 0;
+  border-bottom: 1px solid #e5e3ed;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ceopro-objective-card:hover,
+.ceopro-objective-card:has(.ceopro-selectable-card__control:focus-visible),
+.ceopro-objective-card.is-selected {
+  border-color: #d9d6ee;
+  border-bottom-color: var(--ceopro-primary);
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+.ceopro-objective-card .ceopro-selectable-card__indicator {
+  border-radius: 5px;
+}
+
+.ceopro-setup-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid #e2dfed;
+}
+
+.ceopro-setup-actions--end {
+  justify-content: flex-end;
+}
+
+.ceopro-setup-actions .ceopro-button {
+  min-width: 116px;
+}
+
+[dir='rtl'] .ceopro-setup-direction-icon {
+  transform: scaleX(-1);
+}
+
+.ceopro-connection-summary {
+  margin-top: 16px;
+  color: var(--ceopro-success);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ceopro-connect-data-actions {
+  display: flex;
+  gap: 10px;
+  margin-inline-start: auto;
+}
+
+@media (max-width: 760px) {
+  .ceopro-setup-header {
+    min-height: 54px;
+    padding: 0 16px;
+  }
+
+  .ceopro-setup-header__controls {
+    gap: 10px;
+  }
+
+  .ceopro-setup-main {
+    padding: 28px 14px 32px;
+  }
+
+  .ceopro-setup-page__heading {
+    margin-bottom: 25px;
+  }
+
+  .ceopro-setup-page__heading h1 {
+    font-size: 27px;
+  }
+
+  .ceopro-setup-card-grid,
+  .ceopro-region-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ceopro-business-section .ceopro-setup-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ceopro-setup-actions {
+    gap: 12px;
+  }
+
+  .ceopro-setup-actions .ceopro-button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ceopro-connect-data-actions {
+    display: grid;
+    flex: 2;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ceopro-segmented-control {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+  }
+
+  .ceopro-segmented-control__option {
+    justify-content: center;
+    padding-inline: 7px;
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ceopro-objective-card:hover,
+  .ceopro-objective-card:has(.ceopro-selectable-card__control:focus-visible) {
+    transform: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .ceopro-setup-header__divider,
+  .ceopro-setup-header__label {
+    display: none;
+  }
+
+  .ceopro-setup-header__brand {
+    font-size: 15px;
+  }
+}

@@ -1,0 +1,1 @@
+export default function ReportsTable() {\n  return <section className='panel'><h2>Reports Table</h2></section>;\n}\n

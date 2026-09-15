@@ -1,0 +1,1 @@
+export default function BarChart() {\n  return <div className='chart'>BarChart</div>;\n}\n

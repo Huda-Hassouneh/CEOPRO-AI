@@ -1,0 +1,1 @@
+export const navigationConfig = [\n  'Home',\n  'My Products',\n  'Market & Competitors',\n  'Forecasts',\n  'AI Advisor',\n  'Marketing',\n];\n

@@ -1,0 +1,83 @@
+.ceopro-auth-body { padding: 30px 28px 24px; }
+.ceopro-auth-body--narrow { max-width: 420px; margin: 0 auto; }
+.ceopro-auth-language-switch { position: absolute; z-index: 2; inset-block-start: 18px; inset-inline-end: 22px; display: inline-flex; align-items: center; direction: ltr; padding: 5px 8px; border: 1px solid rgba(63, 49, 209, 0.12); border-radius: 999px; background: #fff; color: #777487; font-size: 12px; box-shadow: 0 4px 14px rgba(68, 53, 142, 0.04); }
+.ceopro-auth-language-switch__item { display: inline-flex; align-items: center; }
+.ceopro-auth-language-switch__divider { margin-inline: 5px; color: #cbc7dc; }
+.ceopro-auth-language-switch__button { padding: 2px 3px; border: 0; border-radius: 5px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.ceopro-auth-language-switch__button[aria-pressed='true'] { color: #3428c7; font-weight: 700; }
+.ceopro-auth-language-switch__button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ceopro-auth-focus-ring); }
+.ceopro-auth-header { margin-bottom: 20px; }
+.ceopro-auth-title { margin: 0 0 8px; color: #19182a; font-size: clamp(25px, 3vw, 30px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.15; text-align: center; }
+.ceopro-auth-subtitle { max-width: 340px; margin: 0 auto; color: #747386; font-size: 14px; line-height: 1.45; text-align: center; }
+.ceopro-auth-form { display: flex; flex-direction: column; gap: 12px; }
+.ceopro-auth-form .ceopro-input-wrapper { margin: 0; }
+.ceopro-auth-form .ceopro-label { margin-bottom: 7px; color: #47465a; font-size: 13px; font-weight: 600; }
+.ceopro-auth-form .ceopro-input-shell { min-height: 46px; border-color: #dcdce6; border-radius: 9px; }
+.ceopro-auth-form .ceopro-input-shell--error:focus-within { border-color: var(--ceopro-error); box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1); }
+.ceopro-auth-form .ceopro-input { min-height: 44px; font-size: 14px; }
+.ceopro-auth-form .ceopro-input::placeholder { color: #afb0bd; }
+.ceopro-auth-form .ceopro-input-icon { color: #74788c; }
+.ceopro-auth-form .ceopro-input-icon--left { inset-inline-start: 14px; }
+.ceopro-auth-form .ceopro-input-shell--with-icon .ceopro-input { padding-inline: 42px; }
+.ceopro-auth-form .ceopro-button, .ceopro-auth-action-button { min-height: 46px; border-radius: 9px; font-size: 14px; }
+.ceopro-auth-inline-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 4px; }
+.ceopro-auth-checkbox { display: inline-flex; align-items: center; gap: 8px; color: #606173; font-size: 13px; cursor: pointer; }
+.ceopro-auth-checkbox input { width: 16px; height: 16px; margin: 0; accent-color: #3f31d1; }
+.ceopro-auth-text-button { padding: 0; border: 0; background: transparent; font: inherit; cursor: pointer; }
+.ceopro-auth-text-button:disabled { cursor: not-allowed; opacity: 0.65; }
+.ceopro-auth-link { color: #3326c5; font-weight: 650; text-decoration: none; }
+.ceopro-auth-link:hover { text-decoration: underline; }
+.ceopro-auth-link--secondary { font-size: 13px; }
+.ceopro-auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 18px; color: #777787; font-size: 12px; font-weight: 600; text-align: center; text-transform: uppercase; }
+.ceopro-auth-divider::before, .ceopro-auth-divider::after { height: 1px; flex: 1; background: #e6e5eb; content: ''; }
+.ceopro-google-button { min-height: 46px; border-color: #d7d6df; border-radius: 9px; color: #242333; font-size: 14px; font-weight: 600; }
+.ceopro-google-mark { width: 18px; height: 18px; }
+.ceopro-auth-footer-row { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e8e7ed; color: #747386; font-size: 13px; }
+.ceopro-auth-back-link { display: flex; align-items: center; justify-content: center; margin-top: 26px; padding-top: 20px; border-top: 1px solid #e8e7ed; text-align: center; }
+.ceopro-auth-back-link .ceopro-auth-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 0; font-size: 14px; }
+.ceopro-auth-split-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ceopro-auth-terms { display: block; color: #616171; font-size: 13px; line-height: 1.4; }
+.ceopro-auth-terms .ceopro-auth-checkbox { align-items: flex-start; }
+.ceopro-auth-terms input { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; accent-color: #3f31d1; }
+.ceopro-auth-code-copy { margin-top: -12px; }
+.ceopro-auth-code-actions { margin-top: 28px; }
+.ceopro-auth-code-actions .ceopro-button { width: 100%; }
+.ceopro-auth-resend { margin-top: 28px; color: #747386; font-size: 15px; text-align: center; }
+.ceopro-auth-resend__cooldown { color: #858294; font-size: 13px; font-weight: 600; }
+.ceopro-auth-status { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid; border-radius: 9px; font-size: 12px; line-height: 1.45; text-align: start; }
+.ceopro-auth-status svg { flex: 0 0 auto; margin-block-start: 1px; }
+.ceopro-auth-status--error { border-color: #f3c7cb; background: #fff6f7; color: #b32935; }
+.ceopro-auth-status--success { border-color: #bce6d0; background: #f3fbf7; color: #167a46; }
+.ceopro-auth-inline-loading { min-height: 180px; display: grid; place-items: center; color: #747386; font-size: 14px; }
+.ceopro-password-requirements { margin: -2px 0 2px; padding: 10px 12px; border: 1px solid #ebe8f3; border-radius: 9px; background: #fbfaff; text-align: start; }
+.ceopro-password-requirements__title { margin: 0 0 7px; color: #555365; font-size: 12px; font-weight: 650; }
+.ceopro-password-requirements__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin: 0; padding: 0; list-style: none; }
+.ceopro-password-requirements__item { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; line-height: 1.35; transition: color 140ms ease; }
+.ceopro-password-requirements__item svg { flex: 0 0 auto; margin-block-start: 1px; }
+.ceopro-password-requirements__item.is-met { color: #17814b; }
+.ceopro-password-requirements__item.is-unmet { color: #be3540; }
+.ceopro-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+.ceopro-auth-notice-icon { display: grid; width: 72px; height: 72px; place-items: center; margin: -2px auto 20px; border-radius: 50%; background: #f2f0ff; color: #4031d2; }
+.ceopro-auth-notice-icon svg { width: 34px; height: 34px; }
+.ceopro-auth-notice .ceopro-auth-header { margin-bottom: 24px; }
+.ceopro-auth-notice .ceopro-auth-title { font-size: clamp(25px, 3vw, 30px); }
+.ceopro-auth-notice .ceopro-button { width: 100%; }
+.ceopro-auth-notice .ceopro-auth-link--change-email { display: block; width: fit-content; margin: 22px auto 0; font-size: 14px; text-align: center; }
+.ceopro-invitation-expired-icon { display: grid; width: 76px; height: 76px; place-items: center; margin: -2px auto 20px; border-radius: 50%; background: #fff0f1; color: #d94250; }
+.ceopro-invitation-expired-icon svg { width: 36px; height: 36px; }
+.ceopro-invitation-image { display: block; width: 126px; height: 100px; margin: -8px auto 18px; object-fit: contain; }
+.ceopro-invitation-summary { display: grid; grid-template-columns: 52px 1fr; gap: 14px; padding: 14px; border-radius: 10px; background: #f4f2ff; text-align: start; }
+.ceopro-invitation-summary__icon, .ceopro-invitation-meta svg { color: #493bd1; }
+.ceopro-invitation-summary__icon { display: grid; width: 52px; height: 52px; place-items: center; border-radius: 10px; background: #e7e2ff; }
+.ceopro-invitation-summary strong, .ceopro-invitation-meta strong { display: block; color: #242333; font-size: 14px; }
+.ceopro-invitation-summary p { margin: 4px 0 0; color: #737286; font-size: 12px; line-height: 1.35; }
+.ceopro-invitation-meta { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 12px; margin: 16px 0 20px; }
+.ceopro-invitation-meta__item { display: grid; grid-template-columns: 24px 1fr; gap: 7px; align-items: center; color: #7b798b; font-size: 11px; }
+.ceopro-invitation-meta__divider { background: #dddbe4; }
+.ceopro-invitation-actions { display: grid; gap: 10px; }
+.ceopro-invitation-actions .ceopro-button { width: 100%; min-height: 46px; font-size: 14px; }
+.ceopro-invitation-footer { margin: 22px 0 0; padding-top: 18px; border-top: 1px solid #e8e7ed; color: #7b798b; font-size: 12px; text-align: center; }
+[dir='rtl'] .ceopro-invitation-summary { grid-template-columns: 1fr 52px; }
+[dir='rtl'] .ceopro-invitation-summary__icon { grid-column: 2; grid-row: 1; }
+[dir='rtl'] .ceopro-invitation-summary > :last-child { grid-column: 1; grid-row: 1; }
+@media (max-width: 680px) { .ceopro-auth-language-switch { inset-block-start: 10px; inset-inline-end: 12px; } .ceopro-auth-body { padding: 28px 20px 24px; } .ceopro-auth-split-fields { grid-template-columns: 1fr; gap: 12px; } .ceopro-auth-inline-row { align-items: flex-start; flex-direction: column; } .ceopro-password-requirements__list { grid-template-columns: 1fr; } .ceopro-invitation-meta { grid-template-columns: 1fr; } .ceopro-invitation-meta__divider { display: none; } }

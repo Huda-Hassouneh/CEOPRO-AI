@@ -1,0 +1,1 @@
+export const uiStore = {\n  sidebarOpen: true,\n  locale: 'en',\n};\n

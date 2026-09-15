@@ -1,0 +1,1 @@
+export default function MfaToggle() {\n  return <section className='panel'><h2>MFA Toggle</h2></section>;\n}\n

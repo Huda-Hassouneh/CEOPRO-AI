@@ -1,0 +1,1 @@
+export default function ConfirmDialog() {\n  return <div className='dialog'>Confirm</div>;\n}\n

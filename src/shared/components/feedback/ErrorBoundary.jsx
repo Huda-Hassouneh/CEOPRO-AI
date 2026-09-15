@@ -1,0 +1,1 @@
+export default function ErrorBoundary() {\n  return <div className='error-boundary'>Error</div>;\n}\n

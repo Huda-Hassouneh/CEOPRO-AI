@@ -1,0 +1,1 @@
+export function usePagination() {\n  return { page: 1, pageSize: 10 };\n}\n

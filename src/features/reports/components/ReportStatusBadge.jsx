@@ -1,0 +1,1 @@
+export default function ReportStatusBadge() {\n  return <span className='badge'>Ready</span>;\n}\n

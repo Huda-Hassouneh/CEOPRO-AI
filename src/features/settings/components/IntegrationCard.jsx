@@ -1,0 +1,1 @@
+export default function IntegrationCard() {\n  return <section className='panel'><h2>Integration Card</h2></section>;\n}\n

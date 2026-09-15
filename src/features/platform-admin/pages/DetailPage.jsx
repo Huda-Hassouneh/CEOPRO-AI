@@ -1,0 +1,36 @@
+import { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useAdmin, useAdminText, useAdminQuery, useAdminMutation } from '../components/AdminContext.jsx';
+import { Heading, Badge, DateValue, Identity, Panel, Tabs, DefinitionList, QueryState, Button, Confirmation, Empty, Field } from '../components/AdminUI.jsx';
+import { AdminTable, useTableParams } from '../components/AdminTable.jsx';
+import { LIMIT_KEYS } from '../../../shared/catalog/planCatalog.js';
+
+function CompanyUsers({ companyId }) {
+  const { t } = useAdminText(), table = useTableParams({ companyId }), query = useAdminQuery('users', table.params);
+  return <AdminTable title={t('users')} table={table} query={query} columns={[{ key: 'name', render: row => <Identity name={row.name} email={row.email} to={`/admin/users/${row.id}`} /> }, { key: 'role', label: 'companyRole', render: row => t(row.role) }, { key: 'status', render: row => <Badge value={row.status} /> }, { key: 'createdAt', label: 'joined', render: row => <DateValue value={row.createdAt} /> }]} />;
+}
+function SubscriptionSection({ row }) {
+  const { t } = useAdminText();
+  return <Panel title={t('subscription')} actions={row?.id && <Link to={`/admin/subscriptions/${row.id}`}>{t('view')}</Link>}>{row ? <DefinitionList items={[[t('planId'), <Badge value={row.planId} />], [t('status'), <Badge value={row.status} />], [t('billingPeriod'), t(row.billingPeriod)], [t('createdAt'), <DateValue value={row.createdAt} />], [t('trialEndsAt'), <DateValue value={row.trialEndsAt} />], [t('renewsAt'), <DateValue value={row.renewsAt} />]]} /> : <Empty />}</Panel>;
+}
+function DetailContent({ row, domain }) {
+  const { t, locale } = useAdminText(), admin = useAdmin();
+  const [tab, setTab] = useState('overviewTab'), [dialog, setDialog] = useState(null), [notes, setNotes] = useState(row.notes || '');
+  const permission = domain === 'companies' ? dialog === 'metadata' ? 'companies.update' : 'companies.status.manage' : domain === 'users' ? 'users.manage' : 'subscriptions.manage';
+  const mutation = useAdminMutation(permission);
+  const isCompany = domain === 'companies', isSubscription = domain === 'subscriptions';
+  const statusPermission = isCompany ? 'companies.status.manage' : isSubscription ? 'subscriptions.manage' : 'users.manage';
+  const status = row.status === 'active' ? 'suspended' : 'active';
+  const execute = async () => { try { await mutation.mutateAsync({ domain, id: row.id, action: dialog === 'metadata' ? 'metadata' : isSubscription ? 'cancel' : 'status', payload: dialog === 'metadata' ? { notes } : { status } }); setDialog(null); } catch { /* Hook provides translated feedback. */ } };
+  return <><Link className="pa-back" to={`/admin/${domain}`}>← {t(domain)}</Link><Heading title="details" eyebrow={domain} actions={<>{isCompany && admin.can('companies.update') && <Button variant="outline" onClick={() => { setNotes(row.notes || ''); setDialog('metadata'); }}>{t('metadata')}</Button>}{admin.can(statusPermission) && (!isSubscription || ['active', 'trial'].includes(row.status)) && <Button variant="outline" className={row.status === 'active' || isSubscription ? 'pa-danger' : ''} onClick={() => setDialog('status')}>{t(isSubscription ? 'cancelSubscription' : row.status === 'active' ? 'suspend' : 'activate')}</Button>}</>} /><div className="pa-detail-hero"><Identity name={row.name || row.company} email={row.email} /><div className="pa-actions"><Badge value={row.status} />{row.planId && <Badge value={row.planId} />}</div><span className="pa-muted">{t('createdAt')} · <DateValue value={row.createdAt} /></span></div>{isCompany && <Tabs items={['overviewTab', 'subscription', 'users', 'usage', 'businessSummary', 'activity']} value={tab} onChange={setTab} />}<div role={isCompany ? 'tabpanel' : undefined} aria-label={isCompany ? t(tab) : undefined}>
+    {isCompany && tab === 'overviewTab' && <div className="pa-two-columns"><Panel title={t('company')}><DefinitionList items={[[t('name'), row.name], [t('industry'), t(row.industry)], [t('country'), t(row.country)], [t('createdAt'), <DateValue value={row.createdAt} />], [t('updatedAt'), <DateValue value={row.updatedAt} />]]} /></Panel><Panel title={t('notes')}><p className="pa-paragraph">{row.notes || t('empty')}</p></Panel></div>}
+    {isCompany && tab === 'subscription' && <SubscriptionSection row={row.subscription} />}
+    {isCompany && tab === 'users' && <CompanyUsers companyId={row.id} />}
+    {isCompany && tab === 'usage' && <Panel title={t('usage')}><div className="pa-usage-grid">{LIMIT_KEYS.map(key => { const used = row.usage?.[key], limit = row.limits?.[key]; return <article key={key}><span>{t(key)}</span><strong>{used == null ? t('unknown') : new Intl.NumberFormat(locale).format(used)} <small>/ {limit === null ? t('unlimited') : limit === undefined ? t('negotiated') : new Intl.NumberFormat(locale).format(limit)}</small></strong>{used != null && typeof limit === 'number' && limit > 0 && <progress max={limit} value={Math.min(used, limit)} aria-label={t(key)} />}</article>; })}</div></Panel>}
+    {isCompany && tab === 'businessSummary' && <Panel title={t('businessSummary')}><p className="pa-paragraph pa-muted">{t('safeCounts')}</p><DefinitionList items={['products', 'competitors', 'documents'].map(key => [t(key), row[key] ?? t('unknown')])} /></Panel>}
+    {isCompany && tab === 'activity' && <Panel title={t('activity')} actions={<Link to={`/admin/audit-logs?companyId=${row.id}`}>{t('allActivity')}</Link>}>{row.activity?.length ? <div className="pa-record-list">{row.activity.map(event => <div key={event.id}><strong>{t(event.action)}</strong><span>{event.actor}</span><DateValue value={event.createdAt} time /></div>)}</div> : <Empty message="noActivity" />}</Panel>}
+    {domain === 'users' && <Panel title={t('profile')}><DefinitionList items={[[t('name'), row.name], [t('email'), <bdi>{row.email}</bdi>], [t('company'), <Link to={`/admin/companies/${row.companyId}`}>{row.company}</Link>], [t('companyRole'), t(row.role)], [t('status'), <Badge value={row.status} />], [t('joined'), <DateValue value={row.createdAt} />], ...(row.lastActive ? [[t('lastActive'), <DateValue value={row.lastActive} />]] : [])]} /></Panel>}
+    {isSubscription && <div className="pa-two-columns"><SubscriptionSection row={row} /><Panel title={t('paymentInfo')}><p className="pa-paragraph">{t('noPaymentInfo')}</p><Link className="pa-paragraph" to={`/admin/companies/${row.companyId}`}>{row.company}</Link></Panel></div>}
+  </div><Confirmation open={Boolean(dialog)} title={t(dialog === 'metadata' ? 'metadata' : 'review')} busy={mutation.isPending} disabled={dialog === 'metadata' && notes === (row.notes || '')} onClose={() => setDialog(null)} onConfirm={execute}>{dialog === 'metadata' ? <Field label={t('notes')}><textarea value={notes} maxLength={2000} rows={5} onChange={e => setNotes(e.target.value)} /></Field> : <p>{t(isSubscription ? 'cancelSubscriptionNote' : 'statusConfirm', { name: row.name || row.company, status: t(status) })}</p>}</Confirmation></>;
+}
+export function DetailPage({ domain }) { const { id } = useParams(), query = useAdminQuery(domain, {}, id); return <QueryState query={query}>{query.data && <DetailContent key={`${domain}-${id}`} row={query.data} domain={domain} />}</QueryState>; }

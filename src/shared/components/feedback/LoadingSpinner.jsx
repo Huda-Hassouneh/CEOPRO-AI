@@ -1,0 +1,1 @@
+export default function LoadingSpinner() {\n  return <div className='spinner'>Loading...</div>;\n}\n

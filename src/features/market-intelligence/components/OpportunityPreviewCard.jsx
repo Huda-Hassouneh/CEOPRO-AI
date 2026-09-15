@@ -1,0 +1,3 @@
+import { ArrowRight, Home, Smartphone, Wifi } from 'lucide-react';
+const icons = { speed: Wifi, 'smart-home': Home, 'mobile-internet': Smartphone };
+export function OpportunityPreviewCard({ item, t }) { const Icon = icons[item.id] || Wifi; return <article className="market-opportunity-card"><span className="market-opportunity-icon"><Icon size={19} /></span><div><div className="market-opportunity-card__title"><strong>{t(item.titleKey)}</strong><span className={`market-pill is-${item.tone}`}>{t(item.potentialKey)}</span></div><p>{t(item.descriptionKey)}</p><button type="button" className="market-table-action">{t('market.opportunities.view')} <ArrowRight size={14} /></button></div></article>; }
