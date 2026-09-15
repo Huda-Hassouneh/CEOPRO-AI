@@ -599,6 +599,21 @@ budget.
   ratio above: a product can clear the floor and still get blocked later by the ratio, but a
   product that never clears the floor is never even weighed against the ratio.
 
+**A sub-floor product is never simply dropped when it has a real family to share cost with.**
+`enqueue.py`'s `_cost_margin_gate_blocks()` resolves each mapped product's real family size via
+`product_families.py::find_cost_sharing_family_size()` - the exact same price-collapse-eligibility
+rule (`is_price_collapse_eligible()`) and `family_key()` grouping `select_family_representatives()`
+already applies at discovery time, reused here rather than inventing a second heuristic. When a
+product below the floor has one or more other real, active, price-collapse-eligible products in the
+tenant's own catalog sharing its `family_key()`, the floor does not block it - `evaluate_cost_margin_
+gate()`'s `family_size` parameter instead amortizes the real cumulative scraping cost across that
+real family size before weighing it against the ratio (`effective_cost = cumulative_cost /
+family_size`). A family big enough to absorb the real per-request cost stays trackable and
+profitable; if the amortized share is still over `COST_GATE_MAX_RATIO`, it's blocked by the ratio
+like any other over-budget product, just never by the floor alone. A genuinely solo sub-floor
+product - no real sibling anywhere in the catalog - has no group to route through, so the original
+hard floor block still applies to it exactly as before this feature existed.
+
 Deliberately NOT part of this formula: server/hardware depreciation, electricity, and marketing
 spend. Those are real costs, but period costs (a monthly bill), not per-request events - they
 belong in a separate periodic margin report (real infra bills ÷ real request volume for that
