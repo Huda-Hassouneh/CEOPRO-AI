@@ -23,6 +23,11 @@ export function OnboardingPlanSelectionPage() {
 
   const goToPayment = (plan, mode) => {
     if (getPreviewPlan(plan).status !== 'active' || !getPreviewPlan(plan).billingOptions.includes(billingPeriod)) return;
+    if (plan === 'custom') {
+      selectPlan('custom');
+      navigate(routePaths.onboardingPlanCustom);
+      return;
+    }
     setPlanChoice(plan, mode);
     navigate(routePaths.onboardingPlanPayment);
   };
@@ -49,7 +54,7 @@ export function OnboardingPlanSelectionPage() {
         billingPeriod={billingPeriod}
         onPlanSelect={choosePlan}
         onPeriodChange={setBillingPeriod}
-        onBuildCustom={() => { selectPlan('custom'); navigate(routePaths.onboardingPlanCustom); }}
+        onBuildCustom={() => choosePlan('custom')}
       />
       <OnboardingActions
         onBack={() => navigate(routePaths.onboardingObjectives)}

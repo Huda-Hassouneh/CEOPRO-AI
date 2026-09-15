@@ -9,6 +9,9 @@ export function OnboardingGuard({ children, requiredStep = 1 }) {
   const step5Completed = useOnboardingStore((state) => state.step5Completed);
   const isComplete = useOnboardingStore((state) => state.isComplete);
 
+  const onboardingPreviewEnabled = import.meta.env.DEV === true && import.meta.env.VITE_ENABLE_ONBOARDING_PREVIEW === 'true';
+  if (onboardingPreviewEnabled) return children;
+
   if (isComplete) {
     return <Navigate to={routePaths.dashboard} replace />;
   }

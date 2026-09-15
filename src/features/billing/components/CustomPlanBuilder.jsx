@@ -1,5 +1,5 @@
 import { Bot, Boxes, Database, FileText, Plug, RefreshCw, Target, Users } from 'lucide-react';
-import RangeField from '../../../shared/components/ui/RangeField.jsx';
+import { CustomPlanQuantityField } from './CustomPlanQuantityField.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { CUSTOM_PLAN_LIMITS } from '../config/billingPreviewData.js';
 
@@ -23,14 +23,13 @@ export function CustomPlanBuilder({ configuration, onChange }) {
           const Icon = icons[key];
           const unit = key === 'storageGb' ? ' GB' : '';
           return (
-            <RangeField
+            <CustomPlanQuantityField
               key={key}
               label={t(`billing.custom.fields.${key}.label`)}
               description={t(`billing.custom.fields.${key}.description`)}
               value={configuration[key]}
               min={limit.min}
               max={limit.max}
-              step={limit.step}
               onChange={(value) => onChange(key, value)}
               formatValue={(value) => `${formatNumber(value)}${unit}`}
               icon={<Icon size={18} />}

@@ -31,7 +31,7 @@ export function TrialButton({ children, className = '' }) {
   const setPlanChoice = useOnboardingStore((state) => state.setPlanChoice);
   const startTrial = () => {
     setPlanChoice('pro', 'trial');
-    navigate(routePaths.signup);
+    navigate(routePaths.welcome);
   };
   return <Button size="lg" className={className} onClick={startTrial} trailingIcon={<ArrowRight className="lp-arrow" size={18} aria-hidden="true" />}>{children || t('common.trial')}</Button>;
 }

@@ -28,14 +28,14 @@ export function LandingNavbar() {
     <div className="lp-container lp-navbar-inner"><Brand />
       <nav className={`lp-nav-links ${open ? 'is-open' : ''}`} id="landing-navigation" aria-label={t('nav.label')} onClick={(event) => { if (event.target.closest('a')) setOpen(false); }}>
         {navLinks.map(([id, key]) => <a key={id} href={`#${id}`}>{t(`nav.${key}`)}</a>)}
-        <div className="lp-mobile-account"><Link to={routePaths.login}>{t('nav.login')}</Link><Link className="lp-nav-cta" to={routePaths.signup}>{t('nav.start')}</Link></div>
+        <div className="lp-mobile-account"><Link to={routePaths.login}>{t('nav.login')}</Link><Link className="lp-nav-cta" to={routePaths.welcome}>{t('nav.start')}</Link></div>
       </nav>
-      <div className="lp-nav-actions"><LocaleToggle /><Link className="lp-desktop-account" to={routePaths.login}>{t('nav.login')}</Link><Link className="lp-nav-cta lp-desktop-account" to={routePaths.signup}>{t('nav.start')}</Link><button ref={toggle} type="button" className="lp-menu-toggle" aria-controls="landing-navigation" aria-expanded={open} aria-label={t(open ? 'nav.close' : 'nav.menu')} onClick={() => setOpen(!open)}>{open ? <X size={23} /> : <Menu size={23} />}</button></div>
+      <div className="lp-nav-actions"><LocaleToggle /><Link className="lp-desktop-account" to={routePaths.login}>{t('nav.login')}</Link><Link className="lp-nav-cta lp-desktop-account" to={routePaths.welcome}>{t('nav.start')}</Link><button ref={toggle} type="button" className="lp-menu-toggle" aria-controls="landing-navigation" aria-expanded={open} aria-label={t(open ? 'nav.close' : 'nav.menu')} onClick={() => setOpen(!open)}>{open ? <X size={23} /> : <Menu size={23} />}</button></div>
     </div>
   </header>;
 }
 
 export function LandingFooter() {
   const { t, n } = useLanding();
-  return <footer className="lp-footer"><div className="lp-container"><div className="lp-footer-grid"><div><Brand /><p>{t('footer.description')}</p><LocaleToggle /></div><div><h2>{t('footer.product')}</h2>{navLinks.slice(1, 5).map(([id, key]) => <a key={id} href={`#${id}`}>{t(`nav.${key}`)}</a>)}</div><div><h2>{t('footer.company')}</h2><a href="#about">{t('nav.about')}</a><a href="#how-it-works">{t('nav.workflow')}</a></div><div><h2>{t('footer.account')}</h2><Link to={routePaths.login}>{t('nav.login')}</Link><Link to={routePaths.signup}>{t('nav.start')}</Link></div></div><div className="lp-footer-bottom"><span>{t('footer.rights', { year: n(new Date().getFullYear()).replace(/[,٬]/g, '') })}</span><span>{t('footer.note')}</span></div></div></footer>;
+  return <footer className="lp-footer"><div className="lp-container"><div className="lp-footer-grid"><div><Brand /><p>{t('footer.description')}</p><LocaleToggle /></div><div><h2>{t('footer.product')}</h2>{navLinks.slice(1, 5).map(([id, key]) => <a key={id} href={`#${id}`}>{t(`nav.${key}`)}</a>)}</div><div><h2>{t('footer.company')}</h2><a href="#about">{t('nav.about')}</a><a href="#how-it-works">{t('nav.workflow')}</a></div><div><h2>{t('footer.account')}</h2><Link to={routePaths.login}>{t('nav.login')}</Link><Link to={routePaths.welcome}>{t('nav.start')}</Link></div></div><div className="lp-footer-bottom"><span>{t('footer.rights', { year: n(new Date().getFullYear()).replace(/[,٬]/g, '') })}</span><span>{t('footer.note')}</span></div></div></footer>;
 }

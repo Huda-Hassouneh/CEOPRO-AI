@@ -717,3 +717,32 @@
     margin-inline-start: 0;
   }
 }
+
+.ceopro-custom-quantity .ceopro-range-field__header {
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+
+.ceopro-custom-quantity input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  margin: 14px 0 8px;
+  padding: 10px 12px;
+  border: 1px solid #e3e1ed;
+  border-radius: 6px;
+  background: var(--ceopro-surface);
+  color: var(--ceopro-text-primary);
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+}
+
+.ceopro-custom-quantity input:focus-visible {
+  outline: 3px solid var(--ceopro-auth-focus-ring);
+  outline-offset: 2px;
+  border-color: var(--ceopro-primary);
+}
+
+.ceopro-custom-quantity input[aria-invalid='true'] {
+  border-color: #c53030;
+}

@@ -17,7 +17,7 @@ export function PricingSection() {
   const choose = (plan) => {
     setPlanChoice(plan, getPreviewPlan(plan).trialDays > 0 ? 'trial' : 'paid');
     setBillingPeriod(period);
-    navigate(plan === 'custom' ? routePaths.onboardingPlanCustom : routePaths.signup);
+    navigate(routePaths.welcome);
   };
   return <section className="lp-section lp-tinted" id="pricing"><div className="lp-container"><SectionHeading section="pricing" centered /><PlanSelector billingPeriod={period} onPeriodChange={setPeriod} onPlanSelect={choose} onBuildCustom={() => choose('custom')} /><p className="lp-fineprint lp-centered">{t('pricing.note')}</p></div></section>;
 }
