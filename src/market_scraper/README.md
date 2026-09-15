@@ -590,6 +590,15 @@ product record. The gate always **allows** when there isn't enough real data to 
 record, no cost data yet, no positive price/margin) - insufficient data is never treated as over
 budget.
 
+- `COST_GATE_MIN_PRODUCT_PRICE` (default `1.00`) - a hard minimum price/margin floor, checked
+  before the ratio or the ledger are even looked at. If a product's real margin (or price, when no
+  margin is on file) is below this floor, the gate blocks it immediately - on day one, with zero
+  ledger rows - rather than waiting for 30 days of accumulated cost to prove what's already obvious:
+  heavy operational and distribution overhead means tracking a very low-value item can never turn a
+  real profit no matter how cheap the scraping cost is. This is a separate, earlier check from the
+  ratio above: a product can clear the floor and still get blocked later by the ratio, but a
+  product that never clears the floor is never even weighed against the ratio.
+
 Deliberately NOT part of this formula: server/hardware depreciation, electricity, and marketing
 spend. Those are real costs, but period costs (a monthly bill), not per-request events - they
 belong in a separate periodic margin report (real infra bills ÷ real request volume for that
