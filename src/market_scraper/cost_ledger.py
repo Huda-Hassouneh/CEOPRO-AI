@@ -24,6 +24,13 @@ cost-formula discussion landed on):
    whether the product is $0.50 or $50, and automatically gets stricter
    the moment a vendor raises its real price, since the cost side of the
    ratio is real ledger data, not a number typed in once and forgotten.
+   A product that is itself below the minimum price floor is never simply
+   dropped when it's a real member of a price-collapse-eligible family
+   (product_families.py) - enqueue.py routes it through family-keyed
+   group scraping instead, and this function's `family_size` parameter
+   amortizes the real cumulative cost across that real family before
+   judging the ratio, so a shared low-value family stays trackable and
+   profitable instead of being blocked outright.
 
 Deliberately excluded from both halves: server/hardware depreciation,
 electricity, and marketing overhead. Those are real costs, but they are
@@ -121,6 +128,7 @@ class CostMarginGateDecision:
     threshold: float
     window_days: int
     min_product_price: float
+    family_size: int = 1
 
     def as_dict(self) -> dict:
         return {
@@ -133,6 +141,7 @@ class CostMarginGateDecision:
             "threshold": self.threshold,
             "window_days": self.window_days,
             "min_product_price": self.min_product_price,
+            "family_size": self.family_size,
         }
 
 
@@ -173,7 +182,7 @@ def _load_cumulative_known_cost(conn, tenant_id: str, product_id: str, window_st
 def evaluate_cost_margin_gate(
     conn, tenant_id: str, product_id: str,
     window_days: int = DEFAULT_GATE_WINDOW_DAYS, max_ratio: float = DEFAULT_MAX_COST_TO_MARGIN_RATIO,
-    min_product_price: float = DEFAULT_MIN_PRODUCT_PRICE,
+    min_product_price: float = DEFAULT_MIN_PRODUCT_PRICE, family_size: int = 1,
 ) -> CostMarginGateDecision:
     """
     Two checks, in order:
@@ -187,9 +196,27 @@ def evaluate_cost_margin_gate(
        for. This is the only branch that can block without first checking
        real cost data.
 
-    2. The dynamic ratio (unchanged from before this floor existed): has
-       real, known scraping cost for this product in the trailing
-       `window_days` crossed `max_ratio` of that same basis?
+       Exception: `family_size` (see below) - when a product is genuinely
+       part of a real, price-collapse-eligible family
+       (product_families.py), the floor does not apply to it alone. A
+       family exists specifically because its members are meant to share
+       search and scraping cost (product_families.py's own Architecture C
+       reasoning) - judging one member's own tiny price against the full,
+       unshared cost of a scrape misrepresents what tracking it actually
+       costs. Family members fall through to the dynamic ratio below
+       instead, evaluated against their real, amortized (shared) cost.
+
+    2. The dynamic ratio: has real, known scraping cost for this product in
+       the trailing `window_days` crossed `max_ratio` of that same basis?
+       `family_size` (default 1, no sharing) amortizes the real cumulative
+       cost across the real number of active, price-collapse-eligible
+       siblings this product shares a family with (1 = itself only, so no
+       change) before computing the ratio - this is what actually "shares
+       the cost": the family's real collective spend, divided by its real
+       member count, is what gets weighed against each member's own value,
+       exactly the routing enqueue.py performs instead of a blind block for
+       a family-eligible product (see enqueue.py::_cost_margin_gate_blocks
+       and product_families.py::find_cost_sharing_family_size).
 
     Both checks ALLOW (never block) when there isn't enough real
     information to judge at all - no product record, or a product with no
@@ -197,7 +224,8 @@ def evaluate_cost_margin_gate(
     never treated as "over budget", the same discipline this codebase
     applies everywhere else a real number might simply not exist yet. That
     is different from the floor case above: a real, known basis that is
-    simply too low is a confirmed fact, not missing data, so it blocks.
+    simply too low (and has no real family to share cost with) is a
+    confirmed fact, not missing data, so it blocks.
 
     basis_kind="margin" (current_price - cost_price) is used whenever a
     real, positive cost_price is on file - the true profit at stake, not
@@ -207,12 +235,15 @@ def evaluate_cost_margin_gate(
     less precise basis, always labeled as such rather than silently
     presented as a margin figure it isn't.
     """
+    family_size = max(1, family_size)
+
     row = _load_product_pricing(conn, tenant_id, product_id)
     if row is None:
         return CostMarginGateDecision(
             allow=True, reason="no real product record found - nothing to gate",
             cumulative_cost=None, basis_amount=None, basis_kind=None, ratio=None,
             threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+            family_size=family_size,
         )
     current_price, cost_price = row
     current_price = float(current_price)
@@ -231,9 +262,11 @@ def evaluate_cost_margin_gate(
             allow=True, reason="no positive margin or price on file to weigh cost against",
             cumulative_cost=None, basis_amount=None, basis_kind=None, ratio=None,
             threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+            family_size=family_size,
         )
 
-    if basis_amount < min_product_price:
+    below_floor = basis_amount < min_product_price
+    if below_floor and family_size == 1:
         reason = (
             f"this product's real {basis_kind} ({basis_amount:.4f}) is below the "
             f"{min_product_price:.2f} minimum price floor - blocked on day one, before any "
@@ -243,37 +276,59 @@ def evaluate_cost_margin_gate(
             allow=False, reason=reason,
             cumulative_cost=None, basis_amount=basis_amount, basis_kind=basis_kind, ratio=None,
             threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+            family_size=family_size,
         )
 
     window_start = datetime.now(timezone.utc) - timedelta(days=window_days)
     cumulative_cost = _load_cumulative_known_cost(conn, tenant_id, product_id, window_start)
     if cumulative_cost is None:
+        reason = "no real scraping cost data recorded yet for this product"
+        if below_floor:
+            reason = (
+                f"this product's own {basis_kind} ({basis_amount:.4f}) is below the "
+                f"{min_product_price:.2f} minimum price floor, but it is routed through "
+                f"family-keyed group scraping instead of being blocked ({family_size} real "
+                f"family members share cost) - no real scraping cost data recorded yet"
+            )
         return CostMarginGateDecision(
-            allow=True, reason="no real scraping cost data recorded yet for this product",
+            allow=True, reason=reason,
             cumulative_cost=None, basis_amount=basis_amount, basis_kind=basis_kind, ratio=None,
             threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+            family_size=family_size,
         )
 
-    ratio = round(cumulative_cost / basis_amount, 4)
+    effective_cost = cumulative_cost / family_size
+    ratio = round(effective_cost / basis_amount, 4)
+    sharing_note = (
+        f"real scraping cost ({cumulative_cost:.4f}) shared across {family_size} real family "
+        f"members (amortized to {effective_cost:.4f} per item)"
+        if family_size > 1 else f"real scraping cost ({cumulative_cost:.4f})"
+    )
     if ratio >= max_ratio:
         reason = (
-            f"real scraping cost ({cumulative_cost:.4f}) is {ratio:.0%} of this product's "
-            f"{basis_kind} ({basis_amount:.4f}) over the last {window_days} days - at or above "
-            f"the {max_ratio:.0%} limit"
+            f"{sharing_note} is {ratio:.0%} of this product's {basis_kind} ({basis_amount:.4f}) "
+            f"over the last {window_days} days - at or above the {max_ratio:.0%} limit"
         )
         return CostMarginGateDecision(
             allow=False, reason=reason,
             cumulative_cost=cumulative_cost, basis_amount=basis_amount, basis_kind=basis_kind, ratio=ratio,
             threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+            family_size=family_size,
         )
 
     reason = (
-        f"real scraping cost ({cumulative_cost:.4f}) is {ratio:.0%} of this product's "
-        f"{basis_kind} ({basis_amount:.4f}) over the last {window_days} days - under the "
-        f"{max_ratio:.0%} limit"
+        f"{sharing_note} is {ratio:.0%} of this product's {basis_kind} ({basis_amount:.4f}) "
+        f"over the last {window_days} days - under the {max_ratio:.0%} limit"
     )
+    if below_floor:
+        reason += (
+            f" (this product's own {basis_kind} is below the {min_product_price:.2f} floor, but "
+            f"family-keyed group scraping shares real cost across {family_size} members instead "
+            f"of blocking it)"
+        )
     return CostMarginGateDecision(
         allow=True, reason=reason,
         cumulative_cost=cumulative_cost, basis_amount=basis_amount, basis_kind=basis_kind, ratio=ratio,
         threshold=max_ratio, window_days=window_days, min_product_price=min_product_price,
+        family_size=family_size,
     )
