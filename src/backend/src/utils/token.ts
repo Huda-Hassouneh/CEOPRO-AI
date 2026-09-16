@@ -21,6 +21,7 @@ export interface TokenPayload {
   userId: string;
   tenantId?: string;
   role?: string;
+  email: string;
 }
 
 /**
@@ -35,8 +36,13 @@ export function generateToken(
   });
 }
 export function generateAdminToken() {
-  return generateToken({ role: "admin", userId: "4", tenantId: "2" }, "24h");
+  return generateToken(
+    { role: "admin", userId: "4", tenantId: "2", email: "ahmad@gmail.com" },
+    "24h"
+  );
 }
+// console.log(generateAdminToken());
+
 /**
  * Check whether a JWT is valid.
  *
