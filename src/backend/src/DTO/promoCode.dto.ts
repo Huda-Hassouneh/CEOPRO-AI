@@ -33,8 +33,8 @@ export const applyPromoCodeSchema = z
   .object({
     code: promoCodeSchema,
 
-    plan: z.enum(["starter", "growth", "enterprise"], {
-      error: "Invalid subscription plan"
+    planId: z.uuid({
+      error: "Invalid plan ID"
     })
   })
   .strict();
@@ -122,6 +122,17 @@ export const updatePromoCodeSchema = z
     message: "At least one field must be provided"
   })
   .superRefine((data, ctx) => {
+    // discountType and discountValue must both be present or both absent
+    const hasType = data.discountType !== undefined;
+    const hasValue = data.discountValue !== undefined;
+    if (hasType !== hasValue) {
+      ctx.addIssue({
+        code: "custom",
+        path: hasType ? ["discountValue"] : ["discountType"],
+        message: "discountType and discountValue must be provided together"
+      });
+    }
+
     // Validate percentage discounts when both fields are supplied.
     if (
       data.discountType === "percentage" &&

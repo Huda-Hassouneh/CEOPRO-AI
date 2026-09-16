@@ -16,26 +16,9 @@ const currencySchema = z
   .length(3)
   .regex(/^[A-Z]{3}$/, "Currency must be a valid 3-letter uppercase code");
 
-const trialPeriodSchema = z
-  .object({
-    trialPeriodValue: z.number().int().nonnegative().default(0),
-    trialPeriodUnit: intervalUnitSchema.nullable().optional()
-  })
-  .refine(
-    (data) =>
-      (data.trialPeriodValue === 0 &&
-        (data.trialPeriodUnit === null ||
-          data.trialPeriodUnit === undefined)) ||
-      (data.trialPeriodValue > 0 &&
-        data.trialPeriodUnit !== null &&
-        data.trialPeriodUnit !== undefined),
-    {
-      message:
-        "trialPeriodUnit is required when trialPeriodValue is greater than 0",
-      path: ["trialPeriodUnit"]
-    }
-  );
-
+const trialPeriodSchema = z.object({
+  trialPeriodValue: z.number().int().nonnegative().default(0)
+});
 export const planSchema = z
   .object({
     name: z.enum(["starter", "growth", "enterprise"]),
