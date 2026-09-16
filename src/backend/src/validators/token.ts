@@ -38,8 +38,8 @@ export function validateToken(req: Request, resp: Response, next: () => any) {
 }
 export function isAdmin(req: Request, resp: Response, next: () => any) {
   const token = req.headers.authorization!?.split(" ")[1];
-
-  const admin = getTokenPayload(token)?.role === "admin";
+  const payload = getTokenPayload(token);
+  const admin = payload?.role === "admin";
 
   if (!admin) {
     const error = ERROR_DEFINITIONS[ERROR_CODES.FORBIDDEN];
@@ -50,5 +50,6 @@ export function isAdmin(req: Request, resp: Response, next: () => any) {
         errorResponse(error.message, error.statusCode, ERROR_CODES.FORBIDDEN)
       );
   }
+  req.user = payload;
   next();
 }
