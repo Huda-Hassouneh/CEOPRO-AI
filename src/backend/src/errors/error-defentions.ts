@@ -5,6 +5,31 @@ export type ERROR_DEFINITION_ITEM = {
   message: string;
 };
 export const ERROR_DEFINITIONS = {
+  [ERROR_CODES.INVALID_WEBHOOK_HEADER]: {
+    statusCode: 400,
+    message: "webhook signature is required"
+  },
+  [ERROR_CODES.SUBSCRIPTION_CANCELLATION_SCHEDULED]: {
+    statusCode: 200,
+    message:
+      "Subscription will be canceled at the end of the current billing period."
+  },
+  [ERROR_CODES.PAYMENT_PROVIDER_SUBSCRIPTION_NOT_FOUND]: {
+    statusCode: 400,
+    message: "Payment provider subscription ID is missing."
+  },
+  [ERROR_CODES.SAME_PLAN]: {
+    statusCode: 400,
+    message: "Subscription is already on this plan"
+  },
+  [ERROR_CODES.SUBSCRIPTION_ALREADY_CANCELED]: {
+    statusCode: 400,
+    message: "Subscription is already scheduled for cancellation."
+  },
+  [ERROR_CODES.SUBSCRIPTION_NOT_CANCELED]: {
+    statusCode: 400,
+    message: "Subscription is already not scheduled for cancellation."
+  },
   [ERROR_CODES.UNAUTHORIZED]: {
     statusCode: 401,
     message: "Authentication is required"
