@@ -36,7 +36,7 @@ export function validateToken(req: Request, resp: Response, next: () => any) {
 
   next();
 }
-export function isAdmin(req: Request, resp: Response, next: () => any) {
+export function isAdmin(req: any, resp: Response, next: () => any) {
   const token = req.headers.authorization!?.split(" ")[1];
   const payload = getTokenPayload(token);
   const admin = payload?.role === "admin";
