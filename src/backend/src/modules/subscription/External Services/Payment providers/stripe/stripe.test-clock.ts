@@ -1,30 +1,46 @@
 import Stripe from "stripe";
-import { generateAdminToken } from "../../../utils/token.js";
+import {
+  CustomerWithClockParams,
+  SimulationParams,
+  SimulationResult
+} from "../../../../../DTO/stripe.dto.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
-export interface CustomerWithClockParams {
-  email: string;
-  name: string;
-  testClockId: string;
-  paymentMethodId?: string;
-}
+async function updateToValidPaymentMethod(
+  customerId: string,
+  subscriptionId: string
+) {
+  // 1. Create a valid test card payment method (Standard Visa)
+  const validPaymentMethod = await stripe.paymentMethods.create({
+    type: "card",
+    card: {
+      token: "tok_visa" // Or card object: { number: '4242424242424242', exp_month: 12, exp_year: 2028, cvc: '123' }
+    }
+  });
 
-export interface SimulationParams {
-  priceId: string;
-  customerEmail: string;
-  customerName?: string;
-  advanceDays?: number;
-  paymentMethodId?: string;
-}
+  // 2. Attach the payment method to the customer
+  await stripe.paymentMethods.attach(validPaymentMethod.id, {
+    customer: customerId
+  });
 
-export interface SimulationResult {
-  testClockId: string;
-  customerId: string;
-  subscriptionId: string;
-  advancedTo: number;
-}
+  // 3. Set it as the default invoice payment method on the customer
+  await stripe.customers.update(customerId, {
+    invoice_settings: {
+      default_payment_method: validPaymentMethod.id
+    }
+  });
 
+  // 4. Update the subscription directly (critical if the sub had its own pinned card)
+  await stripe.subscriptions.update(subscriptionId, {
+    default_payment_method: validPaymentMethod.id
+  });
+
+  console.log(
+    `Payment method updated to ${validPaymentMethod.id} successfully.`
+  );
+  return validPaymentMethod;
+}
 /**
  * Creates a new Test Clock initialized at a specific timestamp.
  */
@@ -123,6 +139,7 @@ async function getClockTime(clockId: string): Promise<Date> {
 
   return simulatedDate;
 }
+
 // advanceClockDays("clock_1UG42gDvEnSheKucSJs8aOuc", 30);
 
 // console.log(await getClockTime("clock_1UG42gDvEnSheKucSJs8aOuc"));
@@ -160,40 +177,7 @@ async function getClockTime(clockId: string): Promise<Date> {
 //     default_payment_method: failingPaymentMethod.id
 //   })
 // ]);
-async function updateToValidPaymentMethod(
-  customerId: string,
-  subscriptionId: string
-) {
-  // 1. Create a valid test card payment method (Standard Visa)
-  const validPaymentMethod = await stripe.paymentMethods.create({
-    type: "card",
-    card: {
-      token: "tok_visa" // Or card object: { number: '4242424242424242', exp_month: 12, exp_year: 2028, cvc: '123' }
-    }
-  });
 
-  // 2. Attach the payment method to the customer
-  await stripe.paymentMethods.attach(validPaymentMethod.id, {
-    customer: customerId
-  });
-
-  // 3. Set it as the default invoice payment method on the customer
-  await stripe.customers.update(customerId, {
-    invoice_settings: {
-      default_payment_method: validPaymentMethod.id
-    }
-  });
-
-  // 4. Update the subscription directly (critical if the sub had its own pinned card)
-  await stripe.subscriptions.update(subscriptionId, {
-    default_payment_method: validPaymentMethod.id
-  });
-
-  console.log(
-    `Payment method updated to ${validPaymentMethod.id} successfully.`
-  );
-  return validPaymentMethod;
-}
 // updateToValidPaymentMethod(
 //   "cus_VGcKuVoiF4BKS8",
 //   "sub_1UG562DvEnSheKucitvmjlB1"
