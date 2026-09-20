@@ -1,24 +1,44 @@
 import express from "express";
-import promocodeRouter from "./modules/subscription/route/promocode.route.js";
-import plansRouter from "./modules/subscription/route/plans.route.js";
-import promocodesPlansRouter from "./modules/subscription/route/pomocodes-plans.route.js";
-import subscriptionRouter from "./modules/subscription/route/subscription.route.js";
+import cors from "cors";
+import "./mock/mock-user.js";
+
+// Routers
+import subscriptionModuleRouter from "./modules/subscription/index.js";
+import featureModuleRouter from "./modules/features/index.js";
 import stripeRouter from "./modules/subscription/External Services/Payment providers/stripe/stripeRoutes.js";
+
 const app = express();
 
-// global middlewares
+// ==========================================
+// Global Middlewares
+// ==========================================
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
 
-// it must register before express.json() becouse stripe-signature-verification requires the raw request body.
-app.use("/stripe/webhooks", stripeRouter.router);
+// ==========================================
+// Webhooks (Must precede express.json)
+// ==========================================
+app.use("/stripe/webhooks", stripeRouter);
+
+// ==========================================
+// Parsers
+// ==========================================
 app.use(express.json());
-app.use("/subscription", promocodeRouter.router);
-app.use("/subscription", plansRouter.router);
-app.use("/subscription", promocodesPlansRouter.router);
-app.use("/subscription", subscriptionRouter.router);
-app.use("/subscription", promocodeRouter.router);
 
+// ==========================================
+// Module Routes
+// ==========================================
+app.use("/subscription", subscriptionModuleRouter);
+app.use("/", featureModuleRouter);
+
+// Health check
 app.get("/", (_req, res) => {
-  res.json({ message: "API is running..." });
+  res.json({ message: "CEO PRO API is running..." });
 });
 
 export default app;
