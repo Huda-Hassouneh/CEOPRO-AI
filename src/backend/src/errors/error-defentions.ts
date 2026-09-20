@@ -208,5 +208,24 @@ export const ERROR_DEFINITIONS = {
   [ERROR_CODES.SERVICE_UNAVAILABLE]: {
     statusCode: 503,
     message: "Service is temporarily unavailable"
+  },
+  [ERROR_CODES.ALREADY_ACTIVE_PLAN]: {
+    statusCode: 400,
+    message:
+      "You are currently actively subscribed to this plan and billing cycle."
+  },
+  [ERROR_CODES.ALREADY_SCHEDULED_PLAN]: {
+    statusCode: 400,
+    message:
+      "You are already scheduled to transition to this plan and billing cycle at the end of your current term."
+  },
+  [ERROR_CODES.CANCEL_DOWNGRADE_REQUIRED]: {
+    statusCode: 400,
+    message:
+      "You are already on this plan, but have a downgrade scheduled. Please cancel the pending downgrade to remain on this plan."
+  },
+  [ERROR_CODES.INVALID_BILLING_PERIOD]: {
+    statusCode: 400,
+    message: "The requested billing period is not valid for this plan."
   }
 } as const;

@@ -1,6 +1,7 @@
 import { prisma } from "../../../config/database.js";
 import { Prisma } from "../../../generated/prisma/client.js";
 import { SubscriptionCreateInput } from "../../../generated/prisma/models.js";
+
 async function updateSubscription(
   id: string,
   data: Prisma.SubscriptionUncheckedUpdateInput
@@ -12,6 +13,7 @@ async function updateSubscription(
     data
   });
 }
+
 async function getSubscriptionByTenant(tenantId: string) {
   return prisma.subscription.findFirst({
     where: {
@@ -22,6 +24,7 @@ async function getSubscriptionByTenant(tenantId: string) {
     }
   });
 }
+
 async function getSubscriptionByPaymentProviderId(paymentProviderId: string) {
   return prisma.subscription.findFirst({
     where: {
@@ -29,13 +32,15 @@ async function getSubscriptionByPaymentProviderId(paymentProviderId: string) {
     }
   });
 }
-async function getSubscriptionById(subscriptionId: string) {
-  return prisma.subscription.findFirst({
+
+async function getSubscriptionById(id: string) {
+  return prisma.subscription.findUnique({
     where: {
-      paymentProviderSubscriptionId: subscriptionId
+      id // 👈 FIXED: Search by the internal DB ID, not the Stripe ID
     }
   });
 }
+
 async function getActiveSubscriptionByTenant(tenantId: string) {
   return prisma.subscription.findFirst({
     where: {
@@ -46,6 +51,7 @@ async function getActiveSubscriptionByTenant(tenantId: string) {
     }
   });
 }
+
 async function createSubscription(data: SubscriptionCreateInput) {
   const { paymentProviderSubscriptionId, ...rest } = data;
 
@@ -63,6 +69,7 @@ async function createSubscription(data: SubscriptionCreateInput) {
     create: data
   });
 }
+
 export default {
   updateSubscription,
   getSubscriptionByTenant,
