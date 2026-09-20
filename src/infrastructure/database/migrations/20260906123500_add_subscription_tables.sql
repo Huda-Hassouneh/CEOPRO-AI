@@ -1,15 +1,28 @@
 -- SUBSCRIPTION PLANS
 -- Stores the subscription plans offered by CEOPRO.
+-- PLANS
+-- Stores the available subscription tiers. (Must be created before subscriptions)
+
+
 CREATE TABLE IF NOT EXISTS plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    name VARCHAR(50) NOT NULL UNIQUE
-        CHECK (name IN ('starter', 'growth', 'enterprise')),
+    -- Remove the CHECK constraints. Let the admin name them whatever they want.
+    name VARCHAR(50) NOT NULL UNIQUE,
+    name_ar VARCHAR(50) NOT NULL UNIQUE,
+    
+    -- ADD THIS: A numeric value to rank plans (e.g., 10 = Starter, 20 = Growth)
+    -- This allows your code to easily determine upgrades vs downgrades (New Plan > Old Plan)
+    tier_level INTEGER NOT NULL UNIQUE,
 
     description TEXT,
+    description_ar TEXT,
 
     price NUMERIC(10, 2) NOT NULL
         CHECK (price >= 0),
+
+    -- Fixed syntax error (was a semicolon, should be a comma)
+    billing_options JSONB,
 
     currency VARCHAR(3) NOT NULL DEFAULT 'JOD'
         CHECK (currency ~ '^[A-Z]{3}$'),
@@ -20,20 +33,19 @@ CREATE TABLE IF NOT EXISTS plans (
     billing_interval_unit VARCHAR(10) NOT NULL
         CHECK (billing_interval_unit IN ('day', 'week', 'month', 'year')),
 
-    -- Trial period is always in days
     trial_period_value INTEGER NOT NULL DEFAULT 0
         CHECK (trial_period_value >= 0),
 
-    -- Payment provider identifiers
     payment_provider_product_id VARCHAR(255),
-
     payment_provider_plan_id VARCHAR(255) UNIQUE,
 
+    -- Use this to hide legacy plans from new signups instead of deleting them
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 
 
 -- PROMO CODES
@@ -102,9 +114,13 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     tenant_id UUID NOT NULL,
 
     plan_id UUID NOT NULL,
-    payment_provider VARCHAR(50) NOT NULL,
-    payment_provider_customer_id VARCHAR(255) ,
+    
+    -- NEW: Optional column for scheduled downgrades
+    scheduled_plan_id UUID,
+    scheduledBillingPeriod TEXT,
 
+    payment_provider VARCHAR(50) NOT NULL,
+    payment_provider_customer_id VARCHAR(255),
     payment_provider_subscription_id VARCHAR(255) UNIQUE,
 
     status VARCHAR(30) NOT NULL
@@ -122,11 +138,11 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     current_period_start TIMESTAMPTZ NOT NULL,
     current_period_end TIMESTAMPTZ NOT NULL,
 
-   
     cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
-
     cancelled_at TIMESTAMPTZ NULL,
 
+    paymentProviderPriceId TEXT,
+    billingPeriod TEXT;
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -139,6 +155,12 @@ CREATE TABLE IF NOT EXISTS subscriptions (
         FOREIGN KEY (plan_id)
         REFERENCES plans(id)
         ON DELETE RESTRICT,
+
+    -- NEW: Foreign key for the scheduled plan
+    CONSTRAINT fk_subscriptions_scheduled_plan
+        FOREIGN KEY (scheduled_plan_id)
+        REFERENCES plans(id)
+        ON DELETE SET NULL,
 
     CONSTRAINT chk_subscription_period
         CHECK (current_period_end > current_period_start)
