@@ -140,7 +140,7 @@ async function getClockTime(clockId: string): Promise<Date> {
   return simulatedDate;
 }
 
-// advanceClockDays("clock_1UG42gDvEnSheKucSJs8aOuc", 30);
+// advanceClockDays("clock_1UHlRBDvEnSheKuc4ymTQI9Q", 181);
 
 // console.log(await getClockTime("clock_1UG42gDvEnSheKucSJs8aOuc"));
 
