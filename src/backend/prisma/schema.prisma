@@ -7,139 +7,303 @@ datasource db {
   provider = "postgresql"
 }
 
+enum FeatureType {
+  limit
+  boolean
+
+  @@map("feature_type_enum")
+}
+enum AggregationType {
+  sum
+  max
+
+  @@map("aggregation_type_enum")
+}
+enum ResetCycle {
+  billing_period
+  lifetime
+
+  @@map("reset_cycle_enum")
+}
 
 model AppConfig {
-  key       String   @id @db.VarChar(100)
-  value     String   @db.Text
+  key   String @id @db.VarChar(100)
+  value String @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("app_config")
 }
+
+model Company {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_id") @db.Uuid
+  businessName        String    @map("business_name") @db.VarChar(255)
+  businessType        String?   @map("business_type") @db.VarChar(100)
+  
+  // Prisma does not enforce regex CHECK constraints directly in the schema.
+  // The DB will enforce the 2-letter uppercase constraint, but you should also validate this in your Node.js controllers (e.g., using Zod).
+  countryCode         String    @map("country_code") @db.VarChar(2)
+  
+  operatingCountries  String[]  @default([]) @map("operating_countries")
+  
+  // Database CHECK constraint for 3-letter currency code applies here.
+  primaryCurrency     String    @map("primary_currency") @db.VarChar(3)
+  
+  supportedCurrencies String[]  @default(["JOD"]) @map("supported_currencies")
+  timezone            String    @default("Asia/Amman") @db.VarChar(64)
+  preferredLanguage   String    @default("en") @map("preferred_language") @db.VarChar(5)
+  supportedLanguages  String[]  @default(["en"]) @map("supported_languages")
+  
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  // @updatedAt automatically handles updating this timestamp when the record is modified via Prisma
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  // Reverse relation to the TenantUser model we created earlier
+  tenantUsers         TenantUser[]
+
+  @@map("companies")
+}
+
 model Plan {
-  id                        String               @id @default(uuid()) @db.Uuid
-  name                      String               @unique @db.VarChar(50)
-  description               String?
-  price                     Decimal              @db.Decimal(10, 2)
-  currency                  String               @default("JOD") @db.VarChar(3)
-  billingIntervalValue      Int                  @map("billing_interval_value")
-  billingIntervalUnit       String               @map("billing_interval_unit") @db.VarChar(10)
-  trialPeriodValue          Int                  @default(0) @map("trial_period_value")
+  id                       String          @id @default(uuid()) @db.Uuid
+  name                     String          @unique @db.VarChar(50)
+  name_ar                  String          @unique @db.VarChar(50)
+  tierLevel                Int             @unique @map("tier_level")
+  description              String?
+  description_ar              String?
+  price                    Decimal         @db.Decimal(10, 2)
+  currency                 String          @default("USD") @db.VarChar(3)
+  billingIntervalValue     Int             @map("billing_interval_value")
+  billingIntervalUnit      String          @map("billing_interval_unit") @db.VarChar(10)
+  trialPeriodValue         Int             @default(0) @map("trial_period_value")
 
-  paymentProviderProductId  String?              @map("payment_provider_product_id") @db.VarChar(255)
-  paymentProviderPlanId     String?              @unique @map("payment_provider_plan_id") @db.VarChar(255)
+  paymentProviderProductId String?         @map("payment_provider_product_id") @db.VarChar(255)
+  paymentProviderPlanId    String?         @unique @map("payment_provider_plan_id") @db.VarChar(255)
+  
+  billingOptions           Json?           @map("billing_options")
+  isActive                 Boolean         @default(true) @map("is_active")
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  isActive                  Boolean              @default(true) @map("is_active")
-  createdAt                 DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                 DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  subscriptions             Subscription[]
-  promoCodes                PromoCodePlan[]
+  activeSubscriptions      Subscription[]  @relation("ActivePlan")
+  scheduledSubscriptions   Subscription[]  @relation("ScheduledPlan")
+  
+  promoCodes               PromoCodePlan[]
+  planFeatures             PlanFeature[]
 
   @@map("plans")
 }
 
 model PromoCode {
-  id                String                  @id @default(uuid()) @db.Uuid
-  code              String                  @unique @db.VarChar(50)
-  discountType      String                  @map("discount_type") @db.VarChar(20)
-  discountValue     Decimal                 @map("discount_value") @db.Decimal(10, 2)
-  maxUses           Int                     @map("max_uses")
-  paymentProviderCoupon  String             @map("payment_provider_coupon_id")
-  usedCount         Int                     @default(0) @map("used_count")
-  maxUsesPerUser    Int                     @default(1) @map("max_uses_per_user")
-  startsAt          DateTime                @map("starts_at") @db.Timestamptz(6)
-  expiresAt         DateTime                @map("expires_at") @db.Timestamptz(6)
-  isActive          Boolean                 @default(true) @map("is_active")
-  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                    String   @id @default(uuid()) @db.Uuid
+  code                  String   @unique @db.VarChar(50)
+  discountType          String   @map("discount_type") @db.VarChar(20)
+  discountValue         Decimal  @map("discount_value") @db.Decimal(10, 2)
+  maxUses               Int      @map("max_uses")
+  paymentProviderCoupon String   @map("payment_provider_coupon_id")
+  usedCount             Int      @default(0) @map("used_count")
+  maxUsesPerUser        Int      @default(1) @map("max_uses_per_user")
+  startsAt              DateTime @map("starts_at") @db.Timestamptz(6)
+  expiresAt             DateTime @map("expires_at") @db.Timestamptz(6)
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  plans             PromoCodePlan[]
-  redemptions       PromoCodeRedemption[]
+  plans       PromoCodePlan[]
+  redemptions PromoCodeRedemption[]
 
   @@map("promo_codes")
 }
 
 model PromoCodePlan {
-  promoCodeId String     @map("promo_code_id") @db.Uuid
-  planId      String     @map("plan_id") @db.Uuid
+  promoCodeId String @map("promo_code_id") @db.Uuid
+  planId      String @map("plan_id") @db.Uuid
 
-  promoCode   PromoCode  @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
-  plan        Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  plan      Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@id([promoCodeId, planId])
   @@map("promo_codes_plans")
 }
 
 model Subscription {
-  id                              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
-  tenantId                        String    @map("tenant_id") @db.Uuid
-  planId                          String    @map("plan_id") @db.Uuid
+  tenantId                      String    @map("tenant_id") @db.Uuid
+  planId                        String    @map("plan_id") @db.Uuid
+  scheduledPlanId               String?   @map("scheduled_plan_id") @db.Uuid
 
-  paymentProvider                 String    @map("payment_provider") @db.VarChar(50)
-  paymentProviderCustomerId       String?    @map("payment_provider_customer_id") @db.VarChar(255)
-  paymentProviderSubscriptionId   String?   @unique @map("payment_provider_subscription_id") @db.VarChar(255)
+  paymentProvider               String    @map("payment_provider") @db.VarChar(50)
+  paymentProviderCustomerId     String?   @map("payment_provider_customer_id") @db.VarChar(255)
+  paymentProviderSubscriptionId String?   @unique @map("payment_provider_subscription_id") @db.VarChar(255)
+  paymentProviderPriceId        String?   // Stores the specific Stripe Price ID (e.g., price_1abc123...)
+  billingPeriod                 String?   // Stores the period name (e.g., "monthly", "three-months")
+  status                        String    @db.VarChar(30)
 
-  status                          String    @db.VarChar(30)
+  currentPeriodStart            DateTime  @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd              DateTime  @map("current_period_end") @db.Timestamptz(6)
 
-  currentPeriodStart              DateTime  @map("current_period_start") @db.Timestamptz(6)
-  currentPeriodEnd                DateTime  @map("current_period_end") @db.Timestamptz(6)
+  cancelAtPeriodEnd             Boolean   @default(false) @map("cancel_at_period_end")
+  cancelledAt                   DateTime? @map("cancelled_at") @db.Timestamptz(6)
 
-  cancelAtPeriodEnd               Boolean   @default(false) @map("cancel_at_period_end")
-  cancelledAt                     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  createdAt                     DateTime  @default(dbgenerated("NOW()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime  @default(dbgenerated("NOW()")) @map("updated_at") @db.Timestamptz(6)
 
-  createdAt                       DateTime  @default(dbgenerated("NOW()")) @map("created_at") @db.Timestamptz(6)
-  updatedAt                       DateTime  @default(dbgenerated("NOW()")) @map("updated_at") @db.Timestamptz(6)
-
-  plan                            Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
-  paymentTransactions             PaymentTransaction[]
-  promoCodeRedemptions            PromoCodeRedemption[]
+  // FIXED: Merged into a single named relation with onDelete: Restrict
+  plan                          Plan      @relation("ActivePlan", fields: [planId], references: [id], onDelete: Restrict)
+  scheduledPlan                 Plan?     @relation("ScheduledPlan", fields: [scheduledPlanId], references: [id])
+  scheduledBillingPeriod        String?
+  paymentTransactions           PaymentTransaction[]
+  promoCodeRedemptions          PromoCodeRedemption[]
+  subscriptionUsages            SubscriptionUsage[]
 
   @@map("subscriptions")
 }
 
 model PaymentTransaction {
-  id                              String       @id @default(uuid()) @db.Uuid
-  subscriptionId                  String       @map("subscription_id") @db.Uuid
-  payment_providerPaymentIntentId String?      @unique @map("payment_intent_id") @db.VarChar(255)
-  payment_providerInvoiceId      String?      @map("payment_provider_invoice_id") @db.VarChar(255)
-  amount                          Decimal      @db.Decimal(12, 2)
-  currency                        String       @db.VarChar(3)
-  status                          String       @default("pending") @db.VarChar(20)
-  paidAt                          DateTime?    @map("paid_at") @db.Timestamptz(6)
-  failureReason                   String?      @map("failure_reason")
-  createdAt                       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                       DateTime     @updatedAt @map("updated_at")
+  id                              String    @id @default(uuid()) @db.Uuid
+  subscriptionId                  String    @map("subscription_id") @db.Uuid
+  payment_providerPaymentIntentId String?   @unique @map("payment_intent_id") @db.VarChar(255)
+  payment_providerInvoiceId       String?   @map("payment_provider_invoice_id") @db.VarChar(255)
+  amount                          Decimal   @db.Decimal(12, 2)
+  currency                        String    @db.VarChar(3)
+  status                          String    @default("pending") @db.VarChar(20)
+  paidAt                          DateTime? @map("paid_at") @db.Timestamptz(6)
+  failureReason                   String?   @map("failure_reason")
+  createdAt                       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime  @updatedAt @map("updated_at")
 
-  subscription                    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
 
   @@map("payment_transactions")
 }
 
 model PromoCodeRedemption {
-  id             String        @id @default(uuid()) @db.Uuid
-  promoCodeId    String        @map("promo_code_id") @db.Uuid
-  subscriptionId String        @map("subscription_id") @db.Uuid
-  redeemedAt     DateTime      @default(now()) @map("redeemed_at") @db.Timestamptz(6)
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  id             String   @id @default(uuid()) @db.Uuid
+  promoCodeId    String   @map("promo_code_id") @db.Uuid
+  subscriptionId String   @map("subscription_id") @db.Uuid
+  redeemedAt     DateTime @default(now()) @map("redeemed_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  promoCode      PromoCode     @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
-  subscription   Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  promoCode    PromoCode    @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
 
   @@unique([promoCodeId, subscriptionId])
   @@map("promo_code_redemptions")
 }
 
 model payment_providerWebhookEvent {
-  id            String   @id @default(uuid()) @db.Uuid
-  payment_providerEventId String   @unique @map("payment_provider_event_id") @db.VarChar(255)
-  eventType     String   @map("event_type") @db.VarChar(100)
-  processed     Boolean  @default(false)
-  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
-  payload       Json
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                      String    @id @default(uuid()) @db.Uuid
+  payment_providerEventId String    @unique @map("payment_provider_event_id") @db.VarChar(255)
+  eventType               String    @map("event_type") @db.VarChar(100)
+  processed               Boolean   @default(false)
+  processedAt             DateTime? @map("processed_at") @db.Timestamptz(6)
+  payload                 Json
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("payment_provider_webhook_events")
+}
+
+model Feature {
+  id          String      @id @default(uuid()) @map("feature_id")
+  code        String      @unique @map("feature_code")
+  name        String      @map("feature_name")
+  name_ar        String      @map("feature_name_ar")
+  type        FeatureType @map("feature_type")
+  description String?
+  description_ar String?
+
+  unit            String?         @db.VarChar(50)
+  unit_ar            String?         @db.VarChar(50)
+  aggregationType AggregationType @default(sum) @map("aggregation_type")
+  resetCycle      ResetCycle      @default(billing_period) @map("reset_cycle")
+
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @default(now()) @updatedAt
+
+  plan_features      PlanFeature[]
+  subscription_usage SubscriptionUsage[]
+
+  @@map("features")
+}
+
+model PlanFeature {
+  plan_id     String
+  feature_id  String
+  limit_value Int?
+
+  plan    Plan    @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [feature_id], references: [id], onDelete: Cascade)
+
+  @@id([plan_id, feature_id])
+  @@map("plan_features")
+}
+
+model SubscriptionUsage {
+  id              String   @id @default(uuid())
+  subscription_id String
+  feature_id      String
+  current_usage   Int      @default(0)
+
+  period_start    DateTime @db.Timestamptz(6)
+  period_end      DateTime @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  subscription Subscription @relation(fields: [subscription_id], references: [id], onDelete: Cascade)
+  feature      Feature      @relation(fields: [feature_id], references: [id], onDelete: Cascade)
+
+  @@unique([subscription_id, feature_id, period_start])
+  @@map("subscription_usage")
+}
+
+
+
+model User {
+  userId            String   @id @default(uuid()) @db.Uuid @map("user_id")
+  email             String   @db.VarChar(255)
+  passwordHash      String   @db.Text @map("password_hash")
+  fullName          String?  @db.VarChar(150) @map("full_name")
+  preferredLanguage String?  @default("en") @db.VarChar(5) @map("preferred_language")
+  createdAt         DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt         DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  // Add this line so Prisma knows about the relationship
+  tenantUsers       TenantUser[]
+
+  @@map("users")
+}
+
+model SystemRole {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @map("role_id") @db.Uuid
+  roleKey     String       @unique @map("role_key") @db.VarChar(50)
+  roleName    String       @map("role_name") @db.VarChar(100)
+  permissions Json         @default("{}") @db.JsonB
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // ADD THIS LINE: This tells Prisma that one role can have many tenant users
+  tenantUsers TenantUser[]
+
+  @@map("system_roles")
+}
+
+model TenantUser {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_user_id") @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  roleKey   String    @map("role_key") @db.VarChar(50)
+  removedAt DateTime? @map("removed_at") @db.Timestamptz(6)
+  joinedAt  DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  tenant    Company    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // FIX: Change references: [id] to references: [userId]
+  user      User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  
+  role      SystemRole @relation(fields: [roleKey], references: [roleKey])
+
+  @@map("tenant_users")
 }
