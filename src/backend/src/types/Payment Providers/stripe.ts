@@ -30,6 +30,8 @@ export interface StripeCheckoutDetails {
   cancelUrl: string;
   trialPeriodDays?: number;
   couponId?: string;
+  tenantId: string;
+  newPlanId?: string;
 }
 
 export interface StripeService {
@@ -55,6 +57,7 @@ export interface StripeService {
     paymentProviderSubscriptionId: string;
     stripeSubscriptionItemId: string;
     paymentProviderPriceId: string;
+    action: string;
   }): Promise<Stripe.Subscription>;
   retrieveSubscription(subscriptionId: string): Promise<Stripe.Subscription>;
   updateSubscriptionCancellation(
@@ -63,4 +66,8 @@ export interface StripeService {
     deleteImmedietly: boolean
   ): Promise<Stripe.Subscription>;
   deleteCustomerByCustomerId(customerId: string): Promise<boolean>;
+  createCustomerPortalSession(
+    customerId: string,
+    returnUrl: string
+  ): Promise<string>;
 }
