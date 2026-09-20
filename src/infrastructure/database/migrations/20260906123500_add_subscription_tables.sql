@@ -126,12 +126,14 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     status VARCHAR(30) NOT NULL
         CHECK (
             status IN (
+                'trialing',
                 'pending',
                 'active',
                 'past_due',
                 'payment_failed',
                 'cancelled',
-                'expired'
+                'expired',
+                'paused'
             )
         ),
 
