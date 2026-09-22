@@ -189,8 +189,12 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
 
     payment_intent_id VARCHAR(255) UNIQUE,
 
-   
     payment_provider_invoice_id VARCHAR(255),
+
+    -- Used to make payment/webhook processing idempotent.
+    -- Matches Prisma:
+    -- idempotencyKey String? @unique @map("idempotency_key") @db.VarChar(320)
+    idempotency_key VARCHAR(320) UNIQUE,
 
     amount NUMERIC(12, 2) NOT NULL
         CHECK (amount >= 0),
@@ -209,7 +213,6 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
 
     paid_at TIMESTAMPTZ NULL,
 
-  
     failure_reason TEXT NULL,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
