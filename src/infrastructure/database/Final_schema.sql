@@ -623,3 +623,462 @@ CREATE POLICY isolation_ingestion_jobs ON ingestion_jobs FOR ALL USING (tenant_i
 CREATE POLICY isolation_staging_rows ON import_staging_rows FOR ALL USING (tenant_id = get_current_tenant());
 CREATE POLICY select_audit_logs ON audit_logs FOR SELECT USING (tenant_id = get_current_tenant());
 CREATE POLICY insert_audit_logs ON audit_logs FOR INSERT WITH CHECK (tenant_id = get_current_tenant());
+
+
+-- ============================================================================
+-- PRISMA BILLING / SUBSCRIPTION SCHEMA INTEGRATION
+-- Appended without modifying any statement above.
+-- Existing shared tables preserved from Final_schema.sql:
+--   companies, users, system_roles, tenant_users
+-- ============================================================================
+
+BEGIN;
+
+-- Required for gen_random_uuid() on PostgreSQL installations where pgcrypto
+-- provides the function. On newer PostgreSQL versions this is harmless.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- --------------------------------------------------------------------------
+-- Enum types
+-- --------------------------------------------------------------------------
+
+CREATE TYPE feature_type_enum AS ENUM ('limit', 'boolean');
+CREATE TYPE aggregation_type_enum AS ENUM ('sum', 'max');
+CREATE TYPE reset_cycle_enum AS ENUM ('billing_period', 'lifetime');
+CREATE TYPE plan_type_enum AS ENUM ('standard', 'custom');
+CREATE TYPE custom_plan_quote_status_enum AS ENUM (
+    'draft',
+    'calculated',
+    'approved',
+    'sent',
+    'accepted',
+    'rejected',
+    'expired'
+);
+CREATE TYPE vendor_rate_verification_status_enum AS ENUM (
+    'confirmed',
+    'estimated',
+    'unconfirmed',
+    'deprecated'
+);
+
+-- --------------------------------------------------------------------------
+-- Core/config tables
+-- --------------------------------------------------------------------------
+
+CREATE TABLE app_config (
+    key VARCHAR(100) NOT NULL,
+    value TEXT NOT NULL,
+    created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT app_config_pkey PRIMARY KEY (key)
+);
+
+CREATE TABLE features (
+    feature_id UUID NOT NULL DEFAULT gen_random_uuid(),
+    feature_code TEXT NOT NULL,
+    feature_name TEXT NOT NULL,
+    feature_name_ar TEXT NOT NULL,
+    feature_type feature_type_enum NOT NULL,
+    description TEXT,
+    description_ar TEXT,
+    unit VARCHAR(50),
+    unit_ar VARCHAR(50),
+    aggregation_type aggregation_type_enum NOT NULL DEFAULT 'sum',
+    reset_cycle reset_cycle_enum NOT NULL DEFAULT 'billing_period',
+    created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT features_pkey PRIMARY KEY (feature_id),
+    CONSTRAINT features_feature_code_key UNIQUE (feature_code)
+);
+
+-- --------------------------------------------------------------------------
+-- Plans / billing configuration
+-- --------------------------------------------------------------------------
+
+CREATE TABLE plans (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    name VARCHAR(50) NOT NULL,
+    name_ar VARCHAR(50) NOT NULL,
+    tier_level INTEGER,
+    plan_type plan_type_enum NOT NULL DEFAULT 'standard',
+    tenant_id UUID,
+    description TEXT,
+    description_ar TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'JOD',
+    billing_interval_value INTEGER NOT NULL,
+    billing_interval_unit VARCHAR(10) NOT NULL,
+    trial_period_value INTEGER NOT NULL DEFAULT 0,
+    payment_provider_product_id VARCHAR(255),
+    payment_provider_plan_id VARCHAR(255),
+    billing_options JSONB,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT plans_pkey PRIMARY KEY (id),
+    CONSTRAINT plans_payment_provider_plan_id_key UNIQUE (payment_provider_plan_id),
+    CONSTRAINT plans_tenant_id_fkey
+        FOREIGN KEY (tenant_id)
+        REFERENCES companies(tenant_id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+);
+
+CREATE INDEX plans_tenant_id_idx ON plans(tenant_id);
+CREATE INDEX plans_plan_type_is_active_idx ON plans(plan_type, is_active);
+
+CREATE TABLE promo_codes (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    code VARCHAR(50) NOT NULL,
+    discount_type VARCHAR(20) NOT NULL,
+    discount_value DECIMAL(10, 2) NOT NULL,
+    max_uses INTEGER NOT NULL,
+    payment_provider_coupon_id TEXT NOT NULL,
+    used_count INTEGER NOT NULL DEFAULT 0,
+    max_uses_per_user INTEGER NOT NULL DEFAULT 1,
+    starts_at TIMESTAMPTZ(6) NOT NULL,
+    expires_at TIMESTAMPTZ(6) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT promo_codes_pkey PRIMARY KEY (id),
+    CONSTRAINT promo_codes_code_key UNIQUE (code)
+);
+
+CREATE TABLE plan_features (
+    plan_id UUID NOT NULL,
+    feature_id UUID NOT NULL,
+    limit_value INTEGER,
+
+    CONSTRAINT plan_features_pkey PRIMARY KEY (plan_id, feature_id),
+    CONSTRAINT plan_features_plan_id_fkey
+        FOREIGN KEY (plan_id)
+        REFERENCES plans(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT plan_features_feature_id_fkey
+        FOREIGN KEY (feature_id)
+        REFERENCES features(feature_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE promo_codes_plans (
+    promo_code_id UUID NOT NULL,
+    plan_id UUID NOT NULL,
+
+    CONSTRAINT promo_codes_plans_pkey PRIMARY KEY (promo_code_id, plan_id),
+    CONSTRAINT promo_codes_plans_promo_code_id_fkey
+        FOREIGN KEY (promo_code_id)
+        REFERENCES promo_codes(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT promo_codes_plans_plan_id_fkey
+        FOREIGN KEY (plan_id)
+        REFERENCES plans(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+-- --------------------------------------------------------------------------
+-- Subscriptions / payments / usage
+-- --------------------------------------------------------------------------
+
+CREATE TABLE subscriptions (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    plan_id UUID NOT NULL,
+    scheduled_plan_id UUID,
+    payment_provider VARCHAR(50) NOT NULL,
+    payment_provider_customer_id VARCHAR(255),
+    payment_provider_subscription_id VARCHAR(255),
+    payment_provider_price_id TEXT,
+    billing_period TEXT,
+    status VARCHAR(30) NOT NULL,
+    current_period_start TIMESTAMPTZ(6) NOT NULL,
+    current_period_end TIMESTAMPTZ(6) NOT NULL,
+    cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+    cancelled_at TIMESTAMPTZ(6),
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT NOW(),
+    scheduled_billing_period TEXT,
+
+    CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
+    CONSTRAINT subscriptions_payment_provider_subscription_id_key
+        UNIQUE (payment_provider_subscription_id),
+    CONSTRAINT subscriptions_tenant_id_fkey
+        FOREIGN KEY (tenant_id)
+        REFERENCES companies(tenant_id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    CONSTRAINT subscriptions_plan_id_fkey
+        FOREIGN KEY (plan_id)
+        REFERENCES plans(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    CONSTRAINT subscriptions_scheduled_plan_id_fkey
+        FOREIGN KEY (scheduled_plan_id)
+        REFERENCES plans(id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE payment_transactions (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    subscription_id UUID NOT NULL,
+    payment_intent_id VARCHAR(255),
+    payment_provider_invoice_id VARCHAR(255),
+    idempotency_key VARCHAR(320),
+    amount DECIMAL(12, 2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    paid_at TIMESTAMPTZ(6),
+    failure_reason TEXT,
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT payment_transactions_pkey PRIMARY KEY (id),
+    CONSTRAINT payment_transactions_payment_intent_id_key UNIQUE (payment_intent_id),
+    CONSTRAINT payment_transactions_idempotency_key_key UNIQUE (idempotency_key),
+    CONSTRAINT payment_transactions_subscription_id_fkey
+        FOREIGN KEY (subscription_id)
+        REFERENCES subscriptions(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE promo_code_redemptions (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    promo_code_id UUID NOT NULL,
+    subscription_id UUID NOT NULL,
+    redeemed_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT promo_code_redemptions_pkey PRIMARY KEY (id),
+    CONSTRAINT promo_code_redemptions_promo_code_id_subscription_id_key
+        UNIQUE (promo_code_id, subscription_id),
+    CONSTRAINT promo_code_redemptions_promo_code_id_fkey
+        FOREIGN KEY (promo_code_id)
+        REFERENCES promo_codes(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    CONSTRAINT promo_code_redemptions_subscription_id_fkey
+        FOREIGN KEY (subscription_id)
+        REFERENCES subscriptions(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE subscription_usage (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    subscription_id UUID NOT NULL,
+    feature_id UUID NOT NULL,
+    current_usage INTEGER NOT NULL DEFAULT 0,
+    period_start TIMESTAMPTZ(6) NOT NULL,
+    period_end TIMESTAMPTZ(6) NOT NULL,
+    updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT subscription_usage_pkey PRIMARY KEY (id),
+    CONSTRAINT subscription_usage_subscription_id_feature_id_period_start_key
+        UNIQUE (subscription_id, feature_id, period_start),
+    CONSTRAINT subscription_usage_subscription_id_fkey
+        FOREIGN KEY (subscription_id)
+        REFERENCES subscriptions(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT subscription_usage_feature_id_fkey
+        FOREIGN KEY (feature_id)
+        REFERENCES features(feature_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE payment_provider_webhook_events (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    payment_provider_event_id VARCHAR(255) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    processed BOOLEAN NOT NULL DEFAULT FALSE,
+    processed_at TIMESTAMPTZ(6),
+    payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT payment_provider_webhook_events_pkey PRIMARY KEY (id),
+    CONSTRAINT payment_provider_webhook_events_payment_provider_event_id_key
+        UNIQUE (payment_provider_event_id)
+);
+
+-- --------------------------------------------------------------------------
+-- Vendor cost / custom plan quoting
+-- --------------------------------------------------------------------------
+
+CREATE TABLE vendor_rates (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    feature_id UUID,
+    vendor VARCHAR(100) NOT NULL,
+    service VARCHAR(150) NOT NULL,
+    billing_unit VARCHAR(80) NOT NULL,
+    unit_cost DECIMAL(14, 6) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    operational_multiplier DECIMAL(8, 4) NOT NULL DEFAULT 1,
+    variability_reserve DECIMAL(8, 4) NOT NULL DEFAULT 1,
+    effective_from TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    effective_to TIMESTAMPTZ(6),
+    verification_status vendor_rate_verification_status_enum NOT NULL DEFAULT 'unconfirmed',
+    source TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT vendor_rates_pkey PRIMARY KEY (id),
+    CONSTRAINT vendor_rates_feature_id_fkey
+        FOREIGN KEY (feature_id)
+        REFERENCES features(feature_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
+
+CREATE INDEX vendor_rates_feature_id_effective_from_idx
+    ON vendor_rates(feature_id, effective_from);
+CREATE INDEX vendor_rates_vendor_service_idx
+    ON vendor_rates(vendor, service);
+
+CREATE TABLE custom_plan_quotes (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    name_ar VARCHAR(50) NOT NULL,
+    description TEXT,
+    description_ar TEXT,
+    status custom_plan_quote_status_enum NOT NULL DEFAULT 'draft',
+    currency VARCHAR(3) NOT NULL DEFAULT 'JOD',
+    billing_interval_value INTEGER NOT NULL DEFAULT 1,
+    billing_interval_unit VARCHAR(10) NOT NULL DEFAULT 'month',
+    trial_period_value INTEGER NOT NULL DEFAULT 0,
+    billing_options JSONB NOT NULL,
+    estimated_vendor_cost DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    estimated_infrastructure_cost DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    estimated_other_cost DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    estimated_total_cost DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    target_gross_margin DECIMAL(7, 6) NOT NULL DEFAULT 0.2,
+    max_vendor_cost_revenue_ratio DECIMAL(7, 6) NOT NULL DEFAULT 0.2,
+    gross_margin_floor DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    vendor_cost_ratio_floor DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    minimum_safe_price DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    final_price DECIMAL(12, 2),
+    fx_rate DECIMAL(18, 8),
+    fx_source_currency VARCHAR(3),
+    fx_target_currency VARCHAR(3),
+    fx_source VARCHAR(255),
+    fx_rate_at TIMESTAMPTZ(6),
+    pricing_inputs JSONB,
+    pricing_snapshot JSONB,
+    override_reason TEXT,
+    created_by UUID,
+    approved_by UUID,
+    created_plan_id UUID,
+    expires_at TIMESTAMPTZ(6),
+    accepted_at TIMESTAMPTZ(6),
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT custom_plan_quotes_pkey PRIMARY KEY (id),
+    CONSTRAINT custom_plan_quotes_created_plan_id_key UNIQUE (created_plan_id),
+    CONSTRAINT custom_plan_quotes_tenant_id_fkey
+        FOREIGN KEY (tenant_id)
+        REFERENCES companies(tenant_id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    CONSTRAINT custom_plan_quotes_created_plan_id_fkey
+        FOREIGN KEY (created_plan_id)
+        REFERENCES plans(id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
+
+CREATE INDEX custom_plan_quotes_tenant_id_status_idx
+    ON custom_plan_quotes(tenant_id, status);
+CREATE INDEX custom_plan_quotes_created_at_idx
+    ON custom_plan_quotes(created_at);
+
+CREATE TABLE custom_plan_quote_features (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    quote_id UUID NOT NULL,
+    feature_id UUID NOT NULL,
+    limit_value INTEGER,
+    estimated_usage DECIMAL(14, 4) NOT NULL DEFAULT 0,
+    metadata JSONB,
+    created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT custom_plan_quote_features_pkey PRIMARY KEY (id),
+    CONSTRAINT custom_plan_quote_features_quote_id_feature_id_key
+        UNIQUE (quote_id, feature_id),
+    CONSTRAINT custom_plan_quote_features_quote_id_fkey
+        FOREIGN KEY (quote_id)
+        REFERENCES custom_plan_quotes(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT custom_plan_quote_features_feature_id_fkey
+        FOREIGN KEY (feature_id)
+        REFERENCES features(feature_id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+);
+
+CREATE INDEX custom_plan_quote_features_feature_id_idx
+    ON custom_plan_quote_features(feature_id);
+
+-- --------------------------------------------------------------------------
+-- DB-side equivalent of Prisma @updatedAt
+-- --------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER app_config_set_updated_at
+BEFORE UPDATE ON app_config
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER plans_set_updated_at
+BEFORE UPDATE ON plans
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER promo_codes_set_updated_at
+BEFORE UPDATE ON promo_codes
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER payment_transactions_set_updated_at
+BEFORE UPDATE ON payment_transactions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER features_set_updated_at
+BEFORE UPDATE ON features
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER subscription_usage_set_updated_at
+BEFORE UPDATE ON subscription_usage
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER vendor_rates_set_updated_at
+BEFORE UPDATE ON vendor_rates
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER custom_plan_quotes_set_updated_at
+BEFORE UPDATE ON custom_plan_quotes
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER custom_plan_quote_features_set_updated_at
+BEFORE UPDATE ON custom_plan_quote_features
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+COMMIT;
