@@ -10,3 +10,9 @@ data/market/
 # binaries, never belong in the repo. Same reasoning as data/market/ above.
 models/
 *.gguf
+
+# Stray Node.js build output/dependencies with no package.json anywhere in
+# this repo (this backend is Python-only) - environment artifacts, not
+# source, never belong in a Python service's git history.
+node_modules/
+dist/
