@@ -2594,6 +2594,13 @@
     }
   },
   "ragAssistant": {
+    "evidence": {
+      "title": "Citation Details",
+      "document": "Document",
+      "loading": "Loading source document...",
+      "error": "Could not load source document."
+    },
+
     "page": {
       "title": "RAG Assistant",
       "subtitle": "Ask questions about your business documents and get AI-powered answers."
@@ -2656,6 +2663,7 @@
       "actions": "Actions for {{name}}",
       "showing": "Showing {{start}}–{{end}} of {{total}} documents",
       "status": {
+        "active": "Active",
         "ready": "Ready",
         "processing": "Processing",
         "failed": "Failed"
