@@ -20,7 +20,8 @@
     "bootstrap:stripe": "tsx scripts/bootstrap-stripe.ts",
     "bootstrap:admin": "tsx prisma/bootstrap/admin.ts",
     "bootstrap:features": "tsx prisma/bootstrap-features.ts",
-    "test:features": "node scripts/verify-feature-entitlements.mjs"
+    "test:features": "node scripts/verify-feature-entitlements.mjs",
+    "prisma:seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
