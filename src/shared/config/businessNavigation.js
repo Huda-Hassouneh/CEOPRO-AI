@@ -12,11 +12,11 @@ import {
 import { routePaths } from '../../app/router/routePaths.js';
 
 export const businessPrimaryNavigation = [
-  { key: 'dashboard', labelKey: 'businessShell.navigation.dashboard', path: routePaths.dashboard, icon: LayoutDashboard },
-  { key: 'market', labelKey: 'businessShell.navigation.market', path: routePaths.market, icon: BarChart3 },
-  { key: 'forecasts', labelKey: 'businessShell.navigation.forecasts', path: routePaths.forecasts, icon: TrendingUp },
-  { key: 'rag', labelKey: 'businessShell.navigation.rag', path: routePaths.aiAdvisor, icon: BrainCircuit },
-  { key: 'connectData', labelKey: 'businessShell.navigation.connectData', path: routePaths.connectData, icon: Cable },
+  { key: 'dashboard', labelKey: 'businessShell.navigation.dashboard', path: routePaths.dashboard, icon: LayoutDashboard, featureCode: 'dashboard_analytics' },
+  { key: 'market', labelKey: 'businessShell.navigation.market', path: routePaths.market, icon: BarChart3, featureCode: 'market_intelligence' },
+  { key: 'forecasts', labelKey: 'businessShell.navigation.forecasts', path: routePaths.forecasts, icon: TrendingUp, featureCode: 'demand_prediction' },
+  { key: 'rag', labelKey: 'businessShell.navigation.rag', path: routePaths.aiAdvisor, icon: BrainCircuit, featureCode: 'rag_assistant' },
+  { key: 'connectData', labelKey: 'businessShell.navigation.connectData', path: routePaths.connectData, icon: Cable, featureCode: 'data_integration' },
 ];
 
 export const businessSecondaryNavigation = [

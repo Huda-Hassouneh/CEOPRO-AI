@@ -1,5 +1,6 @@
 import MarketingContentBoard from '../components/ContentGeneratorForm.jsx';
 import CreativeAssetGenerator from '../components/MarketingImagePreview.jsx';
+import { FeatureGate } from '../../billing/components/FeatureGate.jsx';
 
 export default function MarketingPage() {
   return (
@@ -8,7 +9,9 @@ export default function MarketingPage() {
         <h1>Marketing Center</h1>
       </header>
       <MarketingContentBoard />
-      <CreativeAssetGenerator />
+      <FeatureGate featureCode="marketing_image_generation" mode="consume" compact>
+        <CreativeAssetGenerator />
+      </FeatureGate>
     </div>
   );
 }

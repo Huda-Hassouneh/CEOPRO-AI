@@ -1,1 +1,3 @@
-export function useWebSocketSubscription() {\n  return null;\n}\n
+export function useWebSocketSubscription() {
+  return null;
+}

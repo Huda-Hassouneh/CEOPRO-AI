@@ -47,22 +47,22 @@ await page.getByRole('row').filter({ hasText: 'alex@example.test' }).getByRole('
 await page.getByRole('button', { name: 'Invite admin member' }).click(); await page.getByLabel('Email', { exact: true }).fill('browser-test@example.test'); await page.getByRole('button', { name: 'Send invitation' }).click(); await settle();
 await page.getByRole('searchbox').fill('browser-test'); await settle(); await page.getByText('browser-test@example.test', { exact: true }).waitFor();
 await page.getByRole('button', { name: 'Invite admin member' }).click(); await page.getByLabel('Email', { exact: true }).fill('browser-test@example.test'); await page.getByRole('button', { name: 'Send invitation' }).click(); await page.getByText('This email already has access or a pending invitation.').waitFor(); await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-await go('/admin-team'); await page.getByRole('row').filter({ hasText: 'sam@example.test' }).getByRole('button', { name: 'Manage access' }).click(); await page.getByLabel('New role', { exact: true }).selectOption('VIEWER'); await page.getByRole('button', { name: 'Confirm changes' }).click(); await settle(); await page.getByRole('row').filter({ hasText: 'sam@example.test' }).getByText('Viewer', { exact: true }).waitFor();
+await go('/admin-team'); await page.getByRole('row').filter({ hasText: 'sam@example.test' }).getByRole('button', { name: 'Manage access' }).click(); await page.getByLabel('New role', { exact: true }).selectOption('admin'); await page.getByRole('button', { name: 'Confirm changes' }).click(); await settle(); await page.getByRole('row').filter({ hasText: 'sam@example.test' }).getByText('Admin', { exact: true }).waitFor();
 await go('/audit-logs'); assert.ok(await page.locator('tbody tr').count() > 0); await page.getByRole('combobox', { name: 'Action', exact: true }).selectOption('planUpdated'); await settle(); assert.equal(await page.locator('tbody tr').count(), 1); await page.getByRole('button', { name: 'View details' }).click(); await page.getByRole('dialog').getByText('109', { exact: true }).waitFor(); await page.keyboard.press('Escape');
 await go('/settings'); await page.getByLabel('Platform display name').fill('CEOPRO Operations'); await page.getByRole('button', { name: 'Review changes' }).click(); await page.getByRole('button', { name: 'Confirm changes' }).click(); await settle(); assert.equal(await page.getByRole('button', { name: 'Review changes' }).isDisabled(), true);
 await go('/security'); await page.getByLabel('Current password', { exact: true }).fill('current-password-test'); await page.getByLabel('New password', { exact: true }).fill('new-password-test-123'); await page.getByLabel('Confirm new password', { exact: true }).fill('new-password-test-123'); await page.getByRole('button', { name: 'Change password', exact: true }).click(); await page.getByRole('button', { name: 'Confirm changes' }).click(); await settle(); assert.equal(await page.getByLabel('Current password', { exact: true }).inputValue(), '');
 await page.getByRole('button', { name: 'Sign out all other sessions' }).click(); await page.getByRole('button', { name: 'Confirm changes' }).click(); await settle(); assert.equal(await page.locator('.pa-sessions article').count(), 1);
 console.log('Plan review, shared pricing, invitations, role changes, audit, settings and security passed.');
-for (const role of ['ADMIN', 'EDITOR', 'VIEWER']) {
+for (const role of ['admin', 'admin', 'admin']) {
   await go(''); await page.getByLabel('Preview role').selectOption(role); await settle();
   assert.equal(await page.locator('.pa-sidebar a[href="/admin/settings"]').count(), 0);
-  assert.equal(await page.locator('.pa-sidebar a[href="/admin/admin-team"]').count(), role === 'ADMIN' ? 1 : 0);
+  assert.equal(await page.locator('.pa-sidebar a[href="/admin/admin-team"]').count(), role === 'admin' ? 1 : 0);
   await go('/plans/pro/edit'); await page.getByRole('heading', { name: 'Access restricted' }).waitFor();
   await go('/settings'); await page.getByRole('heading', { name: 'Access restricted' }).waitFor();
-  await go('/companies/company-2'); assert.equal(await page.getByRole('button', { name: 'Suspend access', exact: true }).count(), role === 'ADMIN' ? 1 : 0); assert.equal(await page.getByRole('button', { name: 'Edit administrative notes' }).count(), role === 'VIEWER' ? 0 : 1);
+  await go('/companies/company-2'); assert.equal(await page.getByRole('button', { name: 'Suspend access', exact: true }).count(), role === 'admin' ? 1 : 0); assert.equal(await page.getByRole('button', { name: 'Edit administrative notes' }).count(), role === 'admin' ? 0 : 1);
   await go('/plans'); assert.equal(await page.getByRole('link', { name: 'Edit', exact: true }).count(), 0);
 }
-await page.getByLabel('Preview role').selectOption('SUPER_ADMIN'); await settle();
+await page.getByLabel('Preview role').selectOption('owner'); await settle();
 await go('/companies/missing-id'); await page.getByRole('heading', { name: 'This record could not be found.' }).waitFor();
 await go('/unknown-route'); await page.getByRole('heading', { name: 'Page not found' }).waitFor();
 await go(''); await page.getByRole('button', { name: 'Language', exact: true }).click(); await page.waitForFunction(() => document.documentElement.dir === 'rtl');

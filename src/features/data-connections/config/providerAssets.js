@@ -1,13 +1,14 @@
-const BRAND_ASSET_ROOT = '/assets/brands';
+const BRAND_ASSET_ROOT = "/assets/brands";
 
 export const DATA_SOURCE_ASSETS = Object.freeze({
   googleAnalytics: `${BRAND_ASSET_ROOT}/google-analytics.svg`,
-  excel: `${BRAND_ASSET_ROOT}/excel.svg`,
+  excel: `${BRAND_ASSET_ROOT}/excel.svg`
 });
 
 export const PAYMENT_PROVIDER_ASSETS = Object.freeze({
   paypal: `${BRAND_ASSET_ROOT}/paypal.svg`,
   googlePay: `${BRAND_ASSET_ROOT}/google-pay.svg`,
+  stripe: `${BRAND_ASSET_ROOT}/stripe.svg`
 });
 
 export const DATABASE_PROVIDER_ASSETS = Object.freeze({
@@ -16,5 +17,5 @@ export const DATABASE_PROVIDER_ASSETS = Object.freeze({
   sqlServer: `${BRAND_ASSET_ROOT}/sql-server.svg`,
   mongodb: `${BRAND_ASSET_ROOT}/mongodb.svg`,
   oracle: `${BRAND_ASSET_ROOT}/oracle.svg`,
-  other: `${BRAND_ASSET_ROOT}/database.svg`,
+  other: `${BRAND_ASSET_ROOT}/database.svg`
 });

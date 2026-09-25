@@ -13,6 +13,7 @@ export const AUTH_STATUS = Object.freeze({
 const emptySessionState = {
   user: null,
   tenantId: null,
+  roleKey: null,
   roles: [],
   accessToken: null,
   refreshToken: null,

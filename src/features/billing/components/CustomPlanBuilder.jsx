@@ -1,62 +1,131 @@
-import { Bot, Boxes, Database, FileText, Plug, RefreshCw, Target, Users } from 'lucide-react';
-import { CustomPlanQuantityField } from './CustomPlanQuantityField.jsx';
-import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { CUSTOM_PLAN_LIMITS } from '../config/billingPreviewData.js';
+import {
+  BarChart3,
+  Bell,
+  Bot,
+  Boxes,
+  BrainCircuit,
+  Cable,
+  CircleDollarSign,
+  Database,
+  FileSearch,
+  FileText,
+  Gauge,
+  Globe2,
+  Image,
+  Lightbulb,
+  MessageSquare,
+  Package,
+  PackageSearch,
+  Search,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Users
+} from "lucide-react";
+import { CustomPlanQuantityField } from "./CustomPlanQuantityField.jsx";
+import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 
-const icons = {
-  products: Boxes,
-  competitors: Target,
-  ragQueries: Bot,
-  reports: FileText,
-  storageGb: Database,
-  teamMembers: Users,
-};
+const FEATURE_ICONS = Object.freeze({
+  dashboard_analytics: Gauge,
+  market_intelligence: BarChart3,
+  market_perception: BrainCircuit,
+  demand_prediction: TrendingUp,
+  inventory_intelligence: PackageSearch,
+  product_management: Boxes,
+  competitor_management: Search,
+  data_integration: Cable,
+  business_recommendations: Lightbulb,
+  system_alerts: Bell,
+  ai_pricing: CircleDollarSign,
+  sentiment_analysis: MessageSquare,
+  rag_assistant: Bot,
+  document_extraction: FileSearch,
+  report_generation: FileText,
+  marketing_image_generation: Image,
+  tracked_competitors: Target,
+  tracked_products: Package,
+  connected_data_sources: Globe2,
+  team_members: Users,
+  document_storage_gb: Database
+});
 
-export function CustomPlanBuilder({ configuration, onChange }) {
-  const { locale, t } = useI18n();
-  const formatNumber = (value) => new Intl.NumberFormat(locale === 'ar' ? 'ar-JO' : 'en-US').format(value);
+const iconFor = (code = "") => FEATURE_ICONS[code.toLowerCase()] ?? Sparkles;
+
+export function CustomPlanBuilder({
+  features = [],
+  configuration = {},
+  onChange
+}) {
+  const { locale } = useI18n();
+  const formatNumber = (value) =>
+    new Intl.NumberFormat(locale === "ar" ? "ar-JO" : "en-US").format(value);
 
   return (
     <div className="ceopro-custom-plan-controls">
       <div className="ceopro-custom-plan-range-grid">
-        {Object.entries(CUSTOM_PLAN_LIMITS).map(([key, limit]) => {
-          const Icon = icons[key];
-          const unit = key === 'storageGb' ? ' GB' : '';
+        {features.map((feature) => {
+          const Icon = iconFor(feature.code);
+          const selected = Boolean(configuration[feature.id]?.selected);
+          const value =
+            configuration[feature.id]?.limitValue ?? feature.min ?? 0;
+          const name =
+            locale === "ar" && feature.name_ar ? feature.name_ar : feature.name;
+          const description =
+            locale === "ar" && feature.description_ar
+              ? feature.description_ar
+              : feature.description;
+          const unit =
+            locale === "ar" ? feature.unit_ar || feature.unit : feature.unit;
+
           return (
-            <CustomPlanQuantityField
-              key={key}
-              label={t(`billing.custom.fields.${key}.label`)}
-              description={t(`billing.custom.fields.${key}.description`)}
-              value={configuration[key]}
-              min={limit.min}
-              max={limit.max}
-              onChange={(value) => onChange(key, value)}
-              formatValue={(value) => `${formatNumber(value)}${unit}`}
-              icon={<Icon size={18} />}
-            />
+            <article
+              className={`ceopro-custom-feature-card ${selected ? "is-selected" : ""}`}
+              key={feature.id}
+            >
+              <label className="ceopro-custom-feature-card__toggle">
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  aria-label={name}
+                  onChange={(event) =>
+                    onChange(feature.id, {
+                      selected: event.target.checked,
+                      limitValue: feature.type === "limit" ? value : null
+                    })
+                  }
+                />
+
+                <span className="ceopro-range-field__icon" aria-hidden="true">
+                  <Icon size={19} />
+                </span>
+
+                <span>
+                  <strong>{name}</strong>
+                  {description && <small>{description}</small>}
+                </span>
+              </label>
+
+              {feature.type === "limit" && selected && (
+                <CustomPlanQuantityField
+                  label={name}
+                  value={value}
+                  min={feature.min ?? 0}
+                  max={feature.max ?? Math.max(value, 1)}
+                  step={feature.step ?? 1}
+                  onChange={(nextValue) =>
+                    onChange(feature.id, {
+                      selected: true,
+                      limitValue: nextValue
+                    })
+                  }
+                  formatValue={(nextValue) =>
+                    `${formatNumber(nextValue)}${unit ? ` ${unit}` : ""}`
+                  }
+                />
+              )}
+            </article>
           );
         })}
-      </div>
-
-      <div className="ceopro-custom-plan-choice-grid">
-        <fieldset className="ceopro-custom-choice-card">
-          <legend><Plug size={19} aria-hidden="true" /> <span>{t('billing.custom.integrations.label')}</span></legend>
-          <small>{t('billing.custom.integrations.description')}</small>
-          <div>
-            {['none', 'shopify', 'ga4', 'pos', 'other'].map((value) => (
-              <label key={value}><input type="radio" name="custom-integrations" checked={configuration.integrations === value} onChange={() => onChange('integrations', value)} />{t(`billing.custom.integrations.options.${value}`)}</label>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="ceopro-custom-choice-card">
-          <legend><RefreshCw size={19} aria-hidden="true" /> <span>{t('billing.custom.frequency.label')}</span></legend>
-          <small>{t('billing.custom.frequency.description')}</small>
-          <div>
-            {['daily', 'hourly', 'realTime'].map((value) => (
-              <label key={value}><input type="radio" name="update-frequency" checked={configuration.updateFrequency === value} onChange={() => onChange('updateFrequency', value)} />{t(`billing.custom.frequency.options.${value}`)}</label>
-            ))}
-          </div>
-        </fieldset>
       </div>
     </div>
   );

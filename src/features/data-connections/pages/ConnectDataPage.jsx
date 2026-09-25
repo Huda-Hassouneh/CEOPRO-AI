@@ -17,6 +17,7 @@ import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge.jsx';
 import { DATA_SOURCE_ASSETS } from '../config/providerAssets.js';
 import { dataConnectionsApi } from '../api/dataConnectionsApi.js';
 import { useDataConnections } from '../hooks/useDataConnections.js';
+import { FeatureGate } from '../../billing/components/FeatureGate.jsx';
 import '../styles/DataConnections.css';
 import '../../data-ingestion/styles/DataIngestion.css';
 import '../styles/ConnectDataPage.css';
@@ -106,7 +107,7 @@ export function ConnectDataPage() {
       <div className="connect-data-section__header"><div><h2>{t('connectData.upload.title')}</h2><p>{t('connectData.upload.subtitle')}</p></div></div>
       <div className="connect-data-upload__grid">
         <div><h3>{t('connectData.upload.templates')}</h3><div className="ceopro-template-options">{DATA_TEMPLATE_OPTIONS.map((template) => <button className="ceopro-template-option" type="button" key={template.id} onClick={() => downloadTemplate(template)}><img src={template.icon} alt="" /><strong>{t(template.labelKey)}</strong><span>{downloadedTemplates.includes(template.id) ? <Check size={14} /> : <Download size={14} />}{t(downloadedTemplates.includes(template.id) ? 'dataIngestion.templates.downloaded' : 'dataIngestion.templates.download')}</span></button>)}</div></div>
-        <div><h3>{t('connectData.upload.files')}</h3><FileUploadDropzone files={files} onFilesChange={setFiles} />{files.length > 0 && <Button className="connect-data-prepare" size="sm" onClick={prepareImport}>{t('connectData.actions.prepareImport')}</Button>}</div>
+        <div><h3>{t('connectData.upload.files')}</h3><FeatureGate featureCode="document_extraction" mode="consume" compact><div><FileUploadDropzone files={files} onFilesChange={setFiles} />{files.length > 0 && <Button className="connect-data-prepare" size="sm" onClick={prepareImport}>{t('connectData.actions.prepareImport')}</Button>}</div></FeatureGate></div>
       </div>
     </section>
 
@@ -117,7 +118,9 @@ export function ConnectDataPage() {
 
     <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={t('connectData.add.title')} closeLabel={t('common.close')} maxWidth="900px">
       <p className="connect-data-modal-copy">{t('connectData.add.subtitle')}</p>
-      <div className="ceopro-data-source-grid connect-data-source-selector">{data.availableSourceTypes.map((type) => <DataSourceCard key={type} icon={sourceIcons[type]} title={t(`dataConnections.${type === 'businessSystem' ? 'businessSystem' : type}.title`)} description={t(`dataConnections.${type === 'businessSystem' ? 'businessSystem' : type}.description`)} actionLabel={type === 'documents' ? t('dataConnections.documents.action') : type === 'businessSystem' ? t('dataConnections.businessSystem.action') : type === 'website' ? t('dataConnections.website.action') : t('dataConnections.analytics.action')} showStatus={false} loading={busySource === type} actionDisabled={type === 'website' && !websiteUrl.trim()} onAction={() => connectSource(type)}>{type === 'website' && <input className="ceopro-setup-url-input" type="url" value={websiteUrl} onChange={(event) => setWebsiteUrl(event.target.value)} placeholder="https://your-website.com" aria-label={t('dataConnections.website.inputLabel')} />}</DataSourceCard>)}</div>
+      <FeatureGate featureCode="connected_data_sources" mode="consume" compact>
+        <div className="ceopro-data-source-grid connect-data-source-selector">{data.availableSourceTypes.map((type) => <DataSourceCard key={type} icon={sourceIcons[type]} title={t(`dataConnections.${type === 'businessSystem' ? 'businessSystem' : type}.title`)} description={t(`dataConnections.${type === 'businessSystem' ? 'businessSystem' : type}.description`)} actionLabel={type === 'documents' ? t('dataConnections.documents.action') : type === 'businessSystem' ? t('dataConnections.businessSystem.action') : type === 'website' ? t('dataConnections.website.action') : t('dataConnections.analytics.action')} showStatus={false} loading={busySource === type} actionDisabled={type === 'website' && !websiteUrl.trim()} onAction={() => connectSource(type)}>{type === 'website' && <input className="ceopro-setup-url-input" type="url" value={websiteUrl} onChange={(event) => setWebsiteUrl(event.target.value)} placeholder="https://your-website.com" aria-label={t('dataConnections.website.inputLabel')} />}</DataSourceCard>)}</div>
+      </FeatureGate>
     </Modal>
 
     <Modal isOpen={Boolean(detailSource)} onClose={() => setDetailSource(null)} title={detailSource ? localize(detailSource.name) : ''} closeLabel={t('common.close')} maxWidth="560px">

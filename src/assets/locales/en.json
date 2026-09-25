@@ -1,5 +1,6 @@
 {
   "common": {
+    "custom": "custom",
     "brand": "CEOPRO AI",
     "brandShort": "CEO PRO",
     "loading": "Loading...",
@@ -7,146 +8,981 @@
     "englishShort": "EN",
     "arabicShort": "AR",
     "arabic": "العربية",
-    "close": "Close"
+    "close": "Close",
+    "keep": "No, Keep It",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "remove": "Remove",
+    "retry": "Retry",
+    "unlimited": "Unlimited"
   },
   "businessShell": {
     "brandSubtitle": "Business Intelligence",
-    "navigation": { "label": "Business navigation", "primary": "Primary navigation", "secondary": "Account navigation", "dashboard": "Dashboard", "market": "Market Intelligence", "forecasts": "Demand Prediction", "rag": "RAG Assistant", "connectData": "Connect Data", "reports": "Reports", "settings": "Settings", "billing": "Billing", "logout": "Logout" },
-    "search": { "label": "Global search", "placeholder": "Search products, competitors, insights...", "clear": "Clear search" },
-    "notifications": { "label": "Notifications", "unread": "Unread notifications", "preview": "No new notifications" },
-    "profile": { "label": "Account profile", "welcome": "Welcome back," },
-    "mobile": { "openMenu": "Open navigation" }
+    "navigation": {
+      "label": "Business navigation",
+      "primary": "Primary navigation",
+      "secondary": "Account navigation",
+      "dashboard": "Dashboard",
+      "market": "Market Intelligence",
+      "forecasts": "Demand Prediction",
+      "rag": "RAG Assistant",
+      "connectData": "Connect Data",
+      "reports": "Reports",
+      "settings": "Settings",
+      "billing": "Billing",
+      "logout": "Logout"
+    },
+    "search": {
+      "label": "Global search",
+      "placeholder": "Search products, competitors, insights...",
+      "clear": "Clear search"
+    },
+    "notifications": {
+      "label": "Notifications",
+      "unread": "Unread notifications",
+      "preview": "No new notifications"
+    },
+    "profile": {
+      "label": "Account profile",
+      "welcome": "Welcome back,"
+    },
+    "mobile": {
+      "openMenu": "Open navigation"
+    }
   },
   "dataStatus": {
-    "verified": { "label": "Verified", "description": "Based on connected or uploaded business data." },
-    "derived": { "label": "Derived", "description": "Calculated from available business data." },
-    "estimated": { "label": "Estimated", "description": "Estimated using available data or AI models." }
+    "verified": {
+      "label": "Verified",
+      "description": "Based on connected or uploaded business data."
+    },
+    "derived": {
+      "label": "Derived",
+      "description": "Calculated from available business data."
+    },
+    "estimated": {
+      "label": "Estimated",
+      "description": "Estimated using available data or AI models."
+    }
   },
   "dashboard": {
     "executive": {
-  "subtitle": "Business performance and supported market signals",
-  "unavailable": "Not available",
-  "invoiceBasis": "Invoice totals · selected period",
-  "soldUnits": "Units sold · selected period",
-  "comparison": "Revenue vs previous {{days}} days",
-  "lowCount": "{{count}} low",
-  "inventoryBasis": "Of {{count}} inventory records · current snapshot",
-  "preview": "Preview data",
-  "previewNote": "Illustrative data as of {{date}}. Not connected to live results.",
-  "summary": "Business summary",
-  "products": "Total products",
-  "competitors": "Tracked competitors",
-  "competitiveness": "Price competitiveness",
-  "productScope": "Product: {{product}} · latest score",
-  "salesOverview": "Sales overview",
-  "salesBasis": "Invoice revenue · selected period · grouped by date",
-  "forecast": "Demand forecast",
-  "modelOutput": "Model output · latest product forecast",
-  "units": "units",
-  "target": "Target date: {{date}}",
-  "range": "80% confidence range",
-  "uncertainty": "Actual demand may fall outside this range.",
-  "viewForecast": "View forecast",
-  "sentiment": "Market sentiment",
-  "businessScope": "Model output · business review summary",
-  "sentimentScale": "on a −1 to 1 scale",
-  "lowReliability": "Limited reliability: review sample is below the required size.",
-  "positive": "Positive",
-  "neutral": "Neutral",
-  "negative": "Negative",
-  "competitorOverview": "Competitor overview",
-  "compositeBasis": "Composite score · 0–100 · latest available",
-  "missingFactors": "Unavailable factors: {{factors}}",
-  "price": "Price",
-  "activity": "Activity",
-  "viewMarket": "View market intelligence",
-  "alerts": "System alerts",
-  "stockRule": "Current inventory at or below its reorder level",
-  "stockDetails": "Stock: {{stock}} · Reorder level: {{level}}",
-  "emptyTitle": "No dashboard data yet",
-  "emptyDescription": "Connect data sources to populate the dashboard.",
-  "errorTitle": "Dashboard unavailable",
-  "error": "Unable to load the dashboard. Please try again."
-},
-    "page": { "title": "Executive Dashboard", "subtitle": "Overview of your business performance and key insights." },
-    "sections": { "kpis": "Dashboard summary", "quickActions": "Quick Actions", "insights": "AI Insights Feed", "trends": "Trends & Forecasts", "market": "Market & Competitors", "recentActivity": "Recent Activity" },
-    "controls": { "dateRange": "Date range", "last30": "Last 30 days", "last7": "Last 7 days", "last90": "Last 90 days", "export": "Export Report", "newQuery": "New Query", "viewAll": "View All", "connectData": "Connect Data", "retry": "Try again" },
-    "kpis": { "revenue": "Revenue", "sales": "Sales", "growth": "Growth", "inventory": "Inventory Status", "competitors": "Competitors Tracked", "sentiment": "Market Sentiment", "rag": "RAG Queries", "totalSales": "Total Sales", "totalProducts": "Total Products", "trackedCompetitors": "Tracked Competitors", "revenues": "Revenues", "inventoryStatus": "Inventory Status", "marketSentiment": "Market Sentiment", "vsLastMonth": "vs last month", "thisMonth": "this month", "sentimentBasis": "points this month", "today": "Today", "thisWeek": "vs this week", "inStock": "In stock" },
-    "quickActions": { "askAi": "Ask AI", "askAiDescription": "Get instant insights", "addData": "Add Data", "addDataDescription": "Upload files or connect", "quickSale": "Quick Sale", "quickSaleDescription": "Record a new sale", "forecast": "View Forecast", "forecastDescription": "See detailed predictions" },
-    "insights": { "competitorAlert": "Competitor Alert", "demandSpike": "Demand Spike", "opportunity": "Opportunity", "tenMinutes": "10 min ago", "twoHours": "2 hours ago", "fiveHours": "5 hours ago", "priceDropTitle": "GlobalTech announces sudden price drop on core API services.", "priceDropDescription": "Our AI indicates this is a strategic move to capture market share in Q3.", "demandTitle": "Unusual volume detected for Enterprise SLA inquiries.", "demandDescription": "Social listening shows a 40% WoW increase in enterprise-level interest.", "opportunityTitle": "New market opportunity in Irbid region.", "opportunityDescription": "Rising demand for home internet packages. Consider targeted campaign." },
-    "alert": { "title": "Today's Top Alert", "priority": "High Priority", "headline": "Inventory for Router X200 is running low.", "description": "Only 12 units left in stock. Based on current sales rate, it may run out in 5 days.", "viewProduct": "View Product", "dismiss": "Dismiss" },
-    "recommendation": { "title": "Top Recommendation", "badge": "AI Powered", "headline": "Consider increasing marketing spend in Irbid.", "description": "Our analysis shows an expected increase in demand next month based on search trends and competitor activity.", "viewDetails": "View Details" },
-    "trends": { "demandTitle": "Demand Change", "demandSubtitle": "Expected demand increase next month (Amman)", "demandCallout": "Expected demand increase next month", "forecastTitle": "Next Week Forecast", "forecastSubtitle": "Total sales forecast", "homeInternet": "Home Internet", "totalSales": "Total Sales", "demandChartLabel": "Demand change by month", "forecastChartLabel": "Actual and forecast sales for the week", "actual": "Actual", "forecast": "Forecast" },
-    "market": { "activityTitle": "Market Activity", "changesTitle": "Recent Competitor Changes", "high": "High", "medium": "Medium", "low": "Low", "others": "Others", "other": "Other", "orangeDescription": "Strong activity - High visibility and competitive moves", "zainDescription": "Strong activity - Active promotions and product launches", "umniahDescription": "Moderate activity - Stable presence with limited recent changes", "othersDescription": "Lower activity - Niche players with limited presence", "zainChange": "+ New unlimited package launched", "umniahChange": "- 10% price drop on 50 Mbps", "orangeChange": "Updated bundle pricing", "otherChange": "Launched new home solutions", "twoDays": "2 days ago", "fourDays": "4 days ago", "sixDays": "6 days ago", "oneWeek": "1 week ago" },
-    "sales": { "title": "Sales Overview", "subtitle": "Total sales in {{currency}} over the last {{days}} days", "tooltip": "Sales" },
-    "inventory": { "title": "Inventory Status", "subtitle": "Current availability across your catalog", "inStock": "In Stock", "lowStock": "Low Stock", "outOfStock": "Out of Stock", "totalItems": "Total Items", "view": "View Inventory", "detailsTitle": "Inventory Details", "detailsSubtitle": "Current quantities for connected catalog items." },
-    "forecast": { "title": "Demand Forecast (Next Week)", "subtitle": "Predicted demand by product", "view": "View Forecast" },
-    "competitors": { "title": "Competitor Price Comparison", "subtitle": "Latest comparable prices in your market", "view": "View Competitor" },
-    "tables": { "product": "Product", "quantity": "Quantity", "forecastedDemand": "Forecasted Demand (Units)", "ourPrice": "Our Price (JOD)", "competitorPrice": "Lowest Competitor Price (JOD)" },
-    "sentiment": { "positive": "Positive", "neutral": "Neutral", "negative": "Negative", "mixed": "Mixed" },
-    "empty": { "salesTitle": "No sales data", "salesDescription": "Sales will appear when business data is available.", "inventoryTitle": "No inventory data", "inventoryDescription": "Connect a catalog or upload inventory data to get started.", "forecastTitle": "No forecast yet", "forecastDescription": "Generate a forecast from the Demand Prediction page.", "competitorsTitle": "No competitors tracked", "competitorsDescription": "Track competitors to compare current product pricing.", "activityTitle": "No recent activity", "activityDescription": "Company activity will appear here as it happens." },
-    "activity": { "title": "Recent Activity", "subtitle": "Latest updates across your company workspace", "historyTitle": "Activity History", "date": "Date", "activity": "Activity", "details": "Details", "status": "Status", "fileUploaded": "File Uploaded", "competitorTracked": "New Competitor Tracked", "forecastGenerated": "Forecast Generated", "productAdded": "Product Added", "completed": "Completed", "statuses": { "completed": "Completed", "processing": "Processing", "failed": "Failed" } }
-  },
-  "marketProductData": { "ultra500": "High-speed fiber internet package designed for homes, offering reliable and ultra-fast connectivity.", "ultra250": "Balanced fiber package for connected households.", "postpaid50": "High-data 5G postpaid package.", "postpaid30": "Accessible 5G postpaid plan.", "orangeTv": "Digital entertainment service for Orange customers.", "perMonth": "per month", "providerSeries": "Provider", "industryAverage": "Industry Average" },
-  "marketScoped": {
-    "common": { "all": "All", "actions": "Actions", "viewDetails": "View Details", "viewAll": "View All", "active": "Active", "positive": "Positive", "neutral": "Neutral", "negative": "Negative", "high": "High", "medium": "Medium", "low": "Low", "highPotential": "High Potential", "mediumPotential": "Medium Potential", "lowPotential": "Low Potential", "lastPeriod": "vs last period", "monthAgo": "{{count}} month ago", "close": "Close", "previewActivity": "Preview market activity" },
-    "months": { "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr", "may": "May", "jun": "Jun", "jul": "Jul", "aug": "Aug", "sep": "Sep", "oct": "Oct", "nov": "Nov", "dec": "Dec" },
-    "category": { "homeInternet": "Home Internet", "smartHome": "Smart Home", "mobile": "Mobile", "business": "Business", "digitalServices": "Digital Services" },
-    "type": { "fiber": "Fiber", "postpaid": "Postpaid", "tv": "TV", "productGap": "Product Gap", "bundle": "Bundle", "service": "Service" },
-    "product": { "searchDemand": "Search and demand interest over the last 12 months", "otherProducts": "Other products from {{provider}}", "marketDemand": "Market demand", "priceIndex": "Price index", "priceUpdated": "Price updated", "priceUpdatedDetail": "Price changed from 24.00 to 22.00 JOD", "promotion": "New promotion launched", "searchIncreased": "Increased search interest", "reviewsIncreased": "Customer reviews increased", "insight1": "Search interest for this product increased by 22% in the last 3 months.", "insight2": "High demand in urban areas, especially Amman and Zarqa.", "insight3": "Competitive pricing compared with similar packages.", "insight4": "Positive customer sentiment regarding speed and reliability.", "insight5": "Opportunity to target new residential areas with focused campaigns.", "contract12": "12 months", "monthly": "Monthly", "nationwide": "Nationwide", "majorCities": "Major cities" },
-    "opportunities": { "aiTitle": "AI Market Insight", "aiText": "The home internet and smart home segments show the highest growth potential in Jordan, driven by increasing remote work, student enrollment, and expanding fiber infrastructure.", "fullAnalysis": "View Full Analysis", "industry": "Industry", "opportunityType": "Opportunity Type", "potential": "Potential", "timePeriod": "Time Period", "next12": "Next 12 Months", "search": "Search opportunities...", "topSubtitle": "Highest potential opportunities based on AI analysis.", "allSubtitle": "Complete list of AI-identified product opportunities.", "opportunity": "Opportunity", "category": "Category", "marketSize": "Est. Market Size", "demandGrowth": "Demand Growth", "competition": "Competition", "sortPotential": "Sort by Potential", "showing": "Showing 1 to 10 of 18 opportunities", "remoteWork": "Remote Work Growth", "remoteWorkText": "Increased demand for higher internet speeds.", "digitalAdoption": "Digital Service Adoption", "digitalAdoptionText": "Growing interest in streaming and cloud services.", "smartInterest": "Smart Home Interest", "smartInterestText": "Rising demand for connected devices.", "marketSizeShort": "Market Size", "demandSignal": "Demand Signal", "competitionLevel": "Competition Level", "customerSentiment": "Market Sentiment", "competitorActivity": "Competitor Activity", "track": "Track Opportunity", "tracked": "Tracked" },
-    "opportunityData": {
-      "homeDemand": { "title": "High Demand for Home Internet in Irbid", "short": "High Speed Home Packages", "type": "500 Mbps+ internet packages", "description": "Increasing search interest and limited competitor promotions indicate growing demand for home internet services in Irbid.", "insight1": "Search interest for home internet in Irbid increased by 18% in the last 6 months.", "insight2": "Competitor promotions in the area have decreased, creating favorable market conditions.", "insight3": "Customer sentiment regarding internet speed and reliability is positive.", "insight4": "Population growth and new residential projects in Irbid are driving higher demand.", "action1": "Consider launching a targeted marketing campaign in Irbid.", "action2": "Explore special offers for new residential areas.", "action3": "Monitor competitor activity and adjust pricing accordingly." },
-      "smartBundle": { "title": "Smart Home Bundles", "type": "Internet and smart devices", "description": "Interest in smart home solutions and connected devices is increasing.", "insight": "Smart home searches continue to rise.", "action": "Test a bundled smart-home offer." },
-      "mobileBundle": { "title": "Mobile + Internet Bundles", "type": "Combined packages", "description": "Search volume for combined mobile and internet packages is rising.", "insight": "Bundled-plan comparisons are increasing.", "action": "Create a combined offer for pilot customers." },
-      "gaming": { "title": "Gaming Internet Packages", "type": "Low-latency gaming", "description": "Demand for low-latency gaming connectivity is growing.", "insight": "Gaming traffic is rising.", "action": "Test a low-latency package." },
-      "business": { "title": "Business Internet Solutions", "type": "SMEs and remote work", "description": "SMEs are seeking reliable internet and remote-work solutions.", "insight": "SME demand is expanding.", "action": "Target growing SMEs." },
-      "student": { "title": "Student Packages", "type": "Affordable student plans", "description": "Student demand rises around enrollment periods.", "insight": "Seasonal student demand is strong.", "action": "Launch before enrollment season." },
-      "streaming": { "title": "Streaming Bundles", "type": "Internet and TV services", "description": "Customers increasingly prefer combined streaming packages.", "insight": "Streaming engagement is rising.", "action": "Partner with a streaming provider." },
-      "security": { "title": "Security and Monitoring", "type": "Home security solutions", "description": "Interest in connected security solutions is accelerating.", "insight": "Security searches are increasing.", "action": "Bundle monitoring devices." },
-      "cloud": { "title": "Cloud Storage Add-ons", "type": "Additional cloud storage", "description": "Some customers want storage as a service add-on.", "insight": "Demand is moderate.", "action": "Validate willingness to pay." },
-      "backup": { "title": "Backup Internet Solutions", "type": "4G/5G backup packages", "description": "Businesses need resilient backup connectivity.", "insight": "Continuity needs are increasing.", "action": "Offer managed failover." }
+      "subtitle": "Business performance and supported market signals",
+      "unavailable": "Not available",
+      "invoiceBasis": "Invoice totals · selected period",
+      "soldUnits": "Units sold · selected period",
+      "comparison": "Revenue vs previous {{days}} days",
+      "lowCount": "{{count}} low",
+      "inventoryBasis": "Of {{count}} inventory records · current snapshot",
+      "preview": "Preview data",
+      "previewNote": "Illustrative data as of {{date}}. Not connected to live results.",
+      "summary": "Business summary",
+      "products": "Total products",
+      "competitors": "Tracked competitors",
+      "competitiveness": "Price competitiveness",
+      "productScope": "Product: {{product}} · latest score",
+      "salesOverview": "Sales overview",
+      "salesBasis": "Invoice revenue · selected period · grouped by date",
+      "forecast": "Demand forecast",
+      "modelOutput": "Model output · latest product forecast",
+      "units": "units",
+      "target": "Target date: {{date}}",
+      "range": "80% confidence range",
+      "uncertainty": "Actual demand may fall outside this range.",
+      "viewForecast": "View forecast",
+      "sentiment": "Market sentiment",
+      "businessScope": "Model output · business review summary",
+      "sentimentScale": "on a −1 to 1 scale",
+      "lowReliability": "Limited reliability: review sample is below the required size.",
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "competitorOverview": "Competitor overview",
+      "compositeBasis": "Composite score · 0–100 · latest available",
+      "missingFactors": "Unavailable factors: {{factors}}",
+      "price": "Price",
+      "activity": "Activity",
+      "viewMarket": "View market intelligence",
+      "alerts": "System alerts",
+      "stockRule": "Current inventory at or below its reorder level",
+      "stockDetails": "Stock: {{stock}} · Reorder level: {{level}}",
+      "emptyTitle": "No dashboard data yet",
+      "emptyDescription": "Connect data sources to populate the dashboard.",
+      "errorTitle": "Dashboard unavailable",
+      "error": "Unable to load the dashboard. Please try again."
     },
-    "leaderboard": { "export": "Export PDF", "industry": "Industry", "period": "Time Period", "sort": "Sort by", "view": "View", "homeInternet": "Home Internet", "quarter": "Q3 2026", "top10": "Top 10", "search": "Search competitors...", "competitor": "Competitor", "priceScore": "Price Score", "sentimentScore": "Sentiment Score", "activityScore": "Market Activity", "compositeScore": "Composite Score", "trend": "Trend", "showing": "Showing 1 to 10 of 24 competitors", "previous": "Previous", "next": "Next", "viewAll": "View All", "priceMethod": "Price Competitiveness", "priceMethodText": "Relative pricing and price stability", "sentimentMethod": "Customer Sentiment", "sentimentMethodText": "Customer reviews and social media sentiment", "activityMethod": "Market Activity", "activityMethodText": "Product launches, marketing activity, and market presence", "varietyMethod": "Product Variety", "varietyMethodText": "Range of products and packages offered", "growthMethod": "Historical Growth", "growthMethodText": "Growth in search interest and demand over time", "insight1": "Stratos Analytics maintains the leading position with strong performance across all metrics.", "insight2": "Orange has moved up 3 positions this quarter, driven by increased marketing activity.", "insight3": "Price competition is intensifying across the market.", "orange": "Orange", "fibernet": "FiberNet", "speedConnect": "Speed Connect", "novaQuery": "NovaQuery", "linkPlus": "LinkPlus", "umniah": "Umniah" }
+    "page": {
+      "title": "Executive Dashboard",
+      "subtitle": "Overview of your business performance and key insights."
+    },
+    "sections": {
+      "kpis": "Dashboard summary",
+      "quickActions": "Quick Actions",
+      "insights": "AI Insights Feed",
+      "trends": "Trends & Forecasts",
+      "market": "Market & Competitors",
+      "recentActivity": "Recent Activity"
+    },
+    "controls": {
+      "dateRange": "Date range",
+      "last30": "Last 30 days",
+      "last7": "Last 7 days",
+      "last90": "Last 90 days",
+      "export": "Export Report",
+      "newQuery": "New Query",
+      "viewAll": "View All",
+      "connectData": "Connect Data",
+      "retry": "Try again"
+    },
+    "kpis": {
+      "revenue": "Revenue",
+      "sales": "Sales",
+      "growth": "Growth",
+      "inventory": "Inventory Status",
+      "competitors": "Competitors Tracked",
+      "sentiment": "Market Sentiment",
+      "rag": "RAG Queries",
+      "totalSales": "Total Sales",
+      "totalProducts": "Total Products",
+      "trackedCompetitors": "Tracked Competitors",
+      "revenues": "Revenues",
+      "inventoryStatus": "Inventory Status",
+      "marketSentiment": "Market Sentiment",
+      "vsLastMonth": "vs last month",
+      "thisMonth": "this month",
+      "sentimentBasis": "points this month",
+      "today": "Today",
+      "thisWeek": "vs this week",
+      "inStock": "In stock"
+    },
+    "quickActions": {
+      "askAi": "Ask AI",
+      "askAiDescription": "Get instant insights",
+      "addData": "Add Data",
+      "addDataDescription": "Upload files or connect",
+      "quickSale": "Quick Sale",
+      "quickSaleDescription": "Record a new sale",
+      "forecast": "View Forecast",
+      "forecastDescription": "See detailed predictions"
+    },
+    "insights": {
+      "competitorAlert": "Competitor Alert",
+      "demandSpike": "Demand Spike",
+      "opportunity": "Opportunity",
+      "tenMinutes": "10 min ago",
+      "twoHours": "2 hours ago",
+      "fiveHours": "5 hours ago",
+      "priceDropTitle": "GlobalTech announces sudden price drop on core API services.",
+      "priceDropDescription": "Our AI indicates this is a strategic move to capture market share in Q3.",
+      "demandTitle": "Unusual volume detected for Enterprise SLA inquiries.",
+      "demandDescription": "Social listening shows a 40% WoW increase in enterprise-level interest.",
+      "opportunityTitle": "New market opportunity in Irbid region.",
+      "opportunityDescription": "Rising demand for home internet packages. Consider targeted campaign."
+    },
+    "alert": {
+      "title": "Today's Top Alert",
+      "priority": "High Priority",
+      "headline": "Inventory for Router X200 is running low.",
+      "description": "Only 12 units left in stock. Based on current sales rate, it may run out in 5 days.",
+      "viewProduct": "View Product",
+      "dismiss": "Dismiss"
+    },
+    "recommendation": {
+      "title": "Top Recommendation",
+      "badge": "AI Powered",
+      "headline": "Consider increasing marketing spend in Irbid.",
+      "description": "Our analysis shows an expected increase in demand next month based on search trends and competitor activity.",
+      "viewDetails": "View Details"
+    },
+    "trends": {
+      "demandTitle": "Demand Change",
+      "demandSubtitle": "Expected demand increase next month (Amman)",
+      "demandCallout": "Expected demand increase next month",
+      "forecastTitle": "Next Week Forecast",
+      "forecastSubtitle": "Total sales forecast",
+      "homeInternet": "Home Internet",
+      "totalSales": "Total Sales",
+      "demandChartLabel": "Demand change by month",
+      "forecastChartLabel": "Actual and forecast sales for the week",
+      "actual": "Actual",
+      "forecast": "Forecast"
+    },
+    "market": {
+      "activityTitle": "Market Activity",
+      "changesTitle": "Recent Competitor Changes",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "others": "Others",
+      "other": "Other",
+      "orangeDescription": "Strong activity - High visibility and competitive moves",
+      "zainDescription": "Strong activity - Active promotions and product launches",
+      "umniahDescription": "Moderate activity - Stable presence with limited recent changes",
+      "othersDescription": "Lower activity - Niche players with limited presence",
+      "zainChange": "+ New unlimited package launched",
+      "umniahChange": "- 10% price drop on 50 Mbps",
+      "orangeChange": "Updated bundle pricing",
+      "otherChange": "Launched new home solutions",
+      "twoDays": "2 days ago",
+      "fourDays": "4 days ago",
+      "sixDays": "6 days ago",
+      "oneWeek": "1 week ago"
+    },
+    "sales": {
+      "title": "Sales Overview",
+      "subtitle": "Total sales in {{currency}} over the last {{days}} days",
+      "tooltip": "Sales"
+    },
+    "inventory": {
+      "title": "Inventory Status",
+      "subtitle": "Current availability across your catalog",
+      "inStock": "In Stock",
+      "lowStock": "Low Stock",
+      "outOfStock": "Out of Stock",
+      "totalItems": "Total Items",
+      "view": "View Inventory",
+      "detailsTitle": "Inventory Details",
+      "detailsSubtitle": "Current quantities for connected catalog items."
+    },
+    "forecast": {
+      "title": "Demand Forecast (Next Week)",
+      "subtitle": "Predicted demand by product",
+      "view": "View Forecast"
+    },
+    "competitors": {
+      "title": "Competitor Price Comparison",
+      "subtitle": "Latest comparable prices in your market",
+      "view": "View Competitor"
+    },
+    "tables": {
+      "product": "Product",
+      "quantity": "Quantity",
+      "forecastedDemand": "Forecasted Demand (Units)",
+      "ourPrice": "Our Price (JOD)",
+      "competitorPrice": "Lowest Competitor Price (JOD)"
+    },
+    "sentiment": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "mixed": "Mixed"
+    },
+    "empty": {
+      "salesTitle": "No sales data",
+      "salesDescription": "Sales will appear when business data is available.",
+      "inventoryTitle": "No inventory data",
+      "inventoryDescription": "Connect a catalog or upload inventory data to get started.",
+      "forecastTitle": "No forecast yet",
+      "forecastDescription": "Generate a forecast from the Demand Prediction page.",
+      "competitorsTitle": "No competitors tracked",
+      "competitorsDescription": "Track competitors to compare current product pricing.",
+      "activityTitle": "No recent activity",
+      "activityDescription": "Company activity will appear here as it happens."
+    },
+    "activity": {
+      "title": "Recent Activity",
+      "subtitle": "Latest updates across your company workspace",
+      "historyTitle": "Activity History",
+      "date": "Date",
+      "activity": "Activity",
+      "details": "Details",
+      "status": "Status",
+      "fileUploaded": "File Uploaded",
+      "competitorTracked": "New Competitor Tracked",
+      "forecastGenerated": "Forecast Generated",
+      "productAdded": "Product Added",
+      "completed": "Completed",
+      "statuses": {
+        "completed": "Completed",
+        "processing": "Processing",
+        "failed": "Failed"
+      }
+    }
+  },
+  "marketProductData": {
+    "ultra500": "High-speed fiber internet package designed for homes, offering reliable and ultra-fast connectivity.",
+    "ultra250": "Balanced fiber package for connected households.",
+    "postpaid50": "High-data 5G postpaid package.",
+    "postpaid30": "Accessible 5G postpaid plan.",
+    "orangeTv": "Digital entertainment service for Orange customers.",
+    "perMonth": "per month",
+    "providerSeries": "Provider",
+    "industryAverage": "Industry Average"
+  },
+  "marketScoped": {
+    "common": {
+      "all": "All",
+      "actions": "Actions",
+      "viewDetails": "View Details",
+      "viewAll": "View All",
+      "active": "Active",
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "highPotential": "High Potential",
+      "mediumPotential": "Medium Potential",
+      "lowPotential": "Low Potential",
+      "lastPeriod": "vs last period",
+      "monthAgo": "{{count}} month ago",
+      "close": "Close",
+      "previewActivity": "Preview market activity"
+    },
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "category": {
+      "homeInternet": "Home Internet",
+      "smartHome": "Smart Home",
+      "mobile": "Mobile",
+      "business": "Business",
+      "digitalServices": "Digital Services"
+    },
+    "type": {
+      "fiber": "Fiber",
+      "postpaid": "Postpaid",
+      "tv": "TV",
+      "productGap": "Product Gap",
+      "bundle": "Bundle",
+      "service": "Service"
+    },
+    "product": {
+      "searchDemand": "Search and demand interest over the last 12 months",
+      "otherProducts": "Other products from {{provider}}",
+      "marketDemand": "Market demand",
+      "priceIndex": "Price index",
+      "priceUpdated": "Price updated",
+      "priceUpdatedDetail": "Price changed from 24.00 to 22.00 JOD",
+      "promotion": "New promotion launched",
+      "searchIncreased": "Increased search interest",
+      "reviewsIncreased": "Customer reviews increased",
+      "insight1": "Search interest for this product increased by 22% in the last 3 months.",
+      "insight2": "High demand in urban areas, especially Amman and Zarqa.",
+      "insight3": "Competitive pricing compared with similar packages.",
+      "insight4": "Positive customer sentiment regarding speed and reliability.",
+      "insight5": "Opportunity to target new residential areas with focused campaigns.",
+      "contract12": "12 months",
+      "monthly": "Monthly",
+      "nationwide": "Nationwide",
+      "majorCities": "Major cities"
+    },
+    "opportunities": {
+      "aiTitle": "AI Market Insight",
+      "aiText": "The home internet and smart home segments show the highest growth potential in Jordan, driven by increasing remote work, student enrollment, and expanding fiber infrastructure.",
+      "fullAnalysis": "View Full Analysis",
+      "industry": "Industry",
+      "opportunityType": "Opportunity Type",
+      "potential": "Potential",
+      "timePeriod": "Time Period",
+      "next12": "Next 12 Months",
+      "search": "Search opportunities...",
+      "topSubtitle": "Highest potential opportunities based on AI analysis.",
+      "allSubtitle": "Complete list of AI-identified product opportunities.",
+      "opportunity": "Opportunity",
+      "category": "Category",
+      "marketSize": "Est. Market Size",
+      "demandGrowth": "Demand Growth",
+      "competition": "Competition",
+      "sortPotential": "Sort by Potential",
+      "showing": "Showing 1 to 10 of 18 opportunities",
+      "remoteWork": "Remote Work Growth",
+      "remoteWorkText": "Increased demand for higher internet speeds.",
+      "digitalAdoption": "Digital Service Adoption",
+      "digitalAdoptionText": "Growing interest in streaming and cloud services.",
+      "smartInterest": "Smart Home Interest",
+      "smartInterestText": "Rising demand for connected devices.",
+      "marketSizeShort": "Market Size",
+      "demandSignal": "Demand Signal",
+      "competitionLevel": "Competition Level",
+      "customerSentiment": "Market Sentiment",
+      "competitorActivity": "Competitor Activity",
+      "track": "Track Opportunity",
+      "tracked": "Tracked"
+    },
+    "opportunityData": {
+      "homeDemand": {
+        "title": "High Demand for Home Internet in Irbid",
+        "short": "High Speed Home Packages",
+        "type": "500 Mbps+ internet packages",
+        "description": "Increasing search interest and limited competitor promotions indicate growing demand for home internet services in Irbid.",
+        "insight1": "Search interest for home internet in Irbid increased by 18% in the last 6 months.",
+        "insight2": "Competitor promotions in the area have decreased, creating favorable market conditions.",
+        "insight3": "Customer sentiment regarding internet speed and reliability is positive.",
+        "insight4": "Population growth and new residential projects in Irbid are driving higher demand.",
+        "action1": "Consider launching a targeted marketing campaign in Irbid.",
+        "action2": "Explore special offers for new residential areas.",
+        "action3": "Monitor competitor activity and adjust pricing accordingly."
+      },
+      "smartBundle": {
+        "title": "Smart Home Bundles",
+        "type": "Internet and smart devices",
+        "description": "Interest in smart home solutions and connected devices is increasing.",
+        "insight": "Smart home searches continue to rise.",
+        "action": "Test a bundled smart-home offer."
+      },
+      "mobileBundle": {
+        "title": "Mobile + Internet Bundles",
+        "type": "Combined packages",
+        "description": "Search volume for combined mobile and internet packages is rising.",
+        "insight": "Bundled-plan comparisons are increasing.",
+        "action": "Create a combined offer for pilot customers."
+      },
+      "gaming": {
+        "title": "Gaming Internet Packages",
+        "type": "Low-latency gaming",
+        "description": "Demand for low-latency gaming connectivity is growing.",
+        "insight": "Gaming traffic is rising.",
+        "action": "Test a low-latency package."
+      },
+      "business": {
+        "title": "Business Internet Solutions",
+        "type": "SMEs and remote work",
+        "description": "SMEs are seeking reliable internet and remote-work solutions.",
+        "insight": "SME demand is expanding.",
+        "action": "Target growing SMEs."
+      },
+      "student": {
+        "title": "Student Packages",
+        "type": "Affordable student plans",
+        "description": "Student demand rises around enrollment periods.",
+        "insight": "Seasonal student demand is strong.",
+        "action": "Launch before enrollment season."
+      },
+      "streaming": {
+        "title": "Streaming Bundles",
+        "type": "Internet and TV services",
+        "description": "Customers increasingly prefer combined streaming packages.",
+        "insight": "Streaming engagement is rising.",
+        "action": "Partner with a streaming provider."
+      },
+      "security": {
+        "title": "Security and Monitoring",
+        "type": "Home security solutions",
+        "description": "Interest in connected security solutions is accelerating.",
+        "insight": "Security searches are increasing.",
+        "action": "Bundle monitoring devices."
+      },
+      "cloud": {
+        "title": "Cloud Storage Add-ons",
+        "type": "Additional cloud storage",
+        "description": "Some customers want storage as a service add-on.",
+        "insight": "Demand is moderate.",
+        "action": "Validate willingness to pay."
+      },
+      "backup": {
+        "title": "Backup Internet Solutions",
+        "type": "4G/5G backup packages",
+        "description": "Businesses need resilient backup connectivity.",
+        "insight": "Continuity needs are increasing.",
+        "action": "Offer managed failover."
+      }
+    },
+    "leaderboard": {
+      "export": "Export PDF",
+      "industry": "Industry",
+      "period": "Time Period",
+      "sort": "Sort by",
+      "view": "View",
+      "homeInternet": "Home Internet",
+      "quarter": "Q3 2026",
+      "top10": "Top 10",
+      "search": "Search competitors...",
+      "competitor": "Competitor",
+      "priceScore": "Price Score",
+      "sentimentScore": "Sentiment Score",
+      "activityScore": "Market Activity",
+      "compositeScore": "Composite Score",
+      "trend": "Trend",
+      "showing": "Showing 1 to 10 of 24 competitors",
+      "previous": "Previous",
+      "next": "Next",
+      "viewAll": "View All",
+      "priceMethod": "Price Competitiveness",
+      "priceMethodText": "Relative pricing and price stability",
+      "sentimentMethod": "Customer Sentiment",
+      "sentimentMethodText": "Customer reviews and social media sentiment",
+      "activityMethod": "Market Activity",
+      "activityMethodText": "Product launches, marketing activity, and market presence",
+      "varietyMethod": "Product Variety",
+      "varietyMethodText": "Range of products and packages offered",
+      "growthMethod": "Historical Growth",
+      "growthMethodText": "Growth in search interest and demand over time",
+      "insight1": "Stratos Analytics maintains the leading position with strong performance across all metrics.",
+      "insight2": "Orange has moved up 3 positions this quarter, driven by increased marketing activity.",
+      "insight3": "Price competition is intensifying across the market.",
+      "orange": "Orange",
+      "fibernet": "FiberNet",
+      "speedConnect": "Speed Connect",
+      "novaQuery": "NovaQuery",
+      "linkPlus": "LinkPlus",
+      "umniah": "Umniah"
+    }
   },
   "marketMain": {
-    "page": { "title": "Market Intelligence", "subtitle": "Track competitors, analyze market trends, and get AI-powered insights." },
-    "product": { "label": "Select Product" },
-    "actions": { "dateRange": "Date range", "exportPdf": "Export to PDF", "retry": "Try again", "connectData": "Connect Data", "raise": "Raise", "lower": "Lower", "hold": "Hold" },
-    "metrics": { "label": "Market intelligence summary", "totalCompetitors": "Total Competitors", "averageCompositeScore": "Average Composite Score", "topSegmentScore": "Top Segment Score", "averagePriceScore": "Avg Price Score" },
-    "ai": { "title": "AI Market Intelligence", "generated": "Generated {{date}}", "insight": "Market Insight", "drivers": "Key Market Drivers", "sentiment": "Market Sentiment", "confidence": "Confidence: {{value}}%" },
-    "driverTypes": { "pricing": "Pricing", "sentiment": "Customer sentiment", "demand": "Demand", "activity": "Competitor activity" },
-    "sentiments": { "positive": "Positive", "neutral": "Neutral", "negative": "Negative" },
-    "competitors": { "title": "Competitor Analysis", "subtitle": "Product-linked competitor signals for {{product}}." },
-    "pricing": { "title": "Pricing Recommendations", "subtitle": "Recommended pricing actions based on comparable market data." },
-    "opportunities": { "title": "Expansion Opportunities", "subtitle": "Other products that may offer attractive expansion potential.", "score": "Opportunity Score", "competitorCount": "{{count}} companies currently offer this product" },
-    "changes": { "title": "Recent Competitor Price Changes", "subtitle": "Latest detected pricing movements for the selected product.", "increased": "increase", "decreased": "decrease" },
-    "tables": { "product": "Product", "competitor": "Competitor", "pricingScore": "Pricing Score (1–10)", "compositeScore": "Composite Score (1–100)", "relevanceScore": "Relevance Score (1–100)", "presenceScore": "Market Presence Score (1–100)", "perception": "Market Perception", "currentPrice": "Current Price", "action": "Action", "suggestedPrice": "Suggested Price", "marketMin": "Market Min", "marketMax": "Market Max", "marketAverage": "Market Average", "marketMedian": "Market Median", "matchedCompetitors": "Matched Competitors", "explanation": "Explanation", "date": "Date", "previousPrice": "Previous Price", "newPrice": "New Price", "change": "Change", "detected": "Detected" },
-    "empty": { "productsTitle": "No products available", "productsDescription": "Connect or upload product data to begin market analysis.", "aiTitle": "No AI market insight", "aiDescription": "An insight has not been generated for this product yet.", "competitorsTitle": "No competitors tracked", "competitorsDescription": "Add a competitor to begin product-level comparison.", "pricingTitle": "No pricing data", "pricingDescription": "Pricing recommendations will appear when comparable data is available.", "opportunitiesTitle": "No expansion opportunities identified", "opportunitiesDescription": "No supported expansion opportunities were found in the available data.", "changesTitle": "No recent price changes", "changesDescription": "Detected competitor pricing movements will appear here." },
-    "error": { "title": "Market intelligence unavailable", "description": "We could not load this market view. Please try again." },
-    "export": { "unavailable": "PDF export is not connected yet. No file was generated." }
+    "page": {
+      "title": "Market Intelligence",
+      "subtitle": "Track competitors, analyze market trends, and get AI-powered insights."
+    },
+    "product": {
+      "label": "Select Product"
+    },
+    "actions": {
+      "dateRange": "Date range",
+      "exportPdf": "Export to PDF",
+      "retry": "Try again",
+      "connectData": "Connect Data",
+      "raise": "Raise",
+      "lower": "Lower",
+      "hold": "Hold"
+    },
+    "metrics": {
+      "label": "Market intelligence summary",
+      "totalCompetitors": "Total Competitors",
+      "averageCompositeScore": "Average Composite Score",
+      "topSegmentScore": "Top Segment Score",
+      "averagePriceScore": "Avg Price Score"
+    },
+    "ai": {
+      "title": "AI Market Intelligence",
+      "generated": "Generated {{date}}",
+      "insight": "Market Insight",
+      "drivers": "Key Market Drivers",
+      "sentiment": "Market Sentiment",
+      "confidence": "Confidence: {{value}}%"
+    },
+    "driverTypes": {
+      "pricing": "Pricing",
+      "sentiment": "Customer sentiment",
+      "demand": "Demand",
+      "activity": "Competitor activity"
+    },
+    "sentiments": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative"
+    },
+    "competitors": {
+      "title": "Competitor Analysis",
+      "subtitle": "Product-linked competitor signals for {{product}}."
+    },
+    "pricing": {
+      "title": "Pricing Recommendations",
+      "subtitle": "Recommended pricing actions based on comparable market data."
+    },
+    "opportunities": {
+      "title": "Expansion Opportunities",
+      "subtitle": "Other products that may offer attractive expansion potential.",
+      "score": "Opportunity Score",
+      "competitorCount": "{{count}} companies currently offer this product"
+    },
+    "changes": {
+      "title": "Recent Competitor Price Changes",
+      "subtitle": "Latest detected pricing movements for the selected product.",
+      "increased": "increase",
+      "decreased": "decrease"
+    },
+    "tables": {
+      "product": "Product",
+      "competitor": "Competitor",
+      "pricingScore": "Pricing Score (1–10)",
+      "compositeScore": "Composite Score (1–100)",
+      "relevanceScore": "Relevance Score (1–100)",
+      "presenceScore": "Market Presence Score (1–100)",
+      "perception": "Market Perception",
+      "currentPrice": "Current Price",
+      "action": "Action",
+      "suggestedPrice": "Suggested Price",
+      "marketMin": "Market Min",
+      "marketMax": "Market Max",
+      "marketAverage": "Market Average",
+      "marketMedian": "Market Median",
+      "matchedCompetitors": "Matched Competitors",
+      "explanation": "Explanation",
+      "date": "Date",
+      "previousPrice": "Previous Price",
+      "newPrice": "New Price",
+      "change": "Change",
+      "detected": "Detected"
+    },
+    "empty": {
+      "productsTitle": "No products available",
+      "productsDescription": "Connect or upload product data to begin market analysis.",
+      "aiTitle": "No AI market insight",
+      "aiDescription": "An insight has not been generated for this product yet.",
+      "competitorsTitle": "No competitors tracked",
+      "competitorsDescription": "Add a competitor to begin product-level comparison.",
+      "pricingTitle": "No pricing data",
+      "pricingDescription": "Pricing recommendations will appear when comparable data is available.",
+      "opportunitiesTitle": "No expansion opportunities identified",
+      "opportunitiesDescription": "No supported expansion opportunities were found in the available data.",
+      "changesTitle": "No recent price changes",
+      "changesDescription": "Detected competitor pricing movements will appear here."
+    },
+    "error": {
+      "title": "Market intelligence unavailable",
+      "description": "We could not load this market view. Please try again."
+    },
+    "export": {
+      "unavailable": "PDF export is not connected yet. No file was generated."
+    }
   },
   "market": {
-    "reference": { "backToCompetitor": "Back to Competitor", "trackProduct": "Track Product", "demandSignal": "Demand Signal", "currentPrice": "Current Price", "customerSentiment": "Customer Sentiment", "demandTrend": "Demand Trend", "keyInsights": "Key Insights", "packageDetails": "Package Details", "downloadSpeed": "Download Speed", "uploadSpeed": "Upload Speed", "contractPeriod": "Contract Period", "availability": "Availability", "relatedProducts": "Related Products", "allProducts": "View All Products", "opportunitiesSubtitle": "AI-identified product opportunities based on market analysis.", "exportReport": "Export Report", "totalOpportunities": "Total Opportunities", "estimatedMarketSize": "Estimated Market Size", "averageDemandGrowth": "Avg. Demand Growth", "topOpportunities": "Top Opportunities", "allOpportunities": "All Opportunities", "marketTrends": "Market Trends Supporting Opportunities", "opportunityType": "Opportunity Type", "timePeriod": "Time Period", "next12Months": "Next 12 Months", "competition": "Competition", "opportunityDetails": "Opportunity Details", "opportunityDetailsSubtitle": "Explore the insights behind this opportunity and how to take advantage of it.", "competitionLevel": "Competition Level", "competitorActivity": "Competitor Activity", "recommendedActions": "Recommended Actions", "leaderboardSubtitle": "Compare competitors based on CEOPRO's composite scoring model.", "totalCompetitors": "Total Competitors", "averageScore": "Average Composite Score", "highestPrice": "Highest Price Competitiveness", "topSentiment": "Top Sentiment Score", "view": "View", "top10": "Top 10", "priceScore": "Price Score", "sentimentScore": "Sentiment Score", "activityScore": "Market Activity", "compositeScore": "Composite Score", "trend": "Trend", "scoreBreakdown": "Score Breakdown (Top 5 Competitors)", "methodology": "Scoring Methodology", "methodologyText": "The composite score is calculated from preview market indicators.", "keyInsightsTitle": "Key Insights", "topMovers": "Top Movers", "biggestImprovers": "Biggest Improvers", "biggestDecliners": "Biggest Decliners", "notFoundCompetitor": "Competitor Not Found" },
-    "final": { "productNotFound": "Product Not Found", "opportunityNotFound": "Opportunity Not Found", "productsTitle": "Product Details", "back": "Back", "provider": "Provider", "category": "Category", "type": "Type", "status": "Status", "active": "Active", "price": "Current Price", "website": "Website", "summary": "Product Summary", "positioning": "Market Positioning", "activity": "Recent Activity", "opportunitiesTitle": "Market Opportunities", "opportunitiesSubtitle": "Identify high-potential opportunities in your market.", "search": "Search opportunities...", "all": "All", "potential": "Potential", "track": "Track Opportunity", "tracked": "Tracked", "viewDetails": "View Details", "leaderboardTitle": "Competitor Leaderboard", "leaderboardSubtitle": "Compare competitors across key market signals.", "rank": "Rank", "competitor": "Competitor", "score": "Composite Score", "movement": "Change", "empty": "No opportunities found.", "description": "Preview product and market intelligence data for your business." },
-    "tabs": { "label": "Market Intelligence navigation", "overview": "Overview", "trends": "Industry Trends", "competitors": "Competitors", "opportunities": "Opportunities", "leaderboard": "Competitor Leaderboard" },
-    "controls": { "dateRange": "Date range", "last30": "Last 30 days", "last90": "Last 90 days", "industry": "Industry", "homeInternet": "Home Internet", "timePeriod": "Time period", "last12": "Last 12 Months", "addCompetitor": "Add Competitor", "export": "Export Report", "viewAll": "View All" },
-    "overview": { "title": "Market Intelligence Overview", "subtitle": "Track your market, competitors and opportunities in one place.", "summaryTitle": "Market Summary", "summarySubtitle": "A quick snapshot of your market landscape.", "trendTitle": "Market Trend Overview", "trendSubtitle": "Overall market demand trend in your industry.", "trendChartLabel": "Current and previous market demand trend", "driversTitle": "Key Market Drivers", "driversSubtitle": "Main factors currently influencing your industry.", "competitorsTitle": "Your Competitors", "competitorsSubtitle": "A list of tracked competitors in your market.", "activityTitle": "Recent Competitor Activity", "activitySubtitle": "Latest changes detected across your tracked competitors.", "opportunitiesTitle": "Market Opportunities", "opportunitiesSubtitle": "AI-identified product opportunities based on market analysis." },
-    "metrics": { "competitors": "Competitors Tracked", "sentiment": "Market Sentiment", "price": "Price Competitiveness", "growth": "Market Growth" },
-    "common": { "thisMonth": "this month", "vsLastMonth": "vs last month", "vsLastYear": "vs last year", "vsLastQuarter": "vs last quarter", "vsPreviousPeriod": "vs previous period", "previewNote": "Insights are based on available preview market data.", "twoHours": "2h ago", "fiveHours": "5h ago", "oneDay": "1d ago", "twoDays": "2d ago", "threeDays": "3d ago", "fourDays": "4d ago" },
-    "status": { "positive": "Positive", "neutral": "Neutral", "negative": "Negative", "high": "High", "medium": "Medium", "highPotential": "High Potential", "mediumPotential": "Medium", "highImpact": "High Impact", "mediumImpact": "Medium" },
-    "insight": { "title": "AI Market Insight", "description": "Home internet demand in Amman is increasing by 20% next month, mainly driven by seasonal student enrollment and new fiber package launches from competitors.", "action": "View Full Analysis" },
-    "drivers": { "positive": "Positive Drivers", "negative": "Negative Drivers", "remoteWork": "Increasing remote work and online education", "fiberInfrastructure": "Expansion of fiber infrastructure in major cities", "highSpeeds": "Growing demand for higher internet speeds", "digitalServices": "New digital services and smart home adoption", "priceSensitivity": "Price sensitivity in rural areas", "competition": "High competition and frequent promotions", "economicUncertainty": "Economic uncertainty", "regulatoryPressure": "Regulatory pressure in the telecom sector", "sentimentDescription": "Overall sentiment in the home internet sector remains positive, with a 72/100 sentiment score." },
-    "competitors": { "name": "Competitor", "sentiment": "Market Sentiment", "price": "Price Competitiveness", "activity": "Recent Activity", "updated": "Last Updated", "actions": "Actions", "viewDetails": "View Details", "newPackage": "New package launched", "priceDrop": "Price drop (-10%)", "newCampaign": "New campaign", "bundlePricing": "Updated bundle pricing", "newProduct": "New product detected", "launchedFiber": "Launched new fiber package 'Ultra Speed'" },
-    "badges": { "newProduct": "New Product", "priceChange": "Price Change", "marketing": "Marketing", "pricing": "Pricing" },
-    "opportunities": { "highSpeed": "Higher Speed Packages", "highSpeedDescription": "Growing demand for 500 Mbps+ packages with low competitor presence.", "smartHome": "Smart Home Bundles", "smartHomeDescription": "Increasing interest in smart home solutions and IoT devices.", "mobileInternet": "Mobile + Internet Bundles", "mobileInternetDescription": "Rising search volume for combined mobile and internet packages.", "view": "View Opportunity" },
-    "industry": { "title": "Industry Trends", "subtitle": "Industry-wide macro trends and seasonal pattern analysis.", "metrics": { "providers": "Providers Detected", "monthlyPrice": "Avg. Monthly Price", "activity": "Market Activity" }, "high": "High", "priceTitle": "Global Price Trend Direction", "priceSubtitle": "Weighted average price index vs. benchmark", "priceChartLabel": "Current and previous global price trend", "bullish": "Bullish", "positiveIndicators": "Positive Indicators", "keyDrivers": "Key Drivers", "seasonalTitle": "Seasonal Growth Patterns", "seasonalSubtitle": "Historical quarterly adoption rates vs. current year", "historical": "Historical Avg.", "currentYear": "Current Year", "seasonalChartLabel": "Historical average compared with current year by quarter", "categoryTitle": "Product & Category Activity", "categorySubtitle": "Activity distribution across major product categories", "emergingTitle": "Top Emerging Trends", "signalsTitle": "Market Signals", "signalsSubtitle": "Key indicators derived from market data and analysis." },
-    "categories": { "homeInternet": "Home Internet", "mobileBundles": "Mobile Bundles", "fixedWireless": "Fixed Wireless (5G)", "tv": "TV & Entertainment", "smartHome": "Smart Home Services", "other": "Other" },
-    "emerging": { "bundled": "Bundled Services Growth", "bundledDescription": "Increasing adoption of internet + mobile bundles.", "fiveG": "5G Fixed Wireless", "fiveGDescription": "Growing alternative in non-urban areas.", "smartHome": "Smart Home Integration", "smartHomeDescription": "Rising demand for IoT-ready packages.", "sustainability": "Sustainability Initiatives", "sustainabilityDescription": "More providers offering green energy options." },
-    "competitorsPage": { "title": "Competitors", "subtitle": "Track and monitor the competitors you are following.", "search": "Search competitors...", "industry": "Industry", "allIndustries": "All Industries", "status": "Status", "allStatus": "All", "sort": "Sort by", "lastUpdated": "Last Updated", "name": "Name", "filter": "Filter", "showing": "Showing {{start}} to {{end}} of {{total}} competitors", "previous": "Previous page", "next": "Next page" },
-    "modal": { "title": "Add Competitor", "subtitle": "Track a new competitor to enrich your market intelligence dashboard.", "name": "Competitor Name", "website": "Website URL", "marketplace": "Marketplace Links", "social": "Social Media Handles", "optional": "Optional", "submit": "Add Competitor", "cancel": "Cancel", "required": "This field is required.", "invalidUrl": "Enter a valid website URL." },
-    "detail": { "back": "Back to Competitors", "tracked": "Tracked", "lastUpdated": "Last updated:", "monitor": "Monitor Competitor", "orangeDescription": "Leading telecom operator in Jordan, offering mobile, internet, and digital services.", "sentiment": "Market Sentiment", "activity": "Market Activity", "relevance": "Relevance Score", "presenceTitle": "Market Presence Over Time", "presenceSubtitle": "Estimated market share and online presence", "presenceChartLabel": "Competitor market presence compared with industry average", "summary": "Competitor Summary", "summaryText": "Orange is the largest telecom operator in Jordan, with a strong presence in mobile, home internet, and digital services. The company focuses on high-speed internet packages, bundled offers, and expanding its fiber infrastructure.", "headquarters": "Headquarters", "marketPosition": "Market Position", "primaryFocus": "Primary Focus", "website": "Website", "strengths": "Strengths", "weaknesses": "Weaknesses", "strongRecognition": "Strong brand recognition", "wideCoverage": "Wide coverage and fiber infrastructure", "bundledPackages": "Competitive bundled packages", "activePresence": "Active marketing and digital presence", "higherPrices": "Higher prices in some rural areas", "customerComplaints": "Customer complaints about service stability", "limitedFlexibility": "Limited flexibility in custom plans", "slowerNicheResponse": "Slower response to niche market segments", "strategicMoves": "Recent Strategic Moves", "startedFiveG": "Started 5G expansion in main cities", "selfServiceApp": "New digital self-service app features", "providerPartnership": "Partnership with smart home providers", "productsTitle": "Products & Services", "productsSubtitle": "List of key products and packages offered by Orange.", "allCategories": "All Categories", "searchProducts": "Search products...", "productName": "Product Name", "category": "Category", "type": "Type", "currentPrice": "Current Price (JOD)", "priceComparison": "Price Comparison", "priceComparisonSubtitle": "Average price comparison for similar packages", "recentActivity": "Recent Activity", "newProductLaunched": "New product launched", "priceChanged": "Price change", "campaignDetected": "Marketing campaign detected", "bundleUpdated": "Updated bundle pricing", "serviceDetected": "New service detected" },
-    "signals": { "indicator": "Indicator", "current": "Current Trend", "change": "Change (vs Previous)", "trend": "Trend (12M)", "insights": "Insights", "priceTrend": "Price Trend", "activity": "Market Activity", "sentiment": "Sentiment Trend", "product": "Product Activity", "competitor": "Competitor Activity", "increasing": "Increasing", "high": "High", "positive": "Positive", "priceInsight": "Average prices increased across most providers.", "activityInsight": "More product launches and competitive moves.", "sentimentInsight": "Positive sentiment in customer discussions.", "productInsight": "New packages and features detected.", "competitorInsight": "Increased marketing campaigns and price changes." }
+    "reference": {
+      "backToCompetitor": "Back to Competitor",
+      "trackProduct": "Track Product",
+      "demandSignal": "Demand Signal",
+      "currentPrice": "Current Price",
+      "customerSentiment": "Customer Sentiment",
+      "demandTrend": "Demand Trend",
+      "keyInsights": "Key Insights",
+      "packageDetails": "Package Details",
+      "downloadSpeed": "Download Speed",
+      "uploadSpeed": "Upload Speed",
+      "contractPeriod": "Contract Period",
+      "availability": "Availability",
+      "relatedProducts": "Related Products",
+      "allProducts": "View All Products",
+      "opportunitiesSubtitle": "AI-identified product opportunities based on market analysis.",
+      "exportReport": "Export Report",
+      "totalOpportunities": "Total Opportunities",
+      "estimatedMarketSize": "Estimated Market Size",
+      "averageDemandGrowth": "Avg. Demand Growth",
+      "topOpportunities": "Top Opportunities",
+      "allOpportunities": "All Opportunities",
+      "marketTrends": "Market Trends Supporting Opportunities",
+      "opportunityType": "Opportunity Type",
+      "timePeriod": "Time Period",
+      "next12Months": "Next 12 Months",
+      "competition": "Competition",
+      "opportunityDetails": "Opportunity Details",
+      "opportunityDetailsSubtitle": "Explore the insights behind this opportunity and how to take advantage of it.",
+      "competitionLevel": "Competition Level",
+      "competitorActivity": "Competitor Activity",
+      "recommendedActions": "Recommended Actions",
+      "leaderboardSubtitle": "Compare competitors based on CEOPRO's composite scoring model.",
+      "totalCompetitors": "Total Competitors",
+      "averageScore": "Average Composite Score",
+      "highestPrice": "Highest Price Competitiveness",
+      "topSentiment": "Top Sentiment Score",
+      "view": "View",
+      "top10": "Top 10",
+      "priceScore": "Price Score",
+      "sentimentScore": "Sentiment Score",
+      "activityScore": "Market Activity",
+      "compositeScore": "Composite Score",
+      "trend": "Trend",
+      "scoreBreakdown": "Score Breakdown (Top 5 Competitors)",
+      "methodology": "Scoring Methodology",
+      "methodologyText": "The composite score is calculated from preview market indicators.",
+      "keyInsightsTitle": "Key Insights",
+      "topMovers": "Top Movers",
+      "biggestImprovers": "Biggest Improvers",
+      "biggestDecliners": "Biggest Decliners",
+      "notFoundCompetitor": "Competitor Not Found"
+    },
+    "final": {
+      "productNotFound": "Product Not Found",
+      "opportunityNotFound": "Opportunity Not Found",
+      "productsTitle": "Product Details",
+      "back": "Back",
+      "provider": "Provider",
+      "category": "Category",
+      "type": "Type",
+      "status": "Status",
+      "active": "Active",
+      "price": "Current Price",
+      "website": "Website",
+      "summary": "Product Summary",
+      "positioning": "Market Positioning",
+      "activity": "Recent Activity",
+      "opportunitiesTitle": "Market Opportunities",
+      "opportunitiesSubtitle": "Identify high-potential opportunities in your market.",
+      "search": "Search opportunities...",
+      "all": "All",
+      "potential": "Potential",
+      "track": "Track Opportunity",
+      "tracked": "Tracked",
+      "viewDetails": "View Details",
+      "leaderboardTitle": "Competitor Leaderboard",
+      "leaderboardSubtitle": "Compare competitors across key market signals.",
+      "rank": "Rank",
+      "competitor": "Competitor",
+      "score": "Composite Score",
+      "movement": "Change",
+      "empty": "No opportunities found.",
+      "description": "Preview product and market intelligence data for your business."
+    },
+    "tabs": {
+      "label": "Market Intelligence navigation",
+      "overview": "Overview",
+      "trends": "Industry Trends",
+      "competitors": "Competitors",
+      "opportunities": "Opportunities",
+      "leaderboard": "Competitor Leaderboard"
+    },
+    "controls": {
+      "dateRange": "Date range",
+      "last30": "Last 30 days",
+      "last90": "Last 90 days",
+      "industry": "Industry",
+      "homeInternet": "Home Internet",
+      "timePeriod": "Time period",
+      "last12": "Last 12 Months",
+      "addCompetitor": "Add Competitor",
+      "export": "Export Report",
+      "viewAll": "View All"
+    },
+    "overview": {
+      "title": "Market Intelligence Overview",
+      "subtitle": "Track your market, competitors and opportunities in one place.",
+      "summaryTitle": "Market Summary",
+      "summarySubtitle": "A quick snapshot of your market landscape.",
+      "trendTitle": "Market Trend Overview",
+      "trendSubtitle": "Overall market demand trend in your industry.",
+      "trendChartLabel": "Current and previous market demand trend",
+      "driversTitle": "Key Market Drivers",
+      "driversSubtitle": "Main factors currently influencing your industry.",
+      "competitorsTitle": "Your Competitors",
+      "competitorsSubtitle": "A list of tracked competitors in your market.",
+      "activityTitle": "Recent Competitor Activity",
+      "activitySubtitle": "Latest changes detected across your tracked competitors.",
+      "opportunitiesTitle": "Market Opportunities",
+      "opportunitiesSubtitle": "AI-identified product opportunities based on market analysis."
+    },
+    "metrics": {
+      "competitors": "Competitors Tracked",
+      "sentiment": "Market Sentiment",
+      "price": "Price Competitiveness",
+      "growth": "Market Growth"
+    },
+    "common": {
+      "thisMonth": "this month",
+      "vsLastMonth": "vs last month",
+      "vsLastYear": "vs last year",
+      "vsLastQuarter": "vs last quarter",
+      "vsPreviousPeriod": "vs previous period",
+      "previewNote": "Insights are based on available preview market data.",
+      "twoHours": "2h ago",
+      "fiveHours": "5h ago",
+      "oneDay": "1d ago",
+      "twoDays": "2d ago",
+      "threeDays": "3d ago",
+      "fourDays": "4d ago"
+    },
+    "status": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "high": "High",
+      "medium": "Medium",
+      "highPotential": "High Potential",
+      "mediumPotential": "Medium",
+      "highImpact": "High Impact",
+      "mediumImpact": "Medium"
+    },
+    "insight": {
+      "title": "AI Market Insight",
+      "description": "Home internet demand in Amman is increasing by 20% next month, mainly driven by seasonal student enrollment and new fiber package launches from competitors.",
+      "action": "View Full Analysis"
+    },
+    "drivers": {
+      "positive": "Positive Drivers",
+      "negative": "Negative Drivers",
+      "remoteWork": "Increasing remote work and online education",
+      "fiberInfrastructure": "Expansion of fiber infrastructure in major cities",
+      "highSpeeds": "Growing demand for higher internet speeds",
+      "digitalServices": "New digital services and smart home adoption",
+      "priceSensitivity": "Price sensitivity in rural areas",
+      "competition": "High competition and frequent promotions",
+      "economicUncertainty": "Economic uncertainty",
+      "regulatoryPressure": "Regulatory pressure in the telecom sector",
+      "sentimentDescription": "Overall sentiment in the home internet sector remains positive, with a 72/100 sentiment score."
+    },
+    "competitors": {
+      "name": "Competitor",
+      "sentiment": "Market Sentiment",
+      "price": "Price Competitiveness",
+      "activity": "Recent Activity",
+      "updated": "Last Updated",
+      "actions": "Actions",
+      "viewDetails": "View Details",
+      "newPackage": "New package launched",
+      "priceDrop": "Price drop (-10%)",
+      "newCampaign": "New campaign",
+      "bundlePricing": "Updated bundle pricing",
+      "newProduct": "New product detected",
+      "launchedFiber": "Launched new fiber package 'Ultra Speed'"
+    },
+    "badges": {
+      "newProduct": "New Product",
+      "priceChange": "Price Change",
+      "marketing": "Marketing",
+      "pricing": "Pricing"
+    },
+    "opportunities": {
+      "highSpeed": "Higher Speed Packages",
+      "highSpeedDescription": "Growing demand for 500 Mbps+ packages with low competitor presence.",
+      "smartHome": "Smart Home Bundles",
+      "smartHomeDescription": "Increasing interest in smart home solutions and IoT devices.",
+      "mobileInternet": "Mobile + Internet Bundles",
+      "mobileInternetDescription": "Rising search volume for combined mobile and internet packages.",
+      "view": "View Opportunity"
+    },
+    "industry": {
+      "title": "Industry Trends",
+      "subtitle": "Industry-wide macro trends and seasonal pattern analysis.",
+      "metrics": {
+        "providers": "Providers Detected",
+        "monthlyPrice": "Avg. Monthly Price",
+        "activity": "Market Activity"
+      },
+      "high": "High",
+      "priceTitle": "Global Price Trend Direction",
+      "priceSubtitle": "Weighted average price index vs. benchmark",
+      "priceChartLabel": "Current and previous global price trend",
+      "bullish": "Bullish",
+      "positiveIndicators": "Positive Indicators",
+      "keyDrivers": "Key Drivers",
+      "seasonalTitle": "Seasonal Growth Patterns",
+      "seasonalSubtitle": "Historical quarterly adoption rates vs. current year",
+      "historical": "Historical Avg.",
+      "currentYear": "Current Year",
+      "seasonalChartLabel": "Historical average compared with current year by quarter",
+      "categoryTitle": "Product & Category Activity",
+      "categorySubtitle": "Activity distribution across major product categories",
+      "emergingTitle": "Top Emerging Trends",
+      "signalsTitle": "Market Signals",
+      "signalsSubtitle": "Key indicators derived from market data and analysis."
+    },
+    "categories": {
+      "homeInternet": "Home Internet",
+      "mobileBundles": "Mobile Bundles",
+      "fixedWireless": "Fixed Wireless (5G)",
+      "tv": "TV & Entertainment",
+      "smartHome": "Smart Home Services",
+      "other": "Other"
+    },
+    "emerging": {
+      "bundled": "Bundled Services Growth",
+      "bundledDescription": "Increasing adoption of internet + mobile bundles.",
+      "fiveG": "5G Fixed Wireless",
+      "fiveGDescription": "Growing alternative in non-urban areas.",
+      "smartHome": "Smart Home Integration",
+      "smartHomeDescription": "Rising demand for IoT-ready packages.",
+      "sustainability": "Sustainability Initiatives",
+      "sustainabilityDescription": "More providers offering green energy options."
+    },
+    "competitorsPage": {
+      "title": "Competitors",
+      "subtitle": "Track and monitor the competitors you are following.",
+      "search": "Search competitors...",
+      "industry": "Industry",
+      "allIndustries": "All Industries",
+      "status": "Status",
+      "allStatus": "All",
+      "sort": "Sort by",
+      "lastUpdated": "Last Updated",
+      "name": "Name",
+      "filter": "Filter",
+      "showing": "Showing {{start}} to {{end}} of {{total}} competitors",
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "modal": {
+      "title": "Add Competitor",
+      "subtitle": "Track a new competitor to enrich your market intelligence dashboard.",
+      "name": "Competitor Name",
+      "website": "Website URL",
+      "marketplace": "Marketplace Links",
+      "social": "Social Media Handles",
+      "optional": "Optional",
+      "submit": "Add Competitor",
+      "cancel": "Cancel",
+      "required": "This field is required.",
+      "invalidUrl": "Enter a valid website URL."
+    },
+    "detail": {
+      "back": "Back to Competitors",
+      "tracked": "Tracked",
+      "lastUpdated": "Last updated:",
+      "monitor": "Monitor Competitor",
+      "orangeDescription": "Leading telecom operator in Jordan, offering mobile, internet, and digital services.",
+      "sentiment": "Market Sentiment",
+      "activity": "Market Activity",
+      "relevance": "Relevance Score",
+      "presenceTitle": "Market Presence Over Time",
+      "presenceSubtitle": "Estimated market share and online presence",
+      "presenceChartLabel": "Competitor market presence compared with industry average",
+      "summary": "Competitor Summary",
+      "summaryText": "Orange is the largest telecom operator in Jordan, with a strong presence in mobile, home internet, and digital services. The company focuses on high-speed internet packages, bundled offers, and expanding its fiber infrastructure.",
+      "headquarters": "Headquarters",
+      "marketPosition": "Market Position",
+      "primaryFocus": "Primary Focus",
+      "website": "Website",
+      "strengths": "Strengths",
+      "weaknesses": "Weaknesses",
+      "strongRecognition": "Strong brand recognition",
+      "wideCoverage": "Wide coverage and fiber infrastructure",
+      "bundledPackages": "Competitive bundled packages",
+      "activePresence": "Active marketing and digital presence",
+      "higherPrices": "Higher prices in some rural areas",
+      "customerComplaints": "Customer complaints about service stability",
+      "limitedFlexibility": "Limited flexibility in custom plans",
+      "slowerNicheResponse": "Slower response to niche market segments",
+      "strategicMoves": "Recent Strategic Moves",
+      "startedFiveG": "Started 5G expansion in main cities",
+      "selfServiceApp": "New digital self-service app features",
+      "providerPartnership": "Partnership with smart home providers",
+      "productsTitle": "Products & Services",
+      "productsSubtitle": "List of key products and packages offered by Orange.",
+      "allCategories": "All Categories",
+      "searchProducts": "Search products...",
+      "productName": "Product Name",
+      "category": "Category",
+      "type": "Type",
+      "currentPrice": "Current Price (JOD)",
+      "priceComparison": "Price Comparison",
+      "priceComparisonSubtitle": "Average price comparison for similar packages",
+      "recentActivity": "Recent Activity",
+      "newProductLaunched": "New product launched",
+      "priceChanged": "Price change",
+      "campaignDetected": "Marketing campaign detected",
+      "bundleUpdated": "Updated bundle pricing",
+      "serviceDetected": "New service detected"
+    },
+    "signals": {
+      "indicator": "Indicator",
+      "current": "Current Trend",
+      "change": "Change (vs Previous)",
+      "trend": "Trend (12M)",
+      "insights": "Insights",
+      "priceTrend": "Price Trend",
+      "activity": "Market Activity",
+      "sentiment": "Sentiment Trend",
+      "product": "Product Activity",
+      "competitor": "Competitor Activity",
+      "increasing": "Increasing",
+      "high": "High",
+      "positive": "Positive",
+      "priceInsight": "Average prices increased across most providers.",
+      "activityInsight": "More product launches and competitive moves.",
+      "sentimentInsight": "Positive sentiment in customer discussions.",
+      "productInsight": "New packages and features detected.",
+      "competitorInsight": "Increased marketing campaigns and price changes."
+    }
   },
   "auth": {
     "common": {
@@ -381,66 +1217,408 @@
       "noteMarket": "Your country and city help CEOPRO show competitors relevant to your market.",
       "noteLanguage": "Your language preference applies across the application and can be changed later in Settings.",
       "countries": {
-        "belgium": "Belgium", "france": "France", "luxembourg": "Luxembourg", "moldova": "Moldova", "poland": "Poland", "romania": "Romania", "slovakia": "Slovakia", "spain": "Spain",
-        "botswana": "Botswana", "burkinaFaso": "Burkina Faso", "cameroon": "Cameroon", "centralAfricanRepublic": "Central African Republic", "coteDIvoire": "Côte d’Ivoire", "democraticRepublicCongo": "Democratic Republic of Congo", "egypt": "Egypt", "guinea": "Guinea", "guineaBissau": "Guinea-Bissau", "jordan": "Jordan", "liberia": "Liberia", "mali": "Mali", "morocco": "Morocco", "senegal": "Senegal", "sierraLeone": "Sierra Leone", "tunisia": "Tunisia"
+        "belgium": "Belgium",
+        "france": "France",
+        "luxembourg": "Luxembourg",
+        "moldova": "Moldova",
+        "poland": "Poland",
+        "romania": "Romania",
+        "slovakia": "Slovakia",
+        "spain": "Spain",
+        "botswana": "Botswana",
+        "burkinaFaso": "Burkina Faso",
+        "cameroon": "Cameroon",
+        "centralAfricanRepublic": "Central African Republic",
+        "coteDIvoire": "Côte d’Ivoire",
+        "democraticRepublicCongo": "Democratic Republic of Congo",
+        "egypt": "Egypt",
+        "guinea": "Guinea",
+        "guineaBissau": "Guinea-Bissau",
+        "jordan": "Jordan",
+        "liberia": "Liberia",
+        "mali": "Mali",
+        "morocco": "Morocco",
+        "senegal": "Senegal",
+        "sierraLeone": "Sierra Leone",
+        "tunisia": "Tunisia"
       },
       "cities": {
-        "brussels": "Brussels", "antwerp": "Antwerp", "liege": "Liège", "paris": "Paris", "lyon": "Lyon", "marseille": "Marseille", "luxembourgCity": "Luxembourg City", "eschSurAlzette": "Esch-sur-Alzette", "chisinau": "Chișinău", "balti": "Bălți", "warsaw": "Warsaw", "krakow": "Kraków", "wroclaw": "Wrocław", "bucharest": "Bucharest", "clujNapoca": "Cluj-Napoca", "iasi": "Iași", "bratislava": "Bratislava", "kosice": "Košice", "madrid": "Madrid", "barcelona": "Barcelona", "valencia": "Valencia", "gaborone": "Gaborone", "francistown": "Francistown", "ouagadougou": "Ouagadougou", "boboDioulasso": "Bobo-Dioulasso", "yaounde": "Yaoundé", "douala": "Douala", "bangui": "Bangui", "bimbo": "Bimbo", "abidjan": "Abidjan", "yamoussoukro": "Yamoussoukro", "bouake": "Bouaké", "kinshasa": "Kinshasa", "lubumbashi": "Lubumbashi", "goma": "Goma", "cairo": "Cairo", "alexandria": "Alexandria", "giza": "Giza", "conakry": "Conakry", "nzerekore": "Nzérékoré", "bissau": "Bissau", "bafata": "Bafatá", "amman": "Amman", "irbid": "Irbid", "zarqa": "Zarqa", "aqaba": "Aqaba", "monrovia": "Monrovia", "gbarnga": "Gbarnga", "bamako": "Bamako", "sikasso": "Sikasso", "casablanca": "Casablanca", "rabat": "Rabat", "marrakesh": "Marrakesh", "dakar": "Dakar", "thies": "Thiès", "saintLouis": "Saint-Louis", "freetown": "Freetown", "bo": "Bo", "tunis": "Tunis", "sfax": "Sfax", "sousse": "Sousse"
+        "brussels": "Brussels",
+        "antwerp": "Antwerp",
+        "liege": "Liège",
+        "paris": "Paris",
+        "lyon": "Lyon",
+        "marseille": "Marseille",
+        "luxembourgCity": "Luxembourg City",
+        "eschSurAlzette": "Esch-sur-Alzette",
+        "chisinau": "Chișinău",
+        "balti": "Bălți",
+        "warsaw": "Warsaw",
+        "krakow": "Kraków",
+        "wroclaw": "Wrocław",
+        "bucharest": "Bucharest",
+        "clujNapoca": "Cluj-Napoca",
+        "iasi": "Iași",
+        "bratislava": "Bratislava",
+        "kosice": "Košice",
+        "madrid": "Madrid",
+        "barcelona": "Barcelona",
+        "valencia": "Valencia",
+        "gaborone": "Gaborone",
+        "francistown": "Francistown",
+        "ouagadougou": "Ouagadougou",
+        "boboDioulasso": "Bobo-Dioulasso",
+        "yaounde": "Yaoundé",
+        "douala": "Douala",
+        "bangui": "Bangui",
+        "bimbo": "Bimbo",
+        "abidjan": "Abidjan",
+        "yamoussoukro": "Yamoussoukro",
+        "bouake": "Bouaké",
+        "kinshasa": "Kinshasa",
+        "lubumbashi": "Lubumbashi",
+        "goma": "Goma",
+        "cairo": "Cairo",
+        "alexandria": "Alexandria",
+        "giza": "Giza",
+        "conakry": "Conakry",
+        "nzerekore": "Nzérékoré",
+        "bissau": "Bissau",
+        "bafata": "Bafatá",
+        "amman": "Amman",
+        "irbid": "Irbid",
+        "zarqa": "Zarqa",
+        "aqaba": "Aqaba",
+        "monrovia": "Monrovia",
+        "gbarnga": "Gbarnga",
+        "bamako": "Bamako",
+        "sikasso": "Sikasso",
+        "casablanca": "Casablanca",
+        "rabat": "Rabat",
+        "marrakesh": "Marrakesh",
+        "dakar": "Dakar",
+        "thies": "Thiès",
+        "saintLouis": "Saint-Louis",
+        "freetown": "Freetown",
+        "bo": "Bo",
+        "tunis": "Tunis",
+        "sfax": "Sfax",
+        "sousse": "Sousse"
       },
-      "languages": { "english": "English", "arabic": "Arabic" }
+      "languages": {
+        "english": "English",
+        "arabic": "Arabic"
+      }
     },
     "objectives": {
       "title": "What are your main objectives?",
       "subtitle": "Select all that apply. We'll tailor your dashboard to focus on these areas.",
       "options": {
-        "competitors": { "title": "Track Competitors", "description": "Monitor market share, pricing changes, and feature releases across your industry segment." },
-        "forecasting": { "title": "Forecast Demand", "description": "Predict future sales volume based on historical data and predictive market models." },
-        "knowledge": { "title": "Build AI Knowledge Assistant", "description": "Deploy an internal RAG assistant to query company documents and metrics instantly." }
+        "competitors": {
+          "title": "Track Competitors",
+          "description": "Monitor market share, pricing changes, and feature releases across your industry segment."
+        },
+        "forecasting": {
+          "title": "Forecast Demand",
+          "description": "Predict future sales volume based on historical data and predictive market models."
+        },
+        "knowledge": {
+          "title": "Build AI Knowledge Assistant",
+          "description": "Deploy an internal RAG assistant to query company documents and metrics instantly."
+        }
       }
     }
   },
   "settings": {
-    "page": { "title": "Settings", "subtitle": "Manage your account, company, team, preferences, and security." },
-    "tabs": { "label": "Settings sections", "profile": "Profile", "company": "Company", "team": "Team Members", "notifications": "Notifications", "preferences": "Preferences", "security": "Security" },
-    "common": { "notAvailable": "Not available", "saveChanges": "Save Changes", "saving": "Saving...", "cancel": "Cancel" },
-    "profile": { "title": "Profile", "subtitle": "Manage your personal information.", "avatar": "Profile avatar", "fullName": "Full Name", "email": "Email", "jobTitle": "Job Title / Position", "emailReadOnly": "Email changes require a verified account flow and are not currently supported.", "avatarUnavailable": "Profile photo changes are not currently connected.", "loadError": "Your profile could not be loaded.", "unavailable": "Profile updates are not connected. Your changes were not saved.", "saved": "Profile changes saved.", "saveError": "Your profile changes could not be saved." },
-    "company": { "title": "Company", "subtitle": "Manage your company information and workspace settings.", "manageSubscription": "Manage Subscription", "fields": { "name": "Company Name", "industry": "Industry", "businessSize": "Business Size", "country": "Country / Region", "currency": "Currency" }, "editUnavailable": "Company editing is not connected. Values shown here remain read-only until the company service supports updates.", "readOnly": "Company administration is read-only for your role.", "loadError": "Company information could not be loaded." },
+    "page": {
+      "title": "Settings",
+      "subtitle": "Manage your account, company, team, preferences, and security."
+    },
+    "tabs": {
+      "label": "Settings sections",
+      "profile": "Profile",
+      "company": "Company",
+      "team": "Team Members",
+      "notifications": "Notifications",
+      "preferences": "Preferences",
+      "security": "Security"
+    },
+    "common": {
+      "notAvailable": "Not available",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "cancel": "Cancel"
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Manage your personal information.",
+      "avatar": "Profile avatar",
+      "fullName": "Full Name",
+      "email": "Email",
+      "jobTitle": "Job Title / Position",
+      "emailReadOnly": "Email changes require a verified account flow and are not currently supported.",
+      "avatarUnavailable": "Profile photo changes are not currently connected.",
+      "loadError": "Your profile could not be loaded.",
+      "unavailable": "Profile updates are not connected. Your changes were not saved.",
+      "saved": "Profile changes saved.",
+      "saveError": "Your profile changes could not be saved."
+    },
+    "company": {
+      "title": "Company",
+      "subtitle": "Manage your company information and workspace settings.",
+      "manageSubscription": "Manage Subscription",
+      "fields": {
+        "name": "Company Name",
+        "industry": "Industry",
+        "businessSize": "Business Size",
+        "country": "Country / Region",
+        "currency": "Currency"
+      },
+      "editUnavailable": "Company editing is not connected. Values shown here remain read-only until the company service supports updates.",
+      "readOnly": "Company administration is read-only for your role.",
+      "loadError": "Company information could not be loaded."
+    },
     "team": {
       "directoryUnavailable": "The workspace directory is unavailable. Only your signed-in account is shown; team totals cannot be determined.",
       "invitationsUnavailable": "Invitation information is currently unavailable.",
-
-      "title": "Team Members", "subtitle": "Manage who has access to your CEOPRO workspace.", "you": "You", "loadError": "Team information could not be loaded.", "emptyTitle": "No team members available", "emptyDescription": "No team member records were returned for this workspace.", "firstTeam": "Invite your team to collaborate in CEOPRO.", "managementUnavailable": "Role changes and member removal are omitted because those backend actions are not available.", "readOnly": "Team membership is read-only for your role. Workspace administration requires Admin permission and backend authorization.", "pendingTitle": "Pending Invitations", "noPending": "There are no pending invitations.", "pendingCount": "{{count}} pending invitations",
-      "summary": { "total": "Total Members", "admin": "Admins", "editor": "Editors", "viewer": "Viewers", "pending": "Pending Invitations" },
-      "columns": { "member": "Member", "email": "Email", "role": "Role", "status": "Status", "joined": "Joined" },
-      "status": { "active": "Active", "pending": "Pending", "invited": "Invited", "disabled": "Disabled" },
-      "invite": { "action": "Invite Member", "title": "Invite Team Member", "email": "Email Address", "role": "Role", "send": "Send Invitation", "sending": "Sending...", "existing": "This email already belongs to a workspace member.", "pending": "An invitation is already pending for this email.", "unavailable": "Invitation delivery is not connected. No invitation was sent.", "sent": "Invitation sent.", "failed": "The invitation could not be sent." }
+      "title": "Team Members",
+      "subtitle": "Manage who has access to your CEOPRO workspace.",
+      "you": "You",
+      "loadError": "Team information could not be loaded.",
+      "emptyTitle": "No team members available",
+      "emptyDescription": "No team member records were returned for this workspace.",
+      "firstTeam": "Invite your team to collaborate in CEOPRO.",
+      "managementUnavailable": "Role changes and member removal are omitted because those backend actions are not available.",
+      "readOnly": "Team membership is read-only for your role. Workspace administration requires Admin permission and backend authorization.",
+      "pendingTitle": "Pending Invitations",
+      "noPending": "There are no pending invitations.",
+      "pendingCount": "{{count}} pending invitations",
+      "summary": {
+        "total": "Total Members",
+        "admin": "Admins",
+        "editor": "Editors",
+        "viewer": "Viewers",
+        "pending": "Pending Invitations"
+      },
+      "columns": {
+        "member": "Member",
+        "email": "Email",
+        "role": "Role",
+        "status": "Status",
+        "joined": "Joined"
+      },
+      "status": {
+        "active": "Active",
+        "pending": "Pending",
+        "invited": "Invited",
+        "disabled": "Disabled"
+      },
+      "invite": {
+        "action": "Invite Member",
+        "title": "Invite Team Member",
+        "email": "Email Address",
+        "role": "Role",
+        "send": "Send Invitation",
+        "sending": "Sending...",
+        "existing": "This email already belongs to a workspace member.",
+        "pending": "An invitation is already pending for this email.",
+        "unavailable": "Invitation delivery is not connected. No invitation was sent.",
+        "sent": "Invitation sent.",
+        "failed": "The invitation could not be sent."
+      }
     },
-    "roles": { "admin": { "label": "Admin", "description": "Full workspace administration and team management." }, "editor": { "label": "Editor", "description": "Can work with business data and CEOPRO features but cannot manage protected workspace administration." }, "viewer": { "label": "Viewer", "description": "Read-only access to permitted business information and insights." } },
-    "notifications": { "title": "Notifications", "subtitle": "Choose which CEOPRO updates you want to receive.", "loadError": "Notification preferences could not be loaded.", "unavailableTitle": "Notification preferences are not connected", "unavailableDescription": "No configurable channels or categories are exposed by the current notification service, so no preference controls are shown." },
-    "preferences": { "title": "Preferences", "subtitle": "Customize your CEOPRO experience.", "language": "Language", "languages": { "en": "English interface with left-to-right layout", "ar": "Arabic interface with right-to-left layout" }, "languageDirection": "Text direction follows the selected language automatically. CEOPRO currently supports its established light appearance." },
-    "security": { "title": "Change Password", "subtitle": "Manage your personal account password.", "currentPassword": "Current Password", "newPassword": "New Password", "confirmPassword": "Confirm New Password", "currentRequired": "Current password is required.", "changePassword": "Change Password", "changing": "Changing password...", "passwordUnavailable": "Password change is not connected. Your password was not changed.", "passwordChanged": "Password changed successfully.", "passwordFailed": "Your password could not be changed.", "sessionsTitle": "Devices & Sessions", "sessionsSubtitle": "Review sessions returned by the authentication service.", "sessionsError": "Session information could not be loaded.", "sessionsUnavailableTitle": "Session management is not available", "sessionsUnavailableDescription": "The authentication service does not currently expose device or session metadata.", "noSessionsTitle": "No additional sessions", "noSessionsDescription": "No other sessions were returned.", "currentSession": "Current Session" }
+    "roles": {
+      "admin": {
+        "label": "Admin",
+        "description": "Full workspace administration and team management."
+      },
+      "editor": {
+        "label": "Editor",
+        "description": "Can work with business data and CEOPRO features but cannot manage protected workspace administration."
+      },
+      "viewer": {
+        "label": "Viewer",
+        "description": "Read-only access to permitted business information and insights."
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Choose which CEOPRO updates you want to receive.",
+      "loadError": "Notification preferences could not be loaded.",
+      "unavailableTitle": "Notification preferences are not connected",
+      "unavailableDescription": "No configurable channels or categories are exposed by the current notification service, so no preference controls are shown."
+    },
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "Customize your CEOPRO experience.",
+      "language": "Language",
+      "languages": {
+        "en": "English interface with left-to-right layout",
+        "ar": "Arabic interface with right-to-left layout"
+      },
+      "languageDirection": "Text direction follows the selected language automatically. CEOPRO currently supports its established light appearance."
+    },
+    "security": {
+      "title": "Change Password",
+      "subtitle": "Manage your personal account password.",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "currentRequired": "Current password is required.",
+      "changePassword": "Change Password",
+      "changing": "Changing password...",
+      "passwordUnavailable": "Password change is not connected. Your password was not changed.",
+      "passwordChanged": "Password changed successfully.",
+      "passwordFailed": "Your password could not be changed.",
+      "sessionsTitle": "Devices & Sessions",
+      "sessionsSubtitle": "Review sessions returned by the authentication service.",
+      "sessionsError": "Session information could not be loaded.",
+      "sessionsUnavailableTitle": "Session management is not available",
+      "sessionsUnavailableDescription": "The authentication service does not currently expose device or session metadata.",
+      "noSessionsTitle": "No additional sessions",
+      "noSessionsDescription": "No other sessions were returned.",
+      "currentSession": "Current Session"
+    }
   },
   "billing": {
     "management": {
-      "title": "Plans & Subscription", "subtitle": "Manage your plan, usage, and subscription.",
-      "currentPlanTitle": "Your Current Plan", "currentPlan": "Current Plan", "planTrial": "{{plan}} Trial", "billingCycle": "Billing cycle", "planPrice": "Configured plan price", "nextBillingDate": "Next billing date", "trialEndDate": "Trial end date", "daysRemaining": "{{count}} days remaining", "previewData": "Development subscription data",
-      "status": { "trial": "Trial", "active": "Active", "failed": "Failed" },
-      "usageTitle": "Usage & Limits", "usageSubtitle": "Current company usage against the limits configured for your plan.", "usageUnavailable": "Usage data is not available for this subscription.", "gb": " GB",
-      "usageLabels": { "products": "Products", "competitors": "Competitors", "ragQueries": "RAG Questions", "reports": "Reports", "storageGb": "Storage" },
-      "usageState": { "normal": "Within limit", "approaching": "Approaching limit", "reached": "Limit reached", "unknown": "Unavailable" },
-      "recommendation": { "trialTitle": "Continue after your trial", "trialDescription": "Compare the configured paid options before your current trial ends.", "reachedTitle": "More capacity may help", "reachedDescription": "You've used {{used}} of the {{limit}} available {{metric}} on your current plan.", "approachingTitle": "You're approaching a plan limit", "approachingDescription": "You've used {{used}} of the {{limit}} available {{metric}} on your current plan." },
-      "context": {
-        "products": { "title": "Product limit reached", "description": "You've reached the product limit for your current plan ({{used}} of {{limit}})." },
-        "competitors": { "title": "Competitor limit reached", "description": "You've reached the competitor tracking limit for your current plan ({{used}} of {{limit}})." },
-        "ragQueries": { "title": "RAG limit reached", "description": "You've reached the RAG question limit for your current plan ({{used}} of {{limit}})." },
-        "storageGb": { "title": "Storage limit reached", "description": "You've reached the storage limit for your current plan ({{used}} of {{limit}})." }
+      "cancelling": "cancelling",
+      "reviewDowngrade": "Review Downgrade",
+      "cancelsOn": "Active Until",
+      "cancellationWarning": "Your subscription is scheduled to be canceled. You will lose access to premium features at the end of the current billing period",
+      "resumeSuccess": "Subscription resumed successfully.",
+      "cancelSuccess": "Subscription cancellation scheduled successfully.",
+      "cancelError": "Failed to cancel the subscription. Please try again.",
+      "cancelConfirmTitle": "Cancel Subscription?",
+      "cancelConfirmMessage": "Are you sure you want to cancel? You will retain full access to all resources until the end of your current billing period.",
+      "confirmCancel": "Yes, Cancel",
+      "resumeError": "Failed to resume the subscription. Please try again.",
+      "resumeSubscription": "Resume Subscription",
+      "cancelSubscription": "Cancel Subscription",
+      "title": "Plans & Subscription",
+      "subtitle": "Manage your plan, usage, and subscription.",
+      "currentPlanTitle": "Your Current Plan",
+      "currentPlan": "Current Plan",
+      "scheduledChangeTitle": "Scheduled plan change",
+      "scheduled": "Scheduled",
+      "nextPlan": "Next plan",
+      "effectiveDate": "Effective date",
+      "endOfCurrentCycle": "the end of the current billing cycle",
+      "scheduledChangeExplanation": "Your current {{currentPlan}} plan remains active until {{date}}. Your {{nextPlan}} plan will become active automatically after that.",
+      "planTrial": "{{plan}} Trial",
+      "billingCycle": "Billing cycle",
+      "planPrice": "Configured plan price",
+      "nextBillingDate": "Next billing date",
+      "trialEndDate": "Trial end date",
+      "daysRemaining": "{{count}} days remaining",
+      "previewData": "Development subscription data",
+      "status": {
+        "trial": "Trial",
+        "active": "Active",
+        "failed": "Failed",
+        "cancelsSoon": "Cancels Soon",
+        "trialing": "Trial",
+        "past_due": "Past Due",
+        "pending": "Pending",
+        "payment_failed": "Payment Failed",
+        "paused": "Paused",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
       },
-      "comparePlansAction": "Compare Plans", "compareTitle": "Compare Plans", "compareSubtitle": "Review the configured limits and billing options available to your company.", "reviewUpgrade": "Review Upgrade", "reviewSubscription": "Review Pro Subscription", "contactSales": "Contact Sales", "contactUnavailable": "The Custom plan contact flow is not connected yet. No request was submitted.", "notAvailable": "Not available", "customLimit": "Custom",
-      "comparison": { "title": "Detailed Plan Comparison", "subtitle": "A focused comparison of the usage limits defined by the current plan configuration.", "limit": "Usage limit" },
-      "errorTitle": "Subscription unavailable", "errorDescription": "We could not load plan and subscription information.", "retry": "Try again", "missingTitle": "No subscription information", "missingDescription": "A current subscription could not be identified for this company."
+      "usageTitle": "Usage & Limits",
+      "usageSubtitle": "Current company usage against the limits configured for your plan.",
+      "usageUnavailable": "Usage data is not available for this subscription.",
+      "gb": " GB",
+      "usageLabels": {
+        "products": "Products",
+        "competitors": "Competitors",
+        "ragQueries": "RAG Questions",
+        "reports": "Reports",
+        "storageGb": "Storage"
+      },
+      "usageState": {
+        "unlimited": "Unlimited",
+        "normal": "Within limit",
+        "approaching": "Approaching limit",
+        "reached": "Limit reached",
+        "unknown": "Unavailable"
+      },
+      "recommendation": {
+        "trialTitle": "Continue after your trial",
+        "trialDescription": "Compare the configured paid options before your current trial ends.",
+        "reachedTitle": "More capacity may help",
+        "reachedDescription": "You've used {{used}} of the {{limit}} available {{metric}} on your current plan.",
+        "approachingTitle": "You're approaching a plan limit",
+        "approachingDescription": "You've used {{used}} of the {{limit}} available {{metric}} on your current plan."
+      },
+      "context": {
+        "products": {
+          "title": "Product limit reached",
+          "description": "You've reached the product limit for your current plan ({{used}} of {{limit}})."
+        },
+        "competitors": {
+          "title": "Competitor limit reached",
+          "description": "You've reached the competitor tracking limit for your current plan ({{used}} of {{limit}})."
+        },
+        "ragQueries": {
+          "title": "RAG limit reached",
+          "description": "You've reached the RAG question limit for your current plan ({{used}} of {{limit}})."
+        },
+        "storageGb": {
+          "title": "Storage limit reached",
+          "description": "You've reached the storage limit for your current plan ({{used}} of {{limit}})."
+        }
+      },
+      "comparePlansAction": "Compare Plans",
+      "changePlan": "Upgrade or Change Plan",
+      "compareTitle": "Compare Plans",
+      "compareSubtitle": "Review the configured limits and billing options available to your company.",
+      "reviewUpgrade": "Review Upgrade",
+      "reviewSubscription": "Review Pro Subscription",
+      "contactSales": "Contact Sales",
+      "contactUnavailable": "The Custom plan contact flow is not connected yet. No request was submitted.",
+      "notAvailable": "Not available",
+      "customLimit": "Custom",
+      "comparison": {
+        "title": "Detailed Plan Comparison",
+        "subtitle": "A focused comparison of the usage limits defined by the current plan configuration.",
+        "limit": "Usage limit"
+      },
+      "errorTitle": "Subscription unavailable",
+      "errorDescription": "We could not load plan and subscription information.",
+      "retry": "Try again",
+      "missingTitle": "No subscription information",
+      "missingDescription": "A current subscription could not be identified for this company.",
+      "loadError": "Failed to load subscription plans.",
+      "unavailablePlanName": "Current subscription plan"
     },
     "checkoutInApp": {
-      "title": "Review Upgrade", "subtitle": "Review the configured plan and billing period before continuing to payment.", "summaryTitle": "Upgrade summary", "currentPlan": "Current plan", "newPlan": "New plan", "billingPeriod": "Billing period", "configuredPrice": "Configured price", "currentRenewal": "Current renewal date", "effectiveDate": "Effective date", "providerDetermined": "Determined by the billing provider", "securePayment": "Secure payment", "securePaymentDescription": "Payment must be completed through the approved billing provider. CEOPRO does not store raw card details here.", "continue": "Continue to Payment", "preparing": "Preparing checkout...", "noPaymentStored": "No payment details are collected or persisted on this screen.", "paymentUnavailable": "Payment integration is not connected. No payment was processed and your plan was not changed.", "upgradeFailed": "The upgrade could not be prepared. Your current plan was not changed.", "backToBilling": "Back to Plans & Subscription", "invalidTitle": "Upgrade selection unavailable", "invalidDescription": "Choose an eligible upgrade and billing period from the Plans & Subscription page.", "errorTitle": "Checkout unavailable", "errorDescription": "We could not load the information required to review this upgrade."
+      "trialUpgradeDescription": "Your new plan will be available immediately. You will not be charged today. Your existing free trial will keep its original end date, and the full price of the new plan will be charged when the trial ends.",
+      "title": "Review Subscription",
+      "subtitle": "Review the selected plan and billing period before applying the change or continuing to Stripe Checkout.",
+      "summaryTitle": "Subscription summary",
+      "currentPlan": "Current plan",
+      "newPlan": "New plan",
+      "billingPeriod": "Billing period",
+      "configuredPrice": "Configured price",
+      "currentRenewal": "Current renewal date",
+      "effectiveDate": "Effective date",
+      "providerDetermined": "Determined by the billing provider",
+      "securePayment": "Secure payment",
+      "securePaymentDescription": "Payment must be completed through the approved billing provider. CEOPRO does not store raw card details here.",
+      "continue": "Continue to Payment",
+      "preparing": "Preparing checkout...",
+      "noPaymentStored": "No payment details are collected or persisted on this screen.",
+      "paymentUnavailable": "Payment integration is not connected. No payment was processed and your plan was not changed.",
+      "upgradeFailed": "The subscription change could not be completed. Your existing subscription was not changed.",
+      "backToBilling": "Back to Plans & Subscription",
+      "invalidTitle": "Plan selection unavailable",
+      "invalidDescription": "Choose an active plan and one of its supported billing periods.",
+      "errorTitle": "Checkout unavailable",
+      "errorDescription": "We could not load the information required to review this upgrade.",
+      "changeSuccess": "Subscription change submitted successfully.",
+      "planChangeDescription": "The backend will apply an upgrade immediately or schedule a downgrade according to the current subscription state.",
+      "confirmChange": "Confirm Plan Change"
     },
     "choose": {
       "title": "Choose the plan that fits you",
@@ -463,9 +1641,21 @@
     "plans": {
       "mostPopular": "Most Popular",
       "customPricing": "Custom pricing",
-      "standard": { "name": "Standard", "description": "Perfect for small businesses", "action": "Choose Standard" },
-      "pro": { "name": "Pro", "description": "For growing businesses", "action": "Start {{days}}-Day Free Trial" },
-      "custom": { "name": "Custom", "description": "Tailored for your business", "action": "Build Your Plan" }
+      "standard": {
+        "name": "Standard",
+        "description": "Perfect for small businesses",
+        "action": "Choose Standard"
+      },
+      "pro": {
+        "name": "Pro",
+        "description": "For growing businesses",
+        "action": "Start {{days}}-Day Free Trial"
+      },
+      "custom": {
+        "name": "Custom",
+        "description": "Tailored for your business",
+        "action": "Build Your Plan"
+      }
     },
     "recommendation": {
       "title": "Try Pro before choosing Standard",
@@ -486,50 +1676,181 @@
     },
     "custom": {
       "title": "Build Your Custom Plan",
-      "subtitle": "Choose the limits that fit your business needs. Adjust the controls and review the preview quote.",
+      "subtitle": "Choose the features and quotas you need. Your price updates automatically and is verified again before checkout.",
       "summaryTitle": "Your Custom Plan",
       "estimatedPrice": "Estimated preview price",
-      "previewPriceNote": "Preview quote only. Final pricing will come from the future billing API.",
+      "previewPriceNote": "Your price is calculated securely from the features and quotas you choose.",
       "helperTitle": "Need something specific?",
       "helperDescription": "You can always adjust these later.",
+      "billingPeriodHelp": "Choose how long you want to be billed for. Longer periods may include a discount.",
+      "included": "Included",
+      "addFeature": "Add",
+      "details": "Details",
+      "allowanceLabel": "Billing-period allowance",
+      "capacityLabel": "Capacity",
+      "decrease": "Decrease quantity",
+      "increase": "Increase quantity",
+      "allowedRange": "Available range: {{min}}–{{max}} {{unit}}",
+      "selectedCount": "{{count}} selected",
+      "selectedFeatures": "Selected features",
+      "emptySummaryTitle": "Start building your plan",
+      "emptySummaryDescription": "Select the capabilities you need to see your estimated price.",
+      "showMore": "Show {{count}} more",
+      "showLess": "Show less",
+      "billingSummary": "Billing summary",
+      "updating": "Updating…",
+      "calculating": "Calculating your estimate…",
+      "totalMonthly": "Monthly total",
+      "totalForMonths": "Total for {{months}} months",
+      "monthlyEquivalent": "Equivalent per month",
+      "youSave": "You save",
+      "loadError": "Unable to load custom-plan options.",
+      "groups": {
+        "core": {
+          "title": "Core capabilities",
+          "description": "Choose the business modules your team needs."
+        },
+        "ai": {
+          "title": "AI & automation",
+          "description": "Set the usage you expect for AI-powered workflows."
+        },
+        "capacity": {
+          "title": "Business capacity",
+          "description": "Choose the scale your team and data need."
+        },
+        "other": {
+          "title": "Additional capabilities",
+          "description": "Optional capabilities available for your custom plan."
+        }
+      },
+      "manualReview": {
+        "title": "This configuration needs a quick review",
+        "description": "Your selected setup is outside the instant-checkout range. Submit it and our team can prepare the final offer.",
+        "why": "Why is review needed?",
+        "action": "Request Manual Review",
+        "saved": "Your custom-plan request was saved for manual review.",
+        "savedWithReference": "Your request was saved for manual review (reference {{reference}}).",
+        "reasons": {
+          "price": "The estimated monthly price is above the instant-checkout limit.",
+          "vendorRate": "One or more pricing inputs require verification.",
+          "quota": "One of the requested limits is above the instant-checkout range.",
+          "default": "This configuration requires a manual pricing review."
+        }
+      },
+      "featureShortDescriptions": {
+        "dashboard_analytics": "Track key business metrics and performance at a glance.",
+        "market_intelligence": "Understand market trends, opportunities, and competitive movement.",
+        "market_perception": "Measure how customers and the market perceive your business.",
+        "demand_prediction": "Forecast future demand using your business data.",
+        "inventory_intelligence": "Turn forecasts into practical inventory recommendations.",
+        "product_management": "Manage products, inventory details, and pricing history.",
+        "competitor_management": "Monitor competitors and keep their profiles organized.",
+        "data_integration": "Connect external systems and business data sources.",
+        "business_recommendations": "Receive practical AI-powered business recommendations.",
+        "system_alerts": "Get timely alerts when important business signals change.",
+        "ai_pricing": "Generate AI-assisted pricing recommendations for your products.",
+        "sentiment_analysis": "Analyze customer and market sentiment at scale.",
+        "rag_assistant": "Ask questions and get answers grounded in your business data.",
+        "document_extraction": "Extract structured business data from uploaded documents.",
+        "report_generation": "Generate business reports from your platform data.",
+        "marketing_image_generation": "Create marketing visuals with AI assistance.",
+        "tracked_competitors": "Choose how many competitors your team can actively track.",
+        "tracked_products": "Choose how many products your workspace can manage.",
+        "connected_data_sources": "Choose how many external data sources you can connect.",
+        "team_members": "Choose how many people can collaborate in your workspace.",
+        "document_storage_gb": "Choose the storage available for documents and knowledge data."
+      },
       "fields": {
-        "products": { "label": "Products", "description": "Number of products you can add" },
-        "competitors": { "label": "Competitors Tracked", "description": "Number of competitors to monitor" },
-        "ragQueries": { "label": "AI Advisor & RAG Queries", "description": "Queries per month" },
-        "reports": { "label": "Reports", "description": "Reports per month" },
-        "storageGb": { "label": "Storage Space", "description": "For reports, files and data" },
-        "teamMembers": { "label": "Team Members", "description": "Number of team members" }
+        "products": {
+          "label": "Products",
+          "description": "Number of products you can add"
+        },
+        "competitors": {
+          "label": "Competitors Tracked",
+          "description": "Number of competitors to monitor"
+        },
+        "ragQueries": {
+          "label": "AI Advisor & RAG Queries",
+          "description": "Queries per month"
+        },
+        "reports": {
+          "label": "Reports",
+          "description": "Reports per month"
+        },
+        "storageGb": {
+          "label": "Storage Space",
+          "description": "For reports, files and data"
+        },
+        "teamMembers": {
+          "label": "Team Members",
+          "description": "Number of team members"
+        }
       },
       "integrations": {
         "label": "Integrations",
         "description": "Connect with your favorite tools",
-        "options": { "none": "None", "shopify": "Shopify", "ga4": "GA4", "pos": "POS", "other": "Other" }
+        "options": {
+          "none": "None",
+          "shopify": "Shopify",
+          "ga4": "GA4",
+          "pos": "POS",
+          "other": "Other"
+        }
       },
       "frequency": {
         "label": "Data Update Frequency",
         "description": "How often we update your connected data",
-        "options": { "daily": "Daily", "hourly": "Hourly", "realTime": "Real-time" }
+        "options": {
+          "daily": "Daily",
+          "hourly": "Hourly",
+          "realTime": "Real-time"
+        }
       },
       "summaryLabels": {
-        "products": "Products", "competitors": "Competitors Tracked", "ragQueries": "AI Advisor & RAG Queries", "reports": "Reports per month", "storage": "Storage", "storageGb": "Storage Space", "teamMembers": "Team Members", "integrations": "Integrations", "updateFrequency": "Data Update Frequency"
+        "products": "Products",
+        "competitors": "Competitors Tracked",
+        "ragQueries": "AI Advisor & RAG Queries",
+        "reports": "Reports per month",
+        "storage": "Storage",
+        "storageGb": "Storage Space",
+        "teamMembers": "Team Members",
+        "integrations": "Integrations",
+        "updateFrequency": "Data Update Frequency"
       },
-      "summaryValues": { "none": "None", "shopify": "Shopify", "ga4": "GA4", "pos": "POS", "other": "Other", "daily": "Daily", "hourly": "Hourly", "realTime": "Real-time" }
+      "summaryValues": {
+        "none": "None",
+        "shopify": "Shopify",
+        "ga4": "GA4",
+        "pos": "POS",
+        "other": "Other",
+        "daily": "Daily",
+        "hourly": "Hourly",
+        "realTime": "Real-time"
+      },
+      "unavailableTitle": "Custom plans are not available",
+      "unavailableDescription": "The backend does not currently expose a custom-plan quote or checkout contract."
     },
     "payment": {
       "title": "Payment method",
       "backToPlans": "Back to plans",
       "methodLabel": "Payment method",
-      "methods": { "card": "Credit / Debit Card", "paypal": "PayPal", "googlePay": "Google Pay" },
+      "methods": {
+        "card": "Credit / Debit Card",
+        "paypal": "PayPal",
+        "stripe": "Stripe",
+        "googlePay": "Google Pay"
+      },
       "cardholder": "Cardholder Name",
       "cardholderPlaceholder": "Full name on card",
       "cardNumber": "Card Number",
       "expiration": "Expiration Date",
       "cvv": "CVV",
       "complete": "Complete Payment",
-      "processing": "Preparing preview...",
+      "processing": "Redirecting to secure checkout...",
       "continuePaypal": "Continue with PayPal",
+      "continueStripe": "Continue with Stripe",
       "continueGooglePay": "Continue with Google Pay",
-      "previewNotice": "Development preview only. No real payment is processed.",
+      "previewNotice": "Payment is completed on Stripe hosted checkout. CEOPRO does not collect raw card details on this screen.",
       "yourPlan": "Your Plan",
       "billingCycle": "Billing cycle",
       "subtotal": "Subtotal",
@@ -538,40 +1859,337 @@
       "proTrial": "Pro trial",
       "monthlyPrice": "Monthly price",
       "afterTrial": "After the {{days}}-day trial",
-      "previewTotal": "Preview subscription total",
-      "totalDueToday": "Total due today"
+      "previewTotal": "Subscription total",
+      "totalDueToday": "Total due today",
+      "secureHostedCheckout": "Secure Stripe checkout",
+      "providerNotice": "You will be redirected to Stripe to complete payment securely.",
+      "redirecting": "Redirecting to Stripe...",
+      "error": "Checkout could not be started. Please try again."
     },
     "result": {
-      "success": { "title": "Subscription successful!", "description": "Your development preview subscription is ready.", "action": "Continue" },
-      "failed": { "title": "Subscription failed", "description": "This is the separate development failure preview state.", "action": "Try again" },
-      "amount": "Amount",
-      "paymentMethod": "Payment method",
-      "previewMethod": "Development preview"
+      "success": {
+        "title": "Payment received",
+        "description": "We are confirming your subscription with the billing service.",
+        "action": "Continue"
+      },
+      "confirmed": {
+        "title": "Subscription active",
+        "description": "Your subscription is active and ready to use."
+      },
+      "pending": {
+        "title": "Subscription confirmation pending",
+        "description": "Stripe completed the checkout, but the subscription has not appeared in the application yet. You can retry the status check."
+      },
+      "failed": {
+        "title": "Payment was not completed",
+        "description": "No subscription change was confirmed. You can return to the plan selection and try again.",
+        "action": "Try Again"
+      },
+      "checkAgain": "Check Again",
+      "checking": "Checking subscription...",
+      "backToPlans": "Back to Plans",
+      "goToBilling": "Go to Billing",
+      "error": {
+        "title": "Unable to verify subscription",
+        "description": "We could not verify the subscription status with the backend. You can retry the check or return to plan selection.",
+        "action": "Try Again"
+      }
+    },
+    "catalog": {
+      "title": "Subscription Catalog",
+      "subtitle": "Manage the plans, promo codes, features, and plan limits supported by the subscription API.",
+      "back": "Back to Plans & Subscription",
+      "manageAction": "Manage Catalog",
+      "actions": "Actions",
+      "readOnly": "Read only",
+      "tabs": {
+        "plans": "Plans",
+        "promos": "Promo Codes",
+        "features": "Features",
+        "planFeatures": "Plan Features",
+        "customPlans": "Custom Plans"
+      },
+      "permissions": {
+        "title": "Catalog access unavailable",
+        "none": "Your current tenant permissions do not allow catalog management.",
+        "allRequired": "This area requires the backend 'all' permission for the current tenant.",
+        "catalogRequired": "This area requires the backend 'manage_catalog' permission for the current tenant.",
+        "planWrite": "Plan creation and editing require the backend 'all' permission."
+      },
+      "plans": {
+        "title": "Plans",
+        "subtitle": "Active plans exposed by the subscription backend.",
+        "create": "Create Plan",
+        "createTitle": "Create Subscription Plan",
+        "editTitle": "Edit Subscription Plan",
+        "billingOptions": "Billing Options",
+        "billingOptionsHelp": "Each option must use the exact period code expected by checkout.",
+        "addBillingOption": "Add Billing Option",
+        "created": "Plan created successfully.",
+        "updated": "Plan updated successfully.",
+        "emptyTitle": "No active plans",
+        "emptyDescription": "Create an active plan before linking features."
+      },
+      "promos": {
+        "title": "Promo Codes",
+        "subtitle": "Create and manage promo codes, then link them to eligible plans.",
+        "create": "Create Promo Code",
+        "createTitle": "Create Promo Code",
+        "editTitle": "Edit Promo Code",
+        "created": "Promo code created successfully.",
+        "updated": "Promo code updated successfully.",
+        "linkTitle": "Link Promo Code to Plan",
+        "linkAction": "Link to Plan",
+        "linkHelp": "Choose the plan that should accept promo code {{code}}.",
+        "linked": "Promo code linked to plan successfully."
+      },
+      "features": {
+        "title": "Features",
+        "subtitle": "Manage feature definitions used by plan entitlements and usage limits.",
+        "create": "Create Feature",
+        "createTitle": "Create Feature",
+        "editTitle": "Edit Feature",
+        "created": "Feature created successfully.",
+        "updated": "Feature updated successfully."
+      },
+      "planFeatures": {
+        "title": "Plan Feature Limits",
+        "subtitle": "Link existing features to plans and maintain the configured quota for each link.",
+        "link": "Link Feature",
+        "linked": "Feature linked to plan successfully.",
+        "updated": "Feature limit updated successfully.",
+        "noAvailable": "All features are already linked",
+        "notApplicable": "Not applicable"
+      },
+      "fields": {
+        "name": "Name",
+        "nameAr": "Arabic Name",
+        "tier": "Tier Level",
+        "price": "Base Price",
+        "currency": "Currency",
+        "trialDays": "Trial Days",
+        "intervalValue": "Billing Interval Value",
+        "intervalUnit": "Billing Interval Unit",
+        "description": "Description",
+        "descriptionAr": "Arabic Description",
+        "periodCode": "Period Code",
+        "months": "Months",
+        "discountPercent": "Discount %",
+        "billingOptions": "Billing Options",
+        "code": "Code",
+        "discountType": "Discount Type",
+        "discountValue": "Discount Value",
+        "maxUses": "Maximum Uses",
+        "maxUsesPerUser": "Maximum Uses per Tenant",
+        "status": "Status",
+        "startsAt": "Starts At",
+        "expiresAt": "Expires At",
+        "discount": "Discount",
+        "usage": "Usage",
+        "plan": "Plan",
+        "featureCode": "Feature Code",
+        "type": "Type",
+        "unit": "Unit",
+        "aggregation": "Aggregation",
+        "resetCycle": "Reset Cycle",
+        "feature": "Feature",
+        "limit": "Limit",
+        "unitAr": "Arabic Unit"
+      },
+      "intervalUnits": {
+        "day": "Day",
+        "week": "Week",
+        "month": "Month",
+        "year": "Year"
+      },
+      "discountTypes": {
+        "percentage": "Percentage",
+        "fixedAmount": "Fixed Amount"
+      },
+      "featureTypes": {
+        "boolean": "Boolean",
+        "limit": "Limit"
+      },
+      "aggregation": {
+        "sum": "Sum",
+        "max": "Maximum"
+      },
+      "resetCycles": {
+        "billing_period": "Billing Period",
+        "lifetime": "Lifetime",
+        "billingPeriod": "Billing Period"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "validation": {
+        "planNames": "English and Arabic plan names are required.",
+        "tier": "Tier level must be a positive integer.",
+        "price": "Price must be zero or greater.",
+        "currency": "Currency must be exactly three uppercase letters.",
+        "billingOptions": "At least one billing option is required.",
+        "billingOption": "Each billing option needs a period code and a positive integer month count.",
+        "discount": "Discount must be within the range supported by the backend.",
+        "promoCode": "Promo code is required.",
+        "usageLimits": "Usage limits must be positive and the per-tenant limit cannot exceed the total limit.",
+        "dates": "Expiration must be later than the start date.",
+        "featureNames": "Required feature names are missing.",
+        "featureCode": "Feature code must be 3-50 lowercase letters, numbers, or underscores."
+      }
+    },
+    "checkoutRoute": {
+      "title": "Choose a plan before checkout",
+      "description": "Checkout is created by the subscription API after you select a plan and billing period. Payment is then completed on Stripe hosted checkout.",
+      "action": "Choose a Plan"
+    },
+    "coupon": {
+      "label": "Promo code",
+      "placeholder": "Enter promo code",
+      "apply": "Apply",
+      "percentageApplied": "{{value}}% discount validated. The backend will revalidate it during checkout.",
+      "applied": "Promo code validated. The backend will revalidate it during checkout.",
+      "invalid": "This promo code could not be validated."
+    },
+    "invoices": {
+      "title": "Billing History",
+      "subtitle": "Invoices recorded for the current subscription.",
+      "empty": "No invoices are available yet.",
+      "columns": {
+        "number": "Invoice",
+        "date": "Date",
+        "type": "Type",
+        "amount": "Amount",
+        "status": "Status",
+        "document": "Document"
+      },
+      "types": {
+        "initial": "Initial",
+        "recurring": "Recurring",
+        "subscription_change": "Subscription Change",
+        "threshold": "Threshold",
+        "other": "Other"
+      },
+      "download": "Download PDF",
+      "open": "Open Invoice",
+      "unavailable": "Unavailable"
+    },
+    "emptyState": {
+      "title": "No plans available",
+      "description": "There are currently no active subscription plans available to select."
+    },
+    "entitlements": {
+      "feature": "Feature",
+      "lockedTitle": "{{feature}} is locked",
+      "notIncluded": "{{feature}} is not included in your current plan.",
+      "quotaExhausted": "You have used {{current}} of {{limit}} available for this billing period.",
+      "capacityReached": "You are using {{current}} of {{limit}} available. Remove an item or choose another plan to add more.",
+      "resetsOn": "Your allowance resets on {{date}}.",
+      "viewPlans": "View plans"
     }
   },
   "connectData": {
-    "page": { "title": "Connect Data", "subtitle": "Connect, upload, and manage the business data used by CEOPRO.", "supporting": "Keep your sales, products, inventory, and market data up to date." },
-    "actions": { "addSource": "Add Data Source", "details": "View details", "uploadVersion": "Upload new version", "sync": "Refresh / Sync", "reconnect": "Reconnect", "retry": "Try again", "prepareImport": "Prepare Import" },
-    "statuses": { "connected": "Connected", "completed": "Completed", "processing": "Processing", "needsAttention": "Needs Attention", "failed": "Failed" },
-    "connected": { "title": "Connected Data Sources", "subtitle": "Sources currently linked to your company workspace.", "count": "{{count}} sources", "updated": "Updated {{date}}", "updatedLabel": "Last updated", "records": "Records", "categories": "Data categories" },
-    "upload": { "title": "Upload Files", "subtitle": "Add a new version or import additional business data.", "templates": "Download Template", "files": "Select Files" },
-    "activity": { "title": "Recent Data Activity", "subtitle": "Recent imports and connection updates.", "date": "Date", "source": "Source", "name": "File / Connection", "type": "Type", "status": "Status", "emptyTitle": "No recent data activity", "emptyDescription": "Imports and connection updates will appear here." },
-    "add": { "title": "Add Data Source", "subtitle": "Choose one of the data sources already supported by CEOPRO." },
-    "empty": { "title": "No data sources connected yet", "description": "Connect a supported source or upload business files to begin." },
-    "error": { "title": "Data sources unavailable", "description": "We could not load your connected sources. Please try again." },
-    "feedback": { "backendUnavailable": "This connection action is not available until its backend integration is configured.", "previewOnly": "The source was validated in preview mode, but no live connection was created.", "preparedOnly": "Files passed frontend validation. Backend upload is not connected, so nothing was imported.", "uploaded": "Files uploaded successfully." },
-    "fileTypes": { "xlsx": "Excel", "csv": "CSV", "connection": "Connection" }
+    "page": {
+      "title": "Connect Data",
+      "subtitle": "Connect, upload, and manage the business data used by CEOPRO.",
+      "supporting": "Keep your sales, products, inventory, and market data up to date."
+    },
+    "actions": {
+      "addSource": "Add Data Source",
+      "details": "View details",
+      "uploadVersion": "Upload new version",
+      "sync": "Refresh / Sync",
+      "reconnect": "Reconnect",
+      "retry": "Try again",
+      "prepareImport": "Prepare Import"
+    },
+    "statuses": {
+      "connected": "Connected",
+      "completed": "Completed",
+      "processing": "Processing",
+      "needsAttention": "Needs Attention",
+      "failed": "Failed"
+    },
+    "connected": {
+      "title": "Connected Data Sources",
+      "subtitle": "Sources currently linked to your company workspace.",
+      "count": "{{count}} sources",
+      "updated": "Updated {{date}}",
+      "updatedLabel": "Last updated",
+      "records": "Records",
+      "categories": "Data categories"
+    },
+    "upload": {
+      "title": "Upload Files",
+      "subtitle": "Add a new version or import additional business data.",
+      "templates": "Download Template",
+      "files": "Select Files"
+    },
+    "activity": {
+      "title": "Recent Data Activity",
+      "subtitle": "Recent imports and connection updates.",
+      "date": "Date",
+      "source": "Source",
+      "name": "File / Connection",
+      "type": "Type",
+      "status": "Status",
+      "emptyTitle": "No recent data activity",
+      "emptyDescription": "Imports and connection updates will appear here."
+    },
+    "add": {
+      "title": "Add Data Source",
+      "subtitle": "Choose one of the data sources already supported by CEOPRO."
+    },
+    "empty": {
+      "title": "No data sources connected yet",
+      "description": "Connect a supported source or upload business files to begin."
+    },
+    "error": {
+      "title": "Data sources unavailable",
+      "description": "We could not load your connected sources. Please try again."
+    },
+    "feedback": {
+      "backendUnavailable": "This connection action is not available until its backend integration is configured.",
+      "previewOnly": "The source was validated in preview mode, but no live connection was created.",
+      "preparedOnly": "Files passed frontend validation. Backend upload is not connected, so nothing was imported.",
+      "uploaded": "Files uploaded successfully."
+    },
+    "fileTypes": {
+      "xlsx": "Excel",
+      "csv": "CSV",
+      "connection": "Connection"
+    }
   },
   "dataConnections": {
     "title": "Connect your data",
     "subtitle": "Connect the tools and data sources you use to get the most out of CEOPRO. You may also complete setup now and connect them later.",
-    "statuses": { "not-connected": "Not connected", "connecting": "Connecting", "connected": "Connected", "error": "Connection unavailable" },
+    "statuses": {
+      "not-connected": "Not connected",
+      "connecting": "Connecting",
+      "connected": "Connected",
+      "error": "Connection unavailable"
+    },
     "connectedCount": "{{count}} data source(s) connected",
     "completeSetup": "Complete Setup",
     "skip": "Skip for now",
-    "analytics": { "title": "Google Analytics", "description": "Connect your Google Analytics account to get website and audience insights.", "action": "Connect Account", "oauthUnavailable": "Google Analytics OAuth is not connected in this frontend preview." },
-    "website": { "title": "Your Website / Online Store", "description": "Enter your website or store URL to track your products, traffic and competitors.", "inputLabel": "Website or store URL", "action": "Add Website", "error": "Enter a valid website before continuing." },
-    "documents": { "title": "Documents", "description": "Add relevant documents about your business, including products, reports and market data.", "action": "Upload files" },
+    "analytics": {
+      "title": "Google Analytics",
+      "description": "Connect your Google Analytics account to get website and audience insights.",
+      "action": "Connect Account",
+      "oauthUnavailable": "Google Analytics OAuth is not connected in this frontend preview."
+    },
+    "website": {
+      "title": "Your Website / Online Store",
+      "description": "Enter your website or store URL to track your products, traffic and competitors.",
+      "inputLabel": "Website or store URL",
+      "action": "Add Website",
+      "error": "Enter a valid website before continuing."
+    },
+    "documents": {
+      "title": "Documents",
+      "description": "Add relevant documents about your business, including products, reports and market data.",
+      "action": "Upload files"
+    },
     "businessSystem": {
       "title": "Business System",
       "description": "Connect your database, POS, or ERP system to import business data.",
@@ -583,9 +2201,18 @@
       "select": "Select",
       "placeholder": "Connection setup details will be added separately.",
       "options": {
-        "database": { "title": "Database", "description": "Connect directly to your company database." },
-        "pos": { "title": "POS System", "description": "Connect your point-of-sale system." },
-        "erp": { "title": "ERP System", "description": "Connect your ERP system." }
+        "database": {
+          "title": "Database",
+          "description": "Connect directly to your company database."
+        },
+        "pos": {
+          "title": "POS System",
+          "description": "Connect your point-of-sale system."
+        },
+        "erp": {
+          "title": "ERP System",
+          "description": "Connect your ERP system."
+        }
       }
     },
     "database": {
@@ -601,92 +2228,455 @@
       "test": "Test Connection",
       "testUnavailable": "Connection testing will be enabled when the backend credential flow is available.",
       "providers": {
-        "mysql": { "title": "MySQL", "description": "Select MySQL" },
-        "postgresql": { "title": "PostgreSQL", "description": "Select PostgreSQL" },
-        "sqlServer": { "title": "Microsoft SQL Server", "description": "Select SQL Server" },
-        "mongodb": { "title": "MongoDB", "description": "Select MongoDB" },
-        "oracle": { "title": "Oracle", "description": "Select Oracle" },
-        "other": { "title": "Other Database", "description": "Select another provider" }
+        "mysql": {
+          "title": "MySQL",
+          "description": "Select MySQL"
+        },
+        "postgresql": {
+          "title": "PostgreSQL",
+          "description": "Select PostgreSQL"
+        },
+        "sqlServer": {
+          "title": "Microsoft SQL Server",
+          "description": "Select SQL Server"
+        },
+        "mongodb": {
+          "title": "MongoDB",
+          "description": "Select MongoDB"
+        },
+        "oracle": {
+          "title": "Oracle",
+          "description": "Select Oracle"
+        },
+        "other": {
+          "title": "Other Database",
+          "description": "Select another provider"
+        }
       }
     }
   },
   "demandApproved": {
-    "page": { "title": "Demand Prediction", "subtitle": "Forecast demand, plan inventory, and take data-driven actions." },
-    "filters": { "product": "Product", "period": "Date range", "allProducts": "All Products", "last7": "Last 7 days", "last30": "Last 30 days" },
-    "metrics": { "label": "Demand prediction summary", "next30Forecast": "Next 30 Days Forecast", "productsForecasted": "Products Forecasted", "predictedIncrease": "Predicted Increase", "predictedDecrease": "Predicted Decrease", "stableDemand": "Stable Demand" },
-    "common": { "units": "units", "notAvailable": "Not available" },
-    "chart": { "label": "Demand forecast chart", "totalTitle": "Total Forecasted Demand", "totalSubtitle": "Aggregated demand forecast over the selected {{days}} days.", "value": "Forecasted demand", "actual": "Historical demand", "forecast": "Forecast demand", "confidence": "Confidence range" },
-    "forecasts": { "title": "Product Forecasts & Recommendations", "subtitle": "Product-level demand forecasts and supported inventory recommendations." },
-    "table": { "product": "Product", "category": "Category", "currentStock": "Current Stock", "expectedDemand": "Expected Demand", "targetDate": "Target Date", "confidenceRange": "Confidence Range", "trend": "Trend", "recommendedAction": "Recommended Action", "actions": "Actions" },
-    "actions": { "retry": "Try again", "viewDetails": "View Details", "exportPdf": "Export to PDF", "back": "Back to Demand Prediction" },
-    "trends": { "increasing": "Increasing", "decreasing": "Decreasing", "stable": "Stable" },
-    "recommendations": { "restock": "Restock", "reduce": "Reduce", "monitor": "Monitor" },
-    "priorities": { "high": "High", "medium": "Medium", "low": "Low" },
-    "detailMetrics": { "currentStock": "Current Stock", "expectedDemand": "Expected Demand", "targetDate": "Target Date", "confidenceRange": "Confidence Range", "modelAccuracy": "Model Accuracy" },
-    "detail": { "chartTitle": "Demand Forecast", "chartSubtitle": "Historical demand, forecast demand, and the supported confidence interval." },
-    "history": { "title": "Forecast Table", "subtitle": "Available forecast entries for this product.", "date": "Date / Period", "forecast": "Forecasted Demand", "lower": "Lower Bound", "upper": "Upper Bound", "actual": "Actual Demand" },
-    "recommendation": { "title": "Inventory Recommendation", "subtitle": "Supported recommendation returned by the forecast service.", "quantity": "Suggested Quantity", "priority": "Priority", "targetDate": "Target Date", "accuracy": "Model Accuracy" },
-    "insight": { "title": "AI Insight", "generated": "Generated {{date}}", "confidence": "Confidence: {{value}}%" },
-    "empty": { "productsTitle": "No products available", "productsDescription": "Connect product data before generating demand forecasts.", "forecastsTitle": "No forecasts available", "forecastsDescription": "Forecasts will appear when supported product data is available.", "detailTitle": "Product forecast not found", "detailDescription": "No supported forecast was found for this product.", "historyTitle": "No forecast history", "historyDescription": "Forecast entries will appear here when available.", "recommendationTitle": "No recommendation available", "recommendationDescription": "No inventory recommendation was returned for this product." },
-    "error": { "title": "Demand prediction unavailable", "detailTitle": "Product forecast unavailable", "description": "We could not load the forecast data. Please try again." },
-    "export": { "unavailable": "PDF export is not connected yet. No file was generated." }
+    "page": {
+      "title": "Demand Prediction",
+      "subtitle": "Forecast demand, plan inventory, and take data-driven actions."
+    },
+    "filters": {
+      "product": "Product",
+      "period": "Date range",
+      "allProducts": "All Products",
+      "last7": "Last 7 days",
+      "last30": "Last 30 days"
+    },
+    "metrics": {
+      "label": "Demand prediction summary",
+      "next30Forecast": "Next 30 Days Forecast",
+      "productsForecasted": "Products Forecasted",
+      "predictedIncrease": "Predicted Increase",
+      "predictedDecrease": "Predicted Decrease",
+      "stableDemand": "Stable Demand"
+    },
+    "common": {
+      "units": "units",
+      "notAvailable": "Not available"
+    },
+    "chart": {
+      "label": "Demand forecast chart",
+      "totalTitle": "Total Forecasted Demand",
+      "totalSubtitle": "Aggregated demand forecast over the selected {{days}} days.",
+      "value": "Forecasted demand",
+      "actual": "Historical demand",
+      "forecast": "Forecast demand",
+      "confidence": "Confidence range"
+    },
+    "forecasts": {
+      "title": "Product Forecasts & Recommendations",
+      "subtitle": "Product-level demand forecasts and supported inventory recommendations."
+    },
+    "table": {
+      "product": "Product",
+      "category": "Category",
+      "currentStock": "Current Stock",
+      "expectedDemand": "Expected Demand",
+      "targetDate": "Target Date",
+      "confidenceRange": "Confidence Range",
+      "trend": "Trend",
+      "recommendedAction": "Recommended Action",
+      "actions": "Actions"
+    },
+    "actions": {
+      "retry": "Try again",
+      "viewDetails": "View Details",
+      "exportPdf": "Export to PDF",
+      "back": "Back to Demand Prediction"
+    },
+    "trends": {
+      "increasing": "Increasing",
+      "decreasing": "Decreasing",
+      "stable": "Stable"
+    },
+    "recommendations": {
+      "restock": "Restock",
+      "reduce": "Reduce",
+      "monitor": "Monitor"
+    },
+    "priorities": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "detailMetrics": {
+      "currentStock": "Current Stock",
+      "expectedDemand": "Expected Demand",
+      "targetDate": "Target Date",
+      "confidenceRange": "Confidence Range",
+      "modelAccuracy": "Model Accuracy"
+    },
+    "detail": {
+      "chartTitle": "Demand Forecast",
+      "chartSubtitle": "Historical demand, forecast demand, and the supported confidence interval."
+    },
+    "history": {
+      "title": "Forecast Table",
+      "subtitle": "Available forecast entries for this product.",
+      "date": "Date / Period",
+      "forecast": "Forecasted Demand",
+      "lower": "Lower Bound",
+      "upper": "Upper Bound",
+      "actual": "Actual Demand"
+    },
+    "recommendation": {
+      "title": "Inventory Recommendation",
+      "subtitle": "Supported recommendation returned by the forecast service.",
+      "quantity": "Suggested Quantity",
+      "priority": "Priority",
+      "targetDate": "Target Date",
+      "accuracy": "Model Accuracy"
+    },
+    "insight": {
+      "title": "AI Insight",
+      "generated": "Generated {{date}}",
+      "confidence": "Confidence: {{value}}%"
+    },
+    "empty": {
+      "productsTitle": "No products available",
+      "productsDescription": "Connect product data before generating demand forecasts.",
+      "forecastsTitle": "No forecasts available",
+      "forecastsDescription": "Forecasts will appear when supported product data is available.",
+      "detailTitle": "Product forecast not found",
+      "detailDescription": "No supported forecast was found for this product.",
+      "historyTitle": "No forecast history",
+      "historyDescription": "Forecast entries will appear here when available.",
+      "recommendationTitle": "No recommendation available",
+      "recommendationDescription": "No inventory recommendation was returned for this product."
+    },
+    "error": {
+      "title": "Demand prediction unavailable",
+      "detailTitle": "Product forecast unavailable",
+      "description": "We could not load the forecast data. Please try again."
+    },
+    "export": {
+      "unavailable": "PDF export is not connected yet. No file was generated."
+    }
   },
   "demand": {
-    "tabs": { "label": "Demand prediction sections", "overview": "Overview", "products": "Product Forecasts", "inventory": "Inventory Recommendations" },
-    "common": { "units": "units", "sku": "SKU", "dateRange": "Date range", "last30Days": "Last 30 days", "next30Days": "Next 30 days", "viewAll": "View All", "viewDetails": "View Details", "viewMore": "View More", "fullAnalysis": "View Full Analysis", "more": "More actions" },
+    "tabs": {
+      "label": "Demand prediction sections",
+      "overview": "Overview",
+      "products": "Product Forecasts",
+      "inventory": "Inventory Recommendations"
+    },
+    "common": {
+      "units": "units",
+      "sku": "SKU",
+      "dateRange": "Date range",
+      "last30Days": "Last 30 days",
+      "next30Days": "Next 30 days",
+      "viewAll": "View All",
+      "viewDetails": "View Details",
+      "viewMore": "View More",
+      "fullAnalysis": "View Full Analysis",
+      "more": "More actions"
+    },
     "overview": {
-      "title": "Demand Prediction Overview", "subtitle": "Turn your data into smarter inventory decisions.", "addData": "Add Data",
-      "snapshot": "Forecast Snapshot", "snapshotSubtitle": "Key indicators from your demand forecasts.",
-      "nextWeek": "Next Week Forecast", "next30Days": "Next 30 Days Forecast", "productsForecasted": "Products Forecasted", "spikesDetected": "Demand Spikes Detected", "spikesDetail": "Products with significant demand increase",
-      "trendTitle": "Demand Trend Overview", "trendSubtitle": "Total demand trend across all products.",
-      "aiInsight": "AI Demand Insight", "aiInsightText": "Demand for home internet packages is expected to increase next month, mainly driven by new student enrollment and seasonal promotions.", "aiHighlight": "predicted demand increase",
-      "topIncrease": "Top Products by Predicted Demand Increase", "topIncreaseSubtitle": "Products with the highest expected demand growth.",
-      "topDecrease": "Top Products by Predicted Demand Decrease", "topDecreaseSubtitle": "Products with the highest expected demand decline.",
-      "inventoryActions": "Priority Inventory Actions", "inventorySubtitle": "AI-recommended actions based on predicted demand.",
-      "opportunities": "Forecast Opportunities", "opportunitiesSubtitle": "AI-identified opportunities based on demand predictions."
+      "title": "Demand Prediction Overview",
+      "subtitle": "Turn your data into smarter inventory decisions.",
+      "addData": "Add Data",
+      "snapshot": "Forecast Snapshot",
+      "snapshotSubtitle": "Key indicators from your demand forecasts.",
+      "nextWeek": "Next Week Forecast",
+      "next30Days": "Next 30 Days Forecast",
+      "productsForecasted": "Products Forecasted",
+      "spikesDetected": "Demand Spikes Detected",
+      "spikesDetail": "Products with significant demand increase",
+      "trendTitle": "Demand Trend Overview",
+      "trendSubtitle": "Total demand trend across all products.",
+      "aiInsight": "AI Demand Insight",
+      "aiInsightText": "Demand for home internet packages is expected to increase next month, mainly driven by new student enrollment and seasonal promotions.",
+      "aiHighlight": "predicted demand increase",
+      "topIncrease": "Top Products by Predicted Demand Increase",
+      "topIncreaseSubtitle": "Products with the highest expected demand growth.",
+      "topDecrease": "Top Products by Predicted Demand Decrease",
+      "topDecreaseSubtitle": "Products with the highest expected demand decline.",
+      "inventoryActions": "Priority Inventory Actions",
+      "inventorySubtitle": "AI-recommended actions based on predicted demand.",
+      "opportunities": "Forecast Opportunities",
+      "opportunitiesSubtitle": "AI-identified opportunities based on demand predictions."
     },
     "products": {
-      "title": "Product Forecasts", "subtitle": "Explore AI-powered demand forecasts for your products.", "addProduct": "Add Product",
-      "totalProducts": "Total Products", "totalProductsDetail": "Out of 500 products", "expectedIncrease": "Products with Expected Increase", "expectedIncreaseDetail": "58% of forecasted products", "expectedDecrease": "Products with Expected Decrease", "expectedDecreaseDetail": "26% of forecasted products", "stableDemand": "Stable Demand", "stableDemandDetail": "16% of forecasted products",
-      "empty": "No product forecasts match these filters.", "showing": "Showing {{count}} of {{total}} products"
+      "title": "Product Forecasts",
+      "subtitle": "Explore AI-powered demand forecasts for your products.",
+      "addProduct": "Add Product",
+      "totalProducts": "Total Products",
+      "totalProductsDetail": "Out of 500 products",
+      "expectedIncrease": "Products with Expected Increase",
+      "expectedIncreaseDetail": "58% of forecasted products",
+      "expectedDecrease": "Products with Expected Decrease",
+      "expectedDecreaseDetail": "26% of forecasted products",
+      "stableDemand": "Stable Demand",
+      "stableDemandDetail": "16% of forecasted products",
+      "empty": "No product forecasts match these filters.",
+      "showing": "Showing {{count}} of {{total}} products"
     },
-    "inventory": { "comingSoon": "Inventory Recommendations will be completed in Part 2." },
+    "inventory": {
+      "comingSoon": "Inventory Recommendations will be completed in Part 2."
+    },
     "detail": {
-      "back": "Back to Product Forecasts", "notFound": "Product forecast not found", "watchlist": "Add to Watchlist", "watching": "In Watchlist",
-      "currentStock": "Current Stock", "forecast30": "Forecast Next 30 Days", "modelAccuracy": "Model Accuracy", "highReliability": "High reliability", "dailyDemand": "Average Daily Demand", "revenueOpportunity": "Estimated Revenue Opportunity",
-      "forecastTitle": "Demand Forecast", "forecastSubtitle": "Historical data, predicted demand and confidence interval.", "granularity": "Forecast granularity", "dateRange": "Jan 2025 - Dec 2026",
-      "aiInsight": "AI Insight", "highConfidence": "High Confidence", "insightText": "Demand for {{product}} is expected to increase by 42% in the next three months, driven by back-to-school season, competitor price increases, and growing interest in portable audio devices.",
-      "insights": { "signal": "Strong upward trend expected", "season": "Seasonal peak from August to September", "stock": "Low risk of stockout if ordered now" },
-      "forecastTable": "Forecast Table", "seasonality": "Seasonality & Trends", "weeklyView": "Day of Week", "seasonalityLabel": "Monthly demand intensity heatmap", "lowerDemand": "Lower Demand", "higherDemand": "Higher Demand",
-      "trendAnalysis": "Trend Analysis", "analysis": { "overall": "Overall Trend", "seasonality": "Seasonality", "volatility": "Volatility", "growth": "Growth Rate", "increasing": "Increasing", "high": "High", "moderate": "Moderate" },
-      "actions": "Actions", "adjustInventory": "Adjust Inventory", "export": "Export Forecast"
+      "back": "Back to Product Forecasts",
+      "notFound": "Product forecast not found",
+      "watchlist": "Add to Watchlist",
+      "watching": "In Watchlist",
+      "currentStock": "Current Stock",
+      "forecast30": "Forecast Next 30 Days",
+      "modelAccuracy": "Model Accuracy",
+      "highReliability": "High reliability",
+      "dailyDemand": "Average Daily Demand",
+      "revenueOpportunity": "Estimated Revenue Opportunity",
+      "forecastTitle": "Demand Forecast",
+      "forecastSubtitle": "Historical data, predicted demand and confidence interval.",
+      "granularity": "Forecast granularity",
+      "dateRange": "Jan 2025 - Dec 2026",
+      "aiInsight": "AI Insight",
+      "highConfidence": "High Confidence",
+      "insightText": "Demand for {{product}} is expected to increase by 42% in the next three months, driven by back-to-school season, competitor price increases, and growing interest in portable audio devices.",
+      "insights": {
+        "signal": "Strong upward trend expected",
+        "season": "Seasonal peak from August to September",
+        "stock": "Low risk of stockout if ordered now"
+      },
+      "forecastTable": "Forecast Table",
+      "seasonality": "Seasonality & Trends",
+      "weeklyView": "Day of Week",
+      "seasonalityLabel": "Monthly demand intensity heatmap",
+      "lowerDemand": "Lower Demand",
+      "higherDemand": "Higher Demand",
+      "trendAnalysis": "Trend Analysis",
+      "analysis": {
+        "overall": "Overall Trend",
+        "seasonality": "Seasonality",
+        "volatility": "Volatility",
+        "growth": "Growth Rate",
+        "increasing": "Increasing",
+        "high": "High",
+        "moderate": "Moderate"
+      },
+      "actions": "Actions",
+      "adjustInventory": "Adjust Inventory",
+      "export": "Export Forecast"
     },
-    "filters": { "searchProducts": "Search products...", "category": "Category", "allCategories": "All Categories", "trend": "Forecast Trend", "allTrends": "All Forecast Trends", "status": "Status", "allStatuses": "All Statuses", "clear": "Clear Filters" },
-    "table": { "product": "Product", "category": "Category", "stock": "Stock", "currentStock": "Current Stock", "forecast30": "Forecast (30D)", "predicted": "Predicted Demand", "change": "Change", "demandTrend": "Demand Trend", "accuracy": "Model Accuracy", "status": "Status", "action": "Action", "recommendedAction": "Recommended Action", "suggestedQty": "Suggested Qty", "reason": "Reason", "month": "Month", "historical": "Historical Demand", "lower": "Lower Bound", "upper": "Upper Bound" },
-    "status": { "increasing": "Increasing", "decreasing": "Decreasing", "stable": "Stable" },
-    "actions": { "restock": "Restock Now", "reduce": "Reduce Order", "monitor": "Monitor" },
-    "reasons": { "highIncrease": "High predicted demand (+100%)", "trending": "Demand trending up (+80%)", "lowerDemand": "Lower demand expected (-49%)", "seasonalDecline": "Seasonal decline (-48%)", "review": "Keep under review" },
-    "opportunities": { "bundle": "Bundle Home Internet + TV", "bundleText": "Increasing demand for internet packages with entertainment bundles.", "seasonal": "Seasonal Campaign", "seasonalText": "Prepare promotions for the back-to-school season.", "mobile": "Mobile Plan Upgrade", "mobileText": "Growing demand for higher data plans among young professionals.", "view": "View Opportunity" },
-    "potential": { "high": "High Potential", "medium": "Medium" },
-    "pagination": { "previous": "Previous page", "next": "Next page" },
-    "period": { "daily": "Daily", "weekly": "Weekly", "monthly": "Monthly" },
-    "charts": { "demandLabel": "Historical and predicted demand chart", "today": "Today", "thisYear": "This Year", "historical": "Historical Demand", "predicted": "Predicted Demand", "previous": "Last Year", "confidence": "Confidence Interval" },
-    "categories": { "electronics": "Electronics", "beauty": "Beauty", "office": "Office", "food": "Food & Beverages", "apparel": "Apparel", "outdoor": "Outdoor", "toys": "Toys & Games" },
-    "months": { "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr", "may": "May", "jun": "Jun", "jul": "Jul", "aug": "Aug", "sep": "Sep", "oct": "Oct", "nov": "Nov", "dec": "Dec" },
-    "periods": { "jul2026": "Jul 2026", "aug2026": "Aug 2026", "sep2026": "Sep 2026", "oct2026": "Oct 2026", "nov2026": "Nov 2026", "dec2026": "Dec 2026" }
+    "filters": {
+      "searchProducts": "Search products...",
+      "category": "Category",
+      "allCategories": "All Categories",
+      "trend": "Forecast Trend",
+      "allTrends": "All Forecast Trends",
+      "status": "Status",
+      "allStatuses": "All Statuses",
+      "clear": "Clear Filters"
+    },
+    "table": {
+      "product": "Product",
+      "category": "Category",
+      "stock": "Stock",
+      "currentStock": "Current Stock",
+      "forecast30": "Forecast (30D)",
+      "predicted": "Predicted Demand",
+      "change": "Change",
+      "demandTrend": "Demand Trend",
+      "accuracy": "Model Accuracy",
+      "status": "Status",
+      "action": "Action",
+      "recommendedAction": "Recommended Action",
+      "suggestedQty": "Suggested Qty",
+      "reason": "Reason",
+      "month": "Month",
+      "historical": "Historical Demand",
+      "lower": "Lower Bound",
+      "upper": "Upper Bound"
+    },
+    "status": {
+      "increasing": "Increasing",
+      "decreasing": "Decreasing",
+      "stable": "Stable"
+    },
+    "actions": {
+      "restock": "Restock Now",
+      "reduce": "Reduce Order",
+      "monitor": "Monitor"
+    },
+    "reasons": {
+      "highIncrease": "High predicted demand (+100%)",
+      "trending": "Demand trending up (+80%)",
+      "lowerDemand": "Lower demand expected (-49%)",
+      "seasonalDecline": "Seasonal decline (-48%)",
+      "review": "Keep under review"
+    },
+    "opportunities": {
+      "bundle": "Bundle Home Internet + TV",
+      "bundleText": "Increasing demand for internet packages with entertainment bundles.",
+      "seasonal": "Seasonal Campaign",
+      "seasonalText": "Prepare promotions for the back-to-school season.",
+      "mobile": "Mobile Plan Upgrade",
+      "mobileText": "Growing demand for higher data plans among young professionals.",
+      "view": "View Opportunity"
+    },
+    "potential": {
+      "high": "High Potential",
+      "medium": "Medium"
+    },
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "period": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "charts": {
+      "demandLabel": "Historical and predicted demand chart",
+      "today": "Today",
+      "thisYear": "This Year",
+      "historical": "Historical Demand",
+      "predicted": "Predicted Demand",
+      "previous": "Last Year",
+      "confidence": "Confidence Interval"
+    },
+    "categories": {
+      "electronics": "Electronics",
+      "beauty": "Beauty",
+      "office": "Office",
+      "food": "Food & Beverages",
+      "apparel": "Apparel",
+      "outdoor": "Outdoor",
+      "toys": "Toys & Games"
+    },
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "periods": {
+      "jul2026": "Jul 2026",
+      "aug2026": "Aug 2026",
+      "sep2026": "Sep 2026",
+      "oct2026": "Oct 2026",
+      "nov2026": "Nov 2026",
+      "dec2026": "Dec 2026"
+    }
   },
   "ragAssistant": {
-    "page": { "title": "RAG Assistant", "subtitle": "Ask questions about your business documents and get AI-powered answers." },
-    "chat": { "regionLabel": "Document assistant conversation", "assistant": "CEOPRO Assistant", "you": "You", "generating": "Generating answer...", "unavailable": "The RAG service is not connected. Your question was kept in this session, but no answer was generated." },
-    "composer": { "placeholder": "Ask a question about your documents...", "send": "Send question", "helper": "Ask about information contained in your company's available knowledge base documents." },
-    "empty": { "title": "Ask a question about your business documents.", "description": "Answers will use the documents available in your company's knowledge base when the RAG service is connected.", "prompts": { "summary": "Summarize this month's product report.", "pricing": "What does our pricing document say about Product X?", "compare": "Compare information across my uploaded documents." } },
-    "sources": { "title": "Sources", "page": "Page {{value}}", "pages": "Pages {{value}}", "knowledgeBase": "Knowledge Base", "chatAttachment": "Chat attachment" },
-    "attachments": { "add": "Attach a file or image", "remove": "Remove {{name}}", "imagePreview": "Selected image preview", "invalid": "{{name}} is not a supported file or exceeds 50 MB.", "readFailed": "The selected attachment could not be read. Please try again." },
-    "knowledge": { "title": "Knowledge Base", "subtitle": "Manage the documents used by the assistant.", "upload": "Upload Document", "search": "Search documents...", "type": "Document Type", "allTypes": "All types", "sort": "Sort by", "newest": "Newest first", "oldest": "Oldest first", "collapse": "Hide Knowledge Base", "open": "Open Knowledge Base" },
-    "documents": { "emptyTitle": "No documents available", "emptyDescription": "Upload company documents when ingestion is connected to make them available to the assistant.", "noMatchesTitle": "No matching documents", "noMatchesDescription": "Try a different search or document type.", "errorTitle": "Knowledge Base unavailable", "errorDescription": "We could not load the company's documents.", "actions": "Actions for {{name}}", "showing": "Showing {{start}}–{{end}} of {{total}} documents", "status": { "ready": "Ready", "processing": "Processing", "failed": "Failed" } },
-    "upload": { "title": "Upload documents for RAG", "description": "Select supported company documents. Files are validated using the existing CEOPRO upload flow and are only marked uploaded after the ingestion service confirms success.", "uploading": "Uploading..." },
-    "actions": { "retry": "Try again", "cancel": "Cancel" },
-    "feedback": { "chatUnavailable": "RAG chat is not connected yet. No answer was generated.", "requestFailed": "The RAG request failed. Please try again.", "uploadUnavailable": "Files passed frontend validation, but RAG ingestion is not connected. Nothing was uploaded.", "uploadFailed": "The document upload failed. Please try again.", "uploaded": "Documents uploaded successfully." }
+    "page": {
+      "title": "RAG Assistant",
+      "subtitle": "Ask questions about your business documents and get AI-powered answers."
+    },
+    "chat": {
+      "regionLabel": "Document assistant conversation",
+      "assistant": "CEOPRO Assistant",
+      "you": "You",
+      "generating": "Generating answer...",
+      "unavailable": "The RAG service is not connected. Your question was kept in this session, but no answer was generated."
+    },
+    "composer": {
+      "placeholder": "Ask a question about your documents...",
+      "send": "Send question",
+      "helper": "Ask about information contained in your company's available knowledge base documents."
+    },
+    "empty": {
+      "title": "Ask a question about your business documents.",
+      "description": "Answers will use the documents available in your company's knowledge base when the RAG service is connected.",
+      "prompts": {
+        "summary": "Summarize this month's product report.",
+        "pricing": "What does our pricing document say about Product X?",
+        "compare": "Compare information across my uploaded documents."
+      }
+    },
+    "sources": {
+      "title": "Sources",
+      "page": "Page {{value}}",
+      "pages": "Pages {{value}}",
+      "knowledgeBase": "Knowledge Base",
+      "chatAttachment": "Chat attachment"
+    },
+    "attachments": {
+      "add": "Attach a file or image",
+      "remove": "Remove {{name}}",
+      "imagePreview": "Selected image preview",
+      "invalid": "{{name}} is not a supported file or exceeds 50 MB.",
+      "readFailed": "The selected attachment could not be read. Please try again."
+    },
+    "knowledge": {
+      "title": "Knowledge Base",
+      "subtitle": "Manage the documents used by the assistant.",
+      "upload": "Upload Document",
+      "search": "Search documents...",
+      "type": "Document Type",
+      "allTypes": "All types",
+      "sort": "Sort by",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "collapse": "Hide Knowledge Base",
+      "open": "Open Knowledge Base"
+    },
+    "documents": {
+      "emptyTitle": "No documents available",
+      "emptyDescription": "Upload company documents when ingestion is connected to make them available to the assistant.",
+      "noMatchesTitle": "No matching documents",
+      "noMatchesDescription": "Try a different search or document type.",
+      "errorTitle": "Knowledge Base unavailable",
+      "errorDescription": "We could not load the company's documents.",
+      "actions": "Actions for {{name}}",
+      "showing": "Showing {{start}}–{{end}} of {{total}} documents",
+      "status": {
+        "ready": "Ready",
+        "processing": "Processing",
+        "failed": "Failed"
+      }
+    },
+    "upload": {
+      "title": "Upload documents for RAG",
+      "description": "Select supported company documents. Files are validated using the existing CEOPRO upload flow and are only marked uploaded after the ingestion service confirms success.",
+      "uploading": "Uploading..."
+    },
+    "actions": {
+      "retry": "Try again",
+      "cancel": "Cancel"
+    },
+    "feedback": {
+      "chatUnavailable": "RAG chat is not connected yet. No answer was generated.",
+      "requestFailed": "The RAG request failed. Please try again.",
+      "uploadUnavailable": "Files passed frontend validation, but RAG ingestion is not connected. Nothing was uploaded.",
+      "uploadFailed": "The document upload failed. Please try again.",
+      "uploaded": "Documents uploaded successfully."
+    }
   },
   "dataIngestion": {
     "back": "Back to Connect Data",
@@ -694,7 +2684,13 @@
     "subtitle": "Add relevant business files to help CEOPRO prepare better insights.",
     "templateTitle": "Download required template",
     "templateDescription": "Download and complete a template before uploading your data.",
-    "templates": { "excel": "Excel (.xlsx)", "csv": "CSV (.csv)", "pdf": "PDF (.pdf)", "download": "Download", "downloaded": "Downloaded" },
+    "templates": {
+      "excel": "Excel (.xlsx)",
+      "csv": "CSV (.csv)",
+      "pdf": "PDF (.pdf)",
+      "download": "Download",
+      "downloaded": "Downloaded"
+    },
     "uploadTitle": "Upload files",
     "uploadDescription": "Upload your completed template and any other relevant business files.",
     "templateRequired": "Download at least one required template to complete this upload flow.",

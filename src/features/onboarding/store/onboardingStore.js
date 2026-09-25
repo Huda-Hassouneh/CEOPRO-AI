@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { DEFAULT_CUSTOM_PLAN, getPreviewPlan } from '../../billing/config/billingPreviewData.js';
+import { DEFAULT_CUSTOM_PLAN } from '../../billing/config/billingPreviewData.js';
 
 const migrateCustomPlan = (customPlan = {}) => {
   const { imageGenerations, ...currentValues } = customPlan;
@@ -25,6 +25,9 @@ const initialState = {
   standardRecommendationResolved: false,
   billingPeriod: 'monthly',
   customPlan: { ...DEFAULT_CUSTOM_PLAN },
+  customPlanSelection: [],
+  customPlanPreview: null,
+  customCheckoutRequestId: '',
   step5Completed: false,
   sourceStatuses: {
     analytics: { status: 'not-connected', error: '' },
@@ -58,11 +61,15 @@ export const useOnboardingStore = create(persist((set) => ({
   })),
   setBillingPeriod: (billingPeriod) => set({ billingPeriod }),
   selectPlan: (selectedPlan) => set({ selectedPlan }),
-    setPlanChoice: (selectedPlan, checkoutMode) => set({ selectedPlan, checkoutMode: getPreviewPlan(selectedPlan).trialDays > 0 ? checkoutMode : 'paid' }),
+  setPlanChoice: (selectedPlan, checkoutMode = 'paid') => set({ selectedPlan, checkoutMode }),
   resolveStandardRecommendation: () => set({ standardRecommendationResolved: true }),
   updateCustomPlan: (key, value) => set((state) => ({
     customPlan: { ...state.customPlan, [key]: value },
   })),
+  setCustomPlanSelection: (customPlanSelection) => set({ customPlanSelection }),
+  setCustomPlanPreview: (customPlanPreview) => set({ customPlanPreview }),
+  setCustomCheckoutRequestId: (customCheckoutRequestId) => set({ customCheckoutRequestId }),
+  clearCustomCheckoutRequestId: () => set({ customCheckoutRequestId: '' }),
   completePlanStep: () => set((state) => ({
     step5Completed: true,
     currentStep: 6,
@@ -85,12 +92,15 @@ export const useOnboardingStore = create(persist((set) => ({
   resetOnboarding: () => set({ ...initialState, customPlan: { ...DEFAULT_CUSTOM_PLAN } }),
 }), {
   name: 'ceopro_onboarding_preview',
-  version: 5,
+  version: 6,
   migrate: (persistedState, version) => ({
     ...persistedState,
     ...(version === 1 ? { currentStep: 1, highestCompletedStep: 0, step5Completed: false, isComplete: false } : {}),
     city: persistedState.city || '',
     customPlan: migrateCustomPlan(persistedState.customPlan),
+    customPlanSelection: persistedState.customPlanSelection || [],
+    customPlanPreview: persistedState.customPlanPreview || null,
+    customCheckoutRequestId: persistedState.customCheckoutRequestId || '',
     downloadedTemplates: persistedState.downloadedTemplates || [],
     sourceStatuses: version < 5
       ? {
@@ -113,6 +123,9 @@ export const useOnboardingStore = create(persist((set) => ({
     standardRecommendationResolved: state.standardRecommendationResolved,
     billingPeriod: state.billingPeriod,
     customPlan: state.customPlan,
+    customPlanSelection: state.customPlanSelection,
+    customPlanPreview: state.customPlanPreview,
+    customCheckoutRequestId: state.customCheckoutRequestId,
     step5Completed: state.step5Completed,
     sourceStatuses: state.sourceStatuses,
     websiteUrl: state.websiteUrl,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Building2, Users, CreditCard, Layers3, SlidersHorizontal, ShieldCheck, ScrollText, Settings2, UserRound, LogOut, Menu, Bell, ChevronDown, Globe2 } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, CreditCard, Layers3, ShieldCheck, ScrollText, Settings2, UserRound, LogOut, Menu, Bell, ChevronDown, Globe2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import Modal from '../../../shared/components/ui/Modal.jsx';
 import { useAuthStore } from '../../auth/store/authStore.js';
@@ -15,9 +15,7 @@ export const adminNavigation = [
   { key: 'overviewNav', path: '', icon: LayoutDashboard, permission: 'platform.overview.read' },
   { key: 'companies', path: 'companies', icon: Building2, permission: 'companies.read', group: 'management' },
   { key: 'users', path: 'users', icon: Users, permission: 'users.read' },
-  { key: 'subscriptions', path: 'subscriptions', icon: CreditCard, permission: 'subscriptions.read' },
-  { key: 'plans', path: 'plans', icon: Layers3, permission: 'plans.read', group: 'product' },
-  { key: 'features', path: 'features', icon: SlidersHorizontal, permission: 'features.read' },
+  { key: 'billing', path: 'billing', icon: CreditCard, permission: 'billing.read', group: 'product' },
   { key: 'adminTeam', path: 'admin-team', icon: ShieldCheck, permission: 'adminTeam.read', group: 'administration' },
   { key: 'auditLogs', path: 'audit-logs', icon: ScrollText, permission: 'auditLogs.read' },
   { key: 'settings', path: 'settings', icon: Settings2, permission: 'platformSettings.read' },

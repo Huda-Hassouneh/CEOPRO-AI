@@ -13,7 +13,7 @@ const readImagePreview = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-export function MessageComposer({ value, onChange, attachments, onAttachmentsChange, onAttachmentError, onSubmit, disabled, formatSize, t }) {
+export function MessageComposer({ value, onChange, attachments, onAttachmentsChange, onAttachmentError, onSubmit, disabled, formatSize, t, allowAttachments = true }) {
   const textareaRef = useRef(null);
   const inputRef = useRef(null);
   const [readingFiles, setReadingFiles] = useState(false);
@@ -58,8 +58,8 @@ export function MessageComposer({ value, onChange, attachments, onAttachmentsCha
   return <form className="rag-composer" onSubmit={submit}>
     <MessageAttachments attachments={attachments} onRemove={removeAttachment} formatSize={formatSize} t={t} compact />
     <div className="rag-composer__input">
-      <button type="button" className="rag-composer__attach" disabled={disabled || readingFiles} onClick={() => inputRef.current?.click()} aria-label={t('ragAssistant.attachments.add')} title={t('ragAssistant.attachments.add')}><Paperclip size={17} aria-hidden="true" /></button>
-      <input ref={inputRef} className="ceopro-visually-hidden" type="file" multiple accept={ACCEPTED_UPLOAD_FILE_TYPES} onChange={(event) => selectAttachments(event.target.files)} />
+      {allowAttachments && <button type="button" className="rag-composer__attach" disabled={disabled || readingFiles} onClick={() => inputRef.current?.click()} aria-label={t('ragAssistant.attachments.add')} title={t('ragAssistant.attachments.add')}><Paperclip size={17} aria-hidden="true" /></button>}
+      {allowAttachments && <input ref={inputRef} className="ceopro-visually-hidden" type="file" multiple accept={ACCEPTED_UPLOAD_FILE_TYPES} onChange={(event) => selectAttachments(event.target.files)} />}
       <textarea ref={textareaRef} rows="1" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} onKeyDown={onKeyDown} placeholder={t('ragAssistant.composer.placeholder')} aria-label={t('ragAssistant.composer.placeholder')} />
       <Button type="submit" size="sm" disabled={(!value.trim() && attachments.length === 0) || disabled || readingFiles} loading={disabled} loadingLabel={t('ragAssistant.chat.generating')} aria-label={t('ragAssistant.composer.send')}><SendHorizontal size={16} aria-hidden="true" /></Button>
     </div>

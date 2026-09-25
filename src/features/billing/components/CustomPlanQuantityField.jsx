@@ -1,48 +1,75 @@
-import { useId, useState } from 'react';
+import { useId, useState } from "react";
 
-export function CustomPlanQuantityField({ label, description, value, min, max, onChange, formatValue, icon }) {
+const snapToStep = (value, min, max, step) => {
+  const clamped = Math.min(max, Math.max(min, value));
+  if (!step || step <= 1) return Math.round(clamped);
+  const snapped = min + Math.round((clamped - min) / step) * step;
+  return Math.min(max, Math.max(min, snapped));
+};
+
+export function CustomPlanQuantityField({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  formatValue
+}) {
   const id = useId();
   const [draft, setDraft] = useState(null);
+
   const commit = () => {
-    if (draft !== null && draft !== '') {
-      onChange(Math.min(max, Math.max(min, Number(draft))));
+    if (draft !== null && draft !== "") {
+      onChange(snapToStep(Number(draft), min, max, step));
     }
     setDraft(null);
   };
 
   return (
-    <div className="ceopro-range-field ceopro-custom-quantity">
-      <div className="ceopro-range-field__header">
-        <span className="ceopro-range-field__icon" aria-hidden="true">{icon}</span>
-        <span className="ceopro-range-field__copy">
-          <label htmlFor={id}>{label}</label>
-          <small id={`${id}-description`}>{description}</small>
-        </span>
-      </div>
+    <section className="ceopro-custom-quantity">
       <input
         id={id}
         type="text"
         inputMode="numeric"
         pattern="[0-9]*"
         dir="ltr"
+        aria-label={label}
+        aria-describedby={`${id}-bounds`}
         value={draft ?? String(value)}
-        aria-describedby={`${id}-description ${id}-bounds`}
-        aria-invalid={draft !== null && draft !== '' && (Number(draft) < min || Number(draft) > max)}
+        aria-invalid={
+          draft !== null &&
+          draft !== "" &&
+          (Number(draft) < min || Number(draft) > max)
+        }
         onChange={(event) => {
-          const next = event.target.value.replace(/[٠-٩۰-۹]/g, (digit) => String(digit.charCodeAt(0) - (digit <= '٩' ? 1632 : 1776)));
+          const next = event.target.value.replace(/[٠-٩۰-۹]/g, (digit) =>
+            String(digit.charCodeAt(0) - (digit <= "٩" ? 1632 : 1776))
+          );
+
           if (!/^\d*$/.test(next)) return;
           setDraft(next);
-          if (next !== '' && Number(next) >= min && Number(next) <= max) onChange(Number(next));
+
+          if (next !== "" && Number(next) >= min && Number(next) <= max) {
+            const numeric = Number(next);
+            if ((numeric - min) % step === 0) onChange(numeric);
+          }
         }}
         onBlur={commit}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') { event.preventDefault(); commit(); }
-          if (event.key === 'Escape') setDraft(null);
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commit();
+          }
+          if (event.key === "Escape") setDraft(null);
         }}
       />
+
       <div id={`${id}-bounds`} className="ceopro-range-field__bounds">
-        <span>{formatValue(min)} – {formatValue(max)}</span>
+        <span>
+          {formatValue(min)} – {formatValue(max)}
+        </span>
       </div>
-    </div>
+    </section>
   );
 }
