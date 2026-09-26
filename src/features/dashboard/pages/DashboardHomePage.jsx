@@ -31,7 +31,7 @@ import "../styles/Dashboard.css";
 
 const INVENTORY_COLORS = ["#4f46e5", "#f59e0b", "#ef476f"];
 
-function localize(value, locale) {
+export function localize(value, locale) {
   if (value && typeof value === "object")
     return value[locale] || value.en || Object.values(value)[0];
   return value;

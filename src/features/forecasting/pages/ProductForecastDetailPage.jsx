@@ -43,6 +43,8 @@ export function ProductForecastDetailPage() {
   const query = useForecastDetail(productId);
   const [exportNotice, setExportNotice] = useState(false);
   const detail = query.data;
+  console.log({ detail });
+
   const number = useMemo(
     () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
     [locale]

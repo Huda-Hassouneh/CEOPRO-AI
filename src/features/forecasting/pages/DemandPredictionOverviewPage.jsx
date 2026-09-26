@@ -30,6 +30,8 @@ export function DemandPredictionOverviewPage() {
   const [exportNotice, setExportNotice] = useState(false);
   const query = useDemandPrediction({ companyId, productId, periodDays });
   const data = query.data;
+  console.log({ demandPrediction: data });
+
   const number = useMemo(
     () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
     [locale]
