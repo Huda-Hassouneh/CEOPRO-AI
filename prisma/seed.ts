@@ -212,63 +212,212 @@ async function main() {
   // console.log("✅ Audit logs seeded for Recent Activity feed");
   // console.log("✅ Audit logs seeded for Recent Activity feed");
   // Seed Data Sources & Ingestion Jobs
-  const source1 = await prisma.data_sources.create({
-    data: {
-      tenant_id,
-      source_name: "Business Data Files",
-      source_type: "documents",
-      is_active: true,
-      ingestion_jobs: {
-        create: [
-          {
-            // tenant_id is omitted here; Prisma passes it down automatically!
-            job_status: "COMPLETED",
-            rows_processed: 18420,
-            started_at: new Date(Date.now() - 3600000),
-            ended_at: new Date(Date.now() - 1800000)
-          }
-        ]
-      }
-    }
+  // const source1 = await prisma.data_sources.create({
+  //   data: {
+  //     tenant_id,
+  //     source_name: "Business Data Files",
+  //     source_type: "documents",
+  //     is_active: true,
+  //     ingestion_jobs: {
+  //       create: [
+  //         {
+  //           // tenant_id is omitted here; Prisma passes it down automatically!
+  //           job_status: "COMPLETED",
+  //           rows_processed: 18420,
+  //           started_at: new Date(Date.now() - 3600000),
+  //           ended_at: new Date(Date.now() - 1800000)
+  //         }
+  //       ]
+  //     }
+  //   }
+  // });
+
+  // const source2 = await prisma.data_sources.create({
+  //   data: {
+  //     tenant_id,
+  //     source_name: "Company Website",
+  //     source_type: "website",
+  //     is_active: true,
+  //     ingestion_jobs: {
+  //       create: [
+  //         {
+  //           job_status: "PROCESSING",
+  //           rows_processed: 0,
+  //           started_at: new Date()
+  //         }
+  //       ]
+  //     }
+  //   }
+  // });
+
+  // const source3 = await prisma.data_sources.create({
+  //   data: {
+  //     tenant_id,
+  //     source_name: "Google Analytics",
+  //     source_type: "analytics",
+  //     is_active: true,
+  //     ingestion_jobs: {
+  //       create: [
+  //         {
+  //           job_status: "FAILED",
+  //           rows_processed: 7310,
+  //           error_log: "OAuth token expired",
+  //           started_at: new Date(Date.now() - 86400000),
+  //           ended_at: new Date(Date.now() - 86000000)
+  //         }
+  //       ]
+  //     }
+  //   }
+  // });
+  // --- Seed Market Intelligence Competitors ---
+  const allProducts = await prisma.products.findMany({
+    where: { tenant_id },
+    take: 2
   });
 
-  const source2 = await prisma.data_sources.create({
-    data: {
-      tenant_id,
-      source_name: "Company Website",
-      source_type: "website",
-      is_active: true,
-      ingestion_jobs: {
-        create: [
-          {
-            job_status: "PROCESSING",
-            rows_processed: 0,
-            started_at: new Date()
-          }
-        ]
-      }
+  if (allProducts.length >= 2) {
+    // 1. Create or Find Global Competitors (Idempotent to avoid P2002 Unique Constraint errors)
+    let gComp1 = await prisma.global_competitors.findFirst({
+      where: { competitor_name: "Northstar Commerce" }
+    });
+    if (!gComp1) {
+      gComp1 = await prisma.global_competitors.create({
+        data: { competitor_name: "Northstar Commerce", visibility: "GLOBAL" }
+      });
     }
-  });
 
-  const source3 = await prisma.data_sources.create({
-    data: {
-      tenant_id,
-      source_name: "Google Analytics",
-      source_type: "analytics",
-      is_active: true,
-      ingestion_jobs: {
-        create: [
-          {
-            job_status: "FAILED",
-            rows_processed: 7310,
-            error_log: "OAuth token expired",
-            started_at: new Date(Date.now() - 86400000),
-            ended_at: new Date(Date.now() - 86000000)
-          }
-        ]
-      }
+    let gComp2 = await prisma.global_competitors.findFirst({
+      where: { competitor_name: "Meridian Systems" }
+    });
+    if (!gComp2) {
+      gComp2 = await prisma.global_competitors.create({
+        data: { competitor_name: "Meridian Systems", visibility: "GLOBAL" }
+      });
     }
-  });
+
+    // 2. Track them for the specific Tenant
+    let tComp1 = await prisma.tenant_competitors.findFirst({
+      where: { tenant_id, global_competitor_id: gComp1.global_competitor_id }
+    });
+    if (!tComp1) {
+      await prisma.tenant_competitors.create({
+        data: { tenant_id, global_competitor_id: gComp1.global_competitor_id }
+      });
+    }
+
+    let tComp2 = await prisma.tenant_competitors.findFirst({
+      where: { tenant_id, global_competitor_id: gComp2.global_competitor_id }
+    });
+    if (!tComp2) {
+      await prisma.tenant_competitors.create({
+        data: { tenant_id, global_competitor_id: gComp2.global_competitor_id }
+      });
+    }
+
+    // 3. Map Competitors to Products
+    let map1 = await prisma.competitor_product_mappings.findFirst({
+      where: {
+        tenant_id,
+        global_competitor_id: gComp1.global_competitor_id,
+        product_id: allProducts[0].product_id
+      }
+    });
+    if (!map1) {
+      map1 = await prisma.competitor_product_mappings.create({
+        data: {
+          tenant_id,
+          global_competitor_id: gComp1.global_competitor_id,
+          product_id: allProducts[0].product_id
+        }
+      });
+    }
+
+    let map2 = await prisma.competitor_product_mappings.findFirst({
+      where: {
+        tenant_id,
+        global_competitor_id: gComp2.global_competitor_id,
+        product_id: allProducts[0].product_id
+      }
+    });
+    if (!map2) {
+      map2 = await prisma.competitor_product_mappings.create({
+        data: {
+          tenant_id,
+          global_competitor_id: gComp2.global_competitor_id,
+          product_id: allProducts[0].product_id
+        }
+      });
+    }
+
+    let map3 = await prisma.competitor_product_mappings.findFirst({
+      where: {
+        tenant_id,
+        global_competitor_id: gComp2.global_competitor_id,
+        product_id: allProducts[1].product_id
+      }
+    });
+    if (!map3) {
+      map3 = await prisma.competitor_product_mappings.create({
+        data: {
+          tenant_id,
+          global_competitor_id: gComp2.global_competitor_id,
+          product_id: allProducts[1].product_id
+        }
+      });
+    }
+
+    // 4. Clean up old seeded prices to prevent infinite table inflation on multiple seed runs
+    await prisma.competitor_prices.deleteMany({
+      where: {
+        mapping_id: { in: [map1.mapping_id, map2.mapping_id, map3.mapping_id] }
+      }
+    });
+
+    // 5. Inject Historical Prices (Simulating price drops over the last 24 hours)
+    await prisma.competitor_prices.createMany({
+      data: [
+        // Product 1 Prices (Northstar dropped price from 69 to 62)
+        {
+          tenant_id,
+          mapping_id: map1.mapping_id,
+          scraped_price: 62,
+          currency: "JOD",
+          observed_at: new Date()
+        },
+        {
+          tenant_id,
+          mapping_id: map1.mapping_id,
+          scraped_price: 69,
+          currency: "JOD",
+          observed_at: new Date(Date.now() - 86400000)
+        },
+        {
+          tenant_id,
+          mapping_id: map2.mapping_id,
+          scraped_price: 74,
+          currency: "JOD",
+          observed_at: new Date()
+        },
+
+        // Product 2 Prices (Meridian dropped price from 125 to 119)
+        {
+          tenant_id,
+          mapping_id: map3.mapping_id,
+          scraped_price: 119,
+          currency: "JOD",
+          observed_at: new Date()
+        },
+        {
+          tenant_id,
+          mapping_id: map3.mapping_id,
+          scraped_price: 125,
+          currency: "JOD",
+          observed_at: new Date(Date.now() - 86400000)
+        }
+      ]
+    });
+    console.log("✅ Market Intelligence competitors and prices seeded");
+  }
   console.log("✅ Data sources and ingestion jobs seeded");
   console.log(
     "🚀 Dashboard and Forecasting target database successfully populated!"
