@@ -1,5 +1,8 @@
 {
   "common": {
+    "comingSoon": "قريباً",
+    "comingSoonDescription": "نحن نبني شيئاً استثنائياً. يجري حالياً تطوير تحليلات متقدمة ورؤى أعمق للسوق للارتقاء باستراتيجيتك.",
+
     "custom": "مخصص",
     "brand": "CEOPRO AI",
     "brandShort": "CEO PRO",
@@ -2157,7 +2160,9 @@
     "fileTypes": {
       "xlsx": "Excel",
       "csv": "CSV",
-      "connection": "اتصال"
+      "pdf": "PDF",
+      "connection": "اتصال",
+      "excel": "Excel"
     }
   },
   "dataConnections": {
