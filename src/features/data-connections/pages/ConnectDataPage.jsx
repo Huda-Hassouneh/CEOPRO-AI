@@ -41,7 +41,6 @@ export function ConnectDataPage() {
   const { t, locale, dir } = useI18n();
   const companyId = useAuthStore((state) => state.tenantId);
   const query = useDataConnections(companyId);
-  console.log({ query });
 
   const [addOpen, setAddOpen] = useState(false);
   const [detailSource, setDetailSource] = useState(null);
@@ -51,6 +50,7 @@ export function ConnectDataPage() {
   const [busySource, setBusySource] = useState(null);
   const [notice, setNotice] = useState(null);
   const uploadRef = useRef(null);
+
   const number = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const date = useMemo(
     () =>
@@ -60,15 +60,11 @@ export function ConnectDataPage() {
       }),
     [locale]
   );
+
   const localize = (value) =>
     value && typeof value === "object" ? value[locale] || value.en : value;
   const formatDate = (value) => date.format(new Date(value));
 
-  const showUnavailable = () =>
-    setNotice({
-      variant: "info",
-      message: t("connectData.feedback.backendUnavailable")
-    });
   const goToUpload = () => {
     setAddOpen(false);
     globalThis.setTimeout(
@@ -80,60 +76,139 @@ export function ConnectDataPage() {
       0
     );
   };
+
   const runSourceAction = async (action, source) => {
     if (action === "details") return setDetailSource(source);
     if (action === "uploadVersion") return goToUpload();
+
     setBusySource(source.id);
-    const result =
-      action === "reconnect"
-        ? await dataConnectionsApi.reconnect(source.id)
-        : await dataConnectionsApi.sync(source.id);
-    setBusySource(null);
-    if (!result.available) showUnavailable();
+    try {
+      if (action === "reconnect") {
+        await dataConnectionsApi.reconnect(source.id);
+        setNotice({
+          variant: "success",
+          message: t(
+            "connectData.feedback.reconnected",
+            "Reconnected successfully"
+          )
+        });
+      } else {
+        await dataConnectionsApi.sync(source.id);
+        setNotice({
+          variant: "success",
+          message: t("connectData.feedback.syncStarted", "Data sync started")
+        });
+      }
+      query.refetch(); // Refresh the UI to reflect new job status
+    } catch (error) {
+      console.error("Action failed:", error);
+      setNotice({
+        variant: "error",
+        message: t(
+          "connectData.feedback.actionFailed",
+          "Action failed. Please try again."
+        )
+      });
+    } finally {
+      setBusySource(null);
+    }
   };
+
   const connectSource = async (type) => {
     if (type === "documents") return goToUpload();
     if (type === "website" && !websiteUrl.trim()) return;
+
     setBusySource(type);
-    const result =
-      type === "analytics"
-        ? await dataConnectionsApi.connectGoogleAnalytics({ companyId })
-        : type === "website"
-          ? await dataConnectionsApi.configureWebsite({
-              companyId,
-              url: websiteUrl.trim()
-            })
-          : await dataConnectionsApi.prepareDatabase({ companyId });
-    setBusySource(null);
-    if (result.connected) {
+    try {
+      if (type === "analytics") {
+        await dataConnectionsApi.connectGoogleAnalytics({ companyId });
+      } else if (type === "website") {
+        await dataConnectionsApi.configureWebsite({
+          companyId,
+          url: websiteUrl.trim()
+        });
+      } else {
+        await dataConnectionsApi.prepareDatabase({ companyId });
+      }
+
       setNotice({
-        variant: "info",
-        message: t("connectData.feedback.previewOnly")
+        variant: "success",
+        message: t(
+          "connectData.feedback.sourceConnected",
+          "Data source connected successfully"
+        )
       });
       setAddOpen(false);
-    } else showUnavailable();
+      setWebsiteUrl(""); // Clear input on success
+      query.refetch(); // Refresh UI with new connection
+    } catch (error) {
+      console.error("Connection failed:", error);
+      setNotice({
+        variant: "error",
+        message: t(
+          "connectData.feedback.connectionFailed",
+          "Failed to connect data source."
+        )
+      });
+    } finally {
+      setBusySource(null);
+    }
   };
+
   const downloadTemplate = async (template) => {
-    const result = await ingestionApi.downloadTemplate(template.id);
-    if (!result.url) return;
-    const link = document.createElement("a");
-    link.href = result.url;
-    link.download = result.filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setDownloadedTemplates((current) =>
-      current.includes(template.id) ? current : [...current, template.id]
-    );
+    try {
+      const result = await ingestionApi.downloadTemplate(template.id);
+      if (!result.url) return;
+      const link = document.createElement("a");
+      link.href = result.url;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setDownloadedTemplates((current) =>
+        current.includes(template.id) ? current : [...current, template.id]
+      );
+    } catch (error) {
+      console.error("Download failed:", error);
+      setNotice({
+        variant: "error",
+        message: t(
+          "connectData.feedback.downloadFailed",
+          "Failed to download template."
+        )
+      });
+    }
   };
+
   const prepareImport = async () => {
-    const result = await ingestionApi.prepareFiles(files);
-    setNotice({
-      variant: "info",
-      message: result.uploaded
-        ? t("connectData.feedback.uploaded")
-        : t("connectData.feedback.preparedOnly")
-    });
+    try {
+      await ingestionApi.prepareFiles(files);
+
+      setNotice({
+        variant: "success",
+        message: t(
+          "connectData.feedback.uploaded",
+          "Files uploaded and processing started."
+        )
+      });
+      setFiles([]); // Clear dropzone on success
+      query.refetch(); // Refresh activity table
+    } catch (error) {
+      console.error("Upload failed:", error);
+
+      // Extract the exact error message from your backend validator (e.g., "Missing required columns")
+      const backendMessage = error.response?.data?.error?.message;
+
+      setNotice({
+        variant: "error",
+        message:
+          backendMessage ||
+          t(
+            "connectData.feedback.uploadFailed",
+            "Failed to upload files. Please check requirements."
+          )
+      });
+    }
   };
 
   if (query.isPending)
@@ -148,6 +223,7 @@ export function ConnectDataPage() {
         <Skeleton height="300px" variant="rectangular" />
       </div>
     );
+
   if (query.isError)
     return (
       <EmptyState
@@ -160,6 +236,7 @@ export function ConnectDataPage() {
         }
       />
     );
+
   const data = query.data;
 
   return (
@@ -189,11 +266,12 @@ export function ConnectDataPage() {
           </div>
           <span>
             {t("connectData.connected.count", {
-              count: number.format(data.connectedSources.length)
+              count: number.format(data.connectedSources?.length || 0)
             })}
           </span>
         </div>
-        {data.connectedSources.length ? (
+
+        {data.connectedSources?.length ? (
           <div className="connected-source-grid">
             {data.connectedSources.map((source) => (
               <ConnectedSourceCard
@@ -291,7 +369,7 @@ export function ConnectDataPage() {
             <p>{t("connectData.activity.subtitle")}</p>
           </div>
         </div>
-        {data.recentImports.length ? (
+        {data.recentImports?.length ? (
           <div className="connect-data-table-wrap">
             <table className="connect-data-table">
               <thead>
@@ -309,7 +387,12 @@ export function ConnectDataPage() {
                     <td>{formatDate(item.date)}</td>
                     <td>{localize(item.source)}</td>
                     <td>{localize(item.name)}</td>
-                    <td>{t(`connectData.fileTypes.${item.type}`)}</td>
+                    <td>
+                      {t(
+                        `connectData.fileTypes.${item.type?.toLowerCase()}`,
+                        item.type
+                      )}
+                    </td>
                     <td>
                       <ConnectionStatusBadge status={item.status} t={t} />
                     </td>
@@ -342,25 +425,13 @@ export function ConnectDataPage() {
           compact
         >
           <div className="ceopro-data-source-grid connect-data-source-selector">
-            {data.availableSourceTypes.map((type) => (
+            {(data.availableSourceTypes || []).map((type) => (
               <DataSourceCard
                 key={type}
                 icon={sourceIcons[type]}
-                title={t(
-                  `dataConnections.${type === "businessSystem" ? "businessSystem" : type}.title`
-                )}
-                description={t(
-                  `dataConnections.${type === "businessSystem" ? "businessSystem" : type}.description`
-                )}
-                actionLabel={
-                  type === "documents"
-                    ? t("dataConnections.documents.action")
-                    : type === "businessSystem"
-                      ? t("dataConnections.businessSystem.action")
-                      : type === "website"
-                        ? t("dataConnections.website.action")
-                        : t("dataConnections.analytics.action")
-                }
+                title={t(`dataConnections.${type}.title`)}
+                description={t(`dataConnections.${type}.description`)}
+                actionLabel={t(`dataConnections.${type}.action`)}
                 showStatus={false}
                 loading={busySource === type}
                 actionDisabled={type === "website" && !websiteUrl.trim()}
