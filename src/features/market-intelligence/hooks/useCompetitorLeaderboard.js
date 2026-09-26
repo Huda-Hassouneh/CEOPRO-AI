@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { competitorsApi } from "../api/competitorsApi.js";
+import { leaderboardApi } from "../api/leaderboardApi.js";
 import { useAuthStore } from "../../auth/store/authStore.js";
 
-export function useCompetitors() {
+export function useCompetitorLeaderboard() {
   const companyId = useAuthStore((state) => state.tenantId);
 
   return useQuery({
-    queryKey: ["competitors", companyId],
-    queryFn: () => competitorsApi.list(companyId),
+    queryKey: ["competitor-leaderboard", companyId],
+    queryFn: () => leaderboardApi.getCompetitors(companyId),
     enabled: Boolean(companyId)
   });
 }

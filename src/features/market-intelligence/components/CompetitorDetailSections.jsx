@@ -1,9 +1,73 @@
-import { ArrowRight, CheckCircle2, CircleMinus, ExternalLink } from 'lucide-react';
-import Button from '../../../shared/components/ui/Button.jsx';
-import Badge from '../../../shared/components/ui/Badge.jsx';
-import { MarketTrendChart } from './MarketTrendChart.jsx';
-export function CompetitorDetailHeader({ t, detail, onBack }) { return <div className="competitor-detail-header"><button type="button" className="market-back-link" onClick={onBack}>← {t('market.detail.back')}</button><div className="competitor-identity"><span className="competitor-logo" style={{ background: detail.color }}>{detail.name.charAt(0)}</span><div><div className="competitor-title"><h1>{detail.name}</h1><Badge variant="light-success">{t('market.detail.tracked')}</Badge></div><p>{detail.domain} · {t('market.detail.lastUpdated')} {t(detail.updatedKey)}</p><span>{t(detail.descriptionKey)}</span></div></div><Button variant="outline" size="sm">{t('market.detail.monitor')}</Button></div>; }
-export function StrengthsWeaknesses({ t, detail }) { return <section className="market-grid market-grid--two"><div className="market-panel strengths-panel"><h2>{t('market.detail.strengths')}</h2>{detail.strengths.map((key) => <p key={key}><CheckCircle2 size={16} />{t(key)}</p>)}</div><div className="market-panel weaknesses-panel"><h2>{t('market.detail.weaknesses')}</h2>{detail.weaknesses.map((key) => <p key={key}><CircleMinus size={16} />{t(key)}</p>)}</div></section>; }
-export function CompetitorSummary({ t, detail }) { return <section className="market-panel competitor-summary"><h2>{t('market.detail.summary')}</h2><p>{t('market.detail.summaryText')}</p>{detail.summary.map((row) => <div key={row.labelKey}><span>{t(row.labelKey)}</span><strong>{row.value}{row.labelKey.endsWith('website') && <ExternalLink size={13} />}</strong></div>)}</section>; }
-export function PriceComparison({ t, data }) { const max = Math.max(...data.map((item) => item.value)); return <section className="market-panel price-comparison"><div className="market-panel__header"><div><h2>{t('market.detail.priceComparison')}</h2><p>{t('market.detail.priceComparisonSubtitle')}</p></div></div><div className="price-bars">{data.map((item) => <div key={item.name}><strong>{item.value}</strong><i style={{ height: `${(item.value / max) * 100}%` }} /><small>{item.name}</small></div>)}</div></section>; }
-export function StrategicMoves({ t, moves }) { return <section className="market-panel"><div className="market-panel__header"><h2>{t('market.detail.strategicMoves')}</h2><button type="button" className="market-link">{t('market.controls.viewAll')} <ArrowRight size={14} /></button></div><div className="strategic-moves">{moves.map((item) => <div key={item.titleKey}><span>↗</span><strong>{t(item.titleKey)}</strong><small>{t(item.timeKey)}</small></div>)}</div></section>; }
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleMinus,
+  ExternalLink
+} from "lucide-react";
+import Button from "../../../shared/components/ui/Button.jsx";
+import Badge from "../../../shared/components/ui/Badge.jsx";
+import { MarketTrendChart } from "./MarketTrendChart.jsx";
+
+export function CompetitorDetailHeader({ t, detail, onBack }) {
+  if (!detail) return null;
+
+  return (
+    <div className="competitor-detail-header">
+      <button type="button" className="market-back-link" onClick={onBack}>
+        ← {t("market.detail.back", "Back")}
+      </button>
+
+      <div className="competitor-identity">
+        <span
+          className="competitor-logo"
+          style={{ background: "var(--primary-color, #4f46e5)" }}
+        >
+          {detail.name ? detail.name.charAt(0).toUpperCase() : "?"}
+        </span>
+
+        <div>
+          <div className="competitor-title">
+            <h1>{detail.name}</h1>
+            <Badge variant="light-success">
+              {t("market.detail.tracked", "Tracked")}
+            </Badge>
+          </div>
+
+          <p>
+            {detail.website && detail.website.replace(/^https?:\/\//, "")}
+            {detail.website && detail.addedAt && " · "}
+            {detail.addedAt &&
+              `${t("market.competitors.updated", "Added")}: ${new Date(detail.addedAt).toLocaleDateString()}`}
+          </p>
+
+          {detail.industry && <span>{detail.industry}</span>}
+        </div>
+      </div>
+
+      <Button variant="outline" size="sm">
+        {t("market.detail.monitor", "Monitor")}
+      </Button>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// THE FOLLOWING COMPONENTS ARE UNSUPPORTED BY YOUR SCHEMA
+// They return `null` to prevent crashes if they are still imported.
+// ----------------------------------------------------------------------
+
+export function StrengthsWeaknesses() {
+  return null;
+}
+
+export function CompetitorSummary() {
+  return null;
+}
+
+export function PriceComparison() {
+  return null;
+}
+
+export function StrategicMoves() {
+  return null;
+}
