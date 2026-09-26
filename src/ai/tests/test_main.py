@@ -264,6 +264,26 @@ def test_rag_query_returns_answer_and_sources_on_success():
     assert mock_answer.call_args.args[2] == "what is our best seller?"
 
 
+def test_rag_query_passes_token_usage_through_to_the_http_response():
+    """The endpoint returns answer_query()'s dict verbatim (main.py never
+    reshapes it) - this pins that the token_usage field survives that
+    pass-through unmodified, since it's what the caller needs to compute
+    the real cost of this RAG call against the provider's per-token
+    pricing."""
+    fake_conn = MagicMock()
+    fake_result = {
+        "answer": "Sunscreen SPF 50.",
+        "sources": [{"source_index": 1, "chunk_id": "c1", "score": 0.9}],
+        "token_usage": {"prompt_tokens": 342, "completion_tokens": 58, "total_tokens": 400},
+    }
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.rag_llm_client.answer_query", return_value=fake_result):
+        response = client.post("/rag/query", params={"query_text": "what is our best seller?"}, headers=_auth())
+
+    assert response.status_code == 200
+    assert response.json()["token_usage"] == {"prompt_tokens": 342, "completion_tokens": 58, "total_tokens": 400}
+
+
 def test_rag_query_maps_llm_provider_failure_to_502_not_500():
     """A Groq/provider failure is a distinct, more specific error than a
     generic 500 - retrieval genuinely succeeded, only the LLM call didn't."""

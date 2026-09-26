@@ -431,6 +431,34 @@ def generate_answer(
     structured_facts: str = "",
     history: list = None,
 ) -> str:
+    """Thin wrapper over _generate_answer_with_usage() that keeps this
+    function's long-standing "just the answer text" contract (and every
+    existing caller/test built against it) - answer_query() below calls
+    _generate_answer_with_usage() directly instead, since it also needs
+    the token usage that a plain string return can't carry."""
+    answer, _usage = _generate_answer_with_usage(
+        context,
+        api_key=api_key,
+        model=model,
+        temperature=temperature,
+        timeout=timeout,
+        max_tokens=max_tokens,
+        structured_facts=structured_facts,
+        history=history,
+    )
+    return answer
+
+
+def _generate_answer_with_usage(
+    context: AssembledContext,
+    api_key: str = None,
+    model: str = None,
+    temperature: float = DEFAULT_TEMPERATURE,
+    timeout: float = None,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    structured_facts: str = "",
+    history: list = None,
+) -> tuple:
     """
     Calls the LLM provider with `context` (from pipeline.run_retrieval() or
     pipeline.assemble_context()) and returns the generated answer text.
@@ -520,9 +548,21 @@ def generate_answer(
 
     try:
         payload = response.json()
-        return payload["choices"][0]["message"]["content"]
+        answer = payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, ValueError) as err:
         raise LLMError(f"Unexpected LLM provider response shape: {response.text[:500]}") from err
+
+    # Groq/OpenAI-compatible providers return a top-level `usage` object
+    # alongside `choices`; llama-server (the local backend) does not, so
+    # this defaults every field to 0 rather than raising - token usage is
+    # for cost accounting, not something the answer itself depends on.
+    raw_usage = payload.get("usage") or {}
+    usage = {
+        "prompt_tokens": raw_usage.get("prompt_tokens", 0),
+        "completion_tokens": raw_usage.get("completion_tokens", 0),
+        "total_tokens": raw_usage.get("total_tokens", 0),
+    }
+    return answer, usage
 
 
 def answer_query(
@@ -536,11 +576,16 @@ def answer_query(
     (structured_context.py - real current numbers, not retrieved),
     followed by LLM reasoning (generate_answer(), which now also takes
     this same `history` - see its own docstring). Returns
-    {"answer": str, "sources": list[dict]} - sources are the same chunk
-    citations AssembledContext already carries; structured facts have no
-    "chunk" to cite (they're a live query, not a persisted document), so
-    they never appear in `sources`, only inline in the answer text
-    itself when the model chooses to use them.
+    {"answer": str, "sources": list[dict], "token_usage": dict} - sources
+    are the same chunk citations AssembledContext already carries;
+    structured facts have no "chunk" to cite (they're a live query, not a
+    persisted document), so they never appear in `sources`, only inline
+    in the answer text itself when the model chooses to use them.
+    token_usage is {"prompt_tokens": int, "completion_tokens": int,
+    "total_tokens": int} as reported by the LLM provider for this one
+    call (0s when the provider doesn't report usage, e.g. a local
+    llama-server) - needed to compute the real per-query cost of the RAG
+    feature against the provider's per-token pricing.
 
     Always calls the LLM, even when retrieval and structured facts both
     come back empty - SYSTEM_PROMPT already tells the model exactly how
@@ -562,5 +607,5 @@ def answer_query(
     context = run_retrieval(conn, tenant_id, query_text, top_k=top_k, **retrieval_kwargs)
     structured_facts = build_structured_facts_block(conn, tenant_id) if include_structured_facts else ""
 
-    answer = generate_answer(context, structured_facts=structured_facts, history=history)
-    return {"answer": answer, "sources": context.sources}
+    answer, token_usage = _generate_answer_with_usage(context, structured_facts=structured_facts, history=history)
+    return {"answer": answer, "sources": context.sources, "token_usage": token_usage}

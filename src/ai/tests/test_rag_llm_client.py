@@ -277,11 +277,17 @@ def test_answer_query_still_calls_the_llm_when_neither_retrieval_nor_structured_
     )
     monkeypatch.setattr(llm_client, "build_structured_facts_block", lambda *a, **k: "")
     captured = {}
-    monkeypatch.setattr(llm_client, "generate_answer", lambda context, **k: captured.update(k) or "ما فيش معلومات.")
+    monkeypatch.setattr(
+        llm_client, "_generate_answer_with_usage",
+        lambda context, **k: (captured.update(k) or "ما فيش معلومات.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}),
+    )
 
     result = llm_client.answer_query(conn=None, tenant_id="t", query_text="q")
 
-    assert result == {"answer": "ما فيش معلومات.", "sources": []}
+    assert result == {
+        "answer": "ما فيش معلومات.", "sources": [],
+        "token_usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+    }
     assert captured["structured_facts"] == ""
 
 
@@ -297,7 +303,10 @@ def test_answer_query_still_answers_from_structured_facts_alone(monkeypatch):
         lambda *a, **k: "Current overall sentiment score: 0.42 (source: sentiment_results).",
     )
     captured = {}
-    monkeypatch.setattr(llm_client, "generate_answer", lambda context, **k: captured.update(k) or "0.42.")
+    monkeypatch.setattr(
+        llm_client, "_generate_answer_with_usage",
+        lambda context, **k: (captured.update(k) or "0.42.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}),
+    )
 
     result = llm_client.answer_query(conn=None, tenant_id="t", query_text="what's my sentiment score?")
 
@@ -305,15 +314,16 @@ def test_answer_query_still_answers_from_structured_facts_alone(monkeypatch):
     assert "0.42" in captured["structured_facts"]
 
 
-def test_answer_query_returns_answer_and_sources_together(monkeypatch):
+def test_answer_query_returns_answer_sources_and_token_usage_together(monkeypatch):
     fake_context = _context()
     monkeypatch.setattr(llm_client, "run_retrieval", lambda *a, **k: fake_context)
     monkeypatch.setattr(llm_client, "build_structured_facts_block", lambda *a, **k: "")
-    monkeypatch.setattr(llm_client, "generate_answer", lambda context, **k: "Sunscreen SPF 50.")
+    fake_usage = {"prompt_tokens": 120, "completion_tokens": 30, "total_tokens": 150}
+    monkeypatch.setattr(llm_client, "_generate_answer_with_usage", lambda context, **k: ("Sunscreen SPF 50.", fake_usage))
 
     result = llm_client.answer_query(conn=None, tenant_id="t", query_text="what is our best seller?")
 
-    assert result == {"answer": "Sunscreen SPF 50.", "sources": fake_context.sources}
+    assert result == {"answer": "Sunscreen SPF 50.", "sources": fake_context.sources, "token_usage": fake_usage}
 
 
 def test_answer_query_skips_structured_facts_when_disabled(monkeypatch):
@@ -321,11 +331,49 @@ def test_answer_query_skips_structured_facts_when_disabled(monkeypatch):
     monkeypatch.setattr(llm_client, "run_retrieval", lambda *a, **k: fake_context)
     calls = []
     monkeypatch.setattr(llm_client, "build_structured_facts_block", lambda *a, **k: calls.append(1))
-    monkeypatch.setattr(llm_client, "generate_answer", lambda context, **k: "Sunscreen SPF 50.")
+    monkeypatch.setattr(
+        llm_client, "_generate_answer_with_usage",
+        lambda context, **k: ("Sunscreen SPF 50.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}),
+    )
 
     llm_client.answer_query(conn=None, tenant_id="t", query_text="q", include_structured_facts=False)
 
     assert calls == []  # never even queried
+
+
+def test_answer_query_returns_real_token_usage_extracted_from_the_groq_response(monkeypatch):
+    """End-to-end (down to the mocked HTTP layer, not a mocked
+    _generate_answer_with_usage) proof that a real Groq-shaped `usage`
+    object survives all the way through to answer_query()'s return dict -
+    this is the exact value needed to calculate the cost of a RAG call."""
+    fake_context = _context()
+    monkeypatch.setattr(llm_client, "run_retrieval", lambda *a, **k: fake_context)
+    monkeypatch.setattr(llm_client, "build_structured_facts_block", lambda *a, **k: "")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setattr(
+        llm_client.httpx, "post",
+        lambda *a, **k: _FakeResponse(200, {
+            "choices": [{"message": {"content": "Sunscreen SPF 50."}}],
+            "usage": {"prompt_tokens": 342, "completion_tokens": 58, "total_tokens": 400},
+        }),
+    )
+
+    result = llm_client.answer_query(conn=None, tenant_id="t", query_text="what is our best seller?")
+
+    assert result["token_usage"] == {"prompt_tokens": 342, "completion_tokens": 58, "total_tokens": 400}
+
+
+def test_generate_answer_with_usage_defaults_to_zeros_when_provider_omits_usage(monkeypatch):
+    """llama-server (the local backend) doesn't return a `usage` object at
+    all - this must degrade to zeros, not raise, since the answer itself
+    is still perfectly valid."""
+    monkeypatch.setattr(
+        llm_client.httpx, "post",
+        lambda *a, **k: _FakeResponse(200, {"choices": [{"message": {"content": "ok"}}]}),
+    )
+    answer, usage = llm_client._generate_answer_with_usage(_context(), api_key="test-key")
+    assert answer == "ok"
+    assert usage == {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 
 def test_generate_answer_sends_no_history_messages_when_none_is_given(monkeypatch):
@@ -405,7 +453,10 @@ def test_answer_query_passes_history_through_to_generate_answer(monkeypatch):
     monkeypatch.setattr(llm_client, "run_retrieval", lambda *a, **k: fake_context)
     monkeypatch.setattr(llm_client, "build_structured_facts_block", lambda *a, **k: "")
     captured = {}
-    monkeypatch.setattr(llm_client, "generate_answer", lambda context, **k: captured.update(k) or "ok")
+    monkeypatch.setattr(
+        llm_client, "_generate_answer_with_usage",
+        lambda context, **k: (captured.update(k) or "ok", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}),
+    )
 
     history = [{"role": "user", "content": "earlier question"}]
     llm_client.answer_query(conn=None, tenant_id="t", query_text="q", history=history)
