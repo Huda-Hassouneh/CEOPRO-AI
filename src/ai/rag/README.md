@@ -116,6 +116,7 @@ result = llm_client.answer_query(
 
 print("Answer: ", result["answer"])
 print("Sources:", result["sources"])
+print("Token usage:", result["token_usage"])
 ```
 
 ```bash
@@ -129,13 +130,17 @@ Expected shape of `result`:
   "answer": "Your best selling summer product is Sunscreen SPF 50, based on the retrieved sales notes.",
   "sources": [
     {"source_index": 1, "chunk_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "score": 0.87}
-  ]
+  ],
+  "token_usage": {"prompt_tokens": 342, "completion_tokens": 58, "total_tokens": 400}
 }
 ```
 
 An empty `sources` list with an "I don't have any relevant information..." answer means retrieval
 found nothing in that tenant's knowledge base for the query — the LLM was never called (see
-`answer_query()`'s own short-circuit).
+`answer_query()`'s own short-circuit). `token_usage` is as reported by the LLM provider for this
+one call — every field is `0` when the provider doesn't report usage (e.g. the local llama-server
+backend) rather than the call failing; it exists so a caller can compute the real per-query cost
+of the RAG feature against the provider's per-token pricing.
 
 ### Via the HTTP endpoint
 
@@ -147,9 +152,9 @@ curl -X POST "http://localhost:8000/rag/query?query_text=What+is+our+best+sellin
   -H "Authorization: Bearer <your JWT>"
 ```
 
-Returns the same `{"answer": ..., "sources": [...]}` shape as a JSON response. A Groq/network
-failure comes back as HTTP 502 (retrieval succeeded, only the LLM call didn't); anything else
-unexpected comes back as 500.
+Returns the same `{"answer": ..., "sources": [...], "token_usage": {...}}` shape as a JSON
+response. A Groq/network failure comes back as HTTP 502 (retrieval succeeded, only the LLM call
+didn't); anything else unexpected comes back as 500.
 
 ### Interactive terminal chat (`chat_cli.py`)
 
