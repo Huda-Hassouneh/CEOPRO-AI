@@ -8,25 +8,67 @@ import { successResponse, errorResponse } from "../../../types/response.js"; // 
 import { ERROR_CODES } from "../../../errors/error-codes.js"; // adjust path
 import { ERROR_DEFINITIONS } from "../../../errors/error-definitions.js"; // adjust path
 import { ragService } from "../service/features.service.js";
+import { AppRequest } from "../../../types/request.js";
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
 
 export const extractionController = {
-  uploadFile: async (req: any, res: Response): Promise<void> => {
+  uploadFile: async (req: AppRequest, res: Response): Promise<void> => {
     try {
-      const tenantId = req.tenant_id;
+      const tenantId = req.tenant_id as string;
+      const userId = req.user;
       const file = req.file;
 
+      // 1. Validate File Presence
       if (!file) {
-        const errDef = ERROR_DEFINITIONS[ERROR_CODES.INVALID_REQUEST];
+        const errDef = ERROR_DEFINITIONS[ERROR_CODES.INVALID_FILE_UPLOAD];
         res
           .status(errDef.statusCode)
           .json(
             errorResponse(
               errDef.message,
               errDef.statusCode,
-              ERROR_CODES.INVALID_REQUEST,
-              "File upload is required."
+              ERROR_CODES.INVALID_FILE_UPLOAD,
+              "A multipart file upload is required."
+            )
+          );
+        return;
+      }
+
+      // 2. Validate Allowed Extensions
+      const allowedExtensions = [".csv", ".xlsx", ".xlsm", ".pdf"];
+      const fileName = file.originalname.toLowerCase();
+      const hasValidExtension = allowedExtensions.some((ext) =>
+        fileName.endsWith(ext)
+      );
+
+      if (!hasValidExtension) {
+        const errDef = ERROR_DEFINITIONS[ERROR_CODES.INVALID_FILE_UPLOAD];
+        res
+          .status(errDef.statusCode)
+          .json(
+            errorResponse(
+              errDef.message,
+              errDef.statusCode,
+              ERROR_CODES.INVALID_FILE_UPLOAD,
+              "File content does not match allowed extensions (.csv, .xlsx, .xlsm, or .pdf)."
+            )
+          );
+        return;
+      }
+
+      // 3. Validate File Size Limit (Max 10 MB)[cite: 3]
+      const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+      if (file.size > MAX_SIZE_BYTES) {
+        const errDef = ERROR_DEFINITIONS[ERROR_CODES.FILE_SIZE_LIMIT_EXCEEDED];
+        res
+          .status(errDef.statusCode)
+          .json(
+            errorResponse(
+              errDef.message,
+              errDef.statusCode,
+              ERROR_CODES.FILE_SIZE_LIMIT_EXCEEDED,
+              "File exceeds the 10 MB size limit."
             )
           );
         return;
@@ -35,32 +77,14 @@ export const extractionController = {
       const formData = new FormData();
       formData.append(
         "file",
-        new Blob([file.buffer], { type: file.mimetype }),
+        new Blob([new Uint8Array(file.buffer)], { type: file.mimetype }),
         file.originalname
       );
-      console.log(formData);
 
-      // const aiResponse = await fetch(`${AI_SERVICE_URL}/extraction/upload`, {
-      //   method: "POST",
-      //   body: formData
-      // });
+      // Simulate latency for AI Service
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // if (!aiResponse.ok) {
-      //   const errDef = ERROR_DEFINITIONS[ERROR_CODES.EXTERNAL_SERVICE_ERROR];
-      //   res
-      //     .status(errDef.statusCode)
-      //     .json(
-      //       errorResponse(
-      //         errDef.message,
-      //         errDef.statusCode,
-      //         ERROR_CODES.EXTERNAL_SERVICE_ERROR,
-      //         "AI Extraction Service failed"
-      //       )
-      //     );
-      //   return;
-      // }
-
-      // const data = await aiResponse.json();
+      // --- MOCK AI DATA (Represents successful fetch from POST /extraction/upload) ---
       const data = {
         job_id: "a5d8b76e-34e8-48b2-b5e1-88981f2c24ef",
         template_mode: "best-effort mapping",
@@ -70,36 +94,14 @@ export const extractionController = {
         rows_failed: 3,
         data_loss_pct: 2.0,
         header_coverage_ratio: 0.88,
-        minio_object_key: "raw-uploads/tenant-550e8400/sales_data_q3.xlsx",
-        row_outcomes: [
-          {
-            row_index: 14,
-            mode: "best-effort",
-            field_errors: ["missing_discount_rate"],
-            error: null
-          },
-          {
-            row_index: 42,
-            mode: "rejected",
-            field_errors: ["invalid_price_format", "missing_product_sku"],
-            error: "Failed to parse unit price as valid decimal"
-          },
-          {
-            row_index: 89,
-            mode: "rejected",
-            field_errors: ["negative_quantity"],
-            error: "Quantity must be greater than zero"
-          }
-        ],
+        minio_object_key: `raw-uploads/tenant-${tenantId.slice(0, 8)}/${file.originalname}`,
+        row_outcomes: [],
         promotion: {
           rows_promoted: 135,
           rows_skipped_incomplete: 12,
           rows_failed: 3,
           products_created: 18,
-          errors: [
-            "Row 42: Product SKU cannot be blank",
-            "Row 89: Line item quantity cannot be negative"
-          ]
+          errors: []
         },
         currency_resolution: {
           currency: "USD",
@@ -107,8 +109,25 @@ export const extractionController = {
         }
       };
 
-      await incrementUsage(tenantId, "document_extraction");
+      // 4. Insert Metadata into PostgreSQL[cite: 6]
+      await documentsRepo.insertRagDocumentMeta({
+        userId: userId?.id as string,
+        fileSize: BigInt(file.size),
+        minio_object_key: data.minio_object_key,
+        tenantId: tenantId,
+        filename: file.originalname,
+        mimetype: file.mimetype
+      });
 
+      // 5. Calculate and Log Usage[cite: 7]
+      // Convert bytes to MB, rounding up to the nearest whole number to ensure at least 1 MB is charged,
+      // as incrementUsage requires a positive integer[cite: 7].
+      const mbUsed = Math.max(1, Math.ceil(file.size / (1024 * 1024)));
+
+      // Ensure you create a Feature in the DB with code "data_processed_mb"[cite: 6]
+      await incrementUsage(tenantId, "document_extraction", mbUsed);
+
+      // 6. Return Success Payload
       res.status(200).json(
         successResponse(
           {
@@ -141,7 +160,6 @@ export const extractionController = {
         );
     }
   },
-
   processPending: async (req: any, res: Response): Promise<void> => {
     const usage = await getRemainingUsage(req.tenant_id, "document_extraction");
     const requestedLimit = Number(req.query.limit ?? 100);
@@ -162,13 +180,14 @@ export const extractionController = {
 };
 
 export const ragController = {
-  queryAssistant: async (req: any, res: Response): Promise<void> => {
+  queryAssistant: async (req: AppRequest, res: Response): Promise<void> => {
     try {
-      const { query_text, top_k = 5 } = req.query;
-      const tenantId = req.tenant_id;
-      console.log({ query_text });
+      // Extract parameters directly from req.query
+      const { query_text, top_k = 5, history_json } = req.query;
+      const tenantId = req.tenant_id as string;
 
-      if (!query_text) {
+      // 1. Validate query_text presence and type
+      if (!query_text || typeof query_text !== "string") {
         const errDef = ERROR_DEFINITIONS[ERROR_CODES.INVALID_REQUEST];
         res
           .status(errDef.statusCode)
@@ -177,33 +196,81 @@ export const ragController = {
               errDef.message,
               errDef.statusCode,
               ERROR_CODES.INVALID_REQUEST,
-              "query_text is required."
+              "query_text is required as a string."
             )
           );
         return;
       }
 
-      // const aiResponse = await fetch(
-      //   `${AI_SERVICE_URL}/rag/query?query_text=${encodeURIComponent(query_text as string)}&top_k=${top_k}`,
-      //   { method: "POST" }
-      // );
+      // 2. Validate query_text length constraint
+      if (query_text.length < 1 || query_text.length > 2000) {
+        const errDef = ERROR_DEFINITIONS[ERROR_CODES.INVALID_PARAMETER];
+        res
+          .status(errDef.statusCode)
+          .json(
+            errorResponse(
+              errDef.message,
+              errDef.statusCode,
+              ERROR_CODES.INVALID_PARAMETER,
+              "query_text must be between 1 and 2000 characters."
+            )
+          );
+        return;
+      }
 
-      // if (!aiResponse.ok) {
-      //   const errDef = ERROR_DEFINITIONS[ERROR_CODES.EXTERNAL_SERVICE_ERROR];
-      //   res
-      //     .status(errDef.statusCode)
-      //     .json(
-      //       errorResponse(
-      //         errDef.message,
-      //         errDef.statusCode,
-      //         ERROR_CODES.EXTERNAL_SERVICE_ERROR,
-      //         "AI RAG Service failed"
-      //       )
-      //     );
-      //   return;
-      // }
+      // 3. Validate history_json if provided
+      if (history_json && typeof history_json === "string") {
+        try {
+          JSON.parse(history_json);
+        } catch (e) {
+          const errDef = ERROR_DEFINITIONS[ERROR_CODES.MALFORMED_HISTORY_JSON];
+          res
+            .status(errDef.statusCode)
+            .json(
+              errorResponse(
+                errDef.message,
+                errDef.statusCode,
+                ERROR_CODES.MALFORMED_HISTORY_JSON,
+                "history_json must be a valid JSON array string."
+              )
+            );
+          return;
+        }
+      }
 
-      // const data = await aiResponse.json();
+      // 4. Simulate network latency for accurate frontend UI testing
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      // 5. EXTERNAL AI SERVICE INTEGRATION (Commented out for mock phase)
+      /*
+      const aiResponse = await fetch(
+        `${AI_SERVICE_URL}/rag/query?query_text=${encodeURIComponent(query_text)}&top_k=${top_k}${
+          history_json ? `&history_json=${encodeURIComponent(history_json)}` : ""
+        }`,
+        { method: "POST" }
+      );
+
+      if (!aiResponse.ok) {
+        // Map upstream 502/500 errors to the specific LLM failure definition
+        if (aiResponse.status === 502 || aiResponse.status === 500) {
+          const errDef = ERROR_DEFINITIONS[ERROR_CODES.UPSTREAM_LLM_FAILURE];
+          res.status(errDef.statusCode).json(
+            errorResponse(
+              errDef.message,
+              errDef.statusCode,
+              ERROR_CODES.UPSTREAM_LLM_FAILURE
+            )
+          );
+          return;
+        }
+        
+        throw new Error(`Unexpected AI Service Response: ${aiResponse.status}`);
+      }
+
+      const data = await aiResponse.json();
+      */
+
+      // 6. MOCK DATA PAYLOAD
       const data = {
         answer:
           "MinIO utilizes erasure coding rather than traditional data replication to ensure high resilience and protect against multiple drive failures.",
@@ -220,6 +287,8 @@ export const ragController = {
           }
         ]
       };
+
+      // Ensure billing/usage tracking fires
       await incrementUsage(tenantId, "rag_assistant", 1);
 
       res.status(200).json(
@@ -244,47 +313,48 @@ export const ragController = {
           )
         );
     }
+
+    // getChunk: async (req: any, res: Response): Promise<void> => {
+    //   try {
+    //     const tenantId = req.tenant_id;
+    //     const { chunk_id } = req.params;
+
+    //     const chunkData = await ragService.fetchChunkDetails(tenantId, chunk_id);
+
+    //     res
+    //       .status(200)
+    //       .json(successResponse(chunkData, "Chunk fetched successfully"));
+    //   } catch (error: any) {
+    //     console.error("Chunk Fetch Error:", error);
+
+    //     if (error.code === "NOT_FOUND") {
+    //       const errDef = ERROR_DEFINITIONS[ERROR_CODES.RESOURCE_NOT_FOUND];
+    //       res
+    //         .status(errDef.statusCode)
+    //         .json(
+    //           errorResponse(
+    //             errDef.message,
+    //             errDef.statusCode,
+    //             ERROR_CODES.RESOURCE_NOT_FOUND,
+    //             error.message
+    //           )
+    //         );
+    //       return;
+    //     }
+
+    //     const errDef = ERROR_DEFINITIONS[ERROR_CODES.INTERNAL_SERVER_ERROR];
+    //     res
+    //       .status(errDef.statusCode)
+    //       .json(
+    //         errorResponse(
+    //           errDef.message,
+    //           errDef.statusCode,
+    //           ERROR_CODES.INTERNAL_SERVER_ERROR
+    //         )
+    //       );
+    //   }
+    // },
   },
-  // getChunk: async (req: any, res: Response): Promise<void> => {
-  //   try {
-  //     const tenantId = req.tenant_id;
-  //     const { chunk_id } = req.params;
-
-  //     const chunkData = await ragService.fetchChunkDetails(tenantId, chunk_id);
-
-  //     res
-  //       .status(200)
-  //       .json(successResponse(chunkData, "Chunk fetched successfully"));
-  //   } catch (error: any) {
-  //     console.error("Chunk Fetch Error:", error);
-
-  //     if (error.code === "NOT_FOUND") {
-  //       const errDef = ERROR_DEFINITIONS[ERROR_CODES.RESOURCE_NOT_FOUND];
-  //       res
-  //         .status(errDef.statusCode)
-  //         .json(
-  //           errorResponse(
-  //             errDef.message,
-  //             errDef.statusCode,
-  //             ERROR_CODES.RESOURCE_NOT_FOUND,
-  //             error.message
-  //           )
-  //         );
-  //       return;
-  //     }
-
-  //     const errDef = ERROR_DEFINITIONS[ERROR_CODES.INTERNAL_SERVER_ERROR];
-  //     res
-  //       .status(errDef.statusCode)
-  //       .json(
-  //         errorResponse(
-  //           errDef.message,
-  //           errDef.statusCode,
-  //           ERROR_CODES.INTERNAL_SERVER_ERROR
-  //         )
-  //       );
-  //   }
-  // },
   getChunk: async (
     req: any,
     res: Response,
@@ -732,67 +802,31 @@ export const mpiController = {
 };
 
 export const documentController = {
-  listDocuments: async (req: any, res: Response): Promise<void> => {
+  listDocuments: async (req: AppRequest, res: Response): Promise<void> => {
     try {
-      const tenantId = req.tenant_id; // Attached by your authenticateUser middleware
-      const page = parseInt(req.query.page as string) || 1;
+      const tenantId = req.tenant_id as string;
+
+      // Ensure page is a valid positive integer, defaulting to 1
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const pageSize = 10;
 
-      // Query the Prisma table defined in your schema
-      // const documents = await getDocuments({
-      //   page,
-      //   pageSize,
-      //   tenant_id: tenantId
-      // });
-
-      // const total = await documentsRepo.getCountDocuments(tenantId);
-
-      // --- MOCKED DATA FOR LOCAL TESTING ---
-      // Commenting out the actual repository calls:
-      // const documents = await documentsRepo.getDocuments({ page, pageSize, tenant_id: tenantId });
-      // const total = await getCountDocuments(tenantId);
-
-      const total = 12; // Mock total number of documents
-
-      const documents = [
-        {
-          document_id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      // Execute database queries concurrently for better performance
+      const [documents, total] = await Promise.all([
+        documentsRepo.getDocuments({
           tenant_id: tenantId,
-          file_name: "2026_Q3_Marketing_Strategy.pdf",
-          storage_bucket_path: `raw-uploads/${tenantId}/2026_Q3_Marketing_Strategy.pdf`,
-          file_size_bytes: 4520192n, // 4.5 MB (Note: Prisma returns BigInt for this field)
-          content_type: "application/pdf",
-          uploaded_by_user_id: "e58b123d-4567-890a-bcde-f1234567890a",
-          uploaded_at: new Date("2026-09-24T10:00:00Z")
-        },
-        {
-          document_id: "c1f7a3b2-9d4e-48c5-a2b1-3e6f9a8d7c4b",
-          tenant_id: tenantId,
-          file_name: "Competitor_Analysis_Q2.xlsx",
-          storage_bucket_path: `raw-uploads/${tenantId}/Competitor_Analysis_Q2.xlsx`,
-          file_size_bytes: 1245184n, // 1.2 MB
-          content_type:
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          uploaded_by_user_id: "e58b123d-4567-890a-bcde-f1234567890a",
-          uploaded_at: new Date("2026-09-22T14:30:00Z")
-        },
-        {
-          document_id: "a0b1c2d3-e4f5-6789-abcd-ef0123456789",
-          tenant_id: tenantId,
-          file_name: "Employee_Handbook_v3.docx",
-          storage_bucket_path: `raw-uploads/${tenantId}/Employee_Handbook_v3.docx`,
-          file_size_bytes: 845200n, // 845 KB
-          content_type:
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          uploaded_by_user_id: "e58b123d-4567-890a-bcde-f1234567890a",
-          uploaded_at: new Date("2026-09-15T09:15:00Z")
-        }
-      ];
+          page,
+          pageSize
+        }),
+        documentsRepo.getCountDocuments(tenantId)
+      ]);
+
+      // Prisma returns file_size_bytes as a BigInt based on your schema[cite: 6].
+      // BigInt cannot be directly serialized to JSON, so it must be converted to a string.
       const formattedDocuments = documents.map((doc) => ({
         ...doc,
         file_size_bytes: doc.file_size_bytes.toString()
       }));
-      // -------------------------------------
+
       res.status(200).json(
         successResponse(
           {
@@ -808,7 +842,7 @@ export const documentController = {
         )
       );
     } catch (error) {
-      console.error("MPI Controller Error:", error);
+      console.error("Documents Controller Error:", error); // Fixed typo from "MPI Controller Error"
       const errDef = ERROR_DEFINITIONS[ERROR_CODES.INTERNAL_SERVER_ERROR];
       res
         .status(errDef.statusCode)

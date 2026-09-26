@@ -162,49 +162,91 @@ export const getMainDashboardKPIs = async (
   });
 
   // 9. Fetch Competitor Price Comparison for Dashboard
-  const trackedComps = await prisma.tenant_competitors.findMany({
-    where: { tenant_id, is_tracked: true },
-    include: { global_competitors: true },
-    take: 4
-  });
-
   const tenantProducts = await prisma.products.findMany({
-    where: { tenant_id, deleted_at: null },
-    take: 4
+    where: {
+      tenant_id,
+      deleted_at: null
+    },
+    take: 4,
+    include: {
+      competitor_product_mappings: {
+        include: {
+          tenant_competitors: {
+            include: {
+              global_competitors: true
+            }
+          },
+          competitor_prices: {
+            where: {
+              is_available: true
+            },
+            orderBy: {
+              observed_at: "desc"
+            },
+            take: 1
+          }
+        }
+      }
+    }
   });
 
-  const competitorComparisonRows = tenantProducts.map((prod, index) => {
-    const comp = trackedComps[index % trackedComps.length];
-    const rawName = prod.product_name as any;
-    const productName =
-      typeof rawName === "object" && rawName !== null
-        ? { en: rawName.en || "Unknown", ar: rawName.ar || "غير معروف" }
-        : {
-            en: String(rawName || "Unknown"),
-            ar: String(rawName || "غير معروف")
-          };
+  const competitorComparisonRows = tenantProducts
+    .map((prod) => {
+      const rawName = prod.product_name as any;
 
-    const ourPrice = Number(prod.current_price || 0);
-    const marketPrice = Number((ourPrice * (0.92 + index * 0.04)).toFixed(2));
-    const variance = Number((ourPrice - marketPrice).toFixed(2));
-    const direction =
-      variance > 0 ? "higher" : variance < 0 ? "lower" : "aligned";
+      const productName =
+        typeof rawName === "object" && rawName !== null
+          ? {
+              en: rawName.en || "Unknown",
+              ar: rawName.ar || "غير معروف"
+            }
+          : {
+              en: String(rawName || "Unknown"),
+              ar: String(rawName || "غير معروف")
+            };
 
-    return {
-      id: `comp-row-${prod.product_id}`,
-      product: productName,
-      competitorName:
-        comp?.custom_alias ||
-        comp?.global_competitors?.competitor_name ||
-        "Market Average",
-      ourPrice,
-      lowestCompetitorPrice: marketPrice,
-      variance,
-      direction,
-      dataStatus: "derived"
-    };
-  });
+      const ourPrice = Number(prod.current_price || 0);
 
+      const competitorPrices = prod.competitor_product_mappings.flatMap(
+        (mapping) =>
+          mapping.competitor_prices.map((price) => ({
+            price: Number(price.scraped_price),
+            competitorName:
+              mapping.tenant_competitors?.custom_alias ||
+              mapping.tenant_competitors?.global_competitors?.competitor_name ||
+              "Unknown Competitor",
+            observedAt: price.observed_at
+          }))
+      );
+
+      if (competitorPrices.length === 0) {
+        return null;
+      }
+
+      const lowestCompetitor = competitorPrices.reduce((lowest, current) =>
+        current.price < lowest.price ? current : lowest
+      );
+
+      const lowestCompetitorPrice = lowestCompetitor.price;
+
+      const variance = Number((ourPrice - lowestCompetitorPrice).toFixed(2));
+
+      const direction =
+        variance > 0 ? "higher" : variance < 0 ? "lower" : "aligned";
+
+      return {
+        id: `comp-row-${prod.product_id}`,
+        product: productName,
+        competitorName: lowestCompetitor.competitorName,
+        ourPrice,
+        lowestCompetitorPrice,
+        variance,
+        direction,
+        lastObservedAt: lowestCompetitor.observedAt,
+        dataStatus: "verified"
+      };
+    })
+    .filter(Boolean);
   // 10. Fetch Recent Activity from Audit Logs
   // 10. Fetch Recent Activity from Audit Logs
   const rawActivities = await prisma.audit_logs.findMany({
@@ -251,7 +293,7 @@ export const getMainDashboardKPIs = async (
         id: "totalSales",
         labelKey: "dashboard.kpis.totalSales",
         value: currentInvoices.length,
-        format: "number",
+        format: "currency",
         icon: "sales",
         tone: "blue",
         dataStatus: "verified"

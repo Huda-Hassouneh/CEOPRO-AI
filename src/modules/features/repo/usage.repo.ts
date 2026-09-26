@@ -1,3 +1,4 @@
+import { MIMEType } from "util";
 import { prisma } from "../../../config/database.js";
 import { ACCESS_GRANTING_STATUSES } from "../../../constants/subscription.js";
 import { getCurrentCapacityUsage } from "../service/capacity.service.js";
@@ -342,6 +343,32 @@ export const documentsRepo = {
             file_name: true
           }
         }
+      }
+    });
+  },
+  insertRagDocumentMeta: async ({
+    tenantId,
+    filename,
+    minio_object_key,
+    fileSize,
+    mimetype,
+    userId
+  }: {
+    tenantId: string;
+    filename: string;
+    minio_object_key: string;
+    fileSize: bigint;
+    mimetype: string;
+    userId: string;
+  }) => {
+    await prisma.rag_documents_metadata.create({
+      data: {
+        tenant_id: tenantId,
+        file_name: filename,
+        storage_bucket_path: minio_object_key,
+        file_size_bytes: BigInt(fileSize), // Schema expects BigInt[cite: 6]
+        content_type: mimetype,
+        uploaded_by_user_id: userId
       }
     });
   }

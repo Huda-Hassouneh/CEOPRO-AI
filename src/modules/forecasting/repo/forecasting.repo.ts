@@ -35,8 +35,10 @@ export const getDemandOverview = async (
     include: {
       inventory: { take: 1 },
       demand_forecasts: {
-        where: { forecast_start_date: { gte: new Date() } },
-        orderBy: { forecast_start_date: "asc" },
+        orderBy: {
+          forecast_start_date: "desc" // Sorting belongs here
+        },
+        // orderBy: { forecast_start_date: "asc" },
         take: periodDays,
         include: { recommendation_outcomes: { take: 1 } }
       }
