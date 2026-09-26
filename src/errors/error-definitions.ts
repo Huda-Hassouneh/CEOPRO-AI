@@ -262,14 +262,35 @@ export const ERROR_DEFINITIONS = {
   },
   [ERROR_CODES.UNSAFE_CUSTOM_PLAN_PRICE]: {
     statusCode: 422,
-    message: "The final custom plan price is below the calculated minimum safe price."
+    message:
+      "The final custom plan price is below the calculated minimum safe price."
   },
   [ERROR_CODES.FX_RATE_REQUIRED]: {
     statusCode: 422,
-    message: "A valid FX rate is required to normalize vendor costs into the quote currency."
+    message:
+      "A valid FX rate is required to normalize vendor costs into the quote currency."
   },
   [ERROR_CODES.VENDOR_RATE_REQUIRED]: {
     statusCode: 422,
-    message: "A vendor rate is required for each selected feature with estimated billable usage."
+    message:
+      "A vendor rate is required for each selected feature with estimated billable usage."
+  },
+
+  // AI & Data Extraction Errors
+  [ERROR_CODES.MALFORMED_HISTORY_JSON]: {
+    statusCode: 422, //[cite: 3]
+    message: "Malformed history_json" //[cite: 3]
+  },
+  [ERROR_CODES.UPSTREAM_LLM_FAILURE]: {
+    statusCode: 502, //[cite: 3]
+    message: "Upstream language-model provider failure" //[cite: 3]
+  },
+  [ERROR_CODES.INVALID_FILE_UPLOAD]: {
+    statusCode: 400, //[cite: 3]
+    message: "Empty file, or file content does not match its extension" //[cite: 3]
+  },
+  [ERROR_CODES.FILE_SIZE_LIMIT_EXCEEDED]: {
+    statusCode: 413, //[cite: 3]
+    message: "File exceeds the size limit" //[cite: 3]
   }
 } as const;

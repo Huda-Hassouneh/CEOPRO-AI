@@ -3,8 +3,11 @@ import cors from "cors";
 import { getCorsOrigins } from "./config/env.js";
 import subscriptionModuleRouter from "./modules/subscription/index.js";
 import dashboard from "./modules/dashboard/index.js";
+import marketInt from "./modules/market-intelligence/index.js";
+import competitors from "./modules/competitors/route.js";
 import dataconnection from "./modules/dataconnection/index.js";
 import forecasting from "./modules/forecasting/index.js";
+import leaderboard from "./modules/opputunities/route.js";
 import featureModuleRouter from "./modules/features/index.js";
 import platformAdminRouter from "./modules/platform-admin/platform-admin.routes.js";
 import stripeRouter from "./modules/subscription/External Services/Payment providers/stripe/stripeRoutes.js";
@@ -45,6 +48,9 @@ app.use("/", featureModuleRouter);
 app.use("/", dashboard);
 app.use("/", forecasting);
 app.use("/", dataconnection);
+app.use("/", marketInt);
+app.use("/competitors", competitors);
+app.use("/leaderboard", leaderboard);
 
 app.get("/", (_req, res) => {
   res.json({ message: "CEO PRO API is running..." });
