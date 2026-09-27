@@ -3,7 +3,7 @@ import {
   useContext,
   useState,
   useCallback,
-  useEffect,
+  useEffect
 } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,12 +11,12 @@ import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 import { useAuthStore } from "../../auth/store/authStore.js";
 import {
   platformAdminApi as api,
-  ADMIN_PREVIEW,
+  ADMIN_PREVIEW
 } from "../api/platformAdminApi.js";
 import {
   can,
   requirePermission,
-  PLATFORM_ROLES,
+  PLATFORM_ROLES
 } from "../permissions/platformPermissions.js";
 import Button from "../../../shared/components/ui/Button.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
@@ -30,7 +30,7 @@ export function useAdminText() {
 export const useAdmin = () => useContext(Context);
 export const roleDescriptions = {
   owner: "superDescription",
-  admin: "adminDescription",
+  admin: "adminDescription"
 };
 export function AdminProvider({ children }) {
   const { t } = useAdminText(),
@@ -45,17 +45,17 @@ export function AdminProvider({ children }) {
       "platform-admin",
       "me",
       auth.user?.id || auth.user?.user_id || "anonymous",
-      previewRole,
+      previewRole
     ],
     queryFn: api.me,
     enabled:
       auth.isHydrated && (ADMIN_PREVIEW || auth.status === "authenticated"),
     retry: false,
-    staleTime: 0,
+    staleTime: 0
   });
   const notify = useCallback(
     (message, variant = "success") => setNotice({ message, variant }),
-    [],
+    []
   );
   useEffect(() => {
     if (!notice) return;
@@ -67,7 +67,7 @@ export function AdminProvider({ children }) {
     await api.setPreviewRole(value);
     client.removeQueries({
       queryKey: ["platform-admin"],
-      predicate: (q) => q.queryKey[1] !== "me",
+      predicate: (q) => q.queryKey[1] !== "me"
     });
     setRole(value);
     await query.refetch();
@@ -96,7 +96,7 @@ export function AdminProvider({ children }) {
           {t(
             query.error?.response?.status === 403
               ? "forbidden"
-              : "missingContract",
+              : "missingContract"
           )}
         </p>
         <Button onClick={() => query.refetch()}>{t("retry")}</Button>
@@ -132,7 +132,7 @@ export function AdminProvider({ children }) {
     can: (permission) => can(query.data, permission),
     preview: ADMIN_PREVIEW,
     chooseRole,
-    notify,
+    notify
   };
   return (
     <Context.Provider value={value}>
@@ -154,11 +154,11 @@ export function useAdminQuery(domain, params = {}, id) {
       principal.role,
       domain,
       id || null,
-      params,
+      params
     ],
     queryFn: ({ signal }) =>
       id ? api.detail(domain, id, signal) : api.list(domain, params, signal),
-    retry: false,
+    retry: false
   });
 }
 export function useAdminMutation(permission) {
@@ -187,11 +187,12 @@ export function useAdminMutation(permission) {
             "lastAdmin",
             "forbidden",
             "notFound",
-          ].includes(error.code)
-            ? error.code
-            : "failed",
+            "accountRequired"
+          ].includes(error.response?.data?.error?.code || error.code)
+            ? error.response?.data?.error?.code || error.code
+            : "failed"
         ),
-        "error",
-      ),
+        "error"
+      )
   });
 }
