@@ -55,7 +55,7 @@ export async function platformMeHandler(req: AppRequest, res: Response) {
 
   const dbUser = await prisma.user.findUnique({
     where: { userId: req.user.id },
-    select: { fullName: true, email: true }
+    select: { fullName: true, email: true, preferredLanguage: true }
   }).catch(() => null);
 
   const rawPermissions = req.tenantUser?.role?.permissions;
@@ -67,6 +67,7 @@ export async function platformMeHandler(req: AppRequest, res: Response) {
     id: req.user.id,
     email: dbUser?.email ?? req.user.email,
     name: dbUser?.fullName ?? req.user.email.split("@")[0],
+    language: dbUser?.preferredLanguage ?? "en",
     role,
     roleKey: role,
     permissions,

@@ -133,6 +133,54 @@ export const planFeatureController = {
     }
   },
 
+  unlinkFeature: async (req: any, res: Response): Promise<void> => {
+    try {
+      const { plan_id, feature_id } = req.params;
+      const plan = await authorizePlanAccess(req, res, plan_id);
+      if (!plan) return;
+      const result = await planFeatureService.unlinkFeatureFromPlan(
+        plan_id,
+        feature_id
+      );
+      if (result === "missing") {
+        res
+          .status(404)
+          .json(
+            errorResponse(
+              "Plan feature link not found",
+              404,
+              ERROR_CODES.RESOURCE_NOT_FOUND
+            )
+          );
+      } else if (result === "inUse") {
+        res
+          .status(409)
+          .json(
+            errorResponse(
+              "This plan has subscription or quote history. Create a new plan instead of changing historical entitlements.",
+              409,
+              ERROR_CODES.RESOURCE_ALREADY_EXISTS
+            )
+          );
+      } else {
+        res
+          .status(200)
+          .json(successResponse(null, "Feature unlinked from plan"));
+      }
+    } catch (error) {
+      console.error("Unlink Plan Feature Error:", error);
+      res
+        .status(500)
+        .json(
+          errorResponse(
+            "Unable to unlink feature",
+            500,
+            ERROR_CODES.INTERNAL_SERVER_ERROR
+          )
+        );
+    }
+  },
+
   updateLimits: async (req: any, res: Response): Promise<void> => {
     try {
       const { plan_id, feature_id } = req.params;

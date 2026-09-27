@@ -1,6 +1,10 @@
 import { Router } from "express";
+import ownerPortalRouter from "../owner-portal/route/owner.route.js";
 import { z } from "zod";
-import { authenticateUser, requireTenant } from "../../validators/validateUser.js";
+import {
+  authenticateUser,
+  requireTenant
+} from "../../validators/validateUser.js";
 import {
   requirePlatformPermission,
   requirePlatformRole
@@ -17,7 +21,11 @@ import {
   vendorRateIdParamsSchema,
   vendorRateSchema
 } from "../../DTO/customPlan.dto.js";
-import { planParamsSchema, planSchema, updatePlanSchema } from "../../DTO/plan.dto.js";
+import {
+  planParamsSchema,
+  planSchema,
+  updatePlanSchema
+} from "../../DTO/plan.dto.js";
 import {
   createPromoCodeSchema,
   promoCodePlanParamsSchema,
@@ -72,16 +80,26 @@ const router = Router();
 router.use(authenticateUser, requireTenant, requirePlatformRole);
 
 router.get("/me", platformMeHandler);
+router.use(ownerPortalRouter);
 
 const read = requirePlatformPermission("billing.read");
 const manage = requirePlatformPermission("billing.manage");
 const pricing = requirePlatformPermission("billing.pricing.manage");
 
 router.get("/billing/tenants", read, listPlatformTenantsHandler);
-router.get("/billing/subscriptions", requirePlatformPermission("subscriptions.read"), listPlatformSubscriptionsHandler);
+router.get(
+  "/billing/subscriptions",
+  requirePlatformPermission("subscriptions.read"),
+  listPlatformSubscriptionsHandler
+);
 
 router.get("/billing/plans", read, listPlatformPlansHandler);
-router.post("/billing/plans", manage, validateBody(planSchema), postPlanHandler);
+router.post(
+  "/billing/plans",
+  manage,
+  validateBody(planSchema),
+  postPlanHandler
+);
 router.patch(
   "/billing/plans/:id",
   manage,
@@ -99,12 +117,19 @@ router.patch(
   setPlatformCustomPlanStatusHandler
 );
 
-const platformQuoteCreateSchema = createCustomPlanQuoteSchema.extend({
-  tenantId: z.uuid()
-}).strict();
+const platformQuoteCreateSchema = createCustomPlanQuoteSchema
+  .extend({
+    tenantId: z.uuid()
+  })
+  .strict();
 
 router.get("/billing/custom-quotes", read, listPlatformQuotesHandler);
-router.post("/billing/custom-quotes", manage, validateBody(platformQuoteCreateSchema), createPlatformQuoteHandler);
+router.post(
+  "/billing/custom-quotes",
+  manage,
+  validateBody(platformQuoteCreateSchema),
+  createPlatformQuoteHandler
+);
 router.get(
   "/billing/custom-quotes/:id",
   read,
@@ -152,7 +177,12 @@ router.patch(
   updatePlatformPricingPolicyHandler
 );
 router.get("/billing/vendor-rates", read, listPlatformVendorRatesHandler);
-router.post("/billing/vendor-rates", pricing, validateBody(vendorRateSchema), createPlatformVendorRateHandler);
+router.post(
+  "/billing/vendor-rates",
+  pricing,
+  validateBody(vendorRateSchema),
+  createPlatformVendorRateHandler
+);
 router.patch(
   "/billing/vendor-rates/:id",
   pricing,
@@ -162,7 +192,12 @@ router.patch(
 );
 
 router.get("/billing/promo-codes", read, getPromocodeHandler);
-router.post("/billing/promo-codes", manage, validateBody(createPromoCodeSchema), postPromocodeHandler);
+router.post(
+  "/billing/promo-codes",
+  manage,
+  validateBody(createPromoCodeSchema),
+  postPromocodeHandler
+);
 router.patch(
   "/billing/promo-codes/:id",
   manage,
@@ -178,8 +213,24 @@ router.post(
 );
 
 router.get("/billing/features", read, featureController.getAll);
-router.get("/billing/features/:id", read, validateParams(featureIdParamSchema), featureController.getOne);
-router.post("/billing/features", manage, validateBody(createFeatureSchema), featureController.create);
+router.get(
+  "/billing/features/:id",
+  read,
+  validateParams(featureIdParamSchema),
+  featureController.getOne
+);
+router.post(
+  "/billing/features",
+  manage,
+  validateBody(createFeatureSchema),
+  featureController.create
+);
+router.delete(
+  "/billing/features/:id",
+  manage,
+  validateParams(featureIdParamSchema),
+  featureController.remove
+);
 router.patch(
   "/billing/features/:id",
   manage,
@@ -200,6 +251,12 @@ router.post(
   validateParams(planIdParamSchema),
   validateBody(linkFeatureBodySchema),
   planFeatureController.linkFeature
+);
+router.delete(
+  "/billing/plans/:plan_id/features/:feature_id",
+  manage,
+  validateParams(planAndFeatureIdParamSchema),
+  planFeatureController.unlinkFeature
 );
 router.patch(
   "/billing/plans/:plan_id/features/:feature_id",

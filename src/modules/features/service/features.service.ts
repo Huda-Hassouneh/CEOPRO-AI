@@ -6,6 +6,8 @@ import {
   FeatureType,
   ResetCycle
 } from "../../../generated/prisma/enums.js";
+import { CANONICAL_FEATURE_CODES } from "../catalog.js";
+import { prisma } from "../../../config/database.js";
 import { documentsRepo } from "../repo/usage.repo.js";
 
 function normalizeFeatureSemantics<
@@ -53,6 +55,27 @@ export const featureService = {
       throw new Error(ERROR_CODES.RESOURCE_NOT_FOUND);
     }
     return feature;
+  },
+
+  removeFeature: async (
+    id: string
+  ): Promise<"missing" | "protected" | "removed"> => {
+    return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT feature_id FROM features WHERE feature_id = ${id}::uuid FOR UPDATE`;
+      const feature = await tx.feature.findUnique({ where: { id } });
+      if (!feature) return "missing";
+      if (CANONICAL_FEATURE_CODES.some((code) => code === feature.code))
+        return "protected";
+      const [plans, usages, quotes, rates] = await Promise.all([
+        tx.planFeature.count({ where: { feature_id: id } }),
+        tx.subscriptionUsage.count({ where: { feature_id: id } }),
+        tx.customPlanQuoteFeature.count({ where: { featureId: id } }),
+        tx.vendorRate.count({ where: { featureId: id } })
+      ]);
+      if (plans || usages || quotes || rates) return "protected";
+      await tx.feature.delete({ where: { id } });
+      return "removed";
+    });
   },
 
   updateFeature: async (id: string, data: UpdateFeatureDTO) => {

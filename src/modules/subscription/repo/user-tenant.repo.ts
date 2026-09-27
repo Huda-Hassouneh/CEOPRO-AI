@@ -5,7 +5,9 @@ export async function getActiveTenantUser(tenantId: string, userId: string) {
     where: {
       userId: userId,
       tenantId: tenantId,
-      removedAt: null // Ensures they are currently active in this tenant
+      removedAt: null,
+      platformStatus: "active",
+      tenant: { deletedAt: null, platformStatus: "active" }
     },
     include: {
       role: true

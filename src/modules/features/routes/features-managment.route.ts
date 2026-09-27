@@ -47,6 +47,13 @@ router.post(
   featureController.create
 );
 
+router.delete(
+  "/:id",
+  requirePlatformPermission("billing.manage"),
+  validateParams(featureIdParamSchema),
+  featureController.remove
+);
+
 // PATCH /features/:id
 // Protected endpoint: Update a system feature
 router.patch(

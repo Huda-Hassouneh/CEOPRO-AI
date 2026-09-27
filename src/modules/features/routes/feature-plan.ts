@@ -46,6 +46,14 @@ router.post(
   planFeatureController.linkFeature
 );
 
+router.delete(
+  "/plans/:plan_id/features/:feature_id",
+  requirePlatformRole,
+  requirePlatformPermission("billing.manage"),
+  validateParams(planAndFeatureIdParamSchema),
+  planFeatureController.unlinkFeature
+);
+
 // PATCH /plans/:plan_id/features/:feature_id
 // Protected endpoint: Update a feature's limits (like changing users_limit from 10 to 50)
 router.patch(
