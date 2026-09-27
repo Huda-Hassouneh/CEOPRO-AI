@@ -19,7 +19,7 @@ const endpoints = Object.freeze({
   customPlanManualReview: "/subscription/custom-plans/manual-review",
   customPlanCheckout: "/subscription/custom-plans/checkout",
   customPlanPricingPolicy: "/subscription/custom-plans/pricing-policy",
-  vendorRates: "/subscription/custom-plans/vendor-rates",
+  vendorRates: "/subscription/custom-plans/vendor-rates"
 });
 
 const unwrap = (request) => request.then((response) => response.data);
@@ -35,7 +35,7 @@ export const getApiError = (error) => {
       payload?.message ??
       (typeof error?.message === "string" ? error.message : "Request failed."),
     details: payload?.error?.details ?? payload?.details ?? null,
-    payload,
+    payload
   };
 };
 
@@ -67,7 +67,7 @@ const normalizeUsage = (response) => {
       unit_ar: entitlement.unit_ar,
       type: entitlement.type,
       aggregation_type: entitlement.aggregation_type,
-      reset_cycle: entitlement.reset_cycle,
+      reset_cycle: entitlement.reset_cycle
     };
   }
 
@@ -81,7 +81,7 @@ const normalizeUsage = (response) => {
     limits,
     features,
     entitlements: data.entitlements ?? [],
-    raw: data,
+    raw: data
   };
 };
 
@@ -99,8 +99,8 @@ export const billingApi = Object.freeze({
     unwrap(
       httpClient.patch(
         `${endpoints.plans}/${encodeURIComponent(planId)}`,
-        payload,
-      ),
+        payload
+      )
     ),
 
   getSubscription: () => unwrap(httpClient.get(endpoints.currentSubscription)),
@@ -124,20 +124,20 @@ export const billingApi = Object.freeze({
     unwrap(
       httpClient.patch(
         `${endpoints.promoCodes}/${encodeURIComponent(promoCodeId)}`,
-        payload,
-      ),
+        payload
+      )
     ),
   linkPromoCodeToPlan: ({ promoCodeId, planId }) =>
     unwrap(
       httpClient.post(
-        `${endpoints.promoCodes}/${encodeURIComponent(promoCodeId)}/plans/${encodeURIComponent(planId)}`,
-      ),
+        `${endpoints.promoCodes}/${encodeURIComponent(promoCodeId)}/plans/${encodeURIComponent(planId)}`
+      )
     ),
 
   getFeatures: () => unwrap(httpClient.get(endpoints.features)),
   getFeature: (featureId) =>
     unwrap(
-      httpClient.get(`${endpoints.features}/${encodeURIComponent(featureId)}`),
+      httpClient.get(`${endpoints.features}/${encodeURIComponent(featureId)}`)
     ),
   createFeature: (payload) =>
     unwrap(httpClient.post(endpoints.features, payload)),
@@ -145,21 +145,27 @@ export const billingApi = Object.freeze({
     unwrap(
       httpClient.patch(
         `${endpoints.features}/${encodeURIComponent(featureId)}`,
-        payload,
-      ),
+        payload
+      )
     ),
   getPlanFeatures: (planId) =>
     unwrap(httpClient.get(`/plans/${encodeURIComponent(planId)}/features`)),
   linkFeatureToPlan: (planId, payload) =>
     unwrap(
-      httpClient.post(`/plans/${encodeURIComponent(planId)}/features`, payload),
+      httpClient.post(`/plans/${encodeURIComponent(planId)}/features`, payload)
+    ),
+  unlinkFeatureFromPlan: ({ planId, featureId }) =>
+    unwrap(
+      httpClient.delete(
+        `/plans/${encodeURIComponent(planId)}/features/${encodeURIComponent(featureId)}`
+      )
     ),
   updatePlanFeatureLimit: ({ planId, featureId, limitValue }) =>
     unwrap(
       httpClient.patch(
         `/plans/${encodeURIComponent(planId)}/features/${encodeURIComponent(featureId)}`,
-        { limit_value: limitValue },
-      ),
+        { limit_value: limitValue }
+      )
     ),
 
   getCustomPlans: () => unwrap(httpClient.get(endpoints.customPlans)),
@@ -179,14 +185,14 @@ export const billingApi = Object.freeze({
   getCustomPlanQuote: (quoteId) =>
     unwrap(
       httpClient.get(
-        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}`,
-      ),
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}`
+      )
     ),
   getCustomPlanOffer: (quoteId) =>
     unwrap(
       httpClient.get(
-        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/offer`,
-      ),
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/offer`
+      )
     ),
   createCustomPlanQuote: (payload) =>
     unwrap(httpClient.post(endpoints.customPlanQuotes, payload)),
@@ -194,39 +200,39 @@ export const billingApi = Object.freeze({
     unwrap(
       httpClient.patch(
         `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}`,
-        payload,
-      ),
+        payload
+      )
     ),
   calculateCustomPlanQuote: (quoteId) =>
     unwrap(
       httpClient.post(
-        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/calculate`,
-      ),
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/calculate`
+      )
     ),
   approveCustomPlanQuote: (quoteId, payload) =>
     unwrap(
       httpClient.post(
         `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/approve`,
-        payload,
-      ),
+        payload
+      )
     ),
   sendCustomPlanQuote: (quoteId) =>
     unwrap(
       httpClient.post(
-        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/send`,
-      ),
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/send`
+      )
     ),
   rejectCustomPlanQuote: (quoteId) =>
     unwrap(
       httpClient.post(
-        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/reject`,
-      ),
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/reject`
+      )
     ),
   acceptCustomPlanQuote: (quoteId) =>
     unwrap(
       httpClient.post(
-        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/accept`,
-      ),
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/accept`
+      )
     ),
   getVendorRates: () => unwrap(httpClient.get(endpoints.vendorRates)),
   createVendorRate: (payload) =>
@@ -235,12 +241,12 @@ export const billingApi = Object.freeze({
     unwrap(
       httpClient.patch(
         `${endpoints.vendorRates}/${encodeURIComponent(rateId)}`,
-        payload,
-      ),
+        payload
+      )
     ),
 
   // No matching backend contracts exist for these legacy preview flows.
   calculateTax: () => unsupported("tax calculation"),
   paymentWebhookStatus: () => unsupported("payment webhook status polling"),
-  createUpgradeCheckout: () => unsupported("separate upgrade checkout"),
+  createUpgradeCheckout: () => unsupported("separate upgrade checkout")
 });

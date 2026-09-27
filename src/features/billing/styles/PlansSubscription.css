@@ -194,6 +194,19 @@
   font-size: 10px;
   font-weight: 500;
 }
+.billing-usage-card .billing-usage-access {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ceopro-success);
+}
+.billing-usage-card .billing-usage-access small {
+  width: 100%;
+}
+.billing-usage-card.is-unavailable .billing-usage-access {
+  color: var(--ceopro-text-muted);
+}
 .billing-usage-progress {
   height: 6px;
   overflow: hidden;
@@ -704,7 +717,10 @@
 }
 .billing-catalog-option-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.4fr) minmax(100px, .7fr) minmax(130px, .8fr) auto;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(100px, 0.7fr) minmax(
+      130px,
+      0.8fr
+    ) auto;
   align-items: end;
   gap: 10px;
   padding: 12px;
@@ -734,7 +750,10 @@
 }
 .billing-catalog-toolbar {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(120px, .55fr) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(
+      120px,
+      0.55fr
+    ) auto;
   align-items: end;
   gap: 12px;
   padding: 14px;
@@ -881,7 +900,7 @@
   color: var(--ceopro-primary);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 

@@ -1,3 +1,4 @@
+import { getUsagePresentation } from "./usagePresentation.js";
 const CONTEXT_LIMIT_KEYS = Object.freeze({
   "product-limit": "products",
   "competitor-limit": "competitors",
@@ -29,6 +30,11 @@ export function getUpgradeRecommendation(subscription, reason) {
   const supportedReasonKey = CONTEXT_LIMIT_KEYS[reason];
   if (
     supportedReasonKey &&
+    getUsagePresentation(
+      subscription.features?.[supportedReasonKey],
+      subscription.usage?.[supportedReasonKey],
+      subscription.limits?.[supportedReasonKey]
+    ).kind === "limited" &&
     getUsageState(
       subscription.usage?.[supportedReasonKey],
       subscription.limits?.[supportedReasonKey]
@@ -37,7 +43,12 @@ export function getUpgradeRecommendation(subscription, reason) {
     return { type: "reached", key: supportedReasonKey, contextual: true };
   }
   const keys = Object.keys(subscription.limits || {}).filter(
-    (key) => subscription.usage?.[key] != null
+    (key) =>
+      getUsagePresentation(
+        subscription.features?.[key],
+        subscription.usage?.[key],
+        subscription.limits?.[key]
+      ).kind === "limited"
   );
   const reached = keys.find(
     (key) =>

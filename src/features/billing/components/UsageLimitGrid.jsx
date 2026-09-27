@@ -56,19 +56,21 @@ export function UsageLimitGrid({ usage, limits, features, locale, t }) {
               </div>
             )}
 
-            <p>
-              <bdi>
-                {number.format(used)}
-                {unit}
-              </bdi>
-              <small>
-                /
+            {limit !== null && (
+              <p>
                 <bdi>
-                  {limit === null ? "∞" : number.format(limit)}
-                  {limit === null ? "" : unit}
+                  {number.format(used)}
+                  {unit}
                 </bdi>
-              </small>
-            </p>
+                <small>
+                  /
+                  <bdi>
+                    {limit === null ? "∞" : number.format(limit)}
+                    {limit === null ? "" : unit}
+                  </bdi>
+                </small>
+              </p>
+            )}
 
             {typeof limit === "number" && limit > 0 && (
               <div
