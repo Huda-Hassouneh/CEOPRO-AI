@@ -558,8 +558,8 @@
       "averagePriceScore": "Avg Price Score"
     },
     "ai": {
-      "title": "AI Market Intelligence",
-      "generated": "Generated {{date}}",
+      "title": "Market Intelligence",
+      "generated": "Latest supporting record: {{date}}",
       "insight": "Market Insight",
       "drivers": "Key Market Drivers",
       "sentiment": "Market Sentiment",
@@ -586,9 +586,8 @@
     },
     "opportunities": {
       "title": "Expansion Opportunities",
-      "subtitle": "Other products that may offer attractive expansion potential.",
-      "score": "Opportunity Score",
-      "competitorCount": "{{count}} companies currently offer this product"
+      "subtitle": "Existing products with rising recorded sales. Investigate before expanding.",
+      "growth": "Recorded unit sales growth"
     },
     "changes": {
       "title": "Recent Competitor Price Changes",
@@ -1529,6 +1528,8 @@
       },
       "usageTitle": "Usage & Limits",
       "usageSubtitle": "Current company usage against the limits configured for your plan.",
+      "included": "Included",
+      "used": "used",
       "usageUnavailable": "Usage data is not available for this subscription.",
       "gb": " GB",
       "usageLabels": {

@@ -18,7 +18,6 @@ import { marketIntelligenceApi } from "../api/marketIntelligenceApi.js";
 import { useMarketIntelligenceOverview } from "../hooks/useMarketIntelligenceOverview.js";
 import "../styles/MarketIntelligence.css"; // ADD THIS:
 import { LeaderboardTable } from "../components/LeaderboardTable.jsx";
-import { ComingSoonOverlay } from "../../../shared/components/ui/ComingSoonOverlay.jsx";
 // DELETE THIS:
 function localizeValue(value, locale) {
   if (value && typeof value === "object")
@@ -139,12 +138,19 @@ export function MarketIntelligenceOverviewPage() {
   const selectedProduct = data.selectedProduct;
   const currency = selectedProduct?.currency?.toUpperCase() || "JOD";
   const productName = (row) => localize(row.productName);
-  const formatMetric = (metric) =>
-    metric.format === "score100"
-      ? `${number.format(metric.value)} / 100`
-      : metric.format === "score10"
-        ? `${number.format(metric.value)} / 10`
-        : number.format(metric.value);
+  const formatMetric = (metric) => {
+    if (metric.value == null) return "—";
+
+    if (metric.format === "score100") {
+      return `${number.format(metric.value)} / 100`;
+    }
+
+    if (metric.format === "score10") {
+      return `${number.format(metric.value)} / 10`;
+    }
+
+    return number.format(metric.value);
+  };
   const productColumn = {
     key: "product",
     label: t("marketMain.tables.product"),
@@ -277,7 +283,6 @@ export function MarketIntelligenceOverviewPage() {
       render: (row) => formatDate(row.detectedAt)
     }
   ];
-  console.log({ opppp: data.expansionOpportunities });
   return (
     <div className="market-intelligence-main" dir={dir}>
       <PageHeader
@@ -328,21 +333,8 @@ export function MarketIntelligenceOverviewPage() {
         aria-label={t("marketMain.metrics.label")}
       >
         {data.metrics.map((metric) => {
-          if (
-            metric.id === "averageCompositeScore" ||
-            metric.id === "topSegmentScore"
-          ) {
-            return (
-              <ComingSoonOverlay>
-                <MarketIntelligenceMetricCard
-                  key={metric.id}
-                  metric={metric}
-                  label={t(`marketMain.metrics.${metric.id}`)}
-                  value={formatMetric(metric)}
-                />
-              </ComingSoonOverlay>
-            );
-          }
+          console.log({ metric });
+
           return (
             <MarketIntelligenceMetricCard
               key={metric.id}
@@ -420,19 +412,17 @@ export function MarketIntelligenceOverviewPage() {
         onExport={() => requestExport("opportunities")}
       >
         {data.expansionOpportunities.length ? (
-          <ComingSoonOverlay>
-            <div className="market-main-opportunity-grid">
-              {data.expansionOpportunities.map((opportunity) => (
-                <ExpansionOpportunityCard
-                  key={opportunity.id}
-                  opportunity={opportunity}
-                  t={t}
-                  localize={localize}
-                  number={number.format}
-                />
-              ))}
-            </div>
-          </ComingSoonOverlay>
+          <div className="market-main-opportunity-grid">
+            {data.expansionOpportunities.map((opportunity) => (
+              <ExpansionOpportunityCard
+                key={opportunity.id}
+                opportunity={opportunity}
+                t={t}
+                localize={localize}
+                number={number.format}
+              />
+            ))}
+          </div>
         ) : (
           empty(
             "marketMain.empty.opportunitiesTitle",

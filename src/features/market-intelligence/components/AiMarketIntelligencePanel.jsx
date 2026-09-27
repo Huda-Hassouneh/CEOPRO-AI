@@ -5,7 +5,6 @@ import {
   Smile
 } from "lucide-react";
 import DataStatusBadge from "../../../shared/components/ui/DataStatusBadge.jsx";
-import { ComingSoonOverlay } from "../../../shared/components/ui/ComingSoonOverlay.jsx";
 
 export function AiMarketIntelligencePanel({
   intelligence,
@@ -14,8 +13,6 @@ export function AiMarketIntelligencePanel({
   formatDate,
   emptyState
 }) {
-  console.log({ intelligence });
-
   if (!intelligence) return emptyState;
 
   return (
@@ -36,37 +33,39 @@ export function AiMarketIntelligencePanel({
         </div>
         <DataStatusBadge status={intelligence.dataStatus} />
       </div>
-      <ComingSoonOverlay text={t("common.comingSoon", "Coming Soon")}>
-        <div className="market-main-ai__grid">
-          <article className="market-main-ai__insight">
-            <h3>{t("marketMain.ai.insight")}</h3>
-            <p>{localize(intelligence.insight)}</p>
+      <div className="market-main-ai__grid">
+        <article className="market-main-ai__insight">
+          <h3>{t("marketMain.ai.insight")}</h3>
+          <p>{localize(intelligence.insight)}</p>
+          {Number.isFinite(intelligence.confidence) && (
             <small>
               {t("marketMain.ai.confidence", {
                 value: Math.round(intelligence.confidence * 100)
               })}
             </small>
-          </article>
+          )}
+        </article>
 
-          <article className="market-main-ai__drivers">
-            <h3>{t("marketMain.ai.drivers")}</h3>
-            <div>
-              {intelligence.drivers.map((driver) => (
-                <p key={driver.id} className={`is-${driver.direction}`}>
-                  {driver.direction === "positive" ? (
-                    <ArrowUpRight size={15} />
-                  ) : (
-                    <ArrowDownRight size={15} />
-                  )}
-                  <span>
-                    <small>{t(`marketMain.driverTypes.${driver.type}`)}</small>
-                    {localize(driver.text)}
-                  </span>
-                </p>
-              ))}
-            </div>
-          </article>
+        <article className="market-main-ai__drivers">
+          <h3>{t("marketMain.ai.drivers")}</h3>
+          <div>
+            {intelligence.drivers.map((driver) => (
+              <p key={driver.id} className={`is-${driver.direction}`}>
+                {driver.direction === "positive" ? (
+                  <ArrowUpRight size={15} />
+                ) : (
+                  <ArrowDownRight size={15} />
+                )}
+                <span>
+                  <small>{t(`marketMain.driverTypes.${driver.type}`)}</small>
+                  {localize(driver.text)}
+                </span>
+              </p>
+            ))}
+          </div>
+        </article>
 
+        {intelligence.sentiment && intelligence.sentimentSummary && (
           <article className="market-main-ai__sentiment">
             <h3>
               <Smile size={16} />
@@ -77,8 +76,8 @@ export function AiMarketIntelligencePanel({
             </strong>
             <p>{localize(intelligence.sentimentSummary)}</p>
           </article>
-        </div>
-      </ComingSoonOverlay>
+        )}
+      </div>
     </section>
   );
 }
