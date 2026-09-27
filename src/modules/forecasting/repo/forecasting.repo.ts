@@ -10,6 +10,15 @@ const parseLocalized = (json: any, fallback: string = "Unknown") => {
   return { en: String(json || fallback), ar: String(json || fallback) };
 };
 
+const forecastDate = (forecast: {
+  forecast_target_date: Date | null;
+  forecast_start_date: Date | null;
+  forecast_end_date: Date | null;
+}) =>
+  forecast.forecast_target_date ??
+  forecast.forecast_start_date ??
+  forecast.forecast_end_date;
+
 // Helper to generate mock historical chart data
 const generateMockHistory = (daysAgo: number) => {
   return Array.from({ length: 14 }, (_, i) => {
@@ -49,20 +58,19 @@ export const getDemandOverview = async (
     const currentStock = p.inventory[0]?.stock_quantity || 0;
     const forecasts = p.demand_forecasts;
     const expectedDemand = forecasts.reduce(
-      (sum, f) => sum + Number(f.predicted_quantity || 0),
+      (sum, f) => sum + Number(f.expected_demand || 0),
       0
     );
-    const targetDate =
-      forecasts.length > 0
-        ? forecasts[forecasts.length - 1].forecast_end_date
-            .toISOString()
-            .split("T")[0]
-        : new Date().toISOString().split("T")[0];
+    const targetDate = forecasts.length
+      ? (forecastDate(forecasts[forecasts.length - 1])
+          ?.toISOString()
+          .split("T")[0] ?? null)
+      : null;
 
     // 1. Production-Safe Trend Calculation (True Time-Series Slope)
-    const firstF = Number(forecasts[0]?.predicted_quantity || 0);
+    const firstF = Number(forecasts[0]?.expected_demand || 0);
     const lastF = Number(
-      forecasts[forecasts.length - 1]?.predicted_quantity || firstF
+      forecasts[forecasts.length - 1]?.expected_demand || firstF
     );
 
     // Only calculate a trend if there is a meaningful time gap and variance
@@ -85,11 +93,11 @@ export const getDemandOverview = async (
       trend,
       confidenceRange: {
         lower: forecasts.reduce(
-          (sum, f) => sum + Number(f.confidence_lower_bound || 0),
+          (sum, f) => sum + Number(f.confidence_range_lower || 0),
           0
         ),
         upper: forecasts.reduce(
-          (sum, f) => sum + Number(f.confidence_upper_bound || 0),
+          (sum, f) => sum + Number(f.confidence_range_upper || 0),
           0
         )
       },
@@ -105,12 +113,25 @@ export const getDemandOverview = async (
       dataStatus: "estimated",
       stockDataStatus: "verified",
 
-      forecast: forecasts.map((f) => ({
-        date: f.forecast_start_date.toISOString().split("T")[0],
-        forecast: Number(f.predicted_quantity),
-        lower: Number(f.confidence_lower_bound),
-        upper: Number(f.confidence_upper_bound)
-      })),
+      forecast: forecasts.flatMap((f) => {
+        const date = forecastDate(f);
+        return date
+          ? [
+              {
+                date: date.toISOString().split("T")[0],
+                forecast: Number(f.expected_demand),
+                lower:
+                  f.confidence_range_lower == null
+                    ? null
+                    : Number(f.confidence_range_lower),
+                upper:
+                  f.confidence_range_upper == null
+                    ? null
+                    : Number(f.confidence_range_upper)
+              }
+            ]
+          : [];
+      }),
       history: generateMockHistory(14),
       aiInsight: {
         text: {
@@ -215,7 +236,20 @@ export const getDemandDetail = async (tenant_id: string, productId: string) => {
     where: { tenant_id, product_id: productId, deleted_at: null },
     include: {
       demand_forecasts: {
-        where: { forecast_start_date: { gte: new Date() } },
+        where: {
+          OR: [
+            {
+              forecast_start_date: {
+                gte: new Date(new Date().toISOString().slice(0, 10))
+              }
+            },
+            {
+              forecast_target_date: {
+                gte: new Date(new Date().toISOString().slice(0, 10))
+              }
+            }
+          ]
+        },
         orderBy: { forecast_start_date: "asc" },
         take: 30
       }
@@ -247,13 +281,26 @@ export const getDemandDetail = async (tenant_id: string, productId: string) => {
       lower: null,
       upper: null
     })),
-    ...forecastPoints.map((point: any) => ({
-      date: point.forecast_start_date.toISOString().split("T")[0],
-      actual: null,
-      forecast: Number(point.predicted_quantity),
-      lower: Number(point.confidence_lower_bound),
-      upper: Number(point.confidence_upper_bound)
-    }))
+    ...forecastPoints.flatMap((point) => {
+      const date = forecastDate(point);
+      return date
+        ? [
+            {
+              date: date.toISOString().split("T")[0],
+              actual: null,
+              forecast: Number(point.expected_demand),
+              lower:
+                point.confidence_range_lower == null
+                  ? null
+                  : Number(point.confidence_range_lower),
+              upper:
+                point.confidence_range_upper == null
+                  ? null
+                  : Number(point.confidence_range_upper)
+            }
+          ]
+        : [];
+    })
   ];
 
   return {
@@ -298,15 +345,28 @@ export const getDemandDetail = async (tenant_id: string, productId: string) => {
     chart: { points: chartPoints, dataStatus: productData.dataStatus },
 
     // FIX 2: Safely wrap the array in a "rows" property for the frontend table
-    forecastHistory: forecastPoints.map((point: any) => ({
-      id: point.forecast_id || point.id,
-      date: point.forecast_start_date.toISOString().split("T")[0],
-      forecastedDemand: Number(point.predicted_quantity),
-      lowerBound: Number(point.confidence_lower_bound),
-      upperBound: Number(point.confidence_upper_bound),
-      actualDemand: null,
-      dataStatus: "estimated"
-    })),
+    forecastHistory: forecastPoints.flatMap((point) => {
+      const date = forecastDate(point);
+      return date
+        ? [
+            {
+              id: point.forecast_id,
+              date: date.toISOString().split("T")[0],
+              forecastedDemand: Number(point.expected_demand),
+              lowerBound:
+                point.confidence_range_lower == null
+                  ? null
+                  : Number(point.confidence_range_lower),
+              upperBound:
+                point.confidence_range_upper == null
+                  ? null
+                  : Number(point.confidence_range_upper),
+              actualDemand: null,
+              dataStatus: "estimated"
+            }
+          ]
+        : [];
+    }),
 
     recommendation: {
       action: productData.recommendedAction,

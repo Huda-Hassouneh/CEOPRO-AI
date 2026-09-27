@@ -139,7 +139,21 @@ export const getMainDashboardKPIs = async (
 
   // 8. Fetch Demand Forecasts for Dashboard Preview
   const rawForecasts = await prisma.demand_forecasts.findMany({
-    where: { tenant_id, forecast_start_date: { gte: new Date() } },
+    where: {
+      tenant_id,
+      OR: [
+        {
+          forecast_start_date: {
+            gte: new Date(new Date().toISOString().slice(0, 10))
+          }
+        },
+        {
+          forecast_target_date: {
+            gte: new Date(new Date().toISOString().slice(0, 10))
+          }
+        }
+      ]
+    },
     include: { products: { select: { product_name: true } } },
     take: 4
   });
@@ -157,7 +171,7 @@ export const getMainDashboardKPIs = async (
     return {
       id: f.forecast_id,
       product: productName,
-      forecastedDemand: Number(f.predicted_quantity)
+      forecastedDemand: Number(f.expected_demand)
     };
   });
 

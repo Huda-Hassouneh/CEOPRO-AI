@@ -8,8 +8,9 @@ export const getMarketOverview = async (
 ) => {
   try {
     const tenantId = req.tenant_id;
-    const periodDays = req.query.periodDays
-      ? parseInt(req.query.periodDays as string, 10)
+    const requestedPeriod = Number(req.query.periodDays ?? 30);
+    const periodDays = [30, 90].includes(requestedPeriod)
+      ? requestedPeriod
       : 30;
     const productId = req.query.productId
       ? String(req.query.productId)
