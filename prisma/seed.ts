@@ -1,434 +1,481 @@
-import { prisma } from "../src/config/database";
+/** Deterministic, additive development fixtures. Run against a migrated TEST/DEV database as its migration owner. */
+import { createHash } from "node:crypto";
+import bcrypt from "bcryptjs";
+import { prisma } from "../src/config/database.js";
 
-async function main() {
-  console.log(
-    "🌱 Starting Dashboard & Forecasting targeted database seeding..."
-  );
-  const now = new Date();
-  const pastDate = (daysAgo: number) =>
-    new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-
-  const tenant_id = "c3865d65-e03a-4f34-b917-9bb93e9cfc5b";
-
-  //   // 1. Core Tenant Company Setup
-  //   const company = await prisma.company.upsert({
-  //     where: { id: tenant_id },
-  //     update: {},
-  //     create: {
-  //       id: tenant_id,
-  //       businessName: "Acme Workspace Analytics",
-  //       businessType: "SaaS / Software",
-  //       countryCode: "JO",
-  //       primaryCurrency: "JOD",
-  //       timezone: "Asia/Amman",
-  //       preferredLanguage: "en"
-  //     }
-  //   });
-  //   console.log(`✅ Company configured: ${company.businessName}`);
-
-  //   // 2. Products Setup (To power Dashboard products count & Forecasting deep dives)
-  //   const productDataList = [
-  //     {
-  //       name: { en: "Team Workspace", ar: "مساحة عمل الفريق" },
-  //       category: { en: "Business Software", ar: "برمجيات الأعمال" },
-  //       price: 45.0
-  //     },
-  //     {
-  //       name: { en: "Insights Package", ar: "حزمة الرؤى" },
-  //       category: { en: "Analytics", ar: "التحليلات" },
-  //       price: 89.0
-  //     },
-  //     {
-  //       name: { en: "Support Add-on", ar: "إضافة الدعم" },
-  //       category: { en: "Customer Service", ar: "خدمة العملاء" },
-  //       price: 29.0
-  //     },
-  //     {
-  //       name: { en: "Essential Office Bundle", ar: "حزمة المكتب الأساسية" },
-  //       category: { en: "Business Software", ar: "برمجيات الأعمال" },
-  //       price: 65.0
-  //     },
-  //     {
-  //       name: { en: "Executive Suite", ar: "الجناح التنفيذي" },
-  //       category: { en: "Enterprise", ar: "المؤسسات" },
-  //       price: 129.0
-  //     }
-  //   ];
-
-  //   const createdProducts = [];
-
-  //   for (let i = 0; i < productDataList.length; i++) {
-  //     const item = productDataList[i];
-  //     const product = await prisma.products.create({
-  //       data: {
-  //         tenant_id,
-  //         product_name: item.name,
-  //         category: item.category,
-  //         current_price: item.price,
-  //         currency: "JOD",
-  //         source: "MANUAL"
-  //       }
-  //     });
-  //     createdProducts.push(product);
-
-  //     // 3. Inventory States (Ensuring mix of in-stock, low-stock, and out-of-stock items)
-  //     // Product 0: High stock, Product 1: Low stock, Product 2: Out of stock, etc.
-  //     const stockQty = i === 2 ? 0 : i === 1 ? 8 : 150 + i * 45;
-  //     const reorderLevel = 15;
-
-  //     await prisma.inventory.create({
-  //       data: {
-  //         tenant_id,
-  //         product_id: product.product_id,
-  //         stock_quantity: stockQty,
-  //         reorder_level: reorderLevel,
-  //         safety_stock: 5,
-  //         warehouse_location: `Main Warehouse - Bay ${i + 1}`
-  //       }
-  //     });
-  //   }
-  //   console.log(
-  //     `✅ Seeded ${createdProducts.length} products with diversified inventory statuses`
-  //   );
-
-  //   // 4. Invoices & Sales History (Spanning current and previous intervals for growth and chart timelines)
-
-  //   // Generate 60 historical invoices across the last 90 days to populate the sales overview chart points
-  //   for (let i = 1; i <= 60; i++) {
-  //     const daysAgo = Math.floor(Math.random() * 85); // Spread across past 85 days
-  //     const totalAmount = 120.0 + i * 18.5;
-
-  //     await prisma.invoices.create({
-  //       data: {
-  //         tenant_id,
-  //         invoice_number: `INV-DS-${2026000 + i}`,
-  //         customer_name: `Enterprise Client ${i}`,
-  //         subtotal: totalAmount * 0.85,
-  //         tax_amount: totalAmount * 0.15,
-  //         total_amount: totalAmount,
-  //         currency: "JOD",
-  //         payment_status: "PAID", // Matching DB uppercase check constraints
-  //         created_at: pastDate(daysAgo)
-  //       }
-  //     });
-  //   }
-  //   console.log(
-  //     "✅ Seeded 60 paid invoices for revenue calculations and sales charts"
-  //   );
-
-  //   // 5. Demand Forecasts & Recommendations (For Forecasting overview and deep dive pages)
-  //   for (const product of createdProducts) {
-  //     // Create a 30-day rolling forecast entry
-  //     const forecastStart = new Date();
-  //     const forecastEnd = pastDate(-30); // 30 days ahead
-
-  //     const forecast = await prisma.demand_forecasts.create({
-  //       data: {
-  //         tenant_id,
-  //         product_id: product.product_id,
-  //         forecast_start_date: forecastStart,
-  //         forecast_end_date: forecastEnd,
-  //         predicted_quantity: 190.0 + Math.floor(Math.random() * 100),
-  //         confidence_lower_bound: 150.0,
-  //         confidence_upper_bound: 280.0,
-  //         model_version: "arima-ensemble-v3"
-  //       }
-  //     });
-
-  //     // Link a recommendation outcome
-  //     const actions = ["restock", "reduce", "monitor"];
-  //     const selectedAction = actions[Math.floor(Math.random() * actions.length)];
-
-  //     await prisma.recommendation_outcomes.create({
-  //       data: {
-  //         tenant_id,
-  //         forecast_id: forecast.forecast_id,
-  //         recommended_action: selectedAction,
-  //         user_decision: "PENDING",
-  //         expected_impact_json: { targetConfidence: "89%" }
-  //       }
-  //     });
-  //   }
-  //   console.log(
-  //     "✅ Seeded demand forecasts and actionable recommendations for all products"
-  //   );
-
-  // 6. Audit Logs & System Alerts (To power the Recent Activity feed)
-
-  // 6. Audit Logs & System Alerts (To power the Recent Activity feed)
-
-  // await prisma.audit_logs.createMany({
-  //   data: [
-  //     {
-  //       tenant_id,
-  //       action_type: "FORECAST_REFRESH",
-  //       target_table: "demand_forecasts",
-  //       changed_data_json: {
-  //         details:
-  //           "Ensemble ARIMA model computed 30-day projection curves successfully.",
-  //         status: "completed",
-  //         severity: "SUCCESS"
-  //       },
-  //       created_at: pastDate(2)
-  //     },
-  //     {
-  //       tenant_id,
-  //       action_type: "INVENTORY_SYNC",
-  //       target_table: "inventory",
-  //       changed_data_json: {
-  //         details: "Stock counts updated across Main Warehouse zones.",
-  //         status: "completed",
-  //         severity: "INFO"
-  //       },
-  //       created_at: pastDate(8)
-  //     },
-  //     {
-  //       tenant_id,
-  //       action_type: "COMPETITOR_SCRAPE",
-  //       target_table: "tenant_competitors",
-  //       changed_data_json: {
-  //         details:
-  //           "Market intelligence collected 14 new competitor price points.",
-  //         status: "completed",
-  //         severity: "INFO"
-  //       },
-  //       created_at: pastDate(24)
-  //     },
-  //     {
-  //       tenant_id,
-  //       action_type: "BULK_IMPORT",
-  //       target_table: "invoices",
-  //       changed_data_json: {
-  //         details:
-  //           "Processed 60 historical revenue records for period comparisons.",
-  //         status: "completed",
-  //         severity: "SUCCESS"
-  //       },
-  //       created_at: pastDate(48)
-  //     }
-  //   ],
-  //   skipDuplicates: true
-  // });
-  // console.log("✅ Audit logs seeded for Recent Activity feed");
-  // console.log("✅ Audit logs seeded for Recent Activity feed");
-  // Seed Data Sources & Ingestion Jobs
-  // const source1 = await prisma.data_sources.create({
-  //   data: {
-  //     tenant_id,
-  //     source_name: "Business Data Files",
-  //     source_type: "documents",
-  //     is_active: true,
-  //     ingestion_jobs: {
-  //       create: [
-  //         {
-  //           // tenant_id is omitted here; Prisma passes it down automatically!
-  //           job_status: "COMPLETED",
-  //           rows_processed: 18420,
-  //           started_at: new Date(Date.now() - 3600000),
-  //           ended_at: new Date(Date.now() - 1800000)
-  //         }
-  //       ]
-  //     }
-  //   }
-  // });
-
-  // const source2 = await prisma.data_sources.create({
-  //   data: {
-  //     tenant_id,
-  //     source_name: "Company Website",
-  //     source_type: "website",
-  //     is_active: true,
-  //     ingestion_jobs: {
-  //       create: [
-  //         {
-  //           job_status: "PROCESSING",
-  //           rows_processed: 0,
-  //           started_at: new Date()
-  //         }
-  //       ]
-  //     }
-  //   }
-  // });
-
-  // const source3 = await prisma.data_sources.create({
-  //   data: {
-  //     tenant_id,
-  //     source_name: "Google Analytics",
-  //     source_type: "analytics",
-  //     is_active: true,
-  //     ingestion_jobs: {
-  //       create: [
-  //         {
-  //           job_status: "FAILED",
-  //           rows_processed: 7310,
-  //           error_log: "OAuth token expired",
-  //           started_at: new Date(Date.now() - 86400000),
-  //           ended_at: new Date(Date.now() - 86000000)
-  //         }
-  //       ]
-  //     }
-  //   }
-  // });
-  // --- Seed Market Intelligence Competitors ---
-  const allProducts = await prisma.products.findMany({
-    where: { tenant_id },
-    take: 2
-  });
-
-  if (allProducts.length >= 2) {
-    // 1. Create or Find Global Competitors (Idempotent to avoid P2002 Unique Constraint errors)
-    let gComp1 = await prisma.global_competitors.findFirst({
-      where: { competitor_name: "Northstar Commerce" }
-    });
-    if (!gComp1) {
-      gComp1 = await prisma.global_competitors.create({
-        data: { competitor_name: "Northstar Commerce", visibility: "GLOBAL" }
-      });
-    }
-
-    let gComp2 = await prisma.global_competitors.findFirst({
-      where: { competitor_name: "Meridian Systems" }
-    });
-    if (!gComp2) {
-      gComp2 = await prisma.global_competitors.create({
-        data: { competitor_name: "Meridian Systems", visibility: "GLOBAL" }
-      });
-    }
-
-    // 2. Track them for the specific Tenant
-    let tComp1 = await prisma.tenant_competitors.findFirst({
-      where: { tenant_id, global_competitor_id: gComp1.global_competitor_id }
-    });
-    if (!tComp1) {
-      await prisma.tenant_competitors.create({
-        data: { tenant_id, global_competitor_id: gComp1.global_competitor_id }
-      });
-    }
-
-    let tComp2 = await prisma.tenant_competitors.findFirst({
-      where: { tenant_id, global_competitor_id: gComp2.global_competitor_id }
-    });
-    if (!tComp2) {
-      await prisma.tenant_competitors.create({
-        data: { tenant_id, global_competitor_id: gComp2.global_competitor_id }
-      });
-    }
-
-    // 3. Map Competitors to Products
-    let map1 = await prisma.competitor_product_mappings.findFirst({
-      where: {
-        tenant_id,
-        global_competitor_id: gComp1.global_competitor_id,
-        product_id: allProducts[0].product_id
-      }
-    });
-    if (!map1) {
-      map1 = await prisma.competitor_product_mappings.create({
-        data: {
-          tenant_id,
-          global_competitor_id: gComp1.global_competitor_id,
-          product_id: allProducts[0].product_id
-        }
-      });
-    }
-
-    let map2 = await prisma.competitor_product_mappings.findFirst({
-      where: {
-        tenant_id,
-        global_competitor_id: gComp2.global_competitor_id,
-        product_id: allProducts[0].product_id
-      }
-    });
-    if (!map2) {
-      map2 = await prisma.competitor_product_mappings.create({
-        data: {
-          tenant_id,
-          global_competitor_id: gComp2.global_competitor_id,
-          product_id: allProducts[0].product_id
-        }
-      });
-    }
-
-    let map3 = await prisma.competitor_product_mappings.findFirst({
-      where: {
-        tenant_id,
-        global_competitor_id: gComp2.global_competitor_id,
-        product_id: allProducts[1].product_id
-      }
-    });
-    if (!map3) {
-      map3 = await prisma.competitor_product_mappings.create({
-        data: {
-          tenant_id,
-          global_competitor_id: gComp2.global_competitor_id,
-          product_id: allProducts[1].product_id
-        }
-      });
-    }
-
-    // 4. Clean up old seeded prices to prevent infinite table inflation on multiple seed runs
-    await prisma.competitor_prices.deleteMany({
-      where: {
-        mapping_id: { in: [map1.mapping_id, map2.mapping_id, map3.mapping_id] }
-      }
-    });
-
-    // 5. Inject Historical Prices (Simulating price drops over the last 24 hours)
-    await prisma.competitor_prices.createMany({
-      data: [
-        // Product 1 Prices (Northstar dropped price from 69 to 62)
-        {
-          tenant_id,
-          mapping_id: map1.mapping_id,
-          scraped_price: 62,
-          currency: "JOD",
-          observed_at: new Date()
-        },
-        {
-          tenant_id,
-          mapping_id: map1.mapping_id,
-          scraped_price: 69,
-          currency: "JOD",
-          observed_at: new Date(Date.now() - 86400000)
-        },
-        {
-          tenant_id,
-          mapping_id: map2.mapping_id,
-          scraped_price: 74,
-          currency: "JOD",
-          observed_at: new Date()
-        },
-
-        // Product 2 Prices (Meridian dropped price from 125 to 119)
-        {
-          tenant_id,
-          mapping_id: map3.mapping_id,
-          scraped_price: 119,
-          currency: "JOD",
-          observed_at: new Date()
-        },
-        {
-          tenant_id,
-          mapping_id: map3.mapping_id,
-          scraped_price: 125,
-          currency: "JOD",
-          observed_at: new Date(Date.now() - 86400000)
-        }
-      ]
-    });
-    console.log("✅ Market Intelligence competitors and prices seeded");
-  }
-  console.log("✅ Data sources and ingestion jobs seeded");
-  console.log(
-    "🚀 Dashboard and Forecasting target database successfully populated!"
+const url = process.env.DATABASE_URL;
+const dbName = url ? decodeURIComponent(new URL(url).pathname.slice(1)) : "";
+if (!/test|dev/i.test(dbName) || process.env.NODE_ENV === "production") {
+  throw new Error(
+    "Refusing to seed: DATABASE_URL database name must contain TEST or DEV and NODE_ENV must not be production"
   );
 }
-
+const uuid = (key: string) => {
+  const h = createHash("sha256")
+    .update(`ceopro-fixture-v1:${key}`)
+    .digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+};
+const now = new Date();
+const ago = (days: number) => new Date(now.getTime() - days * 86400000);
+const companies = [
+  ["Northstar Retail Labs", "JO", "JOD", "Asia/Amman"],
+  ["Cedar Commerce Demo", "JO", "JOD", "Asia/Amman"],
+  ["Atlas Foods Test Group", "AE", "AED", "Asia/Dubai"],
+  ["Meridian Office Supply Demo", "US", "USD", "America/New_York"],
+  ["Amman Home Market", "JO", "JOD", "Asia/Amman"],
+  ["Levant Electronics Demo", "SA", "SAR", "Asia/Riyadh"]
+] as const;
+const catalog = [
+  ["Wireless ANC Headphones", "Electronics", 85],
+  ["Smart Air Purifier", "Electronics", 130],
+  ["Premium Espresso Machine", "Home", 220],
+  ["Ergonomic Office Chair", "Home", 160],
+  ["Organic Olive Oil 1L", "Grocery", 18],
+  ["Single Origin Coffee Beans", "Grocery", 24],
+  ["Vitamin C Face Serum", "Wellness", 32],
+  ["Ceramic Water Filter", "Wellness", 48],
+  ["Portable USB-C Charger", "Electronics", 38],
+  ["Desk Organizer", "Home", 27],
+  ["Dark Chocolate Gift Box", "Grocery", 21],
+  ["Daily Sunscreen SPF50", "Wellness", 28],
+  ["Bluetooth Speaker", "Electronics", 65],
+  ["Linen Table Lamp", "Home", 72],
+  ["Herbal Tea Collection", "Grocery", 16],
+  ["Hydrating Hand Cream", "Wellness", 14],
+  ["Wireless Keyboard", "Electronics", 54],
+  ["Stainless Steel Kettle", "Home", 56],
+  ["Almond Butter Jar", "Grocery", 19],
+  ["Travel Toiletry Kit", "Wellness", 35]
+] as const;
+const competitorNames = [
+  "Juniper Outlet",
+  "Orion Marketplace",
+  "Crescent Direct",
+  "Summit Goods",
+  "Harbor Store",
+  "Palm Retail",
+  "Beacon Supply",
+  "Copper Cart",
+  "Evergreen Shop",
+  "Willow Market",
+  "Silverline Trade",
+  "Vista Merchants",
+  "Pioneer Store",
+  "Bluebird Commerce",
+  "Olive Branch Market",
+  "Coral Goods",
+  "Amber Retail",
+  "Delta Direct",
+  "Maple Supply",
+  "Horizon Outlet",
+  "Dune Commerce",
+  "Pearl Store",
+  "Stonebridge Retail",
+  "Spruce Market"
+];
+const roles = ["owner", "admin", "manager", "accountant", "staff"];
+const chunk = async <T>(items: T[], fn: (batch: T[]) => Promise<unknown>) => {
+  for (let i = 0; i < items.length; i += 400) await fn(items.slice(i, i + 400));
+};
+async function main() {
+  const installed = await prisma.systemRole.findMany({
+    where: { roleKey: { in: roles } }
+  });
+  if (installed.length !== roles.length)
+    throw new Error(
+      "Migrated system_roles are missing; apply the canonical migration chain first"
+    );
+  const password = process.env.SEED_DEV_PASSWORD;
+  if (!password || password.length < 12)
+    throw new Error(
+      "Set SEED_DEV_PASSWORD (12+ characters); no default password is embedded in the fixtures"
+    );
+  const passwordHash = await bcrypt.hash(password, 12);
+  const tenantIds = companies.map((_, i) => uuid(`tenant:${i}`));
+  await prisma.company.createMany({
+    data: companies.map(
+      ([businessName, countryCode, primaryCurrency, timezone], i) => ({
+        id: tenantIds[i],
+        businessName,
+        businessType: i === 2 ? "Food retail" : "Retail",
+        countryCode,
+        primaryCurrency,
+        supportedCurrencies: [primaryCurrency],
+        timezone,
+        platformStatus: i === 5 ? "suspended" : "active"
+      })
+    ),
+    skipDuplicates: true
+  });
+  const users = companies.flatMap((_, t) =>
+    roles.map((role, r) => ({
+      userId: uuid(`user:${t}:${r}`),
+      email: `${role}.${t + 1}@example.com`,
+      fullName: `${["Maya", "Omar", "Lina", "Samir", "Nour"][r]} ${["Haddad", "Nasser", "Salem", "Khalil", "Farah", "Karim"][t]}`,
+      passwordHash
+    }))
+  );
+  await prisma.user.createMany({ data: users, skipDuplicates: true });
+  await prisma.tenantUser.createMany({
+    data: users.map((u, i) => ({
+      id: uuid(`membership:${i}`),
+      tenantId: tenantIds[Math.floor(i / 5)],
+      userId: u.userId,
+      roleKey: roles[i % 5],
+      removedAt: i === 29 ? ago(8) : null
+    })),
+    skipDuplicates: true
+  });
+  await prisma.authSession.createMany({
+    data: users.map((u, i) => ({
+      id: uuid(`session:${i}`),
+      userId: u.userId,
+      tenantId: tenantIds[Math.floor(i / 5)],
+      device: "Development browser",
+      expiresAt: ago(i % 7 === 0 ? 2 : -30),
+      revokedAt: i % 9 === 0 ? ago(2) : null
+    })),
+    skipDuplicates: true
+  });
+  await prisma.platformInvitation.createMany({
+    data: tenantIds.flatMap((tenantId, t) =>
+      [0, 1].map((k) => ({
+        id: uuid(`invitation:${t}:${k}`),
+        tenantId,
+        email: `invite.${t + 1}.${k + 1}@example.com`,
+        roleKey: k ? "manager" : "staff",
+        invitedBy: users[t * 5].userId,
+        tokenHash: createHash("sha256")
+          .update(`ceopro-invitation-fixture:${t}:${k}`)
+          .digest("hex"),
+        status: "pending",
+        expiresAt: ago(k ? 5 : -10)
+      }))
+    ),
+    skipDuplicates: true
+  });
+  const planId = uuid("plan:demo");
+  await prisma.plan.createMany({
+    data: [
+      {
+        id: planId,
+        name: "Development Showcase",
+        name_ar: "عرض تجريبي",
+        description:
+          "Synthetic integration fixture; no external payment provider is connected.",
+        price: 49,
+        currency: "JOD",
+        billingIntervalValue: 1,
+        billingIntervalUnit: "month"
+      }
+    ],
+    skipDuplicates: true
+  });
+  const subscriptions = tenantIds.map((tenantId, i) => ({
+    id: uuid(`subscription:${i}`),
+    tenantId,
+    planId,
+    paymentProvider: "fixture",
+    status: ["active", "trialing", "active", "canceled", "active", "past_due"][
+      i
+    ],
+    currentPeriodStart: ago(i === 3 ? 70 : 15),
+    currentPeriodEnd: ago(i === 3 ? 40 : i === 0 ? -2 : -15),
+    cancelAtPeriodEnd: i === 2,
+    cancelledAt: i === 3 ? ago(40) : null
+  }));
+  await prisma.subscription.createMany({
+    data: subscriptions,
+    skipDuplicates: true
+  });
+  await prisma.paymentTransaction.createMany({
+    data: subscriptions
+      .filter((_, i) => i !== 1)
+      .map((sub, i) => ({
+        id: uuid(`payment:${i}`),
+        subscriptionId: sub.id,
+        amount: 49,
+        currency: "JOD",
+        status: i === 4 ? "failed" : "succeeded",
+        paidAt: i === 4 ? null : ago(14)
+      })),
+    skipDuplicates: true
+  });
+  const products = companies.flatMap(([, , currency], t) =>
+    (t === 4 ? catalog.slice(0, 5) : catalog).map(
+      ([name, category, base], p) => ({
+        product_id: uuid(`product:${t}:${p}`),
+        tenant_id: tenantIds[t],
+        product_name: { en: name },
+        category: { en: category },
+        brand: {
+          en: `${["Northstar", "Cedar", "Atlas", "Meridian", "Amman", "Levant"][t]} Select`
+        },
+        current_price: +(base * (1 + t * 0.04) + (p % 3)).toFixed(2),
+        cost_price: +(base * 0.58).toFixed(2),
+        currency,
+        source: "MANUAL",
+        created_at: ago(180 - p * 2),
+        metadata: { fixture: "ceopro-v1" }
+      })
+    )
+  );
+  await chunk(products, (batch) =>
+    prisma.products.createMany({ data: batch, skipDuplicates: true })
+  );
+  const inventory = products.map((p, i) => ({
+    tenant_id: p.tenant_id,
+    product_id: p.product_id,
+    inventory_id: uuid(`inventory:${i}`),
+    stock_quantity: i % 17 === 0 ? 0 : i % 11 === 0 ? 4 : 60 + (i % 90),
+    reorder_level: 12
+  }));
+  await chunk(inventory, (batch) =>
+    prisma.inventory.createMany({ data: batch, skipDuplicates: true })
+  );
+  await prisma.rag_documents_metadata.createMany({
+    data: tenantIds.flatMap((tenant_id, t) =>
+      ["Pending", "Processed", "Failed"].map((processed_status, j) => ({
+        document_id: uuid(`document:${t}:${j}`),
+        tenant_id,
+        file_name: `${["inventory-guide", "catalog-notes", "failed-import"][j]}.txt`,
+        storage_bucket_path: `fixtures/ceopro-v1/${t}/${j}.txt`,
+        file_size_bytes: BigInt(1024 + j * 120),
+        content_type: "text/plain",
+        uploaded_by_user_id: users[t * 5].userId,
+        processed_status
+      }))
+    ),
+    skipDuplicates: true
+  });
+  const competitors = competitorNames.map((name, i) => ({
+    global_competitor_id: uuid(`competitor:${i}`),
+    competitor_name: name,
+    visibility: "GLOBAL",
+    country_code: i % 3 ? "JO" : "AE"
+  }));
+  await prisma.global_competitors.createMany({
+    data: competitors,
+    skipDuplicates: true
+  });
+  const tracked = companies.flatMap((_, t) =>
+    competitors
+      .slice(0, t === 4 ? 0 : t === 0 ? 24 : 8 + t * 2)
+      .map((c, i) => ({
+        tenant_id: tenantIds[t],
+        global_competitor_id: c.global_competitor_id,
+        is_confirmed_competitor: i % 5 !== 4 && i % 3 === 0,
+        product_match_rate: i % 5 === 4 ? 0.15 : 0.8,
+        tier: i % 5 === 4 ? "CANDIDATE" : i % 3 === 0 ? "STRATEGIC" : "RELEVANT"
+      }))
+  );
+  await chunk(tracked, (batch) =>
+    prisma.tenant_competitors.createMany({ data: batch, skipDuplicates: true })
+  );
+  const mappings = products.flatMap((p, ix) => {
+    const t = tenantIds.indexOf(p.tenant_id);
+    if (t === 4 || ix % 20 === 19) return [];
+    const n = t === 0 && ix === 0 ? 8 : ix % 6 === 0 ? 1 : 3;
+    return Array.from({ length: n }, (_, k) => ({
+      mapping_id: uuid(`mapping:${ix}:${k}`),
+      tenant_id: p.tenant_id,
+      product_id: p.product_id,
+      global_competitor_id:
+        competitors[(ix + k) % (t === 0 ? 24 : 8 + t * 2)].global_competitor_id
+    }));
+  });
+  await chunk(mappings, (batch) =>
+    prisma.competitor_product_mappings.createMany({
+      data: batch,
+      skipDuplicates: true
+    })
+  );
+  const byProduct = new Map(products.map((p) => [p.product_id, p]));
+  const prices = mappings.flatMap((m, ix) =>
+    ix % 13 === 0
+      ? []
+      : Array.from({ length: ix % 5 === 0 ? 2 : 6 }, (_, k) => ({
+          competitor_price_id: uuid(`price:${ix}:${k}`),
+          tenant_id: m.tenant_id,
+          mapping_id: m.mapping_id,
+          scraped_price: +(
+            Number(byProduct.get(m.product_id)!.current_price) *
+            (0.78 + (ix % 7) * 0.06 + k * 0.004)
+          ).toFixed(2),
+          currency: byProduct.get(m.product_id)!.currency,
+          observed_at: ago((5 - k) * 14 + (ix % 6)),
+          source_status: "ALLOWED",
+          is_exact_data: true
+        }))
+  );
+  await chunk(prices, (batch) =>
+    prisma.competitor_prices.createMany({ data: batch, skipDuplicates: true })
+  );
+  const transactions = products.flatMap((p, ix) =>
+    Array.from({ length: ix % 13 === 0 ? 4 : 32 }, (_, k) => {
+      const quantity_sold = 1 + ((k + ix) % 5);
+      const unit_price = Number(p.current_price);
+      return {
+        transaction_id: uuid(`sale:${ix}:${k}`),
+        tenant_id: p.tenant_id,
+        product_id: p.product_id,
+        quantity_sold,
+        unit_price,
+        total_price: +(quantity_sold * unit_price).toFixed(4),
+        original_currency: p.currency,
+        transaction_date: ago((k * 11 + ix * 3) % 360),
+        sale_source: k % 4 ? "POS" : "IMPORT"
+      };
+    })
+  );
+  await chunk(transactions, (batch) =>
+    prisma.transactions.createMany({ data: batch, skipDuplicates: true })
+  );
+  const reviews = products.flatMap((p, ix) =>
+    Array.from({ length: ix % 11 === 0 ? 1 : 8 }, (_, k) => {
+      const rating = ((ix + k) % 5) + 1;
+      return {
+        review_id: uuid(`review:${ix}:${k}`),
+        tenant_id: p.tenant_id,
+        product_id: p.product_id,
+        subject_type: "PRODUCT",
+        source_platform: "DEMO_IMPORT",
+        reviewer_name: `Demo customer ${k + 1}`,
+        review_text:
+          rating >= 4
+            ? "Reliable quality and prompt delivery."
+            : rating <= 2
+              ? "The product did not meet my expectations."
+              : "Good overall, with room to improve packaging.",
+        review_rating: rating,
+        review_date: ago((ix * 5 + k * 9) % 240),
+        source_status: "ALLOWED",
+        collection_method: "MANUAL"
+      };
+    })
+  );
+  await chunk(reviews, (batch) =>
+    prisma.reviews.createMany({ data: batch, skipDuplicates: true })
+  );
+  const forecasts = products
+    .filter((_, i) => i % 9 !== 0)
+    .flatMap((p, i) =>
+      [0, 1].map((k) => ({
+        forecast_id: uuid(`forecast:${p.product_id}:${k}`),
+        tenant_id: p.tenant_id,
+        product_id: p.product_id,
+        forecast_start_date: ago(k ? 30 : 0),
+        forecast_end_date: ago(k ? 0 : -30),
+        forecast_target_date: ago(k ? 0 : -30),
+        expected_demand: 25 + (i % 65) + k * 7,
+        confidence_range_lower: 18 + (i % 65) + k * 7,
+        confidence_range_upper: 34 + (i % 65) + k * 7,
+        model_version: "synthetic-integration-v1",
+        features_used: { fixture: true },
+        created_at: ago(k * 30)
+      }))
+    );
+  await chunk(forecasts, (batch) =>
+    prisma.demand_forecasts.createMany({ data: batch, skipDuplicates: true })
+  );
+  const snapshots = tracked
+    .filter((x, i) => i % 7 !== 0)
+    .flatMap((x, i) =>
+      [0, 1].map((k) => ({
+        score_id: uuid(
+          `snapshot:${x.tenant_id}:${x.global_competitor_id}:${k}`
+        ),
+        tenant_id: x.tenant_id,
+        global_competitor_id: x.global_competitor_id,
+        price_score: 50 + (i % 35),
+        composite_score: 44 + (i % 45) + k,
+        missing_factors: ["sentiment", "market_activity"],
+        evidence: { fixture: "synthetic-integration-v1" },
+        calculated_at: ago(k ? 30 : 1)
+      }))
+    );
+  await chunk(snapshots, (batch) =>
+    prisma.competitor_score_snapshots.createMany({
+      data: batch,
+      skipDuplicates: true
+    })
+  );
+  const identity = await prisma.$queryRaw<
+    Array<{
+      database: string;
+      server: string;
+      port: number;
+      role: string;
+      schema_name: string;
+    }>
+  >`
+    SELECT current_database() AS database, inet_server_addr()::text AS server,
+           inet_server_port() AS port, current_user AS role, current_schema() AS schema_name`;
+  const counts = {
+    tenants: await prisma.company.count({ where: { id: { in: tenantIds } } }),
+    users: await prisma.user.count({
+      where: { userId: { in: users.map((u) => u.userId) } }
+    }),
+    products: await prisma.products.count({
+      where: { product_id: { in: products.map((p) => p.product_id) } }
+    }),
+    competitors: await prisma.global_competitors.count({
+      where: {
+        global_competitor_id: {
+          in: competitors.map((c) => c.global_competitor_id)
+        }
+      }
+    }),
+    tenantCompetitors: await prisma.tenant_competitors.count({
+      where: {
+        OR: tracked.map((c) => ({
+          tenant_id: c.tenant_id,
+          global_competitor_id: c.global_competitor_id
+        }))
+      }
+    }),
+    mappings: await prisma.competitor_product_mappings.count({
+      where: { mapping_id: { in: mappings.map((m) => m.mapping_id) } }
+    }),
+    prices: await prisma.competitor_prices.count({
+      where: {
+        competitor_price_id: { in: prices.map((p) => p.competitor_price_id) }
+      }
+    }),
+    transactions: await prisma.transactions.count({
+      where: {
+        transaction_id: { in: transactions.map((t) => t.transaction_id) }
+      }
+    }),
+    reviews: await prisma.reviews.count({
+      where: { review_id: { in: reviews.map((r) => r.review_id) } }
+    }),
+    forecasts: await prisma.demand_forecasts.count({
+      where: { forecast_id: { in: forecasts.map((f) => f.forecast_id) } }
+    }),
+    snapshots: await prisma.competitor_score_snapshots.count({
+      where: { score_id: { in: snapshots.map((s) => s.score_id) } }
+    })
+  };
+  console.log("Seed database identity (no credentials):", identity[0]);
+  console.log(
+    "Verified fixture rows visible to the seed connection:",
+    JSON.stringify(counts, null, 2)
+  );
+  if (
+    counts.tenants !== companies.length ||
+    counts.products !== products.length ||
+    counts.transactions !== transactions.length
+  ) {
+    throw new Error(
+      "Seed verification failed: tenant, product, or transaction rows are not visible; check RLS and the target database"
+    );
+  }
+}
 main()
   .catch((e) => {
-    console.error("❌ Error seeding dashboard and forecasting data:", e);
-    process.exit(1);
+    console.error(e);
+    process.exitCode = 1;
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

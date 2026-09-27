@@ -40,8 +40,8 @@ async function main() {
 
   const ownerRole = await prisma.systemRole.findUnique({
     where: {
-      roleKey: "owner",
-    },
+      roleKey: "owner"
+    }
   });
 
   if (!ownerRole) {
@@ -59,8 +59,8 @@ async function main() {
 
     let ownerUser = await tx.user.findFirst({
       where: {
-        email: ownerEmail,
-      },
+        email: ownerEmail
+      }
     });
 
     if (!ownerUser) {
@@ -71,8 +71,8 @@ async function main() {
           email: ownerEmail,
           passwordHash,
           fullName: ownerFullName,
-          preferredLanguage: language,
-        },
+          preferredLanguage: language
+        }
       });
 
       console.log(`Created owner user: ${ownerEmail}`);
@@ -89,17 +89,22 @@ async function main() {
         userId: ownerUser.userId,
         roleKey: "owner",
         removedAt: null,
+        tenant: {
+          businessType: "platform",
+          deletedAt: null,
+          platformStatus: "active"
+        }
       },
       include: {
-        tenant: true,
-      },
+        tenant: true
+      }
     });
 
     if (existingOwnerMembership) {
       return {
         user: ownerUser,
         company: existingOwnerMembership.tenant,
-        tenantUser: existingOwnerMembership,
+        tenantUser: existingOwnerMembership
       };
     }
 
@@ -110,8 +115,8 @@ async function main() {
     let company = await tx.company.findFirst({
       where: {
         businessName: companyName,
-        deletedAt: null,
-      },
+        deletedAt: null
+      }
     });
 
     if (!company) {
@@ -125,8 +130,8 @@ async function main() {
           supportedCurrencies: [primaryCurrency],
           timezone,
           preferredLanguage: language,
-          supportedLanguages: [language],
-        },
+          supportedLanguages: [language]
+        }
       });
 
       console.log(`Created platform company: ${company.businessName}`);
@@ -142,26 +147,26 @@ async function main() {
       where: {
         tenantId_userId: {
           tenantId: company.id,
-          userId: ownerUser.userId,
-        },
+          userId: ownerUser.userId
+        }
       },
 
       update: {
         roleKey: "owner",
-        removedAt: null,
+        removedAt: null
       },
 
       create: {
         tenantId: company.id,
         userId: ownerUser.userId,
-        roleKey: "owner",
-      },
+        roleKey: "owner"
+      }
     });
 
     return {
       user: ownerUser,
       company,
-      tenantUser,
+      tenantUser
     };
   });
 
@@ -173,7 +178,7 @@ async function main() {
     id: result.user.userId,
     tenant_id: result.company.id,
     email: result.user.email,
-    roleKey: result.tenantUser.roleKey,
+    roleKey: result.tenantUser.roleKey
   });
 
   // ---------------------------------------------------------
