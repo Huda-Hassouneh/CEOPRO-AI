@@ -45,7 +45,13 @@ export function DemandPredictionOverviewPage() {
       }),
     [locale]
   );
-  const formatDate = (value) => date.format(new Date(`${value}T00:00:00Z`));
+  const formatDate = (value) => {
+    if (typeof value !== "string" || !value.trim()) return "—";
+    const parsed = new Date(
+      /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value
+    );
+    return Number.isNaN(parsed.getTime()) ? "—" : date.format(parsed);
+  };
   const requestExport = async () => {
     const result = await forecastingApi.requestTablePdf({
       companyId,
