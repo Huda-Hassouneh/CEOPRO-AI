@@ -42,6 +42,7 @@ export type Rag_document_chunksMinAggregateOutputType = {
   chunk_index: number | null
   chunk_text_content: string | null
   created_at: Date | null
+  embedding_model_version: string | null
 }
 
 export type Rag_document_chunksMaxAggregateOutputType = {
@@ -51,6 +52,7 @@ export type Rag_document_chunksMaxAggregateOutputType = {
   chunk_index: number | null
   chunk_text_content: string | null
   created_at: Date | null
+  embedding_model_version: string | null
 }
 
 export type Rag_document_chunksCountAggregateOutputType = {
@@ -60,6 +62,7 @@ export type Rag_document_chunksCountAggregateOutputType = {
   chunk_index: number
   chunk_text_content: number
   created_at: number
+  embedding_model_version: number
   _all: number
 }
 
@@ -79,6 +82,7 @@ export type Rag_document_chunksMinAggregateInputType = {
   chunk_index?: true
   chunk_text_content?: true
   created_at?: true
+  embedding_model_version?: true
 }
 
 export type Rag_document_chunksMaxAggregateInputType = {
@@ -88,6 +92,7 @@ export type Rag_document_chunksMaxAggregateInputType = {
   chunk_index?: true
   chunk_text_content?: true
   created_at?: true
+  embedding_model_version?: true
 }
 
 export type Rag_document_chunksCountAggregateInputType = {
@@ -97,6 +102,7 @@ export type Rag_document_chunksCountAggregateInputType = {
   chunk_index?: true
   chunk_text_content?: true
   created_at?: true
+  embedding_model_version?: true
   _all?: true
 }
 
@@ -193,6 +199,7 @@ export type Rag_document_chunksGroupByOutputType = {
   chunk_index: number
   chunk_text_content: string
   created_at: Date | null
+  embedding_model_version: string | null
   _count: Rag_document_chunksCountAggregateOutputType | null
   _avg: Rag_document_chunksAvgAggregateOutputType | null
   _sum: Rag_document_chunksSumAggregateOutputType | null
@@ -225,6 +232,7 @@ export type rag_document_chunksWhereInput = {
   chunk_index?: Prisma.IntFilter<"rag_document_chunks"> | number
   chunk_text_content?: Prisma.StringFilter<"rag_document_chunks"> | string
   created_at?: Prisma.DateTimeNullableFilter<"rag_document_chunks"> | Date | string | null
+  embedding_model_version?: Prisma.StringNullableFilter<"rag_document_chunks"> | string | null
   rag_documents_metadata?: Prisma.XOR<Prisma.Rag_documents_metadataScalarRelationFilter, Prisma.rag_documents_metadataWhereInput>
 }
 
@@ -235,6 +243,7 @@ export type rag_document_chunksOrderByWithRelationInput = {
   chunk_index?: Prisma.SortOrder
   chunk_text_content?: Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  embedding_model_version?: Prisma.SortOrderInput | Prisma.SortOrder
   rag_documents_metadata?: Prisma.rag_documents_metadataOrderByWithRelationInput
 }
 
@@ -249,6 +258,7 @@ export type rag_document_chunksWhereUniqueInput = Prisma.AtLeast<{
   chunk_index?: Prisma.IntFilter<"rag_document_chunks"> | number
   chunk_text_content?: Prisma.StringFilter<"rag_document_chunks"> | string
   created_at?: Prisma.DateTimeNullableFilter<"rag_document_chunks"> | Date | string | null
+  embedding_model_version?: Prisma.StringNullableFilter<"rag_document_chunks"> | string | null
   rag_documents_metadata?: Prisma.XOR<Prisma.Rag_documents_metadataScalarRelationFilter, Prisma.rag_documents_metadataWhereInput>
 }, "chunk_id" | "tenant_id_document_id_chunk_index">
 
@@ -259,6 +269,7 @@ export type rag_document_chunksOrderByWithAggregationInput = {
   chunk_index?: Prisma.SortOrder
   chunk_text_content?: Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  embedding_model_version?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.rag_document_chunksCountOrderByAggregateInput
   _avg?: Prisma.rag_document_chunksAvgOrderByAggregateInput
   _max?: Prisma.rag_document_chunksMaxOrderByAggregateInput
@@ -276,6 +287,7 @@ export type rag_document_chunksScalarWhereWithAggregatesInput = {
   chunk_index?: Prisma.IntWithAggregatesFilter<"rag_document_chunks"> | number
   chunk_text_content?: Prisma.StringWithAggregatesFilter<"rag_document_chunks"> | string
   created_at?: Prisma.DateTimeNullableWithAggregatesFilter<"rag_document_chunks"> | Date | string | null
+  embedding_model_version?: Prisma.StringNullableWithAggregatesFilter<"rag_document_chunks"> | string | null
 }
 
 export type rag_document_chunksCreateInput = {
@@ -283,6 +295,7 @@ export type rag_document_chunksCreateInput = {
   chunk_index: number
   chunk_text_content: string
   created_at?: Date | string | null
+  embedding_model_version?: string | null
   rag_documents_metadata: Prisma.rag_documents_metadataCreateNestedOneWithoutRag_document_chunksInput
 }
 
@@ -293,6 +306,7 @@ export type rag_document_chunksUncheckedCreateInput = {
   chunk_index: number
   chunk_text_content: string
   created_at?: Date | string | null
+  embedding_model_version?: string | null
 }
 
 export type rag_document_chunksUpdateInput = {
@@ -300,6 +314,7 @@ export type rag_document_chunksUpdateInput = {
   chunk_index?: Prisma.IntFieldUpdateOperationsInput | number
   chunk_text_content?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  embedding_model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rag_documents_metadata?: Prisma.rag_documents_metadataUpdateOneRequiredWithoutRag_document_chunksNestedInput
 }
 
@@ -310,6 +325,7 @@ export type rag_document_chunksUncheckedUpdateInput = {
   chunk_index?: Prisma.IntFieldUpdateOperationsInput | number
   chunk_text_content?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  embedding_model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type rag_document_chunksCreateManyInput = {
@@ -319,6 +335,7 @@ export type rag_document_chunksCreateManyInput = {
   chunk_index: number
   chunk_text_content: string
   created_at?: Date | string | null
+  embedding_model_version?: string | null
 }
 
 export type rag_document_chunksUpdateManyMutationInput = {
@@ -326,6 +343,7 @@ export type rag_document_chunksUpdateManyMutationInput = {
   chunk_index?: Prisma.IntFieldUpdateOperationsInput | number
   chunk_text_content?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  embedding_model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type rag_document_chunksUncheckedUpdateManyInput = {
@@ -335,6 +353,7 @@ export type rag_document_chunksUncheckedUpdateManyInput = {
   chunk_index?: Prisma.IntFieldUpdateOperationsInput | number
   chunk_text_content?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  embedding_model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type rag_document_chunksTenant_idDocument_idChunk_indexCompoundUniqueInput = {
@@ -350,6 +369,7 @@ export type rag_document_chunksCountOrderByAggregateInput = {
   chunk_index?: Prisma.SortOrder
   chunk_text_content?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  embedding_model_version?: Prisma.SortOrder
 }
 
 export type rag_document_chunksAvgOrderByAggregateInput = {
@@ -363,6 +383,7 @@ export type rag_document_chunksMaxOrderByAggregateInput = {
   chunk_index?: Prisma.SortOrder
   chunk_text_content?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  embedding_model_version?: Prisma.SortOrder
 }
 
 export type rag_document_chunksMinOrderByAggregateInput = {
@@ -372,6 +393,7 @@ export type rag_document_chunksMinOrderByAggregateInput = {
   chunk_index?: Prisma.SortOrder
   chunk_text_content?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  embedding_model_version?: Prisma.SortOrder
 }
 
 export type rag_document_chunksSumOrderByAggregateInput = {
@@ -435,6 +457,7 @@ export type rag_document_chunksCreateWithoutRag_documents_metadataInput = {
   chunk_index: number
   chunk_text_content: string
   created_at?: Date | string | null
+  embedding_model_version?: string | null
 }
 
 export type rag_document_chunksUncheckedCreateWithoutRag_documents_metadataInput = {
@@ -442,6 +465,7 @@ export type rag_document_chunksUncheckedCreateWithoutRag_documents_metadataInput
   chunk_index: number
   chunk_text_content: string
   created_at?: Date | string | null
+  embedding_model_version?: string | null
 }
 
 export type rag_document_chunksCreateOrConnectWithoutRag_documents_metadataInput = {
@@ -480,6 +504,7 @@ export type rag_document_chunksScalarWhereInput = {
   chunk_index?: Prisma.IntFilter<"rag_document_chunks"> | number
   chunk_text_content?: Prisma.StringFilter<"rag_document_chunks"> | string
   created_at?: Prisma.DateTimeNullableFilter<"rag_document_chunks"> | Date | string | null
+  embedding_model_version?: Prisma.StringNullableFilter<"rag_document_chunks"> | string | null
 }
 
 export type rag_document_chunksCreateManyRag_documents_metadataInput = {
@@ -487,6 +512,7 @@ export type rag_document_chunksCreateManyRag_documents_metadataInput = {
   chunk_index: number
   chunk_text_content: string
   created_at?: Date | string | null
+  embedding_model_version?: string | null
 }
 
 export type rag_document_chunksUpdateWithoutRag_documents_metadataInput = {
@@ -494,6 +520,7 @@ export type rag_document_chunksUpdateWithoutRag_documents_metadataInput = {
   chunk_index?: Prisma.IntFieldUpdateOperationsInput | number
   chunk_text_content?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  embedding_model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type rag_document_chunksUncheckedUpdateWithoutRag_documents_metadataInput = {
@@ -501,6 +528,7 @@ export type rag_document_chunksUncheckedUpdateWithoutRag_documents_metadataInput
   chunk_index?: Prisma.IntFieldUpdateOperationsInput | number
   chunk_text_content?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  embedding_model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type rag_document_chunksUncheckedUpdateManyWithoutRag_documents_metadataInput = {
@@ -508,6 +536,7 @@ export type rag_document_chunksUncheckedUpdateManyWithoutRag_documents_metadataI
   chunk_index?: Prisma.IntFieldUpdateOperationsInput | number
   chunk_text_content?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  embedding_model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -519,6 +548,7 @@ export type rag_document_chunksSelect<ExtArgs extends runtime.Types.Extensions.I
   chunk_index?: boolean
   chunk_text_content?: boolean
   created_at?: boolean
+  embedding_model_version?: boolean
   rag_documents_metadata?: boolean | Prisma.rag_documents_metadataDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["rag_document_chunks"]>
 
@@ -529,6 +559,7 @@ export type rag_document_chunksSelectCreateManyAndReturn<ExtArgs extends runtime
   chunk_index?: boolean
   chunk_text_content?: boolean
   created_at?: boolean
+  embedding_model_version?: boolean
   rag_documents_metadata?: boolean | Prisma.rag_documents_metadataDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["rag_document_chunks"]>
 
@@ -539,6 +570,7 @@ export type rag_document_chunksSelectUpdateManyAndReturn<ExtArgs extends runtime
   chunk_index?: boolean
   chunk_text_content?: boolean
   created_at?: boolean
+  embedding_model_version?: boolean
   rag_documents_metadata?: boolean | Prisma.rag_documents_metadataDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["rag_document_chunks"]>
 
@@ -549,9 +581,10 @@ export type rag_document_chunksSelectScalar = {
   chunk_index?: boolean
   chunk_text_content?: boolean
   created_at?: boolean
+  embedding_model_version?: boolean
 }
 
-export type rag_document_chunksOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"chunk_id" | "tenant_id" | "document_id" | "chunk_index" | "chunk_text_content" | "created_at", ExtArgs["result"]["rag_document_chunks"]>
+export type rag_document_chunksOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"chunk_id" | "tenant_id" | "document_id" | "chunk_index" | "chunk_text_content" | "created_at" | "embedding_model_version", ExtArgs["result"]["rag_document_chunks"]>
 export type rag_document_chunksInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   rag_documents_metadata?: boolean | Prisma.rag_documents_metadataDefaultArgs<ExtArgs>
 }
@@ -574,6 +607,7 @@ export type $rag_document_chunksPayload<ExtArgs extends runtime.Types.Extensions
     chunk_index: number
     chunk_text_content: string
     created_at: Date | null
+    embedding_model_version: string | null
   }, ExtArgs["result"]["rag_document_chunks"]>
   composites: {}
 }
@@ -1004,6 +1038,7 @@ export interface rag_document_chunksFieldRefs {
   readonly chunk_index: Prisma.FieldRef<"rag_document_chunks", 'Int'>
   readonly chunk_text_content: Prisma.FieldRef<"rag_document_chunks", 'String'>
   readonly created_at: Prisma.FieldRef<"rag_document_chunks", 'DateTime'>
+  readonly embedding_model_version: Prisma.FieldRef<"rag_document_chunks", 'String'>
 }
     
 

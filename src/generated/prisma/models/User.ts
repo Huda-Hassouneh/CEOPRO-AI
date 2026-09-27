@@ -20,8 +20,18 @@ export type UserModel = runtime.Types.Result.DefaultSelection<Prisma.$UserPayloa
 
 export type AggregateUser = {
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
+}
+
+export type UserAvgAggregateOutputType = {
+  sessionVersion: number | null
+}
+
+export type UserSumAggregateOutputType = {
+  sessionVersion: number | null
 }
 
 export type UserMinAggregateOutputType = {
@@ -32,6 +42,7 @@ export type UserMinAggregateOutputType = {
   preferredLanguage: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  sessionVersion: number | null
 }
 
 export type UserMaxAggregateOutputType = {
@@ -42,6 +53,7 @@ export type UserMaxAggregateOutputType = {
   preferredLanguage: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  sessionVersion: number | null
 }
 
 export type UserCountAggregateOutputType = {
@@ -52,9 +64,18 @@ export type UserCountAggregateOutputType = {
   preferredLanguage: number
   createdAt: number
   updatedAt: number
+  sessionVersion: number
   _all: number
 }
 
+
+export type UserAvgAggregateInputType = {
+  sessionVersion?: true
+}
+
+export type UserSumAggregateInputType = {
+  sessionVersion?: true
+}
 
 export type UserMinAggregateInputType = {
   userId?: true
@@ -64,6 +85,7 @@ export type UserMinAggregateInputType = {
   preferredLanguage?: true
   createdAt?: true
   updatedAt?: true
+  sessionVersion?: true
 }
 
 export type UserMaxAggregateInputType = {
@@ -74,6 +96,7 @@ export type UserMaxAggregateInputType = {
   preferredLanguage?: true
   createdAt?: true
   updatedAt?: true
+  sessionVersion?: true
 }
 
 export type UserCountAggregateInputType = {
@@ -84,6 +107,7 @@ export type UserCountAggregateInputType = {
   preferredLanguage?: true
   createdAt?: true
   updatedAt?: true
+  sessionVersion?: true
   _all?: true
 }
 
@@ -125,6 +149,18 @@ export type UserAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: UserAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: UserSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: UserMinAggregateInputType
@@ -155,6 +191,8 @@ export type UserGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
   take?: number
   skip?: number
   _count?: UserCountAggregateInputType | true
+  _avg?: UserAvgAggregateInputType
+  _sum?: UserSumAggregateInputType
   _min?: UserMinAggregateInputType
   _max?: UserMaxAggregateInputType
 }
@@ -167,7 +205,10 @@ export type UserGroupByOutputType = {
   preferredLanguage: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  sessionVersion: number
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
 }
@@ -198,6 +239,9 @@ export type UserWhereInput = {
   preferredLanguage?: Prisma.StringNullableFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   updatedAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
+  sessionVersion?: Prisma.IntFilter<"User"> | number
+  authSessions?: Prisma.AuthSessionListRelationFilter
+  sentPlatformInvitations?: Prisma.PlatformInvitationListRelationFilter
   tenantUsers?: Prisma.TenantUserListRelationFilter
 }
 
@@ -209,6 +253,9 @@ export type UserOrderByWithRelationInput = {
   preferredLanguage?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  sessionVersion?: Prisma.SortOrder
+  authSessions?: Prisma.AuthSessionOrderByRelationAggregateInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationOrderByRelationAggregateInput
   tenantUsers?: Prisma.TenantUserOrderByRelationAggregateInput
 }
 
@@ -223,6 +270,9 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   preferredLanguage?: Prisma.StringNullableFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   updatedAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
+  sessionVersion?: Prisma.IntFilter<"User"> | number
+  authSessions?: Prisma.AuthSessionListRelationFilter
+  sentPlatformInvitations?: Prisma.PlatformInvitationListRelationFilter
   tenantUsers?: Prisma.TenantUserListRelationFilter
 }, "userId">
 
@@ -234,9 +284,12 @@ export type UserOrderByWithAggregationInput = {
   preferredLanguage?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  sessionVersion?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
+  _avg?: Prisma.UserAvgOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
+  _sum?: Prisma.UserSumOrderByAggregateInput
 }
 
 export type UserScalarWhereWithAggregatesInput = {
@@ -250,6 +303,7 @@ export type UserScalarWhereWithAggregatesInput = {
   preferredLanguage?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
   updatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
+  sessionVersion?: Prisma.IntWithAggregatesFilter<"User"> | number
 }
 
 export type UserCreateInput = {
@@ -260,6 +314,9 @@ export type UserCreateInput = {
   preferredLanguage?: string | null
   createdAt?: Date | string | null
   updatedAt?: Date | string | null
+  sessionVersion?: number
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutInviterInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutUserInput
 }
 
@@ -271,6 +328,9 @@ export type UserUncheckedCreateInput = {
   preferredLanguage?: string | null
   createdAt?: Date | string | null
   updatedAt?: Date | string | null
+  sessionVersion?: number
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutInviterInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -282,6 +342,9 @@ export type UserUpdateInput = {
   preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutInviterNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutUserNestedInput
 }
 
@@ -293,6 +356,9 @@ export type UserUncheckedUpdateInput = {
   preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutInviterNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -304,6 +370,7 @@ export type UserCreateManyInput = {
   preferredLanguage?: string | null
   createdAt?: Date | string | null
   updatedAt?: Date | string | null
+  sessionVersion?: number
 }
 
 export type UserUpdateManyMutationInput = {
@@ -314,6 +381,7 @@ export type UserUpdateManyMutationInput = {
   preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type UserUncheckedUpdateManyInput = {
@@ -324,6 +392,7 @@ export type UserUncheckedUpdateManyInput = {
   preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type UserCountOrderByAggregateInput = {
@@ -334,6 +403,11 @@ export type UserCountOrderByAggregateInput = {
   preferredLanguage?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  sessionVersion?: Prisma.SortOrder
+}
+
+export type UserAvgOrderByAggregateInput = {
+  sessionVersion?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -344,6 +418,7 @@ export type UserMaxOrderByAggregateInput = {
   preferredLanguage?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  sessionVersion?: Prisma.SortOrder
 }
 
 export type UserMinOrderByAggregateInput = {
@@ -354,6 +429,11 @@ export type UserMinOrderByAggregateInput = {
   preferredLanguage?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  sessionVersion?: Prisma.SortOrder
+}
+
+export type UserSumOrderByAggregateInput = {
+  sessionVersion?: Prisma.SortOrder
 }
 
 export type UserScalarRelationFilter = {
@@ -375,6 +455,34 @@ export type UserUpdateOneRequiredWithoutTenantUsersNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutTenantUsersInput, Prisma.UserUpdateWithoutTenantUsersInput>, Prisma.UserUncheckedUpdateWithoutTenantUsersInput>
 }
 
+export type UserCreateNestedOneWithoutSentPlatformInvitationsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutSentPlatformInvitationsInput, Prisma.UserUncheckedCreateWithoutSentPlatformInvitationsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutSentPlatformInvitationsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutSentPlatformInvitationsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutSentPlatformInvitationsInput, Prisma.UserUncheckedCreateWithoutSentPlatformInvitationsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutSentPlatformInvitationsInput
+  upsert?: Prisma.UserUpsertWithoutSentPlatformInvitationsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutSentPlatformInvitationsInput, Prisma.UserUpdateWithoutSentPlatformInvitationsInput>, Prisma.UserUncheckedUpdateWithoutSentPlatformInvitationsInput>
+}
+
+export type UserCreateNestedOneWithoutAuthSessionsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAuthSessionsInput, Prisma.UserUncheckedCreateWithoutAuthSessionsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAuthSessionsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutAuthSessionsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAuthSessionsInput, Prisma.UserUncheckedCreateWithoutAuthSessionsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAuthSessionsInput
+  upsert?: Prisma.UserUpsertWithoutAuthSessionsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAuthSessionsInput, Prisma.UserUpdateWithoutAuthSessionsInput>, Prisma.UserUncheckedUpdateWithoutAuthSessionsInput>
+}
+
 export type UserCreateWithoutTenantUsersInput = {
   userId?: string
   email: string
@@ -383,6 +491,9 @@ export type UserCreateWithoutTenantUsersInput = {
   preferredLanguage?: string | null
   createdAt?: Date | string | null
   updatedAt?: Date | string | null
+  sessionVersion?: number
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutInviterInput
 }
 
 export type UserUncheckedCreateWithoutTenantUsersInput = {
@@ -393,6 +504,9 @@ export type UserUncheckedCreateWithoutTenantUsersInput = {
   preferredLanguage?: string | null
   createdAt?: Date | string | null
   updatedAt?: Date | string | null
+  sessionVersion?: number
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutInviterInput
 }
 
 export type UserCreateOrConnectWithoutTenantUsersInput = {
@@ -419,6 +533,9 @@ export type UserUpdateWithoutTenantUsersInput = {
   preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutInviterNestedInput
 }
 
 export type UserUncheckedUpdateWithoutTenantUsersInput = {
@@ -429,6 +546,145 @@ export type UserUncheckedUpdateWithoutTenantUsersInput = {
   preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutInviterNestedInput
+}
+
+export type UserCreateWithoutSentPlatformInvitationsInput = {
+  userId?: string
+  email: string
+  passwordHash: string
+  fullName?: string | null
+  preferredLanguage?: string | null
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  sessionVersion?: number
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutSentPlatformInvitationsInput = {
+  userId?: string
+  email: string
+  passwordHash: string
+  fullName?: string | null
+  preferredLanguage?: string | null
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  sessionVersion?: number
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutSentPlatformInvitationsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutSentPlatformInvitationsInput, Prisma.UserUncheckedCreateWithoutSentPlatformInvitationsInput>
+}
+
+export type UserUpsertWithoutSentPlatformInvitationsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutSentPlatformInvitationsInput, Prisma.UserUncheckedUpdateWithoutSentPlatformInvitationsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutSentPlatformInvitationsInput, Prisma.UserUncheckedCreateWithoutSentPlatformInvitationsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutSentPlatformInvitationsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutSentPlatformInvitationsInput, Prisma.UserUncheckedUpdateWithoutSentPlatformInvitationsInput>
+}
+
+export type UserUpdateWithoutSentPlatformInvitationsInput = {
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutSentPlatformInvitationsInput = {
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutAuthSessionsInput = {
+  userId?: string
+  email: string
+  passwordHash: string
+  fullName?: string | null
+  preferredLanguage?: string | null
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  sessionVersion?: number
+  sentPlatformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutInviterInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutAuthSessionsInput = {
+  userId?: string
+  email: string
+  passwordHash: string
+  fullName?: string | null
+  preferredLanguage?: string | null
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  sessionVersion?: number
+  sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutInviterInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutAuthSessionsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAuthSessionsInput, Prisma.UserUncheckedCreateWithoutAuthSessionsInput>
+}
+
+export type UserUpsertWithoutAuthSessionsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAuthSessionsInput, Prisma.UserUncheckedUpdateWithoutAuthSessionsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAuthSessionsInput, Prisma.UserUncheckedCreateWithoutAuthSessionsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAuthSessionsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAuthSessionsInput, Prisma.UserUncheckedUpdateWithoutAuthSessionsInput>
+}
+
+export type UserUpdateWithoutAuthSessionsInput = {
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sentPlatformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutInviterNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAuthSessionsInput = {
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutInviterNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -437,10 +693,14 @@ export type UserUncheckedUpdateWithoutTenantUsersInput = {
  */
 
 export type UserCountOutputType = {
+  authSessions: number
+  sentPlatformInvitations: number
   tenantUsers: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  authSessions?: boolean | UserCountOutputTypeCountAuthSessionsArgs
+  sentPlatformInvitations?: boolean | UserCountOutputTypeCountSentPlatformInvitationsArgs
   tenantUsers?: boolean | UserCountOutputTypeCountTenantUsersArgs
 }
 
@@ -452,6 +712,20 @@ export type UserCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensi
    * Select specific fields to fetch from the UserCountOutputType
    */
   select?: Prisma.UserCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountAuthSessionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AuthSessionWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountSentPlatformInvitationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PlatformInvitationWhereInput
 }
 
 /**
@@ -470,6 +744,9 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   preferredLanguage?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  sessionVersion?: boolean
+  authSessions?: boolean | Prisma.User$authSessionsArgs<ExtArgs>
+  sentPlatformInvitations?: boolean | Prisma.User$sentPlatformInvitationsArgs<ExtArgs>
   tenantUsers?: boolean | Prisma.User$tenantUsersArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
@@ -482,6 +759,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   preferredLanguage?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  sessionVersion?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -492,6 +770,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   preferredLanguage?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  sessionVersion?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectScalar = {
@@ -502,10 +781,13 @@ export type UserSelectScalar = {
   preferredLanguage?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  sessionVersion?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"userId" | "email" | "passwordHash" | "fullName" | "preferredLanguage" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"userId" | "email" | "passwordHash" | "fullName" | "preferredLanguage" | "createdAt" | "updatedAt" | "sessionVersion", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  authSessions?: boolean | Prisma.User$authSessionsArgs<ExtArgs>
+  sentPlatformInvitations?: boolean | Prisma.User$sentPlatformInvitationsArgs<ExtArgs>
   tenantUsers?: boolean | Prisma.User$tenantUsersArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -515,6 +797,8 @@ export type UserIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
 export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "User"
   objects: {
+    authSessions: Prisma.$AuthSessionPayload<ExtArgs>[]
+    sentPlatformInvitations: Prisma.$PlatformInvitationPayload<ExtArgs>[]
     tenantUsers: Prisma.$TenantUserPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -525,6 +809,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     preferredLanguage: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    sessionVersion: number
   }, ExtArgs["result"]["user"]>
   composites: {}
 }
@@ -919,6 +1204,8 @@ readonly fields: UserFieldRefs;
  */
 export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  authSessions<T extends Prisma.User$authSessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$authSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuthSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  sentPlatformInvitations<T extends Prisma.User$sentPlatformInvitationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$sentPlatformInvitationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformInvitationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   tenantUsers<T extends Prisma.User$tenantUsersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$tenantUsersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TenantUserPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -956,6 +1243,7 @@ export interface UserFieldRefs {
   readonly preferredLanguage: Prisma.FieldRef<"User", 'String'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
+  readonly sessionVersion: Prisma.FieldRef<"User", 'Int'>
 }
     
 
@@ -1346,6 +1634,54 @@ export type UserDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Internal
    * Limit how many Users to delete.
    */
   limit?: number
+}
+
+/**
+ * User.authSessions
+ */
+export type User$authSessionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AuthSession
+   */
+  select?: Prisma.AuthSessionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AuthSession
+   */
+  omit?: Prisma.AuthSessionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AuthSessionInclude<ExtArgs> | null
+  where?: Prisma.AuthSessionWhereInput
+  orderBy?: Prisma.AuthSessionOrderByWithRelationInput | Prisma.AuthSessionOrderByWithRelationInput[]
+  cursor?: Prisma.AuthSessionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AuthSessionScalarFieldEnum | Prisma.AuthSessionScalarFieldEnum[]
+}
+
+/**
+ * User.sentPlatformInvitations
+ */
+export type User$sentPlatformInvitationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PlatformInvitation
+   */
+  select?: Prisma.PlatformInvitationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PlatformInvitation
+   */
+  omit?: Prisma.PlatformInvitationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PlatformInvitationInclude<ExtArgs> | null
+  where?: Prisma.PlatformInvitationWhereInput
+  orderBy?: Prisma.PlatformInvitationOrderByWithRelationInput | Prisma.PlatformInvitationOrderByWithRelationInput[]
+  cursor?: Prisma.PlatformInvitationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PlatformInvitationScalarFieldEnum | Prisma.PlatformInvitationScalarFieldEnum[]
 }
 
 /**

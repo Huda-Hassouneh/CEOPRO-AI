@@ -43,6 +43,8 @@ export type Competitor_pricesMinAggregateOutputType = {
   currency: string | null
   is_available: boolean | null
   observed_at: Date | null
+  source_status: string | null
+  is_exact_data: boolean | null
 }
 
 export type Competitor_pricesMaxAggregateOutputType = {
@@ -53,6 +55,8 @@ export type Competitor_pricesMaxAggregateOutputType = {
   currency: string | null
   is_available: boolean | null
   observed_at: Date | null
+  source_status: string | null
+  is_exact_data: boolean | null
 }
 
 export type Competitor_pricesCountAggregateOutputType = {
@@ -63,6 +67,8 @@ export type Competitor_pricesCountAggregateOutputType = {
   currency: number
   is_available: number
   observed_at: number
+  source_status: number
+  is_exact_data: number
   _all: number
 }
 
@@ -83,6 +89,8 @@ export type Competitor_pricesMinAggregateInputType = {
   currency?: true
   is_available?: true
   observed_at?: true
+  source_status?: true
+  is_exact_data?: true
 }
 
 export type Competitor_pricesMaxAggregateInputType = {
@@ -93,6 +101,8 @@ export type Competitor_pricesMaxAggregateInputType = {
   currency?: true
   is_available?: true
   observed_at?: true
+  source_status?: true
+  is_exact_data?: true
 }
 
 export type Competitor_pricesCountAggregateInputType = {
@@ -103,6 +113,8 @@ export type Competitor_pricesCountAggregateInputType = {
   currency?: true
   is_available?: true
   observed_at?: true
+  source_status?: true
+  is_exact_data?: true
   _all?: true
 }
 
@@ -200,6 +212,8 @@ export type Competitor_pricesGroupByOutputType = {
   currency: string
   is_available: boolean
   observed_at: Date
+  source_status: string
+  is_exact_data: boolean
   _count: Competitor_pricesCountAggregateOutputType | null
   _avg: Competitor_pricesAvgAggregateOutputType | null
   _sum: Competitor_pricesSumAggregateOutputType | null
@@ -233,6 +247,8 @@ export type competitor_pricesWhereInput = {
   currency?: Prisma.StringFilter<"competitor_prices"> | string
   is_available?: Prisma.BoolFilter<"competitor_prices"> | boolean
   observed_at?: Prisma.DateTimeFilter<"competitor_prices"> | Date | string
+  source_status?: Prisma.StringFilter<"competitor_prices"> | string
+  is_exact_data?: Prisma.BoolFilter<"competitor_prices"> | boolean
   competitor_product_mappings?: Prisma.XOR<Prisma.Competitor_product_mappingsScalarRelationFilter, Prisma.competitor_product_mappingsWhereInput>
 }
 
@@ -244,6 +260,8 @@ export type competitor_pricesOrderByWithRelationInput = {
   currency?: Prisma.SortOrder
   is_available?: Prisma.SortOrder
   observed_at?: Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  is_exact_data?: Prisma.SortOrder
   competitor_product_mappings?: Prisma.competitor_product_mappingsOrderByWithRelationInput
 }
 
@@ -258,6 +276,8 @@ export type competitor_pricesWhereUniqueInput = Prisma.AtLeast<{
   currency?: Prisma.StringFilter<"competitor_prices"> | string
   is_available?: Prisma.BoolFilter<"competitor_prices"> | boolean
   observed_at?: Prisma.DateTimeFilter<"competitor_prices"> | Date | string
+  source_status?: Prisma.StringFilter<"competitor_prices"> | string
+  is_exact_data?: Prisma.BoolFilter<"competitor_prices"> | boolean
   competitor_product_mappings?: Prisma.XOR<Prisma.Competitor_product_mappingsScalarRelationFilter, Prisma.competitor_product_mappingsWhereInput>
 }, "competitor_price_id">
 
@@ -269,6 +289,8 @@ export type competitor_pricesOrderByWithAggregationInput = {
   currency?: Prisma.SortOrder
   is_available?: Prisma.SortOrder
   observed_at?: Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  is_exact_data?: Prisma.SortOrder
   _count?: Prisma.competitor_pricesCountOrderByAggregateInput
   _avg?: Prisma.competitor_pricesAvgOrderByAggregateInput
   _max?: Prisma.competitor_pricesMaxOrderByAggregateInput
@@ -287,6 +309,8 @@ export type competitor_pricesScalarWhereWithAggregatesInput = {
   currency?: Prisma.StringWithAggregatesFilter<"competitor_prices"> | string
   is_available?: Prisma.BoolWithAggregatesFilter<"competitor_prices"> | boolean
   observed_at?: Prisma.DateTimeWithAggregatesFilter<"competitor_prices"> | Date | string
+  source_status?: Prisma.StringWithAggregatesFilter<"competitor_prices"> | string
+  is_exact_data?: Prisma.BoolWithAggregatesFilter<"competitor_prices"> | boolean
 }
 
 export type competitor_pricesCreateInput = {
@@ -295,6 +319,8 @@ export type competitor_pricesCreateInput = {
   currency: string
   is_available?: boolean
   observed_at?: Date | string
+  source_status?: string
+  is_exact_data?: boolean
   competitor_product_mappings: Prisma.competitor_product_mappingsCreateNestedOneWithoutCompetitor_pricesInput
 }
 
@@ -306,6 +332,8 @@ export type competitor_pricesUncheckedCreateInput = {
   currency: string
   is_available?: boolean
   observed_at?: Date | string
+  source_status?: string
+  is_exact_data?: boolean
 }
 
 export type competitor_pricesUpdateInput = {
@@ -314,6 +342,8 @@ export type competitor_pricesUpdateInput = {
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   is_available?: Prisma.BoolFieldUpdateOperationsInput | boolean
   observed_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  is_exact_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateOneRequiredWithoutCompetitor_pricesNestedInput
 }
 
@@ -325,6 +355,8 @@ export type competitor_pricesUncheckedUpdateInput = {
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   is_available?: Prisma.BoolFieldUpdateOperationsInput | boolean
   observed_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  is_exact_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type competitor_pricesCreateManyInput = {
@@ -335,6 +367,8 @@ export type competitor_pricesCreateManyInput = {
   currency: string
   is_available?: boolean
   observed_at?: Date | string
+  source_status?: string
+  is_exact_data?: boolean
 }
 
 export type competitor_pricesUpdateManyMutationInput = {
@@ -343,6 +377,8 @@ export type competitor_pricesUpdateManyMutationInput = {
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   is_available?: Prisma.BoolFieldUpdateOperationsInput | boolean
   observed_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  is_exact_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type competitor_pricesUncheckedUpdateManyInput = {
@@ -353,6 +389,8 @@ export type competitor_pricesUncheckedUpdateManyInput = {
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   is_available?: Prisma.BoolFieldUpdateOperationsInput | boolean
   observed_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  is_exact_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type competitor_pricesCountOrderByAggregateInput = {
@@ -363,6 +401,8 @@ export type competitor_pricesCountOrderByAggregateInput = {
   currency?: Prisma.SortOrder
   is_available?: Prisma.SortOrder
   observed_at?: Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  is_exact_data?: Prisma.SortOrder
 }
 
 export type competitor_pricesAvgOrderByAggregateInput = {
@@ -377,6 +417,8 @@ export type competitor_pricesMaxOrderByAggregateInput = {
   currency?: Prisma.SortOrder
   is_available?: Prisma.SortOrder
   observed_at?: Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  is_exact_data?: Prisma.SortOrder
 }
 
 export type competitor_pricesMinOrderByAggregateInput = {
@@ -387,6 +429,8 @@ export type competitor_pricesMinOrderByAggregateInput = {
   currency?: Prisma.SortOrder
   is_available?: Prisma.SortOrder
   observed_at?: Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  is_exact_data?: Prisma.SortOrder
 }
 
 export type competitor_pricesSumOrderByAggregateInput = {
@@ -451,6 +495,8 @@ export type competitor_pricesCreateWithoutCompetitor_product_mappingsInput = {
   currency: string
   is_available?: boolean
   observed_at?: Date | string
+  source_status?: string
+  is_exact_data?: boolean
 }
 
 export type competitor_pricesUncheckedCreateWithoutCompetitor_product_mappingsInput = {
@@ -459,6 +505,8 @@ export type competitor_pricesUncheckedCreateWithoutCompetitor_product_mappingsIn
   currency: string
   is_available?: boolean
   observed_at?: Date | string
+  source_status?: string
+  is_exact_data?: boolean
 }
 
 export type competitor_pricesCreateOrConnectWithoutCompetitor_product_mappingsInput = {
@@ -498,6 +546,8 @@ export type competitor_pricesScalarWhereInput = {
   currency?: Prisma.StringFilter<"competitor_prices"> | string
   is_available?: Prisma.BoolFilter<"competitor_prices"> | boolean
   observed_at?: Prisma.DateTimeFilter<"competitor_prices"> | Date | string
+  source_status?: Prisma.StringFilter<"competitor_prices"> | string
+  is_exact_data?: Prisma.BoolFilter<"competitor_prices"> | boolean
 }
 
 export type competitor_pricesCreateManyCompetitor_product_mappingsInput = {
@@ -506,6 +556,8 @@ export type competitor_pricesCreateManyCompetitor_product_mappingsInput = {
   currency: string
   is_available?: boolean
   observed_at?: Date | string
+  source_status?: string
+  is_exact_data?: boolean
 }
 
 export type competitor_pricesUpdateWithoutCompetitor_product_mappingsInput = {
@@ -514,6 +566,8 @@ export type competitor_pricesUpdateWithoutCompetitor_product_mappingsInput = {
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   is_available?: Prisma.BoolFieldUpdateOperationsInput | boolean
   observed_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  is_exact_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type competitor_pricesUncheckedUpdateWithoutCompetitor_product_mappingsInput = {
@@ -522,6 +576,8 @@ export type competitor_pricesUncheckedUpdateWithoutCompetitor_product_mappingsIn
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   is_available?: Prisma.BoolFieldUpdateOperationsInput | boolean
   observed_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  is_exact_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappingsInput = {
@@ -530,6 +586,8 @@ export type competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappin
   currency?: Prisma.StringFieldUpdateOperationsInput | string
   is_available?: Prisma.BoolFieldUpdateOperationsInput | boolean
   observed_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  is_exact_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 
@@ -542,6 +600,8 @@ export type competitor_pricesSelect<ExtArgs extends runtime.Types.Extensions.Int
   currency?: boolean
   is_available?: boolean
   observed_at?: boolean
+  source_status?: boolean
+  is_exact_data?: boolean
   competitor_product_mappings?: boolean | Prisma.competitor_product_mappingsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["competitor_prices"]>
 
@@ -553,6 +613,8 @@ export type competitor_pricesSelectCreateManyAndReturn<ExtArgs extends runtime.T
   currency?: boolean
   is_available?: boolean
   observed_at?: boolean
+  source_status?: boolean
+  is_exact_data?: boolean
   competitor_product_mappings?: boolean | Prisma.competitor_product_mappingsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["competitor_prices"]>
 
@@ -564,6 +626,8 @@ export type competitor_pricesSelectUpdateManyAndReturn<ExtArgs extends runtime.T
   currency?: boolean
   is_available?: boolean
   observed_at?: boolean
+  source_status?: boolean
+  is_exact_data?: boolean
   competitor_product_mappings?: boolean | Prisma.competitor_product_mappingsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["competitor_prices"]>
 
@@ -575,9 +639,11 @@ export type competitor_pricesSelectScalar = {
   currency?: boolean
   is_available?: boolean
   observed_at?: boolean
+  source_status?: boolean
+  is_exact_data?: boolean
 }
 
-export type competitor_pricesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"competitor_price_id" | "tenant_id" | "mapping_id" | "scraped_price" | "currency" | "is_available" | "observed_at", ExtArgs["result"]["competitor_prices"]>
+export type competitor_pricesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"competitor_price_id" | "tenant_id" | "mapping_id" | "scraped_price" | "currency" | "is_available" | "observed_at" | "source_status" | "is_exact_data", ExtArgs["result"]["competitor_prices"]>
 export type competitor_pricesInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   competitor_product_mappings?: boolean | Prisma.competitor_product_mappingsDefaultArgs<ExtArgs>
 }
@@ -601,6 +667,8 @@ export type $competitor_pricesPayload<ExtArgs extends runtime.Types.Extensions.I
     currency: string
     is_available: boolean
     observed_at: Date
+    source_status: string
+    is_exact_data: boolean
   }, ExtArgs["result"]["competitor_prices"]>
   composites: {}
 }
@@ -1032,6 +1100,8 @@ export interface competitor_pricesFieldRefs {
   readonly currency: Prisma.FieldRef<"competitor_prices", 'String'>
   readonly is_available: Prisma.FieldRef<"competitor_prices", 'Boolean'>
   readonly observed_at: Prisma.FieldRef<"competitor_prices", 'DateTime'>
+  readonly source_status: Prisma.FieldRef<"competitor_prices", 'String'>
+  readonly is_exact_data: Prisma.FieldRef<"competitor_prices", 'Boolean'>
 }
     
 

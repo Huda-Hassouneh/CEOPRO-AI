@@ -20,8 +20,18 @@ export type tenant_competitorsModel = runtime.Types.Result.DefaultSelection<Pris
 
 export type AggregateTenant_competitors = {
   _count: Tenant_competitorsCountAggregateOutputType | null
+  _avg: Tenant_competitorsAvgAggregateOutputType | null
+  _sum: Tenant_competitorsSumAggregateOutputType | null
   _min: Tenant_competitorsMinAggregateOutputType | null
   _max: Tenant_competitorsMaxAggregateOutputType | null
+}
+
+export type Tenant_competitorsAvgAggregateOutputType = {
+  product_match_rate: runtime.Decimal | null
+}
+
+export type Tenant_competitorsSumAggregateOutputType = {
+  product_match_rate: runtime.Decimal | null
 }
 
 export type Tenant_competitorsMinAggregateOutputType = {
@@ -30,6 +40,10 @@ export type Tenant_competitorsMinAggregateOutputType = {
   custom_alias: string | null
   is_tracked: boolean | null
   added_at: Date | null
+  product_match_rate: runtime.Decimal | null
+  is_confirmed_competitor: boolean | null
+  classified_at: Date | null
+  tier: string | null
 }
 
 export type Tenant_competitorsMaxAggregateOutputType = {
@@ -38,6 +52,10 @@ export type Tenant_competitorsMaxAggregateOutputType = {
   custom_alias: string | null
   is_tracked: boolean | null
   added_at: Date | null
+  product_match_rate: runtime.Decimal | null
+  is_confirmed_competitor: boolean | null
+  classified_at: Date | null
+  tier: string | null
 }
 
 export type Tenant_competitorsCountAggregateOutputType = {
@@ -46,9 +64,21 @@ export type Tenant_competitorsCountAggregateOutputType = {
   custom_alias: number
   is_tracked: number
   added_at: number
+  product_match_rate: number
+  is_confirmed_competitor: number
+  classified_at: number
+  tier: number
   _all: number
 }
 
+
+export type Tenant_competitorsAvgAggregateInputType = {
+  product_match_rate?: true
+}
+
+export type Tenant_competitorsSumAggregateInputType = {
+  product_match_rate?: true
+}
 
 export type Tenant_competitorsMinAggregateInputType = {
   tenant_id?: true
@@ -56,6 +86,10 @@ export type Tenant_competitorsMinAggregateInputType = {
   custom_alias?: true
   is_tracked?: true
   added_at?: true
+  product_match_rate?: true
+  is_confirmed_competitor?: true
+  classified_at?: true
+  tier?: true
 }
 
 export type Tenant_competitorsMaxAggregateInputType = {
@@ -64,6 +98,10 @@ export type Tenant_competitorsMaxAggregateInputType = {
   custom_alias?: true
   is_tracked?: true
   added_at?: true
+  product_match_rate?: true
+  is_confirmed_competitor?: true
+  classified_at?: true
+  tier?: true
 }
 
 export type Tenant_competitorsCountAggregateInputType = {
@@ -72,6 +110,10 @@ export type Tenant_competitorsCountAggregateInputType = {
   custom_alias?: true
   is_tracked?: true
   added_at?: true
+  product_match_rate?: true
+  is_confirmed_competitor?: true
+  classified_at?: true
+  tier?: true
   _all?: true
 }
 
@@ -113,6 +155,18 @@ export type Tenant_competitorsAggregateArgs<ExtArgs extends runtime.Types.Extens
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: Tenant_competitorsAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: Tenant_competitorsSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: Tenant_competitorsMinAggregateInputType
@@ -143,6 +197,8 @@ export type tenant_competitorsGroupByArgs<ExtArgs extends runtime.Types.Extensio
   take?: number
   skip?: number
   _count?: Tenant_competitorsCountAggregateInputType | true
+  _avg?: Tenant_competitorsAvgAggregateInputType
+  _sum?: Tenant_competitorsSumAggregateInputType
   _min?: Tenant_competitorsMinAggregateInputType
   _max?: Tenant_competitorsMaxAggregateInputType
 }
@@ -153,7 +209,13 @@ export type Tenant_competitorsGroupByOutputType = {
   custom_alias: string | null
   is_tracked: boolean
   added_at: Date | null
+  product_match_rate: runtime.Decimal | null
+  is_confirmed_competitor: boolean
+  classified_at: Date | null
+  tier: string
   _count: Tenant_competitorsCountAggregateOutputType | null
+  _avg: Tenant_competitorsAvgAggregateOutputType | null
+  _sum: Tenant_competitorsSumAggregateOutputType | null
   _min: Tenant_competitorsMinAggregateOutputType | null
   _max: Tenant_competitorsMaxAggregateOutputType | null
 }
@@ -182,7 +244,15 @@ export type tenant_competitorsWhereInput = {
   custom_alias?: Prisma.StringNullableFilter<"tenant_competitors"> | string | null
   is_tracked?: Prisma.BoolFilter<"tenant_competitors"> | boolean
   added_at?: Prisma.DateTimeNullableFilter<"tenant_competitors"> | Date | string | null
+  product_match_rate?: Prisma.DecimalNullableFilter<"tenant_competitors"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFilter<"tenant_competitors"> | boolean
+  classified_at?: Prisma.DateTimeNullableFilter<"tenant_competitors"> | Date | string | null
+  tier?: Prisma.StringFilter<"tenant_competitors"> | string
   competitor_product_mappings?: Prisma.Competitor_product_mappingsListRelationFilter
+  competitor_score_snapshots?: Prisma.Competitor_score_snapshotsListRelationFilter
+  market_alert_rules?: Prisma.Market_alert_rulesListRelationFilter
+  market_events?: Prisma.Market_eventsListRelationFilter
+  reviews?: Prisma.ReviewsListRelationFilter
   global_competitors?: Prisma.XOR<Prisma.Global_competitorsScalarRelationFilter, Prisma.global_competitorsWhereInput>
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
 }
@@ -193,7 +263,15 @@ export type tenant_competitorsOrderByWithRelationInput = {
   custom_alias?: Prisma.SortOrderInput | Prisma.SortOrder
   is_tracked?: Prisma.SortOrder
   added_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  product_match_rate?: Prisma.SortOrderInput | Prisma.SortOrder
+  is_confirmed_competitor?: Prisma.SortOrder
+  classified_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  tier?: Prisma.SortOrder
   competitor_product_mappings?: Prisma.competitor_product_mappingsOrderByRelationAggregateInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsOrderByRelationAggregateInput
+  market_alert_rules?: Prisma.market_alert_rulesOrderByRelationAggregateInput
+  market_events?: Prisma.market_eventsOrderByRelationAggregateInput
+  reviews?: Prisma.reviewsOrderByRelationAggregateInput
   global_competitors?: Prisma.global_competitorsOrderByWithRelationInput
   companies?: Prisma.CompanyOrderByWithRelationInput
 }
@@ -208,7 +286,15 @@ export type tenant_competitorsWhereUniqueInput = Prisma.AtLeast<{
   custom_alias?: Prisma.StringNullableFilter<"tenant_competitors"> | string | null
   is_tracked?: Prisma.BoolFilter<"tenant_competitors"> | boolean
   added_at?: Prisma.DateTimeNullableFilter<"tenant_competitors"> | Date | string | null
+  product_match_rate?: Prisma.DecimalNullableFilter<"tenant_competitors"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFilter<"tenant_competitors"> | boolean
+  classified_at?: Prisma.DateTimeNullableFilter<"tenant_competitors"> | Date | string | null
+  tier?: Prisma.StringFilter<"tenant_competitors"> | string
   competitor_product_mappings?: Prisma.Competitor_product_mappingsListRelationFilter
+  competitor_score_snapshots?: Prisma.Competitor_score_snapshotsListRelationFilter
+  market_alert_rules?: Prisma.Market_alert_rulesListRelationFilter
+  market_events?: Prisma.Market_eventsListRelationFilter
+  reviews?: Prisma.ReviewsListRelationFilter
   global_competitors?: Prisma.XOR<Prisma.Global_competitorsScalarRelationFilter, Prisma.global_competitorsWhereInput>
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
 }, "tenant_id_global_competitor_id">
@@ -219,9 +305,15 @@ export type tenant_competitorsOrderByWithAggregationInput = {
   custom_alias?: Prisma.SortOrderInput | Prisma.SortOrder
   is_tracked?: Prisma.SortOrder
   added_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  product_match_rate?: Prisma.SortOrderInput | Prisma.SortOrder
+  is_confirmed_competitor?: Prisma.SortOrder
+  classified_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  tier?: Prisma.SortOrder
   _count?: Prisma.tenant_competitorsCountOrderByAggregateInput
+  _avg?: Prisma.tenant_competitorsAvgOrderByAggregateInput
   _max?: Prisma.tenant_competitorsMaxOrderByAggregateInput
   _min?: Prisma.tenant_competitorsMinOrderByAggregateInput
+  _sum?: Prisma.tenant_competitorsSumOrderByAggregateInput
 }
 
 export type tenant_competitorsScalarWhereWithAggregatesInput = {
@@ -233,13 +325,25 @@ export type tenant_competitorsScalarWhereWithAggregatesInput = {
   custom_alias?: Prisma.StringNullableWithAggregatesFilter<"tenant_competitors"> | string | null
   is_tracked?: Prisma.BoolWithAggregatesFilter<"tenant_competitors"> | boolean
   added_at?: Prisma.DateTimeNullableWithAggregatesFilter<"tenant_competitors"> | Date | string | null
+  product_match_rate?: Prisma.DecimalNullableWithAggregatesFilter<"tenant_competitors"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolWithAggregatesFilter<"tenant_competitors"> | boolean
+  classified_at?: Prisma.DateTimeNullableWithAggregatesFilter<"tenant_competitors"> | Date | string | null
+  tier?: Prisma.StringWithAggregatesFilter<"tenant_competitors"> | string
 }
 
 export type tenant_competitorsCreateInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutTenant_competitorsInput
   global_competitors: Prisma.global_competitorsCreateNestedOneWithoutTenant_competitorsInput
   companies: Prisma.CompanyCreateNestedOneWithoutTenant_competitorsInput
 }
@@ -250,14 +354,30 @@ export type tenant_competitorsUncheckedCreateInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutTenant_competitorsInput
 }
 
 export type tenant_competitorsUpdateInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutTenant_competitorsNestedInput
   global_competitors?: Prisma.global_competitorsUpdateOneRequiredWithoutTenant_competitorsNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutTenant_competitorsNestedInput
 }
@@ -268,7 +388,15 @@ export type tenant_competitorsUncheckedUpdateInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
 }
 
 export type tenant_competitorsCreateManyInput = {
@@ -277,12 +405,20 @@ export type tenant_competitorsCreateManyInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
 }
 
 export type tenant_competitorsUpdateManyMutationInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type tenant_competitorsUncheckedUpdateManyInput = {
@@ -291,6 +427,10 @@ export type tenant_competitorsUncheckedUpdateManyInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type Tenant_competitorsListRelationFilter = {
@@ -308,6 +448,11 @@ export type Tenant_competitorsScalarRelationFilter = {
   isNot?: Prisma.tenant_competitorsWhereInput
 }
 
+export type Tenant_competitorsNullableScalarRelationFilter = {
+  is?: Prisma.tenant_competitorsWhereInput | null
+  isNot?: Prisma.tenant_competitorsWhereInput | null
+}
+
 export type tenant_competitorsTenant_idGlobal_competitor_idCompoundUniqueInput = {
   tenant_id: string
   global_competitor_id: string
@@ -319,6 +464,14 @@ export type tenant_competitorsCountOrderByAggregateInput = {
   custom_alias?: Prisma.SortOrder
   is_tracked?: Prisma.SortOrder
   added_at?: Prisma.SortOrder
+  product_match_rate?: Prisma.SortOrder
+  is_confirmed_competitor?: Prisma.SortOrder
+  classified_at?: Prisma.SortOrder
+  tier?: Prisma.SortOrder
+}
+
+export type tenant_competitorsAvgOrderByAggregateInput = {
+  product_match_rate?: Prisma.SortOrder
 }
 
 export type tenant_competitorsMaxOrderByAggregateInput = {
@@ -327,6 +480,10 @@ export type tenant_competitorsMaxOrderByAggregateInput = {
   custom_alias?: Prisma.SortOrder
   is_tracked?: Prisma.SortOrder
   added_at?: Prisma.SortOrder
+  product_match_rate?: Prisma.SortOrder
+  is_confirmed_competitor?: Prisma.SortOrder
+  classified_at?: Prisma.SortOrder
+  tier?: Prisma.SortOrder
 }
 
 export type tenant_competitorsMinOrderByAggregateInput = {
@@ -335,6 +492,14 @@ export type tenant_competitorsMinOrderByAggregateInput = {
   custom_alias?: Prisma.SortOrder
   is_tracked?: Prisma.SortOrder
   added_at?: Prisma.SortOrder
+  product_match_rate?: Prisma.SortOrder
+  is_confirmed_competitor?: Prisma.SortOrder
+  classified_at?: Prisma.SortOrder
+  tier?: Prisma.SortOrder
+}
+
+export type tenant_competitorsSumOrderByAggregateInput = {
+  product_match_rate?: Prisma.SortOrder
 }
 
 export type tenant_competitorsCreateNestedManyWithoutCompaniesInput = {
@@ -435,11 +600,77 @@ export type tenant_competitorsUncheckedUpdateManyWithoutGlobal_competitorsNested
   deleteMany?: Prisma.tenant_competitorsScalarWhereInput | Prisma.tenant_competitorsScalarWhereInput[]
 }
 
+export type tenant_competitorsCreateNestedOneWithoutReviewsInput = {
+  create?: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutReviewsInput, Prisma.tenant_competitorsUncheckedCreateWithoutReviewsInput>
+  connectOrCreate?: Prisma.tenant_competitorsCreateOrConnectWithoutReviewsInput
+  connect?: Prisma.tenant_competitorsWhereUniqueInput
+}
+
+export type tenant_competitorsUpdateOneWithoutReviewsNestedInput = {
+  create?: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutReviewsInput, Prisma.tenant_competitorsUncheckedCreateWithoutReviewsInput>
+  connectOrCreate?: Prisma.tenant_competitorsCreateOrConnectWithoutReviewsInput
+  upsert?: Prisma.tenant_competitorsUpsertWithoutReviewsInput
+  disconnect?: Prisma.tenant_competitorsWhereInput | boolean
+  delete?: Prisma.tenant_competitorsWhereInput | boolean
+  connect?: Prisma.tenant_competitorsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.tenant_competitorsUpdateToOneWithWhereWithoutReviewsInput, Prisma.tenant_competitorsUpdateWithoutReviewsInput>, Prisma.tenant_competitorsUncheckedUpdateWithoutReviewsInput>
+}
+
+export type tenant_competitorsCreateNestedOneWithoutCompetitor_score_snapshotsInput = {
+  create?: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutCompetitor_score_snapshotsInput, Prisma.tenant_competitorsUncheckedCreateWithoutCompetitor_score_snapshotsInput>
+  connectOrCreate?: Prisma.tenant_competitorsCreateOrConnectWithoutCompetitor_score_snapshotsInput
+  connect?: Prisma.tenant_competitorsWhereUniqueInput
+}
+
+export type tenant_competitorsUpdateOneRequiredWithoutCompetitor_score_snapshotsNestedInput = {
+  create?: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutCompetitor_score_snapshotsInput, Prisma.tenant_competitorsUncheckedCreateWithoutCompetitor_score_snapshotsInput>
+  connectOrCreate?: Prisma.tenant_competitorsCreateOrConnectWithoutCompetitor_score_snapshotsInput
+  upsert?: Prisma.tenant_competitorsUpsertWithoutCompetitor_score_snapshotsInput
+  connect?: Prisma.tenant_competitorsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.tenant_competitorsUpdateToOneWithWhereWithoutCompetitor_score_snapshotsInput, Prisma.tenant_competitorsUpdateWithoutCompetitor_score_snapshotsInput>, Prisma.tenant_competitorsUncheckedUpdateWithoutCompetitor_score_snapshotsInput>
+}
+
+export type tenant_competitorsCreateNestedOneWithoutMarket_alert_rulesInput = {
+  create?: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutMarket_alert_rulesInput, Prisma.tenant_competitorsUncheckedCreateWithoutMarket_alert_rulesInput>
+  connectOrCreate?: Prisma.tenant_competitorsCreateOrConnectWithoutMarket_alert_rulesInput
+  connect?: Prisma.tenant_competitorsWhereUniqueInput
+}
+
+export type tenant_competitorsUpdateOneRequiredWithoutMarket_alert_rulesNestedInput = {
+  create?: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutMarket_alert_rulesInput, Prisma.tenant_competitorsUncheckedCreateWithoutMarket_alert_rulesInput>
+  connectOrCreate?: Prisma.tenant_competitorsCreateOrConnectWithoutMarket_alert_rulesInput
+  upsert?: Prisma.tenant_competitorsUpsertWithoutMarket_alert_rulesInput
+  connect?: Prisma.tenant_competitorsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.tenant_competitorsUpdateToOneWithWhereWithoutMarket_alert_rulesInput, Prisma.tenant_competitorsUpdateWithoutMarket_alert_rulesInput>, Prisma.tenant_competitorsUncheckedUpdateWithoutMarket_alert_rulesInput>
+}
+
+export type tenant_competitorsCreateNestedOneWithoutMarket_eventsInput = {
+  create?: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutMarket_eventsInput, Prisma.tenant_competitorsUncheckedCreateWithoutMarket_eventsInput>
+  connectOrCreate?: Prisma.tenant_competitorsCreateOrConnectWithoutMarket_eventsInput
+  connect?: Prisma.tenant_competitorsWhereUniqueInput
+}
+
+export type tenant_competitorsUpdateOneRequiredWithoutMarket_eventsNestedInput = {
+  create?: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutMarket_eventsInput, Prisma.tenant_competitorsUncheckedCreateWithoutMarket_eventsInput>
+  connectOrCreate?: Prisma.tenant_competitorsCreateOrConnectWithoutMarket_eventsInput
+  upsert?: Prisma.tenant_competitorsUpsertWithoutMarket_eventsInput
+  connect?: Prisma.tenant_competitorsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.tenant_competitorsUpdateToOneWithWhereWithoutMarket_eventsInput, Prisma.tenant_competitorsUpdateWithoutMarket_eventsInput>, Prisma.tenant_competitorsUncheckedUpdateWithoutMarket_eventsInput>
+}
+
 export type tenant_competitorsCreateWithoutCompaniesInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutTenant_competitorsInput
   global_competitors: Prisma.global_competitorsCreateNestedOneWithoutTenant_competitorsInput
 }
 
@@ -448,7 +679,15 @@ export type tenant_competitorsUncheckedCreateWithoutCompaniesInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutTenant_competitorsInput
 }
 
 export type tenant_competitorsCreateOrConnectWithoutCompaniesInput = {
@@ -486,12 +725,24 @@ export type tenant_competitorsScalarWhereInput = {
   custom_alias?: Prisma.StringNullableFilter<"tenant_competitors"> | string | null
   is_tracked?: Prisma.BoolFilter<"tenant_competitors"> | boolean
   added_at?: Prisma.DateTimeNullableFilter<"tenant_competitors"> | Date | string | null
+  product_match_rate?: Prisma.DecimalNullableFilter<"tenant_competitors"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFilter<"tenant_competitors"> | boolean
+  classified_at?: Prisma.DateTimeNullableFilter<"tenant_competitors"> | Date | string | null
+  tier?: Prisma.StringFilter<"tenant_competitors"> | string
 }
 
 export type tenant_competitorsCreateWithoutCompetitor_product_mappingsInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutTenant_competitorsInput
   global_competitors: Prisma.global_competitorsCreateNestedOneWithoutTenant_competitorsInput
   companies: Prisma.CompanyCreateNestedOneWithoutTenant_competitorsInput
 }
@@ -502,6 +753,14 @@ export type tenant_competitorsUncheckedCreateWithoutCompetitor_product_mappingsI
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutTenant_competitorsInput
 }
 
 export type tenant_competitorsCreateOrConnectWithoutCompetitor_product_mappingsInput = {
@@ -524,6 +783,14 @@ export type tenant_competitorsUpdateWithoutCompetitor_product_mappingsInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutTenant_competitorsNestedInput
   global_competitors?: Prisma.global_competitorsUpdateOneRequiredWithoutTenant_competitorsNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutTenant_competitorsNestedInput
 }
@@ -534,13 +801,29 @@ export type tenant_competitorsUncheckedUpdateWithoutCompetitor_product_mappingsI
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
 }
 
 export type tenant_competitorsCreateWithoutGlobal_competitorsInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutTenant_competitorsInput
   companies: Prisma.CompanyCreateNestedOneWithoutTenant_competitorsInput
 }
 
@@ -549,7 +832,15 @@ export type tenant_competitorsUncheckedCreateWithoutGlobal_competitorsInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutTenant_competitorsInput
 }
 
 export type tenant_competitorsCreateOrConnectWithoutGlobal_competitorsInput = {
@@ -578,18 +869,350 @@ export type tenant_competitorsUpdateManyWithWhereWithoutGlobal_competitorsInput 
   data: Prisma.XOR<Prisma.tenant_competitorsUpdateManyMutationInput, Prisma.tenant_competitorsUncheckedUpdateManyWithoutGlobal_competitorsInput>
 }
 
+export type tenant_competitorsCreateWithoutReviewsInput = {
+  custom_alias?: string | null
+  is_tracked?: boolean
+  added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutTenant_competitorsInput
+  global_competitors: Prisma.global_competitorsCreateNestedOneWithoutTenant_competitorsInput
+  companies: Prisma.CompanyCreateNestedOneWithoutTenant_competitorsInput
+}
+
+export type tenant_competitorsUncheckedCreateWithoutReviewsInput = {
+  tenant_id: string
+  global_competitor_id: string
+  custom_alias?: string | null
+  is_tracked?: boolean
+  added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+}
+
+export type tenant_competitorsCreateOrConnectWithoutReviewsInput = {
+  where: Prisma.tenant_competitorsWhereUniqueInput
+  create: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutReviewsInput, Prisma.tenant_competitorsUncheckedCreateWithoutReviewsInput>
+}
+
+export type tenant_competitorsUpsertWithoutReviewsInput = {
+  update: Prisma.XOR<Prisma.tenant_competitorsUpdateWithoutReviewsInput, Prisma.tenant_competitorsUncheckedUpdateWithoutReviewsInput>
+  create: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutReviewsInput, Prisma.tenant_competitorsUncheckedCreateWithoutReviewsInput>
+  where?: Prisma.tenant_competitorsWhereInput
+}
+
+export type tenant_competitorsUpdateToOneWithWhereWithoutReviewsInput = {
+  where?: Prisma.tenant_competitorsWhereInput
+  data: Prisma.XOR<Prisma.tenant_competitorsUpdateWithoutReviewsInput, Prisma.tenant_competitorsUncheckedUpdateWithoutReviewsInput>
+}
+
+export type tenant_competitorsUpdateWithoutReviewsInput = {
+  custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutTenant_competitorsNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateOneRequiredWithoutTenant_competitorsNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutTenant_competitorsNestedInput
+}
+
+export type tenant_competitorsUncheckedUpdateWithoutReviewsInput = {
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+}
+
+export type tenant_competitorsCreateWithoutCompetitor_score_snapshotsInput = {
+  custom_alias?: string | null
+  is_tracked?: boolean
+  added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutTenant_competitorsInput
+  global_competitors: Prisma.global_competitorsCreateNestedOneWithoutTenant_competitorsInput
+  companies: Prisma.CompanyCreateNestedOneWithoutTenant_competitorsInput
+}
+
+export type tenant_competitorsUncheckedCreateWithoutCompetitor_score_snapshotsInput = {
+  tenant_id: string
+  global_competitor_id: string
+  custom_alias?: string | null
+  is_tracked?: boolean
+  added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+}
+
+export type tenant_competitorsCreateOrConnectWithoutCompetitor_score_snapshotsInput = {
+  where: Prisma.tenant_competitorsWhereUniqueInput
+  create: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutCompetitor_score_snapshotsInput, Prisma.tenant_competitorsUncheckedCreateWithoutCompetitor_score_snapshotsInput>
+}
+
+export type tenant_competitorsUpsertWithoutCompetitor_score_snapshotsInput = {
+  update: Prisma.XOR<Prisma.tenant_competitorsUpdateWithoutCompetitor_score_snapshotsInput, Prisma.tenant_competitorsUncheckedUpdateWithoutCompetitor_score_snapshotsInput>
+  create: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutCompetitor_score_snapshotsInput, Prisma.tenant_competitorsUncheckedCreateWithoutCompetitor_score_snapshotsInput>
+  where?: Prisma.tenant_competitorsWhereInput
+}
+
+export type tenant_competitorsUpdateToOneWithWhereWithoutCompetitor_score_snapshotsInput = {
+  where?: Prisma.tenant_competitorsWhereInput
+  data: Prisma.XOR<Prisma.tenant_competitorsUpdateWithoutCompetitor_score_snapshotsInput, Prisma.tenant_competitorsUncheckedUpdateWithoutCompetitor_score_snapshotsInput>
+}
+
+export type tenant_competitorsUpdateWithoutCompetitor_score_snapshotsInput = {
+  custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutTenant_competitorsNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateOneRequiredWithoutTenant_competitorsNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutTenant_competitorsNestedInput
+}
+
+export type tenant_competitorsUncheckedUpdateWithoutCompetitor_score_snapshotsInput = {
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+}
+
+export type tenant_competitorsCreateWithoutMarket_alert_rulesInput = {
+  custom_alias?: string | null
+  is_tracked?: boolean
+  added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutTenant_competitorsInput
+  global_competitors: Prisma.global_competitorsCreateNestedOneWithoutTenant_competitorsInput
+  companies: Prisma.CompanyCreateNestedOneWithoutTenant_competitorsInput
+}
+
+export type tenant_competitorsUncheckedCreateWithoutMarket_alert_rulesInput = {
+  tenant_id: string
+  global_competitor_id: string
+  custom_alias?: string | null
+  is_tracked?: boolean
+  added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+}
+
+export type tenant_competitorsCreateOrConnectWithoutMarket_alert_rulesInput = {
+  where: Prisma.tenant_competitorsWhereUniqueInput
+  create: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutMarket_alert_rulesInput, Prisma.tenant_competitorsUncheckedCreateWithoutMarket_alert_rulesInput>
+}
+
+export type tenant_competitorsUpsertWithoutMarket_alert_rulesInput = {
+  update: Prisma.XOR<Prisma.tenant_competitorsUpdateWithoutMarket_alert_rulesInput, Prisma.tenant_competitorsUncheckedUpdateWithoutMarket_alert_rulesInput>
+  create: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutMarket_alert_rulesInput, Prisma.tenant_competitorsUncheckedCreateWithoutMarket_alert_rulesInput>
+  where?: Prisma.tenant_competitorsWhereInput
+}
+
+export type tenant_competitorsUpdateToOneWithWhereWithoutMarket_alert_rulesInput = {
+  where?: Prisma.tenant_competitorsWhereInput
+  data: Prisma.XOR<Prisma.tenant_competitorsUpdateWithoutMarket_alert_rulesInput, Prisma.tenant_competitorsUncheckedUpdateWithoutMarket_alert_rulesInput>
+}
+
+export type tenant_competitorsUpdateWithoutMarket_alert_rulesInput = {
+  custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutTenant_competitorsNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateOneRequiredWithoutTenant_competitorsNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutTenant_competitorsNestedInput
+}
+
+export type tenant_competitorsUncheckedUpdateWithoutMarket_alert_rulesInput = {
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+}
+
+export type tenant_competitorsCreateWithoutMarket_eventsInput = {
+  custom_alias?: string | null
+  is_tracked?: boolean
+  added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutTenant_competitorsInput
+  global_competitors: Prisma.global_competitorsCreateNestedOneWithoutTenant_competitorsInput
+  companies: Prisma.CompanyCreateNestedOneWithoutTenant_competitorsInput
+}
+
+export type tenant_competitorsUncheckedCreateWithoutMarket_eventsInput = {
+  tenant_id: string
+  global_competitor_id: string
+  custom_alias?: string | null
+  is_tracked?: boolean
+  added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedCreateNestedManyWithoutTenant_competitorsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutTenant_competitorsInput
+}
+
+export type tenant_competitorsCreateOrConnectWithoutMarket_eventsInput = {
+  where: Prisma.tenant_competitorsWhereUniqueInput
+  create: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutMarket_eventsInput, Prisma.tenant_competitorsUncheckedCreateWithoutMarket_eventsInput>
+}
+
+export type tenant_competitorsUpsertWithoutMarket_eventsInput = {
+  update: Prisma.XOR<Prisma.tenant_competitorsUpdateWithoutMarket_eventsInput, Prisma.tenant_competitorsUncheckedUpdateWithoutMarket_eventsInput>
+  create: Prisma.XOR<Prisma.tenant_competitorsCreateWithoutMarket_eventsInput, Prisma.tenant_competitorsUncheckedCreateWithoutMarket_eventsInput>
+  where?: Prisma.tenant_competitorsWhereInput
+}
+
+export type tenant_competitorsUpdateToOneWithWhereWithoutMarket_eventsInput = {
+  where?: Prisma.tenant_competitorsWhereInput
+  data: Prisma.XOR<Prisma.tenant_competitorsUpdateWithoutMarket_eventsInput, Prisma.tenant_competitorsUncheckedUpdateWithoutMarket_eventsInput>
+}
+
+export type tenant_competitorsUpdateWithoutMarket_eventsInput = {
+  custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutTenant_competitorsNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateOneRequiredWithoutTenant_competitorsNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutTenant_competitorsNestedInput
+}
+
+export type tenant_competitorsUncheckedUpdateWithoutMarket_eventsInput = {
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+}
+
 export type tenant_competitorsCreateManyCompaniesInput = {
   global_competitor_id: string
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
 }
 
 export type tenant_competitorsUpdateWithoutCompaniesInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutTenant_competitorsNestedInput
   global_competitors?: Prisma.global_competitorsUpdateOneRequiredWithoutTenant_competitorsNestedInput
 }
 
@@ -598,7 +1221,15 @@ export type tenant_competitorsUncheckedUpdateWithoutCompaniesInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
 }
 
 export type tenant_competitorsUncheckedUpdateManyWithoutCompaniesInput = {
@@ -606,6 +1237,10 @@ export type tenant_competitorsUncheckedUpdateManyWithoutCompaniesInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type tenant_competitorsCreateManyGlobal_competitorsInput = {
@@ -613,13 +1248,25 @@ export type tenant_competitorsCreateManyGlobal_competitorsInput = {
   custom_alias?: string | null
   is_tracked?: boolean
   added_at?: Date | string | null
+  product_match_rate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: boolean
+  classified_at?: Date | string | null
+  tier?: string
 }
 
 export type tenant_competitorsUpdateWithoutGlobal_competitorsInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutTenant_competitorsNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutTenant_competitorsNestedInput
 }
 
@@ -628,7 +1275,15 @@ export type tenant_competitorsUncheckedUpdateWithoutGlobal_competitorsInput = {
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  competitor_score_snapshots?: Prisma.competitor_score_snapshotsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_alert_rules?: Prisma.market_alert_rulesUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutTenant_competitorsNestedInput
 }
 
 export type tenant_competitorsUncheckedUpdateManyWithoutGlobal_competitorsInput = {
@@ -636,6 +1291,10 @@ export type tenant_competitorsUncheckedUpdateManyWithoutGlobal_competitorsInput 
   custom_alias?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_tracked?: Prisma.BoolFieldUpdateOperationsInput | boolean
   added_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  product_match_rate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  is_confirmed_competitor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  classified_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tier?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 
@@ -645,10 +1304,18 @@ export type tenant_competitorsUncheckedUpdateManyWithoutGlobal_competitorsInput 
 
 export type Tenant_competitorsCountOutputType = {
   competitor_product_mappings: number
+  competitor_score_snapshots: number
+  market_alert_rules: number
+  market_events: number
+  reviews: number
 }
 
 export type Tenant_competitorsCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   competitor_product_mappings?: boolean | Tenant_competitorsCountOutputTypeCountCompetitor_product_mappingsArgs
+  competitor_score_snapshots?: boolean | Tenant_competitorsCountOutputTypeCountCompetitor_score_snapshotsArgs
+  market_alert_rules?: boolean | Tenant_competitorsCountOutputTypeCountMarket_alert_rulesArgs
+  market_events?: boolean | Tenant_competitorsCountOutputTypeCountMarket_eventsArgs
+  reviews?: boolean | Tenant_competitorsCountOutputTypeCountReviewsArgs
 }
 
 /**
@@ -668,6 +1335,34 @@ export type Tenant_competitorsCountOutputTypeCountCompetitor_product_mappingsArg
   where?: Prisma.competitor_product_mappingsWhereInput
 }
 
+/**
+ * Tenant_competitorsCountOutputType without action
+ */
+export type Tenant_competitorsCountOutputTypeCountCompetitor_score_snapshotsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.competitor_score_snapshotsWhereInput
+}
+
+/**
+ * Tenant_competitorsCountOutputType without action
+ */
+export type Tenant_competitorsCountOutputTypeCountMarket_alert_rulesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_alert_rulesWhereInput
+}
+
+/**
+ * Tenant_competitorsCountOutputType without action
+ */
+export type Tenant_competitorsCountOutputTypeCountMarket_eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_eventsWhereInput
+}
+
+/**
+ * Tenant_competitorsCountOutputType without action
+ */
+export type Tenant_competitorsCountOutputTypeCountReviewsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.reviewsWhereInput
+}
+
 
 export type tenant_competitorsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   tenant_id?: boolean
@@ -675,7 +1370,15 @@ export type tenant_competitorsSelect<ExtArgs extends runtime.Types.Extensions.In
   custom_alias?: boolean
   is_tracked?: boolean
   added_at?: boolean
+  product_match_rate?: boolean
+  is_confirmed_competitor?: boolean
+  classified_at?: boolean
+  tier?: boolean
   competitor_product_mappings?: boolean | Prisma.tenant_competitors$competitor_product_mappingsArgs<ExtArgs>
+  competitor_score_snapshots?: boolean | Prisma.tenant_competitors$competitor_score_snapshotsArgs<ExtArgs>
+  market_alert_rules?: boolean | Prisma.tenant_competitors$market_alert_rulesArgs<ExtArgs>
+  market_events?: boolean | Prisma.tenant_competitors$market_eventsArgs<ExtArgs>
+  reviews?: boolean | Prisma.tenant_competitors$reviewsArgs<ExtArgs>
   global_competitors?: boolean | Prisma.global_competitorsDefaultArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.Tenant_competitorsCountOutputTypeDefaultArgs<ExtArgs>
@@ -687,6 +1390,10 @@ export type tenant_competitorsSelectCreateManyAndReturn<ExtArgs extends runtime.
   custom_alias?: boolean
   is_tracked?: boolean
   added_at?: boolean
+  product_match_rate?: boolean
+  is_confirmed_competitor?: boolean
+  classified_at?: boolean
+  tier?: boolean
   global_competitors?: boolean | Prisma.global_competitorsDefaultArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["tenant_competitors"]>
@@ -697,6 +1404,10 @@ export type tenant_competitorsSelectUpdateManyAndReturn<ExtArgs extends runtime.
   custom_alias?: boolean
   is_tracked?: boolean
   added_at?: boolean
+  product_match_rate?: boolean
+  is_confirmed_competitor?: boolean
+  classified_at?: boolean
+  tier?: boolean
   global_competitors?: boolean | Prisma.global_competitorsDefaultArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["tenant_competitors"]>
@@ -707,11 +1418,19 @@ export type tenant_competitorsSelectScalar = {
   custom_alias?: boolean
   is_tracked?: boolean
   added_at?: boolean
+  product_match_rate?: boolean
+  is_confirmed_competitor?: boolean
+  classified_at?: boolean
+  tier?: boolean
 }
 
-export type tenant_competitorsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"tenant_id" | "global_competitor_id" | "custom_alias" | "is_tracked" | "added_at", ExtArgs["result"]["tenant_competitors"]>
+export type tenant_competitorsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"tenant_id" | "global_competitor_id" | "custom_alias" | "is_tracked" | "added_at" | "product_match_rate" | "is_confirmed_competitor" | "classified_at" | "tier", ExtArgs["result"]["tenant_competitors"]>
 export type tenant_competitorsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   competitor_product_mappings?: boolean | Prisma.tenant_competitors$competitor_product_mappingsArgs<ExtArgs>
+  competitor_score_snapshots?: boolean | Prisma.tenant_competitors$competitor_score_snapshotsArgs<ExtArgs>
+  market_alert_rules?: boolean | Prisma.tenant_competitors$market_alert_rulesArgs<ExtArgs>
+  market_events?: boolean | Prisma.tenant_competitors$market_eventsArgs<ExtArgs>
+  reviews?: boolean | Prisma.tenant_competitors$reviewsArgs<ExtArgs>
   global_competitors?: boolean | Prisma.global_competitorsDefaultArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.Tenant_competitorsCountOutputTypeDefaultArgs<ExtArgs>
@@ -729,6 +1448,10 @@ export type $tenant_competitorsPayload<ExtArgs extends runtime.Types.Extensions.
   name: "tenant_competitors"
   objects: {
     competitor_product_mappings: Prisma.$competitor_product_mappingsPayload<ExtArgs>[]
+    competitor_score_snapshots: Prisma.$competitor_score_snapshotsPayload<ExtArgs>[]
+    market_alert_rules: Prisma.$market_alert_rulesPayload<ExtArgs>[]
+    market_events: Prisma.$market_eventsPayload<ExtArgs>[]
+    reviews: Prisma.$reviewsPayload<ExtArgs>[]
     global_competitors: Prisma.$global_competitorsPayload<ExtArgs>
     companies: Prisma.$CompanyPayload<ExtArgs>
   }
@@ -738,6 +1461,10 @@ export type $tenant_competitorsPayload<ExtArgs extends runtime.Types.Extensions.
     custom_alias: string | null
     is_tracked: boolean
     added_at: Date | null
+    product_match_rate: runtime.Decimal | null
+    is_confirmed_competitor: boolean
+    classified_at: Date | null
+    tier: string
   }, ExtArgs["result"]["tenant_competitors"]>
   composites: {}
 }
@@ -1133,6 +1860,10 @@ readonly fields: tenant_competitorsFieldRefs;
 export interface Prisma__tenant_competitorsClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   competitor_product_mappings<T extends Prisma.tenant_competitors$competitor_product_mappingsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.tenant_competitors$competitor_product_mappingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$competitor_product_mappingsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  competitor_score_snapshots<T extends Prisma.tenant_competitors$competitor_score_snapshotsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.tenant_competitors$competitor_score_snapshotsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$competitor_score_snapshotsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  market_alert_rules<T extends Prisma.tenant_competitors$market_alert_rulesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.tenant_competitors$market_alert_rulesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_alert_rulesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  market_events<T extends Prisma.tenant_competitors$market_eventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.tenant_competitors$market_eventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_eventsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  reviews<T extends Prisma.tenant_competitors$reviewsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.tenant_competitors$reviewsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$reviewsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   global_competitors<T extends Prisma.global_competitorsDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.global_competitorsDefaultArgs<ExtArgs>>): Prisma.Prisma__global_competitorsClient<runtime.Types.Result.GetResult<Prisma.$global_competitorsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   companies<T extends Prisma.CompanyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CompanyDefaultArgs<ExtArgs>>): Prisma.Prisma__CompanyClient<runtime.Types.Result.GetResult<Prisma.$CompanyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
@@ -1169,6 +1900,10 @@ export interface tenant_competitorsFieldRefs {
   readonly custom_alias: Prisma.FieldRef<"tenant_competitors", 'String'>
   readonly is_tracked: Prisma.FieldRef<"tenant_competitors", 'Boolean'>
   readonly added_at: Prisma.FieldRef<"tenant_competitors", 'DateTime'>
+  readonly product_match_rate: Prisma.FieldRef<"tenant_competitors", 'Decimal'>
+  readonly is_confirmed_competitor: Prisma.FieldRef<"tenant_competitors", 'Boolean'>
+  readonly classified_at: Prisma.FieldRef<"tenant_competitors", 'DateTime'>
+  readonly tier: Prisma.FieldRef<"tenant_competitors", 'String'>
 }
     
 
@@ -1591,6 +2326,102 @@ export type tenant_competitors$competitor_product_mappingsArgs<ExtArgs extends r
   take?: number
   skip?: number
   distinct?: Prisma.Competitor_product_mappingsScalarFieldEnum | Prisma.Competitor_product_mappingsScalarFieldEnum[]
+}
+
+/**
+ * tenant_competitors.competitor_score_snapshots
+ */
+export type tenant_competitors$competitor_score_snapshotsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the competitor_score_snapshots
+   */
+  select?: Prisma.competitor_score_snapshotsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the competitor_score_snapshots
+   */
+  omit?: Prisma.competitor_score_snapshotsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.competitor_score_snapshotsInclude<ExtArgs> | null
+  where?: Prisma.competitor_score_snapshotsWhereInput
+  orderBy?: Prisma.competitor_score_snapshotsOrderByWithRelationInput | Prisma.competitor_score_snapshotsOrderByWithRelationInput[]
+  cursor?: Prisma.competitor_score_snapshotsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Competitor_score_snapshotsScalarFieldEnum | Prisma.Competitor_score_snapshotsScalarFieldEnum[]
+}
+
+/**
+ * tenant_competitors.market_alert_rules
+ */
+export type tenant_competitors$market_alert_rulesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_alert_rules
+   */
+  select?: Prisma.market_alert_rulesSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_alert_rules
+   */
+  omit?: Prisma.market_alert_rulesOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_alert_rulesInclude<ExtArgs> | null
+  where?: Prisma.market_alert_rulesWhereInput
+  orderBy?: Prisma.market_alert_rulesOrderByWithRelationInput | Prisma.market_alert_rulesOrderByWithRelationInput[]
+  cursor?: Prisma.market_alert_rulesWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_alert_rulesScalarFieldEnum | Prisma.Market_alert_rulesScalarFieldEnum[]
+}
+
+/**
+ * tenant_competitors.market_events
+ */
+export type tenant_competitors$market_eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_events
+   */
+  select?: Prisma.market_eventsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_events
+   */
+  omit?: Prisma.market_eventsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_eventsInclude<ExtArgs> | null
+  where?: Prisma.market_eventsWhereInput
+  orderBy?: Prisma.market_eventsOrderByWithRelationInput | Prisma.market_eventsOrderByWithRelationInput[]
+  cursor?: Prisma.market_eventsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_eventsScalarFieldEnum | Prisma.Market_eventsScalarFieldEnum[]
+}
+
+/**
+ * tenant_competitors.reviews
+ */
+export type tenant_competitors$reviewsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the reviews
+   */
+  select?: Prisma.reviewsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the reviews
+   */
+  omit?: Prisma.reviewsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.reviewsInclude<ExtArgs> | null
+  where?: Prisma.reviewsWhereInput
+  orderBy?: Prisma.reviewsOrderByWithRelationInput | Prisma.reviewsOrderByWithRelationInput[]
+  cursor?: Prisma.reviewsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ReviewsScalarFieldEnum | Prisma.ReviewsScalarFieldEnum[]
 }
 
 /**

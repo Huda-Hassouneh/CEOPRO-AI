@@ -29,10 +29,14 @@ export type AggregateReviews = {
 
 export type ReviewsAvgAggregateOutputType = {
   review_rating: runtime.Decimal | null
+  like_count: number | null
+  reply_count: number | null
 }
 
 export type ReviewsSumAggregateOutputType = {
   review_rating: runtime.Decimal | null
+  like_count: number | null
+  reply_count: number | null
 }
 
 export type ReviewsMinAggregateOutputType = {
@@ -45,6 +49,16 @@ export type ReviewsMinAggregateOutputType = {
   review_rating: runtime.Decimal | null
   review_date: Date | null
   created_at: Date | null
+  subject_type: string | null
+  competitor_id: string | null
+  source_status: string | null
+  collection_method: string | null
+  review_language: string | null
+  source_id: string | null
+  external_review_id: string | null
+  safety_status: string | null
+  like_count: number | null
+  reply_count: number | null
 }
 
 export type ReviewsMaxAggregateOutputType = {
@@ -57,6 +71,16 @@ export type ReviewsMaxAggregateOutputType = {
   review_rating: runtime.Decimal | null
   review_date: Date | null
   created_at: Date | null
+  subject_type: string | null
+  competitor_id: string | null
+  source_status: string | null
+  collection_method: string | null
+  review_language: string | null
+  source_id: string | null
+  external_review_id: string | null
+  safety_status: string | null
+  like_count: number | null
+  reply_count: number | null
 }
 
 export type ReviewsCountAggregateOutputType = {
@@ -69,16 +93,31 @@ export type ReviewsCountAggregateOutputType = {
   review_rating: number
   review_date: number
   created_at: number
+  subject_type: number
+  competitor_id: number
+  source_status: number
+  collection_method: number
+  review_language: number
+  source_id: number
+  external_review_id: number
+  safety_status: number
+  safety_flags: number
+  like_count: number
+  reply_count: number
   _all: number
 }
 
 
 export type ReviewsAvgAggregateInputType = {
   review_rating?: true
+  like_count?: true
+  reply_count?: true
 }
 
 export type ReviewsSumAggregateInputType = {
   review_rating?: true
+  like_count?: true
+  reply_count?: true
 }
 
 export type ReviewsMinAggregateInputType = {
@@ -91,6 +130,16 @@ export type ReviewsMinAggregateInputType = {
   review_rating?: true
   review_date?: true
   created_at?: true
+  subject_type?: true
+  competitor_id?: true
+  source_status?: true
+  collection_method?: true
+  review_language?: true
+  source_id?: true
+  external_review_id?: true
+  safety_status?: true
+  like_count?: true
+  reply_count?: true
 }
 
 export type ReviewsMaxAggregateInputType = {
@@ -103,6 +152,16 @@ export type ReviewsMaxAggregateInputType = {
   review_rating?: true
   review_date?: true
   created_at?: true
+  subject_type?: true
+  competitor_id?: true
+  source_status?: true
+  collection_method?: true
+  review_language?: true
+  source_id?: true
+  external_review_id?: true
+  safety_status?: true
+  like_count?: true
+  reply_count?: true
 }
 
 export type ReviewsCountAggregateInputType = {
@@ -115,6 +174,17 @@ export type ReviewsCountAggregateInputType = {
   review_rating?: true
   review_date?: true
   created_at?: true
+  subject_type?: true
+  competitor_id?: true
+  source_status?: true
+  collection_method?: true
+  review_language?: true
+  source_id?: true
+  external_review_id?: true
+  safety_status?: true
+  safety_flags?: true
+  like_count?: true
+  reply_count?: true
   _all?: true
 }
 
@@ -207,13 +277,24 @@ export type reviewsGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
 export type ReviewsGroupByOutputType = {
   review_id: string
   tenant_id: string
-  product_id: string
+  product_id: string | null
   source_platform: string
   reviewer_name: string | null
   review_text: string
   review_rating: runtime.Decimal | null
   review_date: Date
   created_at: Date | null
+  subject_type: string
+  competitor_id: string | null
+  source_status: string
+  collection_method: string
+  review_language: string | null
+  source_id: string | null
+  external_review_id: string | null
+  safety_status: string
+  safety_flags: runtime.JsonValue
+  like_count: number | null
+  reply_count: number | null
   _count: ReviewsCountAggregateOutputType | null
   _avg: ReviewsAvgAggregateOutputType | null
   _sum: ReviewsSumAggregateOutputType | null
@@ -242,14 +323,26 @@ export type reviewsWhereInput = {
   NOT?: Prisma.reviewsWhereInput | Prisma.reviewsWhereInput[]
   review_id?: Prisma.UuidFilter<"reviews"> | string
   tenant_id?: Prisma.UuidFilter<"reviews"> | string
-  product_id?: Prisma.UuidFilter<"reviews"> | string
+  product_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
   source_platform?: Prisma.StringFilter<"reviews"> | string
   reviewer_name?: Prisma.StringNullableFilter<"reviews"> | string | null
   review_text?: Prisma.StringFilter<"reviews"> | string
   review_rating?: Prisma.DecimalNullableFilter<"reviews"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFilter<"reviews"> | Date | string
   created_at?: Prisma.DateTimeNullableFilter<"reviews"> | Date | string | null
-  products?: Prisma.XOR<Prisma.ProductsScalarRelationFilter, Prisma.productsWhereInput>
+  subject_type?: Prisma.StringFilter<"reviews"> | string
+  competitor_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
+  source_status?: Prisma.StringFilter<"reviews"> | string
+  collection_method?: Prisma.StringFilter<"reviews"> | string
+  review_language?: Prisma.StringNullableFilter<"reviews"> | string | null
+  source_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
+  external_review_id?: Prisma.StringNullableFilter<"reviews"> | string | null
+  safety_status?: Prisma.StringFilter<"reviews"> | string
+  safety_flags?: Prisma.JsonFilter<"reviews">
+  like_count?: Prisma.IntNullableFilter<"reviews"> | number | null
+  reply_count?: Prisma.IntNullableFilter<"reviews"> | number | null
+  tenant_competitors?: Prisma.XOR<Prisma.Tenant_competitorsNullableScalarRelationFilter, Prisma.tenant_competitorsWhereInput> | null
+  products?: Prisma.XOR<Prisma.ProductsNullableScalarRelationFilter, Prisma.productsWhereInput> | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   sentiment_results?: Prisma.XOR<Prisma.Sentiment_resultsNullableScalarRelationFilter, Prisma.sentiment_resultsWhereInput> | null
 }
@@ -257,13 +350,25 @@ export type reviewsWhereInput = {
 export type reviewsOrderByWithRelationInput = {
   review_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
-  product_id?: Prisma.SortOrder
+  product_id?: Prisma.SortOrderInput | Prisma.SortOrder
   source_platform?: Prisma.SortOrder
   reviewer_name?: Prisma.SortOrderInput | Prisma.SortOrder
   review_text?: Prisma.SortOrder
   review_rating?: Prisma.SortOrderInput | Prisma.SortOrder
   review_date?: Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  subject_type?: Prisma.SortOrder
+  competitor_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  collection_method?: Prisma.SortOrder
+  review_language?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  external_review_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  safety_status?: Prisma.SortOrder
+  safety_flags?: Prisma.SortOrder
+  like_count?: Prisma.SortOrderInput | Prisma.SortOrder
+  reply_count?: Prisma.SortOrderInput | Prisma.SortOrder
+  tenant_competitors?: Prisma.tenant_competitorsOrderByWithRelationInput
   products?: Prisma.productsOrderByWithRelationInput
   companies?: Prisma.CompanyOrderByWithRelationInput
   sentiment_results?: Prisma.sentiment_resultsOrderByWithRelationInput
@@ -272,32 +377,56 @@ export type reviewsOrderByWithRelationInput = {
 export type reviewsWhereUniqueInput = Prisma.AtLeast<{
   review_id?: string
   tenant_id_review_id?: Prisma.reviewsTenant_idReview_idCompoundUniqueInput
+  tenant_id_source_id_external_review_id?: Prisma.reviewsTenant_idSource_idExternal_review_idCompoundUniqueInput
   AND?: Prisma.reviewsWhereInput | Prisma.reviewsWhereInput[]
   OR?: Prisma.reviewsWhereInput[]
   NOT?: Prisma.reviewsWhereInput | Prisma.reviewsWhereInput[]
   tenant_id?: Prisma.UuidFilter<"reviews"> | string
-  product_id?: Prisma.UuidFilter<"reviews"> | string
+  product_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
   source_platform?: Prisma.StringFilter<"reviews"> | string
   reviewer_name?: Prisma.StringNullableFilter<"reviews"> | string | null
   review_text?: Prisma.StringFilter<"reviews"> | string
   review_rating?: Prisma.DecimalNullableFilter<"reviews"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFilter<"reviews"> | Date | string
   created_at?: Prisma.DateTimeNullableFilter<"reviews"> | Date | string | null
-  products?: Prisma.XOR<Prisma.ProductsScalarRelationFilter, Prisma.productsWhereInput>
+  subject_type?: Prisma.StringFilter<"reviews"> | string
+  competitor_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
+  source_status?: Prisma.StringFilter<"reviews"> | string
+  collection_method?: Prisma.StringFilter<"reviews"> | string
+  review_language?: Prisma.StringNullableFilter<"reviews"> | string | null
+  source_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
+  external_review_id?: Prisma.StringNullableFilter<"reviews"> | string | null
+  safety_status?: Prisma.StringFilter<"reviews"> | string
+  safety_flags?: Prisma.JsonFilter<"reviews">
+  like_count?: Prisma.IntNullableFilter<"reviews"> | number | null
+  reply_count?: Prisma.IntNullableFilter<"reviews"> | number | null
+  tenant_competitors?: Prisma.XOR<Prisma.Tenant_competitorsNullableScalarRelationFilter, Prisma.tenant_competitorsWhereInput> | null
+  products?: Prisma.XOR<Prisma.ProductsNullableScalarRelationFilter, Prisma.productsWhereInput> | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   sentiment_results?: Prisma.XOR<Prisma.Sentiment_resultsNullableScalarRelationFilter, Prisma.sentiment_resultsWhereInput> | null
-}, "review_id" | "tenant_id_review_id">
+}, "review_id" | "tenant_id_review_id" | "tenant_id_source_id_external_review_id">
 
 export type reviewsOrderByWithAggregationInput = {
   review_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
-  product_id?: Prisma.SortOrder
+  product_id?: Prisma.SortOrderInput | Prisma.SortOrder
   source_platform?: Prisma.SortOrder
   reviewer_name?: Prisma.SortOrderInput | Prisma.SortOrder
   review_text?: Prisma.SortOrder
   review_rating?: Prisma.SortOrderInput | Prisma.SortOrder
   review_date?: Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  subject_type?: Prisma.SortOrder
+  competitor_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  collection_method?: Prisma.SortOrder
+  review_language?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  external_review_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  safety_status?: Prisma.SortOrder
+  safety_flags?: Prisma.SortOrder
+  like_count?: Prisma.SortOrderInput | Prisma.SortOrder
+  reply_count?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.reviewsCountOrderByAggregateInput
   _avg?: Prisma.reviewsAvgOrderByAggregateInput
   _max?: Prisma.reviewsMaxOrderByAggregateInput
@@ -311,13 +440,24 @@ export type reviewsScalarWhereWithAggregatesInput = {
   NOT?: Prisma.reviewsScalarWhereWithAggregatesInput | Prisma.reviewsScalarWhereWithAggregatesInput[]
   review_id?: Prisma.UuidWithAggregatesFilter<"reviews"> | string
   tenant_id?: Prisma.UuidWithAggregatesFilter<"reviews"> | string
-  product_id?: Prisma.UuidWithAggregatesFilter<"reviews"> | string
+  product_id?: Prisma.UuidNullableWithAggregatesFilter<"reviews"> | string | null
   source_platform?: Prisma.StringWithAggregatesFilter<"reviews"> | string
   reviewer_name?: Prisma.StringNullableWithAggregatesFilter<"reviews"> | string | null
   review_text?: Prisma.StringWithAggregatesFilter<"reviews"> | string
   review_rating?: Prisma.DecimalNullableWithAggregatesFilter<"reviews"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeWithAggregatesFilter<"reviews"> | Date | string
   created_at?: Prisma.DateTimeNullableWithAggregatesFilter<"reviews"> | Date | string | null
+  subject_type?: Prisma.StringWithAggregatesFilter<"reviews"> | string
+  competitor_id?: Prisma.UuidNullableWithAggregatesFilter<"reviews"> | string | null
+  source_status?: Prisma.StringWithAggregatesFilter<"reviews"> | string
+  collection_method?: Prisma.StringWithAggregatesFilter<"reviews"> | string
+  review_language?: Prisma.StringNullableWithAggregatesFilter<"reviews"> | string | null
+  source_id?: Prisma.UuidNullableWithAggregatesFilter<"reviews"> | string | null
+  external_review_id?: Prisma.StringNullableWithAggregatesFilter<"reviews"> | string | null
+  safety_status?: Prisma.StringWithAggregatesFilter<"reviews"> | string
+  safety_flags?: Prisma.JsonWithAggregatesFilter<"reviews">
+  like_count?: Prisma.IntNullableWithAggregatesFilter<"reviews"> | number | null
+  reply_count?: Prisma.IntNullableWithAggregatesFilter<"reviews"> | number | null
 }
 
 export type reviewsCreateInput = {
@@ -328,7 +468,18 @@ export type reviewsCreateInput = {
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
-  products: Prisma.productsCreateNestedOneWithoutReviewsInput
+  subject_type?: string
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedOneWithoutReviewsInput
+  products?: Prisma.productsCreateNestedOneWithoutReviewsInput
   companies: Prisma.CompanyCreateNestedOneWithoutReviewsInput
   sentiment_results?: Prisma.sentiment_resultsCreateNestedOneWithoutReviewsInput
 }
@@ -336,13 +487,24 @@ export type reviewsCreateInput = {
 export type reviewsUncheckedCreateInput = {
   review_id?: string
   tenant_id: string
-  product_id: string
+  product_id?: string | null
   source_platform: string
   reviewer_name?: string | null
   review_text: string
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
+  subject_type?: string
+  competitor_id?: string | null
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
   sentiment_results?: Prisma.sentiment_resultsUncheckedCreateNestedOneWithoutReviewsInput
 }
 
@@ -354,7 +516,18 @@ export type reviewsUpdateInput = {
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  products?: Prisma.productsUpdateOneRequiredWithoutReviewsNestedInput
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tenant_competitors?: Prisma.tenant_competitorsUpdateOneWithoutReviewsNestedInput
+  products?: Prisma.productsUpdateOneWithoutReviewsNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutReviewsNestedInput
   sentiment_results?: Prisma.sentiment_resultsUpdateOneWithoutReviewsNestedInput
 }
@@ -362,26 +535,48 @@ export type reviewsUpdateInput = {
 export type reviewsUncheckedUpdateInput = {
   review_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
-  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   source_platform?: Prisma.StringFieldUpdateOperationsInput | string
   reviewer_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   review_text?: Prisma.StringFieldUpdateOperationsInput | string
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   sentiment_results?: Prisma.sentiment_resultsUncheckedUpdateOneWithoutReviewsNestedInput
 }
 
 export type reviewsCreateManyInput = {
   review_id?: string
   tenant_id: string
-  product_id: string
+  product_id?: string | null
   source_platform: string
   reviewer_name?: string | null
   review_text: string
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
+  subject_type?: string
+  competitor_id?: string | null
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
 }
 
 export type reviewsUpdateManyMutationInput = {
@@ -392,18 +587,39 @@ export type reviewsUpdateManyMutationInput = {
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type reviewsUncheckedUpdateManyInput = {
   review_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
-  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   source_platform?: Prisma.StringFieldUpdateOperationsInput | string
   reviewer_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   review_text?: Prisma.StringFieldUpdateOperationsInput | string
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type ReviewsListRelationFilter = {
@@ -421,6 +637,12 @@ export type reviewsTenant_idReview_idCompoundUniqueInput = {
   review_id: string
 }
 
+export type reviewsTenant_idSource_idExternal_review_idCompoundUniqueInput = {
+  tenant_id: string
+  source_id: string
+  external_review_id: string
+}
+
 export type reviewsCountOrderByAggregateInput = {
   review_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
@@ -431,10 +653,23 @@ export type reviewsCountOrderByAggregateInput = {
   review_rating?: Prisma.SortOrder
   review_date?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  subject_type?: Prisma.SortOrder
+  competitor_id?: Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  collection_method?: Prisma.SortOrder
+  review_language?: Prisma.SortOrder
+  source_id?: Prisma.SortOrder
+  external_review_id?: Prisma.SortOrder
+  safety_status?: Prisma.SortOrder
+  safety_flags?: Prisma.SortOrder
+  like_count?: Prisma.SortOrder
+  reply_count?: Prisma.SortOrder
 }
 
 export type reviewsAvgOrderByAggregateInput = {
   review_rating?: Prisma.SortOrder
+  like_count?: Prisma.SortOrder
+  reply_count?: Prisma.SortOrder
 }
 
 export type reviewsMaxOrderByAggregateInput = {
@@ -447,6 +682,16 @@ export type reviewsMaxOrderByAggregateInput = {
   review_rating?: Prisma.SortOrder
   review_date?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  subject_type?: Prisma.SortOrder
+  competitor_id?: Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  collection_method?: Prisma.SortOrder
+  review_language?: Prisma.SortOrder
+  source_id?: Prisma.SortOrder
+  external_review_id?: Prisma.SortOrder
+  safety_status?: Prisma.SortOrder
+  like_count?: Prisma.SortOrder
+  reply_count?: Prisma.SortOrder
 }
 
 export type reviewsMinOrderByAggregateInput = {
@@ -459,10 +704,22 @@ export type reviewsMinOrderByAggregateInput = {
   review_rating?: Prisma.SortOrder
   review_date?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  subject_type?: Prisma.SortOrder
+  competitor_id?: Prisma.SortOrder
+  source_status?: Prisma.SortOrder
+  collection_method?: Prisma.SortOrder
+  review_language?: Prisma.SortOrder
+  source_id?: Prisma.SortOrder
+  external_review_id?: Prisma.SortOrder
+  safety_status?: Prisma.SortOrder
+  like_count?: Prisma.SortOrder
+  reply_count?: Prisma.SortOrder
 }
 
 export type reviewsSumOrderByAggregateInput = {
   review_rating?: Prisma.SortOrder
+  like_count?: Prisma.SortOrder
+  reply_count?: Prisma.SortOrder
 }
 
 export type ReviewsScalarRelationFilter = {
@@ -568,6 +825,48 @@ export type reviewsUpdateOneRequiredWithoutSentiment_resultsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.reviewsUpdateToOneWithWhereWithoutSentiment_resultsInput, Prisma.reviewsUpdateWithoutSentiment_resultsInput>, Prisma.reviewsUncheckedUpdateWithoutSentiment_resultsInput>
 }
 
+export type reviewsCreateNestedManyWithoutTenant_competitorsInput = {
+  create?: Prisma.XOR<Prisma.reviewsCreateWithoutTenant_competitorsInput, Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput> | Prisma.reviewsCreateWithoutTenant_competitorsInput[] | Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput[]
+  connectOrCreate?: Prisma.reviewsCreateOrConnectWithoutTenant_competitorsInput | Prisma.reviewsCreateOrConnectWithoutTenant_competitorsInput[]
+  createMany?: Prisma.reviewsCreateManyTenant_competitorsInputEnvelope
+  connect?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+}
+
+export type reviewsUncheckedCreateNestedManyWithoutTenant_competitorsInput = {
+  create?: Prisma.XOR<Prisma.reviewsCreateWithoutTenant_competitorsInput, Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput> | Prisma.reviewsCreateWithoutTenant_competitorsInput[] | Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput[]
+  connectOrCreate?: Prisma.reviewsCreateOrConnectWithoutTenant_competitorsInput | Prisma.reviewsCreateOrConnectWithoutTenant_competitorsInput[]
+  createMany?: Prisma.reviewsCreateManyTenant_competitorsInputEnvelope
+  connect?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+}
+
+export type reviewsUpdateManyWithoutTenant_competitorsNestedInput = {
+  create?: Prisma.XOR<Prisma.reviewsCreateWithoutTenant_competitorsInput, Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput> | Prisma.reviewsCreateWithoutTenant_competitorsInput[] | Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput[]
+  connectOrCreate?: Prisma.reviewsCreateOrConnectWithoutTenant_competitorsInput | Prisma.reviewsCreateOrConnectWithoutTenant_competitorsInput[]
+  upsert?: Prisma.reviewsUpsertWithWhereUniqueWithoutTenant_competitorsInput | Prisma.reviewsUpsertWithWhereUniqueWithoutTenant_competitorsInput[]
+  createMany?: Prisma.reviewsCreateManyTenant_competitorsInputEnvelope
+  set?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+  disconnect?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+  delete?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+  connect?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+  update?: Prisma.reviewsUpdateWithWhereUniqueWithoutTenant_competitorsInput | Prisma.reviewsUpdateWithWhereUniqueWithoutTenant_competitorsInput[]
+  updateMany?: Prisma.reviewsUpdateManyWithWhereWithoutTenant_competitorsInput | Prisma.reviewsUpdateManyWithWhereWithoutTenant_competitorsInput[]
+  deleteMany?: Prisma.reviewsScalarWhereInput | Prisma.reviewsScalarWhereInput[]
+}
+
+export type reviewsUncheckedUpdateManyWithoutTenant_competitorsNestedInput = {
+  create?: Prisma.XOR<Prisma.reviewsCreateWithoutTenant_competitorsInput, Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput> | Prisma.reviewsCreateWithoutTenant_competitorsInput[] | Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput[]
+  connectOrCreate?: Prisma.reviewsCreateOrConnectWithoutTenant_competitorsInput | Prisma.reviewsCreateOrConnectWithoutTenant_competitorsInput[]
+  upsert?: Prisma.reviewsUpsertWithWhereUniqueWithoutTenant_competitorsInput | Prisma.reviewsUpsertWithWhereUniqueWithoutTenant_competitorsInput[]
+  createMany?: Prisma.reviewsCreateManyTenant_competitorsInputEnvelope
+  set?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+  disconnect?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+  delete?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+  connect?: Prisma.reviewsWhereUniqueInput | Prisma.reviewsWhereUniqueInput[]
+  update?: Prisma.reviewsUpdateWithWhereUniqueWithoutTenant_competitorsInput | Prisma.reviewsUpdateWithWhereUniqueWithoutTenant_competitorsInput[]
+  updateMany?: Prisma.reviewsUpdateManyWithWhereWithoutTenant_competitorsInput | Prisma.reviewsUpdateManyWithWhereWithoutTenant_competitorsInput[]
+  deleteMany?: Prisma.reviewsScalarWhereInput | Prisma.reviewsScalarWhereInput[]
+}
+
 export type reviewsCreateWithoutCompaniesInput = {
   review_id?: string
   source_platform: string
@@ -576,19 +875,41 @@ export type reviewsCreateWithoutCompaniesInput = {
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
-  products: Prisma.productsCreateNestedOneWithoutReviewsInput
+  subject_type?: string
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedOneWithoutReviewsInput
+  products?: Prisma.productsCreateNestedOneWithoutReviewsInput
   sentiment_results?: Prisma.sentiment_resultsCreateNestedOneWithoutReviewsInput
 }
 
 export type reviewsUncheckedCreateWithoutCompaniesInput = {
   review_id?: string
-  product_id: string
+  product_id?: string | null
   source_platform: string
   reviewer_name?: string | null
   review_text: string
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
+  subject_type?: string
+  competitor_id?: string | null
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
   sentiment_results?: Prisma.sentiment_resultsUncheckedCreateNestedOneWithoutReviewsInput
 }
 
@@ -624,13 +945,24 @@ export type reviewsScalarWhereInput = {
   NOT?: Prisma.reviewsScalarWhereInput | Prisma.reviewsScalarWhereInput[]
   review_id?: Prisma.UuidFilter<"reviews"> | string
   tenant_id?: Prisma.UuidFilter<"reviews"> | string
-  product_id?: Prisma.UuidFilter<"reviews"> | string
+  product_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
   source_platform?: Prisma.StringFilter<"reviews"> | string
   reviewer_name?: Prisma.StringNullableFilter<"reviews"> | string | null
   review_text?: Prisma.StringFilter<"reviews"> | string
   review_rating?: Prisma.DecimalNullableFilter<"reviews"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFilter<"reviews"> | Date | string
   created_at?: Prisma.DateTimeNullableFilter<"reviews"> | Date | string | null
+  subject_type?: Prisma.StringFilter<"reviews"> | string
+  competitor_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
+  source_status?: Prisma.StringFilter<"reviews"> | string
+  collection_method?: Prisma.StringFilter<"reviews"> | string
+  review_language?: Prisma.StringNullableFilter<"reviews"> | string | null
+  source_id?: Prisma.UuidNullableFilter<"reviews"> | string | null
+  external_review_id?: Prisma.StringNullableFilter<"reviews"> | string | null
+  safety_status?: Prisma.StringFilter<"reviews"> | string
+  safety_flags?: Prisma.JsonFilter<"reviews">
+  like_count?: Prisma.IntNullableFilter<"reviews"> | number | null
+  reply_count?: Prisma.IntNullableFilter<"reviews"> | number | null
 }
 
 export type reviewsCreateWithoutProductsInput = {
@@ -641,6 +973,17 @@ export type reviewsCreateWithoutProductsInput = {
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
+  subject_type?: string
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedOneWithoutReviewsInput
   companies: Prisma.CompanyCreateNestedOneWithoutReviewsInput
   sentiment_results?: Prisma.sentiment_resultsCreateNestedOneWithoutReviewsInput
 }
@@ -653,6 +996,17 @@ export type reviewsUncheckedCreateWithoutProductsInput = {
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
+  subject_type?: string
+  competitor_id?: string | null
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
   sentiment_results?: Prisma.sentiment_resultsUncheckedCreateNestedOneWithoutReviewsInput
 }
 
@@ -690,20 +1044,42 @@ export type reviewsCreateWithoutSentiment_resultsInput = {
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
-  products: Prisma.productsCreateNestedOneWithoutReviewsInput
+  subject_type?: string
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedOneWithoutReviewsInput
+  products?: Prisma.productsCreateNestedOneWithoutReviewsInput
   companies: Prisma.CompanyCreateNestedOneWithoutReviewsInput
 }
 
 export type reviewsUncheckedCreateWithoutSentiment_resultsInput = {
   review_id?: string
   tenant_id: string
-  product_id: string
+  product_id?: string | null
   source_platform: string
   reviewer_name?: string | null
   review_text: string
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
+  subject_type?: string
+  competitor_id?: string | null
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
 }
 
 export type reviewsCreateOrConnectWithoutSentiment_resultsInput = {
@@ -730,31 +1106,135 @@ export type reviewsUpdateWithoutSentiment_resultsInput = {
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  products?: Prisma.productsUpdateOneRequiredWithoutReviewsNestedInput
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tenant_competitors?: Prisma.tenant_competitorsUpdateOneWithoutReviewsNestedInput
+  products?: Prisma.productsUpdateOneWithoutReviewsNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutReviewsNestedInput
 }
 
 export type reviewsUncheckedUpdateWithoutSentiment_resultsInput = {
   review_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
-  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   source_platform?: Prisma.StringFieldUpdateOperationsInput | string
   reviewer_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   review_text?: Prisma.StringFieldUpdateOperationsInput | string
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
-export type reviewsCreateManyCompaniesInput = {
+export type reviewsCreateWithoutTenant_competitorsInput = {
   review_id?: string
-  product_id: string
   source_platform: string
   reviewer_name?: string | null
   review_text: string
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
+  subject_type?: string
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
+  products?: Prisma.productsCreateNestedOneWithoutReviewsInput
+  companies: Prisma.CompanyCreateNestedOneWithoutReviewsInput
+  sentiment_results?: Prisma.sentiment_resultsCreateNestedOneWithoutReviewsInput
+}
+
+export type reviewsUncheckedCreateWithoutTenant_competitorsInput = {
+  review_id?: string
+  product_id?: string | null
+  source_platform: string
+  reviewer_name?: string | null
+  review_text: string
+  review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  review_date?: Date | string
+  created_at?: Date | string | null
+  subject_type?: string
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
+  sentiment_results?: Prisma.sentiment_resultsUncheckedCreateNestedOneWithoutReviewsInput
+}
+
+export type reviewsCreateOrConnectWithoutTenant_competitorsInput = {
+  where: Prisma.reviewsWhereUniqueInput
+  create: Prisma.XOR<Prisma.reviewsCreateWithoutTenant_competitorsInput, Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput>
+}
+
+export type reviewsCreateManyTenant_competitorsInputEnvelope = {
+  data: Prisma.reviewsCreateManyTenant_competitorsInput | Prisma.reviewsCreateManyTenant_competitorsInput[]
+  skipDuplicates?: boolean
+}
+
+export type reviewsUpsertWithWhereUniqueWithoutTenant_competitorsInput = {
+  where: Prisma.reviewsWhereUniqueInput
+  update: Prisma.XOR<Prisma.reviewsUpdateWithoutTenant_competitorsInput, Prisma.reviewsUncheckedUpdateWithoutTenant_competitorsInput>
+  create: Prisma.XOR<Prisma.reviewsCreateWithoutTenant_competitorsInput, Prisma.reviewsUncheckedCreateWithoutTenant_competitorsInput>
+}
+
+export type reviewsUpdateWithWhereUniqueWithoutTenant_competitorsInput = {
+  where: Prisma.reviewsWhereUniqueInput
+  data: Prisma.XOR<Prisma.reviewsUpdateWithoutTenant_competitorsInput, Prisma.reviewsUncheckedUpdateWithoutTenant_competitorsInput>
+}
+
+export type reviewsUpdateManyWithWhereWithoutTenant_competitorsInput = {
+  where: Prisma.reviewsScalarWhereInput
+  data: Prisma.XOR<Prisma.reviewsUpdateManyMutationInput, Prisma.reviewsUncheckedUpdateManyWithoutTenant_competitorsInput>
+}
+
+export type reviewsCreateManyCompaniesInput = {
+  review_id?: string
+  product_id?: string | null
+  source_platform: string
+  reviewer_name?: string | null
+  review_text: string
+  review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  review_date?: Date | string
+  created_at?: Date | string | null
+  subject_type?: string
+  competitor_id?: string | null
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
 }
 
 export type reviewsUpdateWithoutCompaniesInput = {
@@ -765,31 +1245,64 @@ export type reviewsUpdateWithoutCompaniesInput = {
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  products?: Prisma.productsUpdateOneRequiredWithoutReviewsNestedInput
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tenant_competitors?: Prisma.tenant_competitorsUpdateOneWithoutReviewsNestedInput
+  products?: Prisma.productsUpdateOneWithoutReviewsNestedInput
   sentiment_results?: Prisma.sentiment_resultsUpdateOneWithoutReviewsNestedInput
 }
 
 export type reviewsUncheckedUpdateWithoutCompaniesInput = {
   review_id?: Prisma.StringFieldUpdateOperationsInput | string
-  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   source_platform?: Prisma.StringFieldUpdateOperationsInput | string
   reviewer_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   review_text?: Prisma.StringFieldUpdateOperationsInput | string
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   sentiment_results?: Prisma.sentiment_resultsUncheckedUpdateOneWithoutReviewsNestedInput
 }
 
 export type reviewsUncheckedUpdateManyWithoutCompaniesInput = {
   review_id?: Prisma.StringFieldUpdateOperationsInput | string
-  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   source_platform?: Prisma.StringFieldUpdateOperationsInput | string
   reviewer_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   review_text?: Prisma.StringFieldUpdateOperationsInput | string
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type reviewsCreateManyProductsInput = {
@@ -800,6 +1313,17 @@ export type reviewsCreateManyProductsInput = {
   review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Date | string
   created_at?: Date | string | null
+  subject_type?: string
+  competitor_id?: string | null
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
 }
 
 export type reviewsUpdateWithoutProductsInput = {
@@ -810,6 +1334,17 @@ export type reviewsUpdateWithoutProductsInput = {
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tenant_competitors?: Prisma.tenant_competitorsUpdateOneWithoutReviewsNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutReviewsNestedInput
   sentiment_results?: Prisma.sentiment_resultsUpdateOneWithoutReviewsNestedInput
 }
@@ -822,6 +1357,17 @@ export type reviewsUncheckedUpdateWithoutProductsInput = {
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   sentiment_results?: Prisma.sentiment_resultsUncheckedUpdateOneWithoutReviewsNestedInput
 }
 
@@ -833,6 +1379,104 @@ export type reviewsUncheckedUpdateManyWithoutProductsInput = {
   review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+}
+
+export type reviewsCreateManyTenant_competitorsInput = {
+  review_id?: string
+  product_id?: string | null
+  source_platform: string
+  reviewer_name?: string | null
+  review_text: string
+  review_rating?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  review_date?: Date | string
+  created_at?: Date | string | null
+  subject_type?: string
+  source_status?: string
+  collection_method?: string
+  review_language?: string | null
+  source_id?: string | null
+  external_review_id?: string | null
+  safety_status?: string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: number | null
+  reply_count?: number | null
+}
+
+export type reviewsUpdateWithoutTenant_competitorsInput = {
+  review_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_platform?: Prisma.StringFieldUpdateOperationsInput | string
+  reviewer_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  review_text?: Prisma.StringFieldUpdateOperationsInput | string
+  review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  products?: Prisma.productsUpdateOneWithoutReviewsNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutReviewsNestedInput
+  sentiment_results?: Prisma.sentiment_resultsUpdateOneWithoutReviewsNestedInput
+}
+
+export type reviewsUncheckedUpdateWithoutTenant_competitorsInput = {
+  review_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_platform?: Prisma.StringFieldUpdateOperationsInput | string
+  reviewer_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  review_text?: Prisma.StringFieldUpdateOperationsInput | string
+  review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sentiment_results?: Prisma.sentiment_resultsUncheckedUpdateOneWithoutReviewsNestedInput
+}
+
+export type reviewsUncheckedUpdateManyWithoutTenant_competitorsInput = {
+  review_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_platform?: Prisma.StringFieldUpdateOperationsInput | string
+  reviewer_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  review_text?: Prisma.StringFieldUpdateOperationsInput | string
+  review_rating?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  review_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subject_type?: Prisma.StringFieldUpdateOperationsInput | string
+  source_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_method?: Prisma.StringFieldUpdateOperationsInput | string
+  review_language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  external_review_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  safety_status?: Prisma.StringFieldUpdateOperationsInput | string
+  safety_flags?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  like_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reply_count?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 
@@ -847,7 +1491,19 @@ export type reviewsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   review_rating?: boolean
   review_date?: boolean
   created_at?: boolean
-  products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  subject_type?: boolean
+  competitor_id?: boolean
+  source_status?: boolean
+  collection_method?: boolean
+  review_language?: boolean
+  source_id?: boolean
+  external_review_id?: boolean
+  safety_status?: boolean
+  safety_flags?: boolean
+  like_count?: boolean
+  reply_count?: boolean
+  tenant_competitors?: boolean | Prisma.reviews$tenant_competitorsArgs<ExtArgs>
+  products?: boolean | Prisma.reviews$productsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   sentiment_results?: boolean | Prisma.reviews$sentiment_resultsArgs<ExtArgs>
 }, ExtArgs["result"]["reviews"]>
@@ -862,7 +1518,19 @@ export type reviewsSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   review_rating?: boolean
   review_date?: boolean
   created_at?: boolean
-  products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  subject_type?: boolean
+  competitor_id?: boolean
+  source_status?: boolean
+  collection_method?: boolean
+  review_language?: boolean
+  source_id?: boolean
+  external_review_id?: boolean
+  safety_status?: boolean
+  safety_flags?: boolean
+  like_count?: boolean
+  reply_count?: boolean
+  tenant_competitors?: boolean | Prisma.reviews$tenant_competitorsArgs<ExtArgs>
+  products?: boolean | Prisma.reviews$productsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["reviews"]>
 
@@ -876,7 +1544,19 @@ export type reviewsSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   review_rating?: boolean
   review_date?: boolean
   created_at?: boolean
-  products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  subject_type?: boolean
+  competitor_id?: boolean
+  source_status?: boolean
+  collection_method?: boolean
+  review_language?: boolean
+  source_id?: boolean
+  external_review_id?: boolean
+  safety_status?: boolean
+  safety_flags?: boolean
+  like_count?: boolean
+  reply_count?: boolean
+  tenant_competitors?: boolean | Prisma.reviews$tenant_competitorsArgs<ExtArgs>
+  products?: boolean | Prisma.reviews$productsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["reviews"]>
 
@@ -890,40 +1570,66 @@ export type reviewsSelectScalar = {
   review_rating?: boolean
   review_date?: boolean
   created_at?: boolean
+  subject_type?: boolean
+  competitor_id?: boolean
+  source_status?: boolean
+  collection_method?: boolean
+  review_language?: boolean
+  source_id?: boolean
+  external_review_id?: boolean
+  safety_status?: boolean
+  safety_flags?: boolean
+  like_count?: boolean
+  reply_count?: boolean
 }
 
-export type reviewsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"review_id" | "tenant_id" | "product_id" | "source_platform" | "reviewer_name" | "review_text" | "review_rating" | "review_date" | "created_at", ExtArgs["result"]["reviews"]>
+export type reviewsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"review_id" | "tenant_id" | "product_id" | "source_platform" | "reviewer_name" | "review_text" | "review_rating" | "review_date" | "created_at" | "subject_type" | "competitor_id" | "source_status" | "collection_method" | "review_language" | "source_id" | "external_review_id" | "safety_status" | "safety_flags" | "like_count" | "reply_count", ExtArgs["result"]["reviews"]>
 export type reviewsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  tenant_competitors?: boolean | Prisma.reviews$tenant_competitorsArgs<ExtArgs>
+  products?: boolean | Prisma.reviews$productsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   sentiment_results?: boolean | Prisma.reviews$sentiment_resultsArgs<ExtArgs>
 }
 export type reviewsIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  tenant_competitors?: boolean | Prisma.reviews$tenant_competitorsArgs<ExtArgs>
+  products?: boolean | Prisma.reviews$productsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }
 export type reviewsIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  tenant_competitors?: boolean | Prisma.reviews$tenant_competitorsArgs<ExtArgs>
+  products?: boolean | Prisma.reviews$productsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }
 
 export type $reviewsPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "reviews"
   objects: {
-    products: Prisma.$productsPayload<ExtArgs>
+    tenant_competitors: Prisma.$tenant_competitorsPayload<ExtArgs> | null
+    products: Prisma.$productsPayload<ExtArgs> | null
     companies: Prisma.$CompanyPayload<ExtArgs>
     sentiment_results: Prisma.$sentiment_resultsPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     review_id: string
     tenant_id: string
-    product_id: string
+    product_id: string | null
     source_platform: string
     reviewer_name: string | null
     review_text: string
     review_rating: runtime.Decimal | null
     review_date: Date
     created_at: Date | null
+    subject_type: string
+    competitor_id: string | null
+    source_status: string
+    collection_method: string
+    review_language: string | null
+    source_id: string | null
+    external_review_id: string | null
+    safety_status: string
+    safety_flags: runtime.JsonValue
+    like_count: number | null
+    reply_count: number | null
   }, ExtArgs["result"]["reviews"]>
   composites: {}
 }
@@ -1318,7 +2024,8 @@ readonly fields: reviewsFieldRefs;
  */
 export interface Prisma__reviewsClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  products<T extends Prisma.productsDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.productsDefaultArgs<ExtArgs>>): Prisma.Prisma__productsClient<runtime.Types.Result.GetResult<Prisma.$productsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  tenant_competitors<T extends Prisma.reviews$tenant_competitorsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.reviews$tenant_competitorsArgs<ExtArgs>>): Prisma.Prisma__tenant_competitorsClient<runtime.Types.Result.GetResult<Prisma.$tenant_competitorsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  products<T extends Prisma.reviews$productsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.reviews$productsArgs<ExtArgs>>): Prisma.Prisma__productsClient<runtime.Types.Result.GetResult<Prisma.$productsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   companies<T extends Prisma.CompanyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CompanyDefaultArgs<ExtArgs>>): Prisma.Prisma__CompanyClient<runtime.Types.Result.GetResult<Prisma.$CompanyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   sentiment_results<T extends Prisma.reviews$sentiment_resultsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.reviews$sentiment_resultsArgs<ExtArgs>>): Prisma.Prisma__sentiment_resultsClient<runtime.Types.Result.GetResult<Prisma.$sentiment_resultsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
@@ -1359,6 +2066,17 @@ export interface reviewsFieldRefs {
   readonly review_rating: Prisma.FieldRef<"reviews", 'Decimal'>
   readonly review_date: Prisma.FieldRef<"reviews", 'DateTime'>
   readonly created_at: Prisma.FieldRef<"reviews", 'DateTime'>
+  readonly subject_type: Prisma.FieldRef<"reviews", 'String'>
+  readonly competitor_id: Prisma.FieldRef<"reviews", 'String'>
+  readonly source_status: Prisma.FieldRef<"reviews", 'String'>
+  readonly collection_method: Prisma.FieldRef<"reviews", 'String'>
+  readonly review_language: Prisma.FieldRef<"reviews", 'String'>
+  readonly source_id: Prisma.FieldRef<"reviews", 'String'>
+  readonly external_review_id: Prisma.FieldRef<"reviews", 'String'>
+  readonly safety_status: Prisma.FieldRef<"reviews", 'String'>
+  readonly safety_flags: Prisma.FieldRef<"reviews", 'Json'>
+  readonly like_count: Prisma.FieldRef<"reviews", 'Int'>
+  readonly reply_count: Prisma.FieldRef<"reviews", 'Int'>
 }
     
 
@@ -1757,6 +2475,44 @@ export type reviewsDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Limit how many reviews to delete.
    */
   limit?: number
+}
+
+/**
+ * reviews.tenant_competitors
+ */
+export type reviews$tenant_competitorsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the tenant_competitors
+   */
+  select?: Prisma.tenant_competitorsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the tenant_competitors
+   */
+  omit?: Prisma.tenant_competitorsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.tenant_competitorsInclude<ExtArgs> | null
+  where?: Prisma.tenant_competitorsWhereInput
+}
+
+/**
+ * reviews.products
+ */
+export type reviews$productsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the products
+   */
+  select?: Prisma.productsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the products
+   */
+  omit?: Prisma.productsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.productsInclude<ExtArgs> | null
+  where?: Prisma.productsWhereInput
 }
 
 /**

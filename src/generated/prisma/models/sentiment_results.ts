@@ -29,10 +29,18 @@ export type AggregateSentiment_results = {
 
 export type Sentiment_resultsAvgAggregateOutputType = {
   sentiment_score: runtime.Decimal | null
+  positive_probability: runtime.Decimal | null
+  neutral_probability: runtime.Decimal | null
+  negative_probability: runtime.Decimal | null
+  confidence: runtime.Decimal | null
 }
 
 export type Sentiment_resultsSumAggregateOutputType = {
   sentiment_score: runtime.Decimal | null
+  positive_probability: runtime.Decimal | null
+  neutral_probability: runtime.Decimal | null
+  negative_probability: runtime.Decimal | null
+  confidence: runtime.Decimal | null
 }
 
 export type Sentiment_resultsMinAggregateOutputType = {
@@ -43,6 +51,10 @@ export type Sentiment_resultsMinAggregateOutputType = {
   sentiment_label: string | null
   model_version: string | null
   processed_at: Date | null
+  positive_probability: runtime.Decimal | null
+  neutral_probability: runtime.Decimal | null
+  negative_probability: runtime.Decimal | null
+  confidence: runtime.Decimal | null
 }
 
 export type Sentiment_resultsMaxAggregateOutputType = {
@@ -53,6 +65,10 @@ export type Sentiment_resultsMaxAggregateOutputType = {
   sentiment_label: string | null
   model_version: string | null
   processed_at: Date | null
+  positive_probability: runtime.Decimal | null
+  neutral_probability: runtime.Decimal | null
+  negative_probability: runtime.Decimal | null
+  confidence: runtime.Decimal | null
 }
 
 export type Sentiment_resultsCountAggregateOutputType = {
@@ -64,16 +80,28 @@ export type Sentiment_resultsCountAggregateOutputType = {
   extracted_keywords: number
   model_version: number
   processed_at: number
+  positive_probability: number
+  neutral_probability: number
+  negative_probability: number
+  confidence: number
   _all: number
 }
 
 
 export type Sentiment_resultsAvgAggregateInputType = {
   sentiment_score?: true
+  positive_probability?: true
+  neutral_probability?: true
+  negative_probability?: true
+  confidence?: true
 }
 
 export type Sentiment_resultsSumAggregateInputType = {
   sentiment_score?: true
+  positive_probability?: true
+  neutral_probability?: true
+  negative_probability?: true
+  confidence?: true
 }
 
 export type Sentiment_resultsMinAggregateInputType = {
@@ -84,6 +112,10 @@ export type Sentiment_resultsMinAggregateInputType = {
   sentiment_label?: true
   model_version?: true
   processed_at?: true
+  positive_probability?: true
+  neutral_probability?: true
+  negative_probability?: true
+  confidence?: true
 }
 
 export type Sentiment_resultsMaxAggregateInputType = {
@@ -94,6 +126,10 @@ export type Sentiment_resultsMaxAggregateInputType = {
   sentiment_label?: true
   model_version?: true
   processed_at?: true
+  positive_probability?: true
+  neutral_probability?: true
+  negative_probability?: true
+  confidence?: true
 }
 
 export type Sentiment_resultsCountAggregateInputType = {
@@ -105,6 +141,10 @@ export type Sentiment_resultsCountAggregateInputType = {
   extracted_keywords?: true
   model_version?: true
   processed_at?: true
+  positive_probability?: true
+  neutral_probability?: true
+  negative_probability?: true
+  confidence?: true
   _all?: true
 }
 
@@ -203,6 +243,10 @@ export type Sentiment_resultsGroupByOutputType = {
   extracted_keywords: runtime.JsonValue | null
   model_version: string
   processed_at: Date | null
+  positive_probability: runtime.Decimal | null
+  neutral_probability: runtime.Decimal | null
+  negative_probability: runtime.Decimal | null
+  confidence: runtime.Decimal | null
   _count: Sentiment_resultsCountAggregateOutputType | null
   _avg: Sentiment_resultsAvgAggregateOutputType | null
   _sum: Sentiment_resultsSumAggregateOutputType | null
@@ -237,6 +281,10 @@ export type sentiment_resultsWhereInput = {
   extracted_keywords?: Prisma.JsonNullableFilter<"sentiment_results">
   model_version?: Prisma.StringFilter<"sentiment_results"> | string
   processed_at?: Prisma.DateTimeNullableFilter<"sentiment_results"> | Date | string | null
+  positive_probability?: Prisma.DecimalNullableFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.DecimalNullableFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.DecimalNullableFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.DecimalNullableFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   reviews?: Prisma.XOR<Prisma.ReviewsScalarRelationFilter, Prisma.reviewsWhereInput>
 }
 
@@ -249,24 +297,32 @@ export type sentiment_resultsOrderByWithRelationInput = {
   extracted_keywords?: Prisma.SortOrderInput | Prisma.SortOrder
   model_version?: Prisma.SortOrder
   processed_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  positive_probability?: Prisma.SortOrderInput | Prisma.SortOrder
+  neutral_probability?: Prisma.SortOrderInput | Prisma.SortOrder
+  negative_probability?: Prisma.SortOrderInput | Prisma.SortOrder
+  confidence?: Prisma.SortOrderInput | Prisma.SortOrder
   reviews?: Prisma.reviewsOrderByWithRelationInput
 }
 
 export type sentiment_resultsWhereUniqueInput = Prisma.AtLeast<{
   sentiment_id?: string
+  review_id?: string
   tenant_id_review_id?: Prisma.sentiment_resultsTenant_idReview_idCompoundUniqueInput
   AND?: Prisma.sentiment_resultsWhereInput | Prisma.sentiment_resultsWhereInput[]
   OR?: Prisma.sentiment_resultsWhereInput[]
   NOT?: Prisma.sentiment_resultsWhereInput | Prisma.sentiment_resultsWhereInput[]
   tenant_id?: Prisma.UuidFilter<"sentiment_results"> | string
-  review_id?: Prisma.UuidFilter<"sentiment_results"> | string
   sentiment_score?: Prisma.DecimalFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   sentiment_label?: Prisma.StringFilter<"sentiment_results"> | string
   extracted_keywords?: Prisma.JsonNullableFilter<"sentiment_results">
   model_version?: Prisma.StringFilter<"sentiment_results"> | string
   processed_at?: Prisma.DateTimeNullableFilter<"sentiment_results"> | Date | string | null
+  positive_probability?: Prisma.DecimalNullableFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.DecimalNullableFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.DecimalNullableFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.DecimalNullableFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   reviews?: Prisma.XOR<Prisma.ReviewsScalarRelationFilter, Prisma.reviewsWhereInput>
-}, "sentiment_id" | "tenant_id_review_id">
+}, "sentiment_id" | "review_id" | "tenant_id_review_id">
 
 export type sentiment_resultsOrderByWithAggregationInput = {
   sentiment_id?: Prisma.SortOrder
@@ -277,6 +333,10 @@ export type sentiment_resultsOrderByWithAggregationInput = {
   extracted_keywords?: Prisma.SortOrderInput | Prisma.SortOrder
   model_version?: Prisma.SortOrder
   processed_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  positive_probability?: Prisma.SortOrderInput | Prisma.SortOrder
+  neutral_probability?: Prisma.SortOrderInput | Prisma.SortOrder
+  negative_probability?: Prisma.SortOrderInput | Prisma.SortOrder
+  confidence?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.sentiment_resultsCountOrderByAggregateInput
   _avg?: Prisma.sentiment_resultsAvgOrderByAggregateInput
   _max?: Prisma.sentiment_resultsMaxOrderByAggregateInput
@@ -296,6 +356,10 @@ export type sentiment_resultsScalarWhereWithAggregatesInput = {
   extracted_keywords?: Prisma.JsonNullableWithAggregatesFilter<"sentiment_results">
   model_version?: Prisma.StringWithAggregatesFilter<"sentiment_results"> | string
   processed_at?: Prisma.DateTimeNullableWithAggregatesFilter<"sentiment_results"> | Date | string | null
+  positive_probability?: Prisma.DecimalNullableWithAggregatesFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.DecimalNullableWithAggregatesFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.DecimalNullableWithAggregatesFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.DecimalNullableWithAggregatesFilter<"sentiment_results"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type sentiment_resultsCreateInput = {
@@ -305,6 +369,10 @@ export type sentiment_resultsCreateInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version: string
   processed_at?: Date | string | null
+  positive_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   reviews: Prisma.reviewsCreateNestedOneWithoutSentiment_resultsInput
 }
 
@@ -317,6 +385,10 @@ export type sentiment_resultsUncheckedCreateInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version: string
   processed_at?: Date | string | null
+  positive_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type sentiment_resultsUpdateInput = {
@@ -326,6 +398,10 @@ export type sentiment_resultsUpdateInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   processed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  positive_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   reviews?: Prisma.reviewsUpdateOneRequiredWithoutSentiment_resultsNestedInput
 }
 
@@ -338,6 +414,10 @@ export type sentiment_resultsUncheckedUpdateInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   processed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  positive_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type sentiment_resultsCreateManyInput = {
@@ -349,6 +429,10 @@ export type sentiment_resultsCreateManyInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version: string
   processed_at?: Date | string | null
+  positive_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type sentiment_resultsUpdateManyMutationInput = {
@@ -358,6 +442,10 @@ export type sentiment_resultsUpdateManyMutationInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   processed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  positive_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type sentiment_resultsUncheckedUpdateManyInput = {
@@ -369,6 +457,10 @@ export type sentiment_resultsUncheckedUpdateManyInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   processed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  positive_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type Sentiment_resultsNullableScalarRelationFilter = {
@@ -390,10 +482,18 @@ export type sentiment_resultsCountOrderByAggregateInput = {
   extracted_keywords?: Prisma.SortOrder
   model_version?: Prisma.SortOrder
   processed_at?: Prisma.SortOrder
+  positive_probability?: Prisma.SortOrder
+  neutral_probability?: Prisma.SortOrder
+  negative_probability?: Prisma.SortOrder
+  confidence?: Prisma.SortOrder
 }
 
 export type sentiment_resultsAvgOrderByAggregateInput = {
   sentiment_score?: Prisma.SortOrder
+  positive_probability?: Prisma.SortOrder
+  neutral_probability?: Prisma.SortOrder
+  negative_probability?: Prisma.SortOrder
+  confidence?: Prisma.SortOrder
 }
 
 export type sentiment_resultsMaxOrderByAggregateInput = {
@@ -404,6 +504,10 @@ export type sentiment_resultsMaxOrderByAggregateInput = {
   sentiment_label?: Prisma.SortOrder
   model_version?: Prisma.SortOrder
   processed_at?: Prisma.SortOrder
+  positive_probability?: Prisma.SortOrder
+  neutral_probability?: Prisma.SortOrder
+  negative_probability?: Prisma.SortOrder
+  confidence?: Prisma.SortOrder
 }
 
 export type sentiment_resultsMinOrderByAggregateInput = {
@@ -414,10 +518,18 @@ export type sentiment_resultsMinOrderByAggregateInput = {
   sentiment_label?: Prisma.SortOrder
   model_version?: Prisma.SortOrder
   processed_at?: Prisma.SortOrder
+  positive_probability?: Prisma.SortOrder
+  neutral_probability?: Prisma.SortOrder
+  negative_probability?: Prisma.SortOrder
+  confidence?: Prisma.SortOrder
 }
 
 export type sentiment_resultsSumOrderByAggregateInput = {
   sentiment_score?: Prisma.SortOrder
+  positive_probability?: Prisma.SortOrder
+  neutral_probability?: Prisma.SortOrder
+  negative_probability?: Prisma.SortOrder
+  confidence?: Prisma.SortOrder
 }
 
 export type sentiment_resultsCreateNestedOneWithoutReviewsInput = {
@@ -459,6 +571,10 @@ export type sentiment_resultsCreateWithoutReviewsInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version: string
   processed_at?: Date | string | null
+  positive_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type sentiment_resultsUncheckedCreateWithoutReviewsInput = {
@@ -468,6 +584,10 @@ export type sentiment_resultsUncheckedCreateWithoutReviewsInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version: string
   processed_at?: Date | string | null
+  positive_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type sentiment_resultsCreateOrConnectWithoutReviewsInput = {
@@ -493,6 +613,10 @@ export type sentiment_resultsUpdateWithoutReviewsInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   processed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  positive_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 export type sentiment_resultsUncheckedUpdateWithoutReviewsInput = {
@@ -502,6 +626,10 @@ export type sentiment_resultsUncheckedUpdateWithoutReviewsInput = {
   extracted_keywords?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   processed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  positive_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  neutral_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  negative_probability?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
 }
 
 
@@ -515,6 +643,10 @@ export type sentiment_resultsSelect<ExtArgs extends runtime.Types.Extensions.Int
   extracted_keywords?: boolean
   model_version?: boolean
   processed_at?: boolean
+  positive_probability?: boolean
+  neutral_probability?: boolean
+  negative_probability?: boolean
+  confidence?: boolean
   reviews?: boolean | Prisma.reviewsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sentiment_results"]>
 
@@ -527,6 +659,10 @@ export type sentiment_resultsSelectCreateManyAndReturn<ExtArgs extends runtime.T
   extracted_keywords?: boolean
   model_version?: boolean
   processed_at?: boolean
+  positive_probability?: boolean
+  neutral_probability?: boolean
+  negative_probability?: boolean
+  confidence?: boolean
   reviews?: boolean | Prisma.reviewsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sentiment_results"]>
 
@@ -539,6 +675,10 @@ export type sentiment_resultsSelectUpdateManyAndReturn<ExtArgs extends runtime.T
   extracted_keywords?: boolean
   model_version?: boolean
   processed_at?: boolean
+  positive_probability?: boolean
+  neutral_probability?: boolean
+  negative_probability?: boolean
+  confidence?: boolean
   reviews?: boolean | Prisma.reviewsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sentiment_results"]>
 
@@ -551,9 +691,13 @@ export type sentiment_resultsSelectScalar = {
   extracted_keywords?: boolean
   model_version?: boolean
   processed_at?: boolean
+  positive_probability?: boolean
+  neutral_probability?: boolean
+  negative_probability?: boolean
+  confidence?: boolean
 }
 
-export type sentiment_resultsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"sentiment_id" | "tenant_id" | "review_id" | "sentiment_score" | "sentiment_label" | "extracted_keywords" | "model_version" | "processed_at", ExtArgs["result"]["sentiment_results"]>
+export type sentiment_resultsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"sentiment_id" | "tenant_id" | "review_id" | "sentiment_score" | "sentiment_label" | "extracted_keywords" | "model_version" | "processed_at" | "positive_probability" | "neutral_probability" | "negative_probability" | "confidence", ExtArgs["result"]["sentiment_results"]>
 export type sentiment_resultsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   reviews?: boolean | Prisma.reviewsDefaultArgs<ExtArgs>
 }
@@ -578,6 +722,10 @@ export type $sentiment_resultsPayload<ExtArgs extends runtime.Types.Extensions.I
     extracted_keywords: runtime.JsonValue | null
     model_version: string
     processed_at: Date | null
+    positive_probability: runtime.Decimal | null
+    neutral_probability: runtime.Decimal | null
+    negative_probability: runtime.Decimal | null
+    confidence: runtime.Decimal | null
   }, ExtArgs["result"]["sentiment_results"]>
   composites: {}
 }
@@ -1010,6 +1158,10 @@ export interface sentiment_resultsFieldRefs {
   readonly extracted_keywords: Prisma.FieldRef<"sentiment_results", 'Json'>
   readonly model_version: Prisma.FieldRef<"sentiment_results", 'String'>
   readonly processed_at: Prisma.FieldRef<"sentiment_results", 'DateTime'>
+  readonly positive_probability: Prisma.FieldRef<"sentiment_results", 'Decimal'>
+  readonly neutral_probability: Prisma.FieldRef<"sentiment_results", 'Decimal'>
+  readonly negative_probability: Prisma.FieldRef<"sentiment_results", 'Decimal'>
+  readonly confidence: Prisma.FieldRef<"sentiment_results", 'Decimal'>
 }
     
 

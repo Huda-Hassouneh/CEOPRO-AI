@@ -30,11 +30,15 @@ export type AggregateIngestion_jobs = {
 export type Ingestion_jobsAvgAggregateOutputType = {
   rows_processed: number | null
   rows_failed: number | null
+  rows_quarantined: number | null
+  rows_partial: number | null
 }
 
 export type Ingestion_jobsSumAggregateOutputType = {
   rows_processed: number | null
   rows_failed: number | null
+  rows_quarantined: number | null
+  rows_partial: number | null
 }
 
 export type Ingestion_jobsMinAggregateOutputType = {
@@ -48,6 +52,9 @@ export type Ingestion_jobsMinAggregateOutputType = {
   started_at: Date | null
   ended_at: Date | null
   created_at: Date | null
+  heartbeat_at: Date | null
+  rows_quarantined: number | null
+  rows_partial: number | null
 }
 
 export type Ingestion_jobsMaxAggregateOutputType = {
@@ -61,6 +68,9 @@ export type Ingestion_jobsMaxAggregateOutputType = {
   started_at: Date | null
   ended_at: Date | null
   created_at: Date | null
+  heartbeat_at: Date | null
+  rows_quarantined: number | null
+  rows_partial: number | null
 }
 
 export type Ingestion_jobsCountAggregateOutputType = {
@@ -74,6 +84,9 @@ export type Ingestion_jobsCountAggregateOutputType = {
   started_at: number
   ended_at: number
   created_at: number
+  heartbeat_at: number
+  rows_quarantined: number
+  rows_partial: number
   _all: number
 }
 
@@ -81,11 +94,15 @@ export type Ingestion_jobsCountAggregateOutputType = {
 export type Ingestion_jobsAvgAggregateInputType = {
   rows_processed?: true
   rows_failed?: true
+  rows_quarantined?: true
+  rows_partial?: true
 }
 
 export type Ingestion_jobsSumAggregateInputType = {
   rows_processed?: true
   rows_failed?: true
+  rows_quarantined?: true
+  rows_partial?: true
 }
 
 export type Ingestion_jobsMinAggregateInputType = {
@@ -99,6 +116,9 @@ export type Ingestion_jobsMinAggregateInputType = {
   started_at?: true
   ended_at?: true
   created_at?: true
+  heartbeat_at?: true
+  rows_quarantined?: true
+  rows_partial?: true
 }
 
 export type Ingestion_jobsMaxAggregateInputType = {
@@ -112,6 +132,9 @@ export type Ingestion_jobsMaxAggregateInputType = {
   started_at?: true
   ended_at?: true
   created_at?: true
+  heartbeat_at?: true
+  rows_quarantined?: true
+  rows_partial?: true
 }
 
 export type Ingestion_jobsCountAggregateInputType = {
@@ -125,6 +148,9 @@ export type Ingestion_jobsCountAggregateInputType = {
   started_at?: true
   ended_at?: true
   created_at?: true
+  heartbeat_at?: true
+  rows_quarantined?: true
+  rows_partial?: true
   _all?: true
 }
 
@@ -225,6 +251,9 @@ export type Ingestion_jobsGroupByOutputType = {
   started_at: Date | null
   ended_at: Date | null
   created_at: Date | null
+  heartbeat_at: Date | null
+  rows_quarantined: number
+  rows_partial: number | null
   _count: Ingestion_jobsCountAggregateOutputType | null
   _avg: Ingestion_jobsAvgAggregateOutputType | null
   _sum: Ingestion_jobsSumAggregateOutputType | null
@@ -261,8 +290,13 @@ export type ingestion_jobsWhereInput = {
   started_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
   ended_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
   created_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
+  heartbeat_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
+  rows_quarantined?: Prisma.IntFilter<"ingestion_jobs"> | number
+  rows_partial?: Prisma.IntNullableFilter<"ingestion_jobs"> | number | null
   import_staging_rows?: Prisma.Import_staging_rowsListRelationFilter
   data_sources?: Prisma.XOR<Prisma.Data_sourcesScalarRelationFilter, Prisma.data_sourcesWhereInput>
+  market_observation_staging?: Prisma.Market_observation_stagingListRelationFilter
+  market_observations?: Prisma.Market_observationsListRelationFilter
 }
 
 export type ingestion_jobsOrderByWithRelationInput = {
@@ -276,8 +310,13 @@ export type ingestion_jobsOrderByWithRelationInput = {
   started_at?: Prisma.SortOrderInput | Prisma.SortOrder
   ended_at?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  heartbeat_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  rows_quarantined?: Prisma.SortOrder
+  rows_partial?: Prisma.SortOrderInput | Prisma.SortOrder
   import_staging_rows?: Prisma.import_staging_rowsOrderByRelationAggregateInput
   data_sources?: Prisma.data_sourcesOrderByWithRelationInput
+  market_observation_staging?: Prisma.market_observation_stagingOrderByRelationAggregateInput
+  market_observations?: Prisma.market_observationsOrderByRelationAggregateInput
 }
 
 export type ingestion_jobsWhereUniqueInput = Prisma.AtLeast<{
@@ -295,8 +334,13 @@ export type ingestion_jobsWhereUniqueInput = Prisma.AtLeast<{
   started_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
   ended_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
   created_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
+  heartbeat_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
+  rows_quarantined?: Prisma.IntFilter<"ingestion_jobs"> | number
+  rows_partial?: Prisma.IntNullableFilter<"ingestion_jobs"> | number | null
   import_staging_rows?: Prisma.Import_staging_rowsListRelationFilter
   data_sources?: Prisma.XOR<Prisma.Data_sourcesScalarRelationFilter, Prisma.data_sourcesWhereInput>
+  market_observation_staging?: Prisma.Market_observation_stagingListRelationFilter
+  market_observations?: Prisma.Market_observationsListRelationFilter
 }, "job_id" | "tenant_id_job_id">
 
 export type ingestion_jobsOrderByWithAggregationInput = {
@@ -310,6 +354,9 @@ export type ingestion_jobsOrderByWithAggregationInput = {
   started_at?: Prisma.SortOrderInput | Prisma.SortOrder
   ended_at?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  heartbeat_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  rows_quarantined?: Prisma.SortOrder
+  rows_partial?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ingestion_jobsCountOrderByAggregateInput
   _avg?: Prisma.ingestion_jobsAvgOrderByAggregateInput
   _max?: Prisma.ingestion_jobsMaxOrderByAggregateInput
@@ -331,6 +378,9 @@ export type ingestion_jobsScalarWhereWithAggregatesInput = {
   started_at?: Prisma.DateTimeNullableWithAggregatesFilter<"ingestion_jobs"> | Date | string | null
   ended_at?: Prisma.DateTimeNullableWithAggregatesFilter<"ingestion_jobs"> | Date | string | null
   created_at?: Prisma.DateTimeNullableWithAggregatesFilter<"ingestion_jobs"> | Date | string | null
+  heartbeat_at?: Prisma.DateTimeNullableWithAggregatesFilter<"ingestion_jobs"> | Date | string | null
+  rows_quarantined?: Prisma.IntWithAggregatesFilter<"ingestion_jobs"> | number
+  rows_partial?: Prisma.IntNullableWithAggregatesFilter<"ingestion_jobs"> | number | null
 }
 
 export type ingestion_jobsCreateInput = {
@@ -342,8 +392,13 @@ export type ingestion_jobsCreateInput = {
   started_at?: Date | string | null
   ended_at?: Date | string | null
   created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
   import_staging_rows?: Prisma.import_staging_rowsCreateNestedManyWithoutIngestion_jobsInput
   data_sources: Prisma.data_sourcesCreateNestedOneWithoutIngestion_jobsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutIngestion_jobsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutIngestion_jobsInput
 }
 
 export type ingestion_jobsUncheckedCreateInput = {
@@ -357,7 +412,12 @@ export type ingestion_jobsUncheckedCreateInput = {
   started_at?: Date | string | null
   ended_at?: Date | string | null
   created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
   import_staging_rows?: Prisma.import_staging_rowsUncheckedCreateNestedManyWithoutIngestion_jobsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutIngestion_jobsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutIngestion_jobsInput
 }
 
 export type ingestion_jobsUpdateInput = {
@@ -369,8 +429,13 @@ export type ingestion_jobsUpdateInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   import_staging_rows?: Prisma.import_staging_rowsUpdateManyWithoutIngestion_jobsNestedInput
   data_sources?: Prisma.data_sourcesUpdateOneRequiredWithoutIngestion_jobsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutIngestion_jobsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutIngestion_jobsNestedInput
 }
 
 export type ingestion_jobsUncheckedUpdateInput = {
@@ -384,7 +449,12 @@ export type ingestion_jobsUncheckedUpdateInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   import_staging_rows?: Prisma.import_staging_rowsUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutIngestion_jobsNestedInput
 }
 
 export type ingestion_jobsCreateManyInput = {
@@ -398,6 +468,9 @@ export type ingestion_jobsCreateManyInput = {
   started_at?: Date | string | null
   ended_at?: Date | string | null
   created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
 }
 
 export type ingestion_jobsUpdateManyMutationInput = {
@@ -409,6 +482,9 @@ export type ingestion_jobsUpdateManyMutationInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type ingestion_jobsUncheckedUpdateManyInput = {
@@ -422,6 +498,9 @@ export type ingestion_jobsUncheckedUpdateManyInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type Ingestion_jobsListRelationFilter = {
@@ -455,11 +534,16 @@ export type ingestion_jobsCountOrderByAggregateInput = {
   started_at?: Prisma.SortOrder
   ended_at?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  heartbeat_at?: Prisma.SortOrder
+  rows_quarantined?: Prisma.SortOrder
+  rows_partial?: Prisma.SortOrder
 }
 
 export type ingestion_jobsAvgOrderByAggregateInput = {
   rows_processed?: Prisma.SortOrder
   rows_failed?: Prisma.SortOrder
+  rows_quarantined?: Prisma.SortOrder
+  rows_partial?: Prisma.SortOrder
 }
 
 export type ingestion_jobsMaxOrderByAggregateInput = {
@@ -473,6 +557,9 @@ export type ingestion_jobsMaxOrderByAggregateInput = {
   started_at?: Prisma.SortOrder
   ended_at?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  heartbeat_at?: Prisma.SortOrder
+  rows_quarantined?: Prisma.SortOrder
+  rows_partial?: Prisma.SortOrder
 }
 
 export type ingestion_jobsMinOrderByAggregateInput = {
@@ -486,11 +573,16 @@ export type ingestion_jobsMinOrderByAggregateInput = {
   started_at?: Prisma.SortOrder
   ended_at?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  heartbeat_at?: Prisma.SortOrder
+  rows_quarantined?: Prisma.SortOrder
+  rows_partial?: Prisma.SortOrder
 }
 
 export type ingestion_jobsSumOrderByAggregateInput = {
   rows_processed?: Prisma.SortOrder
   rows_failed?: Prisma.SortOrder
+  rows_quarantined?: Prisma.SortOrder
+  rows_partial?: Prisma.SortOrder
 }
 
 export type ingestion_jobsCreateNestedManyWithoutData_sourcesInput = {
@@ -549,6 +641,34 @@ export type ingestion_jobsUpdateOneRequiredWithoutImport_staging_rowsNestedInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.ingestion_jobsUpdateToOneWithWhereWithoutImport_staging_rowsInput, Prisma.ingestion_jobsUpdateWithoutImport_staging_rowsInput>, Prisma.ingestion_jobsUncheckedUpdateWithoutImport_staging_rowsInput>
 }
 
+export type ingestion_jobsCreateNestedOneWithoutMarket_observation_stagingInput = {
+  create?: Prisma.XOR<Prisma.ingestion_jobsCreateWithoutMarket_observation_stagingInput, Prisma.ingestion_jobsUncheckedCreateWithoutMarket_observation_stagingInput>
+  connectOrCreate?: Prisma.ingestion_jobsCreateOrConnectWithoutMarket_observation_stagingInput
+  connect?: Prisma.ingestion_jobsWhereUniqueInput
+}
+
+export type ingestion_jobsUpdateOneRequiredWithoutMarket_observation_stagingNestedInput = {
+  create?: Prisma.XOR<Prisma.ingestion_jobsCreateWithoutMarket_observation_stagingInput, Prisma.ingestion_jobsUncheckedCreateWithoutMarket_observation_stagingInput>
+  connectOrCreate?: Prisma.ingestion_jobsCreateOrConnectWithoutMarket_observation_stagingInput
+  upsert?: Prisma.ingestion_jobsUpsertWithoutMarket_observation_stagingInput
+  connect?: Prisma.ingestion_jobsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ingestion_jobsUpdateToOneWithWhereWithoutMarket_observation_stagingInput, Prisma.ingestion_jobsUpdateWithoutMarket_observation_stagingInput>, Prisma.ingestion_jobsUncheckedUpdateWithoutMarket_observation_stagingInput>
+}
+
+export type ingestion_jobsCreateNestedOneWithoutMarket_observationsInput = {
+  create?: Prisma.XOR<Prisma.ingestion_jobsCreateWithoutMarket_observationsInput, Prisma.ingestion_jobsUncheckedCreateWithoutMarket_observationsInput>
+  connectOrCreate?: Prisma.ingestion_jobsCreateOrConnectWithoutMarket_observationsInput
+  connect?: Prisma.ingestion_jobsWhereUniqueInput
+}
+
+export type ingestion_jobsUpdateOneRequiredWithoutMarket_observationsNestedInput = {
+  create?: Prisma.XOR<Prisma.ingestion_jobsCreateWithoutMarket_observationsInput, Prisma.ingestion_jobsUncheckedCreateWithoutMarket_observationsInput>
+  connectOrCreate?: Prisma.ingestion_jobsCreateOrConnectWithoutMarket_observationsInput
+  upsert?: Prisma.ingestion_jobsUpsertWithoutMarket_observationsInput
+  connect?: Prisma.ingestion_jobsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ingestion_jobsUpdateToOneWithWhereWithoutMarket_observationsInput, Prisma.ingestion_jobsUpdateWithoutMarket_observationsInput>, Prisma.ingestion_jobsUncheckedUpdateWithoutMarket_observationsInput>
+}
+
 export type ingestion_jobsCreateWithoutData_sourcesInput = {
   job_id?: string
   job_status?: string
@@ -558,7 +678,12 @@ export type ingestion_jobsCreateWithoutData_sourcesInput = {
   started_at?: Date | string | null
   ended_at?: Date | string | null
   created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
   import_staging_rows?: Prisma.import_staging_rowsCreateNestedManyWithoutIngestion_jobsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutIngestion_jobsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutIngestion_jobsInput
 }
 
 export type ingestion_jobsUncheckedCreateWithoutData_sourcesInput = {
@@ -570,7 +695,12 @@ export type ingestion_jobsUncheckedCreateWithoutData_sourcesInput = {
   started_at?: Date | string | null
   ended_at?: Date | string | null
   created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
   import_staging_rows?: Prisma.import_staging_rowsUncheckedCreateNestedManyWithoutIngestion_jobsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutIngestion_jobsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutIngestion_jobsInput
 }
 
 export type ingestion_jobsCreateOrConnectWithoutData_sourcesInput = {
@@ -613,6 +743,9 @@ export type ingestion_jobsScalarWhereInput = {
   started_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
   ended_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
   created_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
+  heartbeat_at?: Prisma.DateTimeNullableFilter<"ingestion_jobs"> | Date | string | null
+  rows_quarantined?: Prisma.IntFilter<"ingestion_jobs"> | number
+  rows_partial?: Prisma.IntNullableFilter<"ingestion_jobs"> | number | null
 }
 
 export type ingestion_jobsCreateWithoutImport_staging_rowsInput = {
@@ -624,7 +757,12 @@ export type ingestion_jobsCreateWithoutImport_staging_rowsInput = {
   started_at?: Date | string | null
   ended_at?: Date | string | null
   created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
   data_sources: Prisma.data_sourcesCreateNestedOneWithoutIngestion_jobsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutIngestion_jobsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutIngestion_jobsInput
 }
 
 export type ingestion_jobsUncheckedCreateWithoutImport_staging_rowsInput = {
@@ -638,6 +776,11 @@ export type ingestion_jobsUncheckedCreateWithoutImport_staging_rowsInput = {
   started_at?: Date | string | null
   ended_at?: Date | string | null
   created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutIngestion_jobsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutIngestion_jobsInput
 }
 
 export type ingestion_jobsCreateOrConnectWithoutImport_staging_rowsInput = {
@@ -665,7 +808,12 @@ export type ingestion_jobsUpdateWithoutImport_staging_rowsInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   data_sources?: Prisma.data_sourcesUpdateOneRequiredWithoutIngestion_jobsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutIngestion_jobsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutIngestion_jobsNestedInput
 }
 
 export type ingestion_jobsUncheckedUpdateWithoutImport_staging_rowsInput = {
@@ -679,6 +827,183 @@ export type ingestion_jobsUncheckedUpdateWithoutImport_staging_rowsInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+}
+
+export type ingestion_jobsCreateWithoutMarket_observation_stagingInput = {
+  job_id?: string
+  job_status?: string
+  rows_processed?: number | null
+  rows_failed?: number | null
+  error_log?: string | null
+  started_at?: Date | string | null
+  ended_at?: Date | string | null
+  created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
+  import_staging_rows?: Prisma.import_staging_rowsCreateNestedManyWithoutIngestion_jobsInput
+  data_sources: Prisma.data_sourcesCreateNestedOneWithoutIngestion_jobsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutIngestion_jobsInput
+}
+
+export type ingestion_jobsUncheckedCreateWithoutMarket_observation_stagingInput = {
+  job_id?: string
+  tenant_id: string
+  source_id: string
+  job_status?: string
+  rows_processed?: number | null
+  rows_failed?: number | null
+  error_log?: string | null
+  started_at?: Date | string | null
+  ended_at?: Date | string | null
+  created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
+  import_staging_rows?: Prisma.import_staging_rowsUncheckedCreateNestedManyWithoutIngestion_jobsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutIngestion_jobsInput
+}
+
+export type ingestion_jobsCreateOrConnectWithoutMarket_observation_stagingInput = {
+  where: Prisma.ingestion_jobsWhereUniqueInput
+  create: Prisma.XOR<Prisma.ingestion_jobsCreateWithoutMarket_observation_stagingInput, Prisma.ingestion_jobsUncheckedCreateWithoutMarket_observation_stagingInput>
+}
+
+export type ingestion_jobsUpsertWithoutMarket_observation_stagingInput = {
+  update: Prisma.XOR<Prisma.ingestion_jobsUpdateWithoutMarket_observation_stagingInput, Prisma.ingestion_jobsUncheckedUpdateWithoutMarket_observation_stagingInput>
+  create: Prisma.XOR<Prisma.ingestion_jobsCreateWithoutMarket_observation_stagingInput, Prisma.ingestion_jobsUncheckedCreateWithoutMarket_observation_stagingInput>
+  where?: Prisma.ingestion_jobsWhereInput
+}
+
+export type ingestion_jobsUpdateToOneWithWhereWithoutMarket_observation_stagingInput = {
+  where?: Prisma.ingestion_jobsWhereInput
+  data: Prisma.XOR<Prisma.ingestion_jobsUpdateWithoutMarket_observation_stagingInput, Prisma.ingestion_jobsUncheckedUpdateWithoutMarket_observation_stagingInput>
+}
+
+export type ingestion_jobsUpdateWithoutMarket_observation_stagingInput = {
+  job_id?: Prisma.StringFieldUpdateOperationsInput | string
+  job_status?: Prisma.StringFieldUpdateOperationsInput | string
+  rows_processed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  rows_failed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  error_log?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  import_staging_rows?: Prisma.import_staging_rowsUpdateManyWithoutIngestion_jobsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneRequiredWithoutIngestion_jobsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutIngestion_jobsNestedInput
+}
+
+export type ingestion_jobsUncheckedUpdateWithoutMarket_observation_stagingInput = {
+  job_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  job_status?: Prisma.StringFieldUpdateOperationsInput | string
+  rows_processed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  rows_failed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  error_log?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  import_staging_rows?: Prisma.import_staging_rowsUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+}
+
+export type ingestion_jobsCreateWithoutMarket_observationsInput = {
+  job_id?: string
+  job_status?: string
+  rows_processed?: number | null
+  rows_failed?: number | null
+  error_log?: string | null
+  started_at?: Date | string | null
+  ended_at?: Date | string | null
+  created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
+  import_staging_rows?: Prisma.import_staging_rowsCreateNestedManyWithoutIngestion_jobsInput
+  data_sources: Prisma.data_sourcesCreateNestedOneWithoutIngestion_jobsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutIngestion_jobsInput
+}
+
+export type ingestion_jobsUncheckedCreateWithoutMarket_observationsInput = {
+  job_id?: string
+  tenant_id: string
+  source_id: string
+  job_status?: string
+  rows_processed?: number | null
+  rows_failed?: number | null
+  error_log?: string | null
+  started_at?: Date | string | null
+  ended_at?: Date | string | null
+  created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
+  import_staging_rows?: Prisma.import_staging_rowsUncheckedCreateNestedManyWithoutIngestion_jobsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutIngestion_jobsInput
+}
+
+export type ingestion_jobsCreateOrConnectWithoutMarket_observationsInput = {
+  where: Prisma.ingestion_jobsWhereUniqueInput
+  create: Prisma.XOR<Prisma.ingestion_jobsCreateWithoutMarket_observationsInput, Prisma.ingestion_jobsUncheckedCreateWithoutMarket_observationsInput>
+}
+
+export type ingestion_jobsUpsertWithoutMarket_observationsInput = {
+  update: Prisma.XOR<Prisma.ingestion_jobsUpdateWithoutMarket_observationsInput, Prisma.ingestion_jobsUncheckedUpdateWithoutMarket_observationsInput>
+  create: Prisma.XOR<Prisma.ingestion_jobsCreateWithoutMarket_observationsInput, Prisma.ingestion_jobsUncheckedCreateWithoutMarket_observationsInput>
+  where?: Prisma.ingestion_jobsWhereInput
+}
+
+export type ingestion_jobsUpdateToOneWithWhereWithoutMarket_observationsInput = {
+  where?: Prisma.ingestion_jobsWhereInput
+  data: Prisma.XOR<Prisma.ingestion_jobsUpdateWithoutMarket_observationsInput, Prisma.ingestion_jobsUncheckedUpdateWithoutMarket_observationsInput>
+}
+
+export type ingestion_jobsUpdateWithoutMarket_observationsInput = {
+  job_id?: Prisma.StringFieldUpdateOperationsInput | string
+  job_status?: Prisma.StringFieldUpdateOperationsInput | string
+  rows_processed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  rows_failed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  error_log?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  import_staging_rows?: Prisma.import_staging_rowsUpdateManyWithoutIngestion_jobsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneRequiredWithoutIngestion_jobsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutIngestion_jobsNestedInput
+}
+
+export type ingestion_jobsUncheckedUpdateWithoutMarket_observationsInput = {
+  job_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  job_status?: Prisma.StringFieldUpdateOperationsInput | string
+  rows_processed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  rows_failed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  error_log?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  import_staging_rows?: Prisma.import_staging_rowsUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutIngestion_jobsNestedInput
 }
 
 export type ingestion_jobsCreateManyData_sourcesInput = {
@@ -690,6 +1015,9 @@ export type ingestion_jobsCreateManyData_sourcesInput = {
   started_at?: Date | string | null
   ended_at?: Date | string | null
   created_at?: Date | string | null
+  heartbeat_at?: Date | string | null
+  rows_quarantined?: number
+  rows_partial?: number | null
 }
 
 export type ingestion_jobsUpdateWithoutData_sourcesInput = {
@@ -701,7 +1029,12 @@ export type ingestion_jobsUpdateWithoutData_sourcesInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   import_staging_rows?: Prisma.import_staging_rowsUpdateManyWithoutIngestion_jobsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutIngestion_jobsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutIngestion_jobsNestedInput
 }
 
 export type ingestion_jobsUncheckedUpdateWithoutData_sourcesInput = {
@@ -713,7 +1046,12 @@ export type ingestion_jobsUncheckedUpdateWithoutData_sourcesInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   import_staging_rows?: Prisma.import_staging_rowsUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutIngestion_jobsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutIngestion_jobsNestedInput
 }
 
 export type ingestion_jobsUncheckedUpdateManyWithoutData_sourcesInput = {
@@ -725,6 +1063,9 @@ export type ingestion_jobsUncheckedUpdateManyWithoutData_sourcesInput = {
   started_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ended_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  heartbeat_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  rows_quarantined?: Prisma.IntFieldUpdateOperationsInput | number
+  rows_partial?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 
@@ -734,10 +1075,14 @@ export type ingestion_jobsUncheckedUpdateManyWithoutData_sourcesInput = {
 
 export type Ingestion_jobsCountOutputType = {
   import_staging_rows: number
+  market_observation_staging: number
+  market_observations: number
 }
 
 export type Ingestion_jobsCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   import_staging_rows?: boolean | Ingestion_jobsCountOutputTypeCountImport_staging_rowsArgs
+  market_observation_staging?: boolean | Ingestion_jobsCountOutputTypeCountMarket_observation_stagingArgs
+  market_observations?: boolean | Ingestion_jobsCountOutputTypeCountMarket_observationsArgs
 }
 
 /**
@@ -757,6 +1102,20 @@ export type Ingestion_jobsCountOutputTypeCountImport_staging_rowsArgs<ExtArgs ex
   where?: Prisma.import_staging_rowsWhereInput
 }
 
+/**
+ * Ingestion_jobsCountOutputType without action
+ */
+export type Ingestion_jobsCountOutputTypeCountMarket_observation_stagingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_observation_stagingWhereInput
+}
+
+/**
+ * Ingestion_jobsCountOutputType without action
+ */
+export type Ingestion_jobsCountOutputTypeCountMarket_observationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_observationsWhereInput
+}
+
 
 export type ingestion_jobsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   job_id?: boolean
@@ -769,8 +1128,13 @@ export type ingestion_jobsSelect<ExtArgs extends runtime.Types.Extensions.Intern
   started_at?: boolean
   ended_at?: boolean
   created_at?: boolean
+  heartbeat_at?: boolean
+  rows_quarantined?: boolean
+  rows_partial?: boolean
   import_staging_rows?: boolean | Prisma.ingestion_jobs$import_staging_rowsArgs<ExtArgs>
   data_sources?: boolean | Prisma.data_sourcesDefaultArgs<ExtArgs>
+  market_observation_staging?: boolean | Prisma.ingestion_jobs$market_observation_stagingArgs<ExtArgs>
+  market_observations?: boolean | Prisma.ingestion_jobs$market_observationsArgs<ExtArgs>
   _count?: boolean | Prisma.Ingestion_jobsCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["ingestion_jobs"]>
 
@@ -785,6 +1149,9 @@ export type ingestion_jobsSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   started_at?: boolean
   ended_at?: boolean
   created_at?: boolean
+  heartbeat_at?: boolean
+  rows_quarantined?: boolean
+  rows_partial?: boolean
   data_sources?: boolean | Prisma.data_sourcesDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["ingestion_jobs"]>
 
@@ -799,6 +1166,9 @@ export type ingestion_jobsSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   started_at?: boolean
   ended_at?: boolean
   created_at?: boolean
+  heartbeat_at?: boolean
+  rows_quarantined?: boolean
+  rows_partial?: boolean
   data_sources?: boolean | Prisma.data_sourcesDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["ingestion_jobs"]>
 
@@ -813,12 +1183,17 @@ export type ingestion_jobsSelectScalar = {
   started_at?: boolean
   ended_at?: boolean
   created_at?: boolean
+  heartbeat_at?: boolean
+  rows_quarantined?: boolean
+  rows_partial?: boolean
 }
 
-export type ingestion_jobsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"job_id" | "tenant_id" | "source_id" | "job_status" | "rows_processed" | "rows_failed" | "error_log" | "started_at" | "ended_at" | "created_at", ExtArgs["result"]["ingestion_jobs"]>
+export type ingestion_jobsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"job_id" | "tenant_id" | "source_id" | "job_status" | "rows_processed" | "rows_failed" | "error_log" | "started_at" | "ended_at" | "created_at" | "heartbeat_at" | "rows_quarantined" | "rows_partial", ExtArgs["result"]["ingestion_jobs"]>
 export type ingestion_jobsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   import_staging_rows?: boolean | Prisma.ingestion_jobs$import_staging_rowsArgs<ExtArgs>
   data_sources?: boolean | Prisma.data_sourcesDefaultArgs<ExtArgs>
+  market_observation_staging?: boolean | Prisma.ingestion_jobs$market_observation_stagingArgs<ExtArgs>
+  market_observations?: boolean | Prisma.ingestion_jobs$market_observationsArgs<ExtArgs>
   _count?: boolean | Prisma.Ingestion_jobsCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ingestion_jobsIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -833,6 +1208,8 @@ export type $ingestion_jobsPayload<ExtArgs extends runtime.Types.Extensions.Inte
   objects: {
     import_staging_rows: Prisma.$import_staging_rowsPayload<ExtArgs>[]
     data_sources: Prisma.$data_sourcesPayload<ExtArgs>
+    market_observation_staging: Prisma.$market_observation_stagingPayload<ExtArgs>[]
+    market_observations: Prisma.$market_observationsPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     job_id: string
@@ -845,6 +1222,9 @@ export type $ingestion_jobsPayload<ExtArgs extends runtime.Types.Extensions.Inte
     started_at: Date | null
     ended_at: Date | null
     created_at: Date | null
+    heartbeat_at: Date | null
+    rows_quarantined: number
+    rows_partial: number | null
   }, ExtArgs["result"]["ingestion_jobs"]>
   composites: {}
 }
@@ -1241,6 +1621,8 @@ export interface Prisma__ingestion_jobsClient<T, Null = never, ExtArgs extends r
   readonly [Symbol.toStringTag]: "PrismaPromise"
   import_staging_rows<T extends Prisma.ingestion_jobs$import_staging_rowsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ingestion_jobs$import_staging_rowsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$import_staging_rowsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   data_sources<T extends Prisma.data_sourcesDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.data_sourcesDefaultArgs<ExtArgs>>): Prisma.Prisma__data_sourcesClient<runtime.Types.Result.GetResult<Prisma.$data_sourcesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  market_observation_staging<T extends Prisma.ingestion_jobs$market_observation_stagingArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ingestion_jobs$market_observation_stagingArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_observation_stagingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  market_observations<T extends Prisma.ingestion_jobs$market_observationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ingestion_jobs$market_observationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_observationsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1280,6 +1662,9 @@ export interface ingestion_jobsFieldRefs {
   readonly started_at: Prisma.FieldRef<"ingestion_jobs", 'DateTime'>
   readonly ended_at: Prisma.FieldRef<"ingestion_jobs", 'DateTime'>
   readonly created_at: Prisma.FieldRef<"ingestion_jobs", 'DateTime'>
+  readonly heartbeat_at: Prisma.FieldRef<"ingestion_jobs", 'DateTime'>
+  readonly rows_quarantined: Prisma.FieldRef<"ingestion_jobs", 'Int'>
+  readonly rows_partial: Prisma.FieldRef<"ingestion_jobs", 'Int'>
 }
     
 
@@ -1702,6 +2087,54 @@ export type ingestion_jobs$import_staging_rowsArgs<ExtArgs extends runtime.Types
   take?: number
   skip?: number
   distinct?: Prisma.Import_staging_rowsScalarFieldEnum | Prisma.Import_staging_rowsScalarFieldEnum[]
+}
+
+/**
+ * ingestion_jobs.market_observation_staging
+ */
+export type ingestion_jobs$market_observation_stagingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_observation_staging
+   */
+  select?: Prisma.market_observation_stagingSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_observation_staging
+   */
+  omit?: Prisma.market_observation_stagingOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_observation_stagingInclude<ExtArgs> | null
+  where?: Prisma.market_observation_stagingWhereInput
+  orderBy?: Prisma.market_observation_stagingOrderByWithRelationInput | Prisma.market_observation_stagingOrderByWithRelationInput[]
+  cursor?: Prisma.market_observation_stagingWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_observation_stagingScalarFieldEnum | Prisma.Market_observation_stagingScalarFieldEnum[]
+}
+
+/**
+ * ingestion_jobs.market_observations
+ */
+export type ingestion_jobs$market_observationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_observations
+   */
+  select?: Prisma.market_observationsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_observations
+   */
+  omit?: Prisma.market_observationsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_observationsInclude<ExtArgs> | null
+  where?: Prisma.market_observationsWhereInput
+  orderBy?: Prisma.market_observationsOrderByWithRelationInput | Prisma.market_observationsOrderByWithRelationInput[]
+  cursor?: Prisma.market_observationsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_observationsScalarFieldEnum | Prisma.Market_observationsScalarFieldEnum[]
 }
 
 /**

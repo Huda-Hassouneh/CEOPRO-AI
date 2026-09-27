@@ -31,21 +31,32 @@ model Company {
   createdAt               DateTime?                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime?                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt               DateTime?                 @map("deleted_at") @db.Timestamptz(6)
+  platformStatus          String                    @default("active") @map("platform_status") @db.VarChar(20)
+  platformNotes           String?                   @map("platform_notes") @db.VarChar(2000)
+  authSessions            AuthSession[]
+  campaigns               campaigns[]
   customPlanQuotes        CustomPlanQuote[]
   data_sources            data_sources[]
   demand_forecasts        demand_forecasts[]
+  extracted_entity        extracted_entity[]
   global_competitors      global_competitors[]
   inventory               inventory[]
   invoices                invoices[]
+  market_alert_events     market_alert_events[]
+  market_events           market_events[]
+  news_record             news_record[]
   customPlans             Plan[]
+  platformInvitations     PlatformInvitation[]
   products                products[]
   rag_documents_metadata  rag_documents_metadata[]
   recommendation_outcomes recommendation_outcomes[]
   reviews                 reviews[]
+  social_mention          social_mention[]
   subscriptions           Subscription[]
   system_alerts           system_alerts[]
   tenant_competitors      tenant_competitors[]
   tenantUsers             TenantUser[]
+  transactions            transactions[]
 
   @@map("companies")
 }
@@ -137,6 +148,7 @@ model Subscription {
   scheduledPlan                 Plan?                 @relation("ScheduledPlan", fields: [scheduledPlanId], references: [id])
   tenant                        Company               @relation(fields: [tenantId], references: [id])
 
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "subscriptions_owner_portal_latest_idx")
   @@map("subscriptions")
 }
 
@@ -321,14 +333,17 @@ model CustomPlanQuoteFeature {
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model User {
-  userId            String       @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
-  email             String       @db.VarChar(255)
-  passwordHash      String       @map("password_hash")
-  fullName          String?      @map("full_name") @db.VarChar(150)
-  preferredLanguage String?      @default("en") @map("preferred_language") @db.VarChar(5)
-  createdAt         DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime?    @default(now()) @map("updated_at") @db.Timestamptz(6)
-  tenantUsers       TenantUser[]
+  userId                  String               @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  email                   String               @db.VarChar(255)
+  passwordHash            String               @map("password_hash")
+  fullName                String?              @map("full_name") @db.VarChar(150)
+  preferredLanguage       String?              @default("en") @map("preferred_language") @db.VarChar(5)
+  createdAt               DateTime?            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime?            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  sessionVersion          Int                  @default(0) @map("session_version")
+  authSessions            AuthSession[]
+  sentPlatformInvitations PlatformInvitation[]
+  tenantUsers             TenantUser[]
 
   @@map("users")
 }
@@ -351,6 +366,7 @@ model TenantUser {
   roleKey                                                      String                   @map("role_key") @db.VarChar(50)
   removedAt                                                    DateTime?                @map("removed_at") @db.Timestamptz(6)
   joinedAt                                                     DateTime?                @default(now()) @map("joined_at") @db.Timestamptz(6)
+  platformStatus                                               String                   @default("active") @map("platform_status") @db.VarChar(20)
   invoices                                                     invoices[]
   product_price_history                                        product_price_history[]
   products_products_tenant_id_created_by_user_idTotenant_users products[]               @relation("products_tenant_id_created_by_user_idTotenant_users")
@@ -362,6 +378,41 @@ model TenantUser {
 
   @@unique([tenantId, userId], map: "uq_tenant_user_composite_perimeter")
   @@map("tenant_users")
+}
+
+model PlatformInvitation {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  email      String    @db.VarChar(255)
+  roleKey    String    @map("role_key") @db.VarChar(50)
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(64)
+  invitedBy  String    @map("invited_by") @db.Uuid
+  status     String    @default("pending") @db.VarChar(20)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(6)
+  inviter    User      @relation(fields: [invitedBy], references: [userId], onDelete: Cascade)
+  tenant     Company   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, email])
+  @@map("platform_invitations")
+}
+
+model AuthSession {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  device     String    @db.VarChar(255)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastActive DateTime  @default(now()) @map("last_active") @db.Timestamptz(6)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  tenant     Company   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@map("auth_sessions")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -390,6 +441,8 @@ model competitor_prices {
   currency                    String                      @db.VarChar(3)
   is_available                Boolean                     @default(true)
   observed_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  source_status               String                      @default("ALLOWED") @db.VarChar(20)
+  is_exact_data               Boolean                     @default(true)
   competitor_product_mappings competitor_product_mappings @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_competitor_prices_mapping_isolated")
 
   @@index([tenant_id, observed_at(sort: Desc)], map: "idx_competitor_prices_lookup")
@@ -398,21 +451,27 @@ model competitor_prices {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model competitor_product_mappings {
-  mapping_id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id              String              @db.Uuid
-  global_competitor_id   String              @db.Uuid
-  product_id             String              @db.Uuid
-  competitor_product_url String?
-  competitor_product_sku String?             @db.VarChar(100)
-  is_active              Boolean             @default(true)
-  created_at             DateTime?           @default(now()) @db.Timestamptz(6)
-  competitor_prices      competitor_prices[]
-  products               products            @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mapping_product_isolated")
-  tenant_competitors     tenant_competitors  @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mapping_tenant_competitor")
+  mapping_id                 String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                  String                       @db.Uuid
+  global_competitor_id       String                       @db.Uuid
+  product_id                 String                       @db.Uuid
+  competitor_product_url     String?
+  competitor_product_sku     String?                      @db.VarChar(100)
+  is_active                  Boolean                      @default(true)
+  created_at                 DateTime?                    @default(now()) @db.Timestamptz(6)
+  source_id                  String?                      @db.Uuid
+  competitor_prices          competitor_prices[]
+  products                   products                     @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mapping_product_isolated")
+  data_sources               data_sources?                @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onUpdate: NoAction, map: "fk_mapping_source_isolated")
+  tenant_competitors         tenant_competitors           @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mapping_tenant_competitor")
+  market_events              market_events[]
+  market_observation_staging market_observation_staging[]
+  market_observations        market_observations[]
 
   @@unique([tenant_id, global_competitor_id, product_id], map: "uq_tenant_competitor_product")
   @@unique([tenant_id, mapping_id], map: "uq_tenant_mapping_perimeter")
   @@index([tenant_id, product_id], map: "idx_mappings_tenant_product")
+  @@index([tenant_id, source_id, is_active], map: "idx_mappings_collection_source")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -423,24 +482,47 @@ model currency_rates {
   to_currency   String    @db.VarChar(3)
   exchange_rate Decimal   @db.Decimal(12, 6)
   last_fetched  DateTime? @default(now()) @db.Timestamptz(6)
+  source        String?   @db.VarChar(100)
 
   @@unique([from_currency, to_currency], map: "uq_currency_pair")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model data_sources {
-  source_id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id                    String           @db.Uuid
-  source_name                  String           @db.VarChar(100)
-  source_type                  String           @db.VarChar(50)
+  source_id                    String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                    String                        @db.Uuid
+  source_name                  String                        @db.VarChar(100)
+  source_type                  String                        @db.VarChar(50)
   connection_credentials_vault String?
-  sync_frequency_minutes       Int?             @default(1440)
-  is_active                    Boolean          @default(true)
-  created_at                   DateTime?        @default(now()) @db.Timestamptz(6)
-  companies                    Company          @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sync_frequency_minutes       Int?                          @default(1440)
+  is_active                    Boolean                       @default(true)
+  created_at                   DateTime?                     @default(now()) @db.Timestamptz(6)
+  source_url                   String?
+  collection_method            String?                       @db.VarChar(32)
+  policy_status                String                        @default("RESTRICTED") @db.VarChar(20)
+  collection_justification     String?
+  technical_restrictions       Json                          @default("{}")
+  rate_limit_per_minute        Int                           @default(30)
+  policy_checked_at            DateTime?                     @db.Timestamptz(6)
+  last_synced_at               DateTime?                     @db.Timestamptz(6)
+  collector_key                String?                       @db.VarChar(64)
+  render_javascript            Boolean                       @default(false)
+  collector_config             Json                          @default("{}")
+  approval_reference           String?
+  approved_by                  String?                       @db.Uuid
+  approved_at                  DateTime?                     @db.Timestamptz(6)
+  privacy_reviewed_at          DateTime?                     @db.Timestamptz(6)
+  retention_days               Int                           @default(90)
+  contains_personal_data       Boolean                       @default(false)
+  competitor_product_mappings  competitor_product_mappings[]
+  companies                    Company                       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   ingestion_jobs               ingestion_jobs[]
+  market_events                market_events[]
+  market_observation_staging   market_observation_staging[]
+  market_observations          market_observations[]
 
   @@unique([tenant_id, source_id], map: "uq_tenant_source_perimeter")
+  @@index([tenant_id, policy_status, is_active], map: "idx_data_sources_collection_policy")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -449,14 +531,15 @@ model demand_forecasts {
   forecast_id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenant_id               String                    @db.Uuid
   product_id              String                    @db.Uuid
-  forecast_start_date     DateTime                  @db.Date
-  forecast_end_date       DateTime                  @db.Date
-  predicted_quantity      Decimal                   @db.Decimal(12, 2)
-  confidence_lower_bound  Decimal?                  @db.Decimal(12, 2)
-  confidence_upper_bound  Decimal?                  @db.Decimal(12, 2)
+  forecast_start_date     DateTime?                 @db.Date
+  forecast_end_date       DateTime?                 @db.Date
+  expected_demand         Int
+  confidence_range_lower  Decimal?                  @db.Decimal(12, 2)
+  confidence_range_upper  Decimal?                  @db.Decimal(12, 2)
   model_version           String                    @db.VarChar(50)
   features_used           Json?                     @default("{}")
   created_at              DateTime?                 @default(now()) @db.Timestamptz(6)
+  forecast_target_date    DateTime?                 @db.Date
   companies               Company                   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   products                products                  @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_forecast_product_isolated")
   evidence_records        evidence_records[]
@@ -469,14 +552,24 @@ model demand_forecasts {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model evidence_records {
-  evidence_id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id           String           @db.Uuid
-  forecast_id         String           @db.Uuid
-  metric_name         String           @db.VarChar(100)
-  metric_value_json   Json
-  contribution_weight Decimal          @db.Decimal(5, 4)
-  demand_forecasts    demand_forecasts @relation(fields: [tenant_id, forecast_id], references: [tenant_id, forecast_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_evidence_forecast_isolated")
+  evidence_id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id               String                    @db.Uuid
+  forecast_id             String?                   @db.Uuid
+  metric_name             String?                   @db.VarChar(100)
+  metric_value_json       Json?
+  contribution_weight     Decimal?                  @db.Decimal(5, 4)
+  category                String?                   @db.VarChar(20)
+  source_module           String?                   @db.VarChar(100)
+  source_record_ids       Json?
+  confidence_score        Decimal?                  @db.Decimal(5, 2)
+  explanation_text        String?
+  model_version           String?                   @db.VarChar(50)
+  country_context         String?                   @db.VarChar(2)
+  generated_at            DateTime?                 @default(now()) @db.Timestamptz(6)
+  demand_forecasts        demand_forecasts?         @relation(fields: [tenant_id, forecast_id], references: [tenant_id, forecast_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_evidence_forecast_isolated")
+  recommendation_outcomes recommendation_outcomes[]
 
+  @@unique([tenant_id, evidence_id], map: "uq_tenant_evidence_perimeter")
   @@index([tenant_id, forecast_id], map: "idx_evidence_tenant_forecast")
 }
 
@@ -491,8 +584,13 @@ model global_competitors {
   visibility           String               @default("GLOBAL") @db.VarChar(10)
   added_by_tenant_id   String?              @db.Uuid
   created_at           DateTime?            @default(now()) @db.Timestamptz(6)
+  country_code         String?              @db.VarChar(2)
+  is_manufacturer      Boolean              @default(false)
+  website_identity_key String?
   companies            Company?             @relation(fields: [added_by_tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   tenant_competitors   tenant_competitors[]
+
+  @@unique([added_by_tenant_id, website_identity_key], map: "uq_competitor_private_identity", where: raw("(((visibility)::text = 'PRIVATE'::text) AND (website_identity_key IS NOT NULL))"))
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -515,20 +613,26 @@ model import_staging_rows {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model ingestion_jobs {
-  job_id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id           String                @db.Uuid
-  source_id           String                @db.Uuid
-  job_status          String                @default("QUEUED") @db.VarChar(20)
-  rows_processed      Int?                  @default(0)
-  rows_failed         Int?                  @default(0)
-  error_log           String?
-  started_at          DateTime?             @db.Timestamptz(6)
-  ended_at            DateTime?             @db.Timestamptz(6)
-  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
-  import_staging_rows import_staging_rows[]
-  data_sources        data_sources          @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_jobs_source_isolated")
+  job_id                     String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                  String                       @db.Uuid
+  source_id                  String                       @db.Uuid
+  job_status                 String                       @default("QUEUED") @db.VarChar(20)
+  rows_processed             Int?                         @default(0)
+  rows_failed                Int?                         @default(0)
+  error_log                  String?
+  started_at                 DateTime?                    @db.Timestamptz(6)
+  ended_at                   DateTime?                    @db.Timestamptz(6)
+  created_at                 DateTime?                    @default(now()) @db.Timestamptz(6)
+  heartbeat_at               DateTime?                    @db.Timestamptz(6)
+  rows_quarantined           Int                          @default(0)
+  rows_partial               Int?                         @default(0)
+  import_staging_rows        import_staging_rows[]
+  data_sources               data_sources                 @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_jobs_source_isolated")
+  market_observation_staging market_observation_staging[]
+  market_observations        market_observations[]
 
   @@unique([tenant_id, job_id], map: "uq_tenant_job_perimeter")
+  @@index([tenant_id, source_id, heartbeat_at], map: "idx_ingestion_jobs_stale_market", where: raw("((job_status)::text = 'PROCESSING'::text)"))
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -627,6 +731,7 @@ model products {
   created_at                                                       DateTime?                     @default(now()) @db.Timestamptz(6)
   updated_at                                                       DateTime?                     @default(now()) @db.Timestamptz(6)
   deleted_at                                                       DateTime?                     @db.Timestamptz(6)
+  campaigns                                                        campaigns[]
   competitor_product_mappings                                      competitor_product_mappings[]
   demand_forecasts                                                 demand_forecasts[]
   inventory                                                        inventory[]
@@ -636,6 +741,7 @@ model products {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users TenantUser?                   @relation("products_tenant_id_updated_by_user_idTotenant_users", fields: [tenant_id, updated_by_user_id], references: [tenantId, userId], onDelete: SetNull, onUpdate: NoAction, map: "fk_products_updater")
   companies                                                        Company                       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   reviews                                                          reviews[]
+  transactions                                                     transactions[]
 
   @@unique([tenant_id, product_id], map: "uq_tenant_product_perimeter")
   @@index([product_name], map: "idx_products_name_gin", type: Gin)
@@ -645,13 +751,15 @@ model products {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model rag_document_chunks {
-  chunk_id               String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id              String                 @db.Uuid
-  document_id            String                 @db.Uuid
-  chunk_index            Int
-  chunk_text_content     String
-  created_at             DateTime?              @default(now()) @db.Timestamptz(6)
-  rag_documents_metadata rag_documents_metadata @relation(fields: [tenant_id, document_id], references: [tenant_id, document_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_chunks_document_isolated")
+  chunk_id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id               String                 @db.Uuid
+  document_id             String                 @db.Uuid
+  chunk_index             Int
+  chunk_text_content      String
+  created_at              DateTime?              @default(now()) @db.Timestamptz(6)
+  embedding               Unsupported("vector")?
+  embedding_model_version String?                @db.VarChar(100)
+  rag_documents_metadata  rag_documents_metadata @relation(fields: [tenant_id, document_id], references: [tenant_id, document_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_chunks_document_isolated")
 
   @@unique([tenant_id, document_id, chunk_index], map: "uq_tenant_chunk_index")
 }
@@ -667,11 +775,13 @@ model rag_documents_metadata {
   content_type        String?               @db.VarChar(100)
   uploaded_by_user_id String?               @db.Uuid
   uploaded_at         DateTime?             @default(now()) @db.Timestamptz(6)
+  processed_status    String                @default("Pending") @db.VarChar(20)
   rag_document_chunks rag_document_chunks[]
   tenant_users        TenantUser?           @relation(fields: [tenant_id, uploaded_by_user_id], references: [tenantId, userId], onDelete: SetNull, onUpdate: NoAction, map: "fk_rag_doc_user_isolated")
   companies           Company               @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([tenant_id, document_id], map: "uq_tenant_document_perimeter")
+  @@index([tenant_id, processed_status], map: "idx_rag_documents_status_lookup")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -680,51 +790,69 @@ model recommendation_outcomes {
   recommendation_id    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenant_id            String            @db.Uuid
   forecast_id          String?           @db.Uuid
-  recommended_action   String
+  recommended_action   String?
   expected_impact_json Json?             @default("{}")
   user_decision        String            @default("PENDING") @db.VarChar(30)
   actual_outcome_json  Json?             @default("{}")
   created_at           DateTime?         @default(now()) @db.Timestamptz(6)
   updated_at           DateTime?         @default(now()) @db.Timestamptz(6)
+  evidence_id          String?           @db.Uuid
   demand_forecasts     demand_forecasts? @relation(fields: [tenant_id, forecast_id], references: [tenant_id, forecast_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rec_forecast_isolated")
+  evidence_records     evidence_records? @relation(fields: [tenant_id, evidence_id], references: [tenant_id, evidence_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rec_outcome_evidence_isolated")
   companies            Company           @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model reviews {
-  review_id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id         String             @db.Uuid
-  product_id        String             @db.Uuid
-  source_platform   String             @db.VarChar(50)
-  reviewer_name     String?            @db.VarChar(150)
-  review_text       String
-  review_rating     Decimal?           @db.Decimal(3, 2)
-  review_date       DateTime           @default(now()) @db.Timestamptz(6)
-  created_at        DateTime?          @default(now()) @db.Timestamptz(6)
-  products          products           @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_product_isolated")
-  companies         Company            @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  sentiment_results sentiment_results?
+  review_id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id          String              @db.Uuid
+  product_id         String?             @db.Uuid
+  source_platform    String              @db.VarChar(50)
+  reviewer_name      String?             @db.VarChar(150)
+  review_text        String
+  review_rating      Decimal?            @db.Decimal(3, 2)
+  review_date        DateTime            @default(now()) @db.Timestamptz(6)
+  created_at         DateTime?           @default(now()) @db.Timestamptz(6)
+  subject_type       String              @default("PRODUCT") @db.VarChar(20)
+  competitor_id      String?             @db.Uuid
+  source_status      String              @default("ALLOWED") @db.VarChar(20)
+  collection_method  String              @default("MANUAL") @db.VarChar(50)
+  review_language    String?             @db.VarChar(5)
+  source_id          String?             @db.Uuid
+  external_review_id String?
+  safety_status      String              @default("SAFE") @db.VarChar(20)
+  safety_flags       Json                @default("[]")
+  like_count         Int?
+  reply_count        Int?
+  tenant_competitors tenant_competitors? @relation(fields: [tenant_id, competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_competitor_isolated")
+  products           products?           @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_product_isolated")
+  companies          Company             @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sentiment_results  sentiment_results?
 
   @@unique([tenant_id, review_id], map: "uq_tenant_review_perimeter")
+  @@unique([tenant_id, source_id, external_review_id], map: "uq_reviews_external_source", where: raw("((source_id IS NOT NULL) AND (external_review_id IS NOT NULL))"))
   @@index([tenant_id, product_id], map: "idx_reviews_tenant_product")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model sentiment_results {
-  sentiment_id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id          String    @db.Uuid
-  review_id          String    @db.Uuid
-  sentiment_score    Decimal   @db.Decimal(5, 4)
-  sentiment_label    String    @db.VarChar(20)
-  extracted_keywords Json?     @default("[]")
-  model_version      String    @db.VarChar(50)
-  processed_at       DateTime? @default(now()) @db.Timestamptz(6)
+  sentiment_id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  review_id            String    @unique @db.Uuid
+  sentiment_score      Decimal   @db.Decimal(5, 4)
+  sentiment_label      String    @db.VarChar(20)
+  extracted_keywords   Json?     @default("[]")
+  model_version        String    @db.VarChar(50)
+  processed_at         DateTime? @default(now()) @db.Timestamptz(6)
+  positive_probability Decimal?  @db.Decimal(5, 4)
+  neutral_probability  Decimal?  @db.Decimal(5, 4)
+  negative_probability Decimal?  @db.Decimal(5, 4)
+  confidence           Decimal?  @db.Decimal(5, 4)
+  reviews              reviews   @relation(fields: [tenant_id, review_id], references: [tenant_id, review_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sentiment_review_isolated")
 
-  reviews reviews @relation(fields: [tenant_id, review_id], references: [tenant_id, review_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sentiment_review_isolated")
-
-  @@unique([tenant_id, review_id])
+  @@unique([tenant_id, review_id], map: "uq_sentiment_tenant_review")
   @@index([tenant_id, sentiment_label], map: "idx_sentiment_tenant_label")
 }
 
@@ -751,11 +879,268 @@ model tenant_competitors {
   custom_alias                String?                       @db.VarChar(255)
   is_tracked                  Boolean                       @default(true)
   added_at                    DateTime?                     @default(now()) @db.Timestamptz(6)
+  product_match_rate          Decimal?                      @db.Decimal(5, 4)
+  is_confirmed_competitor     Boolean                       @default(false)
+  classified_at               DateTime?                     @db.Timestamptz(6)
+  tier                        String                        @default("CANDIDATE")
   competitor_product_mappings competitor_product_mappings[]
+  competitor_score_snapshots  competitor_score_snapshots[]
+  market_alert_rules          market_alert_rules[]
+  market_events               market_events[]
+  reviews                     reviews[]
   global_competitors          global_competitors            @relation(fields: [global_competitor_id], references: [global_competitor_id], onDelete: Cascade, onUpdate: NoAction)
   companies                   Company                       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([tenant_id, global_competitor_id])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model campaigns {
+  campaign_id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id           String    @db.Uuid
+  product_id          String?   @db.Uuid
+  campaign_brief      String
+  generated_image_key String?   @db.VarChar(512)
+  status              String?   @default("Pending") @db.VarChar(50)
+  requested_at        DateTime? @default(now()) @db.Timestamptz(6)
+  completed_at        DateTime? @db.Timestamptz(6)
+  companies           Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products            products? @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: SetNull, onUpdate: NoAction, map: "fk_campaigns_product_isolated")
+
+  @@unique([tenant_id, campaign_id], map: "uq_tenant_campaign_perimeter")
+  @@index([tenant_id], map: "idx_campaigns_tenant")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model competitor_score_snapshots {
+  score_id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id             String             @db.Uuid
+  global_competitor_id  String             @db.Uuid
+  price_score           Decimal?           @db.Decimal(5, 2)
+  sentiment_score       Decimal?           @db.Decimal(5, 2)
+  market_activity_score Decimal?           @db.Decimal(5, 2)
+  relevance_score       Decimal?           @db.Decimal(5, 2)
+  composite_score       Decimal            @db.Decimal(5, 2)
+  missing_factors       Json               @default("[]")
+  evidence              Json               @default("{}")
+  calculated_at         DateTime           @default(now()) @db.Timestamptz(6)
+  tenant_competitors    tenant_competitors @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_score_competitor")
+
+  @@index([tenant_id, composite_score(sort: Desc), calculated_at(sort: Desc)], map: "idx_competitor_scores_leaderboard")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model extracted_entity {
+  entity_id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id        String    @db.Uuid
+  source_table     String    @db.VarChar(50)
+  source_record_id String    @db.Uuid
+  entity_type      String    @db.VarChar(100)
+  entity_value     String    @db.VarChar(512)
+  confidence_score Decimal?  @db.Decimal(4, 3)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  companies        Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([source_table, source_record_id], map: "idx_extracted_entity_source")
+  @@index([tenant_id], map: "idx_extracted_entity_tenant")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_alert_events {
+  alert_event_id     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id          String             @db.Uuid
+  alert_rule_id      String             @db.Uuid
+  market_event_id    String?            @db.Uuid
+  observed_value     Decimal            @db.Decimal(12, 4)
+  message            String
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  acknowledged_at    DateTime?          @db.Timestamptz(6)
+  market_alert_rules market_alert_rules @relation(fields: [alert_rule_id], references: [alert_rule_id], onDelete: Cascade, onUpdate: NoAction)
+  market_events      market_events?     @relation(fields: [market_event_id], references: [event_id], onUpdate: NoAction)
+  companies          Company            @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id, created_at(sort: Desc)], map: "idx_market_alert_events_unread", where: raw("(acknowledged_at IS NULL)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_alert_rules {
+  alert_rule_id        String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String                @db.Uuid
+  global_competitor_id String                @db.Uuid
+  metric               String                @db.VarChar(32)
+  operator             String                @db.VarChar(4)
+  threshold            Decimal               @db.Decimal(12, 4)
+  is_active            Boolean               @default(true)
+  created_at           DateTime              @default(now()) @db.Timestamptz(6)
+  market_alert_events  market_alert_events[]
+  tenant_competitors   tenant_competitors    @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_alert_competitor")
+
+  @@unique([tenant_id, alert_rule_id], map: "uq_market_alert_rule_tenant")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_events {
+  event_id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                       @db.Uuid
+  global_competitor_id        String                       @db.Uuid
+  mapping_id                  String?                      @db.Uuid
+  source_id                   String?                      @db.Uuid
+  event_type                  String                       @db.VarChar(32)
+  old_value                   Json?
+  new_value                   Json
+  source_url                  String?
+  occurred_at                 DateTime                     @db.Timestamptz(6)
+  collected_at                DateTime                     @default(now()) @db.Timestamptz(6)
+  market_alert_events         market_alert_events[]
+  tenant_competitors          tenant_competitors           @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_event_competitor")
+  competitor_product_mappings competitor_product_mappings? @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_event_mapping")
+  data_sources                data_sources?                @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onUpdate: NoAction, map: "fk_market_event_source")
+  companies                   Company                      @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id, global_competitor_id, occurred_at(sort: Desc)], map: "idx_market_events_timeline")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_observation_staging {
+  staging_id                  String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                      @db.Uuid
+  source_id                   String                      @db.Uuid
+  job_id                      String                      @db.Uuid
+  mapping_id                  String                      @db.Uuid
+  raw_payload                 Json
+  content_hash                String                      @db.Char(64)
+  validation_status           String                      @default("PENDING") @db.VarChar(20)
+  validation_errors           Json                        @default("[]")
+  safety_flags                Json                        @default("[]")
+  staged_at                   DateTime                    @default(now()) @db.Timestamptz(6)
+  resolved_at                 DateTime?                   @db.Timestamptz(6)
+  ingestion_jobs              ingestion_jobs              @relation(fields: [tenant_id, job_id], references: [tenant_id, job_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_stage_job")
+  competitor_product_mappings competitor_product_mappings @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_stage_mapping")
+  data_sources                data_sources                @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_stage_source")
+
+  @@unique([tenant_id, job_id, mapping_id, content_hash], map: "uq_market_stage_job_content")
+  @@index([tenant_id, validation_status, staged_at(sort: Desc)], map: "idx_market_stage_review")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_observations {
+  observation_id              String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                      @db.Uuid
+  source_id                   String                      @db.Uuid
+  job_id                      String                      @db.Uuid
+  mapping_id                  String                      @db.Uuid
+  product_name                String
+  category                    String?
+  description                 String?
+  canonical_url               String
+  image_url                   String?
+  external_id                 String?
+  rating                      Decimal?                    @db.Decimal(3, 2)
+  review_count                Int?
+  stock_quantity              Int?
+  match_score                 Decimal                     @db.Decimal(5, 4)
+  match_method                String                      @db.VarChar(20)
+  page_text                   String?
+  safety_status               String                      @default("SAFE") @db.VarChar(20)
+  safety_flags                Json                        @default("[]")
+  content_hash                String                      @db.Char(64)
+  raw_payload                 Json                        @default("{}")
+  observed_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  like_count                  Int?
+  share_count                 Int?
+  ingestion_jobs              ingestion_jobs              @relation(fields: [tenant_id, job_id], references: [tenant_id, job_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_observation_job")
+  competitor_product_mappings competitor_product_mappings @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_observation_mapping")
+  data_sources                data_sources                @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_observation_source")
+
+  @@unique([tenant_id, mapping_id, content_hash, observed_at], map: "uq_market_observation_content")
+  @@index([tenant_id, mapping_id, observed_at(sort: Desc)], map: "idx_market_observations_timeline")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model model_versions {
+  model_version_id String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  model_name       String    @db.VarChar(100)
+  version          String    @db.VarChar(50)
+  status           String    @default("development") @db.VarChar(20)
+  trained_at       DateTime? @db.Timestamptz(6)
+  metrics          Json?
+  artifact_path    String?   @db.VarChar(500)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model news_record {
+  news_id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  source_url        String    @db.VarChar(1024)
+  headline          String    @db.VarChar(512)
+  body_text         String?
+  published_at      DateTime? @db.Timestamptz(6)
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  extraction_status String?   @default("Pending") @db.VarChar(50)
+  companies         Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id], map: "idx_news_record_tenant")
+}
+
+model search_quota_usage {
+  usage_date  DateTime @id @db.Date
+  query_count Int      @default(0)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model social_mention {
+  mention_id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  platform          String    @db.VarChar(50)
+  author_handle     String?   @db.VarChar(255)
+  mention_text      String
+  posted_at         DateTime? @db.Timestamptz(6)
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  extraction_status String?   @default("Pending") @db.VarChar(50)
+  companies         Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id], map: "idx_social_mention_tenant")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model transactions {
+  transaction_id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  product_id           String    @db.Uuid
+  quantity_sold        Int
+  unit_price           Decimal   @db.Decimal(12, 4)
+  total_price          Decimal   @db.Decimal(12, 4)
+  original_currency    String    @db.VarChar(3)
+  converted_amount     Decimal?  @db.Decimal(12, 4)
+  converted_currency   String?   @db.VarChar(3)
+  exchange_rate        Decimal?  @db.Decimal(18, 8)
+  conversion_source    String?   @db.VarChar(100)
+  conversion_timestamp DateTime? @db.Timestamptz(6)
+  sale_source          String    @default("POS") @db.VarChar(50)
+  transaction_date     DateTime  @db.Timestamptz(6)
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+  products             products  @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transactions_product_isolated")
+  companies            Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tenant_id, transaction_id], map: "uq_tenant_transaction_perimeter")
+  @@index([tenant_id, transaction_date], map: "idx_transactions_tenant_date")
+  @@index([tenant_id, product_id], map: "idx_transactions_tenant_product")
+}
+
+model web_search_cache {
+  cache_key    String   @id
+  results_json Json
+  cached_at    DateTime @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime @db.Timestamptz(6)
+
+  @@index([expires_at], map: "idx_web_search_cache_expires_at")
 }
 
 enum FeatureType {

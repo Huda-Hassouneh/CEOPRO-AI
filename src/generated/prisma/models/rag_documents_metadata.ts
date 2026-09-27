@@ -44,6 +44,7 @@ export type Rag_documents_metadataMinAggregateOutputType = {
   content_type: string | null
   uploaded_by_user_id: string | null
   uploaded_at: Date | null
+  processed_status: string | null
 }
 
 export type Rag_documents_metadataMaxAggregateOutputType = {
@@ -55,6 +56,7 @@ export type Rag_documents_metadataMaxAggregateOutputType = {
   content_type: string | null
   uploaded_by_user_id: string | null
   uploaded_at: Date | null
+  processed_status: string | null
 }
 
 export type Rag_documents_metadataCountAggregateOutputType = {
@@ -66,6 +68,7 @@ export type Rag_documents_metadataCountAggregateOutputType = {
   content_type: number
   uploaded_by_user_id: number
   uploaded_at: number
+  processed_status: number
   _all: number
 }
 
@@ -87,6 +90,7 @@ export type Rag_documents_metadataMinAggregateInputType = {
   content_type?: true
   uploaded_by_user_id?: true
   uploaded_at?: true
+  processed_status?: true
 }
 
 export type Rag_documents_metadataMaxAggregateInputType = {
@@ -98,6 +102,7 @@ export type Rag_documents_metadataMaxAggregateInputType = {
   content_type?: true
   uploaded_by_user_id?: true
   uploaded_at?: true
+  processed_status?: true
 }
 
 export type Rag_documents_metadataCountAggregateInputType = {
@@ -109,6 +114,7 @@ export type Rag_documents_metadataCountAggregateInputType = {
   content_type?: true
   uploaded_by_user_id?: true
   uploaded_at?: true
+  processed_status?: true
   _all?: true
 }
 
@@ -207,6 +213,7 @@ export type Rag_documents_metadataGroupByOutputType = {
   content_type: string | null
   uploaded_by_user_id: string | null
   uploaded_at: Date | null
+  processed_status: string
   _count: Rag_documents_metadataCountAggregateOutputType | null
   _avg: Rag_documents_metadataAvgAggregateOutputType | null
   _sum: Rag_documents_metadataSumAggregateOutputType | null
@@ -241,6 +248,7 @@ export type rag_documents_metadataWhereInput = {
   content_type?: Prisma.StringNullableFilter<"rag_documents_metadata"> | string | null
   uploaded_by_user_id?: Prisma.UuidNullableFilter<"rag_documents_metadata"> | string | null
   uploaded_at?: Prisma.DateTimeNullableFilter<"rag_documents_metadata"> | Date | string | null
+  processed_status?: Prisma.StringFilter<"rag_documents_metadata"> | string
   rag_document_chunks?: Prisma.Rag_document_chunksListRelationFilter
   tenant_users?: Prisma.XOR<Prisma.TenantUserNullableScalarRelationFilter, Prisma.TenantUserWhereInput> | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
@@ -255,6 +263,7 @@ export type rag_documents_metadataOrderByWithRelationInput = {
   content_type?: Prisma.SortOrderInput | Prisma.SortOrder
   uploaded_by_user_id?: Prisma.SortOrderInput | Prisma.SortOrder
   uploaded_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  processed_status?: Prisma.SortOrder
   rag_document_chunks?: Prisma.rag_document_chunksOrderByRelationAggregateInput
   tenant_users?: Prisma.TenantUserOrderByWithRelationInput
   companies?: Prisma.CompanyOrderByWithRelationInput
@@ -273,6 +282,7 @@ export type rag_documents_metadataWhereUniqueInput = Prisma.AtLeast<{
   content_type?: Prisma.StringNullableFilter<"rag_documents_metadata"> | string | null
   uploaded_by_user_id?: Prisma.UuidNullableFilter<"rag_documents_metadata"> | string | null
   uploaded_at?: Prisma.DateTimeNullableFilter<"rag_documents_metadata"> | Date | string | null
+  processed_status?: Prisma.StringFilter<"rag_documents_metadata"> | string
   rag_document_chunks?: Prisma.Rag_document_chunksListRelationFilter
   tenant_users?: Prisma.XOR<Prisma.TenantUserNullableScalarRelationFilter, Prisma.TenantUserWhereInput> | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
@@ -287,6 +297,7 @@ export type rag_documents_metadataOrderByWithAggregationInput = {
   content_type?: Prisma.SortOrderInput | Prisma.SortOrder
   uploaded_by_user_id?: Prisma.SortOrderInput | Prisma.SortOrder
   uploaded_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  processed_status?: Prisma.SortOrder
   _count?: Prisma.rag_documents_metadataCountOrderByAggregateInput
   _avg?: Prisma.rag_documents_metadataAvgOrderByAggregateInput
   _max?: Prisma.rag_documents_metadataMaxOrderByAggregateInput
@@ -306,6 +317,7 @@ export type rag_documents_metadataScalarWhereWithAggregatesInput = {
   content_type?: Prisma.StringNullableWithAggregatesFilter<"rag_documents_metadata"> | string | null
   uploaded_by_user_id?: Prisma.UuidNullableWithAggregatesFilter<"rag_documents_metadata"> | string | null
   uploaded_at?: Prisma.DateTimeNullableWithAggregatesFilter<"rag_documents_metadata"> | Date | string | null
+  processed_status?: Prisma.StringWithAggregatesFilter<"rag_documents_metadata"> | string
 }
 
 export type rag_documents_metadataCreateInput = {
@@ -315,6 +327,7 @@ export type rag_documents_metadataCreateInput = {
   file_size_bytes: bigint | number
   content_type?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
   rag_document_chunks?: Prisma.rag_document_chunksCreateNestedManyWithoutRag_documents_metadataInput
   tenant_users?: Prisma.TenantUserCreateNestedOneWithoutRag_documents_metadataInput
   companies: Prisma.CompanyCreateNestedOneWithoutRag_documents_metadataInput
@@ -329,6 +342,7 @@ export type rag_documents_metadataUncheckedCreateInput = {
   content_type?: string | null
   uploaded_by_user_id?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
   rag_document_chunks?: Prisma.rag_document_chunksUncheckedCreateNestedManyWithoutRag_documents_metadataInput
 }
 
@@ -339,6 +353,7 @@ export type rag_documents_metadataUpdateInput = {
   file_size_bytes?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
   rag_document_chunks?: Prisma.rag_document_chunksUpdateManyWithoutRag_documents_metadataNestedInput
   tenant_users?: Prisma.TenantUserUpdateOneWithoutRag_documents_metadataNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutRag_documents_metadataNestedInput
@@ -353,6 +368,7 @@ export type rag_documents_metadataUncheckedUpdateInput = {
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
   rag_document_chunks?: Prisma.rag_document_chunksUncheckedUpdateManyWithoutRag_documents_metadataNestedInput
 }
 
@@ -365,6 +381,7 @@ export type rag_documents_metadataCreateManyInput = {
   content_type?: string | null
   uploaded_by_user_id?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
 }
 
 export type rag_documents_metadataUpdateManyMutationInput = {
@@ -374,6 +391,7 @@ export type rag_documents_metadataUpdateManyMutationInput = {
   file_size_bytes?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type rag_documents_metadataUncheckedUpdateManyInput = {
@@ -385,6 +403,7 @@ export type rag_documents_metadataUncheckedUpdateManyInput = {
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type Rag_documents_metadataListRelationFilter = {
@@ -416,6 +435,7 @@ export type rag_documents_metadataCountOrderByAggregateInput = {
   content_type?: Prisma.SortOrder
   uploaded_by_user_id?: Prisma.SortOrder
   uploaded_at?: Prisma.SortOrder
+  processed_status?: Prisma.SortOrder
 }
 
 export type rag_documents_metadataAvgOrderByAggregateInput = {
@@ -431,6 +451,7 @@ export type rag_documents_metadataMaxOrderByAggregateInput = {
   content_type?: Prisma.SortOrder
   uploaded_by_user_id?: Prisma.SortOrder
   uploaded_at?: Prisma.SortOrder
+  processed_status?: Prisma.SortOrder
 }
 
 export type rag_documents_metadataMinOrderByAggregateInput = {
@@ -442,6 +463,7 @@ export type rag_documents_metadataMinOrderByAggregateInput = {
   content_type?: Prisma.SortOrder
   uploaded_by_user_id?: Prisma.SortOrder
   uploaded_at?: Prisma.SortOrder
+  processed_status?: Prisma.SortOrder
 }
 
 export type rag_documents_metadataSumOrderByAggregateInput = {
@@ -553,6 +575,7 @@ export type rag_documents_metadataCreateWithoutCompaniesInput = {
   file_size_bytes: bigint | number
   content_type?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
   rag_document_chunks?: Prisma.rag_document_chunksCreateNestedManyWithoutRag_documents_metadataInput
   tenant_users?: Prisma.TenantUserCreateNestedOneWithoutRag_documents_metadataInput
 }
@@ -565,6 +588,7 @@ export type rag_documents_metadataUncheckedCreateWithoutCompaniesInput = {
   content_type?: string | null
   uploaded_by_user_id?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
   rag_document_chunks?: Prisma.rag_document_chunksUncheckedCreateNestedManyWithoutRag_documents_metadataInput
 }
 
@@ -606,6 +630,7 @@ export type rag_documents_metadataScalarWhereInput = {
   content_type?: Prisma.StringNullableFilter<"rag_documents_metadata"> | string | null
   uploaded_by_user_id?: Prisma.UuidNullableFilter<"rag_documents_metadata"> | string | null
   uploaded_at?: Prisma.DateTimeNullableFilter<"rag_documents_metadata"> | Date | string | null
+  processed_status?: Prisma.StringFilter<"rag_documents_metadata"> | string
 }
 
 export type rag_documents_metadataCreateWithoutTenant_usersInput = {
@@ -615,6 +640,7 @@ export type rag_documents_metadataCreateWithoutTenant_usersInput = {
   file_size_bytes: bigint | number
   content_type?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
   rag_document_chunks?: Prisma.rag_document_chunksCreateNestedManyWithoutRag_documents_metadataInput
   companies: Prisma.CompanyCreateNestedOneWithoutRag_documents_metadataInput
 }
@@ -626,6 +652,7 @@ export type rag_documents_metadataUncheckedCreateWithoutTenant_usersInput = {
   file_size_bytes: bigint | number
   content_type?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
   rag_document_chunks?: Prisma.rag_document_chunksUncheckedCreateNestedManyWithoutRag_documents_metadataInput
 }
 
@@ -662,6 +689,7 @@ export type rag_documents_metadataCreateWithoutRag_document_chunksInput = {
   file_size_bytes: bigint | number
   content_type?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
   tenant_users?: Prisma.TenantUserCreateNestedOneWithoutRag_documents_metadataInput
   companies: Prisma.CompanyCreateNestedOneWithoutRag_documents_metadataInput
 }
@@ -675,6 +703,7 @@ export type rag_documents_metadataUncheckedCreateWithoutRag_document_chunksInput
   content_type?: string | null
   uploaded_by_user_id?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
 }
 
 export type rag_documents_metadataCreateOrConnectWithoutRag_document_chunksInput = {
@@ -700,6 +729,7 @@ export type rag_documents_metadataUpdateWithoutRag_document_chunksInput = {
   file_size_bytes?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_users?: Prisma.TenantUserUpdateOneWithoutRag_documents_metadataNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutRag_documents_metadataNestedInput
 }
@@ -713,6 +743,7 @@ export type rag_documents_metadataUncheckedUpdateWithoutRag_document_chunksInput
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type rag_documents_metadataCreateManyCompaniesInput = {
@@ -723,6 +754,7 @@ export type rag_documents_metadataCreateManyCompaniesInput = {
   content_type?: string | null
   uploaded_by_user_id?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
 }
 
 export type rag_documents_metadataUpdateWithoutCompaniesInput = {
@@ -732,6 +764,7 @@ export type rag_documents_metadataUpdateWithoutCompaniesInput = {
   file_size_bytes?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
   rag_document_chunks?: Prisma.rag_document_chunksUpdateManyWithoutRag_documents_metadataNestedInput
   tenant_users?: Prisma.TenantUserUpdateOneWithoutRag_documents_metadataNestedInput
 }
@@ -744,6 +777,7 @@ export type rag_documents_metadataUncheckedUpdateWithoutCompaniesInput = {
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
   rag_document_chunks?: Prisma.rag_document_chunksUncheckedUpdateManyWithoutRag_documents_metadataNestedInput
 }
 
@@ -755,6 +789,7 @@ export type rag_documents_metadataUncheckedUpdateManyWithoutCompaniesInput = {
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type rag_documents_metadataCreateManyTenant_usersInput = {
@@ -764,6 +799,7 @@ export type rag_documents_metadataCreateManyTenant_usersInput = {
   file_size_bytes: bigint | number
   content_type?: string | null
   uploaded_at?: Date | string | null
+  processed_status?: string
 }
 
 export type rag_documents_metadataUpdateWithoutTenant_usersInput = {
@@ -773,6 +809,7 @@ export type rag_documents_metadataUpdateWithoutTenant_usersInput = {
   file_size_bytes?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
   rag_document_chunks?: Prisma.rag_document_chunksUpdateManyWithoutRag_documents_metadataNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutRag_documents_metadataNestedInput
 }
@@ -784,6 +821,7 @@ export type rag_documents_metadataUncheckedUpdateWithoutTenant_usersInput = {
   file_size_bytes?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
   rag_document_chunks?: Prisma.rag_document_chunksUncheckedUpdateManyWithoutRag_documents_metadataNestedInput
 }
 
@@ -794,6 +832,7 @@ export type rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersInput = 
   file_size_bytes?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   content_type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   uploaded_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processed_status?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 
@@ -836,6 +875,7 @@ export type rag_documents_metadataSelect<ExtArgs extends runtime.Types.Extension
   content_type?: boolean
   uploaded_by_user_id?: boolean
   uploaded_at?: boolean
+  processed_status?: boolean
   rag_document_chunks?: boolean | Prisma.rag_documents_metadata$rag_document_chunksArgs<ExtArgs>
   tenant_users?: boolean | Prisma.rag_documents_metadata$tenant_usersArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
@@ -851,6 +891,7 @@ export type rag_documents_metadataSelectCreateManyAndReturn<ExtArgs extends runt
   content_type?: boolean
   uploaded_by_user_id?: boolean
   uploaded_at?: boolean
+  processed_status?: boolean
   tenant_users?: boolean | Prisma.rag_documents_metadata$tenant_usersArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["rag_documents_metadata"]>
@@ -864,6 +905,7 @@ export type rag_documents_metadataSelectUpdateManyAndReturn<ExtArgs extends runt
   content_type?: boolean
   uploaded_by_user_id?: boolean
   uploaded_at?: boolean
+  processed_status?: boolean
   tenant_users?: boolean | Prisma.rag_documents_metadata$tenant_usersArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["rag_documents_metadata"]>
@@ -877,9 +919,10 @@ export type rag_documents_metadataSelectScalar = {
   content_type?: boolean
   uploaded_by_user_id?: boolean
   uploaded_at?: boolean
+  processed_status?: boolean
 }
 
-export type rag_documents_metadataOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"document_id" | "tenant_id" | "file_name" | "storage_bucket_path" | "file_size_bytes" | "content_type" | "uploaded_by_user_id" | "uploaded_at", ExtArgs["result"]["rag_documents_metadata"]>
+export type rag_documents_metadataOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"document_id" | "tenant_id" | "file_name" | "storage_bucket_path" | "file_size_bytes" | "content_type" | "uploaded_by_user_id" | "uploaded_at" | "processed_status", ExtArgs["result"]["rag_documents_metadata"]>
 export type rag_documents_metadataInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   rag_document_chunks?: boolean | Prisma.rag_documents_metadata$rag_document_chunksArgs<ExtArgs>
   tenant_users?: boolean | Prisma.rag_documents_metadata$tenant_usersArgs<ExtArgs>
@@ -911,6 +954,7 @@ export type $rag_documents_metadataPayload<ExtArgs extends runtime.Types.Extensi
     content_type: string | null
     uploaded_by_user_id: string | null
     uploaded_at: Date | null
+    processed_status: string
   }, ExtArgs["result"]["rag_documents_metadata"]>
   composites: {}
 }
@@ -1345,6 +1389,7 @@ export interface rag_documents_metadataFieldRefs {
   readonly content_type: Prisma.FieldRef<"rag_documents_metadata", 'String'>
   readonly uploaded_by_user_id: Prisma.FieldRef<"rag_documents_metadata", 'String'>
   readonly uploaded_at: Prisma.FieldRef<"rag_documents_metadata", 'DateTime'>
+  readonly processed_status: Prisma.FieldRef<"rag_documents_metadata", 'String'>
 }
     
 

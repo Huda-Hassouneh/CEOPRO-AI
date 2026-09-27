@@ -33,6 +33,7 @@ export type Competitor_product_mappingsMinAggregateOutputType = {
   competitor_product_sku: string | null
   is_active: boolean | null
   created_at: Date | null
+  source_id: string | null
 }
 
 export type Competitor_product_mappingsMaxAggregateOutputType = {
@@ -44,6 +45,7 @@ export type Competitor_product_mappingsMaxAggregateOutputType = {
   competitor_product_sku: string | null
   is_active: boolean | null
   created_at: Date | null
+  source_id: string | null
 }
 
 export type Competitor_product_mappingsCountAggregateOutputType = {
@@ -55,6 +57,7 @@ export type Competitor_product_mappingsCountAggregateOutputType = {
   competitor_product_sku: number
   is_active: number
   created_at: number
+  source_id: number
   _all: number
 }
 
@@ -68,6 +71,7 @@ export type Competitor_product_mappingsMinAggregateInputType = {
   competitor_product_sku?: true
   is_active?: true
   created_at?: true
+  source_id?: true
 }
 
 export type Competitor_product_mappingsMaxAggregateInputType = {
@@ -79,6 +83,7 @@ export type Competitor_product_mappingsMaxAggregateInputType = {
   competitor_product_sku?: true
   is_active?: true
   created_at?: true
+  source_id?: true
 }
 
 export type Competitor_product_mappingsCountAggregateInputType = {
@@ -90,6 +95,7 @@ export type Competitor_product_mappingsCountAggregateInputType = {
   competitor_product_sku?: true
   is_active?: true
   created_at?: true
+  source_id?: true
   _all?: true
 }
 
@@ -174,6 +180,7 @@ export type Competitor_product_mappingsGroupByOutputType = {
   competitor_product_sku: string | null
   is_active: boolean
   created_at: Date | null
+  source_id: string | null
   _count: Competitor_product_mappingsCountAggregateOutputType | null
   _min: Competitor_product_mappingsMinAggregateOutputType | null
   _max: Competitor_product_mappingsMaxAggregateOutputType | null
@@ -206,9 +213,14 @@ export type competitor_product_mappingsWhereInput = {
   competitor_product_sku?: Prisma.StringNullableFilter<"competitor_product_mappings"> | string | null
   is_active?: Prisma.BoolFilter<"competitor_product_mappings"> | boolean
   created_at?: Prisma.DateTimeNullableFilter<"competitor_product_mappings"> | Date | string | null
+  source_id?: Prisma.UuidNullableFilter<"competitor_product_mappings"> | string | null
   competitor_prices?: Prisma.Competitor_pricesListRelationFilter
   products?: Prisma.XOR<Prisma.ProductsScalarRelationFilter, Prisma.productsWhereInput>
+  data_sources?: Prisma.XOR<Prisma.Data_sourcesNullableScalarRelationFilter, Prisma.data_sourcesWhereInput> | null
   tenant_competitors?: Prisma.XOR<Prisma.Tenant_competitorsScalarRelationFilter, Prisma.tenant_competitorsWhereInput>
+  market_events?: Prisma.Market_eventsListRelationFilter
+  market_observation_staging?: Prisma.Market_observation_stagingListRelationFilter
+  market_observations?: Prisma.Market_observationsListRelationFilter
 }
 
 export type competitor_product_mappingsOrderByWithRelationInput = {
@@ -220,9 +232,14 @@ export type competitor_product_mappingsOrderByWithRelationInput = {
   competitor_product_sku?: Prisma.SortOrderInput | Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_id?: Prisma.SortOrderInput | Prisma.SortOrder
   competitor_prices?: Prisma.competitor_pricesOrderByRelationAggregateInput
   products?: Prisma.productsOrderByWithRelationInput
+  data_sources?: Prisma.data_sourcesOrderByWithRelationInput
   tenant_competitors?: Prisma.tenant_competitorsOrderByWithRelationInput
+  market_events?: Prisma.market_eventsOrderByRelationAggregateInput
+  market_observation_staging?: Prisma.market_observation_stagingOrderByRelationAggregateInput
+  market_observations?: Prisma.market_observationsOrderByRelationAggregateInput
 }
 
 export type competitor_product_mappingsWhereUniqueInput = Prisma.AtLeast<{
@@ -239,9 +256,14 @@ export type competitor_product_mappingsWhereUniqueInput = Prisma.AtLeast<{
   competitor_product_sku?: Prisma.StringNullableFilter<"competitor_product_mappings"> | string | null
   is_active?: Prisma.BoolFilter<"competitor_product_mappings"> | boolean
   created_at?: Prisma.DateTimeNullableFilter<"competitor_product_mappings"> | Date | string | null
+  source_id?: Prisma.UuidNullableFilter<"competitor_product_mappings"> | string | null
   competitor_prices?: Prisma.Competitor_pricesListRelationFilter
   products?: Prisma.XOR<Prisma.ProductsScalarRelationFilter, Prisma.productsWhereInput>
+  data_sources?: Prisma.XOR<Prisma.Data_sourcesNullableScalarRelationFilter, Prisma.data_sourcesWhereInput> | null
   tenant_competitors?: Prisma.XOR<Prisma.Tenant_competitorsScalarRelationFilter, Prisma.tenant_competitorsWhereInput>
+  market_events?: Prisma.Market_eventsListRelationFilter
+  market_observation_staging?: Prisma.Market_observation_stagingListRelationFilter
+  market_observations?: Prisma.Market_observationsListRelationFilter
 }, "mapping_id" | "tenant_id_global_competitor_id_product_id" | "tenant_id_mapping_id">
 
 export type competitor_product_mappingsOrderByWithAggregationInput = {
@@ -253,6 +275,7 @@ export type competitor_product_mappingsOrderByWithAggregationInput = {
   competitor_product_sku?: Prisma.SortOrderInput | Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_id?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.competitor_product_mappingsCountOrderByAggregateInput
   _max?: Prisma.competitor_product_mappingsMaxOrderByAggregateInput
   _min?: Prisma.competitor_product_mappingsMinOrderByAggregateInput
@@ -270,6 +293,7 @@ export type competitor_product_mappingsScalarWhereWithAggregatesInput = {
   competitor_product_sku?: Prisma.StringNullableWithAggregatesFilter<"competitor_product_mappings"> | string | null
   is_active?: Prisma.BoolWithAggregatesFilter<"competitor_product_mappings"> | boolean
   created_at?: Prisma.DateTimeNullableWithAggregatesFilter<"competitor_product_mappings"> | Date | string | null
+  source_id?: Prisma.UuidNullableWithAggregatesFilter<"competitor_product_mappings"> | string | null
 }
 
 export type competitor_product_mappingsCreateInput = {
@@ -280,7 +304,11 @@ export type competitor_product_mappingsCreateInput = {
   created_at?: Date | string | null
   competitor_prices?: Prisma.competitor_pricesCreateNestedManyWithoutCompetitor_product_mappingsInput
   products: Prisma.productsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  data_sources?: Prisma.data_sourcesCreateNestedOneWithoutCompetitor_product_mappingsInput
   tenant_competitors: Prisma.tenant_competitorsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutCompetitor_product_mappingsInput
 }
 
 export type competitor_product_mappingsUncheckedCreateInput = {
@@ -292,7 +320,11 @@ export type competitor_product_mappingsUncheckedCreateInput = {
   competitor_product_sku?: string | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_id?: string | null
   competitor_prices?: Prisma.competitor_pricesUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
 }
 
 export type competitor_product_mappingsUpdateInput = {
@@ -303,7 +335,11 @@ export type competitor_product_mappingsUpdateInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   competitor_prices?: Prisma.competitor_pricesUpdateManyWithoutCompetitor_product_mappingsNestedInput
   products?: Prisma.productsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneWithoutCompetitor_product_mappingsNestedInput
   tenant_competitors?: Prisma.tenant_competitorsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutCompetitor_product_mappingsNestedInput
 }
 
 export type competitor_product_mappingsUncheckedUpdateInput = {
@@ -315,7 +351,11 @@ export type competitor_product_mappingsUncheckedUpdateInput = {
   competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   competitor_prices?: Prisma.competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
 }
 
 export type competitor_product_mappingsCreateManyInput = {
@@ -327,6 +367,7 @@ export type competitor_product_mappingsCreateManyInput = {
   competitor_product_sku?: string | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_id?: string | null
 }
 
 export type competitor_product_mappingsUpdateManyMutationInput = {
@@ -346,6 +387,7 @@ export type competitor_product_mappingsUncheckedUpdateManyInput = {
   competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type Competitor_product_mappingsScalarRelationFilter = {
@@ -373,6 +415,7 @@ export type competitor_product_mappingsCountOrderByAggregateInput = {
   competitor_product_sku?: Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  source_id?: Prisma.SortOrder
 }
 
 export type competitor_product_mappingsMaxOrderByAggregateInput = {
@@ -384,6 +427,7 @@ export type competitor_product_mappingsMaxOrderByAggregateInput = {
   competitor_product_sku?: Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  source_id?: Prisma.SortOrder
 }
 
 export type competitor_product_mappingsMinOrderByAggregateInput = {
@@ -395,6 +439,7 @@ export type competitor_product_mappingsMinOrderByAggregateInput = {
   competitor_product_sku?: Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  source_id?: Prisma.SortOrder
 }
 
 export type Competitor_product_mappingsListRelationFilter = {
@@ -405,6 +450,11 @@ export type Competitor_product_mappingsListRelationFilter = {
 
 export type competitor_product_mappingsOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type Competitor_product_mappingsNullableScalarRelationFilter = {
+  is?: Prisma.competitor_product_mappingsWhereInput | null
+  isNot?: Prisma.competitor_product_mappingsWhereInput | null
 }
 
 export type competitor_product_mappingsCreateNestedOneWithoutCompetitor_pricesInput = {
@@ -419,6 +469,48 @@ export type competitor_product_mappingsUpdateOneRequiredWithoutCompetitor_prices
   upsert?: Prisma.competitor_product_mappingsUpsertWithoutCompetitor_pricesInput
   connect?: Prisma.competitor_product_mappingsWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.competitor_product_mappingsUpdateToOneWithWhereWithoutCompetitor_pricesInput, Prisma.competitor_product_mappingsUpdateWithoutCompetitor_pricesInput>, Prisma.competitor_product_mappingsUncheckedUpdateWithoutCompetitor_pricesInput>
+}
+
+export type competitor_product_mappingsCreateNestedManyWithoutData_sourcesInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput> | Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput[] | Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput[]
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput | Prisma.competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput[]
+  createMany?: Prisma.competitor_product_mappingsCreateManyData_sourcesInputEnvelope
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+}
+
+export type competitor_product_mappingsUncheckedCreateNestedManyWithoutData_sourcesInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput> | Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput[] | Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput[]
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput | Prisma.competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput[]
+  createMany?: Prisma.competitor_product_mappingsCreateManyData_sourcesInputEnvelope
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+}
+
+export type competitor_product_mappingsUpdateManyWithoutData_sourcesNestedInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput> | Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput[] | Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput[]
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput | Prisma.competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput[]
+  upsert?: Prisma.competitor_product_mappingsUpsertWithWhereUniqueWithoutData_sourcesInput | Prisma.competitor_product_mappingsUpsertWithWhereUniqueWithoutData_sourcesInput[]
+  createMany?: Prisma.competitor_product_mappingsCreateManyData_sourcesInputEnvelope
+  set?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+  disconnect?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+  delete?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+  update?: Prisma.competitor_product_mappingsUpdateWithWhereUniqueWithoutData_sourcesInput | Prisma.competitor_product_mappingsUpdateWithWhereUniqueWithoutData_sourcesInput[]
+  updateMany?: Prisma.competitor_product_mappingsUpdateManyWithWhereWithoutData_sourcesInput | Prisma.competitor_product_mappingsUpdateManyWithWhereWithoutData_sourcesInput[]
+  deleteMany?: Prisma.competitor_product_mappingsScalarWhereInput | Prisma.competitor_product_mappingsScalarWhereInput[]
+}
+
+export type competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesNestedInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput> | Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput[] | Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput[]
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput | Prisma.competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput[]
+  upsert?: Prisma.competitor_product_mappingsUpsertWithWhereUniqueWithoutData_sourcesInput | Prisma.competitor_product_mappingsUpsertWithWhereUniqueWithoutData_sourcesInput[]
+  createMany?: Prisma.competitor_product_mappingsCreateManyData_sourcesInputEnvelope
+  set?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+  disconnect?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+  delete?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput | Prisma.competitor_product_mappingsWhereUniqueInput[]
+  update?: Prisma.competitor_product_mappingsUpdateWithWhereUniqueWithoutData_sourcesInput | Prisma.competitor_product_mappingsUpdateWithWhereUniqueWithoutData_sourcesInput[]
+  updateMany?: Prisma.competitor_product_mappingsUpdateManyWithWhereWithoutData_sourcesInput | Prisma.competitor_product_mappingsUpdateManyWithWhereWithoutData_sourcesInput[]
+  deleteMany?: Prisma.competitor_product_mappingsScalarWhereInput | Prisma.competitor_product_mappingsScalarWhereInput[]
 }
 
 export type competitor_product_mappingsCreateNestedManyWithoutProductsInput = {
@@ -505,6 +597,50 @@ export type competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competit
   deleteMany?: Prisma.competitor_product_mappingsScalarWhereInput | Prisma.competitor_product_mappingsScalarWhereInput[]
 }
 
+export type competitor_product_mappingsCreateNestedOneWithoutMarket_eventsInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_eventsInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_eventsInput>
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutMarket_eventsInput
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput
+}
+
+export type competitor_product_mappingsUpdateOneWithoutMarket_eventsNestedInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_eventsInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_eventsInput>
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutMarket_eventsInput
+  upsert?: Prisma.competitor_product_mappingsUpsertWithoutMarket_eventsInput
+  disconnect?: Prisma.competitor_product_mappingsWhereInput | boolean
+  delete?: Prisma.competitor_product_mappingsWhereInput | boolean
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.competitor_product_mappingsUpdateToOneWithWhereWithoutMarket_eventsInput, Prisma.competitor_product_mappingsUpdateWithoutMarket_eventsInput>, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_eventsInput>
+}
+
+export type competitor_product_mappingsCreateNestedOneWithoutMarket_observation_stagingInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_observation_stagingInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_observation_stagingInput>
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutMarket_observation_stagingInput
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput
+}
+
+export type competitor_product_mappingsUpdateOneRequiredWithoutMarket_observation_stagingNestedInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_observation_stagingInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_observation_stagingInput>
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutMarket_observation_stagingInput
+  upsert?: Prisma.competitor_product_mappingsUpsertWithoutMarket_observation_stagingInput
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.competitor_product_mappingsUpdateToOneWithWhereWithoutMarket_observation_stagingInput, Prisma.competitor_product_mappingsUpdateWithoutMarket_observation_stagingInput>, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_observation_stagingInput>
+}
+
+export type competitor_product_mappingsCreateNestedOneWithoutMarket_observationsInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_observationsInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_observationsInput>
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutMarket_observationsInput
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput
+}
+
+export type competitor_product_mappingsUpdateOneRequiredWithoutMarket_observationsNestedInput = {
+  create?: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_observationsInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_observationsInput>
+  connectOrCreate?: Prisma.competitor_product_mappingsCreateOrConnectWithoutMarket_observationsInput
+  upsert?: Prisma.competitor_product_mappingsUpsertWithoutMarket_observationsInput
+  connect?: Prisma.competitor_product_mappingsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.competitor_product_mappingsUpdateToOneWithWhereWithoutMarket_observationsInput, Prisma.competitor_product_mappingsUpdateWithoutMarket_observationsInput>, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_observationsInput>
+}
+
 export type competitor_product_mappingsCreateWithoutCompetitor_pricesInput = {
   mapping_id?: string
   competitor_product_url?: string | null
@@ -512,7 +648,11 @@ export type competitor_product_mappingsCreateWithoutCompetitor_pricesInput = {
   is_active?: boolean
   created_at?: Date | string | null
   products: Prisma.productsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  data_sources?: Prisma.data_sourcesCreateNestedOneWithoutCompetitor_product_mappingsInput
   tenant_competitors: Prisma.tenant_competitorsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutCompetitor_product_mappingsInput
 }
 
 export type competitor_product_mappingsUncheckedCreateWithoutCompetitor_pricesInput = {
@@ -524,6 +664,10 @@ export type competitor_product_mappingsUncheckedCreateWithoutCompetitor_pricesIn
   competitor_product_sku?: string | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_id?: string | null
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
 }
 
 export type competitor_product_mappingsCreateOrConnectWithoutCompetitor_pricesInput = {
@@ -549,7 +693,11 @@ export type competitor_product_mappingsUpdateWithoutCompetitor_pricesInput = {
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   products?: Prisma.productsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneWithoutCompetitor_product_mappingsNestedInput
   tenant_competitors?: Prisma.tenant_competitorsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutCompetitor_product_mappingsNestedInput
 }
 
 export type competitor_product_mappingsUncheckedUpdateWithoutCompetitor_pricesInput = {
@@ -561,6 +709,79 @@ export type competitor_product_mappingsUncheckedUpdateWithoutCompetitor_pricesIn
   competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsCreateWithoutData_sourcesInput = {
+  mapping_id?: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  competitor_prices?: Prisma.competitor_pricesCreateNestedManyWithoutCompetitor_product_mappingsInput
+  products: Prisma.productsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  tenant_competitors: Prisma.tenant_competitorsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutCompetitor_product_mappingsInput
+}
+
+export type competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput = {
+  mapping_id?: string
+  global_competitor_id: string
+  product_id: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  competitor_prices?: Prisma.competitor_pricesUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+}
+
+export type competitor_product_mappingsCreateOrConnectWithoutData_sourcesInput = {
+  where: Prisma.competitor_product_mappingsWhereUniqueInput
+  create: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput>
+}
+
+export type competitor_product_mappingsCreateManyData_sourcesInputEnvelope = {
+  data: Prisma.competitor_product_mappingsCreateManyData_sourcesInput | Prisma.competitor_product_mappingsCreateManyData_sourcesInput[]
+  skipDuplicates?: boolean
+}
+
+export type competitor_product_mappingsUpsertWithWhereUniqueWithoutData_sourcesInput = {
+  where: Prisma.competitor_product_mappingsWhereUniqueInput
+  update: Prisma.XOR<Prisma.competitor_product_mappingsUpdateWithoutData_sourcesInput, Prisma.competitor_product_mappingsUncheckedUpdateWithoutData_sourcesInput>
+  create: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutData_sourcesInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutData_sourcesInput>
+}
+
+export type competitor_product_mappingsUpdateWithWhereUniqueWithoutData_sourcesInput = {
+  where: Prisma.competitor_product_mappingsWhereUniqueInput
+  data: Prisma.XOR<Prisma.competitor_product_mappingsUpdateWithoutData_sourcesInput, Prisma.competitor_product_mappingsUncheckedUpdateWithoutData_sourcesInput>
+}
+
+export type competitor_product_mappingsUpdateManyWithWhereWithoutData_sourcesInput = {
+  where: Prisma.competitor_product_mappingsScalarWhereInput
+  data: Prisma.XOR<Prisma.competitor_product_mappingsUpdateManyMutationInput, Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesInput>
+}
+
+export type competitor_product_mappingsScalarWhereInput = {
+  AND?: Prisma.competitor_product_mappingsScalarWhereInput | Prisma.competitor_product_mappingsScalarWhereInput[]
+  OR?: Prisma.competitor_product_mappingsScalarWhereInput[]
+  NOT?: Prisma.competitor_product_mappingsScalarWhereInput | Prisma.competitor_product_mappingsScalarWhereInput[]
+  mapping_id?: Prisma.UuidFilter<"competitor_product_mappings"> | string
+  tenant_id?: Prisma.UuidFilter<"competitor_product_mappings"> | string
+  global_competitor_id?: Prisma.UuidFilter<"competitor_product_mappings"> | string
+  product_id?: Prisma.UuidFilter<"competitor_product_mappings"> | string
+  competitor_product_url?: Prisma.StringNullableFilter<"competitor_product_mappings"> | string | null
+  competitor_product_sku?: Prisma.StringNullableFilter<"competitor_product_mappings"> | string | null
+  is_active?: Prisma.BoolFilter<"competitor_product_mappings"> | boolean
+  created_at?: Prisma.DateTimeNullableFilter<"competitor_product_mappings"> | Date | string | null
+  source_id?: Prisma.UuidNullableFilter<"competitor_product_mappings"> | string | null
 }
 
 export type competitor_product_mappingsCreateWithoutProductsInput = {
@@ -570,7 +791,11 @@ export type competitor_product_mappingsCreateWithoutProductsInput = {
   is_active?: boolean
   created_at?: Date | string | null
   competitor_prices?: Prisma.competitor_pricesCreateNestedManyWithoutCompetitor_product_mappingsInput
+  data_sources?: Prisma.data_sourcesCreateNestedOneWithoutCompetitor_product_mappingsInput
   tenant_competitors: Prisma.tenant_competitorsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutCompetitor_product_mappingsInput
 }
 
 export type competitor_product_mappingsUncheckedCreateWithoutProductsInput = {
@@ -580,7 +805,11 @@ export type competitor_product_mappingsUncheckedCreateWithoutProductsInput = {
   competitor_product_sku?: string | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_id?: string | null
   competitor_prices?: Prisma.competitor_pricesUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
 }
 
 export type competitor_product_mappingsCreateOrConnectWithoutProductsInput = {
@@ -609,20 +838,6 @@ export type competitor_product_mappingsUpdateManyWithWhereWithoutProductsInput =
   data: Prisma.XOR<Prisma.competitor_product_mappingsUpdateManyMutationInput, Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsInput>
 }
 
-export type competitor_product_mappingsScalarWhereInput = {
-  AND?: Prisma.competitor_product_mappingsScalarWhereInput | Prisma.competitor_product_mappingsScalarWhereInput[]
-  OR?: Prisma.competitor_product_mappingsScalarWhereInput[]
-  NOT?: Prisma.competitor_product_mappingsScalarWhereInput | Prisma.competitor_product_mappingsScalarWhereInput[]
-  mapping_id?: Prisma.UuidFilter<"competitor_product_mappings"> | string
-  tenant_id?: Prisma.UuidFilter<"competitor_product_mappings"> | string
-  global_competitor_id?: Prisma.UuidFilter<"competitor_product_mappings"> | string
-  product_id?: Prisma.UuidFilter<"competitor_product_mappings"> | string
-  competitor_product_url?: Prisma.StringNullableFilter<"competitor_product_mappings"> | string | null
-  competitor_product_sku?: Prisma.StringNullableFilter<"competitor_product_mappings"> | string | null
-  is_active?: Prisma.BoolFilter<"competitor_product_mappings"> | boolean
-  created_at?: Prisma.DateTimeNullableFilter<"competitor_product_mappings"> | Date | string | null
-}
-
 export type competitor_product_mappingsCreateWithoutTenant_competitorsInput = {
   mapping_id?: string
   competitor_product_url?: string | null
@@ -631,6 +846,10 @@ export type competitor_product_mappingsCreateWithoutTenant_competitorsInput = {
   created_at?: Date | string | null
   competitor_prices?: Prisma.competitor_pricesCreateNestedManyWithoutCompetitor_product_mappingsInput
   products: Prisma.productsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  data_sources?: Prisma.data_sourcesCreateNestedOneWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutCompetitor_product_mappingsInput
 }
 
 export type competitor_product_mappingsUncheckedCreateWithoutTenant_competitorsInput = {
@@ -640,7 +859,11 @@ export type competitor_product_mappingsUncheckedCreateWithoutTenant_competitorsI
   competitor_product_sku?: string | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_id?: string | null
   competitor_prices?: Prisma.competitor_pricesUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
 }
 
 export type competitor_product_mappingsCreateOrConnectWithoutTenant_competitorsInput = {
@@ -669,6 +892,276 @@ export type competitor_product_mappingsUpdateManyWithWhereWithoutTenant_competit
   data: Prisma.XOR<Prisma.competitor_product_mappingsUpdateManyMutationInput, Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsInput>
 }
 
+export type competitor_product_mappingsCreateWithoutMarket_eventsInput = {
+  mapping_id?: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  competitor_prices?: Prisma.competitor_pricesCreateNestedManyWithoutCompetitor_product_mappingsInput
+  products: Prisma.productsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  data_sources?: Prisma.data_sourcesCreateNestedOneWithoutCompetitor_product_mappingsInput
+  tenant_competitors: Prisma.tenant_competitorsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutCompetitor_product_mappingsInput
+}
+
+export type competitor_product_mappingsUncheckedCreateWithoutMarket_eventsInput = {
+  mapping_id?: string
+  tenant_id: string
+  global_competitor_id: string
+  product_id: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_id?: string | null
+  competitor_prices?: Prisma.competitor_pricesUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+}
+
+export type competitor_product_mappingsCreateOrConnectWithoutMarket_eventsInput = {
+  where: Prisma.competitor_product_mappingsWhereUniqueInput
+  create: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_eventsInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_eventsInput>
+}
+
+export type competitor_product_mappingsUpsertWithoutMarket_eventsInput = {
+  update: Prisma.XOR<Prisma.competitor_product_mappingsUpdateWithoutMarket_eventsInput, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_eventsInput>
+  create: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_eventsInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_eventsInput>
+  where?: Prisma.competitor_product_mappingsWhereInput
+}
+
+export type competitor_product_mappingsUpdateToOneWithWhereWithoutMarket_eventsInput = {
+  where?: Prisma.competitor_product_mappingsWhereInput
+  data: Prisma.XOR<Prisma.competitor_product_mappingsUpdateWithoutMarket_eventsInput, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_eventsInput>
+}
+
+export type competitor_product_mappingsUpdateWithoutMarket_eventsInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  competitor_prices?: Prisma.competitor_pricesUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  products?: Prisma.productsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneWithoutCompetitor_product_mappingsNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsUncheckedUpdateWithoutMarket_eventsInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_prices?: Prisma.competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsCreateWithoutMarket_observation_stagingInput = {
+  mapping_id?: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  competitor_prices?: Prisma.competitor_pricesCreateNestedManyWithoutCompetitor_product_mappingsInput
+  products: Prisma.productsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  data_sources?: Prisma.data_sourcesCreateNestedOneWithoutCompetitor_product_mappingsInput
+  tenant_competitors: Prisma.tenant_competitorsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutCompetitor_product_mappingsInput
+}
+
+export type competitor_product_mappingsUncheckedCreateWithoutMarket_observation_stagingInput = {
+  mapping_id?: string
+  tenant_id: string
+  global_competitor_id: string
+  product_id: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_id?: string | null
+  competitor_prices?: Prisma.competitor_pricesUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+}
+
+export type competitor_product_mappingsCreateOrConnectWithoutMarket_observation_stagingInput = {
+  where: Prisma.competitor_product_mappingsWhereUniqueInput
+  create: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_observation_stagingInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_observation_stagingInput>
+}
+
+export type competitor_product_mappingsUpsertWithoutMarket_observation_stagingInput = {
+  update: Prisma.XOR<Prisma.competitor_product_mappingsUpdateWithoutMarket_observation_stagingInput, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_observation_stagingInput>
+  create: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_observation_stagingInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_observation_stagingInput>
+  where?: Prisma.competitor_product_mappingsWhereInput
+}
+
+export type competitor_product_mappingsUpdateToOneWithWhereWithoutMarket_observation_stagingInput = {
+  where?: Prisma.competitor_product_mappingsWhereInput
+  data: Prisma.XOR<Prisma.competitor_product_mappingsUpdateWithoutMarket_observation_stagingInput, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_observation_stagingInput>
+}
+
+export type competitor_product_mappingsUpdateWithoutMarket_observation_stagingInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  competitor_prices?: Prisma.competitor_pricesUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  products?: Prisma.productsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneWithoutCompetitor_product_mappingsNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsUncheckedUpdateWithoutMarket_observation_stagingInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_prices?: Prisma.competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsCreateWithoutMarket_observationsInput = {
+  mapping_id?: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  competitor_prices?: Prisma.competitor_pricesCreateNestedManyWithoutCompetitor_product_mappingsInput
+  products: Prisma.productsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  data_sources?: Prisma.data_sourcesCreateNestedOneWithoutCompetitor_product_mappingsInput
+  tenant_competitors: Prisma.tenant_competitorsCreateNestedOneWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutCompetitor_product_mappingsInput
+}
+
+export type competitor_product_mappingsUncheckedCreateWithoutMarket_observationsInput = {
+  mapping_id?: string
+  tenant_id: string
+  global_competitor_id: string
+  product_id: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_id?: string | null
+  competitor_prices?: Prisma.competitor_pricesUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutCompetitor_product_mappingsInput
+}
+
+export type competitor_product_mappingsCreateOrConnectWithoutMarket_observationsInput = {
+  where: Prisma.competitor_product_mappingsWhereUniqueInput
+  create: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_observationsInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_observationsInput>
+}
+
+export type competitor_product_mappingsUpsertWithoutMarket_observationsInput = {
+  update: Prisma.XOR<Prisma.competitor_product_mappingsUpdateWithoutMarket_observationsInput, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_observationsInput>
+  create: Prisma.XOR<Prisma.competitor_product_mappingsCreateWithoutMarket_observationsInput, Prisma.competitor_product_mappingsUncheckedCreateWithoutMarket_observationsInput>
+  where?: Prisma.competitor_product_mappingsWhereInput
+}
+
+export type competitor_product_mappingsUpdateToOneWithWhereWithoutMarket_observationsInput = {
+  where?: Prisma.competitor_product_mappingsWhereInput
+  data: Prisma.XOR<Prisma.competitor_product_mappingsUpdateWithoutMarket_observationsInput, Prisma.competitor_product_mappingsUncheckedUpdateWithoutMarket_observationsInput>
+}
+
+export type competitor_product_mappingsUpdateWithoutMarket_observationsInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  competitor_prices?: Prisma.competitor_pricesUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  products?: Prisma.productsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneWithoutCompetitor_product_mappingsNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsUncheckedUpdateWithoutMarket_observationsInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_prices?: Prisma.competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsCreateManyData_sourcesInput = {
+  mapping_id?: string
+  global_competitor_id: string
+  product_id: string
+  competitor_product_url?: string | null
+  competitor_product_sku?: string | null
+  is_active?: boolean
+  created_at?: Date | string | null
+}
+
+export type competitor_product_mappingsUpdateWithoutData_sourcesInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  competitor_prices?: Prisma.competitor_pricesUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  products?: Prisma.productsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsUncheckedUpdateWithoutData_sourcesInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  competitor_prices?: Prisma.competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+}
+
+export type competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesInput = {
+  mapping_id?: Prisma.StringFieldUpdateOperationsInput | string
+  global_competitor_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  competitor_product_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+}
+
 export type competitor_product_mappingsCreateManyProductsInput = {
   mapping_id?: string
   global_competitor_id: string
@@ -676,6 +1169,7 @@ export type competitor_product_mappingsCreateManyProductsInput = {
   competitor_product_sku?: string | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_id?: string | null
 }
 
 export type competitor_product_mappingsUpdateWithoutProductsInput = {
@@ -685,7 +1179,11 @@ export type competitor_product_mappingsUpdateWithoutProductsInput = {
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   competitor_prices?: Prisma.competitor_pricesUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneWithoutCompetitor_product_mappingsNestedInput
   tenant_competitors?: Prisma.tenant_competitorsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutCompetitor_product_mappingsNestedInput
 }
 
 export type competitor_product_mappingsUncheckedUpdateWithoutProductsInput = {
@@ -695,7 +1193,11 @@ export type competitor_product_mappingsUncheckedUpdateWithoutProductsInput = {
   competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   competitor_prices?: Prisma.competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
 }
 
 export type competitor_product_mappingsUncheckedUpdateManyWithoutProductsInput = {
@@ -705,6 +1207,7 @@ export type competitor_product_mappingsUncheckedUpdateManyWithoutProductsInput =
   competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type competitor_product_mappingsCreateManyTenant_competitorsInput = {
@@ -714,6 +1217,7 @@ export type competitor_product_mappingsCreateManyTenant_competitorsInput = {
   competitor_product_sku?: string | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_id?: string | null
 }
 
 export type competitor_product_mappingsUpdateWithoutTenant_competitorsInput = {
@@ -724,6 +1228,10 @@ export type competitor_product_mappingsUpdateWithoutTenant_competitorsInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   competitor_prices?: Prisma.competitor_pricesUpdateManyWithoutCompetitor_product_mappingsNestedInput
   products?: Prisma.productsUpdateOneRequiredWithoutCompetitor_product_mappingsNestedInput
+  data_sources?: Prisma.data_sourcesUpdateOneWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutCompetitor_product_mappingsNestedInput
 }
 
 export type competitor_product_mappingsUncheckedUpdateWithoutTenant_competitorsInput = {
@@ -733,7 +1241,11 @@ export type competitor_product_mappingsUncheckedUpdateWithoutTenant_competitorsI
   competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   competitor_prices?: Prisma.competitor_pricesUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutCompetitor_product_mappingsNestedInput
 }
 
 export type competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competitorsInput = {
@@ -743,6 +1255,7 @@ export type competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competit
   competitor_product_sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -752,10 +1265,16 @@ export type competitor_product_mappingsUncheckedUpdateManyWithoutTenant_competit
 
 export type Competitor_product_mappingsCountOutputType = {
   competitor_prices: number
+  market_events: number
+  market_observation_staging: number
+  market_observations: number
 }
 
 export type Competitor_product_mappingsCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   competitor_prices?: boolean | Competitor_product_mappingsCountOutputTypeCountCompetitor_pricesArgs
+  market_events?: boolean | Competitor_product_mappingsCountOutputTypeCountMarket_eventsArgs
+  market_observation_staging?: boolean | Competitor_product_mappingsCountOutputTypeCountMarket_observation_stagingArgs
+  market_observations?: boolean | Competitor_product_mappingsCountOutputTypeCountMarket_observationsArgs
 }
 
 /**
@@ -775,6 +1294,27 @@ export type Competitor_product_mappingsCountOutputTypeCountCompetitor_pricesArgs
   where?: Prisma.competitor_pricesWhereInput
 }
 
+/**
+ * Competitor_product_mappingsCountOutputType without action
+ */
+export type Competitor_product_mappingsCountOutputTypeCountMarket_eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_eventsWhereInput
+}
+
+/**
+ * Competitor_product_mappingsCountOutputType without action
+ */
+export type Competitor_product_mappingsCountOutputTypeCountMarket_observation_stagingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_observation_stagingWhereInput
+}
+
+/**
+ * Competitor_product_mappingsCountOutputType without action
+ */
+export type Competitor_product_mappingsCountOutputTypeCountMarket_observationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_observationsWhereInput
+}
+
 
 export type competitor_product_mappingsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   mapping_id?: boolean
@@ -785,9 +1325,14 @@ export type competitor_product_mappingsSelect<ExtArgs extends runtime.Types.Exte
   competitor_product_sku?: boolean
   is_active?: boolean
   created_at?: boolean
+  source_id?: boolean
   competitor_prices?: boolean | Prisma.competitor_product_mappings$competitor_pricesArgs<ExtArgs>
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  data_sources?: boolean | Prisma.competitor_product_mappings$data_sourcesArgs<ExtArgs>
   tenant_competitors?: boolean | Prisma.tenant_competitorsDefaultArgs<ExtArgs>
+  market_events?: boolean | Prisma.competitor_product_mappings$market_eventsArgs<ExtArgs>
+  market_observation_staging?: boolean | Prisma.competitor_product_mappings$market_observation_stagingArgs<ExtArgs>
+  market_observations?: boolean | Prisma.competitor_product_mappings$market_observationsArgs<ExtArgs>
   _count?: boolean | Prisma.Competitor_product_mappingsCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["competitor_product_mappings"]>
 
@@ -800,7 +1345,9 @@ export type competitor_product_mappingsSelectCreateManyAndReturn<ExtArgs extends
   competitor_product_sku?: boolean
   is_active?: boolean
   created_at?: boolean
+  source_id?: boolean
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  data_sources?: boolean | Prisma.competitor_product_mappings$data_sourcesArgs<ExtArgs>
   tenant_competitors?: boolean | Prisma.tenant_competitorsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["competitor_product_mappings"]>
 
@@ -813,7 +1360,9 @@ export type competitor_product_mappingsSelectUpdateManyAndReturn<ExtArgs extends
   competitor_product_sku?: boolean
   is_active?: boolean
   created_at?: boolean
+  source_id?: boolean
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  data_sources?: boolean | Prisma.competitor_product_mappings$data_sourcesArgs<ExtArgs>
   tenant_competitors?: boolean | Prisma.tenant_competitorsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["competitor_product_mappings"]>
 
@@ -826,21 +1375,28 @@ export type competitor_product_mappingsSelectScalar = {
   competitor_product_sku?: boolean
   is_active?: boolean
   created_at?: boolean
+  source_id?: boolean
 }
 
-export type competitor_product_mappingsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"mapping_id" | "tenant_id" | "global_competitor_id" | "product_id" | "competitor_product_url" | "competitor_product_sku" | "is_active" | "created_at", ExtArgs["result"]["competitor_product_mappings"]>
+export type competitor_product_mappingsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"mapping_id" | "tenant_id" | "global_competitor_id" | "product_id" | "competitor_product_url" | "competitor_product_sku" | "is_active" | "created_at" | "source_id", ExtArgs["result"]["competitor_product_mappings"]>
 export type competitor_product_mappingsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   competitor_prices?: boolean | Prisma.competitor_product_mappings$competitor_pricesArgs<ExtArgs>
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  data_sources?: boolean | Prisma.competitor_product_mappings$data_sourcesArgs<ExtArgs>
   tenant_competitors?: boolean | Prisma.tenant_competitorsDefaultArgs<ExtArgs>
+  market_events?: boolean | Prisma.competitor_product_mappings$market_eventsArgs<ExtArgs>
+  market_observation_staging?: boolean | Prisma.competitor_product_mappings$market_observation_stagingArgs<ExtArgs>
+  market_observations?: boolean | Prisma.competitor_product_mappings$market_observationsArgs<ExtArgs>
   _count?: boolean | Prisma.Competitor_product_mappingsCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type competitor_product_mappingsIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  data_sources?: boolean | Prisma.competitor_product_mappings$data_sourcesArgs<ExtArgs>
   tenant_competitors?: boolean | Prisma.tenant_competitorsDefaultArgs<ExtArgs>
 }
 export type competitor_product_mappingsIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
+  data_sources?: boolean | Prisma.competitor_product_mappings$data_sourcesArgs<ExtArgs>
   tenant_competitors?: boolean | Prisma.tenant_competitorsDefaultArgs<ExtArgs>
 }
 
@@ -849,7 +1405,11 @@ export type $competitor_product_mappingsPayload<ExtArgs extends runtime.Types.Ex
   objects: {
     competitor_prices: Prisma.$competitor_pricesPayload<ExtArgs>[]
     products: Prisma.$productsPayload<ExtArgs>
+    data_sources: Prisma.$data_sourcesPayload<ExtArgs> | null
     tenant_competitors: Prisma.$tenant_competitorsPayload<ExtArgs>
+    market_events: Prisma.$market_eventsPayload<ExtArgs>[]
+    market_observation_staging: Prisma.$market_observation_stagingPayload<ExtArgs>[]
+    market_observations: Prisma.$market_observationsPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     mapping_id: string
@@ -860,6 +1420,7 @@ export type $competitor_product_mappingsPayload<ExtArgs extends runtime.Types.Ex
     competitor_product_sku: string | null
     is_active: boolean
     created_at: Date | null
+    source_id: string | null
   }, ExtArgs["result"]["competitor_product_mappings"]>
   composites: {}
 }
@@ -1256,7 +1817,11 @@ export interface Prisma__competitor_product_mappingsClient<T, Null = never, ExtA
   readonly [Symbol.toStringTag]: "PrismaPromise"
   competitor_prices<T extends Prisma.competitor_product_mappings$competitor_pricesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.competitor_product_mappings$competitor_pricesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$competitor_pricesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   products<T extends Prisma.productsDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.productsDefaultArgs<ExtArgs>>): Prisma.Prisma__productsClient<runtime.Types.Result.GetResult<Prisma.$productsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  data_sources<T extends Prisma.competitor_product_mappings$data_sourcesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.competitor_product_mappings$data_sourcesArgs<ExtArgs>>): Prisma.Prisma__data_sourcesClient<runtime.Types.Result.GetResult<Prisma.$data_sourcesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   tenant_competitors<T extends Prisma.tenant_competitorsDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.tenant_competitorsDefaultArgs<ExtArgs>>): Prisma.Prisma__tenant_competitorsClient<runtime.Types.Result.GetResult<Prisma.$tenant_competitorsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  market_events<T extends Prisma.competitor_product_mappings$market_eventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.competitor_product_mappings$market_eventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_eventsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  market_observation_staging<T extends Prisma.competitor_product_mappings$market_observation_stagingArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.competitor_product_mappings$market_observation_stagingArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_observation_stagingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  market_observations<T extends Prisma.competitor_product_mappings$market_observationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.competitor_product_mappings$market_observationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_observationsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1294,6 +1859,7 @@ export interface competitor_product_mappingsFieldRefs {
   readonly competitor_product_sku: Prisma.FieldRef<"competitor_product_mappings", 'String'>
   readonly is_active: Prisma.FieldRef<"competitor_product_mappings", 'Boolean'>
   readonly created_at: Prisma.FieldRef<"competitor_product_mappings", 'DateTime'>
+  readonly source_id: Prisma.FieldRef<"competitor_product_mappings", 'String'>
 }
     
 
@@ -1716,6 +2282,97 @@ export type competitor_product_mappings$competitor_pricesArgs<ExtArgs extends ru
   take?: number
   skip?: number
   distinct?: Prisma.Competitor_pricesScalarFieldEnum | Prisma.Competitor_pricesScalarFieldEnum[]
+}
+
+/**
+ * competitor_product_mappings.data_sources
+ */
+export type competitor_product_mappings$data_sourcesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the data_sources
+   */
+  select?: Prisma.data_sourcesSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the data_sources
+   */
+  omit?: Prisma.data_sourcesOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.data_sourcesInclude<ExtArgs> | null
+  where?: Prisma.data_sourcesWhereInput
+}
+
+/**
+ * competitor_product_mappings.market_events
+ */
+export type competitor_product_mappings$market_eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_events
+   */
+  select?: Prisma.market_eventsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_events
+   */
+  omit?: Prisma.market_eventsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_eventsInclude<ExtArgs> | null
+  where?: Prisma.market_eventsWhereInput
+  orderBy?: Prisma.market_eventsOrderByWithRelationInput | Prisma.market_eventsOrderByWithRelationInput[]
+  cursor?: Prisma.market_eventsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_eventsScalarFieldEnum | Prisma.Market_eventsScalarFieldEnum[]
+}
+
+/**
+ * competitor_product_mappings.market_observation_staging
+ */
+export type competitor_product_mappings$market_observation_stagingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_observation_staging
+   */
+  select?: Prisma.market_observation_stagingSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_observation_staging
+   */
+  omit?: Prisma.market_observation_stagingOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_observation_stagingInclude<ExtArgs> | null
+  where?: Prisma.market_observation_stagingWhereInput
+  orderBy?: Prisma.market_observation_stagingOrderByWithRelationInput | Prisma.market_observation_stagingOrderByWithRelationInput[]
+  cursor?: Prisma.market_observation_stagingWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_observation_stagingScalarFieldEnum | Prisma.Market_observation_stagingScalarFieldEnum[]
+}
+
+/**
+ * competitor_product_mappings.market_observations
+ */
+export type competitor_product_mappings$market_observationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_observations
+   */
+  select?: Prisma.market_observationsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_observations
+   */
+  omit?: Prisma.market_observationsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_observationsInclude<ExtArgs> | null
+  where?: Prisma.market_observationsWhereInput
+  orderBy?: Prisma.market_observationsOrderByWithRelationInput | Prisma.market_observationsOrderByWithRelationInput[]
+  cursor?: Prisma.market_observationsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_observationsScalarFieldEnum | Prisma.Market_observationsScalarFieldEnum[]
 }
 
 /**

@@ -289,6 +289,7 @@ export type productsWhereInput = {
   created_at?: Prisma.DateTimeNullableFilter<"products"> | Date | string | null
   updated_at?: Prisma.DateTimeNullableFilter<"products"> | Date | string | null
   deleted_at?: Prisma.DateTimeNullableFilter<"products"> | Date | string | null
+  campaigns?: Prisma.CampaignsListRelationFilter
   competitor_product_mappings?: Prisma.Competitor_product_mappingsListRelationFilter
   demand_forecasts?: Prisma.Demand_forecastsListRelationFilter
   inventory?: Prisma.InventoryListRelationFilter
@@ -298,6 +299,7 @@ export type productsWhereInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.XOR<Prisma.TenantUserNullableScalarRelationFilter, Prisma.TenantUserWhereInput> | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   reviews?: Prisma.ReviewsListRelationFilter
+  transactions?: Prisma.TransactionsListRelationFilter
 }
 
 export type productsOrderByWithRelationInput = {
@@ -317,6 +319,7 @@ export type productsOrderByWithRelationInput = {
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
   updated_at?: Prisma.SortOrderInput | Prisma.SortOrder
   deleted_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  campaigns?: Prisma.campaignsOrderByRelationAggregateInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsOrderByRelationAggregateInput
   demand_forecasts?: Prisma.demand_forecastsOrderByRelationAggregateInput
   inventory?: Prisma.inventoryOrderByRelationAggregateInput
@@ -326,6 +329,7 @@ export type productsOrderByWithRelationInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserOrderByWithRelationInput
   companies?: Prisma.CompanyOrderByWithRelationInput
   reviews?: Prisma.reviewsOrderByRelationAggregateInput
+  transactions?: Prisma.transactionsOrderByRelationAggregateInput
 }
 
 export type productsWhereUniqueInput = Prisma.AtLeast<{
@@ -349,6 +353,7 @@ export type productsWhereUniqueInput = Prisma.AtLeast<{
   created_at?: Prisma.DateTimeNullableFilter<"products"> | Date | string | null
   updated_at?: Prisma.DateTimeNullableFilter<"products"> | Date | string | null
   deleted_at?: Prisma.DateTimeNullableFilter<"products"> | Date | string | null
+  campaigns?: Prisma.CampaignsListRelationFilter
   competitor_product_mappings?: Prisma.Competitor_product_mappingsListRelationFilter
   demand_forecasts?: Prisma.Demand_forecastsListRelationFilter
   inventory?: Prisma.InventoryListRelationFilter
@@ -358,6 +363,7 @@ export type productsWhereUniqueInput = Prisma.AtLeast<{
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.XOR<Prisma.TenantUserNullableScalarRelationFilter, Prisma.TenantUserWhereInput> | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   reviews?: Prisma.ReviewsListRelationFilter
+  transactions?: Prisma.TransactionsListRelationFilter
 }, "product_id" | "tenant_id_product_id">
 
 export type productsOrderByWithAggregationInput = {
@@ -420,6 +426,7 @@ export type productsCreateInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
@@ -429,6 +436,7 @@ export type productsCreateInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateInput = {
@@ -448,12 +456,14 @@ export type productsUncheckedCreateInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsUpdateInput = {
@@ -470,6 +480,7 @@ export type productsUpdateInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
@@ -479,6 +490,7 @@ export type productsUpdateInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateInput = {
@@ -498,12 +510,14 @@ export type productsUncheckedUpdateInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsCreateManyInput = {
@@ -635,6 +649,11 @@ export type productsMinOrderByAggregateInput = {
 export type productsSumOrderByAggregateInput = {
   current_price?: Prisma.SortOrder
   cost_price?: Prisma.SortOrder
+}
+
+export type ProductsNullableScalarRelationFilter = {
+  is?: Prisma.productsWhereInput | null
+  isNot?: Prisma.productsWhereInput | null
 }
 
 export type productsCreateNestedManyWithoutCompaniesInput = {
@@ -839,12 +858,44 @@ export type productsCreateNestedOneWithoutReviewsInput = {
   connect?: Prisma.productsWhereUniqueInput
 }
 
-export type productsUpdateOneRequiredWithoutReviewsNestedInput = {
+export type productsUpdateOneWithoutReviewsNestedInput = {
   create?: Prisma.XOR<Prisma.productsCreateWithoutReviewsInput, Prisma.productsUncheckedCreateWithoutReviewsInput>
   connectOrCreate?: Prisma.productsCreateOrConnectWithoutReviewsInput
   upsert?: Prisma.productsUpsertWithoutReviewsInput
+  disconnect?: Prisma.productsWhereInput | boolean
+  delete?: Prisma.productsWhereInput | boolean
   connect?: Prisma.productsWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.productsUpdateToOneWithWhereWithoutReviewsInput, Prisma.productsUpdateWithoutReviewsInput>, Prisma.productsUncheckedUpdateWithoutReviewsInput>
+}
+
+export type productsCreateNestedOneWithoutCampaignsInput = {
+  create?: Prisma.XOR<Prisma.productsCreateWithoutCampaignsInput, Prisma.productsUncheckedCreateWithoutCampaignsInput>
+  connectOrCreate?: Prisma.productsCreateOrConnectWithoutCampaignsInput
+  connect?: Prisma.productsWhereUniqueInput
+}
+
+export type productsUpdateOneWithoutCampaignsNestedInput = {
+  create?: Prisma.XOR<Prisma.productsCreateWithoutCampaignsInput, Prisma.productsUncheckedCreateWithoutCampaignsInput>
+  connectOrCreate?: Prisma.productsCreateOrConnectWithoutCampaignsInput
+  upsert?: Prisma.productsUpsertWithoutCampaignsInput
+  disconnect?: Prisma.productsWhereInput | boolean
+  delete?: Prisma.productsWhereInput | boolean
+  connect?: Prisma.productsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.productsUpdateToOneWithWhereWithoutCampaignsInput, Prisma.productsUpdateWithoutCampaignsInput>, Prisma.productsUncheckedUpdateWithoutCampaignsInput>
+}
+
+export type productsCreateNestedOneWithoutTransactionsInput = {
+  create?: Prisma.XOR<Prisma.productsCreateWithoutTransactionsInput, Prisma.productsUncheckedCreateWithoutTransactionsInput>
+  connectOrCreate?: Prisma.productsCreateOrConnectWithoutTransactionsInput
+  connect?: Prisma.productsWhereUniqueInput
+}
+
+export type productsUpdateOneRequiredWithoutTransactionsNestedInput = {
+  create?: Prisma.XOR<Prisma.productsCreateWithoutTransactionsInput, Prisma.productsUncheckedCreateWithoutTransactionsInput>
+  connectOrCreate?: Prisma.productsCreateOrConnectWithoutTransactionsInput
+  upsert?: Prisma.productsUpsertWithoutTransactionsInput
+  connect?: Prisma.productsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.productsUpdateToOneWithWhereWithoutTransactionsInput, Prisma.productsUpdateWithoutTransactionsInput>, Prisma.productsUncheckedUpdateWithoutTransactionsInput>
 }
 
 export type productsCreateWithoutCompaniesInput = {
@@ -861,6 +912,7 @@ export type productsCreateWithoutCompaniesInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
@@ -869,6 +921,7 @@ export type productsCreateWithoutCompaniesInput = {
   tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutCompaniesInput = {
@@ -887,12 +940,14 @@ export type productsUncheckedCreateWithoutCompaniesInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutCompaniesInput = {
@@ -957,6 +1012,7 @@ export type productsCreateWithoutTenant_users_products_tenant_id_created_by_user
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
@@ -965,6 +1021,7 @@ export type productsCreateWithoutTenant_users_products_tenant_id_created_by_user
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
@@ -982,12 +1039,14 @@ export type productsUncheckedCreateWithoutTenant_users_products_tenant_id_create
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
@@ -1014,6 +1073,7 @@ export type productsCreateWithoutTenant_users_products_tenant_id_updated_by_user
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
@@ -1022,6 +1082,7 @@ export type productsCreateWithoutTenant_users_products_tenant_id_updated_by_user
   tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
@@ -1039,12 +1100,14 @@ export type productsUncheckedCreateWithoutTenant_users_products_tenant_id_update
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
@@ -1103,6 +1166,7 @@ export type productsCreateWithoutCompetitor_product_mappingsInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsCreateNestedManyWithoutProductsInput
@@ -1111,6 +1175,7 @@ export type productsCreateWithoutCompetitor_product_mappingsInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutCompetitor_product_mappingsInput = {
@@ -1130,11 +1195,13 @@ export type productsUncheckedCreateWithoutCompetitor_product_mappingsInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutCompetitor_product_mappingsInput = {
@@ -1167,6 +1234,7 @@ export type productsUpdateWithoutCompetitor_product_mappingsInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUpdateManyWithoutProductsNestedInput
@@ -1175,6 +1243,7 @@ export type productsUpdateWithoutCompetitor_product_mappingsInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutCompetitor_product_mappingsInput = {
@@ -1194,11 +1263,13 @@ export type productsUncheckedUpdateWithoutCompetitor_product_mappingsInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsCreateWithoutDemand_forecastsInput = {
@@ -1215,6 +1286,7 @@ export type productsCreateWithoutDemand_forecastsInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsCreateNestedManyWithoutProductsInput
@@ -1223,6 +1295,7 @@ export type productsCreateWithoutDemand_forecastsInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutDemand_forecastsInput = {
@@ -1242,11 +1315,13 @@ export type productsUncheckedCreateWithoutDemand_forecastsInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutDemand_forecastsInput = {
@@ -1279,6 +1354,7 @@ export type productsUpdateWithoutDemand_forecastsInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUpdateManyWithoutProductsNestedInput
@@ -1287,6 +1363,7 @@ export type productsUpdateWithoutDemand_forecastsInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutDemand_forecastsInput = {
@@ -1306,11 +1383,13 @@ export type productsUncheckedUpdateWithoutDemand_forecastsInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsCreateWithoutInventoryInput = {
@@ -1327,6 +1406,7 @@ export type productsCreateWithoutInventoryInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsCreateNestedManyWithoutProductsInput
@@ -1335,6 +1415,7 @@ export type productsCreateWithoutInventoryInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutInventoryInput = {
@@ -1354,11 +1435,13 @@ export type productsUncheckedCreateWithoutInventoryInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutInventoryInput = {
@@ -1391,6 +1474,7 @@ export type productsUpdateWithoutInventoryInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUpdateManyWithoutProductsNestedInput
@@ -1399,6 +1483,7 @@ export type productsUpdateWithoutInventoryInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutInventoryInput = {
@@ -1418,11 +1503,13 @@ export type productsUncheckedUpdateWithoutInventoryInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsCreateWithoutInvoice_itemsInput = {
@@ -1439,6 +1526,7 @@ export type productsCreateWithoutInvoice_itemsInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
@@ -1447,6 +1535,7 @@ export type productsCreateWithoutInvoice_itemsInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutInvoice_itemsInput = {
@@ -1466,11 +1555,13 @@ export type productsUncheckedCreateWithoutInvoice_itemsInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutInvoice_itemsInput = {
@@ -1503,6 +1594,7 @@ export type productsUpdateWithoutInvoice_itemsInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
@@ -1511,6 +1603,7 @@ export type productsUpdateWithoutInvoice_itemsInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutInvoice_itemsInput = {
@@ -1530,11 +1623,13 @@ export type productsUncheckedUpdateWithoutInvoice_itemsInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsCreateWithoutProduct_price_historyInput = {
@@ -1551,6 +1646,7 @@ export type productsCreateWithoutProduct_price_historyInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
@@ -1559,6 +1655,7 @@ export type productsCreateWithoutProduct_price_historyInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
   reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutProduct_price_historyInput = {
@@ -1578,11 +1675,13 @@ export type productsUncheckedCreateWithoutProduct_price_historyInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutProduct_price_historyInput = {
@@ -1615,6 +1714,7 @@ export type productsUpdateWithoutProduct_price_historyInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
@@ -1623,6 +1723,7 @@ export type productsUpdateWithoutProduct_price_historyInput = {
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutProduct_price_historyInput = {
@@ -1642,11 +1743,13 @@ export type productsUncheckedUpdateWithoutProduct_price_historyInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsCreateWithoutReviewsInput = {
@@ -1663,6 +1766,7 @@ export type productsCreateWithoutReviewsInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
@@ -1671,6 +1775,7 @@ export type productsCreateWithoutReviewsInput = {
   tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
   companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
 }
 
 export type productsUncheckedCreateWithoutReviewsInput = {
@@ -1690,11 +1795,13 @@ export type productsUncheckedCreateWithoutReviewsInput = {
   created_at?: Date | string | null
   updated_at?: Date | string | null
   deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
   invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
 }
 
 export type productsCreateOrConnectWithoutReviewsInput = {
@@ -1727,6 +1834,7 @@ export type productsUpdateWithoutReviewsInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
@@ -1735,9 +1843,130 @@ export type productsUpdateWithoutReviewsInput = {
   tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutReviewsInput = {
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  current_price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  cost_price?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updated_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
+  invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
+  product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
+}
+
+export type productsCreateWithoutCampaignsInput = {
+  product_id?: string
+  product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  current_price: runtime.Decimal | runtime.DecimalJsLike | number | string
+  cost_price?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currency: string
+  source?: string
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Date | string | null
+  updated_at?: Date | string | null
+  deleted_at?: Date | string | null
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
+  invoice_items?: Prisma.invoice_itemsCreateNestedManyWithoutProductsInput
+  product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutProductsInput
+  tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput
+  tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
+  companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutProductsInput
+}
+
+export type productsUncheckedCreateWithoutCampaignsInput = {
+  product_id?: string
+  tenant_id: string
+  product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  current_price: runtime.Decimal | runtime.DecimalJsLike | number | string
+  cost_price?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currency: string
+  source?: string
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_by_user_id?: string | null
+  updated_by_user_id?: string | null
+  created_at?: Date | string | null
+  updated_at?: Date | string | null
+  deleted_at?: Date | string | null
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
+  invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
+  product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutProductsInput
+}
+
+export type productsCreateOrConnectWithoutCampaignsInput = {
+  where: Prisma.productsWhereUniqueInput
+  create: Prisma.XOR<Prisma.productsCreateWithoutCampaignsInput, Prisma.productsUncheckedCreateWithoutCampaignsInput>
+}
+
+export type productsUpsertWithoutCampaignsInput = {
+  update: Prisma.XOR<Prisma.productsUpdateWithoutCampaignsInput, Prisma.productsUncheckedUpdateWithoutCampaignsInput>
+  create: Prisma.XOR<Prisma.productsCreateWithoutCampaignsInput, Prisma.productsUncheckedCreateWithoutCampaignsInput>
+  where?: Prisma.productsWhereInput
+}
+
+export type productsUpdateToOneWithWhereWithoutCampaignsInput = {
+  where?: Prisma.productsWhereInput
+  data: Prisma.XOR<Prisma.productsUpdateWithoutCampaignsInput, Prisma.productsUncheckedUpdateWithoutCampaignsInput>
+}
+
+export type productsUpdateWithoutCampaignsInput = {
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  current_price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  cost_price?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
+  invoice_items?: Prisma.invoice_itemsUpdateManyWithoutProductsNestedInput
+  product_price_history?: Prisma.product_price_historyUpdateManyWithoutProductsNestedInput
+  tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersNestedInput
+  tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
+}
+
+export type productsUncheckedUpdateWithoutCampaignsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1759,6 +1988,128 @@ export type productsUncheckedUpdateWithoutReviewsInput = {
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
+}
+
+export type productsCreateWithoutTransactionsInput = {
+  product_id?: string
+  product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  current_price: runtime.Decimal | runtime.DecimalJsLike | number | string
+  cost_price?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currency: string
+  source?: string
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Date | string | null
+  updated_at?: Date | string | null
+  deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutProductsInput
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutProductsInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutProductsInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutProductsInput
+  invoice_items?: Prisma.invoice_itemsCreateNestedManyWithoutProductsInput
+  product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutProductsInput
+  tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput
+  tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserCreateNestedOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput
+  companies: Prisma.CompanyCreateNestedOneWithoutProductsInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutProductsInput
+}
+
+export type productsUncheckedCreateWithoutTransactionsInput = {
+  product_id?: string
+  tenant_id: string
+  product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  current_price: runtime.Decimal | runtime.DecimalJsLike | number | string
+  cost_price?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currency: string
+  source?: string
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_by_user_id?: string | null
+  updated_by_user_id?: string | null
+  created_at?: Date | string | null
+  updated_at?: Date | string | null
+  deleted_at?: Date | string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutProductsInput
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutProductsInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutProductsInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutProductsInput
+  invoice_items?: Prisma.invoice_itemsUncheckedCreateNestedManyWithoutProductsInput
+  product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutProductsInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutProductsInput
+}
+
+export type productsCreateOrConnectWithoutTransactionsInput = {
+  where: Prisma.productsWhereUniqueInput
+  create: Prisma.XOR<Prisma.productsCreateWithoutTransactionsInput, Prisma.productsUncheckedCreateWithoutTransactionsInput>
+}
+
+export type productsUpsertWithoutTransactionsInput = {
+  update: Prisma.XOR<Prisma.productsUpdateWithoutTransactionsInput, Prisma.productsUncheckedUpdateWithoutTransactionsInput>
+  create: Prisma.XOR<Prisma.productsCreateWithoutTransactionsInput, Prisma.productsUncheckedCreateWithoutTransactionsInput>
+  where?: Prisma.productsWhereInput
+}
+
+export type productsUpdateToOneWithWhereWithoutTransactionsInput = {
+  where?: Prisma.productsWhereInput
+  data: Prisma.XOR<Prisma.productsUpdateWithoutTransactionsInput, Prisma.productsUncheckedUpdateWithoutTransactionsInput>
+}
+
+export type productsUpdateWithoutTransactionsInput = {
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  current_price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  cost_price?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
+  invoice_items?: Prisma.invoice_itemsUpdateManyWithoutProductsNestedInput
+  product_price_history?: Prisma.product_price_historyUpdateManyWithoutProductsNestedInput
+  tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersNestedInput
+  tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+}
+
+export type productsUncheckedUpdateWithoutTransactionsInput = {
+  product_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  current_price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  cost_price?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updated_by_user_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
+  invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
+  product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsCreateManyCompaniesInput = {
@@ -1793,6 +2144,7 @@ export type productsUpdateWithoutCompaniesInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
@@ -1801,6 +2153,7 @@ export type productsUpdateWithoutCompaniesInput = {
   tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutCompaniesInput = {
@@ -1819,12 +2172,14 @@ export type productsUncheckedUpdateWithoutCompaniesInput = {
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateManyWithoutCompaniesInput = {
@@ -1893,6 +2248,7 @@ export type productsUpdateWithoutTenant_users_products_tenant_id_created_by_user
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
@@ -1901,6 +2257,7 @@ export type productsUpdateWithoutTenant_users_products_tenant_id_created_by_user
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
@@ -1918,12 +2275,14 @@ export type productsUncheckedUpdateWithoutTenant_users_products_tenant_id_create
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
@@ -1957,6 +2316,7 @@ export type productsUpdateWithoutTenant_users_products_tenant_id_updated_by_user
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutProductsNestedInput
@@ -1965,6 +2325,7 @@ export type productsUpdateWithoutTenant_users_products_tenant_id_updated_by_user
   tenant_users_products_tenant_id_created_by_user_idTotenant_users?: Prisma.TenantUserUpdateOneWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutProductsNestedInput
   reviews?: Prisma.reviewsUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
@@ -1982,12 +2343,14 @@ export type productsUncheckedUpdateWithoutTenant_users_products_tenant_id_update
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deleted_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutProductsNestedInput
   competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutProductsNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutProductsNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutProductsNestedInput
   invoice_items?: Prisma.invoice_itemsUncheckedUpdateManyWithoutProductsNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutProductsNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutProductsNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutProductsNestedInput
 }
 
 export type productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
@@ -2013,21 +2376,25 @@ export type productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_up
  */
 
 export type ProductsCountOutputType = {
+  campaigns: number
   competitor_product_mappings: number
   demand_forecasts: number
   inventory: number
   invoice_items: number
   product_price_history: number
   reviews: number
+  transactions: number
 }
 
 export type ProductsCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  campaigns?: boolean | ProductsCountOutputTypeCountCampaignsArgs
   competitor_product_mappings?: boolean | ProductsCountOutputTypeCountCompetitor_product_mappingsArgs
   demand_forecasts?: boolean | ProductsCountOutputTypeCountDemand_forecastsArgs
   inventory?: boolean | ProductsCountOutputTypeCountInventoryArgs
   invoice_items?: boolean | ProductsCountOutputTypeCountInvoice_itemsArgs
   product_price_history?: boolean | ProductsCountOutputTypeCountProduct_price_historyArgs
   reviews?: boolean | ProductsCountOutputTypeCountReviewsArgs
+  transactions?: boolean | ProductsCountOutputTypeCountTransactionsArgs
 }
 
 /**
@@ -2038,6 +2405,13 @@ export type ProductsCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Ext
    * Select specific fields to fetch from the ProductsCountOutputType
    */
   select?: Prisma.ProductsCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * ProductsCountOutputType without action
+ */
+export type ProductsCountOutputTypeCountCampaignsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.campaignsWhereInput
 }
 
 /**
@@ -2082,6 +2456,13 @@ export type ProductsCountOutputTypeCountReviewsArgs<ExtArgs extends runtime.Type
   where?: Prisma.reviewsWhereInput
 }
 
+/**
+ * ProductsCountOutputType without action
+ */
+export type ProductsCountOutputTypeCountTransactionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.transactionsWhereInput
+}
+
 
 export type productsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   product_id?: boolean
@@ -2100,6 +2481,7 @@ export type productsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   created_at?: boolean
   updated_at?: boolean
   deleted_at?: boolean
+  campaigns?: boolean | Prisma.products$campaignsArgs<ExtArgs>
   competitor_product_mappings?: boolean | Prisma.products$competitor_product_mappingsArgs<ExtArgs>
   demand_forecasts?: boolean | Prisma.products$demand_forecastsArgs<ExtArgs>
   inventory?: boolean | Prisma.products$inventoryArgs<ExtArgs>
@@ -2109,6 +2491,7 @@ export type productsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: boolean | Prisma.products$tenant_users_products_tenant_id_updated_by_user_idTotenant_usersArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   reviews?: boolean | Prisma.products$reviewsArgs<ExtArgs>
+  transactions?: boolean | Prisma.products$transactionsArgs<ExtArgs>
   _count?: boolean | Prisma.ProductsCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["products"]>
 
@@ -2177,6 +2560,7 @@ export type productsSelectScalar = {
 
 export type productsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"product_id" | "tenant_id" | "product_name" | "brand" | "category" | "description" | "current_price" | "cost_price" | "currency" | "source" | "metadata" | "created_by_user_id" | "updated_by_user_id" | "created_at" | "updated_at" | "deleted_at", ExtArgs["result"]["products"]>
 export type productsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  campaigns?: boolean | Prisma.products$campaignsArgs<ExtArgs>
   competitor_product_mappings?: boolean | Prisma.products$competitor_product_mappingsArgs<ExtArgs>
   demand_forecasts?: boolean | Prisma.products$demand_forecastsArgs<ExtArgs>
   inventory?: boolean | Prisma.products$inventoryArgs<ExtArgs>
@@ -2186,6 +2570,7 @@ export type productsInclude<ExtArgs extends runtime.Types.Extensions.InternalArg
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users?: boolean | Prisma.products$tenant_users_products_tenant_id_updated_by_user_idTotenant_usersArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   reviews?: boolean | Prisma.products$reviewsArgs<ExtArgs>
+  transactions?: boolean | Prisma.products$transactionsArgs<ExtArgs>
   _count?: boolean | Prisma.ProductsCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type productsIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2202,6 +2587,7 @@ export type productsIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
 export type $productsPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "products"
   objects: {
+    campaigns: Prisma.$campaignsPayload<ExtArgs>[]
     competitor_product_mappings: Prisma.$competitor_product_mappingsPayload<ExtArgs>[]
     demand_forecasts: Prisma.$demand_forecastsPayload<ExtArgs>[]
     inventory: Prisma.$inventoryPayload<ExtArgs>[]
@@ -2211,6 +2597,7 @@ export type $productsPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     tenant_users_products_tenant_id_updated_by_user_idTotenant_users: Prisma.$TenantUserPayload<ExtArgs> | null
     companies: Prisma.$CompanyPayload<ExtArgs>
     reviews: Prisma.$reviewsPayload<ExtArgs>[]
+    transactions: Prisma.$transactionsPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     product_id: string
@@ -2623,6 +3010,7 @@ readonly fields: productsFieldRefs;
  */
 export interface Prisma__productsClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  campaigns<T extends Prisma.products$campaignsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.products$campaignsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$campaignsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   competitor_product_mappings<T extends Prisma.products$competitor_product_mappingsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.products$competitor_product_mappingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$competitor_product_mappingsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   demand_forecasts<T extends Prisma.products$demand_forecastsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.products$demand_forecastsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$demand_forecastsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   inventory<T extends Prisma.products$inventoryArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.products$inventoryArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$inventoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -2632,6 +3020,7 @@ export interface Prisma__productsClient<T, Null = never, ExtArgs extends runtime
   tenant_users_products_tenant_id_updated_by_user_idTotenant_users<T extends Prisma.products$tenant_users_products_tenant_id_updated_by_user_idTotenant_usersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.products$tenant_users_products_tenant_id_updated_by_user_idTotenant_usersArgs<ExtArgs>>): Prisma.Prisma__TenantUserClient<runtime.Types.Result.GetResult<Prisma.$TenantUserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   companies<T extends Prisma.CompanyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CompanyDefaultArgs<ExtArgs>>): Prisma.Prisma__CompanyClient<runtime.Types.Result.GetResult<Prisma.$CompanyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   reviews<T extends Prisma.products$reviewsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.products$reviewsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$reviewsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  transactions<T extends Prisma.products$transactionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.products$transactionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$transactionsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3078,6 +3467,30 @@ export type productsDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
 }
 
 /**
+ * products.campaigns
+ */
+export type products$campaignsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the campaigns
+   */
+  select?: Prisma.campaignsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the campaigns
+   */
+  omit?: Prisma.campaignsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.campaignsInclude<ExtArgs> | null
+  where?: Prisma.campaignsWhereInput
+  orderBy?: Prisma.campaignsOrderByWithRelationInput | Prisma.campaignsOrderByWithRelationInput[]
+  cursor?: Prisma.campaignsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CampaignsScalarFieldEnum | Prisma.CampaignsScalarFieldEnum[]
+}
+
+/**
  * products.competitor_product_mappings
  */
 export type products$competitor_product_mappingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -3257,6 +3670,30 @@ export type products$reviewsArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.ReviewsScalarFieldEnum | Prisma.ReviewsScalarFieldEnum[]
+}
+
+/**
+ * products.transactions
+ */
+export type products$transactionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the transactions
+   */
+  select?: Prisma.transactionsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the transactions
+   */
+  omit?: Prisma.transactionsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.transactionsInclude<ExtArgs> | null
+  where?: Prisma.transactionsWhereInput
+  orderBy?: Prisma.transactionsOrderByWithRelationInput | Prisma.transactionsOrderByWithRelationInput[]
+  cursor?: Prisma.transactionsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.TransactionsScalarFieldEnum | Prisma.TransactionsScalarFieldEnum[]
 }
 
 /**

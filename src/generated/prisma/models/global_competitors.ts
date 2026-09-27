@@ -34,6 +34,9 @@ export type Global_competitorsMinAggregateOutputType = {
   visibility: string | null
   added_by_tenant_id: string | null
   created_at: Date | null
+  country_code: string | null
+  is_manufacturer: boolean | null
+  website_identity_key: string | null
 }
 
 export type Global_competitorsMaxAggregateOutputType = {
@@ -44,6 +47,9 @@ export type Global_competitorsMaxAggregateOutputType = {
   visibility: string | null
   added_by_tenant_id: string | null
   created_at: Date | null
+  country_code: string | null
+  is_manufacturer: boolean | null
+  website_identity_key: string | null
 }
 
 export type Global_competitorsCountAggregateOutputType = {
@@ -54,6 +60,9 @@ export type Global_competitorsCountAggregateOutputType = {
   visibility: number
   added_by_tenant_id: number
   created_at: number
+  country_code: number
+  is_manufacturer: number
+  website_identity_key: number
   _all: number
 }
 
@@ -66,6 +75,9 @@ export type Global_competitorsMinAggregateInputType = {
   visibility?: true
   added_by_tenant_id?: true
   created_at?: true
+  country_code?: true
+  is_manufacturer?: true
+  website_identity_key?: true
 }
 
 export type Global_competitorsMaxAggregateInputType = {
@@ -76,6 +88,9 @@ export type Global_competitorsMaxAggregateInputType = {
   visibility?: true
   added_by_tenant_id?: true
   created_at?: true
+  country_code?: true
+  is_manufacturer?: true
+  website_identity_key?: true
 }
 
 export type Global_competitorsCountAggregateInputType = {
@@ -86,6 +101,9 @@ export type Global_competitorsCountAggregateInputType = {
   visibility?: true
   added_by_tenant_id?: true
   created_at?: true
+  country_code?: true
+  is_manufacturer?: true
+  website_identity_key?: true
   _all?: true
 }
 
@@ -169,6 +187,9 @@ export type Global_competitorsGroupByOutputType = {
   visibility: string
   added_by_tenant_id: string | null
   created_at: Date | null
+  country_code: string | null
+  is_manufacturer: boolean
+  website_identity_key: string | null
   _count: Global_competitorsCountAggregateOutputType | null
   _min: Global_competitorsMinAggregateOutputType | null
   _max: Global_competitorsMaxAggregateOutputType | null
@@ -200,6 +221,9 @@ export type global_competitorsWhereInput = {
   visibility?: Prisma.StringFilter<"global_competitors"> | string
   added_by_tenant_id?: Prisma.UuidNullableFilter<"global_competitors"> | string | null
   created_at?: Prisma.DateTimeNullableFilter<"global_competitors"> | Date | string | null
+  country_code?: Prisma.StringNullableFilter<"global_competitors"> | string | null
+  is_manufacturer?: Prisma.BoolFilter<"global_competitors"> | boolean
+  website_identity_key?: Prisma.StringNullableFilter<"global_competitors"> | string | null
   companies?: Prisma.XOR<Prisma.CompanyNullableScalarRelationFilter, Prisma.CompanyWhereInput> | null
   tenant_competitors?: Prisma.Tenant_competitorsListRelationFilter
 }
@@ -212,12 +236,16 @@ export type global_competitorsOrderByWithRelationInput = {
   visibility?: Prisma.SortOrder
   added_by_tenant_id?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  country_code?: Prisma.SortOrderInput | Prisma.SortOrder
+  is_manufacturer?: Prisma.SortOrder
+  website_identity_key?: Prisma.SortOrderInput | Prisma.SortOrder
   companies?: Prisma.CompanyOrderByWithRelationInput
   tenant_competitors?: Prisma.tenant_competitorsOrderByRelationAggregateInput
 }
 
 export type global_competitorsWhereUniqueInput = Prisma.AtLeast<{
   global_competitor_id?: string
+  added_by_tenant_id_website_identity_key?: Prisma.global_competitorsAdded_by_tenant_idWebsite_identity_keyCompoundUniqueInput
   AND?: Prisma.global_competitorsWhereInput | Prisma.global_competitorsWhereInput[]
   OR?: Prisma.global_competitorsWhereInput[]
   NOT?: Prisma.global_competitorsWhereInput | Prisma.global_competitorsWhereInput[]
@@ -227,9 +255,12 @@ export type global_competitorsWhereUniqueInput = Prisma.AtLeast<{
   visibility?: Prisma.StringFilter<"global_competitors"> | string
   added_by_tenant_id?: Prisma.UuidNullableFilter<"global_competitors"> | string | null
   created_at?: Prisma.DateTimeNullableFilter<"global_competitors"> | Date | string | null
+  country_code?: Prisma.StringNullableFilter<"global_competitors"> | string | null
+  is_manufacturer?: Prisma.BoolFilter<"global_competitors"> | boolean
+  website_identity_key?: Prisma.StringNullableFilter<"global_competitors"> | string | null
   companies?: Prisma.XOR<Prisma.CompanyNullableScalarRelationFilter, Prisma.CompanyWhereInput> | null
   tenant_competitors?: Prisma.Tenant_competitorsListRelationFilter
-}, "global_competitor_id">
+}, "global_competitor_id" | "added_by_tenant_id_website_identity_key">
 
 export type global_competitorsOrderByWithAggregationInput = {
   global_competitor_id?: Prisma.SortOrder
@@ -239,6 +270,9 @@ export type global_competitorsOrderByWithAggregationInput = {
   visibility?: Prisma.SortOrder
   added_by_tenant_id?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  country_code?: Prisma.SortOrderInput | Prisma.SortOrder
+  is_manufacturer?: Prisma.SortOrder
+  website_identity_key?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.global_competitorsCountOrderByAggregateInput
   _max?: Prisma.global_competitorsMaxOrderByAggregateInput
   _min?: Prisma.global_competitorsMinOrderByAggregateInput
@@ -255,6 +289,9 @@ export type global_competitorsScalarWhereWithAggregatesInput = {
   visibility?: Prisma.StringWithAggregatesFilter<"global_competitors"> | string
   added_by_tenant_id?: Prisma.UuidNullableWithAggregatesFilter<"global_competitors"> | string | null
   created_at?: Prisma.DateTimeNullableWithAggregatesFilter<"global_competitors"> | Date | string | null
+  country_code?: Prisma.StringNullableWithAggregatesFilter<"global_competitors"> | string | null
+  is_manufacturer?: Prisma.BoolWithAggregatesFilter<"global_competitors"> | boolean
+  website_identity_key?: Prisma.StringNullableWithAggregatesFilter<"global_competitors"> | string | null
 }
 
 export type global_competitorsCreateInput = {
@@ -264,6 +301,9 @@ export type global_competitorsCreateInput = {
   industry_sector?: string | null
   visibility?: string
   created_at?: Date | string | null
+  country_code?: string | null
+  is_manufacturer?: boolean
+  website_identity_key?: string | null
   companies?: Prisma.CompanyCreateNestedOneWithoutGlobal_competitorsInput
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutGlobal_competitorsInput
 }
@@ -276,6 +316,9 @@ export type global_competitorsUncheckedCreateInput = {
   visibility?: string
   added_by_tenant_id?: string | null
   created_at?: Date | string | null
+  country_code?: string | null
+  is_manufacturer?: boolean
+  website_identity_key?: string | null
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutGlobal_competitorsInput
 }
 
@@ -286,6 +329,9 @@ export type global_competitorsUpdateInput = {
   industry_sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companies?: Prisma.CompanyUpdateOneWithoutGlobal_competitorsNestedInput
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutGlobal_competitorsNestedInput
 }
@@ -298,6 +344,9 @@ export type global_competitorsUncheckedUpdateInput = {
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   added_by_tenant_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutGlobal_competitorsNestedInput
 }
 
@@ -309,6 +358,9 @@ export type global_competitorsCreateManyInput = {
   visibility?: string
   added_by_tenant_id?: string | null
   created_at?: Date | string | null
+  country_code?: string | null
+  is_manufacturer?: boolean
+  website_identity_key?: string | null
 }
 
 export type global_competitorsUpdateManyMutationInput = {
@@ -318,6 +370,9 @@ export type global_competitorsUpdateManyMutationInput = {
   industry_sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type global_competitorsUncheckedUpdateManyInput = {
@@ -328,6 +383,9 @@ export type global_competitorsUncheckedUpdateManyInput = {
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   added_by_tenant_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type Global_competitorsListRelationFilter = {
@@ -340,6 +398,11 @@ export type global_competitorsOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type global_competitorsAdded_by_tenant_idWebsite_identity_keyCompoundUniqueInput = {
+  added_by_tenant_id: string
+  website_identity_key: string
+}
+
 export type global_competitorsCountOrderByAggregateInput = {
   global_competitor_id?: Prisma.SortOrder
   competitor_name?: Prisma.SortOrder
@@ -348,6 +411,9 @@ export type global_competitorsCountOrderByAggregateInput = {
   visibility?: Prisma.SortOrder
   added_by_tenant_id?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  country_code?: Prisma.SortOrder
+  is_manufacturer?: Prisma.SortOrder
+  website_identity_key?: Prisma.SortOrder
 }
 
 export type global_competitorsMaxOrderByAggregateInput = {
@@ -358,6 +424,9 @@ export type global_competitorsMaxOrderByAggregateInput = {
   visibility?: Prisma.SortOrder
   added_by_tenant_id?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  country_code?: Prisma.SortOrder
+  is_manufacturer?: Prisma.SortOrder
+  website_identity_key?: Prisma.SortOrder
 }
 
 export type global_competitorsMinOrderByAggregateInput = {
@@ -368,6 +437,9 @@ export type global_competitorsMinOrderByAggregateInput = {
   visibility?: Prisma.SortOrder
   added_by_tenant_id?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  country_code?: Prisma.SortOrder
+  is_manufacturer?: Prisma.SortOrder
+  website_identity_key?: Prisma.SortOrder
 }
 
 export type Global_competitorsScalarRelationFilter = {
@@ -438,6 +510,9 @@ export type global_competitorsCreateWithoutCompaniesInput = {
   industry_sector?: string | null
   visibility?: string
   created_at?: Date | string | null
+  country_code?: string | null
+  is_manufacturer?: boolean
+  website_identity_key?: string | null
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutGlobal_competitorsInput
 }
 
@@ -448,6 +523,9 @@ export type global_competitorsUncheckedCreateWithoutCompaniesInput = {
   industry_sector?: string | null
   visibility?: string
   created_at?: Date | string | null
+  country_code?: string | null
+  is_manufacturer?: boolean
+  website_identity_key?: string | null
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutGlobal_competitorsInput
 }
 
@@ -488,6 +566,9 @@ export type global_competitorsScalarWhereInput = {
   visibility?: Prisma.StringFilter<"global_competitors"> | string
   added_by_tenant_id?: Prisma.UuidNullableFilter<"global_competitors"> | string | null
   created_at?: Prisma.DateTimeNullableFilter<"global_competitors"> | Date | string | null
+  country_code?: Prisma.StringNullableFilter<"global_competitors"> | string | null
+  is_manufacturer?: Prisma.BoolFilter<"global_competitors"> | boolean
+  website_identity_key?: Prisma.StringNullableFilter<"global_competitors"> | string | null
 }
 
 export type global_competitorsCreateWithoutTenant_competitorsInput = {
@@ -497,6 +578,9 @@ export type global_competitorsCreateWithoutTenant_competitorsInput = {
   industry_sector?: string | null
   visibility?: string
   created_at?: Date | string | null
+  country_code?: string | null
+  is_manufacturer?: boolean
+  website_identity_key?: string | null
   companies?: Prisma.CompanyCreateNestedOneWithoutGlobal_competitorsInput
 }
 
@@ -508,6 +592,9 @@ export type global_competitorsUncheckedCreateWithoutTenant_competitorsInput = {
   visibility?: string
   added_by_tenant_id?: string | null
   created_at?: Date | string | null
+  country_code?: string | null
+  is_manufacturer?: boolean
+  website_identity_key?: string | null
 }
 
 export type global_competitorsCreateOrConnectWithoutTenant_competitorsInput = {
@@ -533,6 +620,9 @@ export type global_competitorsUpdateWithoutTenant_competitorsInput = {
   industry_sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companies?: Prisma.CompanyUpdateOneWithoutGlobal_competitorsNestedInput
 }
 
@@ -544,6 +634,9 @@ export type global_competitorsUncheckedUpdateWithoutTenant_competitorsInput = {
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   added_by_tenant_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type global_competitorsCreateManyCompaniesInput = {
@@ -553,6 +646,9 @@ export type global_competitorsCreateManyCompaniesInput = {
   industry_sector?: string | null
   visibility?: string
   created_at?: Date | string | null
+  country_code?: string | null
+  is_manufacturer?: boolean
+  website_identity_key?: string | null
 }
 
 export type global_competitorsUpdateWithoutCompaniesInput = {
@@ -562,6 +658,9 @@ export type global_competitorsUpdateWithoutCompaniesInput = {
   industry_sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutGlobal_competitorsNestedInput
 }
 
@@ -572,6 +671,9 @@ export type global_competitorsUncheckedUpdateWithoutCompaniesInput = {
   industry_sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutGlobal_competitorsNestedInput
 }
 
@@ -582,6 +684,9 @@ export type global_competitorsUncheckedUpdateManyWithoutCompaniesInput = {
   industry_sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   visibility?: Prisma.StringFieldUpdateOperationsInput | string
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  country_code?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  is_manufacturer?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  website_identity_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -623,6 +728,9 @@ export type global_competitorsSelect<ExtArgs extends runtime.Types.Extensions.In
   visibility?: boolean
   added_by_tenant_id?: boolean
   created_at?: boolean
+  country_code?: boolean
+  is_manufacturer?: boolean
+  website_identity_key?: boolean
   companies?: boolean | Prisma.global_competitors$companiesArgs<ExtArgs>
   tenant_competitors?: boolean | Prisma.global_competitors$tenant_competitorsArgs<ExtArgs>
   _count?: boolean | Prisma.Global_competitorsCountOutputTypeDefaultArgs<ExtArgs>
@@ -636,6 +744,9 @@ export type global_competitorsSelectCreateManyAndReturn<ExtArgs extends runtime.
   visibility?: boolean
   added_by_tenant_id?: boolean
   created_at?: boolean
+  country_code?: boolean
+  is_manufacturer?: boolean
+  website_identity_key?: boolean
   companies?: boolean | Prisma.global_competitors$companiesArgs<ExtArgs>
 }, ExtArgs["result"]["global_competitors"]>
 
@@ -647,6 +758,9 @@ export type global_competitorsSelectUpdateManyAndReturn<ExtArgs extends runtime.
   visibility?: boolean
   added_by_tenant_id?: boolean
   created_at?: boolean
+  country_code?: boolean
+  is_manufacturer?: boolean
+  website_identity_key?: boolean
   companies?: boolean | Prisma.global_competitors$companiesArgs<ExtArgs>
 }, ExtArgs["result"]["global_competitors"]>
 
@@ -658,9 +772,12 @@ export type global_competitorsSelectScalar = {
   visibility?: boolean
   added_by_tenant_id?: boolean
   created_at?: boolean
+  country_code?: boolean
+  is_manufacturer?: boolean
+  website_identity_key?: boolean
 }
 
-export type global_competitorsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"global_competitor_id" | "competitor_name" | "website_url" | "industry_sector" | "visibility" | "added_by_tenant_id" | "created_at", ExtArgs["result"]["global_competitors"]>
+export type global_competitorsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"global_competitor_id" | "competitor_name" | "website_url" | "industry_sector" | "visibility" | "added_by_tenant_id" | "created_at" | "country_code" | "is_manufacturer" | "website_identity_key", ExtArgs["result"]["global_competitors"]>
 export type global_competitorsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   companies?: boolean | Prisma.global_competitors$companiesArgs<ExtArgs>
   tenant_competitors?: boolean | Prisma.global_competitors$tenant_competitorsArgs<ExtArgs>
@@ -687,6 +804,9 @@ export type $global_competitorsPayload<ExtArgs extends runtime.Types.Extensions.
     visibility: string
     added_by_tenant_id: string | null
     created_at: Date | null
+    country_code: string | null
+    is_manufacturer: boolean
+    website_identity_key: string | null
   }, ExtArgs["result"]["global_competitors"]>
   composites: {}
 }
@@ -1119,6 +1239,9 @@ export interface global_competitorsFieldRefs {
   readonly visibility: Prisma.FieldRef<"global_competitors", 'String'>
   readonly added_by_tenant_id: Prisma.FieldRef<"global_competitors", 'String'>
   readonly created_at: Prisma.FieldRef<"global_competitors", 'DateTime'>
+  readonly country_code: Prisma.FieldRef<"global_competitors", 'String'>
+  readonly is_manufacturer: Prisma.FieldRef<"global_competitors", 'Boolean'>
+  readonly website_identity_key: Prisma.FieldRef<"global_competitors", 'String'>
 }
     
 

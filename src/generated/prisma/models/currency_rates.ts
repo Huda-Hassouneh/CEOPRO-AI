@@ -41,6 +41,7 @@ export type Currency_ratesMinAggregateOutputType = {
   to_currency: string | null
   exchange_rate: runtime.Decimal | null
   last_fetched: Date | null
+  source: string | null
 }
 
 export type Currency_ratesMaxAggregateOutputType = {
@@ -49,6 +50,7 @@ export type Currency_ratesMaxAggregateOutputType = {
   to_currency: string | null
   exchange_rate: runtime.Decimal | null
   last_fetched: Date | null
+  source: string | null
 }
 
 export type Currency_ratesCountAggregateOutputType = {
@@ -57,6 +59,7 @@ export type Currency_ratesCountAggregateOutputType = {
   to_currency: number
   exchange_rate: number
   last_fetched: number
+  source: number
   _all: number
 }
 
@@ -75,6 +78,7 @@ export type Currency_ratesMinAggregateInputType = {
   to_currency?: true
   exchange_rate?: true
   last_fetched?: true
+  source?: true
 }
 
 export type Currency_ratesMaxAggregateInputType = {
@@ -83,6 +87,7 @@ export type Currency_ratesMaxAggregateInputType = {
   to_currency?: true
   exchange_rate?: true
   last_fetched?: true
+  source?: true
 }
 
 export type Currency_ratesCountAggregateInputType = {
@@ -91,6 +96,7 @@ export type Currency_ratesCountAggregateInputType = {
   to_currency?: true
   exchange_rate?: true
   last_fetched?: true
+  source?: true
   _all?: true
 }
 
@@ -186,6 +192,7 @@ export type Currency_ratesGroupByOutputType = {
   to_currency: string
   exchange_rate: runtime.Decimal
   last_fetched: Date | null
+  source: string | null
   _count: Currency_ratesCountAggregateOutputType | null
   _avg: Currency_ratesAvgAggregateOutputType | null
   _sum: Currency_ratesSumAggregateOutputType | null
@@ -217,6 +224,7 @@ export type currency_ratesWhereInput = {
   to_currency?: Prisma.StringFilter<"currency_rates"> | string
   exchange_rate?: Prisma.DecimalFilter<"currency_rates"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Prisma.DateTimeNullableFilter<"currency_rates"> | Date | string | null
+  source?: Prisma.StringNullableFilter<"currency_rates"> | string | null
 }
 
 export type currency_ratesOrderByWithRelationInput = {
@@ -225,6 +233,7 @@ export type currency_ratesOrderByWithRelationInput = {
   to_currency?: Prisma.SortOrder
   exchange_rate?: Prisma.SortOrder
   last_fetched?: Prisma.SortOrderInput | Prisma.SortOrder
+  source?: Prisma.SortOrderInput | Prisma.SortOrder
 }
 
 export type currency_ratesWhereUniqueInput = Prisma.AtLeast<{
@@ -237,6 +246,7 @@ export type currency_ratesWhereUniqueInput = Prisma.AtLeast<{
   to_currency?: Prisma.StringFilter<"currency_rates"> | string
   exchange_rate?: Prisma.DecimalFilter<"currency_rates"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Prisma.DateTimeNullableFilter<"currency_rates"> | Date | string | null
+  source?: Prisma.StringNullableFilter<"currency_rates"> | string | null
 }, "rate_id" | "from_currency_to_currency">
 
 export type currency_ratesOrderByWithAggregationInput = {
@@ -245,6 +255,7 @@ export type currency_ratesOrderByWithAggregationInput = {
   to_currency?: Prisma.SortOrder
   exchange_rate?: Prisma.SortOrder
   last_fetched?: Prisma.SortOrderInput | Prisma.SortOrder
+  source?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.currency_ratesCountOrderByAggregateInput
   _avg?: Prisma.currency_ratesAvgOrderByAggregateInput
   _max?: Prisma.currency_ratesMaxOrderByAggregateInput
@@ -261,6 +272,7 @@ export type currency_ratesScalarWhereWithAggregatesInput = {
   to_currency?: Prisma.StringWithAggregatesFilter<"currency_rates"> | string
   exchange_rate?: Prisma.DecimalWithAggregatesFilter<"currency_rates"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Prisma.DateTimeNullableWithAggregatesFilter<"currency_rates"> | Date | string | null
+  source?: Prisma.StringNullableWithAggregatesFilter<"currency_rates"> | string | null
 }
 
 export type currency_ratesCreateInput = {
@@ -269,6 +281,7 @@ export type currency_ratesCreateInput = {
   to_currency: string
   exchange_rate: runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Date | string | null
+  source?: string | null
 }
 
 export type currency_ratesUncheckedCreateInput = {
@@ -277,6 +290,7 @@ export type currency_ratesUncheckedCreateInput = {
   to_currency: string
   exchange_rate: runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Date | string | null
+  source?: string | null
 }
 
 export type currency_ratesUpdateInput = {
@@ -285,6 +299,7 @@ export type currency_ratesUpdateInput = {
   to_currency?: Prisma.StringFieldUpdateOperationsInput | string
   exchange_rate?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type currency_ratesUncheckedUpdateInput = {
@@ -293,6 +308,7 @@ export type currency_ratesUncheckedUpdateInput = {
   to_currency?: Prisma.StringFieldUpdateOperationsInput | string
   exchange_rate?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type currency_ratesCreateManyInput = {
@@ -301,6 +317,7 @@ export type currency_ratesCreateManyInput = {
   to_currency: string
   exchange_rate: runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Date | string | null
+  source?: string | null
 }
 
 export type currency_ratesUpdateManyMutationInput = {
@@ -309,6 +326,7 @@ export type currency_ratesUpdateManyMutationInput = {
   to_currency?: Prisma.StringFieldUpdateOperationsInput | string
   exchange_rate?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type currency_ratesUncheckedUpdateManyInput = {
@@ -317,6 +335,7 @@ export type currency_ratesUncheckedUpdateManyInput = {
   to_currency?: Prisma.StringFieldUpdateOperationsInput | string
   exchange_rate?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   last_fetched?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type currency_ratesFrom_currencyTo_currencyCompoundUniqueInput = {
@@ -330,6 +349,7 @@ export type currency_ratesCountOrderByAggregateInput = {
   to_currency?: Prisma.SortOrder
   exchange_rate?: Prisma.SortOrder
   last_fetched?: Prisma.SortOrder
+  source?: Prisma.SortOrder
 }
 
 export type currency_ratesAvgOrderByAggregateInput = {
@@ -342,6 +362,7 @@ export type currency_ratesMaxOrderByAggregateInput = {
   to_currency?: Prisma.SortOrder
   exchange_rate?: Prisma.SortOrder
   last_fetched?: Prisma.SortOrder
+  source?: Prisma.SortOrder
 }
 
 export type currency_ratesMinOrderByAggregateInput = {
@@ -350,6 +371,7 @@ export type currency_ratesMinOrderByAggregateInput = {
   to_currency?: Prisma.SortOrder
   exchange_rate?: Prisma.SortOrder
   last_fetched?: Prisma.SortOrder
+  source?: Prisma.SortOrder
 }
 
 export type currency_ratesSumOrderByAggregateInput = {
@@ -364,6 +386,7 @@ export type currency_ratesSelect<ExtArgs extends runtime.Types.Extensions.Intern
   to_currency?: boolean
   exchange_rate?: boolean
   last_fetched?: boolean
+  source?: boolean
 }, ExtArgs["result"]["currency_rates"]>
 
 export type currency_ratesSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -372,6 +395,7 @@ export type currency_ratesSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   to_currency?: boolean
   exchange_rate?: boolean
   last_fetched?: boolean
+  source?: boolean
 }, ExtArgs["result"]["currency_rates"]>
 
 export type currency_ratesSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -380,6 +404,7 @@ export type currency_ratesSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   to_currency?: boolean
   exchange_rate?: boolean
   last_fetched?: boolean
+  source?: boolean
 }, ExtArgs["result"]["currency_rates"]>
 
 export type currency_ratesSelectScalar = {
@@ -388,9 +413,10 @@ export type currency_ratesSelectScalar = {
   to_currency?: boolean
   exchange_rate?: boolean
   last_fetched?: boolean
+  source?: boolean
 }
 
-export type currency_ratesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"rate_id" | "from_currency" | "to_currency" | "exchange_rate" | "last_fetched", ExtArgs["result"]["currency_rates"]>
+export type currency_ratesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"rate_id" | "from_currency" | "to_currency" | "exchange_rate" | "last_fetched" | "source", ExtArgs["result"]["currency_rates"]>
 
 export type $currency_ratesPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "currency_rates"
@@ -401,6 +427,7 @@ export type $currency_ratesPayload<ExtArgs extends runtime.Types.Extensions.Inte
     to_currency: string
     exchange_rate: runtime.Decimal
     last_fetched: Date | null
+    source: string | null
   }, ExtArgs["result"]["currency_rates"]>
   composites: {}
 }
@@ -829,6 +856,7 @@ export interface currency_ratesFieldRefs {
   readonly to_currency: Prisma.FieldRef<"currency_rates", 'String'>
   readonly exchange_rate: Prisma.FieldRef<"currency_rates", 'Decimal'>
   readonly last_fetched: Prisma.FieldRef<"currency_rates", 'DateTime'>
+  readonly source: Prisma.FieldRef<"currency_rates", 'String'>
 }
     
 

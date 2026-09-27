@@ -29,10 +29,12 @@ export type AggregateEvidence_records = {
 
 export type Evidence_recordsAvgAggregateOutputType = {
   contribution_weight: runtime.Decimal | null
+  confidence_score: runtime.Decimal | null
 }
 
 export type Evidence_recordsSumAggregateOutputType = {
   contribution_weight: runtime.Decimal | null
+  confidence_score: runtime.Decimal | null
 }
 
 export type Evidence_recordsMinAggregateOutputType = {
@@ -41,6 +43,13 @@ export type Evidence_recordsMinAggregateOutputType = {
   forecast_id: string | null
   metric_name: string | null
   contribution_weight: runtime.Decimal | null
+  category: string | null
+  source_module: string | null
+  confidence_score: runtime.Decimal | null
+  explanation_text: string | null
+  model_version: string | null
+  country_context: string | null
+  generated_at: Date | null
 }
 
 export type Evidence_recordsMaxAggregateOutputType = {
@@ -49,6 +58,13 @@ export type Evidence_recordsMaxAggregateOutputType = {
   forecast_id: string | null
   metric_name: string | null
   contribution_weight: runtime.Decimal | null
+  category: string | null
+  source_module: string | null
+  confidence_score: runtime.Decimal | null
+  explanation_text: string | null
+  model_version: string | null
+  country_context: string | null
+  generated_at: Date | null
 }
 
 export type Evidence_recordsCountAggregateOutputType = {
@@ -58,16 +74,26 @@ export type Evidence_recordsCountAggregateOutputType = {
   metric_name: number
   metric_value_json: number
   contribution_weight: number
+  category: number
+  source_module: number
+  source_record_ids: number
+  confidence_score: number
+  explanation_text: number
+  model_version: number
+  country_context: number
+  generated_at: number
   _all: number
 }
 
 
 export type Evidence_recordsAvgAggregateInputType = {
   contribution_weight?: true
+  confidence_score?: true
 }
 
 export type Evidence_recordsSumAggregateInputType = {
   contribution_weight?: true
+  confidence_score?: true
 }
 
 export type Evidence_recordsMinAggregateInputType = {
@@ -76,6 +102,13 @@ export type Evidence_recordsMinAggregateInputType = {
   forecast_id?: true
   metric_name?: true
   contribution_weight?: true
+  category?: true
+  source_module?: true
+  confidence_score?: true
+  explanation_text?: true
+  model_version?: true
+  country_context?: true
+  generated_at?: true
 }
 
 export type Evidence_recordsMaxAggregateInputType = {
@@ -84,6 +117,13 @@ export type Evidence_recordsMaxAggregateInputType = {
   forecast_id?: true
   metric_name?: true
   contribution_weight?: true
+  category?: true
+  source_module?: true
+  confidence_score?: true
+  explanation_text?: true
+  model_version?: true
+  country_context?: true
+  generated_at?: true
 }
 
 export type Evidence_recordsCountAggregateInputType = {
@@ -93,6 +133,14 @@ export type Evidence_recordsCountAggregateInputType = {
   metric_name?: true
   metric_value_json?: true
   contribution_weight?: true
+  category?: true
+  source_module?: true
+  source_record_ids?: true
+  confidence_score?: true
+  explanation_text?: true
+  model_version?: true
+  country_context?: true
+  generated_at?: true
   _all?: true
 }
 
@@ -185,10 +233,18 @@ export type evidence_recordsGroupByArgs<ExtArgs extends runtime.Types.Extensions
 export type Evidence_recordsGroupByOutputType = {
   evidence_id: string
   tenant_id: string
-  forecast_id: string
-  metric_name: string
-  metric_value_json: runtime.JsonValue
-  contribution_weight: runtime.Decimal
+  forecast_id: string | null
+  metric_name: string | null
+  metric_value_json: runtime.JsonValue | null
+  contribution_weight: runtime.Decimal | null
+  category: string | null
+  source_module: string | null
+  source_record_ids: runtime.JsonValue | null
+  confidence_score: runtime.Decimal | null
+  explanation_text: string | null
+  model_version: string | null
+  country_context: string | null
+  generated_at: Date | null
   _count: Evidence_recordsCountAggregateOutputType | null
   _avg: Evidence_recordsAvgAggregateOutputType | null
   _sum: Evidence_recordsSumAggregateOutputType | null
@@ -217,43 +273,79 @@ export type evidence_recordsWhereInput = {
   NOT?: Prisma.evidence_recordsWhereInput | Prisma.evidence_recordsWhereInput[]
   evidence_id?: Prisma.UuidFilter<"evidence_records"> | string
   tenant_id?: Prisma.UuidFilter<"evidence_records"> | string
-  forecast_id?: Prisma.UuidFilter<"evidence_records"> | string
-  metric_name?: Prisma.StringFilter<"evidence_records"> | string
-  metric_value_json?: Prisma.JsonFilter<"evidence_records">
-  contribution_weight?: Prisma.DecimalFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string
-  demand_forecasts?: Prisma.XOR<Prisma.Demand_forecastsScalarRelationFilter, Prisma.demand_forecastsWhereInput>
+  forecast_id?: Prisma.UuidNullableFilter<"evidence_records"> | string | null
+  metric_name?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  metric_value_json?: Prisma.JsonNullableFilter<"evidence_records">
+  contribution_weight?: Prisma.DecimalNullableFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  source_module?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  source_record_ids?: Prisma.JsonNullableFilter<"evidence_records">
+  confidence_score?: Prisma.DecimalNullableFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  model_version?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  country_context?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  generated_at?: Prisma.DateTimeNullableFilter<"evidence_records"> | Date | string | null
+  demand_forecasts?: Prisma.XOR<Prisma.Demand_forecastsNullableScalarRelationFilter, Prisma.demand_forecastsWhereInput> | null
+  recommendation_outcomes?: Prisma.Recommendation_outcomesListRelationFilter
 }
 
 export type evidence_recordsOrderByWithRelationInput = {
   evidence_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
-  forecast_id?: Prisma.SortOrder
-  metric_name?: Prisma.SortOrder
-  metric_value_json?: Prisma.SortOrder
-  contribution_weight?: Prisma.SortOrder
+  forecast_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  metric_name?: Prisma.SortOrderInput | Prisma.SortOrder
+  metric_value_json?: Prisma.SortOrderInput | Prisma.SortOrder
+  contribution_weight?: Prisma.SortOrderInput | Prisma.SortOrder
+  category?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_module?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_record_ids?: Prisma.SortOrderInput | Prisma.SortOrder
+  confidence_score?: Prisma.SortOrderInput | Prisma.SortOrder
+  explanation_text?: Prisma.SortOrderInput | Prisma.SortOrder
+  model_version?: Prisma.SortOrderInput | Prisma.SortOrder
+  country_context?: Prisma.SortOrderInput | Prisma.SortOrder
+  generated_at?: Prisma.SortOrderInput | Prisma.SortOrder
   demand_forecasts?: Prisma.demand_forecastsOrderByWithRelationInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesOrderByRelationAggregateInput
 }
 
 export type evidence_recordsWhereUniqueInput = Prisma.AtLeast<{
   evidence_id?: string
+  tenant_id_evidence_id?: Prisma.evidence_recordsTenant_idEvidence_idCompoundUniqueInput
   AND?: Prisma.evidence_recordsWhereInput | Prisma.evidence_recordsWhereInput[]
   OR?: Prisma.evidence_recordsWhereInput[]
   NOT?: Prisma.evidence_recordsWhereInput | Prisma.evidence_recordsWhereInput[]
   tenant_id?: Prisma.UuidFilter<"evidence_records"> | string
-  forecast_id?: Prisma.UuidFilter<"evidence_records"> | string
-  metric_name?: Prisma.StringFilter<"evidence_records"> | string
-  metric_value_json?: Prisma.JsonFilter<"evidence_records">
-  contribution_weight?: Prisma.DecimalFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string
-  demand_forecasts?: Prisma.XOR<Prisma.Demand_forecastsScalarRelationFilter, Prisma.demand_forecastsWhereInput>
-}, "evidence_id">
+  forecast_id?: Prisma.UuidNullableFilter<"evidence_records"> | string | null
+  metric_name?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  metric_value_json?: Prisma.JsonNullableFilter<"evidence_records">
+  contribution_weight?: Prisma.DecimalNullableFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  source_module?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  source_record_ids?: Prisma.JsonNullableFilter<"evidence_records">
+  confidence_score?: Prisma.DecimalNullableFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  model_version?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  country_context?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  generated_at?: Prisma.DateTimeNullableFilter<"evidence_records"> | Date | string | null
+  demand_forecasts?: Prisma.XOR<Prisma.Demand_forecastsNullableScalarRelationFilter, Prisma.demand_forecastsWhereInput> | null
+  recommendation_outcomes?: Prisma.Recommendation_outcomesListRelationFilter
+}, "evidence_id" | "tenant_id_evidence_id">
 
 export type evidence_recordsOrderByWithAggregationInput = {
   evidence_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
-  forecast_id?: Prisma.SortOrder
-  metric_name?: Prisma.SortOrder
-  metric_value_json?: Prisma.SortOrder
-  contribution_weight?: Prisma.SortOrder
+  forecast_id?: Prisma.SortOrderInput | Prisma.SortOrder
+  metric_name?: Prisma.SortOrderInput | Prisma.SortOrder
+  metric_value_json?: Prisma.SortOrderInput | Prisma.SortOrder
+  contribution_weight?: Prisma.SortOrderInput | Prisma.SortOrder
+  category?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_module?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_record_ids?: Prisma.SortOrderInput | Prisma.SortOrder
+  confidence_score?: Prisma.SortOrderInput | Prisma.SortOrder
+  explanation_text?: Prisma.SortOrderInput | Prisma.SortOrder
+  model_version?: Prisma.SortOrderInput | Prisma.SortOrder
+  country_context?: Prisma.SortOrderInput | Prisma.SortOrder
+  generated_at?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.evidence_recordsCountOrderByAggregateInput
   _avg?: Prisma.evidence_recordsAvgOrderByAggregateInput
   _max?: Prisma.evidence_recordsMaxOrderByAggregateInput
@@ -267,69 +359,137 @@ export type evidence_recordsScalarWhereWithAggregatesInput = {
   NOT?: Prisma.evidence_recordsScalarWhereWithAggregatesInput | Prisma.evidence_recordsScalarWhereWithAggregatesInput[]
   evidence_id?: Prisma.UuidWithAggregatesFilter<"evidence_records"> | string
   tenant_id?: Prisma.UuidWithAggregatesFilter<"evidence_records"> | string
-  forecast_id?: Prisma.UuidWithAggregatesFilter<"evidence_records"> | string
-  metric_name?: Prisma.StringWithAggregatesFilter<"evidence_records"> | string
-  metric_value_json?: Prisma.JsonWithAggregatesFilter<"evidence_records">
-  contribution_weight?: Prisma.DecimalWithAggregatesFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  forecast_id?: Prisma.UuidNullableWithAggregatesFilter<"evidence_records"> | string | null
+  metric_name?: Prisma.StringNullableWithAggregatesFilter<"evidence_records"> | string | null
+  metric_value_json?: Prisma.JsonNullableWithAggregatesFilter<"evidence_records">
+  contribution_weight?: Prisma.DecimalNullableWithAggregatesFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.StringNullableWithAggregatesFilter<"evidence_records"> | string | null
+  source_module?: Prisma.StringNullableWithAggregatesFilter<"evidence_records"> | string | null
+  source_record_ids?: Prisma.JsonNullableWithAggregatesFilter<"evidence_records">
+  confidence_score?: Prisma.DecimalNullableWithAggregatesFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.StringNullableWithAggregatesFilter<"evidence_records"> | string | null
+  model_version?: Prisma.StringNullableWithAggregatesFilter<"evidence_records"> | string | null
+  country_context?: Prisma.StringNullableWithAggregatesFilter<"evidence_records"> | string | null
+  generated_at?: Prisma.DateTimeNullableWithAggregatesFilter<"evidence_records"> | Date | string | null
 }
 
 export type evidence_recordsCreateInput = {
   evidence_id?: string
-  metric_name: string
-  metric_value_json: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight: runtime.Decimal | runtime.DecimalJsLike | number | string
-  demand_forecasts: Prisma.demand_forecastsCreateNestedOneWithoutEvidence_recordsInput
+  metric_name?: string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: string | null
+  source_module?: string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: string | null
+  model_version?: string | null
+  country_context?: string | null
+  generated_at?: Date | string | null
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedOneWithoutEvidence_recordsInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutEvidence_recordsInput
 }
 
 export type evidence_recordsUncheckedCreateInput = {
   evidence_id?: string
   tenant_id: string
-  forecast_id: string
-  metric_name: string
-  metric_value_json: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight: runtime.Decimal | runtime.DecimalJsLike | number | string
+  forecast_id?: string | null
+  metric_name?: string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: string | null
+  source_module?: string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: string | null
+  model_version?: string | null
+  country_context?: string | null
+  generated_at?: Date | string | null
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutEvidence_recordsInput
 }
 
 export type evidence_recordsUpdateInput = {
   evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_name?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_value_json?: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  demand_forecasts?: Prisma.demand_forecastsUpdateOneRequiredWithoutEvidence_recordsNestedInput
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  demand_forecasts?: Prisma.demand_forecastsUpdateOneWithoutEvidence_recordsNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutEvidence_recordsNestedInput
 }
 
 export type evidence_recordsUncheckedUpdateInput = {
   evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_name?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_value_json?: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutEvidence_recordsNestedInput
 }
 
 export type evidence_recordsCreateManyInput = {
   evidence_id?: string
   tenant_id: string
-  forecast_id: string
-  metric_name: string
-  metric_value_json: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight: runtime.Decimal | runtime.DecimalJsLike | number | string
+  forecast_id?: string | null
+  metric_name?: string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: string | null
+  source_module?: string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: string | null
+  model_version?: string | null
+  country_context?: string | null
+  generated_at?: Date | string | null
 }
 
 export type evidence_recordsUpdateManyMutationInput = {
   evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_name?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_value_json?: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type evidence_recordsUncheckedUpdateManyInput = {
   evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_name?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_value_json?: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type Evidence_recordsListRelationFilter = {
@@ -342,6 +502,11 @@ export type evidence_recordsOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type evidence_recordsTenant_idEvidence_idCompoundUniqueInput = {
+  tenant_id: string
+  evidence_id: string
+}
+
 export type evidence_recordsCountOrderByAggregateInput = {
   evidence_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
@@ -349,10 +514,19 @@ export type evidence_recordsCountOrderByAggregateInput = {
   metric_name?: Prisma.SortOrder
   metric_value_json?: Prisma.SortOrder
   contribution_weight?: Prisma.SortOrder
+  category?: Prisma.SortOrder
+  source_module?: Prisma.SortOrder
+  source_record_ids?: Prisma.SortOrder
+  confidence_score?: Prisma.SortOrder
+  explanation_text?: Prisma.SortOrder
+  model_version?: Prisma.SortOrder
+  country_context?: Prisma.SortOrder
+  generated_at?: Prisma.SortOrder
 }
 
 export type evidence_recordsAvgOrderByAggregateInput = {
   contribution_weight?: Prisma.SortOrder
+  confidence_score?: Prisma.SortOrder
 }
 
 export type evidence_recordsMaxOrderByAggregateInput = {
@@ -361,6 +535,13 @@ export type evidence_recordsMaxOrderByAggregateInput = {
   forecast_id?: Prisma.SortOrder
   metric_name?: Prisma.SortOrder
   contribution_weight?: Prisma.SortOrder
+  category?: Prisma.SortOrder
+  source_module?: Prisma.SortOrder
+  confidence_score?: Prisma.SortOrder
+  explanation_text?: Prisma.SortOrder
+  model_version?: Prisma.SortOrder
+  country_context?: Prisma.SortOrder
+  generated_at?: Prisma.SortOrder
 }
 
 export type evidence_recordsMinOrderByAggregateInput = {
@@ -369,10 +550,23 @@ export type evidence_recordsMinOrderByAggregateInput = {
   forecast_id?: Prisma.SortOrder
   metric_name?: Prisma.SortOrder
   contribution_weight?: Prisma.SortOrder
+  category?: Prisma.SortOrder
+  source_module?: Prisma.SortOrder
+  confidence_score?: Prisma.SortOrder
+  explanation_text?: Prisma.SortOrder
+  model_version?: Prisma.SortOrder
+  country_context?: Prisma.SortOrder
+  generated_at?: Prisma.SortOrder
 }
 
 export type evidence_recordsSumOrderByAggregateInput = {
   contribution_weight?: Prisma.SortOrder
+  confidence_score?: Prisma.SortOrder
+}
+
+export type Evidence_recordsNullableScalarRelationFilter = {
+  is?: Prisma.evidence_recordsWhereInput | null
+  isNot?: Prisma.evidence_recordsWhereInput | null
 }
 
 export type evidence_recordsCreateNestedManyWithoutDemand_forecastsInput = {
@@ -417,18 +611,52 @@ export type evidence_recordsUncheckedUpdateManyWithoutDemand_forecastsNestedInpu
   deleteMany?: Prisma.evidence_recordsScalarWhereInput | Prisma.evidence_recordsScalarWhereInput[]
 }
 
+export type evidence_recordsCreateNestedOneWithoutRecommendation_outcomesInput = {
+  create?: Prisma.XOR<Prisma.evidence_recordsCreateWithoutRecommendation_outcomesInput, Prisma.evidence_recordsUncheckedCreateWithoutRecommendation_outcomesInput>
+  connectOrCreate?: Prisma.evidence_recordsCreateOrConnectWithoutRecommendation_outcomesInput
+  connect?: Prisma.evidence_recordsWhereUniqueInput
+}
+
+export type evidence_recordsUpdateOneWithoutRecommendation_outcomesNestedInput = {
+  create?: Prisma.XOR<Prisma.evidence_recordsCreateWithoutRecommendation_outcomesInput, Prisma.evidence_recordsUncheckedCreateWithoutRecommendation_outcomesInput>
+  connectOrCreate?: Prisma.evidence_recordsCreateOrConnectWithoutRecommendation_outcomesInput
+  upsert?: Prisma.evidence_recordsUpsertWithoutRecommendation_outcomesInput
+  disconnect?: Prisma.evidence_recordsWhereInput | boolean
+  delete?: Prisma.evidence_recordsWhereInput | boolean
+  connect?: Prisma.evidence_recordsWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.evidence_recordsUpdateToOneWithWhereWithoutRecommendation_outcomesInput, Prisma.evidence_recordsUpdateWithoutRecommendation_outcomesInput>, Prisma.evidence_recordsUncheckedUpdateWithoutRecommendation_outcomesInput>
+}
+
 export type evidence_recordsCreateWithoutDemand_forecastsInput = {
   evidence_id?: string
-  metric_name: string
-  metric_value_json: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight: runtime.Decimal | runtime.DecimalJsLike | number | string
+  metric_name?: string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: string | null
+  source_module?: string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: string | null
+  model_version?: string | null
+  country_context?: string | null
+  generated_at?: Date | string | null
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutEvidence_recordsInput
 }
 
 export type evidence_recordsUncheckedCreateWithoutDemand_forecastsInput = {
   evidence_id?: string
-  metric_name: string
-  metric_value_json: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight: runtime.Decimal | runtime.DecimalJsLike | number | string
+  metric_name?: string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: string | null
+  source_module?: string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: string | null
+  model_version?: string | null
+  country_context?: string | null
+  generated_at?: Date | string | null
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutEvidence_recordsInput
 }
 
 export type evidence_recordsCreateOrConnectWithoutDemand_forecastsInput = {
@@ -463,40 +691,193 @@ export type evidence_recordsScalarWhereInput = {
   NOT?: Prisma.evidence_recordsScalarWhereInput | Prisma.evidence_recordsScalarWhereInput[]
   evidence_id?: Prisma.UuidFilter<"evidence_records"> | string
   tenant_id?: Prisma.UuidFilter<"evidence_records"> | string
-  forecast_id?: Prisma.UuidFilter<"evidence_records"> | string
-  metric_name?: Prisma.StringFilter<"evidence_records"> | string
-  metric_value_json?: Prisma.JsonFilter<"evidence_records">
-  contribution_weight?: Prisma.DecimalFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  forecast_id?: Prisma.UuidNullableFilter<"evidence_records"> | string | null
+  metric_name?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  metric_value_json?: Prisma.JsonNullableFilter<"evidence_records">
+  contribution_weight?: Prisma.DecimalNullableFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  source_module?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  source_record_ids?: Prisma.JsonNullableFilter<"evidence_records">
+  confidence_score?: Prisma.DecimalNullableFilter<"evidence_records"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  model_version?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  country_context?: Prisma.StringNullableFilter<"evidence_records"> | string | null
+  generated_at?: Prisma.DateTimeNullableFilter<"evidence_records"> | Date | string | null
+}
+
+export type evidence_recordsCreateWithoutRecommendation_outcomesInput = {
+  evidence_id?: string
+  metric_name?: string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: string | null
+  source_module?: string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: string | null
+  model_version?: string | null
+  country_context?: string | null
+  generated_at?: Date | string | null
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedOneWithoutEvidence_recordsInput
+}
+
+export type evidence_recordsUncheckedCreateWithoutRecommendation_outcomesInput = {
+  evidence_id?: string
+  tenant_id: string
+  forecast_id?: string | null
+  metric_name?: string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: string | null
+  source_module?: string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: string | null
+  model_version?: string | null
+  country_context?: string | null
+  generated_at?: Date | string | null
+}
+
+export type evidence_recordsCreateOrConnectWithoutRecommendation_outcomesInput = {
+  where: Prisma.evidence_recordsWhereUniqueInput
+  create: Prisma.XOR<Prisma.evidence_recordsCreateWithoutRecommendation_outcomesInput, Prisma.evidence_recordsUncheckedCreateWithoutRecommendation_outcomesInput>
+}
+
+export type evidence_recordsUpsertWithoutRecommendation_outcomesInput = {
+  update: Prisma.XOR<Prisma.evidence_recordsUpdateWithoutRecommendation_outcomesInput, Prisma.evidence_recordsUncheckedUpdateWithoutRecommendation_outcomesInput>
+  create: Prisma.XOR<Prisma.evidence_recordsCreateWithoutRecommendation_outcomesInput, Prisma.evidence_recordsUncheckedCreateWithoutRecommendation_outcomesInput>
+  where?: Prisma.evidence_recordsWhereInput
+}
+
+export type evidence_recordsUpdateToOneWithWhereWithoutRecommendation_outcomesInput = {
+  where?: Prisma.evidence_recordsWhereInput
+  data: Prisma.XOR<Prisma.evidence_recordsUpdateWithoutRecommendation_outcomesInput, Prisma.evidence_recordsUncheckedUpdateWithoutRecommendation_outcomesInput>
+}
+
+export type evidence_recordsUpdateWithoutRecommendation_outcomesInput = {
+  evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  demand_forecasts?: Prisma.demand_forecastsUpdateOneWithoutEvidence_recordsNestedInput
+}
+
+export type evidence_recordsUncheckedUpdateWithoutRecommendation_outcomesInput = {
+  evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type evidence_recordsCreateManyDemand_forecastsInput = {
   evidence_id?: string
-  metric_name: string
-  metric_value_json: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight: runtime.Decimal | runtime.DecimalJsLike | number | string
+  metric_name?: string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: string | null
+  source_module?: string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: string | null
+  model_version?: string | null
+  country_context?: string | null
+  generated_at?: Date | string | null
 }
 
 export type evidence_recordsUpdateWithoutDemand_forecastsInput = {
   evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_name?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_value_json?: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutEvidence_recordsNestedInput
 }
 
 export type evidence_recordsUncheckedUpdateWithoutDemand_forecastsInput = {
   evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_name?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_value_json?: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutEvidence_recordsNestedInput
 }
 
 export type evidence_recordsUncheckedUpdateManyWithoutDemand_forecastsInput = {
   evidence_id?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_name?: Prisma.StringFieldUpdateOperationsInput | string
-  metric_value_json?: Prisma.JsonNullValueInput | runtime.InputJsonValue
-  contribution_weight?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  metric_name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  metric_value_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  contribution_weight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_module?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  source_record_ids?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidence_score?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  explanation_text?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model_version?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country_context?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
+
+/**
+ * Count Type Evidence_recordsCountOutputType
+ */
+
+export type Evidence_recordsCountOutputType = {
+  recommendation_outcomes: number
+}
+
+export type Evidence_recordsCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  recommendation_outcomes?: boolean | Evidence_recordsCountOutputTypeCountRecommendation_outcomesArgs
+}
+
+/**
+ * Evidence_recordsCountOutputType without action
+ */
+export type Evidence_recordsCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Evidence_recordsCountOutputType
+   */
+  select?: Prisma.Evidence_recordsCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * Evidence_recordsCountOutputType without action
+ */
+export type Evidence_recordsCountOutputTypeCountRecommendation_outcomesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.recommendation_outcomesWhereInput
+}
 
 
 export type evidence_recordsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -506,7 +887,17 @@ export type evidence_recordsSelect<ExtArgs extends runtime.Types.Extensions.Inte
   metric_name?: boolean
   metric_value_json?: boolean
   contribution_weight?: boolean
-  demand_forecasts?: boolean | Prisma.demand_forecastsDefaultArgs<ExtArgs>
+  category?: boolean
+  source_module?: boolean
+  source_record_ids?: boolean
+  confidence_score?: boolean
+  explanation_text?: boolean
+  model_version?: boolean
+  country_context?: boolean
+  generated_at?: boolean
+  demand_forecasts?: boolean | Prisma.evidence_records$demand_forecastsArgs<ExtArgs>
+  recommendation_outcomes?: boolean | Prisma.evidence_records$recommendation_outcomesArgs<ExtArgs>
+  _count?: boolean | Prisma.Evidence_recordsCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["evidence_records"]>
 
 export type evidence_recordsSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -516,7 +907,15 @@ export type evidence_recordsSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   metric_name?: boolean
   metric_value_json?: boolean
   contribution_weight?: boolean
-  demand_forecasts?: boolean | Prisma.demand_forecastsDefaultArgs<ExtArgs>
+  category?: boolean
+  source_module?: boolean
+  source_record_ids?: boolean
+  confidence_score?: boolean
+  explanation_text?: boolean
+  model_version?: boolean
+  country_context?: boolean
+  generated_at?: boolean
+  demand_forecasts?: boolean | Prisma.evidence_records$demand_forecastsArgs<ExtArgs>
 }, ExtArgs["result"]["evidence_records"]>
 
 export type evidence_recordsSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -526,7 +925,15 @@ export type evidence_recordsSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   metric_name?: boolean
   metric_value_json?: boolean
   contribution_weight?: boolean
-  demand_forecasts?: boolean | Prisma.demand_forecastsDefaultArgs<ExtArgs>
+  category?: boolean
+  source_module?: boolean
+  source_record_ids?: boolean
+  confidence_score?: boolean
+  explanation_text?: boolean
+  model_version?: boolean
+  country_context?: boolean
+  generated_at?: boolean
+  demand_forecasts?: boolean | Prisma.evidence_records$demand_forecastsArgs<ExtArgs>
 }, ExtArgs["result"]["evidence_records"]>
 
 export type evidence_recordsSelectScalar = {
@@ -536,31 +943,50 @@ export type evidence_recordsSelectScalar = {
   metric_name?: boolean
   metric_value_json?: boolean
   contribution_weight?: boolean
+  category?: boolean
+  source_module?: boolean
+  source_record_ids?: boolean
+  confidence_score?: boolean
+  explanation_text?: boolean
+  model_version?: boolean
+  country_context?: boolean
+  generated_at?: boolean
 }
 
-export type evidence_recordsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"evidence_id" | "tenant_id" | "forecast_id" | "metric_name" | "metric_value_json" | "contribution_weight", ExtArgs["result"]["evidence_records"]>
+export type evidence_recordsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"evidence_id" | "tenant_id" | "forecast_id" | "metric_name" | "metric_value_json" | "contribution_weight" | "category" | "source_module" | "source_record_ids" | "confidence_score" | "explanation_text" | "model_version" | "country_context" | "generated_at", ExtArgs["result"]["evidence_records"]>
 export type evidence_recordsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  demand_forecasts?: boolean | Prisma.demand_forecastsDefaultArgs<ExtArgs>
+  demand_forecasts?: boolean | Prisma.evidence_records$demand_forecastsArgs<ExtArgs>
+  recommendation_outcomes?: boolean | Prisma.evidence_records$recommendation_outcomesArgs<ExtArgs>
+  _count?: boolean | Prisma.Evidence_recordsCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type evidence_recordsIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  demand_forecasts?: boolean | Prisma.demand_forecastsDefaultArgs<ExtArgs>
+  demand_forecasts?: boolean | Prisma.evidence_records$demand_forecastsArgs<ExtArgs>
 }
 export type evidence_recordsIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  demand_forecasts?: boolean | Prisma.demand_forecastsDefaultArgs<ExtArgs>
+  demand_forecasts?: boolean | Prisma.evidence_records$demand_forecastsArgs<ExtArgs>
 }
 
 export type $evidence_recordsPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "evidence_records"
   objects: {
-    demand_forecasts: Prisma.$demand_forecastsPayload<ExtArgs>
+    demand_forecasts: Prisma.$demand_forecastsPayload<ExtArgs> | null
+    recommendation_outcomes: Prisma.$recommendation_outcomesPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     evidence_id: string
     tenant_id: string
-    forecast_id: string
-    metric_name: string
-    metric_value_json: runtime.JsonValue
-    contribution_weight: runtime.Decimal
+    forecast_id: string | null
+    metric_name: string | null
+    metric_value_json: runtime.JsonValue | null
+    contribution_weight: runtime.Decimal | null
+    category: string | null
+    source_module: string | null
+    source_record_ids: runtime.JsonValue | null
+    confidence_score: runtime.Decimal | null
+    explanation_text: string | null
+    model_version: string | null
+    country_context: string | null
+    generated_at: Date | null
   }, ExtArgs["result"]["evidence_records"]>
   composites: {}
 }
@@ -955,7 +1381,8 @@ readonly fields: evidence_recordsFieldRefs;
  */
 export interface Prisma__evidence_recordsClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  demand_forecasts<T extends Prisma.demand_forecastsDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.demand_forecastsDefaultArgs<ExtArgs>>): Prisma.Prisma__demand_forecastsClient<runtime.Types.Result.GetResult<Prisma.$demand_forecastsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  demand_forecasts<T extends Prisma.evidence_records$demand_forecastsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.evidence_records$demand_forecastsArgs<ExtArgs>>): Prisma.Prisma__demand_forecastsClient<runtime.Types.Result.GetResult<Prisma.$demand_forecastsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  recommendation_outcomes<T extends Prisma.evidence_records$recommendation_outcomesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.evidence_records$recommendation_outcomesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$recommendation_outcomesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -991,6 +1418,14 @@ export interface evidence_recordsFieldRefs {
   readonly metric_name: Prisma.FieldRef<"evidence_records", 'String'>
   readonly metric_value_json: Prisma.FieldRef<"evidence_records", 'Json'>
   readonly contribution_weight: Prisma.FieldRef<"evidence_records", 'Decimal'>
+  readonly category: Prisma.FieldRef<"evidence_records", 'String'>
+  readonly source_module: Prisma.FieldRef<"evidence_records", 'String'>
+  readonly source_record_ids: Prisma.FieldRef<"evidence_records", 'Json'>
+  readonly confidence_score: Prisma.FieldRef<"evidence_records", 'Decimal'>
+  readonly explanation_text: Prisma.FieldRef<"evidence_records", 'String'>
+  readonly model_version: Prisma.FieldRef<"evidence_records", 'String'>
+  readonly country_context: Prisma.FieldRef<"evidence_records", 'String'>
+  readonly generated_at: Prisma.FieldRef<"evidence_records", 'DateTime'>
 }
     
 
@@ -1389,6 +1824,49 @@ export type evidence_recordsDeleteManyArgs<ExtArgs extends runtime.Types.Extensi
    * Limit how many evidence_records to delete.
    */
   limit?: number
+}
+
+/**
+ * evidence_records.demand_forecasts
+ */
+export type evidence_records$demand_forecastsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the demand_forecasts
+   */
+  select?: Prisma.demand_forecastsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the demand_forecasts
+   */
+  omit?: Prisma.demand_forecastsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.demand_forecastsInclude<ExtArgs> | null
+  where?: Prisma.demand_forecastsWhereInput
+}
+
+/**
+ * evidence_records.recommendation_outcomes
+ */
+export type evidence_records$recommendation_outcomesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the recommendation_outcomes
+   */
+  select?: Prisma.recommendation_outcomesSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the recommendation_outcomes
+   */
+  omit?: Prisma.recommendation_outcomesOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.recommendation_outcomesInclude<ExtArgs> | null
+  where?: Prisma.recommendation_outcomesWhereInput
+  orderBy?: Prisma.recommendation_outcomesOrderByWithRelationInput | Prisma.recommendation_outcomesOrderByWithRelationInput[]
+  cursor?: Prisma.recommendation_outcomesWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Recommendation_outcomesScalarFieldEnum | Prisma.Recommendation_outcomesScalarFieldEnum[]
 }
 
 /**

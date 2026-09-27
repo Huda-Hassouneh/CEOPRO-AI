@@ -33,6 +33,7 @@ export type Recommendation_outcomesMinAggregateOutputType = {
   user_decision: string | null
   created_at: Date | null
   updated_at: Date | null
+  evidence_id: string | null
 }
 
 export type Recommendation_outcomesMaxAggregateOutputType = {
@@ -43,6 +44,7 @@ export type Recommendation_outcomesMaxAggregateOutputType = {
   user_decision: string | null
   created_at: Date | null
   updated_at: Date | null
+  evidence_id: string | null
 }
 
 export type Recommendation_outcomesCountAggregateOutputType = {
@@ -55,6 +57,7 @@ export type Recommendation_outcomesCountAggregateOutputType = {
   actual_outcome_json: number
   created_at: number
   updated_at: number
+  evidence_id: number
   _all: number
 }
 
@@ -67,6 +70,7 @@ export type Recommendation_outcomesMinAggregateInputType = {
   user_decision?: true
   created_at?: true
   updated_at?: true
+  evidence_id?: true
 }
 
 export type Recommendation_outcomesMaxAggregateInputType = {
@@ -77,6 +81,7 @@ export type Recommendation_outcomesMaxAggregateInputType = {
   user_decision?: true
   created_at?: true
   updated_at?: true
+  evidence_id?: true
 }
 
 export type Recommendation_outcomesCountAggregateInputType = {
@@ -89,6 +94,7 @@ export type Recommendation_outcomesCountAggregateInputType = {
   actual_outcome_json?: true
   created_at?: true
   updated_at?: true
+  evidence_id?: true
   _all?: true
 }
 
@@ -168,12 +174,13 @@ export type Recommendation_outcomesGroupByOutputType = {
   recommendation_id: string
   tenant_id: string
   forecast_id: string | null
-  recommended_action: string
+  recommended_action: string | null
   expected_impact_json: runtime.JsonValue | null
   user_decision: string
   actual_outcome_json: runtime.JsonValue | null
   created_at: Date | null
   updated_at: Date | null
+  evidence_id: string | null
   _count: Recommendation_outcomesCountAggregateOutputType | null
   _min: Recommendation_outcomesMinAggregateOutputType | null
   _max: Recommendation_outcomesMaxAggregateOutputType | null
@@ -201,13 +208,15 @@ export type recommendation_outcomesWhereInput = {
   recommendation_id?: Prisma.UuidFilter<"recommendation_outcomes"> | string
   tenant_id?: Prisma.UuidFilter<"recommendation_outcomes"> | string
   forecast_id?: Prisma.UuidNullableFilter<"recommendation_outcomes"> | string | null
-  recommended_action?: Prisma.StringFilter<"recommendation_outcomes"> | string
+  recommended_action?: Prisma.StringNullableFilter<"recommendation_outcomes"> | string | null
   expected_impact_json?: Prisma.JsonNullableFilter<"recommendation_outcomes">
   user_decision?: Prisma.StringFilter<"recommendation_outcomes"> | string
   actual_outcome_json?: Prisma.JsonNullableFilter<"recommendation_outcomes">
   created_at?: Prisma.DateTimeNullableFilter<"recommendation_outcomes"> | Date | string | null
   updated_at?: Prisma.DateTimeNullableFilter<"recommendation_outcomes"> | Date | string | null
+  evidence_id?: Prisma.UuidNullableFilter<"recommendation_outcomes"> | string | null
   demand_forecasts?: Prisma.XOR<Prisma.Demand_forecastsNullableScalarRelationFilter, Prisma.demand_forecastsWhereInput> | null
+  evidence_records?: Prisma.XOR<Prisma.Evidence_recordsNullableScalarRelationFilter, Prisma.evidence_recordsWhereInput> | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
 }
 
@@ -215,13 +224,15 @@ export type recommendation_outcomesOrderByWithRelationInput = {
   recommendation_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
   forecast_id?: Prisma.SortOrderInput | Prisma.SortOrder
-  recommended_action?: Prisma.SortOrder
+  recommended_action?: Prisma.SortOrderInput | Prisma.SortOrder
   expected_impact_json?: Prisma.SortOrderInput | Prisma.SortOrder
   user_decision?: Prisma.SortOrder
   actual_outcome_json?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
   updated_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  evidence_id?: Prisma.SortOrderInput | Prisma.SortOrder
   demand_forecasts?: Prisma.demand_forecastsOrderByWithRelationInput
+  evidence_records?: Prisma.evidence_recordsOrderByWithRelationInput
   companies?: Prisma.CompanyOrderByWithRelationInput
 }
 
@@ -232,13 +243,15 @@ export type recommendation_outcomesWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.recommendation_outcomesWhereInput | Prisma.recommendation_outcomesWhereInput[]
   tenant_id?: Prisma.UuidFilter<"recommendation_outcomes"> | string
   forecast_id?: Prisma.UuidNullableFilter<"recommendation_outcomes"> | string | null
-  recommended_action?: Prisma.StringFilter<"recommendation_outcomes"> | string
+  recommended_action?: Prisma.StringNullableFilter<"recommendation_outcomes"> | string | null
   expected_impact_json?: Prisma.JsonNullableFilter<"recommendation_outcomes">
   user_decision?: Prisma.StringFilter<"recommendation_outcomes"> | string
   actual_outcome_json?: Prisma.JsonNullableFilter<"recommendation_outcomes">
   created_at?: Prisma.DateTimeNullableFilter<"recommendation_outcomes"> | Date | string | null
   updated_at?: Prisma.DateTimeNullableFilter<"recommendation_outcomes"> | Date | string | null
+  evidence_id?: Prisma.UuidNullableFilter<"recommendation_outcomes"> | string | null
   demand_forecasts?: Prisma.XOR<Prisma.Demand_forecastsNullableScalarRelationFilter, Prisma.demand_forecastsWhereInput> | null
+  evidence_records?: Prisma.XOR<Prisma.Evidence_recordsNullableScalarRelationFilter, Prisma.evidence_recordsWhereInput> | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
 }, "recommendation_id">
 
@@ -246,12 +259,13 @@ export type recommendation_outcomesOrderByWithAggregationInput = {
   recommendation_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
   forecast_id?: Prisma.SortOrderInput | Prisma.SortOrder
-  recommended_action?: Prisma.SortOrder
+  recommended_action?: Prisma.SortOrderInput | Prisma.SortOrder
   expected_impact_json?: Prisma.SortOrderInput | Prisma.SortOrder
   user_decision?: Prisma.SortOrder
   actual_outcome_json?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
   updated_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  evidence_id?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.recommendation_outcomesCountOrderByAggregateInput
   _max?: Prisma.recommendation_outcomesMaxOrderByAggregateInput
   _min?: Prisma.recommendation_outcomesMinOrderByAggregateInput
@@ -264,23 +278,25 @@ export type recommendation_outcomesScalarWhereWithAggregatesInput = {
   recommendation_id?: Prisma.UuidWithAggregatesFilter<"recommendation_outcomes"> | string
   tenant_id?: Prisma.UuidWithAggregatesFilter<"recommendation_outcomes"> | string
   forecast_id?: Prisma.UuidNullableWithAggregatesFilter<"recommendation_outcomes"> | string | null
-  recommended_action?: Prisma.StringWithAggregatesFilter<"recommendation_outcomes"> | string
+  recommended_action?: Prisma.StringNullableWithAggregatesFilter<"recommendation_outcomes"> | string | null
   expected_impact_json?: Prisma.JsonNullableWithAggregatesFilter<"recommendation_outcomes">
   user_decision?: Prisma.StringWithAggregatesFilter<"recommendation_outcomes"> | string
   actual_outcome_json?: Prisma.JsonNullableWithAggregatesFilter<"recommendation_outcomes">
   created_at?: Prisma.DateTimeNullableWithAggregatesFilter<"recommendation_outcomes"> | Date | string | null
   updated_at?: Prisma.DateTimeNullableWithAggregatesFilter<"recommendation_outcomes"> | Date | string | null
+  evidence_id?: Prisma.UuidNullableWithAggregatesFilter<"recommendation_outcomes"> | string | null
 }
 
 export type recommendation_outcomesCreateInput = {
   recommendation_id?: string
-  recommended_action: string
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
   updated_at?: Date | string | null
   demand_forecasts?: Prisma.demand_forecastsCreateNestedOneWithoutRecommendation_outcomesInput
+  evidence_records?: Prisma.evidence_recordsCreateNestedOneWithoutRecommendation_outcomesInput
   companies: Prisma.CompanyCreateNestedOneWithoutRecommendation_outcomesInput
 }
 
@@ -288,23 +304,25 @@ export type recommendation_outcomesUncheckedCreateInput = {
   recommendation_id?: string
   tenant_id: string
   forecast_id?: string | null
-  recommended_action: string
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
   updated_at?: Date | string | null
+  evidence_id?: string | null
 }
 
 export type recommendation_outcomesUpdateInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   demand_forecasts?: Prisma.demand_forecastsUpdateOneWithoutRecommendation_outcomesNestedInput
+  evidence_records?: Prisma.evidence_recordsUpdateOneWithoutRecommendation_outcomesNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutRecommendation_outcomesNestedInput
 }
 
@@ -312,29 +330,31 @@ export type recommendation_outcomesUncheckedUpdateInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  evidence_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type recommendation_outcomesCreateManyInput = {
   recommendation_id?: string
   tenant_id: string
   forecast_id?: string | null
-  recommended_action: string
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
   updated_at?: Date | string | null
+  evidence_id?: string | null
 }
 
 export type recommendation_outcomesUpdateManyMutationInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -346,12 +366,13 @@ export type recommendation_outcomesUncheckedUpdateManyInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  evidence_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type Recommendation_outcomesListRelationFilter = {
@@ -374,6 +395,7 @@ export type recommendation_outcomesCountOrderByAggregateInput = {
   actual_outcome_json?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
   updated_at?: Prisma.SortOrder
+  evidence_id?: Prisma.SortOrder
 }
 
 export type recommendation_outcomesMaxOrderByAggregateInput = {
@@ -384,6 +406,7 @@ export type recommendation_outcomesMaxOrderByAggregateInput = {
   user_decision?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
   updated_at?: Prisma.SortOrder
+  evidence_id?: Prisma.SortOrder
 }
 
 export type recommendation_outcomesMinOrderByAggregateInput = {
@@ -394,6 +417,7 @@ export type recommendation_outcomesMinOrderByAggregateInput = {
   user_decision?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
   updated_at?: Prisma.SortOrder
+  evidence_id?: Prisma.SortOrder
 }
 
 export type recommendation_outcomesCreateNestedManyWithoutCompaniesInput = {
@@ -480,26 +504,70 @@ export type recommendation_outcomesUncheckedUpdateManyWithoutDemand_forecastsNes
   deleteMany?: Prisma.recommendation_outcomesScalarWhereInput | Prisma.recommendation_outcomesScalarWhereInput[]
 }
 
+export type recommendation_outcomesCreateNestedManyWithoutEvidence_recordsInput = {
+  create?: Prisma.XOR<Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput, Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput> | Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput[] | Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput[]
+  connectOrCreate?: Prisma.recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput | Prisma.recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput[]
+  createMany?: Prisma.recommendation_outcomesCreateManyEvidence_recordsInputEnvelope
+  connect?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+}
+
+export type recommendation_outcomesUncheckedCreateNestedManyWithoutEvidence_recordsInput = {
+  create?: Prisma.XOR<Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput, Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput> | Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput[] | Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput[]
+  connectOrCreate?: Prisma.recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput | Prisma.recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput[]
+  createMany?: Prisma.recommendation_outcomesCreateManyEvidence_recordsInputEnvelope
+  connect?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+}
+
+export type recommendation_outcomesUpdateManyWithoutEvidence_recordsNestedInput = {
+  create?: Prisma.XOR<Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput, Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput> | Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput[] | Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput[]
+  connectOrCreate?: Prisma.recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput | Prisma.recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput[]
+  upsert?: Prisma.recommendation_outcomesUpsertWithWhereUniqueWithoutEvidence_recordsInput | Prisma.recommendation_outcomesUpsertWithWhereUniqueWithoutEvidence_recordsInput[]
+  createMany?: Prisma.recommendation_outcomesCreateManyEvidence_recordsInputEnvelope
+  set?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+  disconnect?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+  delete?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+  connect?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+  update?: Prisma.recommendation_outcomesUpdateWithWhereUniqueWithoutEvidence_recordsInput | Prisma.recommendation_outcomesUpdateWithWhereUniqueWithoutEvidence_recordsInput[]
+  updateMany?: Prisma.recommendation_outcomesUpdateManyWithWhereWithoutEvidence_recordsInput | Prisma.recommendation_outcomesUpdateManyWithWhereWithoutEvidence_recordsInput[]
+  deleteMany?: Prisma.recommendation_outcomesScalarWhereInput | Prisma.recommendation_outcomesScalarWhereInput[]
+}
+
+export type recommendation_outcomesUncheckedUpdateManyWithoutEvidence_recordsNestedInput = {
+  create?: Prisma.XOR<Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput, Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput> | Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput[] | Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput[]
+  connectOrCreate?: Prisma.recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput | Prisma.recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput[]
+  upsert?: Prisma.recommendation_outcomesUpsertWithWhereUniqueWithoutEvidence_recordsInput | Prisma.recommendation_outcomesUpsertWithWhereUniqueWithoutEvidence_recordsInput[]
+  createMany?: Prisma.recommendation_outcomesCreateManyEvidence_recordsInputEnvelope
+  set?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+  disconnect?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+  delete?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+  connect?: Prisma.recommendation_outcomesWhereUniqueInput | Prisma.recommendation_outcomesWhereUniqueInput[]
+  update?: Prisma.recommendation_outcomesUpdateWithWhereUniqueWithoutEvidence_recordsInput | Prisma.recommendation_outcomesUpdateWithWhereUniqueWithoutEvidence_recordsInput[]
+  updateMany?: Prisma.recommendation_outcomesUpdateManyWithWhereWithoutEvidence_recordsInput | Prisma.recommendation_outcomesUpdateManyWithWhereWithoutEvidence_recordsInput[]
+  deleteMany?: Prisma.recommendation_outcomesScalarWhereInput | Prisma.recommendation_outcomesScalarWhereInput[]
+}
+
 export type recommendation_outcomesCreateWithoutCompaniesInput = {
   recommendation_id?: string
-  recommended_action: string
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
   updated_at?: Date | string | null
   demand_forecasts?: Prisma.demand_forecastsCreateNestedOneWithoutRecommendation_outcomesInput
+  evidence_records?: Prisma.evidence_recordsCreateNestedOneWithoutRecommendation_outcomesInput
 }
 
 export type recommendation_outcomesUncheckedCreateWithoutCompaniesInput = {
   recommendation_id?: string
   forecast_id?: string | null
-  recommended_action: string
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
   updated_at?: Date | string | null
+  evidence_id?: string | null
 }
 
 export type recommendation_outcomesCreateOrConnectWithoutCompaniesInput = {
@@ -535,33 +603,36 @@ export type recommendation_outcomesScalarWhereInput = {
   recommendation_id?: Prisma.UuidFilter<"recommendation_outcomes"> | string
   tenant_id?: Prisma.UuidFilter<"recommendation_outcomes"> | string
   forecast_id?: Prisma.UuidNullableFilter<"recommendation_outcomes"> | string | null
-  recommended_action?: Prisma.StringFilter<"recommendation_outcomes"> | string
+  recommended_action?: Prisma.StringNullableFilter<"recommendation_outcomes"> | string | null
   expected_impact_json?: Prisma.JsonNullableFilter<"recommendation_outcomes">
   user_decision?: Prisma.StringFilter<"recommendation_outcomes"> | string
   actual_outcome_json?: Prisma.JsonNullableFilter<"recommendation_outcomes">
   created_at?: Prisma.DateTimeNullableFilter<"recommendation_outcomes"> | Date | string | null
   updated_at?: Prisma.DateTimeNullableFilter<"recommendation_outcomes"> | Date | string | null
+  evidence_id?: Prisma.UuidNullableFilter<"recommendation_outcomes"> | string | null
 }
 
 export type recommendation_outcomesCreateWithoutDemand_forecastsInput = {
   recommendation_id?: string
-  recommended_action: string
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
   updated_at?: Date | string | null
+  evidence_records?: Prisma.evidence_recordsCreateNestedOneWithoutRecommendation_outcomesInput
   companies: Prisma.CompanyCreateNestedOneWithoutRecommendation_outcomesInput
 }
 
 export type recommendation_outcomesUncheckedCreateWithoutDemand_forecastsInput = {
   recommendation_id?: string
-  recommended_action: string
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
   updated_at?: Date | string | null
+  evidence_id?: string | null
 }
 
 export type recommendation_outcomesCreateOrConnectWithoutDemand_forecastsInput = {
@@ -590,10 +661,22 @@ export type recommendation_outcomesUpdateManyWithWhereWithoutDemand_forecastsInp
   data: Prisma.XOR<Prisma.recommendation_outcomesUpdateManyMutationInput, Prisma.recommendation_outcomesUncheckedUpdateManyWithoutDemand_forecastsInput>
 }
 
-export type recommendation_outcomesCreateManyCompaniesInput = {
+export type recommendation_outcomesCreateWithoutEvidence_recordsInput = {
+  recommendation_id?: string
+  recommended_action?: string | null
+  expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  user_decision?: string
+  actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Date | string | null
+  updated_at?: Date | string | null
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedOneWithoutRecommendation_outcomesInput
+  companies: Prisma.CompanyCreateNestedOneWithoutRecommendation_outcomesInput
+}
+
+export type recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput = {
   recommendation_id?: string
   forecast_id?: string | null
-  recommended_action: string
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -601,42 +684,129 @@ export type recommendation_outcomesCreateManyCompaniesInput = {
   updated_at?: Date | string | null
 }
 
+export type recommendation_outcomesCreateOrConnectWithoutEvidence_recordsInput = {
+  where: Prisma.recommendation_outcomesWhereUniqueInput
+  create: Prisma.XOR<Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput, Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput>
+}
+
+export type recommendation_outcomesCreateManyEvidence_recordsInputEnvelope = {
+  data: Prisma.recommendation_outcomesCreateManyEvidence_recordsInput | Prisma.recommendation_outcomesCreateManyEvidence_recordsInput[]
+  skipDuplicates?: boolean
+}
+
+export type recommendation_outcomesUpsertWithWhereUniqueWithoutEvidence_recordsInput = {
+  where: Prisma.recommendation_outcomesWhereUniqueInput
+  update: Prisma.XOR<Prisma.recommendation_outcomesUpdateWithoutEvidence_recordsInput, Prisma.recommendation_outcomesUncheckedUpdateWithoutEvidence_recordsInput>
+  create: Prisma.XOR<Prisma.recommendation_outcomesCreateWithoutEvidence_recordsInput, Prisma.recommendation_outcomesUncheckedCreateWithoutEvidence_recordsInput>
+}
+
+export type recommendation_outcomesUpdateWithWhereUniqueWithoutEvidence_recordsInput = {
+  where: Prisma.recommendation_outcomesWhereUniqueInput
+  data: Prisma.XOR<Prisma.recommendation_outcomesUpdateWithoutEvidence_recordsInput, Prisma.recommendation_outcomesUncheckedUpdateWithoutEvidence_recordsInput>
+}
+
+export type recommendation_outcomesUpdateManyWithWhereWithoutEvidence_recordsInput = {
+  where: Prisma.recommendation_outcomesScalarWhereInput
+  data: Prisma.XOR<Prisma.recommendation_outcomesUpdateManyMutationInput, Prisma.recommendation_outcomesUncheckedUpdateManyWithoutEvidence_recordsInput>
+}
+
+export type recommendation_outcomesCreateManyCompaniesInput = {
+  recommendation_id?: string
+  forecast_id?: string | null
+  recommended_action?: string | null
+  expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  user_decision?: string
+  actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Date | string | null
+  updated_at?: Date | string | null
+  evidence_id?: string | null
+}
+
 export type recommendation_outcomesUpdateWithoutCompaniesInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   demand_forecasts?: Prisma.demand_forecastsUpdateOneWithoutRecommendation_outcomesNestedInput
+  evidence_records?: Prisma.evidence_recordsUpdateOneWithoutRecommendation_outcomesNestedInput
 }
 
 export type recommendation_outcomesUncheckedUpdateWithoutCompaniesInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
   forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  evidence_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type recommendation_outcomesUncheckedUpdateManyWithoutCompaniesInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
   forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  evidence_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type recommendation_outcomesCreateManyDemand_forecastsInput = {
   recommendation_id?: string
-  recommended_action: string
+  recommended_action?: string | null
+  expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  user_decision?: string
+  actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Date | string | null
+  updated_at?: Date | string | null
+  evidence_id?: string | null
+}
+
+export type recommendation_outcomesUpdateWithoutDemand_forecastsInput = {
+  recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  user_decision?: Prisma.StringFieldUpdateOperationsInput | string
+  actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  evidence_records?: Prisma.evidence_recordsUpdateOneWithoutRecommendation_outcomesNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutRecommendation_outcomesNestedInput
+}
+
+export type recommendation_outcomesUncheckedUpdateWithoutDemand_forecastsInput = {
+  recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  user_decision?: Prisma.StringFieldUpdateOperationsInput | string
+  actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  evidence_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
+export type recommendation_outcomesUncheckedUpdateManyWithoutDemand_forecastsInput = {
+  recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  user_decision?: Prisma.StringFieldUpdateOperationsInput | string
+  actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  evidence_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
+export type recommendation_outcomesCreateManyEvidence_recordsInput = {
+  recommendation_id?: string
+  forecast_id?: string | null
+  recommended_action?: string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -644,20 +814,22 @@ export type recommendation_outcomesCreateManyDemand_forecastsInput = {
   updated_at?: Date | string | null
 }
 
-export type recommendation_outcomesUpdateWithoutDemand_forecastsInput = {
+export type recommendation_outcomesUpdateWithoutEvidence_recordsInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  demand_forecasts?: Prisma.demand_forecastsUpdateOneWithoutRecommendation_outcomesNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutRecommendation_outcomesNestedInput
 }
 
-export type recommendation_outcomesUncheckedUpdateWithoutDemand_forecastsInput = {
+export type recommendation_outcomesUncheckedUpdateWithoutEvidence_recordsInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -665,9 +837,10 @@ export type recommendation_outcomesUncheckedUpdateWithoutDemand_forecastsInput =
   updated_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
-export type recommendation_outcomesUncheckedUpdateManyWithoutDemand_forecastsInput = {
+export type recommendation_outcomesUncheckedUpdateManyWithoutEvidence_recordsInput = {
   recommendation_id?: Prisma.StringFieldUpdateOperationsInput | string
-  recommended_action?: Prisma.StringFieldUpdateOperationsInput | string
+  forecast_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  recommended_action?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   expected_impact_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   user_decision?: Prisma.StringFieldUpdateOperationsInput | string
   actual_outcome_json?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -687,7 +860,9 @@ export type recommendation_outcomesSelect<ExtArgs extends runtime.Types.Extensio
   actual_outcome_json?: boolean
   created_at?: boolean
   updated_at?: boolean
+  evidence_id?: boolean
   demand_forecasts?: boolean | Prisma.recommendation_outcomes$demand_forecastsArgs<ExtArgs>
+  evidence_records?: boolean | Prisma.recommendation_outcomes$evidence_recordsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recommendation_outcomes"]>
 
@@ -701,7 +876,9 @@ export type recommendation_outcomesSelectCreateManyAndReturn<ExtArgs extends run
   actual_outcome_json?: boolean
   created_at?: boolean
   updated_at?: boolean
+  evidence_id?: boolean
   demand_forecasts?: boolean | Prisma.recommendation_outcomes$demand_forecastsArgs<ExtArgs>
+  evidence_records?: boolean | Prisma.recommendation_outcomes$evidence_recordsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recommendation_outcomes"]>
 
@@ -715,7 +892,9 @@ export type recommendation_outcomesSelectUpdateManyAndReturn<ExtArgs extends run
   actual_outcome_json?: boolean
   created_at?: boolean
   updated_at?: boolean
+  evidence_id?: boolean
   demand_forecasts?: boolean | Prisma.recommendation_outcomes$demand_forecastsArgs<ExtArgs>
+  evidence_records?: boolean | Prisma.recommendation_outcomes$evidence_recordsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recommendation_outcomes"]>
 
@@ -729,19 +908,23 @@ export type recommendation_outcomesSelectScalar = {
   actual_outcome_json?: boolean
   created_at?: boolean
   updated_at?: boolean
+  evidence_id?: boolean
 }
 
-export type recommendation_outcomesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"recommendation_id" | "tenant_id" | "forecast_id" | "recommended_action" | "expected_impact_json" | "user_decision" | "actual_outcome_json" | "created_at" | "updated_at", ExtArgs["result"]["recommendation_outcomes"]>
+export type recommendation_outcomesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"recommendation_id" | "tenant_id" | "forecast_id" | "recommended_action" | "expected_impact_json" | "user_decision" | "actual_outcome_json" | "created_at" | "updated_at" | "evidence_id", ExtArgs["result"]["recommendation_outcomes"]>
 export type recommendation_outcomesInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   demand_forecasts?: boolean | Prisma.recommendation_outcomes$demand_forecastsArgs<ExtArgs>
+  evidence_records?: boolean | Prisma.recommendation_outcomes$evidence_recordsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }
 export type recommendation_outcomesIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   demand_forecasts?: boolean | Prisma.recommendation_outcomes$demand_forecastsArgs<ExtArgs>
+  evidence_records?: boolean | Prisma.recommendation_outcomes$evidence_recordsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }
 export type recommendation_outcomesIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   demand_forecasts?: boolean | Prisma.recommendation_outcomes$demand_forecastsArgs<ExtArgs>
+  evidence_records?: boolean | Prisma.recommendation_outcomes$evidence_recordsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }
 
@@ -749,18 +932,20 @@ export type $recommendation_outcomesPayload<ExtArgs extends runtime.Types.Extens
   name: "recommendation_outcomes"
   objects: {
     demand_forecasts: Prisma.$demand_forecastsPayload<ExtArgs> | null
+    evidence_records: Prisma.$evidence_recordsPayload<ExtArgs> | null
     companies: Prisma.$CompanyPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     recommendation_id: string
     tenant_id: string
     forecast_id: string | null
-    recommended_action: string
+    recommended_action: string | null
     expected_impact_json: runtime.JsonValue | null
     user_decision: string
     actual_outcome_json: runtime.JsonValue | null
     created_at: Date | null
     updated_at: Date | null
+    evidence_id: string | null
   }, ExtArgs["result"]["recommendation_outcomes"]>
   composites: {}
 }
@@ -1156,6 +1341,7 @@ readonly fields: recommendation_outcomesFieldRefs;
 export interface Prisma__recommendation_outcomesClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   demand_forecasts<T extends Prisma.recommendation_outcomes$demand_forecastsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.recommendation_outcomes$demand_forecastsArgs<ExtArgs>>): Prisma.Prisma__demand_forecastsClient<runtime.Types.Result.GetResult<Prisma.$demand_forecastsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  evidence_records<T extends Prisma.recommendation_outcomes$evidence_recordsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.recommendation_outcomes$evidence_recordsArgs<ExtArgs>>): Prisma.Prisma__evidence_recordsClient<runtime.Types.Result.GetResult<Prisma.$evidence_recordsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   companies<T extends Prisma.CompanyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CompanyDefaultArgs<ExtArgs>>): Prisma.Prisma__CompanyClient<runtime.Types.Result.GetResult<Prisma.$CompanyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1195,6 +1381,7 @@ export interface recommendation_outcomesFieldRefs {
   readonly actual_outcome_json: Prisma.FieldRef<"recommendation_outcomes", 'Json'>
   readonly created_at: Prisma.FieldRef<"recommendation_outcomes", 'DateTime'>
   readonly updated_at: Prisma.FieldRef<"recommendation_outcomes", 'DateTime'>
+  readonly evidence_id: Prisma.FieldRef<"recommendation_outcomes", 'String'>
 }
     
 
@@ -1612,6 +1799,25 @@ export type recommendation_outcomes$demand_forecastsArgs<ExtArgs extends runtime
    */
   include?: Prisma.demand_forecastsInclude<ExtArgs> | null
   where?: Prisma.demand_forecastsWhereInput
+}
+
+/**
+ * recommendation_outcomes.evidence_records
+ */
+export type recommendation_outcomes$evidence_recordsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the evidence_records
+   */
+  select?: Prisma.evidence_recordsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the evidence_records
+   */
+  omit?: Prisma.evidence_recordsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.evidence_recordsInclude<ExtArgs> | null
+  where?: Prisma.evidence_recordsWhereInput
 }
 
 /**

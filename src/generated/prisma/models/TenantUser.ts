@@ -31,6 +31,7 @@ export type TenantUserMinAggregateOutputType = {
   roleKey: string | null
   removedAt: Date | null
   joinedAt: Date | null
+  platformStatus: string | null
 }
 
 export type TenantUserMaxAggregateOutputType = {
@@ -40,6 +41,7 @@ export type TenantUserMaxAggregateOutputType = {
   roleKey: string | null
   removedAt: Date | null
   joinedAt: Date | null
+  platformStatus: string | null
 }
 
 export type TenantUserCountAggregateOutputType = {
@@ -49,6 +51,7 @@ export type TenantUserCountAggregateOutputType = {
   roleKey: number
   removedAt: number
   joinedAt: number
+  platformStatus: number
   _all: number
 }
 
@@ -60,6 +63,7 @@ export type TenantUserMinAggregateInputType = {
   roleKey?: true
   removedAt?: true
   joinedAt?: true
+  platformStatus?: true
 }
 
 export type TenantUserMaxAggregateInputType = {
@@ -69,6 +73,7 @@ export type TenantUserMaxAggregateInputType = {
   roleKey?: true
   removedAt?: true
   joinedAt?: true
+  platformStatus?: true
 }
 
 export type TenantUserCountAggregateInputType = {
@@ -78,6 +83,7 @@ export type TenantUserCountAggregateInputType = {
   roleKey?: true
   removedAt?: true
   joinedAt?: true
+  platformStatus?: true
   _all?: true
 }
 
@@ -160,6 +166,7 @@ export type TenantUserGroupByOutputType = {
   roleKey: string
   removedAt: Date | null
   joinedAt: Date | null
+  platformStatus: string
   _count: TenantUserCountAggregateOutputType | null
   _min: TenantUserMinAggregateOutputType | null
   _max: TenantUserMaxAggregateOutputType | null
@@ -190,6 +197,7 @@ export type TenantUserWhereInput = {
   roleKey?: Prisma.StringFilter<"TenantUser"> | string
   removedAt?: Prisma.DateTimeNullableFilter<"TenantUser"> | Date | string | null
   joinedAt?: Prisma.DateTimeNullableFilter<"TenantUser"> | Date | string | null
+  platformStatus?: Prisma.StringFilter<"TenantUser"> | string
   invoices?: Prisma.InvoicesListRelationFilter
   product_price_history?: Prisma.Product_price_historyListRelationFilter
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.ProductsListRelationFilter
@@ -207,6 +215,7 @@ export type TenantUserOrderByWithRelationInput = {
   roleKey?: Prisma.SortOrder
   removedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   joinedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  platformStatus?: Prisma.SortOrder
   invoices?: Prisma.invoicesOrderByRelationAggregateInput
   product_price_history?: Prisma.product_price_historyOrderByRelationAggregateInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsOrderByRelationAggregateInput
@@ -228,6 +237,7 @@ export type TenantUserWhereUniqueInput = Prisma.AtLeast<{
   roleKey?: Prisma.StringFilter<"TenantUser"> | string
   removedAt?: Prisma.DateTimeNullableFilter<"TenantUser"> | Date | string | null
   joinedAt?: Prisma.DateTimeNullableFilter<"TenantUser"> | Date | string | null
+  platformStatus?: Prisma.StringFilter<"TenantUser"> | string
   invoices?: Prisma.InvoicesListRelationFilter
   product_price_history?: Prisma.Product_price_historyListRelationFilter
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.ProductsListRelationFilter
@@ -245,6 +255,7 @@ export type TenantUserOrderByWithAggregationInput = {
   roleKey?: Prisma.SortOrder
   removedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   joinedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  platformStatus?: Prisma.SortOrder
   _count?: Prisma.TenantUserCountOrderByAggregateInput
   _max?: Prisma.TenantUserMaxOrderByAggregateInput
   _min?: Prisma.TenantUserMinOrderByAggregateInput
@@ -260,12 +271,14 @@ export type TenantUserScalarWhereWithAggregatesInput = {
   roleKey?: Prisma.StringWithAggregatesFilter<"TenantUser"> | string
   removedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"TenantUser"> | Date | string | null
   joinedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"TenantUser"> | Date | string | null
+  platformStatus?: Prisma.StringWithAggregatesFilter<"TenantUser"> | string
 }
 
 export type TenantUserCreateInput = {
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -283,6 +296,7 @@ export type TenantUserUncheckedCreateInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -294,6 +308,7 @@ export type TenantUserUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -311,6 +326,7 @@ export type TenantUserUncheckedUpdateInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -325,12 +341,14 @@ export type TenantUserCreateManyInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
 }
 
 export type TenantUserUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type TenantUserUncheckedUpdateManyInput = {
@@ -340,6 +358,7 @@ export type TenantUserUncheckedUpdateManyInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type TenantUserListRelationFilter = {
@@ -364,6 +383,7 @@ export type TenantUserCountOrderByAggregateInput = {
   roleKey?: Prisma.SortOrder
   removedAt?: Prisma.SortOrder
   joinedAt?: Prisma.SortOrder
+  platformStatus?: Prisma.SortOrder
 }
 
 export type TenantUserMaxOrderByAggregateInput = {
@@ -373,6 +393,7 @@ export type TenantUserMaxOrderByAggregateInput = {
   roleKey?: Prisma.SortOrder
   removedAt?: Prisma.SortOrder
   joinedAt?: Prisma.SortOrder
+  platformStatus?: Prisma.SortOrder
 }
 
 export type TenantUserMinOrderByAggregateInput = {
@@ -382,6 +403,7 @@ export type TenantUserMinOrderByAggregateInput = {
   roleKey?: Prisma.SortOrder
   removedAt?: Prisma.SortOrder
   joinedAt?: Prisma.SortOrder
+  platformStatus?: Prisma.SortOrder
 }
 
 export type TenantUserNullableScalarRelationFilter = {
@@ -599,6 +621,7 @@ export type TenantUserCreateWithoutTenantInput = {
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -614,6 +637,7 @@ export type TenantUserUncheckedCreateWithoutTenantInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -657,12 +681,14 @@ export type TenantUserScalarWhereInput = {
   roleKey?: Prisma.StringFilter<"TenantUser"> | string
   removedAt?: Prisma.DateTimeNullableFilter<"TenantUser"> | Date | string | null
   joinedAt?: Prisma.DateTimeNullableFilter<"TenantUser"> | Date | string | null
+  platformStatus?: Prisma.StringFilter<"TenantUser"> | string
 }
 
 export type TenantUserCreateWithoutUserInput = {
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -678,6 +704,7 @@ export type TenantUserUncheckedCreateWithoutUserInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -715,6 +742,7 @@ export type TenantUserCreateWithoutRoleInput = {
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -730,6 +758,7 @@ export type TenantUserUncheckedCreateWithoutRoleInput = {
   userId: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -767,6 +796,7 @@ export type TenantUserCreateWithoutInvoicesInput = {
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
@@ -783,6 +813,7 @@ export type TenantUserUncheckedCreateWithoutInvoicesInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
@@ -809,6 +840,7 @@ export type TenantUserUpdateWithoutInvoicesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
@@ -825,6 +857,7 @@ export type TenantUserUncheckedUpdateWithoutInvoicesInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
@@ -835,6 +868,7 @@ export type TenantUserCreateWithoutProduct_price_historyInput = {
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
@@ -851,6 +885,7 @@ export type TenantUserUncheckedCreateWithoutProduct_price_historyInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
@@ -877,6 +912,7 @@ export type TenantUserUpdateWithoutProduct_price_historyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
@@ -893,6 +929,7 @@ export type TenantUserUncheckedUpdateWithoutProduct_price_historyInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
@@ -903,6 +940,7 @@ export type TenantUserCreateWithoutProducts_products_tenant_id_created_by_user_i
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
@@ -919,6 +957,7 @@ export type TenantUserUncheckedCreateWithoutProducts_products_tenant_id_created_
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
@@ -934,6 +973,7 @@ export type TenantUserCreateWithoutProducts_products_tenant_id_updated_by_user_i
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -950,6 +990,7 @@ export type TenantUserUncheckedCreateWithoutProducts_products_tenant_id_updated_
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -976,6 +1017,7 @@ export type TenantUserUpdateWithoutProducts_products_tenant_id_created_by_user_i
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
@@ -992,6 +1034,7 @@ export type TenantUserUncheckedUpdateWithoutProducts_products_tenant_id_created_
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
@@ -1013,6 +1056,7 @@ export type TenantUserUpdateWithoutProducts_products_tenant_id_updated_by_user_i
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1029,6 +1073,7 @@ export type TenantUserUncheckedUpdateWithoutProducts_products_tenant_id_updated_
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1039,6 +1084,7 @@ export type TenantUserCreateWithoutRag_documents_metadataInput = {
   id?: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -1055,6 +1101,7 @@ export type TenantUserUncheckedCreateWithoutRag_documents_metadataInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
   invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
@@ -1081,6 +1128,7 @@ export type TenantUserUpdateWithoutRag_documents_metadataInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1097,6 +1145,7 @@ export type TenantUserUncheckedUpdateWithoutRag_documents_metadataInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1109,12 +1158,14 @@ export type TenantUserCreateManyTenantInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
 }
 
 export type TenantUserUpdateWithoutTenantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1130,6 +1181,7 @@ export type TenantUserUncheckedUpdateWithoutTenantInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1143,6 +1195,7 @@ export type TenantUserUncheckedUpdateManyWithoutTenantInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type TenantUserCreateManyUserInput = {
@@ -1151,12 +1204,14 @@ export type TenantUserCreateManyUserInput = {
   roleKey: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
 }
 
 export type TenantUserUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1172,6 +1227,7 @@ export type TenantUserUncheckedUpdateWithoutUserInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1185,6 +1241,7 @@ export type TenantUserUncheckedUpdateManyWithoutUserInput = {
   roleKey?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type TenantUserCreateManyRoleInput = {
@@ -1193,12 +1250,14 @@ export type TenantUserCreateManyRoleInput = {
   userId: string
   removedAt?: Date | string | null
   joinedAt?: Date | string | null
+  platformStatus?: string
 }
 
 export type TenantUserUpdateWithoutRoleInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1214,6 +1273,7 @@ export type TenantUserUncheckedUpdateWithoutRoleInput = {
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
   invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
@@ -1227,6 +1287,7 @@ export type TenantUserUncheckedUpdateManyWithoutRoleInput = {
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 
@@ -1303,6 +1364,7 @@ export type TenantUserSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   roleKey?: boolean
   removedAt?: boolean
   joinedAt?: boolean
+  platformStatus?: boolean
   invoices?: boolean | Prisma.TenantUser$invoicesArgs<ExtArgs>
   product_price_history?: boolean | Prisma.TenantUser$product_price_historyArgs<ExtArgs>
   products_products_tenant_id_created_by_user_idTotenant_users?: boolean | Prisma.TenantUser$products_products_tenant_id_created_by_user_idTotenant_usersArgs<ExtArgs>
@@ -1321,6 +1383,7 @@ export type TenantUserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   roleKey?: boolean
   removedAt?: boolean
   joinedAt?: boolean
+  platformStatus?: boolean
   role?: boolean | Prisma.SystemRoleDefaultArgs<ExtArgs>
   tenant?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1333,6 +1396,7 @@ export type TenantUserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   roleKey?: boolean
   removedAt?: boolean
   joinedAt?: boolean
+  platformStatus?: boolean
   role?: boolean | Prisma.SystemRoleDefaultArgs<ExtArgs>
   tenant?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1345,9 +1409,10 @@ export type TenantUserSelectScalar = {
   roleKey?: boolean
   removedAt?: boolean
   joinedAt?: boolean
+  platformStatus?: boolean
 }
 
-export type TenantUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tenantId" | "userId" | "roleKey" | "removedAt" | "joinedAt", ExtArgs["result"]["tenantUser"]>
+export type TenantUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tenantId" | "userId" | "roleKey" | "removedAt" | "joinedAt" | "platformStatus", ExtArgs["result"]["tenantUser"]>
 export type TenantUserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   invoices?: boolean | Prisma.TenantUser$invoicesArgs<ExtArgs>
   product_price_history?: boolean | Prisma.TenantUser$product_price_historyArgs<ExtArgs>
@@ -1389,6 +1454,7 @@ export type $TenantUserPayload<ExtArgs extends runtime.Types.Extensions.Internal
     roleKey: string
     removedAt: Date | null
     joinedAt: Date | null
+    platformStatus: string
   }, ExtArgs["result"]["tenantUser"]>
   composites: {}
 }
@@ -1826,6 +1892,7 @@ export interface TenantUserFieldRefs {
   readonly roleKey: Prisma.FieldRef<"TenantUser", 'String'>
   readonly removedAt: Prisma.FieldRef<"TenantUser", 'DateTime'>
   readonly joinedAt: Prisma.FieldRef<"TenantUser", 'DateTime'>
+  readonly platformStatus: Prisma.FieldRef<"TenantUser", 'String'>
 }
     
 

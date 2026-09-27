@@ -28,10 +28,14 @@ export type AggregateData_sources = {
 
 export type Data_sourcesAvgAggregateOutputType = {
   sync_frequency_minutes: number | null
+  rate_limit_per_minute: number | null
+  retention_days: number | null
 }
 
 export type Data_sourcesSumAggregateOutputType = {
   sync_frequency_minutes: number | null
+  rate_limit_per_minute: number | null
+  retention_days: number | null
 }
 
 export type Data_sourcesMinAggregateOutputType = {
@@ -43,6 +47,21 @@ export type Data_sourcesMinAggregateOutputType = {
   sync_frequency_minutes: number | null
   is_active: boolean | null
   created_at: Date | null
+  source_url: string | null
+  collection_method: string | null
+  policy_status: string | null
+  collection_justification: string | null
+  rate_limit_per_minute: number | null
+  policy_checked_at: Date | null
+  last_synced_at: Date | null
+  collector_key: string | null
+  render_javascript: boolean | null
+  approval_reference: string | null
+  approved_by: string | null
+  approved_at: Date | null
+  privacy_reviewed_at: Date | null
+  retention_days: number | null
+  contains_personal_data: boolean | null
 }
 
 export type Data_sourcesMaxAggregateOutputType = {
@@ -54,6 +73,21 @@ export type Data_sourcesMaxAggregateOutputType = {
   sync_frequency_minutes: number | null
   is_active: boolean | null
   created_at: Date | null
+  source_url: string | null
+  collection_method: string | null
+  policy_status: string | null
+  collection_justification: string | null
+  rate_limit_per_minute: number | null
+  policy_checked_at: Date | null
+  last_synced_at: Date | null
+  collector_key: string | null
+  render_javascript: boolean | null
+  approval_reference: string | null
+  approved_by: string | null
+  approved_at: Date | null
+  privacy_reviewed_at: Date | null
+  retention_days: number | null
+  contains_personal_data: boolean | null
 }
 
 export type Data_sourcesCountAggregateOutputType = {
@@ -65,16 +99,37 @@ export type Data_sourcesCountAggregateOutputType = {
   sync_frequency_minutes: number
   is_active: number
   created_at: number
+  source_url: number
+  collection_method: number
+  policy_status: number
+  collection_justification: number
+  technical_restrictions: number
+  rate_limit_per_minute: number
+  policy_checked_at: number
+  last_synced_at: number
+  collector_key: number
+  render_javascript: number
+  collector_config: number
+  approval_reference: number
+  approved_by: number
+  approved_at: number
+  privacy_reviewed_at: number
+  retention_days: number
+  contains_personal_data: number
   _all: number
 }
 
 
 export type Data_sourcesAvgAggregateInputType = {
   sync_frequency_minutes?: true
+  rate_limit_per_minute?: true
+  retention_days?: true
 }
 
 export type Data_sourcesSumAggregateInputType = {
   sync_frequency_minutes?: true
+  rate_limit_per_minute?: true
+  retention_days?: true
 }
 
 export type Data_sourcesMinAggregateInputType = {
@@ -86,6 +141,21 @@ export type Data_sourcesMinAggregateInputType = {
   sync_frequency_minutes?: true
   is_active?: true
   created_at?: true
+  source_url?: true
+  collection_method?: true
+  policy_status?: true
+  collection_justification?: true
+  rate_limit_per_minute?: true
+  policy_checked_at?: true
+  last_synced_at?: true
+  collector_key?: true
+  render_javascript?: true
+  approval_reference?: true
+  approved_by?: true
+  approved_at?: true
+  privacy_reviewed_at?: true
+  retention_days?: true
+  contains_personal_data?: true
 }
 
 export type Data_sourcesMaxAggregateInputType = {
@@ -97,6 +167,21 @@ export type Data_sourcesMaxAggregateInputType = {
   sync_frequency_minutes?: true
   is_active?: true
   created_at?: true
+  source_url?: true
+  collection_method?: true
+  policy_status?: true
+  collection_justification?: true
+  rate_limit_per_minute?: true
+  policy_checked_at?: true
+  last_synced_at?: true
+  collector_key?: true
+  render_javascript?: true
+  approval_reference?: true
+  approved_by?: true
+  approved_at?: true
+  privacy_reviewed_at?: true
+  retention_days?: true
+  contains_personal_data?: true
 }
 
 export type Data_sourcesCountAggregateInputType = {
@@ -108,6 +193,23 @@ export type Data_sourcesCountAggregateInputType = {
   sync_frequency_minutes?: true
   is_active?: true
   created_at?: true
+  source_url?: true
+  collection_method?: true
+  policy_status?: true
+  collection_justification?: true
+  technical_restrictions?: true
+  rate_limit_per_minute?: true
+  policy_checked_at?: true
+  last_synced_at?: true
+  collector_key?: true
+  render_javascript?: true
+  collector_config?: true
+  approval_reference?: true
+  approved_by?: true
+  approved_at?: true
+  privacy_reviewed_at?: true
+  retention_days?: true
+  contains_personal_data?: true
   _all?: true
 }
 
@@ -206,6 +308,23 @@ export type Data_sourcesGroupByOutputType = {
   sync_frequency_minutes: number | null
   is_active: boolean
   created_at: Date | null
+  source_url: string | null
+  collection_method: string | null
+  policy_status: string
+  collection_justification: string | null
+  technical_restrictions: runtime.JsonValue
+  rate_limit_per_minute: number
+  policy_checked_at: Date | null
+  last_synced_at: Date | null
+  collector_key: string | null
+  render_javascript: boolean
+  collector_config: runtime.JsonValue
+  approval_reference: string | null
+  approved_by: string | null
+  approved_at: Date | null
+  privacy_reviewed_at: Date | null
+  retention_days: number
+  contains_personal_data: boolean
   _count: Data_sourcesCountAggregateOutputType | null
   _avg: Data_sourcesAvgAggregateOutputType | null
   _sum: Data_sourcesSumAggregateOutputType | null
@@ -240,8 +359,29 @@ export type data_sourcesWhereInput = {
   sync_frequency_minutes?: Prisma.IntNullableFilter<"data_sources"> | number | null
   is_active?: Prisma.BoolFilter<"data_sources"> | boolean
   created_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  source_url?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  collection_method?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  policy_status?: Prisma.StringFilter<"data_sources"> | string
+  collection_justification?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  technical_restrictions?: Prisma.JsonFilter<"data_sources">
+  rate_limit_per_minute?: Prisma.IntFilter<"data_sources"> | number
+  policy_checked_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  last_synced_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  collector_key?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  render_javascript?: Prisma.BoolFilter<"data_sources"> | boolean
+  collector_config?: Prisma.JsonFilter<"data_sources">
+  approval_reference?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  approved_by?: Prisma.UuidNullableFilter<"data_sources"> | string | null
+  approved_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  privacy_reviewed_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  retention_days?: Prisma.IntFilter<"data_sources"> | number
+  contains_personal_data?: Prisma.BoolFilter<"data_sources"> | boolean
+  competitor_product_mappings?: Prisma.Competitor_product_mappingsListRelationFilter
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   ingestion_jobs?: Prisma.Ingestion_jobsListRelationFilter
+  market_events?: Prisma.Market_eventsListRelationFilter
+  market_observation_staging?: Prisma.Market_observation_stagingListRelationFilter
+  market_observations?: Prisma.Market_observationsListRelationFilter
 }
 
 export type data_sourcesOrderByWithRelationInput = {
@@ -253,8 +393,29 @@ export type data_sourcesOrderByWithRelationInput = {
   sync_frequency_minutes?: Prisma.SortOrderInput | Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_url?: Prisma.SortOrderInput | Prisma.SortOrder
+  collection_method?: Prisma.SortOrderInput | Prisma.SortOrder
+  policy_status?: Prisma.SortOrder
+  collection_justification?: Prisma.SortOrderInput | Prisma.SortOrder
+  technical_restrictions?: Prisma.SortOrder
+  rate_limit_per_minute?: Prisma.SortOrder
+  policy_checked_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  last_synced_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  collector_key?: Prisma.SortOrderInput | Prisma.SortOrder
+  render_javascript?: Prisma.SortOrder
+  collector_config?: Prisma.SortOrder
+  approval_reference?: Prisma.SortOrderInput | Prisma.SortOrder
+  approved_by?: Prisma.SortOrderInput | Prisma.SortOrder
+  approved_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  privacy_reviewed_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  retention_days?: Prisma.SortOrder
+  contains_personal_data?: Prisma.SortOrder
+  competitor_product_mappings?: Prisma.competitor_product_mappingsOrderByRelationAggregateInput
   companies?: Prisma.CompanyOrderByWithRelationInput
   ingestion_jobs?: Prisma.ingestion_jobsOrderByRelationAggregateInput
+  market_events?: Prisma.market_eventsOrderByRelationAggregateInput
+  market_observation_staging?: Prisma.market_observation_stagingOrderByRelationAggregateInput
+  market_observations?: Prisma.market_observationsOrderByRelationAggregateInput
 }
 
 export type data_sourcesWhereUniqueInput = Prisma.AtLeast<{
@@ -270,8 +431,29 @@ export type data_sourcesWhereUniqueInput = Prisma.AtLeast<{
   sync_frequency_minutes?: Prisma.IntNullableFilter<"data_sources"> | number | null
   is_active?: Prisma.BoolFilter<"data_sources"> | boolean
   created_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  source_url?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  collection_method?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  policy_status?: Prisma.StringFilter<"data_sources"> | string
+  collection_justification?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  technical_restrictions?: Prisma.JsonFilter<"data_sources">
+  rate_limit_per_minute?: Prisma.IntFilter<"data_sources"> | number
+  policy_checked_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  last_synced_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  collector_key?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  render_javascript?: Prisma.BoolFilter<"data_sources"> | boolean
+  collector_config?: Prisma.JsonFilter<"data_sources">
+  approval_reference?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  approved_by?: Prisma.UuidNullableFilter<"data_sources"> | string | null
+  approved_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  privacy_reviewed_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  retention_days?: Prisma.IntFilter<"data_sources"> | number
+  contains_personal_data?: Prisma.BoolFilter<"data_sources"> | boolean
+  competitor_product_mappings?: Prisma.Competitor_product_mappingsListRelationFilter
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   ingestion_jobs?: Prisma.Ingestion_jobsListRelationFilter
+  market_events?: Prisma.Market_eventsListRelationFilter
+  market_observation_staging?: Prisma.Market_observation_stagingListRelationFilter
+  market_observations?: Prisma.Market_observationsListRelationFilter
 }, "source_id" | "tenant_id_source_id">
 
 export type data_sourcesOrderByWithAggregationInput = {
@@ -283,6 +465,23 @@ export type data_sourcesOrderByWithAggregationInput = {
   sync_frequency_minutes?: Prisma.SortOrderInput | Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  source_url?: Prisma.SortOrderInput | Prisma.SortOrder
+  collection_method?: Prisma.SortOrderInput | Prisma.SortOrder
+  policy_status?: Prisma.SortOrder
+  collection_justification?: Prisma.SortOrderInput | Prisma.SortOrder
+  technical_restrictions?: Prisma.SortOrder
+  rate_limit_per_minute?: Prisma.SortOrder
+  policy_checked_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  last_synced_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  collector_key?: Prisma.SortOrderInput | Prisma.SortOrder
+  render_javascript?: Prisma.SortOrder
+  collector_config?: Prisma.SortOrder
+  approval_reference?: Prisma.SortOrderInput | Prisma.SortOrder
+  approved_by?: Prisma.SortOrderInput | Prisma.SortOrder
+  approved_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  privacy_reviewed_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  retention_days?: Prisma.SortOrder
+  contains_personal_data?: Prisma.SortOrder
   _count?: Prisma.data_sourcesCountOrderByAggregateInput
   _avg?: Prisma.data_sourcesAvgOrderByAggregateInput
   _max?: Prisma.data_sourcesMaxOrderByAggregateInput
@@ -302,6 +501,23 @@ export type data_sourcesScalarWhereWithAggregatesInput = {
   sync_frequency_minutes?: Prisma.IntNullableWithAggregatesFilter<"data_sources"> | number | null
   is_active?: Prisma.BoolWithAggregatesFilter<"data_sources"> | boolean
   created_at?: Prisma.DateTimeNullableWithAggregatesFilter<"data_sources"> | Date | string | null
+  source_url?: Prisma.StringNullableWithAggregatesFilter<"data_sources"> | string | null
+  collection_method?: Prisma.StringNullableWithAggregatesFilter<"data_sources"> | string | null
+  policy_status?: Prisma.StringWithAggregatesFilter<"data_sources"> | string
+  collection_justification?: Prisma.StringNullableWithAggregatesFilter<"data_sources"> | string | null
+  technical_restrictions?: Prisma.JsonWithAggregatesFilter<"data_sources">
+  rate_limit_per_minute?: Prisma.IntWithAggregatesFilter<"data_sources"> | number
+  policy_checked_at?: Prisma.DateTimeNullableWithAggregatesFilter<"data_sources"> | Date | string | null
+  last_synced_at?: Prisma.DateTimeNullableWithAggregatesFilter<"data_sources"> | Date | string | null
+  collector_key?: Prisma.StringNullableWithAggregatesFilter<"data_sources"> | string | null
+  render_javascript?: Prisma.BoolWithAggregatesFilter<"data_sources"> | boolean
+  collector_config?: Prisma.JsonWithAggregatesFilter<"data_sources">
+  approval_reference?: Prisma.StringNullableWithAggregatesFilter<"data_sources"> | string | null
+  approved_by?: Prisma.UuidNullableWithAggregatesFilter<"data_sources"> | string | null
+  approved_at?: Prisma.DateTimeNullableWithAggregatesFilter<"data_sources"> | Date | string | null
+  privacy_reviewed_at?: Prisma.DateTimeNullableWithAggregatesFilter<"data_sources"> | Date | string | null
+  retention_days?: Prisma.IntWithAggregatesFilter<"data_sources"> | number
+  contains_personal_data?: Prisma.BoolWithAggregatesFilter<"data_sources"> | boolean
 }
 
 export type data_sourcesCreateInput = {
@@ -312,8 +528,29 @@ export type data_sourcesCreateInput = {
   sync_frequency_minutes?: number | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutData_sourcesInput
   companies: Prisma.CompanyCreateNestedOneWithoutData_sourcesInput
   ingestion_jobs?: Prisma.ingestion_jobsCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutData_sourcesInput
 }
 
 export type data_sourcesUncheckedCreateInput = {
@@ -325,7 +562,28 @@ export type data_sourcesUncheckedCreateInput = {
   sync_frequency_minutes?: number | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutData_sourcesInput
   ingestion_jobs?: Prisma.ingestion_jobsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutData_sourcesInput
 }
 
 export type data_sourcesUpdateInput = {
@@ -336,8 +594,29 @@ export type data_sourcesUpdateInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutData_sourcesNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutData_sourcesNestedInput
   ingestion_jobs?: Prisma.ingestion_jobsUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutData_sourcesNestedInput
 }
 
 export type data_sourcesUncheckedUpdateInput = {
@@ -349,7 +628,28 @@ export type data_sourcesUncheckedUpdateInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesNestedInput
   ingestion_jobs?: Prisma.ingestion_jobsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutData_sourcesNestedInput
 }
 
 export type data_sourcesCreateManyInput = {
@@ -361,6 +661,23 @@ export type data_sourcesCreateManyInput = {
   sync_frequency_minutes?: number | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
 }
 
 export type data_sourcesUpdateManyMutationInput = {
@@ -371,6 +688,23 @@ export type data_sourcesUpdateManyMutationInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type data_sourcesUncheckedUpdateManyInput = {
@@ -382,6 +716,23 @@ export type data_sourcesUncheckedUpdateManyInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type Data_sourcesListRelationFilter = {
@@ -392,6 +743,11 @@ export type Data_sourcesListRelationFilter = {
 
 export type data_sourcesOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type Data_sourcesNullableScalarRelationFilter = {
+  is?: Prisma.data_sourcesWhereInput | null
+  isNot?: Prisma.data_sourcesWhereInput | null
 }
 
 export type data_sourcesTenant_idSource_idCompoundUniqueInput = {
@@ -408,10 +764,29 @@ export type data_sourcesCountOrderByAggregateInput = {
   sync_frequency_minutes?: Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  source_url?: Prisma.SortOrder
+  collection_method?: Prisma.SortOrder
+  policy_status?: Prisma.SortOrder
+  collection_justification?: Prisma.SortOrder
+  technical_restrictions?: Prisma.SortOrder
+  rate_limit_per_minute?: Prisma.SortOrder
+  policy_checked_at?: Prisma.SortOrder
+  last_synced_at?: Prisma.SortOrder
+  collector_key?: Prisma.SortOrder
+  render_javascript?: Prisma.SortOrder
+  collector_config?: Prisma.SortOrder
+  approval_reference?: Prisma.SortOrder
+  approved_by?: Prisma.SortOrder
+  approved_at?: Prisma.SortOrder
+  privacy_reviewed_at?: Prisma.SortOrder
+  retention_days?: Prisma.SortOrder
+  contains_personal_data?: Prisma.SortOrder
 }
 
 export type data_sourcesAvgOrderByAggregateInput = {
   sync_frequency_minutes?: Prisma.SortOrder
+  rate_limit_per_minute?: Prisma.SortOrder
+  retention_days?: Prisma.SortOrder
 }
 
 export type data_sourcesMaxOrderByAggregateInput = {
@@ -423,6 +798,21 @@ export type data_sourcesMaxOrderByAggregateInput = {
   sync_frequency_minutes?: Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  source_url?: Prisma.SortOrder
+  collection_method?: Prisma.SortOrder
+  policy_status?: Prisma.SortOrder
+  collection_justification?: Prisma.SortOrder
+  rate_limit_per_minute?: Prisma.SortOrder
+  policy_checked_at?: Prisma.SortOrder
+  last_synced_at?: Prisma.SortOrder
+  collector_key?: Prisma.SortOrder
+  render_javascript?: Prisma.SortOrder
+  approval_reference?: Prisma.SortOrder
+  approved_by?: Prisma.SortOrder
+  approved_at?: Prisma.SortOrder
+  privacy_reviewed_at?: Prisma.SortOrder
+  retention_days?: Prisma.SortOrder
+  contains_personal_data?: Prisma.SortOrder
 }
 
 export type data_sourcesMinOrderByAggregateInput = {
@@ -434,10 +824,27 @@ export type data_sourcesMinOrderByAggregateInput = {
   sync_frequency_minutes?: Prisma.SortOrder
   is_active?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  source_url?: Prisma.SortOrder
+  collection_method?: Prisma.SortOrder
+  policy_status?: Prisma.SortOrder
+  collection_justification?: Prisma.SortOrder
+  rate_limit_per_minute?: Prisma.SortOrder
+  policy_checked_at?: Prisma.SortOrder
+  last_synced_at?: Prisma.SortOrder
+  collector_key?: Prisma.SortOrder
+  render_javascript?: Prisma.SortOrder
+  approval_reference?: Prisma.SortOrder
+  approved_by?: Prisma.SortOrder
+  approved_at?: Prisma.SortOrder
+  privacy_reviewed_at?: Prisma.SortOrder
+  retention_days?: Prisma.SortOrder
+  contains_personal_data?: Prisma.SortOrder
 }
 
 export type data_sourcesSumOrderByAggregateInput = {
   sync_frequency_minutes?: Prisma.SortOrder
+  rate_limit_per_minute?: Prisma.SortOrder
+  retention_days?: Prisma.SortOrder
 }
 
 export type Data_sourcesScalarRelationFilter = {
@@ -487,6 +894,22 @@ export type data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput = {
   deleteMany?: Prisma.data_sourcesScalarWhereInput | Prisma.data_sourcesScalarWhereInput[]
 }
 
+export type data_sourcesCreateNestedOneWithoutCompetitor_product_mappingsInput = {
+  create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutCompetitor_product_mappingsInput, Prisma.data_sourcesUncheckedCreateWithoutCompetitor_product_mappingsInput>
+  connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutCompetitor_product_mappingsInput
+  connect?: Prisma.data_sourcesWhereUniqueInput
+}
+
+export type data_sourcesUpdateOneWithoutCompetitor_product_mappingsNestedInput = {
+  create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutCompetitor_product_mappingsInput, Prisma.data_sourcesUncheckedCreateWithoutCompetitor_product_mappingsInput>
+  connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutCompetitor_product_mappingsInput
+  upsert?: Prisma.data_sourcesUpsertWithoutCompetitor_product_mappingsInput
+  disconnect?: Prisma.data_sourcesWhereInput | boolean
+  delete?: Prisma.data_sourcesWhereInput | boolean
+  connect?: Prisma.data_sourcesWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.data_sourcesUpdateToOneWithWhereWithoutCompetitor_product_mappingsInput, Prisma.data_sourcesUpdateWithoutCompetitor_product_mappingsInput>, Prisma.data_sourcesUncheckedUpdateWithoutCompetitor_product_mappingsInput>
+}
+
 export type data_sourcesCreateNestedOneWithoutIngestion_jobsInput = {
   create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutIngestion_jobsInput, Prisma.data_sourcesUncheckedCreateWithoutIngestion_jobsInput>
   connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutIngestion_jobsInput
@@ -501,6 +924,50 @@ export type data_sourcesUpdateOneRequiredWithoutIngestion_jobsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.data_sourcesUpdateToOneWithWhereWithoutIngestion_jobsInput, Prisma.data_sourcesUpdateWithoutIngestion_jobsInput>, Prisma.data_sourcesUncheckedUpdateWithoutIngestion_jobsInput>
 }
 
+export type data_sourcesCreateNestedOneWithoutMarket_eventsInput = {
+  create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_eventsInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_eventsInput>
+  connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutMarket_eventsInput
+  connect?: Prisma.data_sourcesWhereUniqueInput
+}
+
+export type data_sourcesUpdateOneWithoutMarket_eventsNestedInput = {
+  create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_eventsInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_eventsInput>
+  connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutMarket_eventsInput
+  upsert?: Prisma.data_sourcesUpsertWithoutMarket_eventsInput
+  disconnect?: Prisma.data_sourcesWhereInput | boolean
+  delete?: Prisma.data_sourcesWhereInput | boolean
+  connect?: Prisma.data_sourcesWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.data_sourcesUpdateToOneWithWhereWithoutMarket_eventsInput, Prisma.data_sourcesUpdateWithoutMarket_eventsInput>, Prisma.data_sourcesUncheckedUpdateWithoutMarket_eventsInput>
+}
+
+export type data_sourcesCreateNestedOneWithoutMarket_observation_stagingInput = {
+  create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_observation_stagingInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_observation_stagingInput>
+  connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutMarket_observation_stagingInput
+  connect?: Prisma.data_sourcesWhereUniqueInput
+}
+
+export type data_sourcesUpdateOneRequiredWithoutMarket_observation_stagingNestedInput = {
+  create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_observation_stagingInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_observation_stagingInput>
+  connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutMarket_observation_stagingInput
+  upsert?: Prisma.data_sourcesUpsertWithoutMarket_observation_stagingInput
+  connect?: Prisma.data_sourcesWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.data_sourcesUpdateToOneWithWhereWithoutMarket_observation_stagingInput, Prisma.data_sourcesUpdateWithoutMarket_observation_stagingInput>, Prisma.data_sourcesUncheckedUpdateWithoutMarket_observation_stagingInput>
+}
+
+export type data_sourcesCreateNestedOneWithoutMarket_observationsInput = {
+  create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_observationsInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_observationsInput>
+  connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutMarket_observationsInput
+  connect?: Prisma.data_sourcesWhereUniqueInput
+}
+
+export type data_sourcesUpdateOneRequiredWithoutMarket_observationsNestedInput = {
+  create?: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_observationsInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_observationsInput>
+  connectOrCreate?: Prisma.data_sourcesCreateOrConnectWithoutMarket_observationsInput
+  upsert?: Prisma.data_sourcesUpsertWithoutMarket_observationsInput
+  connect?: Prisma.data_sourcesWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.data_sourcesUpdateToOneWithWhereWithoutMarket_observationsInput, Prisma.data_sourcesUpdateWithoutMarket_observationsInput>, Prisma.data_sourcesUncheckedUpdateWithoutMarket_observationsInput>
+}
+
 export type data_sourcesCreateWithoutCompaniesInput = {
   source_id?: string
   source_name: string
@@ -509,7 +976,28 @@ export type data_sourcesCreateWithoutCompaniesInput = {
   sync_frequency_minutes?: number | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutData_sourcesInput
   ingestion_jobs?: Prisma.ingestion_jobsCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutData_sourcesInput
 }
 
 export type data_sourcesUncheckedCreateWithoutCompaniesInput = {
@@ -520,7 +1008,28 @@ export type data_sourcesUncheckedCreateWithoutCompaniesInput = {
   sync_frequency_minutes?: number | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutData_sourcesInput
   ingestion_jobs?: Prisma.ingestion_jobsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutData_sourcesInput
 }
 
 export type data_sourcesCreateOrConnectWithoutCompaniesInput = {
@@ -561,6 +1070,167 @@ export type data_sourcesScalarWhereInput = {
   sync_frequency_minutes?: Prisma.IntNullableFilter<"data_sources"> | number | null
   is_active?: Prisma.BoolFilter<"data_sources"> | boolean
   created_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  source_url?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  collection_method?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  policy_status?: Prisma.StringFilter<"data_sources"> | string
+  collection_justification?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  technical_restrictions?: Prisma.JsonFilter<"data_sources">
+  rate_limit_per_minute?: Prisma.IntFilter<"data_sources"> | number
+  policy_checked_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  last_synced_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  collector_key?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  render_javascript?: Prisma.BoolFilter<"data_sources"> | boolean
+  collector_config?: Prisma.JsonFilter<"data_sources">
+  approval_reference?: Prisma.StringNullableFilter<"data_sources"> | string | null
+  approved_by?: Prisma.UuidNullableFilter<"data_sources"> | string | null
+  approved_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  privacy_reviewed_at?: Prisma.DateTimeNullableFilter<"data_sources"> | Date | string | null
+  retention_days?: Prisma.IntFilter<"data_sources"> | number
+  contains_personal_data?: Prisma.BoolFilter<"data_sources"> | boolean
+}
+
+export type data_sourcesCreateWithoutCompetitor_product_mappingsInput = {
+  source_id?: string
+  source_name: string
+  source_type: string
+  connection_credentials_vault?: string | null
+  sync_frequency_minutes?: number | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  companies: Prisma.CompanyCreateNestedOneWithoutData_sourcesInput
+  ingestion_jobs?: Prisma.ingestion_jobsCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutData_sourcesInput
+}
+
+export type data_sourcesUncheckedCreateWithoutCompetitor_product_mappingsInput = {
+  source_id?: string
+  tenant_id: string
+  source_name: string
+  source_type: string
+  connection_credentials_vault?: string | null
+  sync_frequency_minutes?: number | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  ingestion_jobs?: Prisma.ingestion_jobsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutData_sourcesInput
+}
+
+export type data_sourcesCreateOrConnectWithoutCompetitor_product_mappingsInput = {
+  where: Prisma.data_sourcesWhereUniqueInput
+  create: Prisma.XOR<Prisma.data_sourcesCreateWithoutCompetitor_product_mappingsInput, Prisma.data_sourcesUncheckedCreateWithoutCompetitor_product_mappingsInput>
+}
+
+export type data_sourcesUpsertWithoutCompetitor_product_mappingsInput = {
+  update: Prisma.XOR<Prisma.data_sourcesUpdateWithoutCompetitor_product_mappingsInput, Prisma.data_sourcesUncheckedUpdateWithoutCompetitor_product_mappingsInput>
+  create: Prisma.XOR<Prisma.data_sourcesCreateWithoutCompetitor_product_mappingsInput, Prisma.data_sourcesUncheckedCreateWithoutCompetitor_product_mappingsInput>
+  where?: Prisma.data_sourcesWhereInput
+}
+
+export type data_sourcesUpdateToOneWithWhereWithoutCompetitor_product_mappingsInput = {
+  where?: Prisma.data_sourcesWhereInput
+  data: Prisma.XOR<Prisma.data_sourcesUpdateWithoutCompetitor_product_mappingsInput, Prisma.data_sourcesUncheckedUpdateWithoutCompetitor_product_mappingsInput>
+}
+
+export type data_sourcesUpdateWithoutCompetitor_product_mappingsInput = {
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_name?: Prisma.StringFieldUpdateOperationsInput | string
+  source_type?: Prisma.StringFieldUpdateOperationsInput | string
+  connection_credentials_vault?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutData_sourcesNestedInput
+  ingestion_jobs?: Prisma.ingestion_jobsUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutData_sourcesNestedInput
+}
+
+export type data_sourcesUncheckedUpdateWithoutCompetitor_product_mappingsInput = {
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_name?: Prisma.StringFieldUpdateOperationsInput | string
+  source_type?: Prisma.StringFieldUpdateOperationsInput | string
+  connection_credentials_vault?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  ingestion_jobs?: Prisma.ingestion_jobsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutData_sourcesNestedInput
 }
 
 export type data_sourcesCreateWithoutIngestion_jobsInput = {
@@ -571,7 +1241,28 @@ export type data_sourcesCreateWithoutIngestion_jobsInput = {
   sync_frequency_minutes?: number | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutData_sourcesInput
   companies: Prisma.CompanyCreateNestedOneWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutData_sourcesInput
 }
 
 export type data_sourcesUncheckedCreateWithoutIngestion_jobsInput = {
@@ -583,6 +1274,27 @@ export type data_sourcesUncheckedCreateWithoutIngestion_jobsInput = {
   sync_frequency_minutes?: number | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutData_sourcesInput
 }
 
 export type data_sourcesCreateOrConnectWithoutIngestion_jobsInput = {
@@ -609,7 +1321,28 @@ export type data_sourcesUpdateWithoutIngestion_jobsInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutData_sourcesNestedInput
   companies?: Prisma.CompanyUpdateOneRequiredWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutData_sourcesNestedInput
 }
 
 export type data_sourcesUncheckedUpdateWithoutIngestion_jobsInput = {
@@ -621,6 +1354,459 @@ export type data_sourcesUncheckedUpdateWithoutIngestion_jobsInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutData_sourcesNestedInput
+}
+
+export type data_sourcesCreateWithoutMarket_eventsInput = {
+  source_id?: string
+  source_name: string
+  source_type: string
+  connection_credentials_vault?: string | null
+  sync_frequency_minutes?: number | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutData_sourcesInput
+  companies: Prisma.CompanyCreateNestedOneWithoutData_sourcesInput
+  ingestion_jobs?: Prisma.ingestion_jobsCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutData_sourcesInput
+}
+
+export type data_sourcesUncheckedCreateWithoutMarket_eventsInput = {
+  source_id?: string
+  tenant_id: string
+  source_name: string
+  source_type: string
+  connection_credentials_vault?: string | null
+  sync_frequency_minutes?: number | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutData_sourcesInput
+  ingestion_jobs?: Prisma.ingestion_jobsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutData_sourcesInput
+}
+
+export type data_sourcesCreateOrConnectWithoutMarket_eventsInput = {
+  where: Prisma.data_sourcesWhereUniqueInput
+  create: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_eventsInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_eventsInput>
+}
+
+export type data_sourcesUpsertWithoutMarket_eventsInput = {
+  update: Prisma.XOR<Prisma.data_sourcesUpdateWithoutMarket_eventsInput, Prisma.data_sourcesUncheckedUpdateWithoutMarket_eventsInput>
+  create: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_eventsInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_eventsInput>
+  where?: Prisma.data_sourcesWhereInput
+}
+
+export type data_sourcesUpdateToOneWithWhereWithoutMarket_eventsInput = {
+  where?: Prisma.data_sourcesWhereInput
+  data: Prisma.XOR<Prisma.data_sourcesUpdateWithoutMarket_eventsInput, Prisma.data_sourcesUncheckedUpdateWithoutMarket_eventsInput>
+}
+
+export type data_sourcesUpdateWithoutMarket_eventsInput = {
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_name?: Prisma.StringFieldUpdateOperationsInput | string
+  source_type?: Prisma.StringFieldUpdateOperationsInput | string
+  connection_credentials_vault?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutData_sourcesNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutData_sourcesNestedInput
+  ingestion_jobs?: Prisma.ingestion_jobsUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutData_sourcesNestedInput
+}
+
+export type data_sourcesUncheckedUpdateWithoutMarket_eventsInput = {
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_name?: Prisma.StringFieldUpdateOperationsInput | string
+  source_type?: Prisma.StringFieldUpdateOperationsInput | string
+  connection_credentials_vault?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  ingestion_jobs?: Prisma.ingestion_jobsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutData_sourcesNestedInput
+}
+
+export type data_sourcesCreateWithoutMarket_observation_stagingInput = {
+  source_id?: string
+  source_name: string
+  source_type: string
+  connection_credentials_vault?: string | null
+  sync_frequency_minutes?: number | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutData_sourcesInput
+  companies: Prisma.CompanyCreateNestedOneWithoutData_sourcesInput
+  ingestion_jobs?: Prisma.ingestion_jobsCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsCreateNestedManyWithoutData_sourcesInput
+}
+
+export type data_sourcesUncheckedCreateWithoutMarket_observation_stagingInput = {
+  source_id?: string
+  tenant_id: string
+  source_name: string
+  source_type: string
+  connection_credentials_vault?: string | null
+  sync_frequency_minutes?: number | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutData_sourcesInput
+  ingestion_jobs?: Prisma.ingestion_jobsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observations?: Prisma.market_observationsUncheckedCreateNestedManyWithoutData_sourcesInput
+}
+
+export type data_sourcesCreateOrConnectWithoutMarket_observation_stagingInput = {
+  where: Prisma.data_sourcesWhereUniqueInput
+  create: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_observation_stagingInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_observation_stagingInput>
+}
+
+export type data_sourcesUpsertWithoutMarket_observation_stagingInput = {
+  update: Prisma.XOR<Prisma.data_sourcesUpdateWithoutMarket_observation_stagingInput, Prisma.data_sourcesUncheckedUpdateWithoutMarket_observation_stagingInput>
+  create: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_observation_stagingInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_observation_stagingInput>
+  where?: Prisma.data_sourcesWhereInput
+}
+
+export type data_sourcesUpdateToOneWithWhereWithoutMarket_observation_stagingInput = {
+  where?: Prisma.data_sourcesWhereInput
+  data: Prisma.XOR<Prisma.data_sourcesUpdateWithoutMarket_observation_stagingInput, Prisma.data_sourcesUncheckedUpdateWithoutMarket_observation_stagingInput>
+}
+
+export type data_sourcesUpdateWithoutMarket_observation_stagingInput = {
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_name?: Prisma.StringFieldUpdateOperationsInput | string
+  source_type?: Prisma.StringFieldUpdateOperationsInput | string
+  connection_credentials_vault?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutData_sourcesNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutData_sourcesNestedInput
+  ingestion_jobs?: Prisma.ingestion_jobsUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutData_sourcesNestedInput
+}
+
+export type data_sourcesUncheckedUpdateWithoutMarket_observation_stagingInput = {
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_name?: Prisma.StringFieldUpdateOperationsInput | string
+  source_type?: Prisma.StringFieldUpdateOperationsInput | string
+  connection_credentials_vault?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  ingestion_jobs?: Prisma.ingestion_jobsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutData_sourcesNestedInput
+}
+
+export type data_sourcesCreateWithoutMarket_observationsInput = {
+  source_id?: string
+  source_name: string
+  source_type: string
+  connection_credentials_vault?: string | null
+  sync_frequency_minutes?: number | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsCreateNestedManyWithoutData_sourcesInput
+  companies: Prisma.CompanyCreateNestedOneWithoutData_sourcesInput
+  ingestion_jobs?: Prisma.ingestion_jobsCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingCreateNestedManyWithoutData_sourcesInput
+}
+
+export type data_sourcesUncheckedCreateWithoutMarket_observationsInput = {
+  source_id?: string
+  tenant_id: string
+  source_name: string
+  source_type: string
+  connection_credentials_vault?: string | null
+  sync_frequency_minutes?: number | null
+  is_active?: boolean
+  created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedCreateNestedManyWithoutData_sourcesInput
+  ingestion_jobs?: Prisma.ingestion_jobsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutData_sourcesInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedCreateNestedManyWithoutData_sourcesInput
+}
+
+export type data_sourcesCreateOrConnectWithoutMarket_observationsInput = {
+  where: Prisma.data_sourcesWhereUniqueInput
+  create: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_observationsInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_observationsInput>
+}
+
+export type data_sourcesUpsertWithoutMarket_observationsInput = {
+  update: Prisma.XOR<Prisma.data_sourcesUpdateWithoutMarket_observationsInput, Prisma.data_sourcesUncheckedUpdateWithoutMarket_observationsInput>
+  create: Prisma.XOR<Prisma.data_sourcesCreateWithoutMarket_observationsInput, Prisma.data_sourcesUncheckedCreateWithoutMarket_observationsInput>
+  where?: Prisma.data_sourcesWhereInput
+}
+
+export type data_sourcesUpdateToOneWithWhereWithoutMarket_observationsInput = {
+  where?: Prisma.data_sourcesWhereInput
+  data: Prisma.XOR<Prisma.data_sourcesUpdateWithoutMarket_observationsInput, Prisma.data_sourcesUncheckedUpdateWithoutMarket_observationsInput>
+}
+
+export type data_sourcesUpdateWithoutMarket_observationsInput = {
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_name?: Prisma.StringFieldUpdateOperationsInput | string
+  source_type?: Prisma.StringFieldUpdateOperationsInput | string
+  connection_credentials_vault?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutData_sourcesNestedInput
+  companies?: Prisma.CompanyUpdateOneRequiredWithoutData_sourcesNestedInput
+  ingestion_jobs?: Prisma.ingestion_jobsUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutData_sourcesNestedInput
+}
+
+export type data_sourcesUncheckedUpdateWithoutMarket_observationsInput = {
+  source_id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
+  source_name?: Prisma.StringFieldUpdateOperationsInput | string
+  source_type?: Prisma.StringFieldUpdateOperationsInput | string
+  connection_credentials_vault?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  ingestion_jobs?: Prisma.ingestion_jobsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutData_sourcesNestedInput
 }
 
 export type data_sourcesCreateManyCompaniesInput = {
@@ -631,6 +1817,23 @@ export type data_sourcesCreateManyCompaniesInput = {
   sync_frequency_minutes?: number | null
   is_active?: boolean
   created_at?: Date | string | null
+  source_url?: string | null
+  collection_method?: string | null
+  policy_status?: string
+  collection_justification?: string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: number
+  policy_checked_at?: Date | string | null
+  last_synced_at?: Date | string | null
+  collector_key?: string | null
+  render_javascript?: boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: string | null
+  approved_by?: string | null
+  approved_at?: Date | string | null
+  privacy_reviewed_at?: Date | string | null
+  retention_days?: number
+  contains_personal_data?: boolean
 }
 
 export type data_sourcesUpdateWithoutCompaniesInput = {
@@ -641,7 +1844,28 @@ export type data_sourcesUpdateWithoutCompaniesInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUpdateManyWithoutData_sourcesNestedInput
   ingestion_jobs?: Prisma.ingestion_jobsUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUpdateManyWithoutData_sourcesNestedInput
 }
 
 export type data_sourcesUncheckedUpdateWithoutCompaniesInput = {
@@ -652,7 +1876,28 @@ export type data_sourcesUncheckedUpdateWithoutCompaniesInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  competitor_product_mappings?: Prisma.competitor_product_mappingsUncheckedUpdateManyWithoutData_sourcesNestedInput
   ingestion_jobs?: Prisma.ingestion_jobsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observation_staging?: Prisma.market_observation_stagingUncheckedUpdateManyWithoutData_sourcesNestedInput
+  market_observations?: Prisma.market_observationsUncheckedUpdateManyWithoutData_sourcesNestedInput
 }
 
 export type data_sourcesUncheckedUpdateManyWithoutCompaniesInput = {
@@ -663,6 +1908,23 @@ export type data_sourcesUncheckedUpdateManyWithoutCompaniesInput = {
   sync_frequency_minutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   is_active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  source_url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  collection_method?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  policy_status?: Prisma.StringFieldUpdateOperationsInput | string
+  collection_justification?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  technical_restrictions?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  rate_limit_per_minute?: Prisma.IntFieldUpdateOperationsInput | number
+  policy_checked_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  last_synced_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  collector_key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  render_javascript?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  collector_config?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  approval_reference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_by?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approved_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  privacy_reviewed_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  retention_days?: Prisma.IntFieldUpdateOperationsInput | number
+  contains_personal_data?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 
@@ -671,11 +1933,19 @@ export type data_sourcesUncheckedUpdateManyWithoutCompaniesInput = {
  */
 
 export type Data_sourcesCountOutputType = {
+  competitor_product_mappings: number
   ingestion_jobs: number
+  market_events: number
+  market_observation_staging: number
+  market_observations: number
 }
 
 export type Data_sourcesCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  competitor_product_mappings?: boolean | Data_sourcesCountOutputTypeCountCompetitor_product_mappingsArgs
   ingestion_jobs?: boolean | Data_sourcesCountOutputTypeCountIngestion_jobsArgs
+  market_events?: boolean | Data_sourcesCountOutputTypeCountMarket_eventsArgs
+  market_observation_staging?: boolean | Data_sourcesCountOutputTypeCountMarket_observation_stagingArgs
+  market_observations?: boolean | Data_sourcesCountOutputTypeCountMarket_observationsArgs
 }
 
 /**
@@ -691,8 +1961,36 @@ export type Data_sourcesCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types
 /**
  * Data_sourcesCountOutputType without action
  */
+export type Data_sourcesCountOutputTypeCountCompetitor_product_mappingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.competitor_product_mappingsWhereInput
+}
+
+/**
+ * Data_sourcesCountOutputType without action
+ */
 export type Data_sourcesCountOutputTypeCountIngestion_jobsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ingestion_jobsWhereInput
+}
+
+/**
+ * Data_sourcesCountOutputType without action
+ */
+export type Data_sourcesCountOutputTypeCountMarket_eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_eventsWhereInput
+}
+
+/**
+ * Data_sourcesCountOutputType without action
+ */
+export type Data_sourcesCountOutputTypeCountMarket_observation_stagingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_observation_stagingWhereInput
+}
+
+/**
+ * Data_sourcesCountOutputType without action
+ */
+export type Data_sourcesCountOutputTypeCountMarket_observationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.market_observationsWhereInput
 }
 
 
@@ -705,8 +2003,29 @@ export type data_sourcesSelect<ExtArgs extends runtime.Types.Extensions.Internal
   sync_frequency_minutes?: boolean
   is_active?: boolean
   created_at?: boolean
+  source_url?: boolean
+  collection_method?: boolean
+  policy_status?: boolean
+  collection_justification?: boolean
+  technical_restrictions?: boolean
+  rate_limit_per_minute?: boolean
+  policy_checked_at?: boolean
+  last_synced_at?: boolean
+  collector_key?: boolean
+  render_javascript?: boolean
+  collector_config?: boolean
+  approval_reference?: boolean
+  approved_by?: boolean
+  approved_at?: boolean
+  privacy_reviewed_at?: boolean
+  retention_days?: boolean
+  contains_personal_data?: boolean
+  competitor_product_mappings?: boolean | Prisma.data_sources$competitor_product_mappingsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   ingestion_jobs?: boolean | Prisma.data_sources$ingestion_jobsArgs<ExtArgs>
+  market_events?: boolean | Prisma.data_sources$market_eventsArgs<ExtArgs>
+  market_observation_staging?: boolean | Prisma.data_sources$market_observation_stagingArgs<ExtArgs>
+  market_observations?: boolean | Prisma.data_sources$market_observationsArgs<ExtArgs>
   _count?: boolean | Prisma.Data_sourcesCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["data_sources"]>
 
@@ -719,6 +2038,23 @@ export type data_sourcesSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   sync_frequency_minutes?: boolean
   is_active?: boolean
   created_at?: boolean
+  source_url?: boolean
+  collection_method?: boolean
+  policy_status?: boolean
+  collection_justification?: boolean
+  technical_restrictions?: boolean
+  rate_limit_per_minute?: boolean
+  policy_checked_at?: boolean
+  last_synced_at?: boolean
+  collector_key?: boolean
+  render_javascript?: boolean
+  collector_config?: boolean
+  approval_reference?: boolean
+  approved_by?: boolean
+  approved_at?: boolean
+  privacy_reviewed_at?: boolean
+  retention_days?: boolean
+  contains_personal_data?: boolean
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["data_sources"]>
 
@@ -731,6 +2067,23 @@ export type data_sourcesSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   sync_frequency_minutes?: boolean
   is_active?: boolean
   created_at?: boolean
+  source_url?: boolean
+  collection_method?: boolean
+  policy_status?: boolean
+  collection_justification?: boolean
+  technical_restrictions?: boolean
+  rate_limit_per_minute?: boolean
+  policy_checked_at?: boolean
+  last_synced_at?: boolean
+  collector_key?: boolean
+  render_javascript?: boolean
+  collector_config?: boolean
+  approval_reference?: boolean
+  approved_by?: boolean
+  approved_at?: boolean
+  privacy_reviewed_at?: boolean
+  retention_days?: boolean
+  contains_personal_data?: boolean
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["data_sources"]>
 
@@ -743,12 +2096,33 @@ export type data_sourcesSelectScalar = {
   sync_frequency_minutes?: boolean
   is_active?: boolean
   created_at?: boolean
+  source_url?: boolean
+  collection_method?: boolean
+  policy_status?: boolean
+  collection_justification?: boolean
+  technical_restrictions?: boolean
+  rate_limit_per_minute?: boolean
+  policy_checked_at?: boolean
+  last_synced_at?: boolean
+  collector_key?: boolean
+  render_javascript?: boolean
+  collector_config?: boolean
+  approval_reference?: boolean
+  approved_by?: boolean
+  approved_at?: boolean
+  privacy_reviewed_at?: boolean
+  retention_days?: boolean
+  contains_personal_data?: boolean
 }
 
-export type data_sourcesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"source_id" | "tenant_id" | "source_name" | "source_type" | "connection_credentials_vault" | "sync_frequency_minutes" | "is_active" | "created_at", ExtArgs["result"]["data_sources"]>
+export type data_sourcesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"source_id" | "tenant_id" | "source_name" | "source_type" | "connection_credentials_vault" | "sync_frequency_minutes" | "is_active" | "created_at" | "source_url" | "collection_method" | "policy_status" | "collection_justification" | "technical_restrictions" | "rate_limit_per_minute" | "policy_checked_at" | "last_synced_at" | "collector_key" | "render_javascript" | "collector_config" | "approval_reference" | "approved_by" | "approved_at" | "privacy_reviewed_at" | "retention_days" | "contains_personal_data", ExtArgs["result"]["data_sources"]>
 export type data_sourcesInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  competitor_product_mappings?: boolean | Prisma.data_sources$competitor_product_mappingsArgs<ExtArgs>
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   ingestion_jobs?: boolean | Prisma.data_sources$ingestion_jobsArgs<ExtArgs>
+  market_events?: boolean | Prisma.data_sources$market_eventsArgs<ExtArgs>
+  market_observation_staging?: boolean | Prisma.data_sources$market_observation_stagingArgs<ExtArgs>
+  market_observations?: boolean | Prisma.data_sources$market_observationsArgs<ExtArgs>
   _count?: boolean | Prisma.Data_sourcesCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type data_sourcesIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -761,8 +2135,12 @@ export type data_sourcesIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types
 export type $data_sourcesPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "data_sources"
   objects: {
+    competitor_product_mappings: Prisma.$competitor_product_mappingsPayload<ExtArgs>[]
     companies: Prisma.$CompanyPayload<ExtArgs>
     ingestion_jobs: Prisma.$ingestion_jobsPayload<ExtArgs>[]
+    market_events: Prisma.$market_eventsPayload<ExtArgs>[]
+    market_observation_staging: Prisma.$market_observation_stagingPayload<ExtArgs>[]
+    market_observations: Prisma.$market_observationsPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     source_id: string
@@ -773,6 +2151,23 @@ export type $data_sourcesPayload<ExtArgs extends runtime.Types.Extensions.Intern
     sync_frequency_minutes: number | null
     is_active: boolean
     created_at: Date | null
+    source_url: string | null
+    collection_method: string | null
+    policy_status: string
+    collection_justification: string | null
+    technical_restrictions: runtime.JsonValue
+    rate_limit_per_minute: number
+    policy_checked_at: Date | null
+    last_synced_at: Date | null
+    collector_key: string | null
+    render_javascript: boolean
+    collector_config: runtime.JsonValue
+    approval_reference: string | null
+    approved_by: string | null
+    approved_at: Date | null
+    privacy_reviewed_at: Date | null
+    retention_days: number
+    contains_personal_data: boolean
   }, ExtArgs["result"]["data_sources"]>
   composites: {}
 }
@@ -1167,8 +2562,12 @@ readonly fields: data_sourcesFieldRefs;
  */
 export interface Prisma__data_sourcesClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  competitor_product_mappings<T extends Prisma.data_sources$competitor_product_mappingsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.data_sources$competitor_product_mappingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$competitor_product_mappingsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   companies<T extends Prisma.CompanyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CompanyDefaultArgs<ExtArgs>>): Prisma.Prisma__CompanyClient<runtime.Types.Result.GetResult<Prisma.$CompanyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   ingestion_jobs<T extends Prisma.data_sources$ingestion_jobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.data_sources$ingestion_jobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ingestion_jobsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  market_events<T extends Prisma.data_sources$market_eventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.data_sources$market_eventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_eventsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  market_observation_staging<T extends Prisma.data_sources$market_observation_stagingArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.data_sources$market_observation_stagingArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_observation_stagingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  market_observations<T extends Prisma.data_sources$market_observationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.data_sources$market_observationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$market_observationsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1206,6 +2605,23 @@ export interface data_sourcesFieldRefs {
   readonly sync_frequency_minutes: Prisma.FieldRef<"data_sources", 'Int'>
   readonly is_active: Prisma.FieldRef<"data_sources", 'Boolean'>
   readonly created_at: Prisma.FieldRef<"data_sources", 'DateTime'>
+  readonly source_url: Prisma.FieldRef<"data_sources", 'String'>
+  readonly collection_method: Prisma.FieldRef<"data_sources", 'String'>
+  readonly policy_status: Prisma.FieldRef<"data_sources", 'String'>
+  readonly collection_justification: Prisma.FieldRef<"data_sources", 'String'>
+  readonly technical_restrictions: Prisma.FieldRef<"data_sources", 'Json'>
+  readonly rate_limit_per_minute: Prisma.FieldRef<"data_sources", 'Int'>
+  readonly policy_checked_at: Prisma.FieldRef<"data_sources", 'DateTime'>
+  readonly last_synced_at: Prisma.FieldRef<"data_sources", 'DateTime'>
+  readonly collector_key: Prisma.FieldRef<"data_sources", 'String'>
+  readonly render_javascript: Prisma.FieldRef<"data_sources", 'Boolean'>
+  readonly collector_config: Prisma.FieldRef<"data_sources", 'Json'>
+  readonly approval_reference: Prisma.FieldRef<"data_sources", 'String'>
+  readonly approved_by: Prisma.FieldRef<"data_sources", 'String'>
+  readonly approved_at: Prisma.FieldRef<"data_sources", 'DateTime'>
+  readonly privacy_reviewed_at: Prisma.FieldRef<"data_sources", 'DateTime'>
+  readonly retention_days: Prisma.FieldRef<"data_sources", 'Int'>
+  readonly contains_personal_data: Prisma.FieldRef<"data_sources", 'Boolean'>
 }
     
 
@@ -1607,6 +3023,30 @@ export type data_sourcesDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.
 }
 
 /**
+ * data_sources.competitor_product_mappings
+ */
+export type data_sources$competitor_product_mappingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the competitor_product_mappings
+   */
+  select?: Prisma.competitor_product_mappingsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the competitor_product_mappings
+   */
+  omit?: Prisma.competitor_product_mappingsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.competitor_product_mappingsInclude<ExtArgs> | null
+  where?: Prisma.competitor_product_mappingsWhereInput
+  orderBy?: Prisma.competitor_product_mappingsOrderByWithRelationInput | Prisma.competitor_product_mappingsOrderByWithRelationInput[]
+  cursor?: Prisma.competitor_product_mappingsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Competitor_product_mappingsScalarFieldEnum | Prisma.Competitor_product_mappingsScalarFieldEnum[]
+}
+
+/**
  * data_sources.ingestion_jobs
  */
 export type data_sources$ingestion_jobsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1628,6 +3068,78 @@ export type data_sources$ingestion_jobsArgs<ExtArgs extends runtime.Types.Extens
   take?: number
   skip?: number
   distinct?: Prisma.Ingestion_jobsScalarFieldEnum | Prisma.Ingestion_jobsScalarFieldEnum[]
+}
+
+/**
+ * data_sources.market_events
+ */
+export type data_sources$market_eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_events
+   */
+  select?: Prisma.market_eventsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_events
+   */
+  omit?: Prisma.market_eventsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_eventsInclude<ExtArgs> | null
+  where?: Prisma.market_eventsWhereInput
+  orderBy?: Prisma.market_eventsOrderByWithRelationInput | Prisma.market_eventsOrderByWithRelationInput[]
+  cursor?: Prisma.market_eventsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_eventsScalarFieldEnum | Prisma.Market_eventsScalarFieldEnum[]
+}
+
+/**
+ * data_sources.market_observation_staging
+ */
+export type data_sources$market_observation_stagingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_observation_staging
+   */
+  select?: Prisma.market_observation_stagingSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_observation_staging
+   */
+  omit?: Prisma.market_observation_stagingOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_observation_stagingInclude<ExtArgs> | null
+  where?: Prisma.market_observation_stagingWhereInput
+  orderBy?: Prisma.market_observation_stagingOrderByWithRelationInput | Prisma.market_observation_stagingOrderByWithRelationInput[]
+  cursor?: Prisma.market_observation_stagingWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_observation_stagingScalarFieldEnum | Prisma.Market_observation_stagingScalarFieldEnum[]
+}
+
+/**
+ * data_sources.market_observations
+ */
+export type data_sources$market_observationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the market_observations
+   */
+  select?: Prisma.market_observationsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the market_observations
+   */
+  omit?: Prisma.market_observationsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.market_observationsInclude<ExtArgs> | null
+  where?: Prisma.market_observationsWhereInput
+  orderBy?: Prisma.market_observationsOrderByWithRelationInput | Prisma.market_observationsOrderByWithRelationInput[]
+  cursor?: Prisma.market_observationsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Market_observationsScalarFieldEnum | Prisma.Market_observationsScalarFieldEnum[]
 }
 
 /**

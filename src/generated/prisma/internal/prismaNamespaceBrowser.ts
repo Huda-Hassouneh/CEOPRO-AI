@@ -69,6 +69,8 @@ export const ModelName = {
   User: 'User',
   SystemRole: 'SystemRole',
   TenantUser: 'TenantUser',
+  PlatformInvitation: 'PlatformInvitation',
+  AuthSession: 'AuthSession',
   audit_logs: 'audit_logs',
   competitor_prices: 'competitor_prices',
   competitor_product_mappings: 'competitor_product_mappings',
@@ -90,7 +92,21 @@ export const ModelName = {
   reviews: 'reviews',
   sentiment_results: 'sentiment_results',
   system_alerts: 'system_alerts',
-  tenant_competitors: 'tenant_competitors'
+  tenant_competitors: 'tenant_competitors',
+  campaigns: 'campaigns',
+  competitor_score_snapshots: 'competitor_score_snapshots',
+  extracted_entity: 'extracted_entity',
+  market_alert_events: 'market_alert_events',
+  market_alert_rules: 'market_alert_rules',
+  market_events: 'market_events',
+  market_observation_staging: 'market_observation_staging',
+  market_observations: 'market_observations',
+  model_versions: 'model_versions',
+  news_record: 'news_record',
+  search_quota_usage: 'search_quota_usage',
+  social_mention: 'social_mention',
+  transactions: 'transactions',
+  web_search_cache: 'web_search_cache'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -132,7 +148,9 @@ export const CompanyScalarFieldEnum = {
   supportedLanguages: 'supportedLanguages',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
-  deletedAt: 'deletedAt'
+  deletedAt: 'deletedAt',
+  platformStatus: 'platformStatus',
+  platformNotes: 'platformNotes'
 } as const
 
 export type CompanyScalarFieldEnum = (typeof CompanyScalarFieldEnum)[keyof typeof CompanyScalarFieldEnum]
@@ -382,7 +400,8 @@ export const UserScalarFieldEnum = {
   fullName: 'fullName',
   preferredLanguage: 'preferredLanguage',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  sessionVersion: 'sessionVersion'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -405,10 +424,41 @@ export const TenantUserScalarFieldEnum = {
   userId: 'userId',
   roleKey: 'roleKey',
   removedAt: 'removedAt',
-  joinedAt: 'joinedAt'
+  joinedAt: 'joinedAt',
+  platformStatus: 'platformStatus'
 } as const
 
 export type TenantUserScalarFieldEnum = (typeof TenantUserScalarFieldEnum)[keyof typeof TenantUserScalarFieldEnum]
+
+
+export const PlatformInvitationScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  email: 'email',
+  roleKey: 'roleKey',
+  tokenHash: 'tokenHash',
+  invitedBy: 'invitedBy',
+  status: 'status',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt',
+  acceptedAt: 'acceptedAt'
+} as const
+
+export type PlatformInvitationScalarFieldEnum = (typeof PlatformInvitationScalarFieldEnum)[keyof typeof PlatformInvitationScalarFieldEnum]
+
+
+export const AuthSessionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  tenantId: 'tenantId',
+  device: 'device',
+  createdAt: 'createdAt',
+  lastActive: 'lastActive',
+  expiresAt: 'expiresAt',
+  revokedAt: 'revokedAt'
+} as const
+
+export type AuthSessionScalarFieldEnum = (typeof AuthSessionScalarFieldEnum)[keyof typeof AuthSessionScalarFieldEnum]
 
 
 export const Audit_logsScalarFieldEnum = {
@@ -434,7 +484,9 @@ export const Competitor_pricesScalarFieldEnum = {
   scraped_price: 'scraped_price',
   currency: 'currency',
   is_available: 'is_available',
-  observed_at: 'observed_at'
+  observed_at: 'observed_at',
+  source_status: 'source_status',
+  is_exact_data: 'is_exact_data'
 } as const
 
 export type Competitor_pricesScalarFieldEnum = (typeof Competitor_pricesScalarFieldEnum)[keyof typeof Competitor_pricesScalarFieldEnum]
@@ -448,7 +500,8 @@ export const Competitor_product_mappingsScalarFieldEnum = {
   competitor_product_url: 'competitor_product_url',
   competitor_product_sku: 'competitor_product_sku',
   is_active: 'is_active',
-  created_at: 'created_at'
+  created_at: 'created_at',
+  source_id: 'source_id'
 } as const
 
 export type Competitor_product_mappingsScalarFieldEnum = (typeof Competitor_product_mappingsScalarFieldEnum)[keyof typeof Competitor_product_mappingsScalarFieldEnum]
@@ -459,7 +512,8 @@ export const Currency_ratesScalarFieldEnum = {
   from_currency: 'from_currency',
   to_currency: 'to_currency',
   exchange_rate: 'exchange_rate',
-  last_fetched: 'last_fetched'
+  last_fetched: 'last_fetched',
+  source: 'source'
 } as const
 
 export type Currency_ratesScalarFieldEnum = (typeof Currency_ratesScalarFieldEnum)[keyof typeof Currency_ratesScalarFieldEnum]
@@ -473,7 +527,24 @@ export const Data_sourcesScalarFieldEnum = {
   connection_credentials_vault: 'connection_credentials_vault',
   sync_frequency_minutes: 'sync_frequency_minutes',
   is_active: 'is_active',
-  created_at: 'created_at'
+  created_at: 'created_at',
+  source_url: 'source_url',
+  collection_method: 'collection_method',
+  policy_status: 'policy_status',
+  collection_justification: 'collection_justification',
+  technical_restrictions: 'technical_restrictions',
+  rate_limit_per_minute: 'rate_limit_per_minute',
+  policy_checked_at: 'policy_checked_at',
+  last_synced_at: 'last_synced_at',
+  collector_key: 'collector_key',
+  render_javascript: 'render_javascript',
+  collector_config: 'collector_config',
+  approval_reference: 'approval_reference',
+  approved_by: 'approved_by',
+  approved_at: 'approved_at',
+  privacy_reviewed_at: 'privacy_reviewed_at',
+  retention_days: 'retention_days',
+  contains_personal_data: 'contains_personal_data'
 } as const
 
 export type Data_sourcesScalarFieldEnum = (typeof Data_sourcesScalarFieldEnum)[keyof typeof Data_sourcesScalarFieldEnum]
@@ -485,12 +556,13 @@ export const Demand_forecastsScalarFieldEnum = {
   product_id: 'product_id',
   forecast_start_date: 'forecast_start_date',
   forecast_end_date: 'forecast_end_date',
-  predicted_quantity: 'predicted_quantity',
-  confidence_lower_bound: 'confidence_lower_bound',
-  confidence_upper_bound: 'confidence_upper_bound',
+  expected_demand: 'expected_demand',
+  confidence_range_lower: 'confidence_range_lower',
+  confidence_range_upper: 'confidence_range_upper',
   model_version: 'model_version',
   features_used: 'features_used',
-  created_at: 'created_at'
+  created_at: 'created_at',
+  forecast_target_date: 'forecast_target_date'
 } as const
 
 export type Demand_forecastsScalarFieldEnum = (typeof Demand_forecastsScalarFieldEnum)[keyof typeof Demand_forecastsScalarFieldEnum]
@@ -502,7 +574,15 @@ export const Evidence_recordsScalarFieldEnum = {
   forecast_id: 'forecast_id',
   metric_name: 'metric_name',
   metric_value_json: 'metric_value_json',
-  contribution_weight: 'contribution_weight'
+  contribution_weight: 'contribution_weight',
+  category: 'category',
+  source_module: 'source_module',
+  source_record_ids: 'source_record_ids',
+  confidence_score: 'confidence_score',
+  explanation_text: 'explanation_text',
+  model_version: 'model_version',
+  country_context: 'country_context',
+  generated_at: 'generated_at'
 } as const
 
 export type Evidence_recordsScalarFieldEnum = (typeof Evidence_recordsScalarFieldEnum)[keyof typeof Evidence_recordsScalarFieldEnum]
@@ -515,7 +595,10 @@ export const Global_competitorsScalarFieldEnum = {
   industry_sector: 'industry_sector',
   visibility: 'visibility',
   added_by_tenant_id: 'added_by_tenant_id',
-  created_at: 'created_at'
+  created_at: 'created_at',
+  country_code: 'country_code',
+  is_manufacturer: 'is_manufacturer',
+  website_identity_key: 'website_identity_key'
 } as const
 
 export type Global_competitorsScalarFieldEnum = (typeof Global_competitorsScalarFieldEnum)[keyof typeof Global_competitorsScalarFieldEnum]
@@ -546,7 +629,10 @@ export const Ingestion_jobsScalarFieldEnum = {
   error_log: 'error_log',
   started_at: 'started_at',
   ended_at: 'ended_at',
-  created_at: 'created_at'
+  created_at: 'created_at',
+  heartbeat_at: 'heartbeat_at',
+  rows_quarantined: 'rows_quarantined',
+  rows_partial: 'rows_partial'
 } as const
 
 export type Ingestion_jobsScalarFieldEnum = (typeof Ingestion_jobsScalarFieldEnum)[keyof typeof Ingestion_jobsScalarFieldEnum]
@@ -641,7 +727,8 @@ export const Rag_document_chunksScalarFieldEnum = {
   document_id: 'document_id',
   chunk_index: 'chunk_index',
   chunk_text_content: 'chunk_text_content',
-  created_at: 'created_at'
+  created_at: 'created_at',
+  embedding_model_version: 'embedding_model_version'
 } as const
 
 export type Rag_document_chunksScalarFieldEnum = (typeof Rag_document_chunksScalarFieldEnum)[keyof typeof Rag_document_chunksScalarFieldEnum]
@@ -655,7 +742,8 @@ export const Rag_documents_metadataScalarFieldEnum = {
   file_size_bytes: 'file_size_bytes',
   content_type: 'content_type',
   uploaded_by_user_id: 'uploaded_by_user_id',
-  uploaded_at: 'uploaded_at'
+  uploaded_at: 'uploaded_at',
+  processed_status: 'processed_status'
 } as const
 
 export type Rag_documents_metadataScalarFieldEnum = (typeof Rag_documents_metadataScalarFieldEnum)[keyof typeof Rag_documents_metadataScalarFieldEnum]
@@ -670,7 +758,8 @@ export const Recommendation_outcomesScalarFieldEnum = {
   user_decision: 'user_decision',
   actual_outcome_json: 'actual_outcome_json',
   created_at: 'created_at',
-  updated_at: 'updated_at'
+  updated_at: 'updated_at',
+  evidence_id: 'evidence_id'
 } as const
 
 export type Recommendation_outcomesScalarFieldEnum = (typeof Recommendation_outcomesScalarFieldEnum)[keyof typeof Recommendation_outcomesScalarFieldEnum]
@@ -685,7 +774,18 @@ export const ReviewsScalarFieldEnum = {
   review_text: 'review_text',
   review_rating: 'review_rating',
   review_date: 'review_date',
-  created_at: 'created_at'
+  created_at: 'created_at',
+  subject_type: 'subject_type',
+  competitor_id: 'competitor_id',
+  source_status: 'source_status',
+  collection_method: 'collection_method',
+  review_language: 'review_language',
+  source_id: 'source_id',
+  external_review_id: 'external_review_id',
+  safety_status: 'safety_status',
+  safety_flags: 'safety_flags',
+  like_count: 'like_count',
+  reply_count: 'reply_count'
 } as const
 
 export type ReviewsScalarFieldEnum = (typeof ReviewsScalarFieldEnum)[keyof typeof ReviewsScalarFieldEnum]
@@ -699,7 +799,11 @@ export const Sentiment_resultsScalarFieldEnum = {
   sentiment_label: 'sentiment_label',
   extracted_keywords: 'extracted_keywords',
   model_version: 'model_version',
-  processed_at: 'processed_at'
+  processed_at: 'processed_at',
+  positive_probability: 'positive_probability',
+  neutral_probability: 'neutral_probability',
+  negative_probability: 'negative_probability',
+  confidence: 'confidence'
 } as const
 
 export type Sentiment_resultsScalarFieldEnum = (typeof Sentiment_resultsScalarFieldEnum)[keyof typeof Sentiment_resultsScalarFieldEnum]
@@ -724,10 +828,233 @@ export const Tenant_competitorsScalarFieldEnum = {
   global_competitor_id: 'global_competitor_id',
   custom_alias: 'custom_alias',
   is_tracked: 'is_tracked',
-  added_at: 'added_at'
+  added_at: 'added_at',
+  product_match_rate: 'product_match_rate',
+  is_confirmed_competitor: 'is_confirmed_competitor',
+  classified_at: 'classified_at',
+  tier: 'tier'
 } as const
 
 export type Tenant_competitorsScalarFieldEnum = (typeof Tenant_competitorsScalarFieldEnum)[keyof typeof Tenant_competitorsScalarFieldEnum]
+
+
+export const CampaignsScalarFieldEnum = {
+  campaign_id: 'campaign_id',
+  tenant_id: 'tenant_id',
+  product_id: 'product_id',
+  campaign_brief: 'campaign_brief',
+  generated_image_key: 'generated_image_key',
+  status: 'status',
+  requested_at: 'requested_at',
+  completed_at: 'completed_at'
+} as const
+
+export type CampaignsScalarFieldEnum = (typeof CampaignsScalarFieldEnum)[keyof typeof CampaignsScalarFieldEnum]
+
+
+export const Competitor_score_snapshotsScalarFieldEnum = {
+  score_id: 'score_id',
+  tenant_id: 'tenant_id',
+  global_competitor_id: 'global_competitor_id',
+  price_score: 'price_score',
+  sentiment_score: 'sentiment_score',
+  market_activity_score: 'market_activity_score',
+  relevance_score: 'relevance_score',
+  composite_score: 'composite_score',
+  missing_factors: 'missing_factors',
+  evidence: 'evidence',
+  calculated_at: 'calculated_at'
+} as const
+
+export type Competitor_score_snapshotsScalarFieldEnum = (typeof Competitor_score_snapshotsScalarFieldEnum)[keyof typeof Competitor_score_snapshotsScalarFieldEnum]
+
+
+export const Extracted_entityScalarFieldEnum = {
+  entity_id: 'entity_id',
+  tenant_id: 'tenant_id',
+  source_table: 'source_table',
+  source_record_id: 'source_record_id',
+  entity_type: 'entity_type',
+  entity_value: 'entity_value',
+  confidence_score: 'confidence_score',
+  created_at: 'created_at'
+} as const
+
+export type Extracted_entityScalarFieldEnum = (typeof Extracted_entityScalarFieldEnum)[keyof typeof Extracted_entityScalarFieldEnum]
+
+
+export const Market_alert_eventsScalarFieldEnum = {
+  alert_event_id: 'alert_event_id',
+  tenant_id: 'tenant_id',
+  alert_rule_id: 'alert_rule_id',
+  market_event_id: 'market_event_id',
+  observed_value: 'observed_value',
+  message: 'message',
+  created_at: 'created_at',
+  acknowledged_at: 'acknowledged_at'
+} as const
+
+export type Market_alert_eventsScalarFieldEnum = (typeof Market_alert_eventsScalarFieldEnum)[keyof typeof Market_alert_eventsScalarFieldEnum]
+
+
+export const Market_alert_rulesScalarFieldEnum = {
+  alert_rule_id: 'alert_rule_id',
+  tenant_id: 'tenant_id',
+  global_competitor_id: 'global_competitor_id',
+  metric: 'metric',
+  operator: 'operator',
+  threshold: 'threshold',
+  is_active: 'is_active',
+  created_at: 'created_at'
+} as const
+
+export type Market_alert_rulesScalarFieldEnum = (typeof Market_alert_rulesScalarFieldEnum)[keyof typeof Market_alert_rulesScalarFieldEnum]
+
+
+export const Market_eventsScalarFieldEnum = {
+  event_id: 'event_id',
+  tenant_id: 'tenant_id',
+  global_competitor_id: 'global_competitor_id',
+  mapping_id: 'mapping_id',
+  source_id: 'source_id',
+  event_type: 'event_type',
+  old_value: 'old_value',
+  new_value: 'new_value',
+  source_url: 'source_url',
+  occurred_at: 'occurred_at',
+  collected_at: 'collected_at'
+} as const
+
+export type Market_eventsScalarFieldEnum = (typeof Market_eventsScalarFieldEnum)[keyof typeof Market_eventsScalarFieldEnum]
+
+
+export const Market_observation_stagingScalarFieldEnum = {
+  staging_id: 'staging_id',
+  tenant_id: 'tenant_id',
+  source_id: 'source_id',
+  job_id: 'job_id',
+  mapping_id: 'mapping_id',
+  raw_payload: 'raw_payload',
+  content_hash: 'content_hash',
+  validation_status: 'validation_status',
+  validation_errors: 'validation_errors',
+  safety_flags: 'safety_flags',
+  staged_at: 'staged_at',
+  resolved_at: 'resolved_at'
+} as const
+
+export type Market_observation_stagingScalarFieldEnum = (typeof Market_observation_stagingScalarFieldEnum)[keyof typeof Market_observation_stagingScalarFieldEnum]
+
+
+export const Market_observationsScalarFieldEnum = {
+  observation_id: 'observation_id',
+  tenant_id: 'tenant_id',
+  source_id: 'source_id',
+  job_id: 'job_id',
+  mapping_id: 'mapping_id',
+  product_name: 'product_name',
+  category: 'category',
+  description: 'description',
+  canonical_url: 'canonical_url',
+  image_url: 'image_url',
+  external_id: 'external_id',
+  rating: 'rating',
+  review_count: 'review_count',
+  stock_quantity: 'stock_quantity',
+  match_score: 'match_score',
+  match_method: 'match_method',
+  page_text: 'page_text',
+  safety_status: 'safety_status',
+  safety_flags: 'safety_flags',
+  content_hash: 'content_hash',
+  raw_payload: 'raw_payload',
+  observed_at: 'observed_at',
+  like_count: 'like_count',
+  share_count: 'share_count'
+} as const
+
+export type Market_observationsScalarFieldEnum = (typeof Market_observationsScalarFieldEnum)[keyof typeof Market_observationsScalarFieldEnum]
+
+
+export const Model_versionsScalarFieldEnum = {
+  model_version_id: 'model_version_id',
+  model_name: 'model_name',
+  version: 'version',
+  status: 'status',
+  trained_at: 'trained_at',
+  metrics: 'metrics',
+  artifact_path: 'artifact_path',
+  created_at: 'created_at'
+} as const
+
+export type Model_versionsScalarFieldEnum = (typeof Model_versionsScalarFieldEnum)[keyof typeof Model_versionsScalarFieldEnum]
+
+
+export const News_recordScalarFieldEnum = {
+  news_id: 'news_id',
+  tenant_id: 'tenant_id',
+  source_url: 'source_url',
+  headline: 'headline',
+  body_text: 'body_text',
+  published_at: 'published_at',
+  created_at: 'created_at',
+  extraction_status: 'extraction_status'
+} as const
+
+export type News_recordScalarFieldEnum = (typeof News_recordScalarFieldEnum)[keyof typeof News_recordScalarFieldEnum]
+
+
+export const Search_quota_usageScalarFieldEnum = {
+  usage_date: 'usage_date',
+  query_count: 'query_count'
+} as const
+
+export type Search_quota_usageScalarFieldEnum = (typeof Search_quota_usageScalarFieldEnum)[keyof typeof Search_quota_usageScalarFieldEnum]
+
+
+export const Social_mentionScalarFieldEnum = {
+  mention_id: 'mention_id',
+  tenant_id: 'tenant_id',
+  platform: 'platform',
+  author_handle: 'author_handle',
+  mention_text: 'mention_text',
+  posted_at: 'posted_at',
+  created_at: 'created_at',
+  extraction_status: 'extraction_status'
+} as const
+
+export type Social_mentionScalarFieldEnum = (typeof Social_mentionScalarFieldEnum)[keyof typeof Social_mentionScalarFieldEnum]
+
+
+export const TransactionsScalarFieldEnum = {
+  transaction_id: 'transaction_id',
+  tenant_id: 'tenant_id',
+  product_id: 'product_id',
+  quantity_sold: 'quantity_sold',
+  unit_price: 'unit_price',
+  total_price: 'total_price',
+  original_currency: 'original_currency',
+  converted_amount: 'converted_amount',
+  converted_currency: 'converted_currency',
+  exchange_rate: 'exchange_rate',
+  conversion_source: 'conversion_source',
+  conversion_timestamp: 'conversion_timestamp',
+  sale_source: 'sale_source',
+  transaction_date: 'transaction_date',
+  created_at: 'created_at'
+} as const
+
+export type TransactionsScalarFieldEnum = (typeof TransactionsScalarFieldEnum)[keyof typeof TransactionsScalarFieldEnum]
+
+
+export const Web_search_cacheScalarFieldEnum = {
+  cache_key: 'cache_key',
+  results_json: 'results_json',
+  cached_at: 'cached_at',
+  expires_at: 'expires_at'
+} as const
+
+export type Web_search_cacheScalarFieldEnum = (typeof Web_search_cacheScalarFieldEnum)[keyof typeof Web_search_cacheScalarFieldEnum]
 
 
 export const SortOrder = {

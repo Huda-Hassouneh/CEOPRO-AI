@@ -28,15 +28,15 @@ export type AggregateDemand_forecasts = {
 }
 
 export type Demand_forecastsAvgAggregateOutputType = {
-  predicted_quantity: runtime.Decimal | null
-  confidence_lower_bound: runtime.Decimal | null
-  confidence_upper_bound: runtime.Decimal | null
+  expected_demand: number | null
+  confidence_range_lower: runtime.Decimal | null
+  confidence_range_upper: runtime.Decimal | null
 }
 
 export type Demand_forecastsSumAggregateOutputType = {
-  predicted_quantity: runtime.Decimal | null
-  confidence_lower_bound: runtime.Decimal | null
-  confidence_upper_bound: runtime.Decimal | null
+  expected_demand: number | null
+  confidence_range_lower: runtime.Decimal | null
+  confidence_range_upper: runtime.Decimal | null
 }
 
 export type Demand_forecastsMinAggregateOutputType = {
@@ -45,11 +45,12 @@ export type Demand_forecastsMinAggregateOutputType = {
   product_id: string | null
   forecast_start_date: Date | null
   forecast_end_date: Date | null
-  predicted_quantity: runtime.Decimal | null
-  confidence_lower_bound: runtime.Decimal | null
-  confidence_upper_bound: runtime.Decimal | null
+  expected_demand: number | null
+  confidence_range_lower: runtime.Decimal | null
+  confidence_range_upper: runtime.Decimal | null
   model_version: string | null
   created_at: Date | null
+  forecast_target_date: Date | null
 }
 
 export type Demand_forecastsMaxAggregateOutputType = {
@@ -58,11 +59,12 @@ export type Demand_forecastsMaxAggregateOutputType = {
   product_id: string | null
   forecast_start_date: Date | null
   forecast_end_date: Date | null
-  predicted_quantity: runtime.Decimal | null
-  confidence_lower_bound: runtime.Decimal | null
-  confidence_upper_bound: runtime.Decimal | null
+  expected_demand: number | null
+  confidence_range_lower: runtime.Decimal | null
+  confidence_range_upper: runtime.Decimal | null
   model_version: string | null
   created_at: Date | null
+  forecast_target_date: Date | null
 }
 
 export type Demand_forecastsCountAggregateOutputType = {
@@ -71,26 +73,27 @@ export type Demand_forecastsCountAggregateOutputType = {
   product_id: number
   forecast_start_date: number
   forecast_end_date: number
-  predicted_quantity: number
-  confidence_lower_bound: number
-  confidence_upper_bound: number
+  expected_demand: number
+  confidence_range_lower: number
+  confidence_range_upper: number
   model_version: number
   features_used: number
   created_at: number
+  forecast_target_date: number
   _all: number
 }
 
 
 export type Demand_forecastsAvgAggregateInputType = {
-  predicted_quantity?: true
-  confidence_lower_bound?: true
-  confidence_upper_bound?: true
+  expected_demand?: true
+  confidence_range_lower?: true
+  confidence_range_upper?: true
 }
 
 export type Demand_forecastsSumAggregateInputType = {
-  predicted_quantity?: true
-  confidence_lower_bound?: true
-  confidence_upper_bound?: true
+  expected_demand?: true
+  confidence_range_lower?: true
+  confidence_range_upper?: true
 }
 
 export type Demand_forecastsMinAggregateInputType = {
@@ -99,11 +102,12 @@ export type Demand_forecastsMinAggregateInputType = {
   product_id?: true
   forecast_start_date?: true
   forecast_end_date?: true
-  predicted_quantity?: true
-  confidence_lower_bound?: true
-  confidence_upper_bound?: true
+  expected_demand?: true
+  confidence_range_lower?: true
+  confidence_range_upper?: true
   model_version?: true
   created_at?: true
+  forecast_target_date?: true
 }
 
 export type Demand_forecastsMaxAggregateInputType = {
@@ -112,11 +116,12 @@ export type Demand_forecastsMaxAggregateInputType = {
   product_id?: true
   forecast_start_date?: true
   forecast_end_date?: true
-  predicted_quantity?: true
-  confidence_lower_bound?: true
-  confidence_upper_bound?: true
+  expected_demand?: true
+  confidence_range_lower?: true
+  confidence_range_upper?: true
   model_version?: true
   created_at?: true
+  forecast_target_date?: true
 }
 
 export type Demand_forecastsCountAggregateInputType = {
@@ -125,12 +130,13 @@ export type Demand_forecastsCountAggregateInputType = {
   product_id?: true
   forecast_start_date?: true
   forecast_end_date?: true
-  predicted_quantity?: true
-  confidence_lower_bound?: true
-  confidence_upper_bound?: true
+  expected_demand?: true
+  confidence_range_lower?: true
+  confidence_range_upper?: true
   model_version?: true
   features_used?: true
   created_at?: true
+  forecast_target_date?: true
   _all?: true
 }
 
@@ -224,14 +230,15 @@ export type Demand_forecastsGroupByOutputType = {
   forecast_id: string
   tenant_id: string
   product_id: string
-  forecast_start_date: Date
-  forecast_end_date: Date
-  predicted_quantity: runtime.Decimal
-  confidence_lower_bound: runtime.Decimal | null
-  confidence_upper_bound: runtime.Decimal | null
+  forecast_start_date: Date | null
+  forecast_end_date: Date | null
+  expected_demand: number
+  confidence_range_lower: runtime.Decimal | null
+  confidence_range_upper: runtime.Decimal | null
   model_version: string
   features_used: runtime.JsonValue | null
   created_at: Date | null
+  forecast_target_date: Date | null
   _count: Demand_forecastsCountAggregateOutputType | null
   _avg: Demand_forecastsAvgAggregateOutputType | null
   _sum: Demand_forecastsSumAggregateOutputType | null
@@ -261,14 +268,15 @@ export type demand_forecastsWhereInput = {
   forecast_id?: Prisma.UuidFilter<"demand_forecasts"> | string
   tenant_id?: Prisma.UuidFilter<"demand_forecasts"> | string
   product_id?: Prisma.UuidFilter<"demand_forecasts"> | string
-  forecast_start_date?: Prisma.DateTimeFilter<"demand_forecasts"> | Date | string
-  forecast_end_date?: Prisma.DateTimeFilter<"demand_forecasts"> | Date | string
-  predicted_quantity?: Prisma.DecimalFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  forecast_end_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  expected_demand?: Prisma.IntFilter<"demand_forecasts"> | number
+  confidence_range_lower?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFilter<"demand_forecasts"> | string
   features_used?: Prisma.JsonNullableFilter<"demand_forecasts">
   created_at?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  forecast_target_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   products?: Prisma.XOR<Prisma.ProductsScalarRelationFilter, Prisma.productsWhereInput>
   evidence_records?: Prisma.Evidence_recordsListRelationFilter
@@ -279,14 +287,15 @@ export type demand_forecastsOrderByWithRelationInput = {
   forecast_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
   product_id?: Prisma.SortOrder
-  forecast_start_date?: Prisma.SortOrder
-  forecast_end_date?: Prisma.SortOrder
-  predicted_quantity?: Prisma.SortOrder
-  confidence_lower_bound?: Prisma.SortOrderInput | Prisma.SortOrder
-  confidence_upper_bound?: Prisma.SortOrderInput | Prisma.SortOrder
+  forecast_start_date?: Prisma.SortOrderInput | Prisma.SortOrder
+  forecast_end_date?: Prisma.SortOrderInput | Prisma.SortOrder
+  expected_demand?: Prisma.SortOrder
+  confidence_range_lower?: Prisma.SortOrderInput | Prisma.SortOrder
+  confidence_range_upper?: Prisma.SortOrderInput | Prisma.SortOrder
   model_version?: Prisma.SortOrder
   features_used?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  forecast_target_date?: Prisma.SortOrderInput | Prisma.SortOrder
   companies?: Prisma.CompanyOrderByWithRelationInput
   products?: Prisma.productsOrderByWithRelationInput
   evidence_records?: Prisma.evidence_recordsOrderByRelationAggregateInput
@@ -301,14 +310,15 @@ export type demand_forecastsWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.demand_forecastsWhereInput | Prisma.demand_forecastsWhereInput[]
   tenant_id?: Prisma.UuidFilter<"demand_forecasts"> | string
   product_id?: Prisma.UuidFilter<"demand_forecasts"> | string
-  forecast_start_date?: Prisma.DateTimeFilter<"demand_forecasts"> | Date | string
-  forecast_end_date?: Prisma.DateTimeFilter<"demand_forecasts"> | Date | string
-  predicted_quantity?: Prisma.DecimalFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  forecast_end_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  expected_demand?: Prisma.IntFilter<"demand_forecasts"> | number
+  confidence_range_lower?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFilter<"demand_forecasts"> | string
   features_used?: Prisma.JsonNullableFilter<"demand_forecasts">
   created_at?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  forecast_target_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
   companies?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   products?: Prisma.XOR<Prisma.ProductsScalarRelationFilter, Prisma.productsWhereInput>
   evidence_records?: Prisma.Evidence_recordsListRelationFilter
@@ -319,14 +329,15 @@ export type demand_forecastsOrderByWithAggregationInput = {
   forecast_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
   product_id?: Prisma.SortOrder
-  forecast_start_date?: Prisma.SortOrder
-  forecast_end_date?: Prisma.SortOrder
-  predicted_quantity?: Prisma.SortOrder
-  confidence_lower_bound?: Prisma.SortOrderInput | Prisma.SortOrder
-  confidence_upper_bound?: Prisma.SortOrderInput | Prisma.SortOrder
+  forecast_start_date?: Prisma.SortOrderInput | Prisma.SortOrder
+  forecast_end_date?: Prisma.SortOrderInput | Prisma.SortOrder
+  expected_demand?: Prisma.SortOrder
+  confidence_range_lower?: Prisma.SortOrderInput | Prisma.SortOrder
+  confidence_range_upper?: Prisma.SortOrderInput | Prisma.SortOrder
   model_version?: Prisma.SortOrder
   features_used?: Prisma.SortOrderInput | Prisma.SortOrder
   created_at?: Prisma.SortOrderInput | Prisma.SortOrder
+  forecast_target_date?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.demand_forecastsCountOrderByAggregateInput
   _avg?: Prisma.demand_forecastsAvgOrderByAggregateInput
   _max?: Prisma.demand_forecastsMaxOrderByAggregateInput
@@ -341,26 +352,28 @@ export type demand_forecastsScalarWhereWithAggregatesInput = {
   forecast_id?: Prisma.UuidWithAggregatesFilter<"demand_forecasts"> | string
   tenant_id?: Prisma.UuidWithAggregatesFilter<"demand_forecasts"> | string
   product_id?: Prisma.UuidWithAggregatesFilter<"demand_forecasts"> | string
-  forecast_start_date?: Prisma.DateTimeWithAggregatesFilter<"demand_forecasts"> | Date | string
-  forecast_end_date?: Prisma.DateTimeWithAggregatesFilter<"demand_forecasts"> | Date | string
-  predicted_quantity?: Prisma.DecimalWithAggregatesFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.DecimalNullableWithAggregatesFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.DecimalNullableWithAggregatesFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.DateTimeNullableWithAggregatesFilter<"demand_forecasts"> | Date | string | null
+  forecast_end_date?: Prisma.DateTimeNullableWithAggregatesFilter<"demand_forecasts"> | Date | string | null
+  expected_demand?: Prisma.IntWithAggregatesFilter<"demand_forecasts"> | number
+  confidence_range_lower?: Prisma.DecimalNullableWithAggregatesFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.DecimalNullableWithAggregatesFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringWithAggregatesFilter<"demand_forecasts"> | string
   features_used?: Prisma.JsonNullableWithAggregatesFilter<"demand_forecasts">
   created_at?: Prisma.DateTimeNullableWithAggregatesFilter<"demand_forecasts"> | Date | string | null
+  forecast_target_date?: Prisma.DateTimeNullableWithAggregatesFilter<"demand_forecasts"> | Date | string | null
 }
 
 export type demand_forecastsCreateInput = {
   forecast_id?: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   companies: Prisma.CompanyCreateNestedOneWithoutDemand_forecastsInput
   products: Prisma.productsCreateNestedOneWithoutDemand_forecastsInput
   evidence_records?: Prisma.evidence_recordsCreateNestedManyWithoutDemand_forecastsInput
@@ -371,28 +384,30 @@ export type demand_forecastsUncheckedCreateInput = {
   forecast_id?: string
   tenant_id: string
   product_id: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   evidence_records?: Prisma.evidence_recordsUncheckedCreateNestedManyWithoutDemand_forecastsInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutDemand_forecastsInput
 }
 
 export type demand_forecastsUpdateInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   companies?: Prisma.CompanyUpdateOneRequiredWithoutDemand_forecastsNestedInput
   products?: Prisma.productsUpdateOneRequiredWithoutDemand_forecastsNestedInput
   evidence_records?: Prisma.evidence_recordsUpdateManyWithoutDemand_forecastsNestedInput
@@ -403,14 +418,15 @@ export type demand_forecastsUncheckedUpdateInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   evidence_records?: Prisma.evidence_recordsUncheckedUpdateManyWithoutDemand_forecastsNestedInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutDemand_forecastsNestedInput
 }
@@ -419,40 +435,43 @@ export type demand_forecastsCreateManyInput = {
   forecast_id?: string
   tenant_id: string
   product_id: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
 }
 
 export type demand_forecastsUpdateManyMutationInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type demand_forecastsUncheckedUpdateManyInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type Demand_forecastsListRelationFilter = {
@@ -476,18 +495,19 @@ export type demand_forecastsCountOrderByAggregateInput = {
   product_id?: Prisma.SortOrder
   forecast_start_date?: Prisma.SortOrder
   forecast_end_date?: Prisma.SortOrder
-  predicted_quantity?: Prisma.SortOrder
-  confidence_lower_bound?: Prisma.SortOrder
-  confidence_upper_bound?: Prisma.SortOrder
+  expected_demand?: Prisma.SortOrder
+  confidence_range_lower?: Prisma.SortOrder
+  confidence_range_upper?: Prisma.SortOrder
   model_version?: Prisma.SortOrder
   features_used?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  forecast_target_date?: Prisma.SortOrder
 }
 
 export type demand_forecastsAvgOrderByAggregateInput = {
-  predicted_quantity?: Prisma.SortOrder
-  confidence_lower_bound?: Prisma.SortOrder
-  confidence_upper_bound?: Prisma.SortOrder
+  expected_demand?: Prisma.SortOrder
+  confidence_range_lower?: Prisma.SortOrder
+  confidence_range_upper?: Prisma.SortOrder
 }
 
 export type demand_forecastsMaxOrderByAggregateInput = {
@@ -496,11 +516,12 @@ export type demand_forecastsMaxOrderByAggregateInput = {
   product_id?: Prisma.SortOrder
   forecast_start_date?: Prisma.SortOrder
   forecast_end_date?: Prisma.SortOrder
-  predicted_quantity?: Prisma.SortOrder
-  confidence_lower_bound?: Prisma.SortOrder
-  confidence_upper_bound?: Prisma.SortOrder
+  expected_demand?: Prisma.SortOrder
+  confidence_range_lower?: Prisma.SortOrder
+  confidence_range_upper?: Prisma.SortOrder
   model_version?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  forecast_target_date?: Prisma.SortOrder
 }
 
 export type demand_forecastsMinOrderByAggregateInput = {
@@ -509,22 +530,18 @@ export type demand_forecastsMinOrderByAggregateInput = {
   product_id?: Prisma.SortOrder
   forecast_start_date?: Prisma.SortOrder
   forecast_end_date?: Prisma.SortOrder
-  predicted_quantity?: Prisma.SortOrder
-  confidence_lower_bound?: Prisma.SortOrder
-  confidence_upper_bound?: Prisma.SortOrder
+  expected_demand?: Prisma.SortOrder
+  confidence_range_lower?: Prisma.SortOrder
+  confidence_range_upper?: Prisma.SortOrder
   model_version?: Prisma.SortOrder
   created_at?: Prisma.SortOrder
+  forecast_target_date?: Prisma.SortOrder
 }
 
 export type demand_forecastsSumOrderByAggregateInput = {
-  predicted_quantity?: Prisma.SortOrder
-  confidence_lower_bound?: Prisma.SortOrder
-  confidence_upper_bound?: Prisma.SortOrder
-}
-
-export type Demand_forecastsScalarRelationFilter = {
-  is?: Prisma.demand_forecastsWhereInput
-  isNot?: Prisma.demand_forecastsWhereInput
+  expected_demand?: Prisma.SortOrder
+  confidence_range_lower?: Prisma.SortOrder
+  confidence_range_upper?: Prisma.SortOrder
 }
 
 export type Demand_forecastsNullableScalarRelationFilter = {
@@ -580,10 +597,12 @@ export type demand_forecastsCreateNestedOneWithoutEvidence_recordsInput = {
   connect?: Prisma.demand_forecastsWhereUniqueInput
 }
 
-export type demand_forecastsUpdateOneRequiredWithoutEvidence_recordsNestedInput = {
+export type demand_forecastsUpdateOneWithoutEvidence_recordsNestedInput = {
   create?: Prisma.XOR<Prisma.demand_forecastsCreateWithoutEvidence_recordsInput, Prisma.demand_forecastsUncheckedCreateWithoutEvidence_recordsInput>
   connectOrCreate?: Prisma.demand_forecastsCreateOrConnectWithoutEvidence_recordsInput
   upsert?: Prisma.demand_forecastsUpsertWithoutEvidence_recordsInput
+  disconnect?: Prisma.demand_forecastsWhereInput | boolean
+  delete?: Prisma.demand_forecastsWhereInput | boolean
   connect?: Prisma.demand_forecastsWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.demand_forecastsUpdateToOneWithWhereWithoutEvidence_recordsInput, Prisma.demand_forecastsUpdateWithoutEvidence_recordsInput>, Prisma.demand_forecastsUncheckedUpdateWithoutEvidence_recordsInput>
 }
@@ -648,14 +667,15 @@ export type demand_forecastsUpdateOneWithoutRecommendation_outcomesNestedInput =
 
 export type demand_forecastsCreateWithoutCompaniesInput = {
   forecast_id?: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   products: Prisma.productsCreateNestedOneWithoutDemand_forecastsInput
   evidence_records?: Prisma.evidence_recordsCreateNestedManyWithoutDemand_forecastsInput
   recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutDemand_forecastsInput
@@ -664,14 +684,15 @@ export type demand_forecastsCreateWithoutCompaniesInput = {
 export type demand_forecastsUncheckedCreateWithoutCompaniesInput = {
   forecast_id?: string
   product_id: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   evidence_records?: Prisma.evidence_recordsUncheckedCreateNestedManyWithoutDemand_forecastsInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutDemand_forecastsInput
 }
@@ -709,26 +730,28 @@ export type demand_forecastsScalarWhereInput = {
   forecast_id?: Prisma.UuidFilter<"demand_forecasts"> | string
   tenant_id?: Prisma.UuidFilter<"demand_forecasts"> | string
   product_id?: Prisma.UuidFilter<"demand_forecasts"> | string
-  forecast_start_date?: Prisma.DateTimeFilter<"demand_forecasts"> | Date | string
-  forecast_end_date?: Prisma.DateTimeFilter<"demand_forecasts"> | Date | string
-  predicted_quantity?: Prisma.DecimalFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  forecast_end_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  expected_demand?: Prisma.IntFilter<"demand_forecasts"> | number
+  confidence_range_lower?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.DecimalNullableFilter<"demand_forecasts"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFilter<"demand_forecasts"> | string
   features_used?: Prisma.JsonNullableFilter<"demand_forecasts">
   created_at?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
+  forecast_target_date?: Prisma.DateTimeNullableFilter<"demand_forecasts"> | Date | string | null
 }
 
 export type demand_forecastsCreateWithoutEvidence_recordsInput = {
   forecast_id?: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   companies: Prisma.CompanyCreateNestedOneWithoutDemand_forecastsInput
   products: Prisma.productsCreateNestedOneWithoutDemand_forecastsInput
   recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutDemand_forecastsInput
@@ -738,14 +761,15 @@ export type demand_forecastsUncheckedCreateWithoutEvidence_recordsInput = {
   forecast_id?: string
   tenant_id: string
   product_id: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutDemand_forecastsInput
 }
 
@@ -767,14 +791,15 @@ export type demand_forecastsUpdateToOneWithWhereWithoutEvidence_recordsInput = {
 
 export type demand_forecastsUpdateWithoutEvidence_recordsInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   companies?: Prisma.CompanyUpdateOneRequiredWithoutDemand_forecastsNestedInput
   products?: Prisma.productsUpdateOneRequiredWithoutDemand_forecastsNestedInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutDemand_forecastsNestedInput
@@ -784,27 +809,29 @@ export type demand_forecastsUncheckedUpdateWithoutEvidence_recordsInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutDemand_forecastsNestedInput
 }
 
 export type demand_forecastsCreateWithoutProductsInput = {
   forecast_id?: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   companies: Prisma.CompanyCreateNestedOneWithoutDemand_forecastsInput
   evidence_records?: Prisma.evidence_recordsCreateNestedManyWithoutDemand_forecastsInput
   recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutDemand_forecastsInput
@@ -812,14 +839,15 @@ export type demand_forecastsCreateWithoutProductsInput = {
 
 export type demand_forecastsUncheckedCreateWithoutProductsInput = {
   forecast_id?: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   evidence_records?: Prisma.evidence_recordsUncheckedCreateNestedManyWithoutDemand_forecastsInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutDemand_forecastsInput
 }
@@ -852,14 +880,15 @@ export type demand_forecastsUpdateManyWithWhereWithoutProductsInput = {
 
 export type demand_forecastsCreateWithoutRecommendation_outcomesInput = {
   forecast_id?: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   companies: Prisma.CompanyCreateNestedOneWithoutDemand_forecastsInput
   products: Prisma.productsCreateNestedOneWithoutDemand_forecastsInput
   evidence_records?: Prisma.evidence_recordsCreateNestedManyWithoutDemand_forecastsInput
@@ -869,14 +898,15 @@ export type demand_forecastsUncheckedCreateWithoutRecommendation_outcomesInput =
   forecast_id?: string
   tenant_id: string
   product_id: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
   evidence_records?: Prisma.evidence_recordsUncheckedCreateNestedManyWithoutDemand_forecastsInput
 }
 
@@ -898,14 +928,15 @@ export type demand_forecastsUpdateToOneWithWhereWithoutRecommendation_outcomesIn
 
 export type demand_forecastsUpdateWithoutRecommendation_outcomesInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   companies?: Prisma.CompanyUpdateOneRequiredWithoutDemand_forecastsNestedInput
   products?: Prisma.productsUpdateOneRequiredWithoutDemand_forecastsNestedInput
   evidence_records?: Prisma.evidence_recordsUpdateManyWithoutDemand_forecastsNestedInput
@@ -915,40 +946,43 @@ export type demand_forecastsUncheckedUpdateWithoutRecommendation_outcomesInput =
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   evidence_records?: Prisma.evidence_recordsUncheckedUpdateManyWithoutDemand_forecastsNestedInput
 }
 
 export type demand_forecastsCreateManyCompaniesInput = {
   forecast_id?: string
   product_id: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
 }
 
 export type demand_forecastsUpdateWithoutCompaniesInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   products?: Prisma.productsUpdateOneRequiredWithoutDemand_forecastsNestedInput
   evidence_records?: Prisma.evidence_recordsUpdateManyWithoutDemand_forecastsNestedInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutDemand_forecastsNestedInput
@@ -957,14 +991,15 @@ export type demand_forecastsUpdateWithoutCompaniesInput = {
 export type demand_forecastsUncheckedUpdateWithoutCompaniesInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   evidence_records?: Prisma.evidence_recordsUncheckedUpdateManyWithoutDemand_forecastsNestedInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutDemand_forecastsNestedInput
 }
@@ -972,38 +1007,41 @@ export type demand_forecastsUncheckedUpdateWithoutCompaniesInput = {
 export type demand_forecastsUncheckedUpdateManyWithoutCompaniesInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type demand_forecastsCreateManyProductsInput = {
   forecast_id?: string
-  forecast_start_date: Date | string
-  forecast_end_date: Date | string
-  predicted_quantity: runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Date | string | null
+  forecast_end_date?: Date | string | null
+  expected_demand: number
+  confidence_range_lower?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version: string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Date | string | null
+  forecast_target_date?: Date | string | null
 }
 
 export type demand_forecastsUpdateWithoutProductsInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   companies?: Prisma.CompanyUpdateOneRequiredWithoutDemand_forecastsNestedInput
   evidence_records?: Prisma.evidence_recordsUpdateManyWithoutDemand_forecastsNestedInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutDemand_forecastsNestedInput
@@ -1011,28 +1049,30 @@ export type demand_forecastsUpdateWithoutProductsInput = {
 
 export type demand_forecastsUncheckedUpdateWithoutProductsInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   evidence_records?: Prisma.evidence_recordsUncheckedUpdateManyWithoutDemand_forecastsNestedInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutDemand_forecastsNestedInput
 }
 
 export type demand_forecastsUncheckedUpdateManyWithoutProductsInput = {
   forecast_id?: Prisma.StringFieldUpdateOperationsInput | string
-  forecast_start_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  forecast_end_date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  predicted_quantity?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
-  confidence_lower_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  confidence_upper_bound?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  forecast_start_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_end_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expected_demand?: Prisma.IntFieldUpdateOperationsInput | number
+  confidence_range_lower?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  confidence_range_upper?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   model_version?: Prisma.StringFieldUpdateOperationsInput | string
   features_used?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   created_at?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  forecast_target_date?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 
@@ -1081,12 +1121,13 @@ export type demand_forecastsSelect<ExtArgs extends runtime.Types.Extensions.Inte
   product_id?: boolean
   forecast_start_date?: boolean
   forecast_end_date?: boolean
-  predicted_quantity?: boolean
-  confidence_lower_bound?: boolean
-  confidence_upper_bound?: boolean
+  expected_demand?: boolean
+  confidence_range_lower?: boolean
+  confidence_range_upper?: boolean
   model_version?: boolean
   features_used?: boolean
   created_at?: boolean
+  forecast_target_date?: boolean
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
   evidence_records?: boolean | Prisma.demand_forecasts$evidence_recordsArgs<ExtArgs>
@@ -1100,12 +1141,13 @@ export type demand_forecastsSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   product_id?: boolean
   forecast_start_date?: boolean
   forecast_end_date?: boolean
-  predicted_quantity?: boolean
-  confidence_lower_bound?: boolean
-  confidence_upper_bound?: boolean
+  expected_demand?: boolean
+  confidence_range_lower?: boolean
+  confidence_range_upper?: boolean
   model_version?: boolean
   features_used?: boolean
   created_at?: boolean
+  forecast_target_date?: boolean
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["demand_forecasts"]>
@@ -1116,12 +1158,13 @@ export type demand_forecastsSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   product_id?: boolean
   forecast_start_date?: boolean
   forecast_end_date?: boolean
-  predicted_quantity?: boolean
-  confidence_lower_bound?: boolean
-  confidence_upper_bound?: boolean
+  expected_demand?: boolean
+  confidence_range_lower?: boolean
+  confidence_range_upper?: boolean
   model_version?: boolean
   features_used?: boolean
   created_at?: boolean
+  forecast_target_date?: boolean
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["demand_forecasts"]>
@@ -1132,15 +1175,16 @@ export type demand_forecastsSelectScalar = {
   product_id?: boolean
   forecast_start_date?: boolean
   forecast_end_date?: boolean
-  predicted_quantity?: boolean
-  confidence_lower_bound?: boolean
-  confidence_upper_bound?: boolean
+  expected_demand?: boolean
+  confidence_range_lower?: boolean
+  confidence_range_upper?: boolean
   model_version?: boolean
   features_used?: boolean
   created_at?: boolean
+  forecast_target_date?: boolean
 }
 
-export type demand_forecastsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"forecast_id" | "tenant_id" | "product_id" | "forecast_start_date" | "forecast_end_date" | "predicted_quantity" | "confidence_lower_bound" | "confidence_upper_bound" | "model_version" | "features_used" | "created_at", ExtArgs["result"]["demand_forecasts"]>
+export type demand_forecastsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"forecast_id" | "tenant_id" | "product_id" | "forecast_start_date" | "forecast_end_date" | "expected_demand" | "confidence_range_lower" | "confidence_range_upper" | "model_version" | "features_used" | "created_at" | "forecast_target_date", ExtArgs["result"]["demand_forecasts"]>
 export type demand_forecastsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   companies?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   products?: boolean | Prisma.productsDefaultArgs<ExtArgs>
@@ -1169,14 +1213,15 @@ export type $demand_forecastsPayload<ExtArgs extends runtime.Types.Extensions.In
     forecast_id: string
     tenant_id: string
     product_id: string
-    forecast_start_date: Date
-    forecast_end_date: Date
-    predicted_quantity: runtime.Decimal
-    confidence_lower_bound: runtime.Decimal | null
-    confidence_upper_bound: runtime.Decimal | null
+    forecast_start_date: Date | null
+    forecast_end_date: Date | null
+    expected_demand: number
+    confidence_range_lower: runtime.Decimal | null
+    confidence_range_upper: runtime.Decimal | null
     model_version: string
     features_used: runtime.JsonValue | null
     created_at: Date | null
+    forecast_target_date: Date | null
   }, ExtArgs["result"]["demand_forecasts"]>
   composites: {}
 }
@@ -1609,12 +1654,13 @@ export interface demand_forecastsFieldRefs {
   readonly product_id: Prisma.FieldRef<"demand_forecasts", 'String'>
   readonly forecast_start_date: Prisma.FieldRef<"demand_forecasts", 'DateTime'>
   readonly forecast_end_date: Prisma.FieldRef<"demand_forecasts", 'DateTime'>
-  readonly predicted_quantity: Prisma.FieldRef<"demand_forecasts", 'Decimal'>
-  readonly confidence_lower_bound: Prisma.FieldRef<"demand_forecasts", 'Decimal'>
-  readonly confidence_upper_bound: Prisma.FieldRef<"demand_forecasts", 'Decimal'>
+  readonly expected_demand: Prisma.FieldRef<"demand_forecasts", 'Int'>
+  readonly confidence_range_lower: Prisma.FieldRef<"demand_forecasts", 'Decimal'>
+  readonly confidence_range_upper: Prisma.FieldRef<"demand_forecasts", 'Decimal'>
   readonly model_version: Prisma.FieldRef<"demand_forecasts", 'String'>
   readonly features_used: Prisma.FieldRef<"demand_forecasts", 'Json'>
   readonly created_at: Prisma.FieldRef<"demand_forecasts", 'DateTime'>
+  readonly forecast_target_date: Prisma.FieldRef<"demand_forecasts", 'DateTime'>
 }
     
 

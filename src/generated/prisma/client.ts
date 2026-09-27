@@ -132,6 +132,16 @@ export type SystemRole = Prisma.SystemRoleModel
  */
 export type TenantUser = Prisma.TenantUserModel
 /**
+ * Model PlatformInvitation
+ * 
+ */
+export type PlatformInvitation = Prisma.PlatformInvitationModel
+/**
+ * Model AuthSession
+ * 
+ */
+export type AuthSession = Prisma.AuthSessionModel
+/**
  * Model audit_logs
  * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
  */
@@ -260,3 +270,79 @@ export type system_alerts = Prisma.system_alertsModel
  * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
  */
 export type tenant_competitors = Prisma.tenant_competitorsModel
+/**
+ * Model campaigns
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type campaigns = Prisma.campaignsModel
+/**
+ * Model competitor_score_snapshots
+ * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type competitor_score_snapshots = Prisma.competitor_score_snapshotsModel
+/**
+ * Model extracted_entity
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type extracted_entity = Prisma.extracted_entityModel
+/**
+ * Model market_alert_events
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type market_alert_events = Prisma.market_alert_eventsModel
+/**
+ * Model market_alert_rules
+ * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type market_alert_rules = Prisma.market_alert_rulesModel
+/**
+ * Model market_events
+ * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type market_events = Prisma.market_eventsModel
+/**
+ * Model market_observation_staging
+ * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type market_observation_staging = Prisma.market_observation_stagingModel
+/**
+ * Model market_observations
+ * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type market_observations = Prisma.market_observationsModel
+/**
+ * Model model_versions
+ * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ */
+export type model_versions = Prisma.model_versionsModel
+/**
+ * Model news_record
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type news_record = Prisma.news_recordModel
+/**
+ * Model search_quota_usage
+ * 
+ */
+export type search_quota_usage = Prisma.search_quota_usageModel
+/**
+ * Model social_mention
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type social_mention = Prisma.social_mentionModel
+/**
+ * Model transactions
+ * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+ */
+export type transactions = Prisma.transactionsModel
+/**
+ * Model web_search_cache
+ * 
+ */
+export type web_search_cache = Prisma.web_search_cacheModel
