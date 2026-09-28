@@ -200,18 +200,22 @@ export function OverviewPage() {
                 }
               >
                 <div className="pa-record-list">
-                  {data.recentCompanies.map((company) => (
-                    <div key={company.id}>
-                      <Identity
-                        name={company.name}
-                        to={`/admin/companies/${company.id}`}
-                      />
-                      <span className="pa-badge">
-                        {planLabel(company.planName, company.planId)}
-                      </span>
-                      {dateLabel(company.createdAt)}
-                    </div>
-                  ))}
+                  {data.recentCompanies.map((company) => {
+                    console.log({ company });
+
+                    return (
+                      <div key={company.id}>
+                        <Identity
+                          name={company.name}
+                          to={`/admin/companies/${company.id}`}
+                        />
+                        <span className="pa-badge">
+                          {planLabel(company.planName, company.planId)}
+                        </span>
+                        {dateLabel(company.createdAt)}
+                      </div>
+                    );
+                  })}
                 </div>
               </Panel>
               <Panel

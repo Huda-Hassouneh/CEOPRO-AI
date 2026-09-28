@@ -34,15 +34,20 @@ export const en = {
   enterPreview: "Enter administration preview",
   previewIntro: "Explore the platform back office with a development role.",
   previewRole: "Preview role",
-  owner: "Owner",
-  admin: "Admin",
+
   superDescription:
-    "Full platform control, including pricing, entitlements and administrative access.",
+    "Full platform control. This role is reserved for the platform owner.",
+
   adminDescription:
-    "Operational company, user and subscription management. Global configuration is read-only.",
-  editorDescription: "Read platform data and edit internal company notes only.",
-  viewerDescription:
-    "Read authorized platform records. No operational changes.",
+    "Day-to-day platform administration without owner-only controls.",
+
+  managerDescription:
+    "Operational access to companies, users and subscription information.",
+
+  accountantDescription:
+    "Billing and subscription management without platform administration.",
+
+  staffDescription: "Basic read-only operational access.",
   forbidden: "You don’t have permission to access this area.",
   forbiddenTitle: "Access restricted",
   back: "Back to overview",
@@ -119,10 +124,10 @@ export const en = {
   role: "Role",
   companyRole: "Company role",
   owner: "Workspace owner",
-  staff: "Staff member",
+  admin: "Administrator",
+  staff: "Staff Member",
   manager: "Manager",
   accountant: "Accountant",
-  admin: "Company administrator",
   joined: "Joined",
   lastActive: "Last active",
   products: "Products",
@@ -235,7 +240,9 @@ export const en = {
   cancelInvitation: "Cancel invitation",
   memberActions: "Manage access",
   accessNote:
-    "Review the permission changes for this member. The last active Super Admin is protected.",
+    "Review the access changes for this member. The platform owner cannot be modified here.",
+
+  protectedOwner: "Protected owner",
   actor: "Actor",
   actorRole: "Actor role",
   action: "Action",
@@ -346,14 +353,17 @@ export const ar = {
   enterPreview: "دخول معاينة الإدارة",
   previewIntro: "استكشف إدارة المنصة باستخدام دور تطويري.",
   previewRole: "دور المعاينة",
-  owner: "المالك",
-  admin: "مدير",
-  superDescription:
-    "تحكم كامل بالمنصة، بما في ذلك الأسعار والميزات والوصول الإداري.",
-  adminDescription:
-    "إدارة الشركات والمستخدمين والاشتراكات. إعدادات المنصة للقراءة فقط.",
-  editorDescription: "قراءة بيانات المنصة وتحرير ملاحظات الشركات الداخلية فقط.",
-  viewerDescription: "قراءة السجلات المصرح بها دون تغييرات تشغيلية.",
+
+  superDescription: "تحكم كامل بالمنصة. هذا الدور مخصص لمالك المنصة.",
+
+  adminDescription: "إدارة العمليات اليومية للمنصة دون صلاحيات المالك الحساسة.",
+
+  managerDescription:
+    "الوصول التشغيلي إلى الشركات والمستخدمين ومعلومات الاشتراكات.",
+
+  accountantDescription: "إدارة الفوترة والاشتراكات دون صلاحيات إدارة المنصة.",
+
+  staffDescription: "وصول تشغيلي أساسي للقراءة فقط.",
   forbidden: "ليس لديك إذن للوصول إلى هذا القسم.",
   forbiddenTitle: "الوصول مقيّد",
   back: "العودة إلى النظرة العامة",
@@ -428,11 +438,11 @@ export const ar = {
   updatedAt: "آخر تحديث",
   role: "الدور",
   companyRole: "دور الشركة",
-  owner: "مالك مساحة العمل",
-  staff: "موظف",
-  manager: "مدير فريق",
+  owner: "المالك",
+  admin: "مسؤول المنصة",
+  manager: "مدير",
   accountant: "محاسب",
-  admin: "مدير الشركة",
+  staff: "موظف",
   joined: "تاريخ الانضمام",
   lastActive: "آخر نشاط",
   products: "المنتجات",
@@ -536,7 +546,10 @@ export const ar = {
   resend: "إعادة إرسال الدعوة",
   cancelInvitation: "إلغاء الدعوة",
   memberActions: "إدارة الوصول",
-  accessNote: "راجع تغييرات صلاحيات هذا العضو. آخر مدير عام نشط محمي.",
+  accessNote:
+    "راجع تغييرات الوصول لهذا العضو. لا يمكن تعديل مالك المنصة من هنا.",
+
+  protectedOwner: "مالك محمي",
   actor: "المنفّذ",
   actorRole: "دور المنفّذ",
   action: "الإجراء",

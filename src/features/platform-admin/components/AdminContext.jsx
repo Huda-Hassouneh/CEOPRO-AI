@@ -25,12 +25,19 @@ import { ShieldCheck } from "lucide-react";
 const Context = createContext(null);
 export function useAdminText() {
   const { t, ...rest } = useI18n();
-  return { ...rest, t: (key, values) => t(`platformAdmin.${key}`, values) };
+
+  return {
+    ...rest,
+    t: (key, values) => t(`platformAdmin.${key}`, values)
+  };
 }
 export const useAdmin = () => useContext(Context);
 export const roleDescriptions = {
   owner: "superDescription",
-  admin: "adminDescription"
+  admin: "adminDescription",
+  manager: "managerDescription",
+  accountant: "accountantDescription",
+  staff: "staffDescription"
 };
 export function AdminProvider({ children }) {
   const { t } = useAdminText(),
@@ -145,8 +152,9 @@ export function AdminProvider({ children }) {
     </Context.Provider>
   );
 }
-export function useAdminQuery(domain, params = {}, id) {
+export function useAdminQuery(domain, params = {}, id, options = {}) {
   const { principal } = useAdmin();
+
   return useQuery({
     queryKey: [
       "platform-admin",
@@ -158,7 +166,8 @@ export function useAdminQuery(domain, params = {}, id) {
     ],
     queryFn: ({ signal }) =>
       id ? api.detail(domain, id, signal) : api.list(domain, params, signal),
-    retry: false
+    retry: false,
+    enabled: options.enabled ?? true
   });
 }
 export function useAdminMutation(permission) {
