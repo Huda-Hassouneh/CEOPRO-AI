@@ -4,8 +4,6 @@ import { getActiveTenantUser } from "../modules/subscription/repo/user-tenant.re
 import type { AppRequest } from "../types/request.js";
 import { sendApiError } from "../utils/http.js";
 
-const PLATFORM_OWNER_ROLE_KEY = "owner";
-
 async function ensureTenantUser(req: AppRequest) {
   if (req.tenantUser) return req.tenantUser;
 
@@ -40,23 +38,26 @@ function getRolePermissions(req: AppRequest): Record<string, unknown> | null {
  * as the authorization decision by itself.
  */
 export function getPlatformRole(req: AppRequest): string | null {
-  return req.tenantUser?.roleKey === PLATFORM_OWNER_ROLE_KEY
-    ? req.tenantUser.roleKey
-    : null;
-}
+  const membership = req.tenantUser;
 
+  if (!membership) return null;
+
+  if (membership.tenant?.businessType !== "platform") {
+    return null;
+  }
+
+  return membership.roleKey;
+}
 export async function requirePlatformRole(
   req: AppRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    console.log("owner");
-
     await ensureTenantUser(req);
     if (!getPlatformRole(req)) {
       sendApiError(res, ERROR_CODES.FORBIDDEN, {
-        publicMessage: "Platform owner access is required."
+        publicMessage: "Platform administration access is required."
       });
       return;
     }
@@ -77,7 +78,7 @@ export function requirePlatformPermission(permission: string) {
       await ensureTenantUser(req);
       if (!getPlatformRole(req)) {
         sendApiError(res, ERROR_CODES.FORBIDDEN, {
-          publicMessage: "Platform owner access is required."
+          publicMessage: "Platform administration access is required."
         });
         return;
       }

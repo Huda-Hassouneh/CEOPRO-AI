@@ -18,6 +18,9 @@ export interface AppRequest extends Request {
     role?: {
       permissions: unknown;
     } | null;
+    tenant?: {
+      businessType: string | null;
+    } | null;
   } | null;
   stripeEvent?: Stripe.Event;
 }

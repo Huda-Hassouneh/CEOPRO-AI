@@ -1,16 +1,24 @@
 import { prisma } from "../../../config/database.js";
 
 export async function getActiveTenantUser(tenantId: string, userId: string) {
-  return await prisma.tenantUser.findFirst({
+  return prisma.tenantUser.findFirst({
     where: {
-      userId: userId,
-      tenantId: tenantId,
+      userId,
+      tenantId,
       removedAt: null,
       platformStatus: "active",
-      tenant: { deletedAt: null, platformStatus: "active" }
+      tenant: {
+        deletedAt: null,
+        platformStatus: "active"
+      }
     },
     include: {
-      role: true
+      role: true,
+      tenant: {
+        select: {
+          businessType: true
+        }
+      }
     }
   });
 }

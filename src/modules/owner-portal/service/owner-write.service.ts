@@ -6,6 +6,10 @@ import {
   companyById,
   userById
 } from "../repo/owner.repo.js";
+import {
+  InvitablePlatformRole,
+  isInvitablePlatformRole
+} from "../platform-roles.js";
 
 export class PortalError extends Error {
   constructor(
@@ -118,7 +122,7 @@ export async function updateCustomerUser(
 export async function createInvite(
   actor: Actor,
   email: string,
-  role: "owner" | "admin"
+  role: InvitablePlatformRole
 ) {
   const normalized = email.trim().toLowerCase();
   const matchingUsers = await ownerDb.user.findMany({
@@ -237,23 +241,10 @@ export async function updateTeam(
       include: { user: { select: { email: true } } }
     });
     if (!member) throw new PortalError("notFound");
-    const losesOwner =
-      member.roleKey === "owner" &&
-      member.platformStatus === "active" &&
-      (action === "remove" ||
-        (action === "role" && input.role !== "owner") ||
-        (action === "status" && input.status !== "active"));
-    if (losesOwner) {
-      const owners = await tx.tenantUser.count({
-        where: {
-          tenantId: actor.tenantId,
-          roleKey: "owner",
-          platformStatus: "active",
-          removedAt: null
-        }
-      });
-      if (owners <= 1) throw new PortalError("lastAdmin");
+    if (member.roleKey === "owner") {
+      throw new PortalError("forbidden");
     }
+
     if (
       member.userId === actor.userId &&
       (action === "remove" ||
@@ -328,6 +319,9 @@ export async function acceptInvite(token: string, userId: string) {
     const invite = await tx.platformInvitation.findUnique({
       where: { tokenHash: tokenHash(token) }
     });
+    if (!isInvitablePlatformRole(invite.roleKey)) {
+      throw new PortalError("forbidden");
+    }
     if (
       !invite ||
       invite.status !== "pending" ||

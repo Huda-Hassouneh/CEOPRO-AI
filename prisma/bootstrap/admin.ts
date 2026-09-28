@@ -3,41 +3,7 @@ import bcrypt from "bcryptjs";
 import { generateAccessToken } from "../../src/utils/token.js";
 import { prisma } from "../../src/config/database.js";
 
-async function insertPermission() {
-  const adminRole = await prisma.systemRole.findUnique({
-    where: {
-      roleKey: "admin"
-    }
-  });
-
-  if (!adminRole) {
-    throw new Error('System role "admin" does not exist in the database.');
-  }
-
-  const currentPermissions =
-    adminRole.permissions &&
-    typeof adminRole.permissions === "object" &&
-    !Array.isArray(adminRole.permissions)
-      ? adminRole.permissions
-      : {};
-
-  await prisma.systemRole.update({
-    where: {
-      roleKey: "admin"
-    },
-    data: {
-      permissions: {
-        ...currentPermissions,
-        manage_billing: true
-      }
-    }
-  });
-
-  console.log('Ensured "manage_billing" permission exists for admin role.');
-}
-
 async function main() {
-  insertPermission();
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
   const adminFullName = process.env.ADMIN_FULL_NAME ?? "Administrator";
