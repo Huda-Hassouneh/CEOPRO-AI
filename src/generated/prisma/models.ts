@@ -11,6 +11,7 @@
 export type * from './models/AppConfig.js'
 export type * from './models/Company.js'
 export type * from './models/Plan.js'
+export type * from './models/PlanPriceVersion.js'
 export type * from './models/PromoCode.js'
 export type * from './models/PromoCodePlan.js'
 export type * from './models/Subscription.js'

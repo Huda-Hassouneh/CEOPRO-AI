@@ -400,6 +400,7 @@ export const ModelName = {
   AppConfig: 'AppConfig',
   Company: 'Company',
   Plan: 'Plan',
+  PlanPriceVersion: 'PlanPriceVersion',
   PromoCode: 'PromoCode',
   PromoCodePlan: 'PromoCodePlan',
   Subscription: 'Subscription',
@@ -468,7 +469,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "appConfig" | "company" | "plan" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache"
+    modelProps: "appConfig" | "company" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -691,6 +692,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.PlanCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.PlanCountAggregateOutputType> | number
+        }
+      }
+    }
+    PlanPriceVersion: {
+      payload: Prisma.$PlanPriceVersionPayload<ExtArgs>
+      fields: Prisma.PlanPriceVersionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PlanPriceVersionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PlanPriceVersionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>
+        }
+        findFirst: {
+          args: Prisma.PlanPriceVersionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PlanPriceVersionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>
+        }
+        findMany: {
+          args: Prisma.PlanPriceVersionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>[]
+        }
+        create: {
+          args: Prisma.PlanPriceVersionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>
+        }
+        createMany: {
+          args: Prisma.PlanPriceVersionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PlanPriceVersionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>[]
+        }
+        delete: {
+          args: Prisma.PlanPriceVersionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>
+        }
+        update: {
+          args: Prisma.PlanPriceVersionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>
+        }
+        deleteMany: {
+          args: Prisma.PlanPriceVersionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PlanPriceVersionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PlanPriceVersionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>[]
+        }
+        upsert: {
+          args: Prisma.PlanPriceVersionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlanPriceVersionPayload>
+        }
+        aggregate: {
+          args: Prisma.PlanPriceVersionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePlanPriceVersion>
+        }
+        groupBy: {
+          args: Prisma.PlanPriceVersionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PlanPriceVersionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PlanPriceVersionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PlanPriceVersionCountAggregateOutputType> | number
         }
       }
     }
@@ -4711,6 +4786,22 @@ export const PlanScalarFieldEnum = {
 export type PlanScalarFieldEnum = (typeof PlanScalarFieldEnum)[keyof typeof PlanScalarFieldEnum]
 
 
+export const PlanPriceVersionScalarFieldEnum = {
+  id: 'id',
+  planId: 'planId',
+  stripePriceId: 'stripePriceId',
+  periodCode: 'periodCode',
+  intervalUnit: 'intervalUnit',
+  intervalCount: 'intervalCount',
+  amount: 'amount',
+  currency: 'currency',
+  retiredAt: 'retiredAt',
+  createdAt: 'createdAt'
+} as const
+
+export type PlanPriceVersionScalarFieldEnum = (typeof PlanPriceVersionScalarFieldEnum)[keyof typeof PlanPriceVersionScalarFieldEnum]
+
+
 export const PromoCodeScalarFieldEnum = {
   id: 'id',
   code: 'code',
@@ -5983,6 +6074,7 @@ export type GlobalOmitConfig = {
   appConfig?: Prisma.AppConfigOmit
   company?: Prisma.CompanyOmit
   plan?: Prisma.PlanOmit
+  planPriceVersion?: Prisma.PlanPriceVersionOmit
   promoCode?: Prisma.PromoCodeOmit
   promoCodePlan?: Prisma.PromoCodePlanOmit
   subscription?: Prisma.SubscriptionOmit

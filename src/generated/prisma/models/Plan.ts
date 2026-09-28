@@ -342,6 +342,7 @@ export type PlanWhereInput = {
   promoCodes?: Prisma.PromoCodePlanListRelationFilter
   activeSubscriptions?: Prisma.SubscriptionListRelationFilter
   scheduledSubscriptions?: Prisma.SubscriptionListRelationFilter
+  priceVersions?: Prisma.PlanPriceVersionListRelationFilter
 }
 
 export type PlanOrderByWithRelationInput = {
@@ -370,6 +371,7 @@ export type PlanOrderByWithRelationInput = {
   promoCodes?: Prisma.PromoCodePlanOrderByRelationAggregateInput
   activeSubscriptions?: Prisma.SubscriptionOrderByRelationAggregateInput
   scheduledSubscriptions?: Prisma.SubscriptionOrderByRelationAggregateInput
+  priceVersions?: Prisma.PlanPriceVersionOrderByRelationAggregateInput
 }
 
 export type PlanWhereUniqueInput = Prisma.AtLeast<{
@@ -401,6 +403,7 @@ export type PlanWhereUniqueInput = Prisma.AtLeast<{
   promoCodes?: Prisma.PromoCodePlanListRelationFilter
   activeSubscriptions?: Prisma.SubscriptionListRelationFilter
   scheduledSubscriptions?: Prisma.SubscriptionListRelationFilter
+  priceVersions?: Prisma.PlanPriceVersionListRelationFilter
 }, "id" | "paymentProviderPlanId">
 
 export type PlanOrderByWithAggregationInput = {
@@ -480,6 +483,7 @@ export type PlanCreateInput = {
   promoCodes?: Prisma.PromoCodePlanCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionCreateNestedManyWithoutPlanInput
 }
 
 export type PlanUncheckedCreateInput = {
@@ -507,6 +511,7 @@ export type PlanUncheckedCreateInput = {
   promoCodes?: Prisma.PromoCodePlanUncheckedCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedCreateNestedManyWithoutPlanInput
 }
 
 export type PlanUpdateInput = {
@@ -534,6 +539,7 @@ export type PlanUpdateInput = {
   promoCodes?: Prisma.PromoCodePlanUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUncheckedUpdateInput = {
@@ -561,6 +567,7 @@ export type PlanUncheckedUpdateInput = {
   promoCodes?: Prisma.PromoCodePlanUncheckedUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanCreateManyInput = {
@@ -800,6 +807,20 @@ export type BoolFieldUpdateOperationsInput = {
   set?: boolean
 }
 
+export type PlanCreateNestedOneWithoutPriceVersionsInput = {
+  create?: Prisma.XOR<Prisma.PlanCreateWithoutPriceVersionsInput, Prisma.PlanUncheckedCreateWithoutPriceVersionsInput>
+  connectOrCreate?: Prisma.PlanCreateOrConnectWithoutPriceVersionsInput
+  connect?: Prisma.PlanWhereUniqueInput
+}
+
+export type PlanUpdateOneRequiredWithoutPriceVersionsNestedInput = {
+  create?: Prisma.XOR<Prisma.PlanCreateWithoutPriceVersionsInput, Prisma.PlanUncheckedCreateWithoutPriceVersionsInput>
+  connectOrCreate?: Prisma.PlanCreateOrConnectWithoutPriceVersionsInput
+  upsert?: Prisma.PlanUpsertWithoutPriceVersionsInput
+  connect?: Prisma.PlanWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PlanUpdateToOneWithWhereWithoutPriceVersionsInput, Prisma.PlanUpdateWithoutPriceVersionsInput>, Prisma.PlanUncheckedUpdateWithoutPriceVersionsInput>
+}
+
 export type PlanCreateNestedOneWithoutPromoCodesInput = {
   create?: Prisma.XOR<Prisma.PlanCreateWithoutPromoCodesInput, Prisma.PlanUncheckedCreateWithoutPromoCodesInput>
   connectOrCreate?: Prisma.PlanCreateOrConnectWithoutPromoCodesInput
@@ -898,6 +919,7 @@ export type PlanCreateWithoutTenantInput = {
   promoCodes?: Prisma.PromoCodePlanCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionCreateNestedManyWithoutPlanInput
 }
 
 export type PlanUncheckedCreateWithoutTenantInput = {
@@ -924,6 +946,7 @@ export type PlanUncheckedCreateWithoutTenantInput = {
   promoCodes?: Prisma.PromoCodePlanUncheckedCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedCreateNestedManyWithoutPlanInput
 }
 
 export type PlanCreateOrConnectWithoutTenantInput = {
@@ -977,6 +1000,130 @@ export type PlanScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Plan"> | Date | string
 }
 
+export type PlanCreateWithoutPriceVersionsInput = {
+  id?: string
+  name: string
+  name_ar: string
+  tierLevel?: number | null
+  planType?: $Enums.PlanType
+  description?: string | null
+  description_ar?: string | null
+  price: runtime.Decimal | runtime.DecimalJsLike | number | string
+  currency?: string
+  billingIntervalValue: number
+  billingIntervalUnit: string
+  trialPeriodValue?: number
+  paymentProviderProductId?: string | null
+  paymentProviderPlanId?: string | null
+  billingOptions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  isActive?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sourceQuote?: Prisma.CustomPlanQuoteCreateNestedOneWithoutCreatedPlanInput
+  planFeatures?: Prisma.PlanFeatureCreateNestedManyWithoutPlanInput
+  tenant?: Prisma.CompanyCreateNestedOneWithoutCustomPlansInput
+  promoCodes?: Prisma.PromoCodePlanCreateNestedManyWithoutPlanInput
+  activeSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutPlanInput
+  scheduledSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutScheduledPlanInput
+}
+
+export type PlanUncheckedCreateWithoutPriceVersionsInput = {
+  id?: string
+  name: string
+  name_ar: string
+  tierLevel?: number | null
+  planType?: $Enums.PlanType
+  tenantId?: string | null
+  description?: string | null
+  description_ar?: string | null
+  price: runtime.Decimal | runtime.DecimalJsLike | number | string
+  currency?: string
+  billingIntervalValue: number
+  billingIntervalUnit: string
+  trialPeriodValue?: number
+  paymentProviderProductId?: string | null
+  paymentProviderPlanId?: string | null
+  billingOptions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  isActive?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sourceQuote?: Prisma.CustomPlanQuoteUncheckedCreateNestedOneWithoutCreatedPlanInput
+  planFeatures?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutPlanInput
+  promoCodes?: Prisma.PromoCodePlanUncheckedCreateNestedManyWithoutPlanInput
+  activeSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutPlanInput
+  scheduledSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutScheduledPlanInput
+}
+
+export type PlanCreateOrConnectWithoutPriceVersionsInput = {
+  where: Prisma.PlanWhereUniqueInput
+  create: Prisma.XOR<Prisma.PlanCreateWithoutPriceVersionsInput, Prisma.PlanUncheckedCreateWithoutPriceVersionsInput>
+}
+
+export type PlanUpsertWithoutPriceVersionsInput = {
+  update: Prisma.XOR<Prisma.PlanUpdateWithoutPriceVersionsInput, Prisma.PlanUncheckedUpdateWithoutPriceVersionsInput>
+  create: Prisma.XOR<Prisma.PlanCreateWithoutPriceVersionsInput, Prisma.PlanUncheckedCreateWithoutPriceVersionsInput>
+  where?: Prisma.PlanWhereInput
+}
+
+export type PlanUpdateToOneWithWhereWithoutPriceVersionsInput = {
+  where?: Prisma.PlanWhereInput
+  data: Prisma.XOR<Prisma.PlanUpdateWithoutPriceVersionsInput, Prisma.PlanUncheckedUpdateWithoutPriceVersionsInput>
+}
+
+export type PlanUpdateWithoutPriceVersionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  name_ar?: Prisma.StringFieldUpdateOperationsInput | string
+  tierLevel?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  planType?: Prisma.EnumPlanTypeFieldUpdateOperationsInput | $Enums.PlanType
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description_ar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  billingIntervalValue?: Prisma.IntFieldUpdateOperationsInput | number
+  billingIntervalUnit?: Prisma.StringFieldUpdateOperationsInput | string
+  trialPeriodValue?: Prisma.IntFieldUpdateOperationsInput | number
+  paymentProviderProductId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentProviderPlanId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingOptions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sourceQuote?: Prisma.CustomPlanQuoteUpdateOneWithoutCreatedPlanNestedInput
+  planFeatures?: Prisma.PlanFeatureUpdateManyWithoutPlanNestedInput
+  tenant?: Prisma.CompanyUpdateOneWithoutCustomPlansNestedInput
+  promoCodes?: Prisma.PromoCodePlanUpdateManyWithoutPlanNestedInput
+  activeSubscriptions?: Prisma.SubscriptionUpdateManyWithoutPlanNestedInput
+  scheduledSubscriptions?: Prisma.SubscriptionUpdateManyWithoutScheduledPlanNestedInput
+}
+
+export type PlanUncheckedUpdateWithoutPriceVersionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  name_ar?: Prisma.StringFieldUpdateOperationsInput | string
+  tierLevel?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  planType?: Prisma.EnumPlanTypeFieldUpdateOperationsInput | $Enums.PlanType
+  tenantId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description_ar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  price?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  billingIntervalValue?: Prisma.IntFieldUpdateOperationsInput | number
+  billingIntervalUnit?: Prisma.StringFieldUpdateOperationsInput | string
+  trialPeriodValue?: Prisma.IntFieldUpdateOperationsInput | number
+  paymentProviderProductId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  paymentProviderPlanId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingOptions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sourceQuote?: Prisma.CustomPlanQuoteUncheckedUpdateOneWithoutCreatedPlanNestedInput
+  planFeatures?: Prisma.PlanFeatureUncheckedUpdateManyWithoutPlanNestedInput
+  promoCodes?: Prisma.PromoCodePlanUncheckedUpdateManyWithoutPlanNestedInput
+  activeSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutPlanNestedInput
+  scheduledSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutScheduledPlanNestedInput
+}
+
 export type PlanCreateWithoutPromoCodesInput = {
   id?: string
   name: string
@@ -1001,6 +1148,7 @@ export type PlanCreateWithoutPromoCodesInput = {
   tenant?: Prisma.CompanyCreateNestedOneWithoutCustomPlansInput
   activeSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionCreateNestedManyWithoutPlanInput
 }
 
 export type PlanUncheckedCreateWithoutPromoCodesInput = {
@@ -1027,6 +1175,7 @@ export type PlanUncheckedCreateWithoutPromoCodesInput = {
   planFeatures?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedCreateNestedManyWithoutPlanInput
 }
 
 export type PlanCreateOrConnectWithoutPromoCodesInput = {
@@ -1069,6 +1218,7 @@ export type PlanUpdateWithoutPromoCodesInput = {
   tenant?: Prisma.CompanyUpdateOneWithoutCustomPlansNestedInput
   activeSubscriptions?: Prisma.SubscriptionUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUncheckedUpdateWithoutPromoCodesInput = {
@@ -1095,6 +1245,7 @@ export type PlanUncheckedUpdateWithoutPromoCodesInput = {
   planFeatures?: Prisma.PlanFeatureUncheckedUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanCreateWithoutActiveSubscriptionsInput = {
@@ -1121,6 +1272,7 @@ export type PlanCreateWithoutActiveSubscriptionsInput = {
   tenant?: Prisma.CompanyCreateNestedOneWithoutCustomPlansInput
   promoCodes?: Prisma.PromoCodePlanCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionCreateNestedManyWithoutPlanInput
 }
 
 export type PlanUncheckedCreateWithoutActiveSubscriptionsInput = {
@@ -1147,6 +1299,7 @@ export type PlanUncheckedCreateWithoutActiveSubscriptionsInput = {
   planFeatures?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutPlanInput
   promoCodes?: Prisma.PromoCodePlanUncheckedCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedCreateNestedManyWithoutPlanInput
 }
 
 export type PlanCreateOrConnectWithoutActiveSubscriptionsInput = {
@@ -1178,6 +1331,7 @@ export type PlanCreateWithoutScheduledSubscriptionsInput = {
   tenant?: Prisma.CompanyCreateNestedOneWithoutCustomPlansInput
   promoCodes?: Prisma.PromoCodePlanCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutPlanInput
+  priceVersions?: Prisma.PlanPriceVersionCreateNestedManyWithoutPlanInput
 }
 
 export type PlanUncheckedCreateWithoutScheduledSubscriptionsInput = {
@@ -1204,6 +1358,7 @@ export type PlanUncheckedCreateWithoutScheduledSubscriptionsInput = {
   planFeatures?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutPlanInput
   promoCodes?: Prisma.PromoCodePlanUncheckedCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutPlanInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedCreateNestedManyWithoutPlanInput
 }
 
 export type PlanCreateOrConnectWithoutScheduledSubscriptionsInput = {
@@ -1246,6 +1401,7 @@ export type PlanUpdateWithoutActiveSubscriptionsInput = {
   tenant?: Prisma.CompanyUpdateOneWithoutCustomPlansNestedInput
   promoCodes?: Prisma.PromoCodePlanUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUncheckedUpdateWithoutActiveSubscriptionsInput = {
@@ -1272,6 +1428,7 @@ export type PlanUncheckedUpdateWithoutActiveSubscriptionsInput = {
   planFeatures?: Prisma.PlanFeatureUncheckedUpdateManyWithoutPlanNestedInput
   promoCodes?: Prisma.PromoCodePlanUncheckedUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUpsertWithoutScheduledSubscriptionsInput = {
@@ -1309,6 +1466,7 @@ export type PlanUpdateWithoutScheduledSubscriptionsInput = {
   tenant?: Prisma.CompanyUpdateOneWithoutCustomPlansNestedInput
   promoCodes?: Prisma.PromoCodePlanUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUpdateManyWithoutPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUncheckedUpdateWithoutScheduledSubscriptionsInput = {
@@ -1335,6 +1493,7 @@ export type PlanUncheckedUpdateWithoutScheduledSubscriptionsInput = {
   planFeatures?: Prisma.PlanFeatureUncheckedUpdateManyWithoutPlanNestedInput
   promoCodes?: Prisma.PromoCodePlanUncheckedUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanCreateWithoutPlanFeaturesInput = {
@@ -1361,6 +1520,7 @@ export type PlanCreateWithoutPlanFeaturesInput = {
   promoCodes?: Prisma.PromoCodePlanCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionCreateNestedManyWithoutPlanInput
 }
 
 export type PlanUncheckedCreateWithoutPlanFeaturesInput = {
@@ -1387,6 +1547,7 @@ export type PlanUncheckedCreateWithoutPlanFeaturesInput = {
   promoCodes?: Prisma.PromoCodePlanUncheckedCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedCreateNestedManyWithoutPlanInput
 }
 
 export type PlanCreateOrConnectWithoutPlanFeaturesInput = {
@@ -1429,6 +1590,7 @@ export type PlanUpdateWithoutPlanFeaturesInput = {
   promoCodes?: Prisma.PromoCodePlanUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUncheckedUpdateWithoutPlanFeaturesInput = {
@@ -1455,6 +1617,7 @@ export type PlanUncheckedUpdateWithoutPlanFeaturesInput = {
   promoCodes?: Prisma.PromoCodePlanUncheckedUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanCreateWithoutSourceQuoteInput = {
@@ -1481,6 +1644,7 @@ export type PlanCreateWithoutSourceQuoteInput = {
   promoCodes?: Prisma.PromoCodePlanCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionCreateNestedManyWithoutPlanInput
 }
 
 export type PlanUncheckedCreateWithoutSourceQuoteInput = {
@@ -1507,6 +1671,7 @@ export type PlanUncheckedCreateWithoutSourceQuoteInput = {
   promoCodes?: Prisma.PromoCodePlanUncheckedCreateNestedManyWithoutPlanInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutPlanInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutScheduledPlanInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedCreateNestedManyWithoutPlanInput
 }
 
 export type PlanCreateOrConnectWithoutSourceQuoteInput = {
@@ -1549,6 +1714,7 @@ export type PlanUpdateWithoutSourceQuoteInput = {
   promoCodes?: Prisma.PromoCodePlanUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUncheckedUpdateWithoutSourceQuoteInput = {
@@ -1575,6 +1741,7 @@ export type PlanUncheckedUpdateWithoutSourceQuoteInput = {
   promoCodes?: Prisma.PromoCodePlanUncheckedUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanCreateManyTenantInput = {
@@ -1622,6 +1789,7 @@ export type PlanUpdateWithoutTenantInput = {
   promoCodes?: Prisma.PromoCodePlanUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUncheckedUpdateWithoutTenantInput = {
@@ -1648,6 +1816,7 @@ export type PlanUncheckedUpdateWithoutTenantInput = {
   promoCodes?: Prisma.PromoCodePlanUncheckedUpdateManyWithoutPlanNestedInput
   activeSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutPlanNestedInput
   scheduledSubscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutScheduledPlanNestedInput
+  priceVersions?: Prisma.PlanPriceVersionUncheckedUpdateManyWithoutPlanNestedInput
 }
 
 export type PlanUncheckedUpdateManyWithoutTenantInput = {
@@ -1681,6 +1850,7 @@ export type PlanCountOutputType = {
   promoCodes: number
   activeSubscriptions: number
   scheduledSubscriptions: number
+  priceVersions: number
 }
 
 export type PlanCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1688,6 +1858,7 @@ export type PlanCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   promoCodes?: boolean | PlanCountOutputTypeCountPromoCodesArgs
   activeSubscriptions?: boolean | PlanCountOutputTypeCountActiveSubscriptionsArgs
   scheduledSubscriptions?: boolean | PlanCountOutputTypeCountScheduledSubscriptionsArgs
+  priceVersions?: boolean | PlanCountOutputTypeCountPriceVersionsArgs
 }
 
 /**
@@ -1728,6 +1899,13 @@ export type PlanCountOutputTypeCountScheduledSubscriptionsArgs<ExtArgs extends r
   where?: Prisma.SubscriptionWhereInput
 }
 
+/**
+ * PlanCountOutputType without action
+ */
+export type PlanCountOutputTypeCountPriceVersionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PlanPriceVersionWhereInput
+}
+
 
 export type PlanSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1755,6 +1933,7 @@ export type PlanSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   promoCodes?: boolean | Prisma.Plan$promoCodesArgs<ExtArgs>
   activeSubscriptions?: boolean | Prisma.Plan$activeSubscriptionsArgs<ExtArgs>
   scheduledSubscriptions?: boolean | Prisma.Plan$scheduledSubscriptionsArgs<ExtArgs>
+  priceVersions?: boolean | Prisma.Plan$priceVersionsArgs<ExtArgs>
   _count?: boolean | Prisma.PlanCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["plan"]>
 
@@ -1834,6 +2013,7 @@ export type PlanInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   promoCodes?: boolean | Prisma.Plan$promoCodesArgs<ExtArgs>
   activeSubscriptions?: boolean | Prisma.Plan$activeSubscriptionsArgs<ExtArgs>
   scheduledSubscriptions?: boolean | Prisma.Plan$scheduledSubscriptionsArgs<ExtArgs>
+  priceVersions?: boolean | Prisma.Plan$priceVersionsArgs<ExtArgs>
   _count?: boolean | Prisma.PlanCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PlanIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1852,6 +2032,7 @@ export type $PlanPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     promoCodes: Prisma.$PromoCodePlanPayload<ExtArgs>[]
     activeSubscriptions: Prisma.$SubscriptionPayload<ExtArgs>[]
     scheduledSubscriptions: Prisma.$SubscriptionPayload<ExtArgs>[]
+    priceVersions: Prisma.$PlanPriceVersionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2273,6 +2454,7 @@ export interface Prisma__PlanClient<T, Null = never, ExtArgs extends runtime.Typ
   promoCodes<T extends Prisma.Plan$promoCodesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Plan$promoCodesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PromoCodePlanPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   activeSubscriptions<T extends Prisma.Plan$activeSubscriptionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Plan$activeSubscriptionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubscriptionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   scheduledSubscriptions<T extends Prisma.Plan$scheduledSubscriptionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Plan$scheduledSubscriptionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubscriptionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  priceVersions<T extends Prisma.Plan$priceVersionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Plan$priceVersionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlanPriceVersionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2853,6 +3035,30 @@ export type Plan$scheduledSubscriptionsArgs<ExtArgs extends runtime.Types.Extens
   take?: number
   skip?: number
   distinct?: Prisma.SubscriptionScalarFieldEnum | Prisma.SubscriptionScalarFieldEnum[]
+}
+
+/**
+ * Plan.priceVersions
+ */
+export type Plan$priceVersionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PlanPriceVersion
+   */
+  select?: Prisma.PlanPriceVersionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PlanPriceVersion
+   */
+  omit?: Prisma.PlanPriceVersionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PlanPriceVersionInclude<ExtArgs> | null
+  where?: Prisma.PlanPriceVersionWhereInput
+  orderBy?: Prisma.PlanPriceVersionOrderByWithRelationInput | Prisma.PlanPriceVersionOrderByWithRelationInput[]
+  cursor?: Prisma.PlanPriceVersionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PlanPriceVersionScalarFieldEnum | Prisma.PlanPriceVersionScalarFieldEnum[]
 }
 
 /**

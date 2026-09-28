@@ -2,8 +2,18 @@ import { prisma } from "../../../config/database.js";
 import { Prisma } from "../../../generated/prisma/client.js";
 import { PlanCreateInput } from "../../../generated/prisma/models.js";
 
-export async function createPlan(data: PlanCreateInput) {
-  return prisma.plan.create({
+type PriceVersionInput = {
+  stripePriceId: string;
+  period: string;
+  intervalUnit: string;
+  intervalCount: number;
+  amount: number;
+  currency: string;
+};
+
+export async function createPlan(data: PlanCreateInput, versions: PriceVersionInput[] = []) {
+  return prisma.$transaction(async (tx) => {
+  const plan = await tx.plan.create({
     data: {
       name_ar: data.name_ar,
       tierLevel: data.tierLevel,
@@ -27,6 +37,16 @@ export async function createPlan(data: PlanCreateInput) {
         { period: "six-months", months: 6, discountPercent: 20 }
       ]
     }
+  });
+  for (const version of versions) {
+    await tx.planPriceVersion.create({ data: {
+      planId: plan.id, stripePriceId: version.stripePriceId,
+      periodCode: version.period, intervalUnit: version.intervalUnit,
+      intervalCount: version.intervalCount, amount: version.amount,
+      currency: version.currency
+    } });
+  }
+  return plan;
   });
 }
 
@@ -74,10 +94,36 @@ async function getPlanByPriceId(id: string) {
   );
 }
 
-async function updatePlan(id: string, data: Prisma.PlanUpdateInput) {
-  return prisma.plan.update({
-    where: { id },
-    data
+async function getPriceVersionByStripeId(id: string) {
+  return prisma.planPriceVersion.findUnique({
+    where: { stripePriceId: id }, include: { plan: true }
+  });
+}
+
+async function updatePlan(id: string, data: Prisma.PlanUpdateInput, versions?: PriceVersionInput[]) {
+  return prisma.$transaction(async (tx) => {
+    // Save the old catalog mapping before replacing JSON on the Plan row.
+    if (versions) {
+      for (const version of versions) {
+        await tx.planPriceVersion.upsert({
+          where: { stripePriceId: version.stripePriceId },
+          create: {
+            planId: id, stripePriceId: version.stripePriceId,
+            periodCode: version.period, intervalUnit: version.intervalUnit,
+            intervalCount: version.intervalCount, amount: version.amount,
+            currency: version.currency
+          },
+          update: {}
+        });
+      }
+      const currentIds = ((data.billingOptions as unknown as PriceVersionInput[]) || [])
+        .map((option) => option.stripePriceId);
+      await tx.planPriceVersion.updateMany({
+        where: { planId: id, stripePriceId: { notIn: currentIds }, retiredAt: null },
+        data: { retiredAt: new Date() }
+      });
+    }
+    return tx.plan.update({ where: { id }, data });
   });
 }
 
@@ -125,6 +171,7 @@ export default {
   getAllPlans,
   updatePlan,
   getPlanByPriceId,
+  getPriceVersionByStripeId,
   getPlanById,
   getPlainByName,
   createPlan,

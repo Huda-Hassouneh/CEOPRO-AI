@@ -7,7 +7,7 @@ const priceSchema = z
   .nonnegative()
   .max(99999999.99, "Price cannot be greater than 99999999.99")
   .refine(
-    (value) => Number.isInteger(value * 100),
+    (value) => value === Math.round(value * 100) / 100,
     "Price must have at most 2 decimal places"
   );
 

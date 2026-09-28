@@ -185,6 +185,12 @@ async function resolvePlanAndBillingPeriod(priceId: string): Promise<{
   plan: Plan;
   billingPeriod: string;
 }> {
+  const version = await plansRepo.getPriceVersionByStripeId(priceId);
+  if (version) {
+    return { plan: version.plan, billingPeriod: version.periodCode };
+  }
+  // Legacy/custom plans still resolve via their current JSON until they have
+  // a version row. The migration backfills standard and historical IDs.
   const plan = (await plansRepo.getPlanByPriceId(priceId)) as Plan | null;
 
   if (!plan) {
@@ -395,7 +401,12 @@ export async function syncSubscriptionFromStripe(
 
   const priceId = item.price.id;
 
-  const { plan, billingPeriod } = await resolvePlanAndBillingPeriod(priceId);
+  const { plan, billingPeriod: resolvedPeriod } = await resolvePlanAndBillingPeriod(priceId);
+  // Older installations could have reused a Price ID after renaming the
+  // option code. The subscription's existing code is its authoritative term
+  // until its Stripe Price ID actually changes.
+  const billingPeriod = currentSubscription.paymentProviderPriceId === priceId &&
+    currentSubscription.billingPeriod ? currentSubscription.billingPeriod : resolvedPeriod;
 
   await subscriptionRepo.updateSubscription(currentSubscription.id, {
     planId: plan.id,

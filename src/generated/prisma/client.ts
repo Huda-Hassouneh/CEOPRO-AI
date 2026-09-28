@@ -57,6 +57,11 @@ export type Company = Prisma.CompanyModel
  */
 export type Plan = Prisma.PlanModel
 /**
+ * Model PlanPriceVersion
+ * 
+ */
+export type PlanPriceVersion = Prisma.PlanPriceVersionModel
+/**
  * Model PromoCode
  * 
  */

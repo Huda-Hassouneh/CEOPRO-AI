@@ -9,7 +9,8 @@ import {
 } from "../../../generated/prisma/client.js";
 import { configKeys } from "../../../config/keys.config.js";
 import { stripeService } from "../External Services/Payment providers/stripe/stripeService.js";
-import { BillingOptionType } from "../../../types/plans.js";
+import { PlanBillingOptionType } from "../../../types/plans.js";
+import { optionPrice, resolveBillingOption, validatePlanOptions } from "./plan-pricing.js";
 import { PlanCreateInput } from "../../../generated/prisma/models.js";
 
 import type { ServiceResult } from "../../../types/service.js";
@@ -20,15 +21,14 @@ import {
   type PlanTransitionType
 } from "./plan-transition.service.js";
 
-// Helper: Centralize the discount math used across multiple services
-function calculateDiscountedPrice(
-  basePrice: number,
-  months: number,
-  discountPercent: number
-): number {
-  const rawTotal = basePrice * months;
-  const discountAmount = rawTotal * ((discountPercent || 0) / 100);
-  return rawTotal - discountAmount;
+async function archiveUnpublishedPrices(priceIds: string[]) {
+  for (const id of priceIds) {
+    try {
+      await stripeService.stripe.prices.update(id, { active: false });
+    } catch (error) {
+      console.error(`Failed to archive unpublished Stripe Price ${id}:`, error);
+    }
+  }
 }
 
 export async function getPlansService(): Promise<ServiceResult<Plan[]>> {
@@ -67,19 +67,20 @@ function normalizePlanForCatalog(plan: any) {
 
   const rawOptions = (plan.billingOptions as Array<any>) || defaultOptions;
   const pricingOptions = rawOptions.map((opt) => {
-    const finalPrice = calculateDiscountedPrice(
-      basePrice,
-      opt.months,
-      opt.discountPercent
-    );
+    const resolved = resolveBillingOption(opt);
+    const finalPrice = optionPrice(basePrice, plan.billingIntervalValue,
+      plan.billingIntervalUnit === "week" ? "month" : plan.billingIntervalUnit, resolved, plan.currency);
+    const months = resolved.months;
     return {
       period: opt.period,
-      months: opt.months,
+      months,
+      intervalUnit: resolved.intervalUnit,
+      intervalCount: resolved.intervalCount,
       discountPercent: opt.discountPercent,
-      totalPrice: Number(finalPrice.toFixed(2)),
-      monthlyEquivalent: Number((finalPrice / opt.months).toFixed(2)),
+      totalPrice: finalPrice,
+      monthlyEquivalent: months ? Number((finalPrice / months).toFixed(2)) : null,
       stripePriceId: opt?.stripePriceId
-    } as BillingOptionType;
+    };
   });
 
   return {
@@ -92,6 +93,8 @@ function normalizePlanForCatalog(plan: any) {
     description: plan.description,
     description_ar: plan.description_ar,
     basePrice,
+    billingIntervalValue: plan.billingIntervalValue,
+    billingIntervalUnit: plan.billingIntervalUnit,
     currency: plan.currency,
     trialPeriodValue: plan.trialPeriodValue,
     isActive: plan.isActive,
@@ -134,6 +137,10 @@ export async function changePlanService(
     const plan = await plansRepo.getPlanById(planId);
     if (!plan) {
       return { success: false, code: ERROR_CODES.PLAN_NOT_FOUND };
+    }
+
+    if (!plan.isActive && plan.planType === "standard") {
+      return { success: false, code: ERROR_CODES.PLAN_NOT_AVAILABLE };
     }
 
     if (plan.planType === "custom" && plan.tenantId !== tenantId) {
@@ -227,7 +234,10 @@ export async function changePlanService(
           ? true
           : Number(plan.price) < Number(currentPlan.price)
             ? false
-            : selectedPricingOption.months >= currentPricingOption.months;
+            : (resolveBillingOption(selectedPricingOption).months ??
+                resolveBillingOption(selectedPricingOption).intervalCount) >=
+              (resolveBillingOption(currentPricingOption).months ??
+                resolveBillingOption(currentPricingOption).intervalCount);
 
     let effectiveTiming: PlanTransitionTiming;
     let transitionType: PlanTransitionType;
@@ -325,6 +335,7 @@ export async function changePlanService(
 export async function createPlansService(
   data: Plan
 ): Promise<ServiceResult<Plan>> {
+  const createdPriceIds: string[] = [];
   try {
     const isPlanExists = await plansRepo.getPlainByName(data.name, false);
     const isPlanExistsAr = await plansRepo.getPlainByName(data.name_ar, true);
@@ -336,7 +347,7 @@ export async function createPlansService(
       configKeys.stripeAppConfigKey
     )) as AppConfig;
     const billingOptions = (data.billingOptions ||
-      []) as unknown as BillingOptionType[];
+      []) as unknown as PlanBillingOptionType[];
     if (billingOptions.length === 0) {
       return {
         success: false,
@@ -346,16 +357,14 @@ export async function createPlansService(
     }
 
     const basePrice = Number(data.price);
-    const updatedBillingOptions: BillingOptionType[] = [];
+    const resolvedOptions = validatePlanOptions(billingOptions, basePrice,
+      data.billingIntervalValue, data.billingIntervalUnit, data.currency);
+    const updatedBillingOptions: PlanBillingOptionType[] = [];
+    const versions = [];
 
-    for (const option of billingOptions) {
-      const finalPrice = Number(
-        calculateDiscountedPrice(
-          basePrice,
-          option.months,
-          option.discountPercent
-        ).toFixed(2)
-      );
+    for (const option of resolvedOptions) {
+      const finalPrice = optionPrice(basePrice, data.billingIntervalValue,
+        data.billingIntervalUnit, option, data.currency);
 
       const stripeCreatedPrice = await stripeService.createPlan(
         stripeProductKey?.value,
@@ -364,15 +373,19 @@ export async function createPlansService(
           description: data.description || "",
           currency: data.currency,
           unitAmount: finalPrice,
-          interval: "month",
-          intervalCount: option.months
+          interval: option.intervalUnit,
+          intervalCount: option.intervalCount
         }
       );
+      createdPriceIds.push(stripeCreatedPrice.id);
 
       updatedBillingOptions.push({
         ...option,
         stripePriceId: stripeCreatedPrice.id
       });
+      versions.push({ stripePriceId: stripeCreatedPrice.id, period: option.period,
+        intervalUnit: option.intervalUnit, intervalCount: option.intervalCount,
+        amount: finalPrice, currency: data.currency });
     }
 
     const insertedPlan = await plansRepo.createPlan({
@@ -380,14 +393,17 @@ export async function createPlansService(
       billingOptions: updatedBillingOptions as any,
       paymentProviderProductId: stripeProductKey.value,
       paymentProviderPlanId: updatedBillingOptions[0].stripePriceId
-    });
+    }, versions);
 
     return { success: true, data: insertedPlan };
   } catch (err) {
     console.error(err);
+    await archiveUnpublishedPrices(createdPriceIds);
     return {
       success: false,
-      code: ERROR_CODES.UNPROCESSABLE_ENTITY
+      code: ERROR_CODES.UNPROCESSABLE_ENTITY,
+      message: err instanceof Error && /Billing option|Invalid plan|Day-based|Stripe interval|Calculated Stripe price/.test(err.message)
+        ? err.message : undefined
     };
   }
 }
@@ -425,49 +441,73 @@ export async function updatePlansService(
     }
   }
 
-  if (data.billingOptions || data.price) {
+  const createdPriceIds: string[] = [];
+  try {
+  let versions: Array<{ stripePriceId: string; period: string; intervalUnit: string;
+    intervalCount: number; amount: number; currency: string }> | undefined;
+  if (data.billingOptions || data.price !== undefined || data.currency ||
+      data.billingIntervalValue !== undefined || data.billingIntervalUnit) {
     const stripeProductKey = (await getAppConfig(
       configKeys.stripeAppConfigKey
     )) as AppConfig;
-    const basePrice = Number(data.price || existingPlan.price);
+    const basePrice = Number(data.price ?? existingPlan.price);
+    const baseIntervalValue = data.billingIntervalValue ?? existingPlan.billingIntervalValue;
+    const baseIntervalUnit = data.billingIntervalUnit ?? existingPlan.billingIntervalUnit;
+    const currency = data.currency ?? existingPlan.currency;
     const incomingOptions = (data.billingOptions ||
-      existingPlan.billingOptions) as unknown as BillingOptionType[];
+      existingPlan.billingOptions) as unknown as PlanBillingOptionType[];
     const existingOptions =
-      (existingPlan.billingOptions as unknown as BillingOptionType[]) || [];
-    const updatedBillingOptions: BillingOptionType[] = [];
+      (existingPlan.billingOptions as unknown as PlanBillingOptionType[]) || [];
+    let resolvedOptions;
+    try {
+      resolvedOptions = validatePlanOptions(incomingOptions, basePrice,
+        baseIntervalValue, baseIntervalUnit, currency);
+    } catch (error) {
+      return { success: false, code: ERROR_CODES.UNPROCESSABLE_ENTITY,
+        message: (error as Error).message };
+    }
+    const updatedBillingOptions: PlanBillingOptionType[] = [];
+    versions = [];
 
-    for (const option of incomingOptions) {
-      const finalPrice = Number(
-        calculateDiscountedPrice(
-          basePrice,
-          option.months,
-          option.discountPercent
-        ).toFixed(2)
-      );
+    for (const oldOption of existingOptions) {
+      if (!oldOption.stripePriceId) continue;
+      const resolved = resolveBillingOption(oldOption);
+      versions.push({ stripePriceId: oldOption.stripePriceId,
+        period: resolved.period, intervalUnit: resolved.intervalUnit,
+        intervalCount: resolved.intervalCount,
+        amount: optionPrice(Number(existingPlan.price), existingPlan.billingIntervalValue,
+          existingPlan.billingIntervalUnit === "week" ? "month" : existingPlan.billingIntervalUnit, resolved, existingPlan.currency),
+        currency: existingPlan.currency });
+    }
+
+    for (const option of resolvedOptions) {
+      const finalPrice = optionPrice(basePrice, baseIntervalValue, baseIntervalUnit, option, currency);
 
       const oldOption = existingOptions.find((o) => o.period === option.period);
-      const oldRawTotal = Number(existingPlan.price) * (oldOption?.months || 1);
-      const oldFinalPrice = Number(
-        (
-          oldRawTotal -
-          oldRawTotal * ((oldOption?.discountPercent || 0) / 100)
-        ).toFixed(2)
-      );
+      const oldResolved = oldOption ? resolveBillingOption(oldOption) : null;
+      const oldFinalPrice = oldResolved ? optionPrice(Number(existingPlan.price),
+        existingPlan.billingIntervalValue,
+        existingPlan.billingIntervalUnit === "week" ? "month" : existingPlan.billingIntervalUnit,
+        oldResolved, existingPlan.currency) : null;
 
-      let stripePriceId = option.stripePriceId || oldOption?.stripePriceId;
+      let stripePriceId = oldOption?.stripePriceId;
 
-      if (!stripePriceId || finalPrice !== oldFinalPrice) {
+      if (!stripePriceId || finalPrice !== oldFinalPrice ||
+          option.intervalUnit !== oldResolved?.intervalUnit ||
+          option.intervalCount !== oldResolved?.intervalCount ||
+          currency !== existingPlan.currency) {
         const stripeCreatedPrice = await stripeService.createPlan(
           existingPlan.paymentProviderProductId || stripeProductKey?.value,
           {
             name: `${data.name || existingPlan.name} - ${option.period}`,
             description: data.description || existingPlan.description || "",
-            currency: data.currency || existingPlan.currency,
+            currency,
             unitAmount: finalPrice,
-            interval: "month",
-            intervalCount: option.months
+            interval: option.intervalUnit,
+            intervalCount: option.intervalCount
           }
         );
+        createdPriceIds.push(stripeCreatedPrice.id);
         stripePriceId = stripeCreatedPrice.id;
       }
 
@@ -475,6 +515,9 @@ export async function updatePlansService(
         ...option,
         stripePriceId
       });
+      versions.push({ stripePriceId, period: option.period,
+        intervalUnit: option.intervalUnit, intervalCount: option.intervalCount,
+        amount: finalPrice, currency });
     }
 
     data.billingOptions = updatedBillingOptions as any;
@@ -484,6 +527,11 @@ export async function updatePlansService(
     }
   }
 
-  const plan = await plansRepo.updatePlan(id, data);
+  const plan = await plansRepo.updatePlan(id, data, versions);
   return { success: true, data: plan };
+  } catch (error) {
+    console.error("Plan update failed:", error);
+    await archiveUnpublishedPrices(createdPriceIds);
+    return { success: false, code: ERROR_CODES.UNPROCESSABLE_ENTITY };
+  }
 }

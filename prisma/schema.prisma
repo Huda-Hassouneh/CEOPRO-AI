@@ -87,10 +87,30 @@ model Plan {
   promoCodes               PromoCodePlan[]
   activeSubscriptions      Subscription[]   @relation("ActivePlan")
   scheduledSubscriptions   Subscription[]   @relation("ScheduledPlan")
+  priceVersions            PlanPriceVersion[]
 
   @@index([tenantId])
   @@index([planType, isActive])
   @@map("plans")
+}
+
+// A Stripe Price remains the source of truth for its subscribers even after the
+// owner edits or removes the option from the public plan catalog.
+model PlanPriceVersion {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId             String   @map("plan_id") @db.Uuid
+  stripePriceId      String   @unique @map("stripe_price_id") @db.VarChar(255)
+  periodCode         String   @map("period_code") @db.VarChar(100)
+  intervalUnit       String?  @map("interval_unit") @db.VarChar(10)
+  intervalCount      Int?     @map("interval_count")
+  amount             Decimal? @db.Decimal(10, 2)
+  currency           String   @db.VarChar(3)
+  retiredAt          DateTime? @map("retired_at") @db.Timestamptz(6)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan               Plan     @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planId, retiredAt])
+  @@map("plan_price_versions")
 }
 
 model PromoCode {

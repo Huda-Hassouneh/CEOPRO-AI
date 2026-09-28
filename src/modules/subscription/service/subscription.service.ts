@@ -176,9 +176,20 @@ export async function getCurrentSubscriptionService(
     };
   }
 
+  const version = subscription.paymentProviderPriceId
+    ? await plansRepo.getPriceVersionByStripeId(subscription.paymentProviderPriceId)
+    : null;
+
   return {
     success: true,
-    data: subscription
+    data: {
+      ...subscription,
+      currentPrice: version && version.planId === subscription.planId
+        ? { amount: version.amount, currency: version.currency,
+            intervalUnit: version.intervalUnit,
+            intervalCount: version.intervalCount, period: version.periodCode }
+        : null
+    }
   };
 }
 

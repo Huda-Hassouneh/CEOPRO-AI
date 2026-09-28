@@ -54,6 +54,7 @@ export const ModelName = {
   AppConfig: 'AppConfig',
   Company: 'Company',
   Plan: 'Plan',
+  PlanPriceVersion: 'PlanPriceVersion',
   PromoCode: 'PromoCode',
   PromoCodePlan: 'PromoCodePlan',
   Subscription: 'Subscription',
@@ -179,6 +180,22 @@ export const PlanScalarFieldEnum = {
 } as const
 
 export type PlanScalarFieldEnum = (typeof PlanScalarFieldEnum)[keyof typeof PlanScalarFieldEnum]
+
+
+export const PlanPriceVersionScalarFieldEnum = {
+  id: 'id',
+  planId: 'planId',
+  stripePriceId: 'stripePriceId',
+  periodCode: 'periodCode',
+  intervalUnit: 'intervalUnit',
+  intervalCount: 'intervalCount',
+  amount: 'amount',
+  currency: 'currency',
+  retiredAt: 'retiredAt',
+  createdAt: 'createdAt'
+} as const
+
+export type PlanPriceVersionScalarFieldEnum = (typeof PlanPriceVersionScalarFieldEnum)[keyof typeof PlanPriceVersionScalarFieldEnum]
 
 
 export const PromoCodeScalarFieldEnum = {
