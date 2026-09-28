@@ -1,6 +1,7 @@
 import { Check, Crown, SlidersHorizontal, Sprout } from 'lucide-react';
 import Button from '../../../shared/components/ui/Button.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { describeBillingOption, getBillingOptionCount, getBillingOptionUnit } from '../utils/billingPeriodPresentation.js';
 
 const planIcons = {
   starter: Sprout,
@@ -27,7 +28,9 @@ export function PlanCard({
     plan.pricingOptions?.find((option) => option.period === billingPeriod) ||
     plan.pricingOptions?.[0];
   const supportsPeriod = plan.isCustomBuilder || plan.pricingOptions?.some((option) => option.period === billingPeriod);
-  const isMultiMonth = selectedPricingOption?.months > 1;
+  const intervalUnit = getBillingOptionUnit(selectedPricingOption || {});
+  const intervalCount = getBillingOptionCount(selectedPricingOption || {});
+  const isMultiMonth = intervalUnit !== 'day' && (selectedPricingOption?.months ?? intervalCount) > 1;
   const finalTotal = selectedPricingOption?.totalPrice ?? plan.basePrice ?? 0;
   const monthlyEquivalent = selectedPricingOption?.monthlyEquivalent ?? plan.basePrice ?? 0;
 
@@ -75,9 +78,13 @@ export function PlanCard({
           <>
             <strong>{formatCurrency(finalTotal)}</strong>
             <span>
-              / {isMultiMonth
-                ? t('billing.periods.monthCount', { months: selectedPricingOption?.months })
-                : t('billing.periods.month')}
+              / {intervalUnit === 'day'
+                ? describeBillingOption(selectedPricingOption, t)
+                : intervalUnit === 'year'
+                  ? describeBillingOption(selectedPricingOption, t)
+                  : isMultiMonth
+                    ? t('billing.periods.monthCount', { months: intervalCount })
+                    : t('billing.periods.month')}
             </span>
             {isMultiMonth && (
               <small>{t('billing.periods.monthlyEquivalent', { price: formatCurrency(monthlyEquivalent) })}</small>

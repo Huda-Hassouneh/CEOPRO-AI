@@ -14,6 +14,7 @@ import EmptyState from "../../../shared/components/ui/EmptyState.jsx";
 import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
 import { CouponInput } from "../components/CouponInput.jsx";
+import { describeBillingOption } from "../utils/billingPeriodPresentation.js";
 
 import "../styles/Billing.css";
 import "../styles/PlansSubscription.css";
@@ -24,7 +25,6 @@ const getPlanName = (plan, locale) => {
 };
 const getPlanPricingOptions = (plan = {}) => plan?.pricingOptions || [];
 const getPricingPeriod = (option) => option?.period;
-const getPricingMonths = (option) => option?.months || 1;
 const getPricingTotal = (option, plan) =>
   option?.totalPrice ?? plan?.basePrice ?? 0;
 const swrOptions = { shouldRetryOnError: false, revalidateOnFocus: false };
@@ -236,11 +236,7 @@ export function BillingCheckoutPage() {
             <div>
               <dt>{t("billing.checkoutInApp.billingPeriod")}</dt>
               <dd>
-                {getPricingMonths(pricingOption) === 1
-                  ? t("billing.periods.monthly")
-                  : t("billing.periods.monthCountLabel", {
-                      months: getPricingMonths(pricingOption)
-                    })}
+                {describeBillingOption(pricingOption || {}, t)}
               </dd>
             </div>
             <div>

@@ -2,20 +2,10 @@ import { AlertCircle, Zap } from "lucide-react";
 import SegmentedControl from "../../../shared/components/ui/SegmentedControl.jsx";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 import { PlanCard } from "./PlanCard.jsx";
+import { describeBillingOption, listBillingPeriods } from "../utils/billingPeriodPresentation.js";
 
 const getSupportedPeriods = (plans) => {
-  const periods = new Map();
-  for (const plan of plans) {
-    for (const option of plan?.pricingOptions ?? []) {
-      if (!option?.period || periods.has(option.period)) continue;
-      periods.set(option.period, {
-        value: option.period,
-        months: option.months ?? 1,
-        discountPercent: option.discountPercent ?? 0
-      });
-    }
-  }
-  return Array.from(periods.values()).sort((a, b) => a.months - b.months);
+  return listBillingPeriods(plans).map((period) => ({ ...period, value: period.period }));
 };
 
 export function PlanSelector({
@@ -49,12 +39,9 @@ export function PlanSelector({
   const periods = getSupportedPeriods(activePlans);
   const periodOptions = periods.map((period) => ({
     value: period.value,
-    label:
-      period.months === 1
-        ? t("billing.periods.monthly")
-        : t("billing.periods.monthCountLabel", { months: period.months }),
+    label: period.mixedIntervals ? period.period : describeBillingOption(period, t),
     badge:
-      period.discountPercent > 0
+      period.discountPercent > 0 && !period.mixedDiscounts
         ? t("billing.periods.savePercent", { percent: period.discountPercent })
         : undefined
   }));

@@ -16,6 +16,7 @@ import Toast from "../../../shared/components/ui/Toast.jsx";
 import { billingApi, getApiError } from "../api/billingApi.js";
 import { PlanCard } from "../components/PlanCard.jsx";
 import { PlanComparisonTable } from "../components/PlanComparisonTable.jsx";
+import { describeBillingOption, listBillingPeriods } from "../utils/billingPeriodPresentation.js";
 
 import "../styles/Billing.css";
 import "../styles/PlansSubscription.css";
@@ -68,22 +69,11 @@ export function ChoosePlanPage() {
     subscriptionError?.status === 404;
   const subscription = coreSubResponse?.data ?? null;
   const currentPlan = subscription
-    ? plans.find((plan) => plan.id === subscription.planId)
+    ? plans.find((plan) => plan.id === subscription.planId) || subscription.plan
     : null;
 
   const dynamicPeriods = useMemo(() => {
-    const map = new Map();
-    plans.forEach((plan) => {
-      getPlanPricingOptions(plan).forEach((option) => {
-        if (!option?.period || map.has(option.period)) return;
-        map.set(option.period, {
-          value: option.period,
-          months: option.months ?? 1,
-          discountPercent: option.discountPercent ?? 0
-        });
-      });
-    });
-    return Array.from(map.values()).sort((a, b) => a.months - b.months);
+    return listBillingPeriods(plans).map((period) => ({ ...period, value: period.period }));
   }, [plans]);
 
   useEffect(() => {
@@ -110,12 +100,9 @@ export function ChoosePlanPage() {
     () =>
       dynamicPeriods.map((period) => ({
         value: period.value,
-        label:
-          period.months === 1
-            ? t("billing.periods.monthly")
-            : t("billing.periods.monthCountLabel", { months: period.months }),
+        label: period.mixedIntervals ? period.period : describeBillingOption(period, t),
         badge:
-          period.discountPercent > 0
+          period.discountPercent > 0 && !period.mixedDiscounts
             ? t("billing.periods.savePercent", {
                 percent: period.discountPercent
               })
@@ -191,6 +178,18 @@ export function ChoosePlanPage() {
         title={t("billing.management.compareTitle")}
         subtitle={t("billing.management.compareSubtitle")}
       />
+      {subscription && currentPlan && !plans.some((plan) => plan.id === subscription.planId) && (
+        <p className="billing-inline-notice">
+          {t("billing.management.inactiveCurrentPlan", {
+            name: locale === "ar" ? currentPlan.name_ar || currentPlan.name : currentPlan.name
+          })}
+        </p>
+      )}
+      {subscription?.paymentProviderPriceId &&
+        !plans.some((plan) => plan.id === subscription.planId &&
+          getPlanPricingOptions(plan).some((option) => option.stripePriceId === subscription.paymentProviderPriceId)) && (
+          <p className="billing-inline-notice">{t("billing.management.historicalPlanPricing")}</p>
+        )}
 
       <div className="tab-content-fade-in">
         <section className="billing-management-section billing-compare-section">
@@ -208,10 +207,13 @@ export function ChoosePlanPage() {
               const current = Boolean(
                 currentPlan &&
                 plan.id === currentPlan.id &&
-                billingPeriod === subscription?.billingPeriod
+                billingPeriod === subscription?.billingPeriod &&
+                (!subscription?.paymentProviderPriceId ||
+                  plan.pricingOptions?.some((option) => option.period === billingPeriod &&
+                    option.stripePriceId === subscription.paymentProviderPriceId))
               );
               const isUpgrade = Boolean(
-                currentPlan && plan.tier_level > currentPlan.tier_level
+                currentPlan && plan.tier_level > (currentPlan.tier_level ?? currentPlan.tierLevel)
               );
               const isSamePlanDifferentPeriod = Boolean(
                 currentPlan && plan.id === currentPlan.id && !current

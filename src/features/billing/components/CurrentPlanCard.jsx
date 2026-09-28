@@ -1,6 +1,7 @@
 import { CalendarDays, CreditCard, Crown, AlertTriangle } from "lucide-react";
 
 import Badge from "../../../shared/components/ui/Badge.jsx";
+import { describeBillingOption } from "../utils/billingPeriodPresentation.js";
 
 /*
  * ============================================================================
@@ -44,7 +45,9 @@ const getPlanDescription = (plan, locale) => {
   return plan.description;
 };
 
-const getPlanPricing = (plan, billingPeriod) => {
+const getPlanPricing = (plan, billingPeriod, currentPrice) => {
+  if (currentPrice) return currentPrice.amount === null
+    ? null : { total: Number(currentPrice.amount), currency: currentPrice.currency };
   const option = plan?.pricingOptions?.find(
     (item) => item.period === billingPeriod
   );
@@ -65,7 +68,11 @@ const getPlanPricing = (plan, billingPeriod) => {
   };
 };
 
-const getPlanBillingPeriod = (plan, billingPeriod) => {
+const getPlanBillingPeriod = (plan, billingPeriod, currentPrice) => {
+  if (currentPrice) return {
+    intervalUnit: currentPrice.intervalUnit,
+    intervalCount: currentPrice.intervalCount
+  };
   const configured = plan?.pricingOptions?.find(
     (option) => option.period === billingPeriod
   );
@@ -187,9 +194,9 @@ export function CurrentPlanCard({
 
   const isActuallyCancelled = status === "cancelled";
 
-  const period = getPlanBillingPeriod(plan, subscription.billingPeriod);
+  const period = getPlanBillingPeriod(plan, subscription.billingPeriod, subscription.currentPrice);
 
-  const pricing = getPlanPricing(plan, subscription.billingPeriod);
+  const pricing = getPlanPricing(plan, subscription.billingPeriod, subscription.currentPrice);
 
   const planName = getPlanName(plan, locale, t);
 
@@ -444,11 +451,9 @@ export function CurrentPlanCard({
           </dt>
 
           <dd>
-            {period.months === 1
-              ? t("billing.periods.monthly")
-              : t("billing.periods.monthCountLabel", {
-                  months: period.months
-                })}
+            {subscription.currentPrice && !subscription.currentPrice.intervalCount
+              ? t("billing.management.historicalPeriodUnavailable")
+              : describeBillingOption(period, t)}
           </dd>
         </div>
 
@@ -458,6 +463,10 @@ export function CurrentPlanCard({
 
             <dd>{formatCurrency(pricing.total, pricing.currency, locale)}</dd>
           </div>
+        )}
+        {subscription.currentPrice?.amount === null && (
+          <div><dt>{t("billing.management.planPrice")}</dt>
+            <dd>{t("billing.management.historicalPriceUnavailable")}</dd></div>
         )}
 
         {subscription.renewsAt && (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Link2, Pencil, Plus, Save, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 import { routePaths } from "../../../app/router/routePaths.js";
@@ -14,7 +14,6 @@ import Modal from "../../../shared/components/ui/Modal.jsx";
 import Select from "../../../shared/components/ui/Select.jsx";
 import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
 import Table from "../../../shared/components/ui/Table.jsx";
-import Tabs from "../../../shared/components/ui/Tabs.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
 import CustomPlanQuoteManager from "../components/CustomPlanQuoteManager.jsx";
 import BillingOptionsEditor from "../components/BillingOptionsEditor.jsx";
@@ -54,6 +53,55 @@ function SectionError({ error }) {
   return <p className="billing-inline-error">{getApiError(error).message}</p>;
 }
 
+function CatalogTabs({ ariaLabel, tabs }) {
+  const location = useLocation();
+  const requestedTab = new URLSearchParams(location.search).get("tab");
+  const activeTab = tabs.find((tab) => tab.id === requestedTab) ?? tabs[0];
+
+  const tabUrl = (id) => {
+    const params = new URLSearchParams(location.search);
+    params.set("tab", id);
+    return `${location.pathname}?${params.toString()}${location.hash}`;
+  };
+
+  return (
+    <div className="billing-catalog-tabs">
+      <nav
+        aria-label={ariaLabel}
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          marginBottom: "1.5rem"
+        }}
+      >
+        {tabs.map((tab) => (
+          <Link
+            key={tab.id}
+            to={tabUrl(tab.id)}
+            aria-current={tab.id === activeTab.id ? "page" : undefined}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "0.65rem 1rem",
+              borderBottom:
+                tab.id === activeTab.id
+                  ? "2px solid currentColor"
+                  : "2px solid transparent",
+              color: "inherit",
+              fontWeight: tab.id === activeTab.id ? 600 : 400,
+              textDecoration: "none"
+            }}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+      {activeTab.content}
+    </div>
+  );
+}
+
 function PlanFormModal({
   isOpen,
   onClose,
@@ -78,16 +126,29 @@ function PlanFormModal({
       description_ar: plan?.description_ar ?? "",
       price: plan?.basePrice ?? 0,
       currency: plan?.currency ?? "JOD",
-      billingIntervalValue: 1,
-      billingIntervalUnit: "month",
+      billingIntervalValue: plan?.billingIntervalValue ?? 1,
+      billingIntervalUnit: plan?.billingIntervalUnit ?? "month",
       trialPeriodValue: plan?.trialPeriodValue ?? 0,
       billingOptions: plan?.pricingOptions?.length
-        ? plan.pricingOptions.map(({ period, months, discountPercent }) => ({
-            period,
-            months,
-            discountPercent
+        ? plan.pricingOptions.map(
+            ({
+              period,
+              months,
+              intervalUnit,
+              intervalCount,
+              discountPercent
+            }) => ({
+              period,
+              intervalUnit: intervalUnit ?? "month",
+              intervalCount: intervalCount ?? months ?? 1,
+              discountPercent
+            })
+          )
+        : DEFAULT_BILLING_OPTIONS.map(({ months, ...option }) => ({
+            ...option,
+            intervalUnit: "month",
+            intervalCount: months
           }))
-        : DEFAULT_BILLING_OPTIONS
     });
   }, [isOpen, plan]);
 
@@ -107,13 +168,24 @@ function PlanFormModal({
       return t("billing.catalog.validation.currency");
     if (!form.billingOptions.length)
       return t("billing.catalog.validation.billingOptions");
+    if (
+      !Number.isInteger(toNumber(form.billingIntervalValue)) ||
+      toNumber(form.billingIntervalValue) < 1
+    )
+      return t("billing.catalog.validation.billingOption");
+    const codes = new Set();
     for (const option of form.billingOptions) {
       if (
         !option.period.trim() ||
-        !Number.isInteger(toNumber(option.months)) ||
-        toNumber(option.months) <= 0
+        codes.has(option.period.trim()) ||
+        !Number.isInteger(toNumber(option.intervalCount)) ||
+        toNumber(option.intervalCount) <= 0 ||
+        toNumber(option.intervalCount) >
+          { day: 1095, month: 36, year: 3 }[option.intervalUnit] ||
+        (form.billingIntervalUnit === "day") !== (option.intervalUnit === "day")
       )
         return t("billing.catalog.validation.billingOption");
+      codes.add(option.period.trim());
       if (
         toNumber(option.discountPercent, -1) < 0 ||
         toNumber(option.discountPercent) > 100
@@ -142,19 +214,18 @@ function PlanFormModal({
       trialPeriodValue: toNumber(form.trialPeriodValue),
       billingOptions: form.billingOptions.map((option) => ({
         period: option.period.trim(),
-        months: toNumber(option.months),
+        months:
+          toNumber(option.intervalCount) *
+          (option.intervalUnit === "year" ? 12 : 1),
+        intervalUnit: option.intervalUnit,
+        intervalCount: toNumber(option.intervalCount),
         discountPercent: toNumber(option.discountPercent)
-      }))
+      })),
+      billingIntervalValue: toNumber(form.billingIntervalValue),
+      billingIntervalUnit: form.billingIntervalUnit
     };
 
-    const payload = editing
-      ? common
-      : {
-          ...common,
-          billingIntervalValue: toNumber(form.billingIntervalValue),
-          billingIntervalUnit: form.billingIntervalUnit,
-          isActive: true
-        };
+    const payload = editing ? common : { ...common, isActive: true };
 
     setSaving(true);
     setError("");
@@ -256,32 +327,51 @@ function PlanFormModal({
             }
             required
           />
-          {!editing && (
-            <>
-              <Input
-                label={t("billing.catalog.fields.intervalValue")}
-                type="number"
-                min="1"
-                step="1"
-                value={form.billingIntervalValue}
-                onChange={(event) =>
-                  setForm({ ...form, billingIntervalValue: event.target.value })
-                }
-                required
-              />
-              <Select
-                label={t("billing.catalog.fields.intervalUnit")}
-                value={form.billingIntervalUnit}
-                onChange={(event) =>
-                  setForm({ ...form, billingIntervalUnit: event.target.value })
-                }
-                options={["day", "week", "month", "year"].map((value) => ({
-                  value,
-                  label: t(`billing.catalog.intervalUnits.${value}`)
-                }))}
-              />
-            </>
-          )}
+          <>
+            <Input
+              label={t("billing.catalog.fields.intervalValue")}
+              type="number"
+              min="1"
+              step="1"
+              value={form.billingIntervalValue}
+              onChange={(event) =>
+                setForm({ ...form, billingIntervalValue: event.target.value })
+              }
+              required
+            />
+            <Select
+              label={t("billing.catalog.fields.intervalUnit")}
+              value={form.billingIntervalUnit}
+              onChange={(event) => {
+                const unit = event.target.value;
+                setForm({
+                  ...form,
+                  billingIntervalUnit: unit,
+                  billingOptions:
+                    unit === "month"
+                      ? DEFAULT_BILLING_OPTIONS.map(
+                          ({ months, ...option }) => ({
+                            ...option,
+                            intervalUnit: "month",
+                            intervalCount: months
+                          })
+                        )
+                      : [
+                          {
+                            period: unit === "day" ? "daily" : "yearly",
+                            intervalUnit: unit,
+                            intervalCount: 1,
+                            discountPercent: 0
+                          }
+                        ]
+                });
+              }}
+              options={["day", "month", "year"].map((value) => ({
+                value,
+                label: t(`billing.catalog.intervalUnits.${value}`)
+              }))}
+            />
+          </>
         </div>
         <div className="billing-catalog-textarea-grid">
           <label className="billing-catalog-textarea-field">
@@ -313,6 +403,7 @@ function PlanFormModal({
 
         <BillingOptionsEditor
           options={form.billingOptions}
+          baseUnit={form.billingIntervalUnit}
           onChange={(billingOptions) => setForm({ ...form, billingOptions })}
           t={t}
         />
@@ -1956,7 +2047,7 @@ export function BillingCatalogPage({
   }
   return (
     <div className="billing-management-page billing-catalog-page" dir={dir}>
-      <Tabs
+      <CatalogTabs
         ariaLabel={t("billing.catalog.title")}
         tabs={[
           {

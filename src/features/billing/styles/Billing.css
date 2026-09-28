@@ -1313,3 +1313,12 @@
     animation: none;
   }
 }
+.billing-inline-notice {
+  margin: 0 0 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid #b9d6e4;
+  border-radius: 0.6rem;
+  background: #f2f9fc;
+  color: #16415c;
+  line-height: 1.5;
+}

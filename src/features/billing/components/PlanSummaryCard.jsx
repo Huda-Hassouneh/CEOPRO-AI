@@ -1,5 +1,6 @@
 import { Check, Crown, Sprout } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { describeBillingOption } from '../utils/billingPeriodPresentation.js';
 
 const planIcons = {
   starter: Sprout,
@@ -15,7 +16,6 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
   const isTrial = Number(plan.trialPeriodValue) > 0 && checkoutMode === 'trial';
   const selectedPricingOption =
     plan.pricingOptions?.find((option) => option.period === billingPeriod) || plan.pricingOptions?.[0];
-  const months = selectedPricingOption?.months || 1;
   const discountPercent = selectedPricingOption?.discountPercent || 0;
   const totalPrice = selectedPricingOption?.totalPrice ?? plan.basePrice ?? 0;
   const subtotal = discountPercent > 0 ? totalPrice / (1 - discountPercent / 100) : totalPrice;
@@ -64,7 +64,7 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
       <div className="ceopro-plan-summary__price">
         <div>
           <span>{t('billing.payment.billingCycle')}</span>
-          <strong>{months === 1 ? t('billing.periods.monthly') : t('billing.periods.monthCountLabel', { months })}</strong>
+          <strong>{describeBillingOption(selectedPricingOption || {}, t)}</strong>
         </div>
         {discountPercent > 0 && (
           <>

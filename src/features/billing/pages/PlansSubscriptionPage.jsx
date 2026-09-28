@@ -137,15 +137,23 @@ export function PlansSubscriptionPage() {
     ? (() => {
         const basePrice = Number(coreSub.plan.price ?? 0);
         const pricingOptions = (coreSub.plan.billingOptions ?? []).map((option) => {
-          const months = Number(option?.months ?? 1);
+          const intervalUnit = option?.intervalUnit ?? "month";
+          const intervalCount = Number(option?.intervalCount ?? option?.months ?? 1);
+          const months = intervalUnit === "day" ? undefined : intervalCount * (intervalUnit === "year" ? 12 : 1);
           const discountPercent = Number(option?.discountPercent ?? 0);
-          const totalPrice = basePrice * months * (1 - discountPercent / 100);
+          const baseIntervalValue = Number(coreSub.plan.billingIntervalValue ?? 1);
+          const baseIntervalUnit = coreSub.plan.billingIntervalUnit ?? "month";
+          const baseUnits = baseIntervalValue * (baseIntervalUnit === "year" ? 12 : 1);
+          const totalPrice = Number((basePrice * (months ?? intervalCount) / baseUnits *
+            (1 - discountPercent / 100)).toFixed(2));
           return {
             ...option,
             months,
+            intervalUnit,
+            intervalCount,
             discountPercent,
             totalPrice,
-            monthlyEquivalent: totalPrice / Math.max(1, months)
+            monthlyEquivalent: months ? totalPrice / months : null
           };
         });
 
