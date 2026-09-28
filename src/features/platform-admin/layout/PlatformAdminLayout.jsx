@@ -233,7 +233,7 @@ function Shell() {
               aria-label={t("language")}
             >
               <Globe2 size={17} />
-              <span>{locale === "en" ? "العربية" : "English"}</span>
+              <span>{t(locale === "en" ? "arabic" : "english")}</span>
             </button>
             <details className="pa-popover">
               {canReadActivity !== false && (

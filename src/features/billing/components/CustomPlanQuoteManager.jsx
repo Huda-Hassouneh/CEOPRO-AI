@@ -217,7 +217,11 @@ function QuoteFormModal({
 
   const validateStep = () => {
     if (step === 1 && platformMode && !editing && !form.tenantId) {
-      return "Select the customer tenant for this quote.";
+      return tr(
+        t,
+        "billing.catalog.customPlans.validation.tenant",
+        "Select the customer tenant for this quote.",
+      );
     }
     if (step === 1 && (!form.name.trim() || !form.name_ar.trim())) {
       return tr(
@@ -417,12 +421,19 @@ function QuoteFormModal({
           <div className="billing-catalog-form-grid">
             {platformMode && (
               <Select
-                label="Customer tenant"
+                label={tr(t, "billing.catalog.customPlans.tenant", "Customer tenant")}
                 value={form.tenantId}
                 disabled={editing}
                 onChange={(event) => setForm({ ...form, tenantId: event.target.value })}
                 options={[
-                  { value: "", label: "Select tenant" },
+                  {
+                    value: "",
+                    label: tr(
+                      t,
+                      "billing.catalog.customPlans.selectTenant",
+                      "Select tenant",
+                    ),
+                  },
                   ...tenants.map((tenant) => ({
                     value: tenant.id,
                     label: tenant.businessName || tenant.id,
@@ -863,7 +874,11 @@ function ApproveQuoteModal({ quote, onClose, onApproved, t, locale, api = billin
           </strong>
           {quote?.recommendedPrice != null && (
             <small>
-              Recommended automated price:{" "}
+              {tr(
+                t,
+                "billing.catalog.customPlans.recommendedAutomatedPrice",
+                "Recommended automated price",
+              )}: {" "}
               {money(quote.recommendedPrice, quote?.currency ?? "JOD", locale)}
             </small>
           )}
@@ -1112,7 +1127,14 @@ function VendorRateModal({ open, onClose, features, onSaved, t, api = billingApi
               "estimated",
               "unconfirmed",
               "deprecated",
-            ].map((value) => ({ value, label: value }))}
+            ].map((value) => ({
+              value,
+              label: tr(
+                t,
+                `billing.catalog.customPlans.vendorRates.status.${value}`,
+                value,
+              ),
+            }))}
           />
           <Input
             label={tr(
@@ -1170,10 +1192,19 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
   if (error && isForbiddenBillingError(error)) {
     return (
       <section className="billing-catalog-section">
-        <h2>Automated Custom Pricing Policy</h2>
+        <h2>
+          {tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.title",
+            "Automated Custom Pricing Policy",
+          )}
+        </h2>
         <p className="billing-catalog-permission-note">
-          Pricing policy requires the strongest owner permission because it
-          controls internal margins and costs.
+          {tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.permission",
+            "Pricing policy requires the strongest owner permission because it controls internal margins and costs.",
+          )}
         </p>
       </section>
     );
@@ -1229,7 +1260,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
       await mutate();
       setMessage({
         variant: "success",
-        text: "Automated custom-plan pricing policy saved.",
+        text: tr(
+          t,
+          "billing.catalog.customPlans.pricingPolicy.saved",
+          "Automated custom-plan pricing policy saved.",
+        ),
       });
     } catch (requestError) {
       setMessage({ variant: "error", text: getApiError(requestError).message });
@@ -1242,19 +1277,32 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
     <section className="billing-catalog-section">
       <div className="billing-catalog-section-heading">
         <div>
-          <h2>Automated Custom Pricing Policy</h2>
+          <h2>
+            {tr(
+              t,
+              "billing.catalog.customPlans.pricingPolicy.title",
+              "Automated Custom Pricing Policy",
+            )}
+          </h2>
           <p>
-            Internal-only inputs used by self-service previews and recalculated
-            again at checkout. Vendor-cost ratio enforcement is optional.
+            {tr(
+              t,
+              "billing.catalog.customPlans.pricingPolicy.subtitle",
+              "Internal-only inputs used by self-service previews and recalculated again at checkout. Vendor-cost ratio enforcement is optional.",
+            )}
           </p>
         </div>
         <Button size="sm" onClick={save} loading={saving} disabled={!canManagePricing}>
-          Save policy
+          {tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.save",
+            "Save policy",
+          )}
         </Button>
       </div>
       <div className="billing-catalog-form-grid">
         <Input
-          label="Currency"
+          label={tr(t, "billing.catalog.fields.currency", "Currency")}
           maxLength={3}
           value={form.currency}
           onChange={(event) =>
@@ -1262,7 +1310,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Target gross margin %"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.targetMargin",
+            "Target gross margin %",
+          )}
           type="number"
           min="0"
           max="99.99"
@@ -1273,7 +1325,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Fixed platform fee"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.fixedPlatformFee",
+            "Fixed platform fee",
+          )}
           type="number"
           min="0"
           step="0.01"
@@ -1283,7 +1339,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Monthly shared infrastructure"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.monthlyInfrastructure",
+            "Monthly shared infrastructure",
+          )}
           type="number"
           min="0"
           step="0.01"
@@ -1293,7 +1353,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Active paying tenants"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.activeTenants",
+            "Active paying tenants",
+          )}
           type="number"
           min="1"
           step="1"
@@ -1303,7 +1367,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Other estimated cost / tenant"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.otherEstimatedCostPerTenant",
+            "Other estimated cost / tenant",
+          )}
           type="number"
           min="0"
           step="0.01"
@@ -1313,7 +1381,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Round price up to increment"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.roundingIncrement",
+            "Round price up to increment",
+          )}
           type="number"
           min="0"
           step="0.01"
@@ -1323,7 +1395,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Maximum instant monthly price"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.maxAutomaticMonthlyPrice",
+            "Maximum instant monthly price",
+          )}
           type="number"
           min="0.01"
           step="0.01"
@@ -1333,7 +1409,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Default max instant quota / feature"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.maxAutomaticQuotaPerFeature",
+            "Default max instant quota / feature",
+          )}
           type="number"
           min="1"
           step="1"
@@ -1346,7 +1426,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           }
         />
         <Input
-          label="Vendor cost/revenue threshold %"
+          label={tr(
+            t,
+            "billing.catalog.customPlans.pricingPolicy.vendorCostRevenueThreshold",
+            "Vendor cost/revenue threshold %",
+          )}
           type="number"
           min="0.01"
           max="100"
@@ -1368,14 +1452,27 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
             enforceVendorCostRatioFloor: event.target.checked,
           })
         }
-        label="Enforce vendor-cost/revenue floor before sale (optional conservative guardrail)"
+        label={tr(
+          t,
+          "billing.catalog.customPlans.pricingPolicy.enforceVendorCostRatioFloor",
+          "Enforce vendor-cost/revenue floor before sale (optional conservative guardrail)",
+        )}
       />
       {features.some((feature) => feature.type === "limit") && (
         <div className="billing-catalog-form">
-          <h3>Per-feature instant-checkout limits</h3>
+          <h3>
+            {tr(
+              t,
+              "billing.catalog.customPlans.pricingPolicy.featureLimitsTitle",
+              "Per-feature instant-checkout limits",
+            )}
+          </h3>
           <p className="ceopro-preview-notice">
-            Leave a value blank to use the global default. Requests above a
-            configured maximum become manual-review quotes instead of failing.
+            {tr(
+              t,
+              "billing.catalog.customPlans.pricingPolicy.featureLimitsHelp",
+              "Leave a value blank to use the global default. Requests above a configured maximum become manual-review quotes instead of failing.",
+            )}
           </p>
           <div className="billing-catalog-form-grid">
             {features
@@ -1400,7 +1497,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
                   >
                     <strong>{feature.name}</strong>
                     <Input
-                      label="Minimum"
+                      label={tr(
+                        t,
+                        "billing.catalog.customPlans.pricingPolicy.minimum",
+                        "Minimum",
+                      )}
                       type="number"
                       min="0"
                       step="1"
@@ -1410,7 +1511,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
                       }
                     />
                     <Input
-                      label="Maximum"
+                      label={tr(
+                        t,
+                        "billing.catalog.customPlans.pricingPolicy.maximum",
+                        "Maximum",
+                      )}
                       type="number"
                       min="1"
                       step="1"
@@ -1420,7 +1525,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
                       }
                     />
                     <Input
-                      label="Step"
+                      label={tr(
+                        t,
+                        "billing.catalog.customPlans.pricingPolicy.step",
+                        "Step",
+                      )}
                       type="number"
                       min="1"
                       step="1"
@@ -1507,14 +1616,24 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
       },
       ...(platformMode
         ? [{
-            header: "Tenant",
+            header: tr(
+              t,
+              "billing.catalog.customPlans.tenant",
+              "Customer tenant",
+            ),
             render: (quote) => quote.tenant?.businessName ?? quote.tenantId ?? "—",
           }]
         : []),
       {
         header: tr(t, "billing.catalog.fields.status", "Status"),
         render: (quote) => (
-          <Badge variant={statusVariant(quote.status)}>{quote.status}</Badge>
+          <Badge variant={statusVariant(quote.status)}>
+            {tr(
+              t,
+              `billing.catalog.customPlans.status.${quote.status}`,
+              quote.status,
+            )}
+          </Badge>
         ),
       },
       {
@@ -1536,7 +1655,11 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
           money(quote.minimumSafePrice, quote.currency, locale),
       },
       {
-        header: "Recommended price",
+        header: tr(
+          t,
+          "billing.catalog.customPlans.recommendedPrice",
+          "Recommended price",
+        ),
         render: (quote) =>
           money(quote.recommendedPrice, quote.currency, locale),
       },
@@ -1687,7 +1810,11 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
                 : "warning"
           }
         >
-          {rate.verificationStatus}
+          {tr(
+            t,
+            `billing.catalog.customPlans.vendorRates.status.${rate.verificationStatus}`,
+            rate.verificationStatus,
+          )}
         </Badge>
       ),
     },

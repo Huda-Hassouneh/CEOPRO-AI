@@ -831,7 +831,7 @@ function FeatureFormModal({
             <>
               <Input
                 label={t("billing.catalog.fields.unit")}
-                hint="Unit shown beside plan limits and usage (for example, queries or GB)."
+                hint={t("billing.catalog.features.unitHint")}
                 maxLength={50}
                 value={form.unit}
                 onChange={(event) =>
@@ -1032,10 +1032,7 @@ function PlanFeatureManager({
       setUnlinkTarget(null);
       setNotice({
         variant: "success",
-        message:
-          locale === "ar"
-            ? "تم إلغاء ربط الميزة بالخطة."
-            : "Feature unlinked from plan."
+        message: t("billing.catalog.planFeatures.unlinked")
       });
     } catch (requestError) {
       setUnlinkTarget(null);
@@ -1191,7 +1188,7 @@ function PlanFeatureManager({
                         disabled={Boolean(busyKey)}
                         onClick={() => setUnlinkTarget(link)}
                       >
-                        {locale === "ar" ? "إلغاء الربط" : "Unlink"}
+                        {t("billing.catalog.planFeatures.unlink")}
                       </Button>
                     )}
                   </div>
@@ -1207,7 +1204,7 @@ function PlanFeatureManager({
       <Modal
         isOpen={Boolean(unlinkTarget)}
         onClose={busyKey ? undefined : () => setUnlinkTarget(null)}
-        title={locale === "ar" ? "إلغاء ربط الميزة" : "Unlink feature"}
+        title={t("billing.catalog.planFeatures.unlinkTitle")}
         footer={
           <>
             <Button
@@ -1221,15 +1218,13 @@ function PlanFeatureManager({
               loading={busyKey === `unlink-${unlinkTarget?.feature_id}`}
               onClick={unlinkFeature}
             >
-              {locale === "ar" ? "إلغاء الربط" : "Unlink"}
+              {t("billing.catalog.planFeatures.unlink")}
             </Button>
           </>
         }
       >
         <p>
-          {locale === "ar"
-            ? "ستُزال هذه الميزة من الخطة فقط. لن تُحذف الميزة نفسها. إذا استُخدمت الخطة في اشتراك أو عرض سعر سابق، سيمنع النظام الإزالة لحماية السجل."
-            : "This removes the feature from this plan only. The feature definition remains. Plans with subscription or quote history cannot be changed this way."}
+          {t("billing.catalog.planFeatures.unlinkDescription")}
         </p>
       </Modal>
       {notice && (
@@ -1270,9 +1265,11 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
       await mutate();
       setNotice({
         variant: "success",
-        message: target.isActive
-          ? "Custom plan disabled. The tenant subscription, accepted quote, price, and limits were not changed."
-          : "Custom plan enabled."
+        message: t(
+          target.isActive
+            ? "billing.catalog.customPlans.disabledMessage"
+            : "billing.catalog.customPlans.enabledMessage"
+        )
       });
       setTarget(null);
     } catch (requestError) {
@@ -1309,10 +1306,10 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
       {plans.length ? (
         <Table
           data={plans}
-          ariaLabel="Accepted custom plans"
+          ariaLabel={t("billing.catalog.customPlans.acceptedTitle")}
           columns={[
             {
-              header: "Tenant",
+              header: t("billing.catalog.customPlans.tenant"),
               render: (plan) =>
                 plan.tenant?.businessName ?? plan.tenantId ?? "—"
             },
@@ -1333,24 +1330,24 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
                 }).format(plan.basePrice ?? 0)
             },
             {
-              header: "Plan state",
+              header: t("billing.catalog.customPlans.planState"),
               render: (plan) => (
                 <Badge variant={plan.isActive ? "success" : "neutral"}>
-                  {plan.isActive ? "Enabled" : "Disabled"}
+                  {t(plan.isActive ? "common.enabled" : "common.disabled")}
                 </Badge>
               )
             },
             {
-              header: "Subscription relationship",
+              header: t("billing.catalog.customPlans.subscriptionRelationship"),
               render: (plan) => {
                 const relationship =
                   plan.subscriptionRelationship ?? "not_subscribed";
                 const label =
                   relationship === "current"
-                    ? "Current"
+                    ? t("billing.catalog.customPlans.relationship.current")
                     : relationship === "scheduled"
-                      ? "Scheduled"
-                      : "Not subscribed";
+                      ? t("billing.catalog.customPlans.relationship.scheduled")
+                      : t("billing.catalog.customPlans.relationship.notSubscribed");
                 const variant =
                   relationship === "current"
                     ? "success"
@@ -1368,7 +1365,7 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
                     <Badge variant={variant}>{label}</Badge>
                     {relationship === "scheduled" && currentPlanName ? (
                       <small style={{ color: "var(--ceopro-text-muted)" }}>
-                        Current: {currentPlanName}
+                        {t("billing.catalog.customPlans.currentPlan")}: {currentPlanName}
                       </small>
                     ) : null}
                   </div>
@@ -1376,7 +1373,7 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
               }
             },
             {
-              header: "Effective date",
+              header: t("billing.catalog.customPlans.effectiveDate"),
               render: (plan) =>
                 plan.subscriptionEffectiveAt
                   ? new Intl.DateTimeFormat(locale, {
@@ -1385,7 +1382,7 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
                   : "—"
             },
             {
-              header: "Source quote",
+              header: t("billing.catalog.customPlans.sourceQuote"),
               render: (plan) =>
                 plan.sourceQuote?.id ? plan.sourceQuote.id.slice(0, 8) : "—"
             },
@@ -1399,10 +1396,10 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
                       size="sm"
                       onClick={() => setTarget(plan)}
                     >
-                      {plan.isActive ? "Disable" : "Enable"}
+                      {t(plan.isActive ? "common.disable" : "common.enable")}
                     </Button>
                     <span className="billing-catalog-read-only">
-                      Commercial terms are immutable
+                      {t("billing.catalog.customPlans.commercialTermsImmutable")}
                     </span>
                   </div>
                 ) : (
@@ -1415,14 +1412,18 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
         />
       ) : (
         <EmptyState
-          title="No accepted custom plans"
-          description="Accepted custom quotes will appear here as tenant-specific plans."
+          title={t("billing.catalog.customPlans.emptyAcceptedTitle")}
+          description={t("billing.catalog.customPlans.emptyAcceptedDescription")}
         />
       )}
       <Modal
         isOpen={Boolean(target)}
         onClose={busy ? undefined : () => setTarget(null)}
-        title={target?.isActive ? "Disable custom plan" : "Enable custom plan"}
+        title={t(
+          target?.isActive
+            ? "billing.catalog.customPlans.disableTitle"
+            : "billing.catalog.customPlans.enableTitle"
+        )}
         footer={
           <>
             <Button
@@ -1430,19 +1431,16 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
               onClick={() => setTarget(null)}
               disabled={busy}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={toggleStatus} loading={busy}>
-              {target?.isActive ? "Disable" : "Enable"}
+              {t(target?.isActive ? "common.disable" : "common.enable")}
             </Button>
           </>
         }
       >
         <p>
-          This changes only whether the custom plan definition is enabled for
-          use. It does not change which plan the tenant is currently subscribed
-          to, and the accepted quote, price, limits, and other commercial terms
-          remain unchanged.
+          {t("billing.catalog.customPlans.toggleDescription")}
         </p>
       </Modal>
       {notice && (
@@ -1487,24 +1485,21 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
     <section className="billing-catalog-section">
       <div className="billing-catalog-section-heading">
         <div>
-          <h2>Customer Subscriptions</h2>
-          <p>
-            Platform-level view of tenant subscriptions. This is not the
-            platform owner's own subscription.
-          </p>
+          <h2>{t("billing.catalog.subscriptions.title")}</h2>
+          <p>{t("billing.catalog.subscriptions.subtitle")}</p>
         </div>
       </div>
       {subscriptions.length ? (
         <Table
           data={subscriptions}
-          ariaLabel="Customer subscriptions"
+          ariaLabel={t("billing.catalog.subscriptions.title")}
           columns={[
             {
-              header: "Tenant",
+              header: t("billing.catalog.customPlans.tenant"),
               render: (row) => row.tenant?.businessName ?? row.tenantId
             },
             {
-              header: "Current plan",
+              header: t("billing.catalog.subscriptions.currentPlan"),
               render: (row) =>
                 locale === "ar" && row.plan?.name_ar
                   ? row.plan.name_ar
@@ -1520,16 +1515,16 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
                       : "neutral"
                   }
                 >
-                  {row.status}
+                  {tt(`billing.management.status.${row.status}`, row.status)}
                 </Badge>
               )
             },
             {
-              header: "Scheduled change",
+              header: t("billing.catalog.subscriptions.scheduledChange"),
               render: (row) =>
                 row.scheduledPlan ? (
                   <div style={{ display: "grid", gap: "4px" }}>
-                    <Badge variant="warning">Scheduled</Badge>
+                    <Badge variant="warning">{t("billing.management.scheduled")}</Badge>
                     <span>
                       {locale === "ar" && row.scheduledPlan?.name_ar
                         ? row.scheduledPlan.name_ar
@@ -1541,7 +1536,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
                 )
             },
             {
-              header: "Transition",
+              header: t("billing.catalog.subscriptions.transition"),
               render: (row) =>
                 row.transitionType ? (
                   <Badge
@@ -1553,32 +1548,47 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
                           : "neutral"
                     }
                   >
-                    {row.transitionType.charAt(0).toUpperCase() +
-                      row.transitionType.slice(1)}
+                    {tt(
+                      `billing.catalog.subscriptions.transitionTypes.${row.transitionType}`,
+                      row.transitionType
+                    )}
                   </Badge>
                 ) : (
                   "—"
                 )
             },
             {
-              header: "Effective date",
+              header: t("billing.catalog.customPlans.effectiveDate"),
               render: (row) => date(row.scheduledEffectiveAt)
             },
-            { header: "Billing period", accessor: "billingPeriod" },
             {
-              header: "Current period end",
+              header: t("billing.catalog.subscriptions.billingPeriod"),
+              render: (row) => {
+                if (!row.billingPeriod) return "—";
+                if (row.billingPeriod === "monthly")
+                  return t("billing.periods.monthly");
+                if (row.billingPeriod === "three-months")
+                  return t("billing.periods.monthCountLabel", { months: 3 });
+                if (row.billingPeriod === "six-months")
+                  return t("billing.periods.monthCountLabel", { months: 6 });
+                return row.billingPeriod;
+              }
+            },
+            {
+              header: t("billing.catalog.subscriptions.currentPeriodEnd"),
               render: (row) => date(row.currentPeriodEnd)
             },
             {
-              header: "Cancel at period end",
-              render: (row) => (row.cancelAtPeriodEnd ? "Yes" : "No")
+              header: t("billing.catalog.subscriptions.cancelAtPeriodEnd"),
+              render: (row) =>
+                t(row.cancelAtPeriodEnd ? "common.yes" : "common.no")
             }
           ]}
         />
       ) : (
         <EmptyState
-          title="No subscriptions"
-          description="Customer subscriptions will appear here."
+          title={t("billing.catalog.subscriptions.emptyTitle")}
+          description={t("billing.catalog.subscriptions.emptyDescription")}
         />
       )}
     </section>
@@ -1694,7 +1704,11 @@ export function BillingCatalogPage({
       header: t("billing.catalog.fields.status"),
       render: (plan) => (
         <Badge variant={plan.isActive ? "success" : "neutral"}>
-          {plan.isActive ? "Active" : "Inactive"}
+          {t(
+            plan.isActive
+              ? "billing.catalog.status.active"
+              : "billing.catalog.status.inactive"
+          )}
         </Badge>
       )
     },
@@ -1717,7 +1731,7 @@ export function BillingCatalogPage({
                 size="sm"
                 onClick={() => setPlanStatusTarget(plan)}
               >
-                {plan.isActive ? "Deactivate" : "Activate"}
+                {t(plan.isActive ? "common.deactivate" : "common.activate")}
               </Button>
             )}
           </div>
@@ -1773,7 +1787,7 @@ export function BillingCatalogPage({
                 size="sm"
                 onClick={() => setPromoStatusTarget(promo)}
               >
-                Deactivate
+                {t("common.deactivate")}
               </Button>
             )}
             <Button
@@ -1835,7 +1849,7 @@ export function BillingCatalogPage({
                 onClick={() => setFeatureRemoveTarget(feature)}
                 leadingIcon={<Trash2 size={13} />}
               >
-                Remove
+                {t("common.remove")}
               </Button>
             )}
           </div>
@@ -2033,13 +2047,13 @@ export function BillingCatalogPage({
         <EmptyState
           title={
             platformMode
-              ? "Platform billing access required"
-              : "Owner access required"
+              ? t("billing.catalog.permissions.platformBillingTitle")
+              : t("billing.catalog.permissions.ownerTitle")
           }
           description={
             platformMode
-              ? "Your platform role does not include access to billing administration."
-              : "Catalog management is available only to the tenant owner."
+              ? t("billing.catalog.permissions.platformBillingDescription")
+              : t("billing.catalog.permissions.ownerDescription")
           }
         />
       </div>
@@ -2057,18 +2071,14 @@ export function BillingCatalogPage({
           },
           {
             id: "custom-plans",
-            label:
-              t("billing.catalog.tabs.customPlans") ===
-              "billing.catalog.tabs.customPlans"
-                ? "Custom Plans"
-                : t("billing.catalog.tabs.customPlans"),
+            label: t("billing.catalog.tabs.customPlans"),
             content: customPlansContent
           },
           ...(platformMode
             ? [
                 {
                   id: "custom-quotes",
-                  label: "Custom Quotes",
+                  label: t("billing.catalog.tabs.customQuotes"),
                   content: customQuotesContent
                 }
               ]
@@ -2092,7 +2102,7 @@ export function BillingCatalogPage({
             ? [
                 {
                   id: "subscriptions",
-                  label: "Subscriptions",
+                  label: t("billing.catalog.tabs.subscriptions"),
                   content: subscriptionsContent
                 }
               ]
@@ -2186,7 +2196,7 @@ export function BillingCatalogPage({
         onClose={
           featureRemoveBusy ? undefined : () => setFeatureRemoveTarget(null)
         }
-        title="Remove unused feature"
+        title={t("billing.catalog.features.removeTitle")}
         footer={
           <>
             <Button
@@ -2194,7 +2204,7 @@ export function BillingCatalogPage({
               disabled={featureRemoveBusy}
               onClick={() => setFeatureRemoveTarget(null)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               loading={featureRemoveBusy}
@@ -2205,7 +2215,7 @@ export function BillingCatalogPage({
                   await api.removeFeature(featureRemoveTarget.id);
                   await mutateFeatures();
                   setFeatureRemoveTarget(null);
-                  showNotice("Unused feature removed.");
+                  showNotice(t("billing.catalog.features.removed"));
                 } catch (requestError) {
                   setNotice({
                     variant: "error",
@@ -2217,22 +2227,20 @@ export function BillingCatalogPage({
                 }
               }}
             >
-              Remove
+              {t("common.remove")}
             </Button>
           </>
         }
       >
         <p>
-          Only custom features that have never been linked to plans, usage,
-          quotes, or vendor rates can be removed. Built-in feature codes are
-          protected.
+          {t("billing.catalog.features.removeDescription")}
         </p>
       </Modal>
 
       <Modal
         isOpen={Boolean(promoStatusTarget)}
         onClose={promoStatusBusy ? undefined : () => setPromoStatusTarget(null)}
-        title="Deactivate promo code"
+        title={t("billing.catalog.promos.deactivateTitle")}
         footer={
           <>
             <Button
@@ -2240,7 +2248,7 @@ export function BillingCatalogPage({
               disabled={promoStatusBusy}
               onClick={() => setPromoStatusTarget(null)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               loading={promoStatusBusy}
@@ -2253,9 +2261,7 @@ export function BillingCatalogPage({
                   });
                   await mutatePromos();
                   setPromoStatusTarget(null);
-                  showNotice(
-                    "Promo code deactivated. Previous redemptions remain available."
-                  );
+                  showNotice(t("billing.catalog.promos.deactivated"));
                 } catch (requestError) {
                   setNotice({
                     variant: "error",
@@ -2267,14 +2273,13 @@ export function BillingCatalogPage({
                 }
               }}
             >
-              Deactivate
+              {t("common.deactivate")}
             </Button>
           </>
         }
       >
         <p>
-          The code will no longer be available for new redemptions. Existing
-          redemption history is preserved.
+          {t("billing.catalog.promos.deactivateDescription")}
         </p>
       </Modal>
 
@@ -2283,8 +2288,8 @@ export function BillingCatalogPage({
         onClose={planStatusBusy ? undefined : () => setPlanStatusTarget(null)}
         title={
           planStatusTarget?.isActive
-            ? "Deactivate standard plan"
-            : "Activate standard plan"
+            ? t("billing.catalog.plans.deactivateTitle")
+            : t("billing.catalog.plans.activateTitle")
         }
         footer={
           <>
@@ -2293,7 +2298,7 @@ export function BillingCatalogPage({
               onClick={() => setPlanStatusTarget(null)}
               disabled={planStatusBusy}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               loading={planStatusBusy}
@@ -2307,8 +2312,8 @@ export function BillingCatalogPage({
                   await mutatePlans();
                   showNotice(
                     planStatusTarget.isActive
-                      ? "Plan deactivated."
-                      : "Plan activated."
+                      ? t("billing.catalog.plans.deactivated")
+                      : t("billing.catalog.plans.activated")
                   );
                   setPlanStatusTarget(null);
                 } catch (requestError) {
@@ -2321,15 +2326,21 @@ export function BillingCatalogPage({
                 }
               }}
             >
-              {planStatusTarget?.isActive ? "Deactivate" : "Activate"}
+              {t(
+                planStatusTarget?.isActive
+                  ? "common.deactivate"
+                  : "common.activate"
+              )}
             </Button>
           </>
         }
       >
         <p>
-          {planStatusTarget?.isActive
-            ? "The plan will remain visible in platform management but will no longer be offered to customers."
-            : "The plan will become available in the customer plan catalog again."}
+          {t(
+            planStatusTarget?.isActive
+              ? "billing.catalog.plans.deactivateDescription"
+              : "billing.catalog.plans.activateDescription"
+          )}
         </p>
       </Modal>
 

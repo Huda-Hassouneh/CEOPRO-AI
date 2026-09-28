@@ -17,7 +17,17 @@
     "edit": "Edit",
     "remove": "Remove",
     "retry": "Retry",
-    "unlimited": "Unlimited"
+    "unlimited": "Unlimited",
+    "back": "Back",
+    "continue": "Continue",
+    "yes": "Yes",
+    "no": "No",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "enable": "Enable",
+    "disable": "Disable",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
   },
   "businessShell": {
     "brandSubtitle": "Business Intelligence",
@@ -1918,14 +1928,20 @@
         "promos": "Promo Codes",
         "features": "Features",
         "planFeatures": "Plan Features",
-        "customPlans": "Custom Plans"
+        "customPlans": "Custom Plans",
+        "customQuotes": "Custom Quotes",
+        "subscriptions": "Subscriptions"
       },
       "permissions": {
         "title": "Catalog access unavailable",
         "none": "Your current tenant permissions do not allow catalog management.",
         "allRequired": "This area requires the backend 'all' permission for the current tenant.",
         "catalogRequired": "This area requires the backend 'manage_catalog' permission for the current tenant.",
-        "planWrite": "Plan creation and editing require the backend 'all' permission."
+        "planWrite": "Plan creation and editing require the backend 'all' permission.",
+        "platformBillingTitle": "Platform billing access required",
+        "platformBillingDescription": "Your platform role does not include access to billing administration.",
+        "ownerTitle": "Owner access required",
+        "ownerDescription": "Catalog management is available only to the tenant owner."
       },
       "plans": {
         "title": "Plans",
@@ -1939,7 +1955,13 @@
         "created": "Plan created successfully.",
         "updated": "Plan updated successfully.",
         "emptyTitle": "No active plans",
-        "emptyDescription": "Create an active plan before linking features."
+        "emptyDescription": "Create an active plan before linking features.",
+        "activateTitle": "Activate standard plan",
+        "deactivateTitle": "Deactivate standard plan",
+        "activated": "Plan activated.",
+        "deactivated": "Plan deactivated.",
+        "activateDescription": "The plan will become available in the customer plan catalog again.",
+        "deactivateDescription": "The plan will remain visible in platform management but will no longer be offered to customers."
       },
       "promos": {
         "title": "Promo Codes",
@@ -1952,7 +1974,10 @@
         "linkTitle": "Link Promo Code to Plan",
         "linkAction": "Link to Plan",
         "linkHelp": "Choose the plan that should accept promo code {{code}}.",
-        "linked": "Promo code linked to plan successfully."
+        "linked": "Promo code linked to plan successfully.",
+        "deactivateTitle": "Deactivate promo code",
+        "deactivateDescription": "The code will no longer be available for new redemptions. Existing redemption history is preserved.",
+        "deactivated": "Promo code deactivated. Previous redemptions remain available."
       },
       "features": {
         "title": "Features",
@@ -1961,7 +1986,11 @@
         "createTitle": "Create Feature",
         "editTitle": "Edit Feature",
         "created": "Feature created successfully.",
-        "updated": "Feature updated successfully."
+        "updated": "Feature updated successfully.",
+        "unitHint": "Unit shown beside plan limits and usage (for example, queries or GB).",
+        "removeTitle": "Remove unused feature",
+        "removeDescription": "Only custom features that have never been linked to plans, usage, quotes, or vendor rates can be removed. Built-in feature codes are protected.",
+        "removed": "Unused feature removed."
       },
       "planFeatures": {
         "title": "Plan Feature Limits",
@@ -1970,7 +1999,11 @@
         "linked": "Feature linked to plan successfully.",
         "updated": "Feature limit updated successfully.",
         "noAvailable": "All features are already linked",
-        "notApplicable": "Not applicable"
+        "notApplicable": "Not applicable",
+        "unlink": "Unlink",
+        "unlinkTitle": "Unlink feature",
+        "unlinkDescription": "This removes the feature from this plan only. The feature definition remains. Plans with subscription or quote history cannot be changed this way.",
+        "unlinked": "Feature unlinked from plan."
       },
       "fields": {
         "name": "Name",
@@ -2047,6 +2080,150 @@
         "dates": "Expiration must be later than the start date.",
         "featureNames": "Required feature names are missing.",
         "featureCode": "Feature code must be 3-50 lowercase letters, numbers, or underscores."
+      },
+      "customPlans": {
+        "title": "Custom Plan Quotes",
+        "subtitle": "Build tenant-private offers. Backend pricing is authoritative; accepted offers become normal plans.",
+        "create": "Create Quote",
+        "createQuote": "Create & calculate quote",
+        "updateQuote": "Update & calculate quote",
+        "createTitle": "Create Custom Plan Quote",
+        "editTitle": "Edit Custom Plan Quote",
+        "emptyTitle": "No custom quotes yet",
+        "emptyDescription": "Create a quote to calculate cost-aware pricing for this tenant.",
+        "tenant": "Customer tenant",
+        "selectTenant": "Select tenant",
+        "estimatedUsage": "Estimated monthly usage",
+        "infrastructure": "Shared infrastructure cost / month",
+        "activeTenants": "Active paying tenants",
+        "otherCost": "Other included monthly cost",
+        "targetMargin": "Target gross margin %",
+        "maxVendorRatio": "Max vendor-cost / revenue %",
+        "fxTitle": "Optional FX snapshot",
+        "fxHelp": "Required when an active vendor rate uses a different currency from the quote.",
+        "fxRate": "FX rate",
+        "fxFrom": "From currency",
+        "fxTo": "To currency",
+        "fxSource": "FX source",
+        "featuresSelected": "features selected",
+        "serverPricingNotice": "The backend calculates all authoritative vendor costs and pricing floors after this draft is created.",
+        "approveTitle": "Approve Custom Plan Price",
+        "approve": "Approve price",
+        "minimumSafePrice": "Minimum safe price",
+        "recommendedAutomatedPrice": "Recommended automated price",
+        "recommendedPrice": "Recommended price",
+        "finalPrice": "Final customer price",
+        "overrideReason": "Authorized override reason",
+        "belowFloor": "This price is below the backend-calculated safe floor. Only an authorized override can approve it.",
+        "estimatedTotal": "Estimated cost",
+        "calculate": "Calculate",
+        "calculated": "Pricing recalculated.",
+        "send": "Send",
+        "sent": "Quote marked ready for customer review.",
+        "reject": "Reject",
+        "rejected": "Quote rejected.",
+        "openOffer": "Offer",
+        "acceptedTitle": "Accepted Custom Plans",
+        "acceptedSubtitle": "Accepted quotes become immutable tenant-specific plan definitions. Enabled does not mean the tenant is currently subscribed; the subscription relationship is shown separately.",
+        "planState": "Plan state",
+        "subscriptionRelationship": "Subscription relationship",
+        "currentPlan": "Current",
+        "effectiveDate": "Effective date",
+        "sourceQuote": "Source quote",
+        "commercialTermsImmutable": "Commercial terms are immutable",
+        "emptyAcceptedTitle": "No accepted custom plans",
+        "emptyAcceptedDescription": "Accepted custom quotes will appear here as tenant-specific plans.",
+        "enableTitle": "Enable custom plan",
+        "disableTitle": "Disable custom plan",
+        "toggleDescription": "This changes only whether the custom plan definition is enabled for use. It does not change which plan the tenant is currently subscribed to, and the accepted quote, price, limits, and other commercial terms remain unchanged.",
+        "enabledMessage": "Custom plan enabled.",
+        "disabledMessage": "Custom plan disabled. The tenant subscription, accepted quote, price, and limits were not changed.",
+        "steps": {
+          "details": "Plan",
+          "features": "Features",
+          "costs": "Cost assumptions",
+          "review": "Review"
+        },
+        "validation": {
+          "tenant": "Select the customer tenant for this quote.",
+          "names": "English and Arabic plan names are required.",
+          "feature": "Select at least one feature.",
+          "limit": "Feature limits cannot be negative.",
+          "policy": "Gross margin must be 0–99.99% and vendor cost ratio must be above 0 and at most 100%."
+        },
+        "relationship": {
+          "current": "Current",
+          "scheduled": "Scheduled",
+          "notSubscribed": "Not subscribed"
+        },
+        "status": {
+          "draft": "Draft",
+          "calculated": "Calculated",
+          "approved": "Approved",
+          "sent": "Sent",
+          "accepted": "Accepted",
+          "rejected": "Rejected",
+          "expired": "Expired"
+        },
+        "vendorRates": {
+          "title": "Vendor Rate Cards",
+          "subtitle": "Internal cost inputs used by the backend pricing service. These are never customer prices.",
+          "create": "Add vendor rate",
+          "unassigned": "Not tied to a feature",
+          "vendor": "Vendor",
+          "service": "Service",
+          "unit": "Billing unit",
+          "unitCost": "Unit cost",
+          "operationalMultiplier": "Operational multiplier",
+          "variabilityReserve": "Variability reserve",
+          "source": "Source / evidence",
+          "permission": "Vendor rates require the strongest catalog permission because they are global internal cost inputs.",
+          "status": {
+            "confirmed": "Confirmed",
+            "estimated": "Estimated",
+            "unconfirmed": "Unconfirmed",
+            "deprecated": "Deprecated"
+          }
+        },
+        "pricingPolicy": {
+          "title": "Automated Custom Pricing Policy",
+          "permission": "Pricing policy requires the strongest owner permission because it controls internal margins and costs.",
+          "subtitle": "Internal-only inputs used by self-service previews and recalculated again at checkout. Vendor-cost ratio enforcement is optional.",
+          "save": "Save policy",
+          "saved": "Automated custom-plan pricing policy saved.",
+          "fixedPlatformFee": "Fixed platform fee",
+          "monthlyInfrastructure": "Monthly shared infrastructure",
+          "otherEstimatedCostPerTenant": "Other estimated cost / tenant",
+          "roundingIncrement": "Round price up to increment",
+          "maxAutomaticMonthlyPrice": "Maximum instant monthly price",
+          "maxAutomaticQuotaPerFeature": "Default max instant quota / feature",
+          "vendorCostRevenueThreshold": "Vendor cost/revenue threshold %",
+          "enforceVendorCostRatioFloor": "Enforce vendor-cost/revenue floor before sale (optional conservative guardrail)",
+          "featureLimitsTitle": "Per-feature instant-checkout limits",
+          "featureLimitsHelp": "Leave a value blank to use the global default. Requests above a configured maximum become manual-review quotes instead of failing.",
+          "minimum": "Minimum",
+          "maximum": "Maximum",
+          "step": "Step"
+        }
+      },
+      "subscriptions": {
+        "title": "Customer Subscriptions",
+        "subtitle": "Platform-level view of tenant subscriptions. This is not the platform owner's own subscription.",
+        "tenant": "Tenant",
+        "currentPlan": "Current plan",
+        "scheduledChange": "Scheduled change",
+        "transition": "Transition",
+        "effectiveDate": "Effective date",
+        "billingPeriod": "Billing period",
+        "currentPeriodEnd": "Current period end",
+        "cancelAtPeriodEnd": "Cancel at period end",
+        "emptyTitle": "No subscriptions",
+        "emptyDescription": "Customer subscriptions will appear here.",
+        "transitionTypes": {
+          "upgrade": "Upgrade",
+          "downgrade": "Downgrade",
+          "mixed": "Mixed"
+        }
       }
     },
     "checkoutRoute": {
@@ -2613,7 +2790,6 @@
       "loading": "Loading source document...",
       "error": "Could not load source document."
     },
-
     "page": {
       "title": "RAG Assistant",
       "subtitle": "Ask questions about your business documents and get AI-powered answers."

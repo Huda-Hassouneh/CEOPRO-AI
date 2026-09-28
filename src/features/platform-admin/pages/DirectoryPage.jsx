@@ -75,9 +75,12 @@ export function DirectoryPage({ domain }) {
             },
             {
               key: "industry",
-              render: (row) => row.industry || t("unknown")
+              render: (row) => row.industry ? t(row.industry) : t("unknown")
             },
-            { key: "country", render: (row) => row.country || t("unknown") },
+            {
+              key: "country",
+              render: (row) => row.country ? t(row.country) : t("unknown")
+            },
             {
               key: "planId",
               render: (row) => row.planName || t("unconfigured"),
