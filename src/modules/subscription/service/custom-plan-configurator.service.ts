@@ -5,7 +5,7 @@ import type { ServiceResult } from "../../../types/service.js";
 import type {
   CustomPlanInstantCheckoutInput,
   CustomPlanManualReviewInput,
-  CustomPlanPreviewInput,
+  CustomPlanPreviewInput
 } from "../../../DTO/customPlan.dto.js";
 import customPlanRepository from "../repo/custom-plan.repo.js";
 import subscriptionRepo from "../repo/subscription.repo.js";
@@ -13,7 +13,7 @@ import { calculateCustomPlanPrice } from "./custom-plan-pricing.service.js";
 import {
   getCustomPlanPricingPolicy,
   resolveAutomaticFeatureLimit,
-  type CustomPlanPricingPolicy,
+  type CustomPlanPricingPolicy
 } from "./custom-plan-policy.service.js";
 import { acceptCustomPlanQuote } from "./custom-plan.service.js";
 import { checkoutService } from "./subscription.service.js";
@@ -25,7 +25,7 @@ const decimal = (value: number | string | Prisma.Decimal) =>
 function priceWithDiscount(
   basePrice: number,
   months: number,
-  discountPercent: number,
+  discountPercent: number
 ) {
   return Number((basePrice * months * (1 - discountPercent / 100)).toFixed(2));
 }
@@ -37,8 +37,9 @@ function configurationHash(input: CustomPlanPreviewInput) {
       .map((item) => ({
         featureId: item.featureId,
         limitValue: item.limitValue ?? null,
+        configuration: item.configuration ?? null
       }))
-      .sort((a, b) => a.featureId.localeCompare(b.featureId)),
+      .sort((a, b) => a.featureId.localeCompare(b.featureId))
   };
   return createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
 }
@@ -52,16 +53,24 @@ function pricingFingerprint(calculated: any) {
     billingPeriod: calculated.billingOption?.period,
     discountPercent: calculated.billingOption?.discountPercent,
     vendorRateIds: [
-      ...(calculated.vendorRates ?? []).map((rate: any) => rate.id),
+      ...(calculated.vendorRates ?? []).map((rate: any) => rate.id)
     ].sort(),
     vendorBreakdown: calculated.pricing?.vendorBreakdown ?? [],
+    infrastructureRateIds: [
+      ...(calculated.infrastructureRates ?? []).map((rate: any) => rate.id)
+    ].sort(),
+    infrastructureBreakdown: calculated.pricing?.infrastructureBreakdown ?? [],
+    usageDrivenInfrastructureCost:
+      calculated.pricing?.usageDrivenInfrastructureCost?.toString?.() ?? "0",
+    estimatedInfrastructureCost:
+      calculated.pricing?.estimatedInfrastructureCost?.toString?.() ?? "0",
     targetGrossMargin: calculated.policy?.targetGrossMargin,
     fixedPlatformFee: calculated.policy?.fixedPlatformFee,
     infrastructure: calculated.policy?.monthlyInfrastructureCost,
     activeTenants: calculated.policy?.activePayingTenants,
     otherCost: calculated.policy?.estimatedOtherCost,
     roundingIncrement: calculated.policy?.roundingIncrement,
-    fxRate: calculated.policy?.fxRate,
+    fxRate: calculated.policy?.fxRate
   };
   return createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
 }
@@ -86,8 +95,8 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
       result: {
         success: false as const,
         code: ERROR_CODES.VALIDATION_ERROR,
-        message: "Duplicate features are not allowed.",
-      },
+        message: "Duplicate features are not allowed."
+      }
     };
   }
 
@@ -97,21 +106,21 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
       result: {
         success: false as const,
         code: ERROR_CODES.RESOURCE_NOT_FOUND,
-        message: "One or more selected features do not exist.",
-      },
+        message: "One or more selected features do not exist."
+      }
     };
   }
 
   const billingOption = policy.billingOptions.find(
-    (item) => item.period === input.billingPeriod,
+    (item) => item.period === input.billingPeriod
   );
   if (!billingOption) {
     return {
       result: {
         success: false as const,
         code: ERROR_CODES.INVALID_BILLING_PERIOD,
-        message: `Billing period '${input.billingPeriod}' is not available for custom plans.`,
-      },
+        message: `Billing period '${input.billingPeriod}' is not available for custom plans.`
+      }
     };
   }
 
@@ -121,26 +130,67 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
     featureId: string;
     limitValue: number | null;
     estimatedUsage: number;
+    configuration: {
+      monitoringFrequencyMinutes: number;
+      monitoringChecksPerMonth: number;
+    } | null;
     feature: (typeof definitions)[number];
   }> = [];
 
   for (const selected of input.features) {
     const feature = byId.get(selected.featureId)!;
+    let configuration = selected.configuration
+      ? {
+          monitoringFrequencyMinutes:
+            selected.configuration.monitoringFrequencyMinutes,
+          monitoringChecksPerMonth: 0
+        }
+      : null;
+    if (feature.code === "competitor_management") {
+      const frequency = configuration?.monitoringFrequencyMinutes;
+      const cadence = policy.monitoringCadences.find(
+        (item) => item.minutes === frequency
+      );
+      if (frequency == null || !cadence) {
+        return {
+          result: {
+            success: false as const,
+            code: ERROR_CODES.INVALID_PARAMETER,
+            message:
+              "competitor_management requires an allowed monitoring frequency."
+          }
+        };
+      }
+      configuration = {
+        monitoringFrequencyMinutes: cadence.minutes,
+        monitoringChecksPerMonth: cadence.checksPerMonth
+      };
+    } else if (configuration) {
+      return {
+        result: {
+          success: false as const,
+          code: ERROR_CODES.INVALID_PARAMETER,
+          message: `Feature '${feature.code}' does not accept monitoring configuration.`
+        }
+      };
+    }
+
     if (feature.type === "boolean") {
       if (selected.limitValue != null) {
         return {
           result: {
             success: false as const,
             code: ERROR_CODES.INVALID_PARAMETER,
-            message: `Boolean feature '${feature.code}' cannot have a numeric limit.`,
-          },
+            message: `Boolean feature '${feature.code}' cannot have a numeric limit.`
+          }
         };
       }
       normalizedFeatures.push({
         featureId: feature.id,
         limitValue: null,
         estimatedUsage: 1,
-        feature,
+        configuration,
+        feature
       });
       continue;
     }
@@ -150,8 +200,8 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
         result: {
           success: false as const,
           code: ERROR_CODES.INVALID_PARAMETER,
-          message: `Feature '${feature.code}' requires an integer quota.`,
-        },
+          message: `Feature '${feature.code}' requires an integer quota.`
+        }
       };
     }
 
@@ -161,8 +211,8 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
         result: {
           success: false as const,
           code: ERROR_CODES.INVALID_PARAMETER,
-          message: `Feature '${feature.code}' must be at least ${limits.min}.`,
-        },
+          message: `Feature '${feature.code}' must be at least ${limits.min}.`
+        }
       };
     }
     if ((selected.limitValue - limits.min) % limits.step !== 0) {
@@ -170,8 +220,8 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
         result: {
           success: false as const,
           code: ERROR_CODES.INVALID_PARAMETER,
-          message: `Feature '${feature.code}' must use increments of ${limits.step}.`,
-        },
+          message: `Feature '${feature.code}' must use increments of ${limits.step}.`
+        }
       };
     }
     if (selected.limitValue > limits.max) {
@@ -182,26 +232,52 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
       featureId: feature.id,
       limitValue: selected.limitValue,
       estimatedUsage: selected.limitValue,
-      feature,
+      configuration,
+      feature
     });
   }
 
-  const vendorRates =
-    await customPlanRepository.getActiveVendorRates(uniqueIds);
-  const vendorBackedFeatureIds =
-    await customPlanRepository.getVendorBackedFeatureIds(uniqueIds);
+  const monitoringFeature = normalizedFeatures.find(
+    (item) => item.feature.code === "competitor_management"
+  );
+  const competitorCapacity = normalizedFeatures.find(
+    (item) => item.feature.code === "tracked_competitors"
+  );
+  if (
+    monitoringFeature &&
+    (!competitorCapacity || (competitorCapacity.limitValue ?? 0) <= 0)
+  ) {
+    return {
+      result: {
+        success: false as const,
+        code: ERROR_CODES.INVALID_PARAMETER,
+        message:
+          "tracked_competitors must be selected with a positive limit when competitor_management is selected."
+      }
+    };
+  }
+
+  const [vendorRates, infrastructureRates, vendorBackedFeatureIds] =
+    await Promise.all([
+      customPlanRepository.getActiveVendorRates(uniqueIds),
+      customPlanRepository.getActiveInfrastructureRates(uniqueIds),
+      customPlanRepository.getVendorBackedFeatureIds(uniqueIds)
+    ]);
   const vendorBacked = new Set(vendorBackedFeatureIds);
 
   // A boolean feature only incurs one vendor unit when the feature is actually
   // backed by a vendor. Non-vendor platform features remain zero vendor cost.
   const pricingFeatures = normalizedFeatures.map((item) => ({
     featureId: item.featureId,
+    featureCode: item.feature.code,
+    limitValue: item.limitValue,
+    configuration: item.configuration,
     estimatedUsage:
       item.feature.type === "boolean"
         ? vendorBacked.has(item.featureId)
           ? 1
           : 0
-        : item.estimatedUsage,
+        : item.estimatedUsage
   }));
 
   try {
@@ -209,6 +285,7 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
       quoteCurrency: policy.currency,
       features: pricingFeatures,
       vendorRates,
+      infrastructureRates,
       monthlyInfrastructureCost: policy.monthlyInfrastructureCost,
       activePayingTenants: policy.activePayingTenants,
       estimatedOtherCost: policy.estimatedOtherCost,
@@ -220,7 +297,7 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
       vendorCostRequiredFeatureIds: vendorBackedFeatureIds,
       fxRate: policy.fxRate,
       fxSourceCurrency: policy.fxSourceCurrency,
-      fxTargetCurrency: policy.fxTargetCurrency,
+      fxTargetCurrency: policy.fxTargetCurrency
     });
 
     const monthlyPrice = Number(pricing.recommendedPrice);
@@ -234,7 +311,7 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
     const totalPrice = priceWithDiscount(
       monthlyPrice,
       billingOption.months,
-      billingOption.discountPercent,
+      billingOption.discountPercent
     );
 
     return {
@@ -243,12 +320,13 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
       definitions,
       normalizedFeatures,
       vendorRates,
+      infrastructureRates,
       vendorBackedFeatureIds,
       pricing,
       billingOption,
       monthlyPrice,
       totalPrice,
-      manualReviewReasons: [...new Set(manualReviewReasons)],
+      manualReviewReasons: [...new Set(manualReviewReasons)]
     };
   } catch (error) {
     return { result: mapPricingError(error) };
@@ -258,7 +336,7 @@ async function calculateConfiguration(input: CustomPlanPreviewInput) {
 export async function getCustomPlanConfigurator(): Promise<ServiceResult<any>> {
   const [policy, features] = await Promise.all([
     getCustomPlanPricingPolicy(),
-    customPlanRepository.listConfigurableFeatures(),
+    customPlanRepository.listConfigurableFeatures()
   ]);
 
   return {
@@ -285,14 +363,25 @@ export async function getCustomPlanConfigurator(): Promise<ServiceResult<any>> {
           min: limits?.min ?? null,
           max: limits?.max ?? null,
           step: limits?.step ?? null,
+          configuration:
+            feature.code === "competitor_management"
+              ? {
+                  monitoringCadence: {
+                    required: true,
+                    defaultMinutes: policy.monitoringCadences[0].minutes,
+                    options: policy.monitoringCadences,
+                    operationalTarget: "data_sources.sync_frequency_minutes"
+                  }
+                }
+              : null
         };
-      }),
-    },
+      })
+    }
   };
 }
 
 export async function previewCustomPlanConfiguration(
-  input: CustomPlanPreviewInput,
+  input: CustomPlanPreviewInput
 ): Promise<ServiceResult<any>> {
   const calculated = await calculateConfiguration(input);
   if (!calculated.result.success) return calculated.result;
@@ -318,8 +407,9 @@ export async function previewCustomPlanConfiguration(
         unit: item.feature.unit,
         unit_ar: item.feature.unit_ar,
         limitValue: item.limitValue,
-      })),
-    },
+        configuration: item.configuration
+      }))
+    }
   };
 }
 
@@ -332,7 +422,7 @@ async function createOrReuseAutomaticQuote(args: {
 }) {
   const existing = await customPlanRepository.findQuoteForTenant(
     args.requestId,
-    args.tenantId,
+    args.tenantId
   );
   const hash = configurationHash(args.input);
   const currentPricingFingerprint = pricingFingerprint(args.calculated);
@@ -343,7 +433,7 @@ async function createOrReuseAutomaticQuote(args: {
         success: false as const,
         code: ERROR_CODES.RESOURCE_ALREADY_EXISTS,
         message:
-          "This checkout request id was already used for a different custom-plan configuration.",
+          "This checkout request id was already used for a different custom-plan configuration."
       };
     }
     if (snapshot?.automatic?.pricingFingerprint !== currentPricingFingerprint) {
@@ -351,22 +441,34 @@ async function createOrReuseAutomaticQuote(args: {
         success: false as const,
         code: ERROR_CODES.RESOURCE_ALREADY_EXISTS,
         message:
-          "Pricing changed since this checkout request was created. Refresh the custom-plan price before retrying checkout.",
+          "Pricing changed since this checkout request was created. Refresh the custom-plan price before retrying checkout."
       };
     }
     return { success: true as const, quote: existing };
   }
 
   const c = args.calculated;
-  const instant = c.manualReviewReasons!.length === 0;
+  const vendorRates = c.vendorRates ?? [];
+  const infrastructureRates = c.infrastructureRates ?? [];
+  const instant = (c.manualReviewReasons ?? []).length === 0;
   const suffix = args.requestId.slice(0, 8);
+  const infrastructureRateIds = infrastructureRates.map((rate: any) => rate.id);
+
   const pricingSnapshot = {
     calculatedAt: new Date().toISOString(),
     mode: "automatic-self-service",
     currency: c.policy!.currency,
-    vendorRateIds: c.vendorRates!.map((rate) => rate.id),
-    vendorBreakdown: c.pricing!.vendorBreakdown,
-    warnings: c.pricing!.warnings,
+    vendorRateIds: vendorRates.map((rate: any) => rate.id),
+    vendorBreakdown: c.pricing!.vendorBreakdown ?? [],
+    infrastructureRateIds,
+    infrastructureBreakdown: c.pricing!.infrastructureBreakdown ?? [],
+    baseInfrastructureCost:
+      c.pricing!.baseInfrastructureCost?.toString?.() ?? "0",
+    usageDrivenInfrastructureCost:
+      c.pricing!.usageDrivenInfrastructureCost?.toString?.() ?? "0",
+    estimatedInfrastructureCost:
+      c.pricing!.estimatedInfrastructureCost?.toString?.() ?? "0",
+    warnings: c.pricing!.warnings ?? [],
     automatic: {
       configurationHash: hash,
       pricingFingerprint: currentPricingFingerprint,
@@ -374,7 +476,7 @@ async function createOrReuseAutomaticQuote(args: {
       manualReviewReasons: c.manualReviewReasons,
       fixedPlatformFee: c.pricing!.fixedPlatformFee.toString(),
       recommendedPrice: c.pricing!.recommendedPrice.toString(),
-      roundingIncrement: c.policy!.roundingIncrement,
+      roundingIncrement: c.policy!.roundingIncrement
     },
     fx: c.policy!.fxRate
       ? {
@@ -382,14 +484,27 @@ async function createOrReuseAutomaticQuote(args: {
           sourceCurrency: c.policy!.fxSourceCurrency,
           targetCurrency: c.policy!.fxTargetCurrency,
           source: c.policy!.fxSource,
-          rateAt: c.policy!.fxRateAt,
+          rateAt: c.policy!.fxRateAt
         }
       : null,
     inputs: {
       monthlyInfrastructureCost: c.policy!.monthlyInfrastructureCost,
       activePayingTenants: c.policy!.activePayingTenants,
       estimatedOtherCost: c.policy!.estimatedOtherCost,
-    },
+      infrastructureRateIds,
+      competitorMonitoring:
+        c
+          .normalizedFeatures!.filter(
+            (item: any) => item.feature.code === "competitor_management"
+          )
+          .map((item: any) => ({
+            featureId: item.featureId,
+            monitoringFrequencyMinutes:
+              item.configuration!.monitoringFrequencyMinutes,
+            monitoringChecksPerMonth:
+              item.configuration!.monitoringChecksPerMonth
+          }))[0] ?? null
+    }
   };
 
   const quote = await customPlanRepository.createQuote({
@@ -427,18 +542,34 @@ async function createOrReuseAutomaticQuote(args: {
         monthlyInfrastructureCost: c.policy!.monthlyInfrastructureCost,
         activePayingTenants: c.policy!.activePayingTenants,
         estimatedOtherCost: c.policy!.estimatedOtherCost,
+        infrastructureRateIds,
+        competitorMonitoring:
+          c
+            .normalizedFeatures!.filter(
+              (item: any) => item.feature.code === "competitor_management"
+            )
+            .map((item: any) => ({
+              featureId: item.featureId,
+              monitoringFrequencyMinutes:
+                item.configuration!.monitoringFrequencyMinutes,
+              monitoringChecksPerMonth:
+                item.configuration!.monitoringChecksPerMonth
+            }))[0] ?? null
       } as Prisma.InputJsonValue,
       pricingSnapshot: pricingSnapshot as Prisma.InputJsonValue,
       overrideReason: null,
       approvedBy: instant ? args.userId : null,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     },
-    features: c.normalizedFeatures!.map((item) => ({
+    features: c.normalizedFeatures!.map((item: any) => ({
       featureId: item.featureId,
       limitValue: item.limitValue,
       estimatedUsage: item.estimatedUsage,
-      metadata: { source: "self-service" },
-    })),
+      metadata: {
+        source: "self-service",
+        ...(item.configuration ? { configuration: item.configuration } : {})
+      }
+    }))
   });
 
   return { success: true as const, quote };
@@ -447,11 +578,11 @@ async function createOrReuseAutomaticQuote(args: {
 export async function requestCustomPlanManualReview(
   tenantId: string,
   userId: string,
-  input: CustomPlanManualReviewInput,
+  input: CustomPlanManualReviewInput
 ): Promise<ServiceResult<any>> {
   const previewInput: CustomPlanPreviewInput = {
     features: input.features,
-    billingPeriod: input.billingPeriod,
+    billingPeriod: input.billingPeriod
   };
 
   const calculated = await calculateConfiguration(previewInput);
@@ -462,7 +593,7 @@ export async function requestCustomPlanManualReview(
       success: false,
       code: ERROR_CODES.VALIDATION_ERROR,
       message:
-        "This configuration is eligible for automatic processing and does not require manual review.",
+        "This configuration is eligible for automatic processing and does not require manual review."
     };
   }
 
@@ -471,7 +602,7 @@ export async function requestCustomPlanManualReview(
     userId,
     requestId: input.requestId,
     input: previewInput,
-    calculated: calculated as any,
+    calculated: calculated as any
   });
   if (!persisted.success) return persisted;
 
@@ -483,22 +614,22 @@ export async function requestCustomPlanManualReview(
       currency: calculated.policy!.currency,
       billingPeriod: calculated.billingOption!.period,
       previewPrice: calculated.totalPrice,
-      reasons: calculated.manualReviewReasons,
+      reasons: calculated.manualReviewReasons
     },
-    message: "Your custom-plan request was submitted for manual review.",
+    message: "Your custom-plan request was submitted for manual review."
   };
 }
 
 export async function checkoutCustomPlanConfiguration(
   tenantId: string,
   user: { id: string; email: string },
-  input: CustomPlanInstantCheckoutInput,
+  input: CustomPlanInstantCheckoutInput
 ): Promise<ServiceResult<any>> {
   if (input.paymentMethod === "paypal") {
     return {
       success: false,
       code: ERROR_CODES.UNSUPPORTED_PAYMENT_PROVIDER,
-      message: "PayPal is not supported by the current payment integration.",
+      message: "PayPal is not supported by the current payment integration."
     };
   }
 
@@ -506,7 +637,7 @@ export async function checkoutCustomPlanConfiguration(
   // previewed price or any browser-supplied monetary value.
   const previewInput: CustomPlanPreviewInput = {
     features: input.features,
-    billingPeriod: input.billingPeriod,
+    billingPeriod: input.billingPeriod
   };
   const calculated = await calculateConfiguration(previewInput);
   if (!calculated.result.success) return calculated.result;
@@ -516,7 +647,7 @@ export async function checkoutCustomPlanConfiguration(
     userId: user.id,
     requestId: input.requestId,
     input: previewInput,
-    calculated: calculated as any,
+    calculated: calculated as any
   });
   if (!persisted.success) return persisted;
 
@@ -529,9 +660,9 @@ export async function checkoutCustomPlanConfiguration(
         currency: calculated.policy!.currency,
         billingPeriod: calculated.billingOption!.period,
         previewPrice: calculated.totalPrice,
-        reasons: calculated.manualReviewReasons,
+        reasons: calculated.manualReviewReasons
       },
-      message: "This configuration requires manual review before checkout.",
+      message: "This configuration requires manual review before checkout."
     };
   }
 
@@ -541,6 +672,13 @@ export async function checkoutCustomPlanConfiguration(
     if (!accepted.success) return accepted;
     plan = accepted.data;
   }
+  if (!plan) {
+    return {
+      success: false,
+      code: ERROR_CODES.PLAN_NOT_FOUND,
+      message: "The accepted custom quote did not produce a plan."
+    };
+  }
 
   const existingSubscription =
     await subscriptionRepo.getCurrentSubscriptionByTenant(tenantId);
@@ -548,7 +686,7 @@ export async function checkoutCustomPlanConfiguration(
     const changed = await changePlanService(
       plan.id,
       tenantId,
-      input.billingPeriod,
+      input.billingPeriod
     );
     if (!changed.success) return changed;
 
@@ -563,11 +701,11 @@ export async function checkoutCustomPlanConfiguration(
         currency: calculated.policy!.currency,
         billingPeriod: calculated.billingOption!.period,
         price: calculated.totalPrice,
-        transition: changed.data,
+        transition: changed.data
       },
       message:
         changed.message ??
-        "Subscription changed to the custom plan successfully.",
+        "Subscription changed to the custom plan successfully."
     };
   }
 
@@ -576,13 +714,13 @@ export async function checkoutCustomPlanConfiguration(
       planId: plan.id,
       billing_period: input.billingPeriod as any,
       payment_method: input.paymentMethod,
-      promoCode: input.promoCode,
+      promoCode: input.promoCode
     },
     {
       id: user.id,
       email: user.email,
-      tenant_id: tenantId,
-    },
+      tenant_id: tenantId
+    }
   );
   if (!checkout.success) return checkout;
 
@@ -595,7 +733,7 @@ export async function checkoutCustomPlanConfiguration(
       checkoutUrl: checkout.data.checkoutUrl,
       currency: calculated.policy!.currency,
       billingPeriod: calculated.billingOption!.period,
-      price: calculated.totalPrice,
-    },
+      price: calculated.totalPrice
+    }
   };
 }

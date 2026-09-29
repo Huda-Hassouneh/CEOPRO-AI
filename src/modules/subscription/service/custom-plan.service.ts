@@ -6,6 +6,7 @@ import type {
   CreateCustomPlanQuoteInput,
   UpdateCustomPlanQuoteInput,
   VendorRateInput,
+  InfrastructureRateInput,
 } from "../../../DTO/customPlan.dto.js";
 import {
   CUSTOM_PLAN_PAYMENT_CURRENCY,
@@ -65,6 +66,12 @@ function normalizeQuote(quote: any) {
     normalized.quoteFeatures = normalized.quoteFeatures.map((item: any) => ({
       ...item,
       estimatedUsage: Number(item.estimatedUsage),
+      configuration:
+        item.metadata &&
+        typeof item.metadata === "object" &&
+        !Array.isArray(item.metadata)
+          ? item.metadata.configuration ?? null
+          : null,
     }));
   }
   if (normalized.createdPlan?.price != null) {
@@ -85,7 +92,16 @@ function normalizeQuote(quote: any) {
 }
 
 async function validateQuoteFeatures(
-  features: Array<{ featureId: string; limitValue?: number | null }>,
+  features: Array<{
+    featureId: string;
+    limitValue?: number | null;
+    estimatedUsage: number;
+    metadata?: Record<string, unknown>;
+    configuration?: {
+      monitoringFrequencyMinutes: number;
+      monitoringChecksPerMonth?: number;
+    };
+  }>,
 ) {
   const uniqueIds = [...new Set(features.map((feature) => feature.featureId))];
   if (uniqueIds.length !== features.length) {
@@ -96,7 +112,10 @@ async function validateQuoteFeatures(
     };
   }
 
-  const existing = await customPlanRepository.getFeaturesByIds(uniqueIds);
+  const [existing, policy] = await Promise.all([
+    customPlanRepository.getFeaturesByIds(uniqueIds),
+    getCustomPlanPricingPolicy(),
+  ]);
   if (existing.length !== uniqueIds.length) {
     return {
       success: false as const,
@@ -115,8 +134,70 @@ async function validateQuoteFeatures(
         message: `Boolean feature '${definition.code}' cannot have a numeric limit.`,
       };
     }
+    if (definition.code === "competitor_management") {
+      const frequency = feature.configuration?.monitoringFrequencyMinutes;
+      if (
+        frequency != null &&
+        !policy.monitoringCadences.some((item) => item.minutes === frequency)
+      ) {
+        return {
+          success: false as const,
+          code: ERROR_CODES.INVALID_PARAMETER,
+          message:
+            "competitor_management uses a monitoring frequency that is not allowed by pricing policy.",
+        };
+      }
+    } else if (feature.configuration) {
+      return {
+        success: false as const,
+        code: ERROR_CODES.INVALID_PARAMETER,
+        message: `Feature '${definition.code}' does not accept monitoring configuration.`,
+      };
+    }
   }
-  return { success: true as const };
+
+  const configuredMonitoring = features.find(
+    (feature) => feature.configuration?.monitoringFrequencyMinutes != null,
+  );
+  if (configuredMonitoring) {
+    const competitorCapacityDefinition = existing.find(
+      (feature) => feature.code === "tracked_competitors",
+    );
+    const competitorCapacity = features.find(
+      (feature) => feature.featureId === competitorCapacityDefinition?.id,
+    );
+    if (!competitorCapacity || (competitorCapacity.limitValue ?? 0) <= 0) {
+      return {
+        success: false as const,
+        code: ERROR_CODES.INVALID_PARAMETER,
+        message:
+          "tracked_competitors must have a positive limit when competitor monitoring cadence is configured.",
+      };
+    }
+  }
+  return {
+    success: true as const,
+    features: features.map((feature) => {
+      const definition = byId.get(feature.featureId)!;
+      if (
+        definition.code !== "competitor_management" ||
+        !feature.configuration
+      ) {
+        return feature;
+      }
+      const cadence = policy.monitoringCadences.find(
+        (item) =>
+          item.minutes === feature.configuration!.monitoringFrequencyMinutes,
+      )!;
+      return {
+        ...feature,
+        configuration: {
+          monitoringFrequencyMinutes: cadence.minutes,
+          monitoringChecksPerMonth: cadence.checksPerMonth,
+        },
+      };
+    }),
+  };
 }
 
 type PricingInputsSource = Partial<
@@ -126,10 +207,61 @@ type PricingInputsSource = Partial<
   >
 >;
 
+function monitoringPricingInput(
+  features:
+    | Array<{
+        featureId: string;
+        configuration?: {
+          monitoringFrequencyMinutes: number;
+          monitoringChecksPerMonth?: number;
+        };
+      }>
+    | undefined,
+) {
+  const configured = features?.find(
+    (feature) => feature.configuration?.monitoringFrequencyMinutes != null,
+  );
+  return configured
+    ? {
+        featureId: configured.featureId,
+        monitoringFrequencyMinutes:
+          configured.configuration!.monitoringFrequencyMinutes,
+        monitoringChecksPerMonth:
+          configured.configuration!.monitoringChecksPerMonth ?? null,
+      }
+    : null;
+}
+
+function quoteFeatureMetadata(feature: {
+  metadata?: Record<string, unknown>;
+  configuration?: {
+    monitoringFrequencyMinutes: number;
+    monitoringChecksPerMonth?: number;
+  };
+}) {
+  return {
+    ...(feature.metadata ?? {}),
+    ...(feature.configuration
+      ? { configuration: feature.configuration }
+      : {}),
+  };
+}
+
 function buildPricingInputs(
-  input: PricingInputsSource,
+  input: PricingInputsSource & {
+    features?: Array<{
+      featureId: string;
+      configuration?: {
+        monitoringFrequencyMinutes: number;
+        monitoringChecksPerMonth?: number;
+      };
+    }>;
+  },
   previous: Record<string, any> = {},
 ) {
+  const competitorMonitoring = input.features
+    ? monitoringPricingInput(input.features)
+    : (previous.competitorMonitoring ?? null);
   return {
     monthlyInfrastructureCost:
       input.monthlyInfrastructureCost ??
@@ -139,10 +271,15 @@ function buildPricingInputs(
       input.activePayingTenants ?? previous.activePayingTenants ?? 1,
     estimatedOtherCost:
       input.estimatedOtherCost ?? previous.estimatedOtherCost ?? 0,
+    competitorMonitoring,
   };
 }
 
-function quoteDbData(input: CreateCustomPlanQuoteInput, createdBy?: string) {
+function quoteDbData(
+  input: CreateCustomPlanQuoteInput,
+  createdBy?: string,
+  features = input.features,
+) {
   return {
     name: input.name,
     nameAr: input.name_ar,
@@ -161,7 +298,7 @@ function quoteDbData(input: CreateCustomPlanQuoteInput, createdBy?: string) {
     fxSource: input.fxSource ?? null,
     fxRateAt: input.fxRateAt ? new Date(input.fxRateAt) : null,
     expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
-    pricingInputs: buildPricingInputs(input) as Prisma.InputJsonValue,
+    pricingInputs: buildPricingInputs({ ...input, features }) as Prisma.InputJsonValue,
     createdBy: createdBy ?? null,
     status: "draft" as const,
     finalPrice: null,
@@ -182,8 +319,11 @@ export async function createCustomPlanQuote(
   const quote = await customPlanRepository.createQuote({
     tenantId,
     createdBy: userId,
-    data: quoteDbData(input, userId),
-    features: input.features,
+    data: quoteDbData(input, userId, featureValidation.features),
+    features: featureValidation.features.map((feature) => ({
+      ...feature,
+      metadata: quoteFeatureMetadata(feature),
+    })),
   });
 
   return { success: true, data: normalizeQuote(quote) };
@@ -271,6 +411,12 @@ export async function getCustomPlanOffer(
       features: quote.quoteFeatures.map((item) => ({
         featureId: item.featureId,
         limitValue: item.limitValue,
+        configuration:
+          item.metadata &&
+          typeof item.metadata === "object" &&
+          !Array.isArray(item.metadata)
+            ? (item.metadata as Record<string, any>).configuration ?? null
+            : null,
         feature: item.feature,
       })),
     },
@@ -288,14 +434,19 @@ export async function updateCustomPlanQuote(
   if (!EDITABLE_STATUSES.has(existing.status))
     return { success: false, code: ERROR_CODES.INVALID_QUOTE_STATUS };
 
+  let normalizedFeatures: Array<any> | undefined;
   if (input.features) {
     const featureValidation = await validateQuoteFeatures(input.features);
     if (!featureValidation.success) return featureValidation;
+    normalizedFeatures = featureValidation.features;
   }
 
   const previousPricingInputs =
     (existing.pricingInputs as Record<string, any> | null) ?? {};
-  const pricingInputPatch = buildPricingInputs(input, previousPricingInputs);
+  const pricingInputPatch = buildPricingInputs(
+    { ...input, features: normalizedFeatures },
+    previousPricingInputs,
+  );
   const data: Record<string, any> = {
     status: "draft",
     pricingSnapshot: Prisma.JsonNull,
@@ -354,7 +505,10 @@ export async function updateCustomPlanQuote(
     id,
     tenantId,
     data,
-    features: input.features,
+    features: normalizedFeatures?.map((feature) => ({
+      ...feature,
+      metadata: quoteFeatureMetadata(feature),
+    })),
   });
   return updated
     ? { success: true, data: normalizeQuote(updated) }
@@ -374,8 +528,9 @@ export async function calculateCustomPlanQuote(
   const pricingInputs =
     (quote.pricingInputs as Record<string, any> | null) ?? {};
   const featureIds = quote.quoteFeatures.map((item) => item.featureId);
-  const [vendorRates, vendorBackedFeatureIds, policy] = await Promise.all([
+  const [vendorRates, infrastructureRates, vendorBackedFeatureIds, policy] = await Promise.all([
     customPlanRepository.getActiveVendorRates(featureIds),
+    customPlanRepository.getActiveInfrastructureRates(featureIds),
     customPlanRepository.getVendorBackedFeatureIds(featureIds),
     getCustomPlanPricingPolicy(),
   ]);
@@ -387,6 +542,14 @@ export async function calculateCustomPlanQuote(
 
       features: quote.quoteFeatures.map((item) => ({
         featureId: item.featureId,
+        featureCode: item.feature.code,
+        limitValue: item.limitValue,
+        configuration:
+          item.metadata &&
+          typeof item.metadata === "object" &&
+          !Array.isArray(item.metadata)
+            ? ((item.metadata as Record<string, any>).configuration ?? null)
+            : null,
         estimatedUsage:
           item.feature.type === "boolean"
             ? vendorBacked.has(item.featureId)
@@ -396,6 +559,7 @@ export async function calculateCustomPlanQuote(
       })),
 
       vendorRates,
+      infrastructureRates,
       vendorCostRequiredFeatureIds: vendorBackedFeatureIds,
       monthlyInfrastructureCost: pricingInputs.monthlyInfrastructureCost ?? 0,
       activePayingTenants: Number(pricingInputs.activePayingTenants ?? 1),
@@ -414,7 +578,11 @@ export async function calculateCustomPlanQuote(
       calculatedAt: new Date().toISOString(),
       currency: quote.currency,
       vendorRateIds: vendorRates.map((rate) => rate.id),
+      infrastructureRateIds: infrastructureRates.map((rate) => rate.id),
       vendorBreakdown: result.vendorBreakdown,
+      infrastructureBreakdown: result.infrastructureBreakdown,
+      baseInfrastructureCost: result.baseInfrastructureCost.toString(),
+      usageDrivenInfrastructureCost: result.usageDrivenInfrastructureCost.toString(),
       warnings: result.warnings,
       fx: quote.fxRate
         ? {
@@ -426,6 +594,18 @@ export async function calculateCustomPlanQuote(
           }
         : null,
       inputs: pricingInputs,
+      featureConfigurations: quote.quoteFeatures
+        .map((item) => ({
+          featureId: item.featureId,
+          code: item.feature.code,
+          configuration:
+            item.metadata &&
+            typeof item.metadata === "object" &&
+            !Array.isArray(item.metadata)
+              ? ((item.metadata as Record<string, any>).configuration ?? null)
+              : null,
+        }))
+        .filter((item) => item.configuration),
       pricingPolicy: {
         enforceVendorCostRatioFloor: policy.enforceVendorCostRatioFloor,
         fixedPlatformFee: result.fixedPlatformFee.toString(),
@@ -780,7 +960,16 @@ function normalizeCustomPlan(plan: any) {
     features: Object.fromEntries(
       (plan.planFeatures ?? []).map((link: any) => [
         link.feature.code,
-        { ...link.feature, limitValue: link.limit_value },
+        {
+          ...link.feature,
+          limitValue: link.limit_value,
+          configuration:
+            link.metadata &&
+            typeof link.metadata === "object" &&
+            !Array.isArray(link.metadata)
+              ? link.metadata.configuration ?? null
+              : null,
+        },
       ]),
     ),
   };
@@ -823,16 +1012,49 @@ export async function listVendorRates(): Promise<ServiceResult<any[]>> {
   };
 }
 
+function hasCompetitorMonitoringUsageAssumption(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return false;
+  }
+  const assumption = (metadata as Record<string, any>).usageAssumption;
+  return (
+    assumption?.model === "competitor_monitoring" &&
+    Number.isFinite(Number(assumption.unitsPerCompetitorCheck)) &&
+    Number(assumption.unitsPerCompetitorCheck) > 0
+  );
+}
+
+async function validateVendorRateUsageAssumption(
+  featureId: string | null | undefined,
+  metadata: unknown,
+): Promise<ServiceResult<null>> {
+  if (!featureId) return { success: true, data: null };
+  const feature = (await customPlanRepository.getFeaturesByIds([featureId]))[0];
+  if (!feature) {
+    return { success: false, code: ERROR_CODES.RESOURCE_NOT_FOUND };
+  }
+  if (
+    feature.code === "competitor_management" &&
+    !hasCompetitorMonitoringUsageAssumption(metadata)
+  ) {
+    return {
+      success: false,
+      code: ERROR_CODES.INVALID_PARAMETER,
+      message:
+        "competitor_management vendor rates require unitsPerCompetitorCheck while preserving their own billing unit.",
+    };
+  }
+  return { success: true, data: null };
+}
+
 export async function createVendorRate(
   input: VendorRateInput,
 ): Promise<ServiceResult<any>> {
-  if (input.featureId) {
-    const features = await customPlanRepository.getFeaturesByIds([
-      input.featureId,
-    ]);
-    if (!features.length)
-      return { success: false, code: ERROR_CODES.RESOURCE_NOT_FOUND };
-  }
+  const assumptionValidation = await validateVendorRateUsageAssumption(
+    input.featureId,
+    input.metadata,
+  );
+  if (!assumptionValidation.success) return assumptionValidation;
   const rate = await customPlanRepository.createVendorRate({
     ...input,
     featureId: input.featureId ?? null,
@@ -860,13 +1082,14 @@ export async function updateVendorRate(
   id: string,
   input: Partial<VendorRateInput>,
 ): Promise<ServiceResult<any>> {
-  if (input.featureId) {
-    const features = await customPlanRepository.getFeaturesByIds([
-      input.featureId,
-    ]);
-    if (!features.length)
-      return { success: false, code: ERROR_CODES.RESOURCE_NOT_FOUND };
-  }
+  const existing = await customPlanRepository.findVendorRateById(id);
+  if (!existing)
+    return { success: false, code: ERROR_CODES.VENDOR_RATE_NOT_FOUND };
+  const assumptionValidation = await validateVendorRateUsageAssumption(
+    input.featureId === undefined ? existing.featureId : input.featureId,
+    input.metadata ?? existing.metadata,
+  );
+  if (!assumptionValidation.success) return assumptionValidation;
   try {
     const data: Record<string, any> = { ...input };
     if (input.unitCost != null) data.unitCost = decimal(input.unitCost);
@@ -891,6 +1114,71 @@ export async function updateVendorRate(
   } catch (error: any) {
     if (error?.code === "P2025")
       return { success: false, code: ERROR_CODES.VENDOR_RATE_NOT_FOUND };
+    throw error;
+  }
+}
+
+function normalizeInfrastructureRate(rate: any) {
+  return {
+    ...rate,
+    unitCost: Number(rate.unitCost),
+    billingUnitsPerFeatureUnit: Number(rate.billingUnitsPerFeatureUnit),
+    operationalMultiplier: Number(rate.operationalMultiplier),
+    variabilityReserve: Number(rate.variabilityReserve),
+  };
+}
+
+async function validateInfrastructureRateFeature(featureId: string | null | undefined) {
+  if (!featureId) return { success: true as const, data: null };
+  const feature = (await customPlanRepository.getFeaturesByIds([featureId]))[0];
+  return feature
+    ? { success: true as const, data: null }
+    : { success: false as const, code: ERROR_CODES.RESOURCE_NOT_FOUND };
+}
+
+export async function listInfrastructureRates(): Promise<ServiceResult<any[]>> {
+  const rates = await customPlanRepository.listInfrastructureRates();
+  return { success: true, data: rates.map(normalizeInfrastructureRate) };
+}
+
+export async function createInfrastructureRate(input: InfrastructureRateInput): Promise<ServiceResult<any>> {
+  const featureValidation = await validateInfrastructureRateFeature(input.featureId);
+  if (!featureValidation.success) return featureValidation;
+  const rate = await customPlanRepository.createInfrastructureRate({
+    ...input,
+    featureId: input.featureId ?? null,
+    unitCost: decimal(input.unitCost),
+    billingUnitsPerFeatureUnit: decimal(input.billingUnitsPerFeatureUnit),
+    operationalMultiplier: decimal(input.operationalMultiplier),
+    variabilityReserve: decimal(input.variabilityReserve),
+    effectiveFrom: input.effectiveFrom ? new Date(input.effectiveFrom) : new Date(),
+    effectiveTo: input.effectiveTo ? new Date(input.effectiveTo) : null,
+    metadata: input.metadata as Prisma.InputJsonValue | undefined,
+  });
+  return { success: true, data: normalizeInfrastructureRate(rate) };
+}
+
+export async function updateInfrastructureRate(id: string, input: Partial<InfrastructureRateInput>): Promise<ServiceResult<any>> {
+  const existing = await customPlanRepository.findInfrastructureRateById(id);
+  if (!existing) return { success: false, code: ERROR_CODES.INFRASTRUCTURE_RATE_NOT_FOUND };
+  const featureValidation = await validateInfrastructureRateFeature(input.featureId === undefined ? existing.featureId : input.featureId);
+  if (!featureValidation.success) return featureValidation;
+  const effectiveFrom = input.effectiveFrom ? new Date(input.effectiveFrom) : existing.effectiveFrom;
+  const effectiveTo = input.effectiveTo === undefined ? existing.effectiveTo : input.effectiveTo ? new Date(input.effectiveTo) : null;
+  if (effectiveTo && effectiveTo <= effectiveFrom) {
+    return { success: false, code: ERROR_CODES.VALIDATION_ERROR, message: "effectiveTo must be later than effectiveFrom" };
+  }
+  try {
+    const data: Record<string, any> = { ...input, effectiveFrom, effectiveTo };
+    if (input.unitCost != null) data.unitCost = decimal(input.unitCost);
+    if (input.billingUnitsPerFeatureUnit != null) data.billingUnitsPerFeatureUnit = decimal(input.billingUnitsPerFeatureUnit);
+    if (input.operationalMultiplier != null) data.operationalMultiplier = decimal(input.operationalMultiplier);
+    if (input.variabilityReserve != null) data.variabilityReserve = decimal(input.variabilityReserve);
+    if (input.metadata !== undefined) data.metadata = input.metadata as Prisma.InputJsonValue;
+    const rate = await customPlanRepository.updateInfrastructureRate(id, data);
+    return { success: true, data: normalizeInfrastructureRate(rate) };
+  } catch (error: any) {
+    if (error?.code === "P2025") return { success: false, code: ERROR_CODES.INFRASTRUCTURE_RATE_NOT_FOUND };
     throw error;
   }
 }

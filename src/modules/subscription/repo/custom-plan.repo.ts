@@ -162,8 +162,41 @@ export const customPlanRepository = {
       include: { feature: true }
     }),
 
+  listInfrastructureRates: () =>
+    prisma.infrastructureRate.findMany({
+      include: { feature: true },
+      orderBy: [{ costDriver: "asc" }, { effectiveFrom: "desc" }, { createdAt: "desc" }]
+    }),
+
+  getActiveInfrastructureRates: (featureIds: string[], at = new Date()) =>
+    prisma.infrastructureRate.findMany({
+      where: {
+        featureId: { in: featureIds },
+        effectiveFrom: { lte: at },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gt: at } }],
+        verificationStatus: { not: "deprecated" }
+      },
+      include: { feature: true },
+      // The pricing service deterministically keeps the newest rate per
+      // feature/cost-driver pair, so an accidental overlapping row cannot be
+      // summed twice.
+      orderBy: [{ featureId: "asc" }, { costDriver: "asc" }, { effectiveFrom: "desc" }, { createdAt: "desc" }]
+    }),
+
+  createInfrastructureRate: (data: Prisma.InfrastructureRateUncheckedCreateInput) =>
+    prisma.infrastructureRate.create({ data, include: { feature: true } }),
+
+  findInfrastructureRateById: (id: string) =>
+    prisma.infrastructureRate.findUnique({ where: { id }, include: { feature: true } }),
+
+  updateInfrastructureRate: (id: string, data: Record<string, any>) =>
+    prisma.infrastructureRate.update({ where: { id }, data, include: { feature: true } }),
+
   createVendorRate: (data: Prisma.VendorRateUncheckedCreateInput) =>
     prisma.vendorRate.create({ data, include: { feature: true } }),
+
+  findVendorRateById: (id: string) =>
+    prisma.vendorRate.findUnique({ where: { id }, include: { feature: true } }),
 
   updateVendorRate: (id: string, data: Record<string, any>) =>
     prisma.vendorRate.update({ where: { id }, data, include: { feature: true } }),
@@ -321,7 +354,8 @@ export const customPlanRepository = {
           data: quote.quoteFeatures.map((feature) => ({
             plan_id: plan.id,
             feature_id: feature.featureId,
-            limit_value: feature.limitValue
+            limit_value: feature.limitValue,
+            metadata: feature.metadata ?? undefined
           }))
         });
       }

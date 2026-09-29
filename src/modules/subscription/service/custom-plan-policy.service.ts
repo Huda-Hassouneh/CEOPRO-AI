@@ -8,6 +8,12 @@ export type AutomaticFeatureLimit = {
   step?: number;
 };
 
+export type MonitoringCadence = {
+  code: string;
+  minutes: number;
+  checksPerMonth: number;
+};
+
 export type CustomPlanPricingPolicy = {
   currency: string;
   targetGrossMargin: number;
@@ -32,6 +38,7 @@ export type CustomPlanPricingPolicy = {
     discountPercent: number;
   }>;
   featureLimits: Record<string, AutomaticFeatureLimit>;
+  monitoringCadences: MonitoringCadence[];
 };
 
 export const DEFAULT_CUSTOM_PLAN_PRICING_POLICY: CustomPlanPricingPolicy = {
@@ -80,6 +87,14 @@ export const DEFAULT_CUSTOM_PLAN_PRICING_POLICY: CustomPlanPricingPolicy = {
   ],
 
   featureLimits: {},
+
+  monitoringCadences: [
+    { code: "daily", minutes: 1440, checksPerMonth: 30 },
+    { code: "every_12_hours", minutes: 720, checksPerMonth: 60 },
+    { code: "every_6_hours", minutes: 360, checksPerMonth: 120 },
+    { code: "hourly", minutes: 60, checksPerMonth: 720 },
+    { code: "weekly", minutes: 10080, checksPerMonth: 4 },
+  ],
 };
 
 function asFiniteNumber(value: unknown, fallback: number) {
@@ -143,6 +158,33 @@ function sanitizePolicy(raw: unknown): CustomPlanPricingPolicy {
       ...(step != null ? { step } : {}),
     };
   }
+
+  const monitoringCadences = Array.isArray(source.monitoringCadences)
+    ? source.monitoringCadences
+        .filter(
+          (item: any) =>
+            item &&
+            typeof item === "object" &&
+            /^[a-z0-9_]+$/.test(String(item.code ?? "")) &&
+            Number.isInteger(Number(item.minutes)) &&
+            Number(item.minutes) > 0 &&
+            Number.isFinite(Number(item.checksPerMonth)) &&
+            Number(item.checksPerMonth) > 0,
+        )
+        .map((item: any) => ({
+          code: String(item.code),
+          minutes: Number(item.minutes),
+          checksPerMonth: Number(item.checksPerMonth),
+        }))
+        .filter(
+          (item: MonitoringCadence, index: number, items: MonitoringCadence[]) =>
+            items.findIndex(
+              (candidate) =>
+                candidate.code === item.code ||
+                candidate.minutes === item.minutes,
+            ) === index,
+        )
+    : [];
 
   return {
     currency: /^[A-Z]{3}$/.test(String(source.currency ?? "").toUpperCase())
@@ -236,6 +278,9 @@ function sanitizePolicy(raw: unknown): CustomPlanPricingPolicy {
       ? billingOptions
       : defaults.billingOptions,
     featureLimits,
+    monitoringCadences: monitoringCadences.length
+      ? monitoringCadences
+      : defaults.monitoringCadences,
   };
 }
 
@@ -259,6 +304,8 @@ export async function updateCustomPlanPricingPolicy(
     ...patch,
     featureLimits: patch.featureLimits ?? current.featureLimits,
     billingOptions: patch.billingOptions ?? current.billingOptions,
+    monitoringCadences:
+      patch.monitoringCadences ?? current.monitoringCadences,
   });
 
   await upsertAppConfig(
