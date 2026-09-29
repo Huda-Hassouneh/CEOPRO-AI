@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 import { routePaths } from "../../../app/router/routePaths.js";
-import { useAuthStore } from "../../auth/store/authStore.js";
 import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
 import Button from "../../../shared/components/ui/Button.jsx";
 import EmptyState from "../../../shared/components/ui/EmptyState.jsx";
@@ -14,11 +13,9 @@ import { ExpansionOpportunityCard } from "../components/ExpansionOpportunityCard
 import { MarketIntelligenceMetricCard } from "../components/MarketIntelligenceMetricCard.jsx";
 import { MarketIntelligenceSection } from "../components/MarketIntelligenceSection.jsx";
 import { MarketIntelligenceTable } from "../components/MarketIntelligenceTable.jsx";
-import { marketIntelligenceApi } from "../api/marketIntelligenceApi.js";
 import { useMarketIntelligenceOverview } from "../hooks/useMarketIntelligenceOverview.js";
-import "../styles/MarketIntelligence.css"; // ADD THIS:
+import "../styles/MarketIntelligence.css";
 import { LeaderboardTable } from "../components/LeaderboardTable.jsx";
-// DELETE THIS:
 function localizeValue(value, locale) {
   if (value && typeof value === "object")
     return value[locale] || value.en || Object.values(value)[0];
@@ -34,17 +31,17 @@ function ToneBadge({ value, namespace }) {
 export function MarketIntelligenceOverviewPage() {
   const { t, locale, dir } = useI18n();
   const navigate = useNavigate();
-  const companyId = useAuthStore((state) => state.tenantId);
   const [productId, setProductId] = useState(null);
   const [periodDays, setPeriodDays] = useState(30);
   const [exportNotice, setExportNotice] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportInProgress = useRef(false);
   const query = useMarketIntelligenceOverview({
     productId,
     periodDays
   });
 
   const data = query.data;
-  console.log(data);
 
   const number = useMemo(
     () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
@@ -64,30 +61,36 @@ export function MarketIntelligenceOverviewPage() {
   const localize = (value) => localizeValue(value, locale);
   const formatDate = (value) => {
     if (!value) return "—";
-    return date.format(
-      new Date(value.includes("T") ? value : `${value}T00:00:00Z`)
-    );
+    const parsed = new Date(value.includes("T") ? value : `${value}T00:00:00Z`);
+    return Number.isNaN(parsed.getTime()) ? "—" : date.format(parsed);
   };
   const money = (value, currency) => {
+    if (value == null) return "—";
     if (!moneyFormatters.has(currency))
       moneyFormatters.set(
         currency,
         new Intl.NumberFormat(locale, {
           style: "currency",
-          currency,
-          maximumFractionDigits: 0
+          currency
         })
       );
     return moneyFormatters.get(currency).format(value);
   };
   const requestExport = async (section) => {
-    const result = await marketIntelligenceApi.requestPdfExport({
-      companyId,
-      productId: data?.selectedProduct?.id,
-      periodDays,
-      section
-    });
-    if (!result.available) setExportNotice(true);
+    if (exportInProgress.current || query.isFetching || !data) return;
+    exportInProgress.current = true;
+    setIsExporting(true);
+    setExportNotice(false);
+    try {
+      const { exportMarketIntelligencePdf } = await import("../utils/exportMarketIntelligencePdf.js");
+      await exportMarketIntelligencePdf({ data, section, locale, periodDays });
+    } catch (error) {
+      console.error("Market Intelligence PDF export failed:", error);
+      setExportNotice(true);
+    } finally {
+      exportInProgress.current = false;
+      setIsExporting(false);
+    }
   };
   const empty = (titleKey, descriptionKey, action) => (
     <EmptyState
@@ -162,27 +165,27 @@ export function MarketIntelligenceOverviewPage() {
     {
       key: "pricingScore",
       label: t("marketMain.tables.pricingScore"),
-      render: (row) => `${number.format(row.pricingScore)} / 10`
+      render: (row) => row.pricingScore == null ? "—" : `${number.format(row.pricingScore)} / 10`
     },
     {
       key: "compositeScore",
       label: t("marketMain.tables.compositeScore"),
-      render: (row) => `${number.format(row.compositeScore)} / 100`
+      render: (row) => row.compositeScore == null ? "—" : `${number.format(row.compositeScore)} / 100`
     },
     {
       key: "relevanceScore",
       label: t("marketMain.tables.relevanceScore"),
-      render: (row) => `${number.format(row.relevanceScore)} / 100`
+      render: (row) => row.relevanceScore == null ? "—" : `${number.format(row.relevanceScore)} / 100`
     },
     {
       key: "marketPresenceScore",
       label: t("marketMain.tables.presenceScore"),
-      render: (row) => `${number.format(row.marketPresenceScore)} / 100`
+      render: (row) => row.marketPresenceScore == null ? "—" : `${number.format(row.marketPresenceScore)} / 100`
     },
     {
       key: "marketPerception",
       label: t("marketMain.tables.perception"),
-      render: (row) => (
+      render: (row) => row.marketPerception == null ? "—" : (
         <ToneBadge
           value={row.marketPerception}
           namespace={(value) => t(`marketMain.sentiments.${value}`)}
@@ -333,8 +336,6 @@ export function MarketIntelligenceOverviewPage() {
         aria-label={t("marketMain.metrics.label")}
       >
         {data.metrics.map((metric) => {
-          console.log({ metric });
-
           return (
             <MarketIntelligenceMetricCard
               key={metric.id}
@@ -366,6 +367,7 @@ export function MarketIntelligenceOverviewPage() {
         })}
         dataStatus={data.competitors[0]?.dataStatus}
         exportLabel={t("marketMain.actions.exportPdf")}
+        exportDisabled={isExporting || query.isFetching}
         onExport={() => requestExport("competitors")}
       >
         <MarketIntelligenceTable
@@ -391,6 +393,7 @@ export function MarketIntelligenceOverviewPage() {
         subtitle={t("marketMain.pricing.subtitle")}
         dataStatus={data.pricingRecommendations[0]?.dataStatus}
         exportLabel={t("marketMain.actions.exportPdf")}
+        exportDisabled={isExporting || query.isFetching}
         onExport={() => requestExport("pricing")}
       >
         <MarketIntelligenceTable
@@ -409,6 +412,7 @@ export function MarketIntelligenceOverviewPage() {
         subtitle={t("marketMain.opportunities.subtitle")}
         dataStatus={data.expansionOpportunities[0]?.dataStatus}
         exportLabel={t("marketMain.actions.exportPdf")}
+        exportDisabled={isExporting || query.isFetching}
         onExport={() => requestExport("opportunities")}
       >
         {data.expansionOpportunities.length ? (
@@ -436,6 +440,7 @@ export function MarketIntelligenceOverviewPage() {
         subtitle={t("marketMain.changes.subtitle")}
         dataStatus={data.recentPriceChanges[0]?.dataStatus}
         exportLabel={t("marketMain.actions.exportPdf")}
+        exportDisabled={isExporting || query.isFetching}
         onExport={() => requestExport("price-changes")}
       >
         <MarketIntelligenceTable
@@ -452,8 +457,8 @@ export function MarketIntelligenceOverviewPage() {
       {exportNotice && (
         <div className="market-main-toast">
           <Toast
-            variant="info"
-            message={t("marketMain.export.unavailable")}
+            variant="error"
+            message={t("marketMain.export.failed")}
             onClose={() => setExportNotice(false)}
           />
         </div>

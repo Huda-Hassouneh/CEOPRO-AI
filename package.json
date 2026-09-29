@@ -11,6 +11,7 @@
     "verify:entitlements": "node scripts/verify-entitlement-integration.mjs"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.9.0",
     "@tanstack/react-query": "latest",
     "axios": "latest",
     "lucide-react": "latest",
