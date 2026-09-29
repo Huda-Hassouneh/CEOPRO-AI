@@ -65,6 +65,7 @@ export const ModelName = {
   PlanFeature: 'PlanFeature',
   SubscriptionUsage: 'SubscriptionUsage',
   VendorRate: 'VendorRate',
+  InfrastructureRate: 'InfrastructureRate',
   CustomPlanQuote: 'CustomPlanQuote',
   CustomPlanQuoteFeature: 'CustomPlanQuoteFeature',
   User: 'User',
@@ -312,7 +313,8 @@ export type FeatureScalarFieldEnum = (typeof FeatureScalarFieldEnum)[keyof typeo
 export const PlanFeatureScalarFieldEnum = {
   plan_id: 'plan_id',
   feature_id: 'feature_id',
-  limit_value: 'limit_value'
+  limit_value: 'limit_value',
+  metadata: 'metadata'
 } as const
 
 export type PlanFeatureScalarFieldEnum = (typeof PlanFeatureScalarFieldEnum)[keyof typeof PlanFeatureScalarFieldEnum]
@@ -351,6 +353,29 @@ export const VendorRateScalarFieldEnum = {
 } as const
 
 export type VendorRateScalarFieldEnum = (typeof VendorRateScalarFieldEnum)[keyof typeof VendorRateScalarFieldEnum]
+
+
+export const InfrastructureRateScalarFieldEnum = {
+  id: 'id',
+  featureId: 'featureId',
+  costDriver: 'costDriver',
+  usageBasis: 'usageBasis',
+  billingUnit: 'billingUnit',
+  billingUnitsPerFeatureUnit: 'billingUnitsPerFeatureUnit',
+  unitCost: 'unitCost',
+  currency: 'currency',
+  operationalMultiplier: 'operationalMultiplier',
+  variabilityReserve: 'variabilityReserve',
+  effectiveFrom: 'effectiveFrom',
+  effectiveTo: 'effectiveTo',
+  verificationStatus: 'verificationStatus',
+  source: 'source',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InfrastructureRateScalarFieldEnum = (typeof InfrastructureRateScalarFieldEnum)[keyof typeof InfrastructureRateScalarFieldEnum]
 
 
 export const CustomPlanQuoteScalarFieldEnum = {

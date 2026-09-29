@@ -497,6 +497,40 @@ export type EnumVendorRateVerificationStatusWithAggregatesFilter<$PrismaModel = 
   _max?: Prisma.NestedEnumVendorRateVerificationStatusFilter<$PrismaModel>
 }
 
+export type EnumInfrastructureRateUsageBasisFilter<$PrismaModel = never> = {
+  equals?: $Enums.InfrastructureRateUsageBasis | Prisma.EnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  in?: $Enums.InfrastructureRateUsageBasis[] | Prisma.ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  notIn?: $Enums.InfrastructureRateUsageBasis[] | Prisma.ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumInfrastructureRateUsageBasisFilter<$PrismaModel> | $Enums.InfrastructureRateUsageBasis
+}
+
+export type EnumInfrastructureRateVerificationStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.InfrastructureRateVerificationStatus | Prisma.EnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.InfrastructureRateVerificationStatus[] | Prisma.ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.InfrastructureRateVerificationStatus[] | Prisma.ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumInfrastructureRateVerificationStatusFilter<$PrismaModel> | $Enums.InfrastructureRateVerificationStatus
+}
+
+export type EnumInfrastructureRateUsageBasisWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.InfrastructureRateUsageBasis | Prisma.EnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  in?: $Enums.InfrastructureRateUsageBasis[] | Prisma.ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  notIn?: $Enums.InfrastructureRateUsageBasis[] | Prisma.ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumInfrastructureRateUsageBasisWithAggregatesFilter<$PrismaModel> | $Enums.InfrastructureRateUsageBasis
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumInfrastructureRateUsageBasisFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumInfrastructureRateUsageBasisFilter<$PrismaModel>
+}
+
+export type EnumInfrastructureRateVerificationStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.InfrastructureRateVerificationStatus | Prisma.EnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.InfrastructureRateVerificationStatus[] | Prisma.ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.InfrastructureRateVerificationStatus[] | Prisma.ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumInfrastructureRateVerificationStatusWithAggregatesFilter<$PrismaModel> | $Enums.InfrastructureRateVerificationStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumInfrastructureRateVerificationStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumInfrastructureRateVerificationStatusFilter<$PrismaModel>
+}
+
 export type EnumCustomPlanQuoteStatusFilter<$PrismaModel = never> = {
   equals?: $Enums.CustomPlanQuoteStatus | Prisma.EnumCustomPlanQuoteStatusFieldRefInput<$PrismaModel>
   in?: $Enums.CustomPlanQuoteStatus[] | Prisma.ListEnumCustomPlanQuoteStatusFieldRefInput<$PrismaModel>
@@ -977,6 +1011,40 @@ export type NestedEnumVendorRateVerificationStatusWithAggregatesFilter<$PrismaMo
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumVendorRateVerificationStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumVendorRateVerificationStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumInfrastructureRateUsageBasisFilter<$PrismaModel = never> = {
+  equals?: $Enums.InfrastructureRateUsageBasis | Prisma.EnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  in?: $Enums.InfrastructureRateUsageBasis[] | Prisma.ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  notIn?: $Enums.InfrastructureRateUsageBasis[] | Prisma.ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumInfrastructureRateUsageBasisFilter<$PrismaModel> | $Enums.InfrastructureRateUsageBasis
+}
+
+export type NestedEnumInfrastructureRateVerificationStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.InfrastructureRateVerificationStatus | Prisma.EnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.InfrastructureRateVerificationStatus[] | Prisma.ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.InfrastructureRateVerificationStatus[] | Prisma.ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumInfrastructureRateVerificationStatusFilter<$PrismaModel> | $Enums.InfrastructureRateVerificationStatus
+}
+
+export type NestedEnumInfrastructureRateUsageBasisWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.InfrastructureRateUsageBasis | Prisma.EnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  in?: $Enums.InfrastructureRateUsageBasis[] | Prisma.ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  notIn?: $Enums.InfrastructureRateUsageBasis[] | Prisma.ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumInfrastructureRateUsageBasisWithAggregatesFilter<$PrismaModel> | $Enums.InfrastructureRateUsageBasis
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumInfrastructureRateUsageBasisFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumInfrastructureRateUsageBasisFilter<$PrismaModel>
+}
+
+export type NestedEnumInfrastructureRateVerificationStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.InfrastructureRateVerificationStatus | Prisma.EnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.InfrastructureRateVerificationStatus[] | Prisma.ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.InfrastructureRateVerificationStatus[] | Prisma.ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumInfrastructureRateVerificationStatusWithAggregatesFilter<$PrismaModel> | $Enums.InfrastructureRateVerificationStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumInfrastructureRateVerificationStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumInfrastructureRateVerificationStatusFilter<$PrismaModel>
 }
 
 export type NestedEnumCustomPlanQuoteStatusFilter<$PrismaModel = never> = {

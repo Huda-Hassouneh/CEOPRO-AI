@@ -62,3 +62,22 @@ export const VendorRateVerificationStatus = {
 } as const
 
 export type VendorRateVerificationStatus = (typeof VendorRateVerificationStatus)[keyof typeof VendorRateVerificationStatus]
+
+
+export const InfrastructureRateUsageBasis = {
+  limit_value: 'limit_value',
+  estimated_usage: 'estimated_usage',
+  enabled_feature: 'enabled_feature'
+} as const
+
+export type InfrastructureRateUsageBasis = (typeof InfrastructureRateUsageBasis)[keyof typeof InfrastructureRateUsageBasis]
+
+
+export const InfrastructureRateVerificationStatus = {
+  confirmed: 'confirmed',
+  estimated: 'estimated',
+  unconfirmed: 'unconfirmed',
+  deprecated: 'deprecated'
+} as const
+
+export type InfrastructureRateVerificationStatus = (typeof InfrastructureRateVerificationStatus)[keyof typeof InfrastructureRateVerificationStatus]

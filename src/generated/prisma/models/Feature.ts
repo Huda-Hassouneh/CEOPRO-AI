@@ -250,6 +250,7 @@ export type FeatureWhereInput = {
   plan_features?: Prisma.PlanFeatureListRelationFilter
   subscription_usage?: Prisma.SubscriptionUsageListRelationFilter
   vendorRates?: Prisma.VendorRateListRelationFilter
+  infrastructureRates?: Prisma.InfrastructureRateListRelationFilter
 }
 
 export type FeatureOrderByWithRelationInput = {
@@ -270,6 +271,7 @@ export type FeatureOrderByWithRelationInput = {
   plan_features?: Prisma.PlanFeatureOrderByRelationAggregateInput
   subscription_usage?: Prisma.SubscriptionUsageOrderByRelationAggregateInput
   vendorRates?: Prisma.VendorRateOrderByRelationAggregateInput
+  infrastructureRates?: Prisma.InfrastructureRateOrderByRelationAggregateInput
 }
 
 export type FeatureWhereUniqueInput = Prisma.AtLeast<{
@@ -293,6 +295,7 @@ export type FeatureWhereUniqueInput = Prisma.AtLeast<{
   plan_features?: Prisma.PlanFeatureListRelationFilter
   subscription_usage?: Prisma.SubscriptionUsageListRelationFilter
   vendorRates?: Prisma.VendorRateListRelationFilter
+  infrastructureRates?: Prisma.InfrastructureRateListRelationFilter
 }, "id" | "code">
 
 export type FeatureOrderByWithAggregationInput = {
@@ -351,6 +354,7 @@ export type FeatureCreateInput = {
   plan_features?: Prisma.PlanFeatureCreateNestedManyWithoutFeatureInput
   subscription_usage?: Prisma.SubscriptionUsageCreateNestedManyWithoutFeatureInput
   vendorRates?: Prisma.VendorRateCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureUncheckedCreateInput = {
@@ -371,6 +375,7 @@ export type FeatureUncheckedCreateInput = {
   plan_features?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutFeatureInput
   subscription_usage?: Prisma.SubscriptionUsageUncheckedCreateNestedManyWithoutFeatureInput
   vendorRates?: Prisma.VendorRateUncheckedCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureUpdateInput = {
@@ -391,6 +396,7 @@ export type FeatureUpdateInput = {
   plan_features?: Prisma.PlanFeatureUpdateManyWithoutFeatureNestedInput
   subscription_usage?: Prisma.SubscriptionUsageUpdateManyWithoutFeatureNestedInput
   vendorRates?: Prisma.VendorRateUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureUncheckedUpdateInput = {
@@ -411,6 +417,7 @@ export type FeatureUncheckedUpdateInput = {
   plan_features?: Prisma.PlanFeatureUncheckedUpdateManyWithoutFeatureNestedInput
   subscription_usage?: Prisma.SubscriptionUsageUncheckedUpdateManyWithoutFeatureNestedInput
   vendorRates?: Prisma.VendorRateUncheckedUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureCreateManyInput = {
@@ -575,6 +582,22 @@ export type FeatureUpdateOneWithoutVendorRatesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.FeatureUpdateToOneWithWhereWithoutVendorRatesInput, Prisma.FeatureUpdateWithoutVendorRatesInput>, Prisma.FeatureUncheckedUpdateWithoutVendorRatesInput>
 }
 
+export type FeatureCreateNestedOneWithoutInfrastructureRatesInput = {
+  create?: Prisma.XOR<Prisma.FeatureCreateWithoutInfrastructureRatesInput, Prisma.FeatureUncheckedCreateWithoutInfrastructureRatesInput>
+  connectOrCreate?: Prisma.FeatureCreateOrConnectWithoutInfrastructureRatesInput
+  connect?: Prisma.FeatureWhereUniqueInput
+}
+
+export type FeatureUpdateOneWithoutInfrastructureRatesNestedInput = {
+  create?: Prisma.XOR<Prisma.FeatureCreateWithoutInfrastructureRatesInput, Prisma.FeatureUncheckedCreateWithoutInfrastructureRatesInput>
+  connectOrCreate?: Prisma.FeatureCreateOrConnectWithoutInfrastructureRatesInput
+  upsert?: Prisma.FeatureUpsertWithoutInfrastructureRatesInput
+  disconnect?: Prisma.FeatureWhereInput | boolean
+  delete?: Prisma.FeatureWhereInput | boolean
+  connect?: Prisma.FeatureWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.FeatureUpdateToOneWithWhereWithoutInfrastructureRatesInput, Prisma.FeatureUpdateWithoutInfrastructureRatesInput>, Prisma.FeatureUncheckedUpdateWithoutInfrastructureRatesInput>
+}
+
 export type FeatureCreateNestedOneWithoutCustomQuoteFeaturesInput = {
   create?: Prisma.XOR<Prisma.FeatureCreateWithoutCustomQuoteFeaturesInput, Prisma.FeatureUncheckedCreateWithoutCustomQuoteFeaturesInput>
   connectOrCreate?: Prisma.FeatureCreateOrConnectWithoutCustomQuoteFeaturesInput
@@ -606,6 +629,7 @@ export type FeatureCreateWithoutPlan_featuresInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureCreateNestedManyWithoutFeatureInput
   subscription_usage?: Prisma.SubscriptionUsageCreateNestedManyWithoutFeatureInput
   vendorRates?: Prisma.VendorRateCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureUncheckedCreateWithoutPlan_featuresInput = {
@@ -625,6 +649,7 @@ export type FeatureUncheckedCreateWithoutPlan_featuresInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUncheckedCreateNestedManyWithoutFeatureInput
   subscription_usage?: Prisma.SubscriptionUsageUncheckedCreateNestedManyWithoutFeatureInput
   vendorRates?: Prisma.VendorRateUncheckedCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureCreateOrConnectWithoutPlan_featuresInput = {
@@ -660,6 +685,7 @@ export type FeatureUpdateWithoutPlan_featuresInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUpdateManyWithoutFeatureNestedInput
   subscription_usage?: Prisma.SubscriptionUsageUpdateManyWithoutFeatureNestedInput
   vendorRates?: Prisma.VendorRateUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureUncheckedUpdateWithoutPlan_featuresInput = {
@@ -679,6 +705,7 @@ export type FeatureUncheckedUpdateWithoutPlan_featuresInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUncheckedUpdateManyWithoutFeatureNestedInput
   subscription_usage?: Prisma.SubscriptionUsageUncheckedUpdateManyWithoutFeatureNestedInput
   vendorRates?: Prisma.VendorRateUncheckedUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureCreateWithoutSubscription_usageInput = {
@@ -698,6 +725,7 @@ export type FeatureCreateWithoutSubscription_usageInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureCreateNestedManyWithoutFeatureInput
   plan_features?: Prisma.PlanFeatureCreateNestedManyWithoutFeatureInput
   vendorRates?: Prisma.VendorRateCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureUncheckedCreateWithoutSubscription_usageInput = {
@@ -717,6 +745,7 @@ export type FeatureUncheckedCreateWithoutSubscription_usageInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUncheckedCreateNestedManyWithoutFeatureInput
   plan_features?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutFeatureInput
   vendorRates?: Prisma.VendorRateUncheckedCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureCreateOrConnectWithoutSubscription_usageInput = {
@@ -752,6 +781,7 @@ export type FeatureUpdateWithoutSubscription_usageInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUpdateManyWithoutFeatureNestedInput
   plan_features?: Prisma.PlanFeatureUpdateManyWithoutFeatureNestedInput
   vendorRates?: Prisma.VendorRateUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureUncheckedUpdateWithoutSubscription_usageInput = {
@@ -771,6 +801,7 @@ export type FeatureUncheckedUpdateWithoutSubscription_usageInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUncheckedUpdateManyWithoutFeatureNestedInput
   plan_features?: Prisma.PlanFeatureUncheckedUpdateManyWithoutFeatureNestedInput
   vendorRates?: Prisma.VendorRateUncheckedUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureCreateWithoutVendorRatesInput = {
@@ -790,6 +821,7 @@ export type FeatureCreateWithoutVendorRatesInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureCreateNestedManyWithoutFeatureInput
   plan_features?: Prisma.PlanFeatureCreateNestedManyWithoutFeatureInput
   subscription_usage?: Prisma.SubscriptionUsageCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureUncheckedCreateWithoutVendorRatesInput = {
@@ -809,6 +841,7 @@ export type FeatureUncheckedCreateWithoutVendorRatesInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUncheckedCreateNestedManyWithoutFeatureInput
   plan_features?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutFeatureInput
   subscription_usage?: Prisma.SubscriptionUsageUncheckedCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureCreateOrConnectWithoutVendorRatesInput = {
@@ -844,6 +877,7 @@ export type FeatureUpdateWithoutVendorRatesInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUpdateManyWithoutFeatureNestedInput
   plan_features?: Prisma.PlanFeatureUpdateManyWithoutFeatureNestedInput
   subscription_usage?: Prisma.SubscriptionUsageUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureUncheckedUpdateWithoutVendorRatesInput = {
@@ -863,6 +897,103 @@ export type FeatureUncheckedUpdateWithoutVendorRatesInput = {
   customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUncheckedUpdateManyWithoutFeatureNestedInput
   plan_features?: Prisma.PlanFeatureUncheckedUpdateManyWithoutFeatureNestedInput
   subscription_usage?: Prisma.SubscriptionUsageUncheckedUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedUpdateManyWithoutFeatureNestedInput
+}
+
+export type FeatureCreateWithoutInfrastructureRatesInput = {
+  id?: string
+  code: string
+  name: string
+  name_ar: string
+  type: $Enums.FeatureType
+  description?: string | null
+  description_ar?: string | null
+  unit?: string | null
+  unit_ar?: string | null
+  aggregationType?: $Enums.AggregationType
+  resetCycle?: $Enums.ResetCycle
+  created_at?: Date | string
+  updated_at?: Date | string
+  customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureCreateNestedManyWithoutFeatureInput
+  plan_features?: Prisma.PlanFeatureCreateNestedManyWithoutFeatureInput
+  subscription_usage?: Prisma.SubscriptionUsageCreateNestedManyWithoutFeatureInput
+  vendorRates?: Prisma.VendorRateCreateNestedManyWithoutFeatureInput
+}
+
+export type FeatureUncheckedCreateWithoutInfrastructureRatesInput = {
+  id?: string
+  code: string
+  name: string
+  name_ar: string
+  type: $Enums.FeatureType
+  description?: string | null
+  description_ar?: string | null
+  unit?: string | null
+  unit_ar?: string | null
+  aggregationType?: $Enums.AggregationType
+  resetCycle?: $Enums.ResetCycle
+  created_at?: Date | string
+  updated_at?: Date | string
+  customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUncheckedCreateNestedManyWithoutFeatureInput
+  plan_features?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutFeatureInput
+  subscription_usage?: Prisma.SubscriptionUsageUncheckedCreateNestedManyWithoutFeatureInput
+  vendorRates?: Prisma.VendorRateUncheckedCreateNestedManyWithoutFeatureInput
+}
+
+export type FeatureCreateOrConnectWithoutInfrastructureRatesInput = {
+  where: Prisma.FeatureWhereUniqueInput
+  create: Prisma.XOR<Prisma.FeatureCreateWithoutInfrastructureRatesInput, Prisma.FeatureUncheckedCreateWithoutInfrastructureRatesInput>
+}
+
+export type FeatureUpsertWithoutInfrastructureRatesInput = {
+  update: Prisma.XOR<Prisma.FeatureUpdateWithoutInfrastructureRatesInput, Prisma.FeatureUncheckedUpdateWithoutInfrastructureRatesInput>
+  create: Prisma.XOR<Prisma.FeatureCreateWithoutInfrastructureRatesInput, Prisma.FeatureUncheckedCreateWithoutInfrastructureRatesInput>
+  where?: Prisma.FeatureWhereInput
+}
+
+export type FeatureUpdateToOneWithWhereWithoutInfrastructureRatesInput = {
+  where?: Prisma.FeatureWhereInput
+  data: Prisma.XOR<Prisma.FeatureUpdateWithoutInfrastructureRatesInput, Prisma.FeatureUncheckedUpdateWithoutInfrastructureRatesInput>
+}
+
+export type FeatureUpdateWithoutInfrastructureRatesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  name_ar?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.EnumFeatureTypeFieldUpdateOperationsInput | $Enums.FeatureType
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description_ar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unit?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unit_ar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aggregationType?: Prisma.EnumAggregationTypeFieldUpdateOperationsInput | $Enums.AggregationType
+  resetCycle?: Prisma.EnumResetCycleFieldUpdateOperationsInput | $Enums.ResetCycle
+  created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUpdateManyWithoutFeatureNestedInput
+  plan_features?: Prisma.PlanFeatureUpdateManyWithoutFeatureNestedInput
+  subscription_usage?: Prisma.SubscriptionUsageUpdateManyWithoutFeatureNestedInput
+  vendorRates?: Prisma.VendorRateUpdateManyWithoutFeatureNestedInput
+}
+
+export type FeatureUncheckedUpdateWithoutInfrastructureRatesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  name_ar?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.EnumFeatureTypeFieldUpdateOperationsInput | $Enums.FeatureType
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description_ar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unit?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unit_ar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aggregationType?: Prisma.EnumAggregationTypeFieldUpdateOperationsInput | $Enums.AggregationType
+  resetCycle?: Prisma.EnumResetCycleFieldUpdateOperationsInput | $Enums.ResetCycle
+  created_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated_at?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customQuoteFeatures?: Prisma.CustomPlanQuoteFeatureUncheckedUpdateManyWithoutFeatureNestedInput
+  plan_features?: Prisma.PlanFeatureUncheckedUpdateManyWithoutFeatureNestedInput
+  subscription_usage?: Prisma.SubscriptionUsageUncheckedUpdateManyWithoutFeatureNestedInput
+  vendorRates?: Prisma.VendorRateUncheckedUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureCreateWithoutCustomQuoteFeaturesInput = {
@@ -882,6 +1013,7 @@ export type FeatureCreateWithoutCustomQuoteFeaturesInput = {
   plan_features?: Prisma.PlanFeatureCreateNestedManyWithoutFeatureInput
   subscription_usage?: Prisma.SubscriptionUsageCreateNestedManyWithoutFeatureInput
   vendorRates?: Prisma.VendorRateCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureUncheckedCreateWithoutCustomQuoteFeaturesInput = {
@@ -901,6 +1033,7 @@ export type FeatureUncheckedCreateWithoutCustomQuoteFeaturesInput = {
   plan_features?: Prisma.PlanFeatureUncheckedCreateNestedManyWithoutFeatureInput
   subscription_usage?: Prisma.SubscriptionUsageUncheckedCreateNestedManyWithoutFeatureInput
   vendorRates?: Prisma.VendorRateUncheckedCreateNestedManyWithoutFeatureInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedCreateNestedManyWithoutFeatureInput
 }
 
 export type FeatureCreateOrConnectWithoutCustomQuoteFeaturesInput = {
@@ -936,6 +1069,7 @@ export type FeatureUpdateWithoutCustomQuoteFeaturesInput = {
   plan_features?: Prisma.PlanFeatureUpdateManyWithoutFeatureNestedInput
   subscription_usage?: Prisma.SubscriptionUsageUpdateManyWithoutFeatureNestedInput
   vendorRates?: Prisma.VendorRateUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUpdateManyWithoutFeatureNestedInput
 }
 
 export type FeatureUncheckedUpdateWithoutCustomQuoteFeaturesInput = {
@@ -955,6 +1089,7 @@ export type FeatureUncheckedUpdateWithoutCustomQuoteFeaturesInput = {
   plan_features?: Prisma.PlanFeatureUncheckedUpdateManyWithoutFeatureNestedInput
   subscription_usage?: Prisma.SubscriptionUsageUncheckedUpdateManyWithoutFeatureNestedInput
   vendorRates?: Prisma.VendorRateUncheckedUpdateManyWithoutFeatureNestedInput
+  infrastructureRates?: Prisma.InfrastructureRateUncheckedUpdateManyWithoutFeatureNestedInput
 }
 
 
@@ -967,6 +1102,7 @@ export type FeatureCountOutputType = {
   plan_features: number
   subscription_usage: number
   vendorRates: number
+  infrastructureRates: number
 }
 
 export type FeatureCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -974,6 +1110,7 @@ export type FeatureCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   plan_features?: boolean | FeatureCountOutputTypeCountPlan_featuresArgs
   subscription_usage?: boolean | FeatureCountOutputTypeCountSubscription_usageArgs
   vendorRates?: boolean | FeatureCountOutputTypeCountVendorRatesArgs
+  infrastructureRates?: boolean | FeatureCountOutputTypeCountInfrastructureRatesArgs
 }
 
 /**
@@ -1014,6 +1151,13 @@ export type FeatureCountOutputTypeCountVendorRatesArgs<ExtArgs extends runtime.T
   where?: Prisma.VendorRateWhereInput
 }
 
+/**
+ * FeatureCountOutputType without action
+ */
+export type FeatureCountOutputTypeCountInfrastructureRatesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.InfrastructureRateWhereInput
+}
+
 
 export type FeatureSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1033,6 +1177,7 @@ export type FeatureSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   plan_features?: boolean | Prisma.Feature$plan_featuresArgs<ExtArgs>
   subscription_usage?: boolean | Prisma.Feature$subscription_usageArgs<ExtArgs>
   vendorRates?: boolean | Prisma.Feature$vendorRatesArgs<ExtArgs>
+  infrastructureRates?: boolean | Prisma.Feature$infrastructureRatesArgs<ExtArgs>
   _count?: boolean | Prisma.FeatureCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["feature"]>
 
@@ -1090,6 +1235,7 @@ export type FeatureInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   plan_features?: boolean | Prisma.Feature$plan_featuresArgs<ExtArgs>
   subscription_usage?: boolean | Prisma.Feature$subscription_usageArgs<ExtArgs>
   vendorRates?: boolean | Prisma.Feature$vendorRatesArgs<ExtArgs>
+  infrastructureRates?: boolean | Prisma.Feature$infrastructureRatesArgs<ExtArgs>
   _count?: boolean | Prisma.FeatureCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type FeatureIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1102,6 +1248,7 @@ export type $FeaturePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     plan_features: Prisma.$PlanFeaturePayload<ExtArgs>[]
     subscription_usage: Prisma.$SubscriptionUsagePayload<ExtArgs>[]
     vendorRates: Prisma.$VendorRatePayload<ExtArgs>[]
+    infrastructureRates: Prisma.$InfrastructureRatePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1515,6 +1662,7 @@ export interface Prisma__FeatureClient<T, Null = never, ExtArgs extends runtime.
   plan_features<T extends Prisma.Feature$plan_featuresArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Feature$plan_featuresArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlanFeaturePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   subscription_usage<T extends Prisma.Feature$subscription_usageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Feature$subscription_usageArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubscriptionUsagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   vendorRates<T extends Prisma.Feature$vendorRatesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Feature$vendorRatesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VendorRatePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  infrastructureRates<T extends Prisma.Feature$infrastructureRatesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Feature$infrastructureRatesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InfrastructureRatePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2043,6 +2191,30 @@ export type Feature$vendorRatesArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.VendorRateScalarFieldEnum | Prisma.VendorRateScalarFieldEnum[]
+}
+
+/**
+ * Feature.infrastructureRates
+ */
+export type Feature$infrastructureRatesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the InfrastructureRate
+   */
+  select?: Prisma.InfrastructureRateSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the InfrastructureRate
+   */
+  omit?: Prisma.InfrastructureRateOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.InfrastructureRateInclude<ExtArgs> | null
+  where?: Prisma.InfrastructureRateWhereInput
+  orderBy?: Prisma.InfrastructureRateOrderByWithRelationInput | Prisma.InfrastructureRateOrderByWithRelationInput[]
+  cursor?: Prisma.InfrastructureRateWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.InfrastructureRateScalarFieldEnum | Prisma.InfrastructureRateScalarFieldEnum[]
 }
 
 /**

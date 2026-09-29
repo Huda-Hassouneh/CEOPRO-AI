@@ -411,6 +411,7 @@ export const ModelName = {
   PlanFeature: 'PlanFeature',
   SubscriptionUsage: 'SubscriptionUsage',
   VendorRate: 'VendorRate',
+  InfrastructureRate: 'InfrastructureRate',
   CustomPlanQuote: 'CustomPlanQuote',
   CustomPlanQuoteFeature: 'CustomPlanQuoteFeature',
   User: 'User',
@@ -469,7 +470,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "appConfig" | "company" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache"
+    modelProps: "appConfig" | "company" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1506,6 +1507,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.VendorRateCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.VendorRateCountAggregateOutputType> | number
+        }
+      }
+    }
+    InfrastructureRate: {
+      payload: Prisma.$InfrastructureRatePayload<ExtArgs>
+      fields: Prisma.InfrastructureRateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.InfrastructureRateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.InfrastructureRateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>
+        }
+        findFirst: {
+          args: Prisma.InfrastructureRateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.InfrastructureRateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>
+        }
+        findMany: {
+          args: Prisma.InfrastructureRateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>[]
+        }
+        create: {
+          args: Prisma.InfrastructureRateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>
+        }
+        createMany: {
+          args: Prisma.InfrastructureRateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.InfrastructureRateCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>[]
+        }
+        delete: {
+          args: Prisma.InfrastructureRateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>
+        }
+        update: {
+          args: Prisma.InfrastructureRateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>
+        }
+        deleteMany: {
+          args: Prisma.InfrastructureRateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.InfrastructureRateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.InfrastructureRateUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>[]
+        }
+        upsert: {
+          args: Prisma.InfrastructureRateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfrastructureRatePayload>
+        }
+        aggregate: {
+          args: Prisma.InfrastructureRateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateInfrastructureRate>
+        }
+        groupBy: {
+          args: Prisma.InfrastructureRateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InfrastructureRateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.InfrastructureRateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InfrastructureRateCountAggregateOutputType> | number
         }
       }
     }
@@ -4916,7 +4991,8 @@ export type FeatureScalarFieldEnum = (typeof FeatureScalarFieldEnum)[keyof typeo
 export const PlanFeatureScalarFieldEnum = {
   plan_id: 'plan_id',
   feature_id: 'feature_id',
-  limit_value: 'limit_value'
+  limit_value: 'limit_value',
+  metadata: 'metadata'
 } as const
 
 export type PlanFeatureScalarFieldEnum = (typeof PlanFeatureScalarFieldEnum)[keyof typeof PlanFeatureScalarFieldEnum]
@@ -4955,6 +5031,29 @@ export const VendorRateScalarFieldEnum = {
 } as const
 
 export type VendorRateScalarFieldEnum = (typeof VendorRateScalarFieldEnum)[keyof typeof VendorRateScalarFieldEnum]
+
+
+export const InfrastructureRateScalarFieldEnum = {
+  id: 'id',
+  featureId: 'featureId',
+  costDriver: 'costDriver',
+  usageBasis: 'usageBasis',
+  billingUnit: 'billingUnit',
+  billingUnitsPerFeatureUnit: 'billingUnitsPerFeatureUnit',
+  unitCost: 'unitCost',
+  currency: 'currency',
+  operationalMultiplier: 'operationalMultiplier',
+  variabilityReserve: 'variabilityReserve',
+  effectiveFrom: 'effectiveFrom',
+  effectiveTo: 'effectiveTo',
+  verificationStatus: 'verificationStatus',
+  source: 'source',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InfrastructureRateScalarFieldEnum = (typeof InfrastructureRateScalarFieldEnum)[keyof typeof InfrastructureRateScalarFieldEnum]
 
 
 export const CustomPlanQuoteScalarFieldEnum = {
@@ -5880,6 +5979,34 @@ export type ListEnumVendorRateVerificationStatusFieldRefInput<$PrismaModel> = Fi
 
 
 /**
+ * Reference to a field of type 'InfrastructureRateUsageBasis'
+ */
+export type EnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'InfrastructureRateUsageBasis'>
+    
+
+
+/**
+ * Reference to a field of type 'InfrastructureRateUsageBasis[]'
+ */
+export type ListEnumInfrastructureRateUsageBasisFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'InfrastructureRateUsageBasis[]'>
+    
+
+
+/**
+ * Reference to a field of type 'InfrastructureRateVerificationStatus'
+ */
+export type EnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'InfrastructureRateVerificationStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'InfrastructureRateVerificationStatus[]'
+ */
+export type ListEnumInfrastructureRateVerificationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'InfrastructureRateVerificationStatus[]'>
+    
+
+
+/**
  * Reference to a field of type 'CustomPlanQuoteStatus'
  */
 export type EnumCustomPlanQuoteStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CustomPlanQuoteStatus'>
@@ -6085,6 +6212,7 @@ export type GlobalOmitConfig = {
   planFeature?: Prisma.PlanFeatureOmit
   subscriptionUsage?: Prisma.SubscriptionUsageOmit
   vendorRate?: Prisma.VendorRateOmit
+  infrastructureRate?: Prisma.InfrastructureRateOmit
   customPlanQuote?: Prisma.CustomPlanQuoteOmit
   customPlanQuoteFeature?: Prisma.CustomPlanQuoteFeatureOmit
   user?: Prisma.UserOmit

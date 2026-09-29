@@ -50,6 +50,7 @@ export type PlanFeatureCountAggregateOutputType = {
   plan_id: number
   feature_id: number
   limit_value: number
+  metadata: number
   _all: number
 }
 
@@ -78,6 +79,7 @@ export type PlanFeatureCountAggregateInputType = {
   plan_id?: true
   feature_id?: true
   limit_value?: true
+  metadata?: true
   _all?: true
 }
 
@@ -171,6 +173,7 @@ export type PlanFeatureGroupByOutputType = {
   plan_id: string
   feature_id: string
   limit_value: number | null
+  metadata: runtime.JsonValue | null
   _count: PlanFeatureCountAggregateOutputType | null
   _avg: PlanFeatureAvgAggregateOutputType | null
   _sum: PlanFeatureSumAggregateOutputType | null
@@ -200,6 +203,7 @@ export type PlanFeatureWhereInput = {
   plan_id?: Prisma.UuidFilter<"PlanFeature"> | string
   feature_id?: Prisma.UuidFilter<"PlanFeature"> | string
   limit_value?: Prisma.IntNullableFilter<"PlanFeature"> | number | null
+  metadata?: Prisma.JsonNullableFilter<"PlanFeature">
   feature?: Prisma.XOR<Prisma.FeatureScalarRelationFilter, Prisma.FeatureWhereInput>
   plan?: Prisma.XOR<Prisma.PlanScalarRelationFilter, Prisma.PlanWhereInput>
 }
@@ -208,6 +212,7 @@ export type PlanFeatureOrderByWithRelationInput = {
   plan_id?: Prisma.SortOrder
   feature_id?: Prisma.SortOrder
   limit_value?: Prisma.SortOrderInput | Prisma.SortOrder
+  metadata?: Prisma.SortOrderInput | Prisma.SortOrder
   feature?: Prisma.FeatureOrderByWithRelationInput
   plan?: Prisma.PlanOrderByWithRelationInput
 }
@@ -220,6 +225,7 @@ export type PlanFeatureWhereUniqueInput = Prisma.AtLeast<{
   plan_id?: Prisma.UuidFilter<"PlanFeature"> | string
   feature_id?: Prisma.UuidFilter<"PlanFeature"> | string
   limit_value?: Prisma.IntNullableFilter<"PlanFeature"> | number | null
+  metadata?: Prisma.JsonNullableFilter<"PlanFeature">
   feature?: Prisma.XOR<Prisma.FeatureScalarRelationFilter, Prisma.FeatureWhereInput>
   plan?: Prisma.XOR<Prisma.PlanScalarRelationFilter, Prisma.PlanWhereInput>
 }, "plan_id_feature_id">
@@ -228,6 +234,7 @@ export type PlanFeatureOrderByWithAggregationInput = {
   plan_id?: Prisma.SortOrder
   feature_id?: Prisma.SortOrder
   limit_value?: Prisma.SortOrderInput | Prisma.SortOrder
+  metadata?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.PlanFeatureCountOrderByAggregateInput
   _avg?: Prisma.PlanFeatureAvgOrderByAggregateInput
   _max?: Prisma.PlanFeatureMaxOrderByAggregateInput
@@ -242,10 +249,12 @@ export type PlanFeatureScalarWhereWithAggregatesInput = {
   plan_id?: Prisma.UuidWithAggregatesFilter<"PlanFeature"> | string
   feature_id?: Prisma.UuidWithAggregatesFilter<"PlanFeature"> | string
   limit_value?: Prisma.IntNullableWithAggregatesFilter<"PlanFeature"> | number | null
+  metadata?: Prisma.JsonNullableWithAggregatesFilter<"PlanFeature">
 }
 
 export type PlanFeatureCreateInput = {
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   feature: Prisma.FeatureCreateNestedOneWithoutPlan_featuresInput
   plan: Prisma.PlanCreateNestedOneWithoutPlanFeaturesInput
 }
@@ -254,10 +263,12 @@ export type PlanFeatureUncheckedCreateInput = {
   plan_id: string
   feature_id: string
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureUpdateInput = {
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   feature?: Prisma.FeatureUpdateOneRequiredWithoutPlan_featuresNestedInput
   plan?: Prisma.PlanUpdateOneRequiredWithoutPlanFeaturesNestedInput
 }
@@ -266,22 +277,26 @@ export type PlanFeatureUncheckedUpdateInput = {
   plan_id?: Prisma.StringFieldUpdateOperationsInput | string
   feature_id?: Prisma.StringFieldUpdateOperationsInput | string
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureCreateManyInput = {
   plan_id: string
   feature_id: string
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureUpdateManyMutationInput = {
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureUncheckedUpdateManyInput = {
   plan_id?: Prisma.StringFieldUpdateOperationsInput | string
   feature_id?: Prisma.StringFieldUpdateOperationsInput | string
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureListRelationFilter = {
@@ -303,6 +318,7 @@ export type PlanFeatureCountOrderByAggregateInput = {
   plan_id?: Prisma.SortOrder
   feature_id?: Prisma.SortOrder
   limit_value?: Prisma.SortOrder
+  metadata?: Prisma.SortOrder
 }
 
 export type PlanFeatureAvgOrderByAggregateInput = {
@@ -411,12 +427,14 @@ export type PlanFeatureUncheckedUpdateManyWithoutFeatureNestedInput = {
 
 export type PlanFeatureCreateWithoutPlanInput = {
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   feature: Prisma.FeatureCreateNestedOneWithoutPlan_featuresInput
 }
 
 export type PlanFeatureUncheckedCreateWithoutPlanInput = {
   feature_id: string
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureCreateOrConnectWithoutPlanInput = {
@@ -452,16 +470,19 @@ export type PlanFeatureScalarWhereInput = {
   plan_id?: Prisma.UuidFilter<"PlanFeature"> | string
   feature_id?: Prisma.UuidFilter<"PlanFeature"> | string
   limit_value?: Prisma.IntNullableFilter<"PlanFeature"> | number | null
+  metadata?: Prisma.JsonNullableFilter<"PlanFeature">
 }
 
 export type PlanFeatureCreateWithoutFeatureInput = {
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   plan: Prisma.PlanCreateNestedOneWithoutPlanFeaturesInput
 }
 
 export type PlanFeatureUncheckedCreateWithoutFeatureInput = {
   plan_id: string
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureCreateOrConnectWithoutFeatureInput = {
@@ -493,41 +514,49 @@ export type PlanFeatureUpdateManyWithWhereWithoutFeatureInput = {
 export type PlanFeatureCreateManyPlanInput = {
   feature_id: string
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureUpdateWithoutPlanInput = {
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   feature?: Prisma.FeatureUpdateOneRequiredWithoutPlan_featuresNestedInput
 }
 
 export type PlanFeatureUncheckedUpdateWithoutPlanInput = {
   feature_id?: Prisma.StringFieldUpdateOperationsInput | string
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureUncheckedUpdateManyWithoutPlanInput = {
   feature_id?: Prisma.StringFieldUpdateOperationsInput | string
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureCreateManyFeatureInput = {
   plan_id: string
   limit_value?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureUpdateWithoutFeatureInput = {
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   plan?: Prisma.PlanUpdateOneRequiredWithoutPlanFeaturesNestedInput
 }
 
 export type PlanFeatureUncheckedUpdateWithoutFeatureInput = {
   plan_id?: Prisma.StringFieldUpdateOperationsInput | string
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type PlanFeatureUncheckedUpdateManyWithoutFeatureInput = {
   plan_id?: Prisma.StringFieldUpdateOperationsInput | string
   limit_value?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 
@@ -536,6 +565,7 @@ export type PlanFeatureSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   plan_id?: boolean
   feature_id?: boolean
   limit_value?: boolean
+  metadata?: boolean
   feature?: boolean | Prisma.FeatureDefaultArgs<ExtArgs>
   plan?: boolean | Prisma.PlanDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["planFeature"]>
@@ -544,6 +574,7 @@ export type PlanFeatureSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   plan_id?: boolean
   feature_id?: boolean
   limit_value?: boolean
+  metadata?: boolean
   feature?: boolean | Prisma.FeatureDefaultArgs<ExtArgs>
   plan?: boolean | Prisma.PlanDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["planFeature"]>
@@ -552,6 +583,7 @@ export type PlanFeatureSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   plan_id?: boolean
   feature_id?: boolean
   limit_value?: boolean
+  metadata?: boolean
   feature?: boolean | Prisma.FeatureDefaultArgs<ExtArgs>
   plan?: boolean | Prisma.PlanDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["planFeature"]>
@@ -560,9 +592,10 @@ export type PlanFeatureSelectScalar = {
   plan_id?: boolean
   feature_id?: boolean
   limit_value?: boolean
+  metadata?: boolean
 }
 
-export type PlanFeatureOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"plan_id" | "feature_id" | "limit_value", ExtArgs["result"]["planFeature"]>
+export type PlanFeatureOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"plan_id" | "feature_id" | "limit_value" | "metadata", ExtArgs["result"]["planFeature"]>
 export type PlanFeatureInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   feature?: boolean | Prisma.FeatureDefaultArgs<ExtArgs>
   plan?: boolean | Prisma.PlanDefaultArgs<ExtArgs>
@@ -586,6 +619,7 @@ export type $PlanFeaturePayload<ExtArgs extends runtime.Types.Extensions.Interna
     plan_id: string
     feature_id: string
     limit_value: number | null
+    metadata: runtime.JsonValue | null
   }, ExtArgs["result"]["planFeature"]>
   composites: {}
 }
@@ -1014,6 +1048,7 @@ export interface PlanFeatureFieldRefs {
   readonly plan_id: Prisma.FieldRef<"PlanFeature", 'String'>
   readonly feature_id: Prisma.FieldRef<"PlanFeature", 'String'>
   readonly limit_value: Prisma.FieldRef<"PlanFeature", 'Int'>
+  readonly metadata: Prisma.FieldRef<"PlanFeature", 'Json'>
 }
     
 

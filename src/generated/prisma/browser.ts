@@ -88,6 +88,11 @@ export type SubscriptionUsage = Prisma.SubscriptionUsageModel
  */
 export type VendorRate = Prisma.VendorRateModel
 /**
+ * Model InfrastructureRate
+ * 
+ */
+export type InfrastructureRate = Prisma.InfrastructureRateModel
+/**
  * Model CustomPlanQuote
  * 
  */
