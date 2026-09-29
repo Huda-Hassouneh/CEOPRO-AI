@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { CustomPlanQuantityField } from "./CustomPlanQuantityField.jsx";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import Select from "../../../shared/components/ui/Select.jsx";
 
 const FEATURE_ICONS = Object.freeze({
   dashboard_analytics: Gauge,
@@ -46,7 +47,7 @@ const FEATURE_ICONS = Object.freeze({
   tracked_products: Package,
   connected_data_sources: Globe2,
   team_members: Users,
-  document_storage_gb: Database
+  document_storage_mb: Database
 });
 
 const iconFor = (code = "") => FEATURE_ICONS[code.toLowerCase()] ?? Sparkles;
@@ -56,7 +57,7 @@ export function CustomPlanBuilder({
   configuration = {},
   onChange
 }) {
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
   const formatNumber = (value) =>
     new Intl.NumberFormat(locale === "ar" ? "ar-JO" : "en-US").format(value);
 
@@ -66,6 +67,13 @@ export function CustomPlanBuilder({
         {features.map((feature) => {
           const Icon = iconFor(feature.code);
           const selected = Boolean(configuration[feature.id]?.selected);
+          const monitoringCadence =
+            feature.configuration?.monitoringCadence ?? null;
+          const monitoringFrequencyMinutes =
+            configuration[feature.id]?.configuration
+              ?.monitoringFrequencyMinutes ??
+            monitoringCadence?.defaultMinutes ??
+            null;
           const value =
             configuration[feature.id]?.limitValue ?? feature.min ?? 0;
           const name =
@@ -90,7 +98,14 @@ export function CustomPlanBuilder({
                   onChange={(event) =>
                     onChange(feature.id, {
                       selected: event.target.checked,
-                      limitValue: feature.type === "limit" ? value : null
+                      limitValue: feature.type === "limit" ? value : null,
+                      ...(monitoringCadence
+                        ? {
+                            configuration: {
+                              monitoringFrequencyMinutes
+                            }
+                          }
+                        : {})
                     })
                   }
                 />
@@ -120,6 +135,29 @@ export function CustomPlanBuilder({
                   }
                   formatValue={(nextValue) =>
                     `${formatNumber(nextValue)}${unit ? ` ${unit}` : ""}`
+                  }
+                />
+              )}
+
+              {monitoringCadence && selected && (
+                <Select
+                  className="ceopro-custom-feature-card__configuration"
+                  label={t("billing.custom.monitoringCadence.label")}
+                  hint={t("billing.custom.monitoringCadence.description")}
+                  value={monitoringFrequencyMinutes ?? ""}
+                  options={(monitoringCadence.options ?? []).map((option) => ({
+                    value: option.minutes,
+                    label: t(
+                      `billing.custom.monitoringCadence.options.${option.code}`
+                    )
+                  }))}
+                  onChange={(event) =>
+                    onChange(feature.id, {
+                      selected: true,
+                      configuration: {
+                        monitoringFrequencyMinutes: Number(event.target.value)
+                      }
+                    })
                   }
                 />
               )}

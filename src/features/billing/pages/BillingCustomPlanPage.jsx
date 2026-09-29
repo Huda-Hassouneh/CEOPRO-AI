@@ -82,7 +82,15 @@ export function BillingCustomPlanPage() {
     for (const feature of configurator.features) {
       next[feature.id] = {
         selected: false,
-        limitValue: feature.type === "limit" ? (feature.min ?? 0) : null
+        limitValue: feature.type === "limit" ? (feature.min ?? 0) : null,
+        ...(feature.configuration?.monitoringCadence
+          ? {
+              configuration: {
+                monitoringFrequencyMinutes:
+                  feature.configuration.monitoringCadence.defaultMinutes
+              }
+            }
+          : {})
       };
     }
     setConfiguration(next);
@@ -106,6 +114,11 @@ export function BillingCustomPlanPage() {
             ? {
                 limitValue:
                   configuration[feature.id]?.limitValue ?? feature.min ?? 0
+              }
+            : {}),
+          ...(feature.configuration?.monitoringCadence
+            ? {
+                configuration: configuration[feature.id]?.configuration
               }
             : {})
         })),

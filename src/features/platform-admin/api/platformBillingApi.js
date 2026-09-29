@@ -77,6 +77,17 @@ export const platformBillingApi = Object.freeze({
         payload
       )
     ),
+  getInfrastructureRates: () =>
+    unwrap(httpClient.get(`${base}/infrastructure-rates`)),
+  createInfrastructureRate: (payload) =>
+    unwrap(httpClient.post(`${base}/infrastructure-rates`, payload)),
+  updateInfrastructureRate: (rateId, payload) =>
+    unwrap(
+      httpClient.patch(
+        `${base}/infrastructure-rates/${encodeURIComponent(rateId)}`,
+        payload
+      )
+    ),
 
   getPromoCodes: () => unwrap(httpClient.get(`${base}/promo-codes`)),
   createPromoCode: (payload) =>

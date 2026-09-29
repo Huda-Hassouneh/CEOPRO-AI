@@ -16,6 +16,7 @@ import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
 import Stepper from "../../../shared/components/ui/Stepper.jsx";
 import Table from "../../../shared/components/ui/Table.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
+import InfrastructureRateCards from "./InfrastructureRateCards.jsx";
 import { routePaths } from "../../../app/router/routePaths.js";
 import {
   billingApi,
@@ -57,6 +58,7 @@ const formFromQuote = (quote) => {
         enabled: true,
         limitValue: item.limitValue ?? "",
         estimatedUsage: item.estimatedUsage ?? 0,
+        configuration: item.configuration ?? item.metadata?.configuration ?? null,
       },
     ]),
   );
@@ -137,6 +139,7 @@ function QuoteFormModal({
   api = billingApi,
   platformMode = false,
   tenants = [],
+  monitoringCadences = [],
 }) {
   const editing = Boolean(quote);
   const [step, setStep] = useState(1);
@@ -173,8 +176,21 @@ function QuoteFormModal({
               enabled: true,
               limitValue: feature.type === "boolean" ? null : "",
               estimatedUsage: 0,
+              ...(feature.code === "competitor_management"
+                ? {
+                    configuration: {
+                      monitoringFrequencyMinutes:
+                        monitoringCadences[0]?.minutes ?? "",
+                    },
+                  }
+                : {}),
             }
-          : { enabled: false, limitValue: null, estimatedUsage: 0 },
+          : {
+              enabled: false,
+              limitValue: null,
+              estimatedUsage: 0,
+              configuration: null,
+            },
       },
     }));
   };
@@ -268,6 +284,45 @@ function QuoteFormModal({
           "billing.catalog.customPlans.validation.limit",
           "Feature limits cannot be negative.",
         );
+
+      const monitoringFeature = selected.find(
+        (feature) => feature.code === "competitor_management",
+      );
+      const competitorCapacity = selected.find(
+        (feature) => feature.code === "tracked_competitors",
+      );
+      if (
+        monitoringFeature &&
+        (!Number.isInteger(
+          numeric(
+            form.features[monitoringFeature.id]?.configuration
+              ?.monitoringFrequencyMinutes,
+            0,
+          ),
+        ) ||
+          numeric(
+            form.features[monitoringFeature.id]?.configuration
+              ?.monitoringFrequencyMinutes,
+            0,
+          ) <= 0)
+      ) {
+        return tr(
+          t,
+          "billing.catalog.customPlans.validation.monitoringCadence",
+          "Select a monitoring cadence for competitor management.",
+        );
+      }
+      if (
+        monitoringFeature &&
+        (!competitorCapacity ||
+          numeric(form.features[competitorCapacity.id]?.limitValue, 0) <= 0)
+      ) {
+        return tr(
+          t,
+          "billing.catalog.customPlans.validation.trackedCompetitors",
+          "Select tracked competitors with a positive limit when competitor management is enabled.",
+        );
+      }
     }
     if (step === 3) {
       const gross = numeric(form.targetGrossMarginPercent, -1);
@@ -319,6 +374,16 @@ function QuoteFormModal({
               ? null
               : numeric(form.features[feature.id]?.limitValue),
           estimatedUsage: numeric(form.features[feature.id]?.estimatedUsage),
+          ...(feature.code === "competitor_management"
+            ? {
+                configuration: {
+                  monitoringFrequencyMinutes: numeric(
+                    form.features[feature.id]?.configuration
+                      ?.monitoringFrequencyMinutes,
+                  ),
+                },
+              }
+            : {}),
         })),
         monthlyInfrastructureCost: numeric(form.monthlyInfrastructureCost),
         activePayingTenants: Math.max(
@@ -570,6 +635,51 @@ function QuoteFormModal({
                       })
                     }
                   />
+                  {feature.code === "competitor_management" && (
+                    <Select
+                      label={tr(
+                        t,
+                        "billing.custom.monitoringCadence.label",
+                        "Monitoring cadence",
+                      )}
+                      hint={tr(
+                        t,
+                        "billing.custom.monitoringCadence.adminDescription",
+                        "Used with the tracked competitor count to calculate rate-specific vendor usage.",
+                      )}
+                      value={
+                        state.configuration?.monitoringFrequencyMinutes ?? ""
+                      }
+                      disabled={!state.enabled}
+                      onChange={(event) =>
+                        updateFeature(feature.id, {
+                          configuration: {
+                            monitoringFrequencyMinutes: Number(
+                              event.target.value,
+                            ),
+                          },
+                        })
+                      }
+                      options={[
+                        {
+                          value: "",
+                          label: tr(
+                            t,
+                            "billing.custom.monitoringCadence.select",
+                            "Select cadence",
+                          ),
+                        },
+                        ...monitoringCadences.map((cadence) => ({
+                          value: cadence.minutes,
+                          label: tr(
+                            t,
+                            `billing.custom.monitoringCadence.options.${cadence.code}`,
+                            cadence.code,
+                          ),
+                        })),
+                      ]}
+                    />
+                  )}
                 </div>
               </Card>
             );
@@ -926,28 +1036,41 @@ function ApproveQuoteModal({ quote, onClose, onApproved, t, locale, api = billin
   );
 }
 
-function VendorRateModal({ open, onClose, features, onSaved, t, api = billingApi }) {
-  const [form, setForm] = useState({
-    featureId: "",
-    vendor: "",
-    service: "",
-    billingUnit: "",
-    unitCost: "",
-    currency: "USD",
-    operationalMultiplier: 1,
-    variabilityReserve: 1,
-    verificationStatus: "unconfirmed",
-    source: "",
-  });
+const vendorRateForm = (rate = null) => ({
+  id: rate?.id ?? "",
+  featureId: rate?.featureId ?? "",
+  vendor: rate?.vendor ?? "",
+  service: rate?.service ?? "",
+  billingUnit: rate?.billingUnit ?? "",
+  unitCost: rate?.unitCost ?? "",
+  currency: rate?.currency ?? "USD",
+  operationalMultiplier: rate?.operationalMultiplier ?? 1,
+  variabilityReserve: rate?.variabilityReserve ?? 1,
+  verificationStatus: rate?.verificationStatus ?? "unconfirmed",
+  source: rate?.source ?? "",
+  unitsPerCompetitorCheck:
+    rate?.metadata?.usageAssumption?.unitsPerCompetitorCheck ?? "",
+  metadata: rate?.metadata ?? {},
+});
+
+function VendorRateModal({ open, onClose, rate, features, onSaved, t, api = billingApi }) {
+  const [form, setForm] = useState(() => vendorRateForm(rate));
+  const editing = Boolean(rate?.id);
+  useEffect(() => {
+    if (open) setForm(vendorRateForm(rate));
+  }, [open, rate]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const selectedFeature = features.find(
+    (feature) => feature.id === form.featureId,
+  );
 
   const submit = async (event) => {
     event.preventDefault();
     setSaving(true);
     setError("");
     try {
-      await api.createVendorRate({
+      const payload = {
         featureId: form.featureId || null,
         vendor: form.vendor.trim(),
         service: form.service.trim(),
@@ -958,21 +1081,25 @@ function VendorRateModal({ open, onClose, features, onSaved, t, api = billingApi
         variabilityReserve: numeric(form.variabilityReserve, 1),
         verificationStatus: form.verificationStatus,
         source: form.source.trim() || undefined,
-      });
+        ...(selectedFeature?.code === "competitor_management"
+          ? {
+              metadata: {
+                ...(form.metadata ?? {}),
+                usageAssumption: {
+                  model: "competitor_monitoring",
+                  unitsPerCompetitorCheck: numeric(
+                    form.unitsPerCompetitorCheck,
+                  ),
+                },
+              },
+            }
+          : {}),
+      };
+      if (editing) await api.updateVendorRate(rate.id, payload);
+      else await api.createVendorRate(payload);
       await onSaved();
       onClose();
-      setForm({
-        featureId: "",
-        vendor: "",
-        service: "",
-        billingUnit: "",
-        unitCost: "",
-        currency: "USD",
-        operationalMultiplier: 1,
-        variabilityReserve: 1,
-        verificationStatus: "unconfirmed",
-        source: "",
-      });
+      setForm(vendorRateForm());
     } catch (requestError) {
       setError(getApiError(requestError).message);
     } finally {
@@ -986,8 +1113,10 @@ function VendorRateModal({ open, onClose, features, onSaved, t, api = billingApi
       onClose={saving ? undefined : onClose}
       title={tr(
         t,
-        "billing.catalog.customPlans.vendorRates.create",
-        "Add vendor rate",
+        editing
+          ? "billing.catalog.customPlans.vendorRates.edit"
+          : "billing.catalog.customPlans.vendorRates.create",
+        editing ? "Edit vendor rate" : "Add vendor rate",
       )}
       maxWidth="760px"
       footer={
@@ -1052,6 +1181,31 @@ function VendorRateModal({ open, onClose, features, onSaved, t, api = billingApi
             }
             required
           />
+          {selectedFeature?.code === "competitor_management" && (
+            <Input
+              label={tr(
+                t,
+                "billing.catalog.customPlans.vendorRates.unitsPerCompetitorCheck",
+                "Units per competitor check",
+              )}
+              hint={tr(
+                t,
+                "billing.catalog.customPlans.vendorRates.unitsPerCompetitorCheckHelp",
+                "Rate-specific quantity in the billing unit above (for example CU or credits).",
+              )}
+              type="number"
+              min="0.000001"
+              step="0.000001"
+              value={form.unitsPerCompetitorCheck}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  unitsPerCompetitorCheck: event.target.value,
+                })
+              }
+              required
+            />
+          )}
           <Input
             label={tr(
               t,
@@ -1564,6 +1718,7 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
   const [editQuote, setEditQuote] = useState(null);
   const [approveQuote, setApproveQuote] = useState(null);
   const [vendorRateOpen, setVendorRateOpen] = useState(false);
+  const [editRate, setEditRate] = useState(null);
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState(null);
 
@@ -1573,6 +1728,14 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
     swrOptions,
   );
   const tenants = tenantsResponse?.data ?? [];
+
+  const { data: pricingPolicyResponse } = useSWR(
+    "custom-plan-pricing-policy",
+    api.getCustomPlanPricingPolicy,
+    swrOptions,
+  );
+  const monitoringCadences =
+    pricingPolicyResponse?.data?.monitoringCadences ?? [];
 
   const {
     data: quotesResponse,
@@ -1799,6 +1962,26 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
       accessor: "billingUnit",
     },
     {
+      header: tr(
+        t,
+        "billing.catalog.customPlans.vendorRates.usageAssumption",
+        "Usage assumption",
+      ),
+      render: (rate) => {
+        const assumption = rate.metadata?.usageAssumption;
+        if (assumption?.model !== "competitor_monitoring") return "—";
+        return tr(
+          t,
+          "billing.catalog.customPlans.vendorRates.perCompetitorCheck",
+          "{{units}} {{unit}} per competitor check",
+          {
+            units: assumption.unitsPerCompetitorCheck,
+            unit: rate.billingUnit,
+          },
+        );
+      },
+    },
+    {
       header: tr(t, "billing.catalog.fields.status", "Status"),
       render: (rate) => (
         <Badge
@@ -1818,6 +2001,22 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
         </Badge>
       ),
     },
+    ...(canManagePricing
+      ? [
+          {
+            header: tr(t, "billing.catalog.actions", "Actions"),
+            render: (rate) => (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditRate(rate)}
+              >
+                {tr(t, "common.edit", "Edit")}
+              </Button>
+            ),
+          },
+        ]
+      : []),
   ];
 
   if (quotesError && isForbiddenBillingError(quotesError)) {
@@ -1955,6 +2154,16 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
         )}
       </section>
 
+      {platformMode && api.getInfrastructureRates && (
+        <InfrastructureRateCards
+          features={features}
+          t={t}
+          locale={locale}
+          api={api}
+          canManagePricing={canManagePricing}
+        />
+      )}
+
       <QuoteFormModal
         open={createOpen || Boolean(editQuote)}
         quote={editQuote}
@@ -1966,6 +2175,7 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
         api={api}
         platformMode={platformMode}
         tenants={tenants}
+        monitoringCadences={monitoringCadences}
         onSaved={mutateQuotes}
         t={t}
         locale={locale}
@@ -1979,8 +2189,12 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
         api={api}
       />
       <VendorRateModal
-        open={vendorRateOpen}
-        onClose={() => setVendorRateOpen(false)}
+        open={vendorRateOpen || Boolean(editRate)}
+        rate={editRate}
+        onClose={() => {
+          setVendorRateOpen(false);
+          setEditRate(null);
+        }}
         features={features}
         api={api}
         onSaved={mutateRates}
