@@ -993,6 +993,13 @@
   border-top: 1px solid #efedf5;
 }
 
+.ceopro-custom-feature-card__configuration {
+  margin-top: auto;
+  margin-bottom: 0 !important;
+  padding-top: 11px;
+  border-top: 1px solid #efedf5;
+}
+
 .ceopro-custom-quantity__topline {
   display: flex;
   align-items: baseline;
