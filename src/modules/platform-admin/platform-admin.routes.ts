@@ -18,6 +18,9 @@ import {
   customPlanQuoteIdParamsSchema,
   updateCustomPlanQuoteSchema,
   updateVendorRateSchema,
+  infrastructureRateSchema,
+  updateInfrastructureRateSchema,
+  infrastructureRateIdParamsSchema,
   vendorRateIdParamsSchema,
   vendorRateSchema
 } from "../../DTO/customPlan.dto.js";
@@ -58,6 +61,7 @@ import {
   calculatePlatformQuoteHandler,
   createPlatformQuoteHandler,
   createPlatformVendorRateHandler,
+  createPlatformInfrastructureRateHandler,
   getPlatformPricingPolicyHandler,
   getPlatformQuoteHandler,
   linkPlatformPromoToPlanHandler,
@@ -67,13 +71,15 @@ import {
   listPlatformSubscriptionsHandler,
   listPlatformTenantsHandler,
   listPlatformVendorRatesHandler,
+  listPlatformInfrastructureRatesHandler,
   platformMeHandler,
   rejectPlatformQuoteHandler,
   sendPlatformQuoteHandler,
   setPlatformCustomPlanStatusHandler,
   updatePlatformPricingPolicyHandler,
   updatePlatformQuoteHandler,
-  updatePlatformVendorRateHandler
+  updatePlatformVendorRateHandler,
+  updatePlatformInfrastructureRateHandler
 } from "./platform-admin.controller.js";
 
 const router = Router();
@@ -106,6 +112,20 @@ router.patch(
   validateParams(planParamsSchema),
   validateBody(updatePlanSchema),
   patchPlanHandler
+);
+router.get("/billing/infrastructure-rates", read, listPlatformInfrastructureRatesHandler);
+router.post(
+  "/billing/infrastructure-rates",
+  pricing,
+  validateBody(infrastructureRateSchema),
+  createPlatformInfrastructureRateHandler
+);
+router.patch(
+  "/billing/infrastructure-rates/:id",
+  pricing,
+  validateParams(infrastructureRateIdParamsSchema),
+  validateBody(updateInfrastructureRateSchema),
+  updatePlatformInfrastructureRateHandler
 );
 
 router.get("/billing/custom-plans", read, listPlatformCustomPlansHandler);

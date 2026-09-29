@@ -18,11 +18,14 @@ import {
   listPlatformCustomPlans,
   listPlatformTenants,
   listVendorRates,
+  listInfrastructureRates,
+  createInfrastructureRate,
   rejectCustomPlanQuote,
   sendCustomPlanQuote,
   setPlatformCustomPlanActiveState,
   updateCustomPlanQuote,
-  updateVendorRate
+  updateVendorRate,
+  updateInfrastructureRate
 } from "../subscription/service/custom-plan.service.js";
 import {
   getCustomPlanPricingPolicy,
@@ -336,6 +339,18 @@ export async function updatePlatformVendorRateHandler(
     await updateVendorRate(String(req.params.id), req.body),
     "Vendor rate updated successfully"
   );
+}
+
+export async function listPlatformInfrastructureRatesHandler(_req: AppRequest, res: Response) {
+  return reply(res, await listInfrastructureRates(), "Infrastructure rates retrieved successfully");
+}
+
+export async function createPlatformInfrastructureRateHandler(req: AppRequest, res: Response) {
+  return reply(res, await createInfrastructureRate(req.body), "Infrastructure rate created successfully", 201);
+}
+
+export async function updatePlatformInfrastructureRateHandler(req: AppRequest, res: Response) {
+  return reply(res, await updateInfrastructureRate(String(req.params.id), req.body), "Infrastructure rate updated successfully");
 }
 
 export async function linkPlatformPromoToPlanHandler(
