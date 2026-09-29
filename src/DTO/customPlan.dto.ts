@@ -17,10 +17,29 @@ const billingOptionSchema = z.object({
   discountPercent: z.number().min(0).max(100).default(0),
 });
 
+const competitorMonitoringConfigurationSchema = z
+  .object({
+    monitoringFrequencyMinutes: z.number().int().positive().max(525600),
+  })
+  .strict();
+
+const vendorRateMetadataSchema = z
+  .object({
+    usageAssumption: z
+      .object({
+        model: z.literal("competitor_monitoring"),
+        unitsPerCompetitorCheck: z.number().positive(),
+      })
+      .strict()
+      .optional(),
+  })
+  .catchall(z.unknown());
+
 export const customPlanQuoteFeatureSchema = z.object({
   featureId: z.uuid(),
   limitValue: z.number().int().nonnegative().nullable().optional(),
   estimatedUsage: z.number().nonnegative().default(0),
+  configuration: competitorMonitoringConfigurationSchema.optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -181,7 +200,7 @@ const vendorRateBaseSchema = z
 
     source: z.string().trim().max(4000).optional(),
 
-    metadata: z.record(z.string(), z.unknown()).optional(),
+    metadata: vendorRateMetadataSchema.optional(),
   })
   .strict();
 
@@ -248,10 +267,36 @@ export const vendorRateIdParamsSchema = z.object({
   id: z.uuid(),
 });
 
+const infrastructureRateBaseSchema = z.object({
+  featureId: z.uuid().nullable().optional(),
+  costDriver: z.string().trim().min(1).max(100),
+  usageBasis: z.enum(["limit_value", "estimated_usage", "enabled_feature"]).default("estimated_usage"),
+  billingUnit: z.string().trim().min(1).max(80),
+  billingUnitsPerFeatureUnit: z.number().positive().max(1_000_000).default(1),
+  unitCost: z.number().nonnegative(),
+  currency: currencySchema,
+  operationalMultiplier: z.number().positive().default(1),
+  variabilityReserve: z.number().min(1).default(1),
+  effectiveFrom: z.iso.datetime().optional(),
+  effectiveTo: z.iso.datetime().nullable().optional(),
+  verificationStatus: z.enum(["confirmed", "estimated", "unconfirmed", "deprecated"]).default("unconfirmed"),
+  source: z.string().trim().max(4000).optional(),
+  metadata: vendorRateMetadataSchema.optional(),
+}).strict();
+
+export const infrastructureRateSchema = infrastructureRateBaseSchema.refine(hasValidVendorRateDates, {
+  message: "effectiveTo must be later than effectiveFrom", path: ["effectiveTo"],
+});
+export const updateInfrastructureRateSchema = infrastructureRateBaseSchema.partial()
+  .refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" })
+  .refine(hasValidVendorRateDates, { message: "effectiveTo must be later than effectiveFrom", path: ["effectiveTo"] });
+export const infrastructureRateIdParamsSchema = z.object({ id: z.uuid() });
+
 const customPlanSelectionFeatureSchema = z
   .object({
     featureId: z.uuid(),
     limitValue: z.number().int().nonnegative().nullable().optional(),
+    configuration: competitorMonitoringConfigurationSchema.optional(),
   })
   .strict();
 
@@ -292,6 +337,14 @@ const automaticFeatureLimitSchema = z
     },
   );
 
+const monitoringCadenceSchema = z
+  .object({
+    code: z.string().trim().regex(/^[a-z0-9_]+$/).max(50),
+    minutes: z.number().int().positive().max(525600),
+    checksPerMonth: z.number().positive().max(100000),
+  })
+  .strict();
+
 export const customPlanPricingPolicyUpdateSchema = z
   .object({
     currency: currencySchema.optional(),
@@ -313,6 +366,20 @@ export const customPlanPricingPolicyUpdateSchema = z
     trialPeriodValue: z.number().int().nonnegative().max(365).optional(),
     billingOptions: z.array(billingOptionSchema).min(1).max(12).optional(),
     featureLimits: z.record(z.string(), automaticFeatureLimitSchema).optional(),
+    monitoringCadences: z
+      .array(monitoringCadenceSchema)
+      .min(1)
+      .max(20)
+      .refine(
+        (items) => new Set(items.map((item) => item.code)).size === items.length,
+        { message: "Monitoring cadence codes must be unique" },
+      )
+      .refine(
+        (items) =>
+          new Set(items.map((item) => item.minutes)).size === items.length,
+        { message: "Monitoring cadence frequencies must be unique" },
+      )
+      .optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -332,6 +399,7 @@ export type ApproveCustomPlanQuoteInput = z.infer<
 >;
 
 export type VendorRateInput = z.infer<typeof vendorRateSchema>;
+export type InfrastructureRateInput = z.infer<typeof infrastructureRateSchema>;
 
 export type CustomPlanPreviewInput = z.infer<typeof customPlanPreviewSchema>;
 export type CustomPlanManualReviewInput = z.infer<

@@ -5,7 +5,7 @@ export const MAX_CAPACITY_FEATURE_CODES = Object.freeze([
   "tracked_products",
   "connected_data_sources",
   "team_members",
-  "document_storage_gb"
+  "document_storage_mb"
 ] as const);
 
 export type MaxCapacityFeatureCode =
@@ -14,7 +14,9 @@ export type MaxCapacityFeatureCode =
 export function isMaxCapacityFeatureCode(
   featureCode: string
 ): featureCode is MaxCapacityFeatureCode {
-  return (MAX_CAPACITY_FEATURE_CODES as readonly string[]).includes(featureCode);
+  return (MAX_CAPACITY_FEATURE_CODES as readonly string[]).includes(
+    featureCode
+  );
 }
 
 export async function getCurrentCapacityUsage(
@@ -42,15 +44,17 @@ export async function getCurrentCapacityUsage(
         where: { tenantId, removedAt: null }
       });
 
-    case "document_storage_gb": {
+    case "document_storage_mb": {
       const aggregate = await prisma.rag_documents_metadata.aggregate({
         where: { tenant_id: tenantId },
         _sum: { file_size_bytes: true }
       });
+
       const bytes = aggregate._sum.file_size_bytes ?? 0n;
+
       if (bytes <= 0n) return 0;
-      const gibibytes = Number(bytes) / (1024 ** 3);
-      return Math.round(gibibytes * 1000) / 1000;
+
+      return Number(bytes) / 1024 ** 2;
     }
 
     default:

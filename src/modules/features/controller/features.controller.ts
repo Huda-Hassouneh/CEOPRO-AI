@@ -1,6 +1,7 @@
 import { Response as ExpressResponse } from "express";
 import { basename } from "node:path";
 import {
+  assertFeatureCapacity,
   documentsRepo,
   getRemainingUsage,
   incrementUsage
@@ -10,12 +11,10 @@ import { ERROR_DEFINITIONS } from "../../../errors/error-definitions.js";
 import { AppRequest } from "../../../types/request.js";
 import { errorResponse, successResponse } from "../../../types/response.js";
 import { ragService } from "../service/features.service.js";
-
 const AI_SERVICE_URL = (
   process.env.AI_SERVICE_URL || "http://localhost:8000"
 ).replace(/\/+$/, "");
-const USE_AI_MOCKS = process.env.AI_SERVICE_USE_MOCKS !== "false";
-
+const USE_AI_MOCKS = process.env.AI_SERVICE_USE_MOCKS === "true";
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 20_000;
 const LONG_TIMEOUT_MS = 60_000;
@@ -24,20 +23,15 @@ const DEFAULT_SENTIMENT_BATCH_SIZE = 100;
 const DEFAULT_TOP_K = 5;
 const MAX_TOP_K = 20;
 const MAX_QUERY_LENGTH = 2000;
-
 const ALLOWED_FILE_EXTENSIONS = new Set([".csv", ".xlsx", ".xlsm", ".pdf"]);
-
 type JsonObject = Record<string, any>;
 type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
-
 type UsageState = Awaited<ReturnType<typeof getRemainingUsage>>;
-
 type AiServiceError = Error & {
   name: "AiServiceError";
   upstreamStatus?: number;
   kind: "external" | "llm";
 };
-
 function createAiServiceError(
   message: string,
   upstreamStatus?: number,
@@ -49,7 +43,6 @@ function createAiServiceError(
   error.kind = kind;
   return error;
 }
-
 function isAiServiceError(error: unknown): error is AiServiceError {
   return (
     error instanceof Error &&
@@ -58,14 +51,12 @@ function isAiServiceError(error: unknown): error is AiServiceError {
     (error.kind === "external" || error.kind === "llm")
   );
 }
-
 function sendError(res: ExpressResponse, code: ErrorCode, detail?: any): void {
   const errDef = ERROR_DEFINITIONS[code];
   res
     .status(errDef.statusCode)
     .json(errorResponse(errDef.message, errDef.statusCode, code, detail));
 }
-
 function logControllerError(scope: string, error: unknown): void {
   if (error instanceof Error) {
     console.error(`[${scope}]`, {
@@ -75,36 +66,29 @@ function logControllerError(scope: string, error: unknown): void {
     });
     return;
   }
-
   console.error(`[${scope}]`, error);
 }
-
 function handleControllerError(
   res: ExpressResponse,
   scope: string,
   error: unknown
 ): void {
   logControllerError(scope, error);
-
   if (isAiServiceError(error)) {
     const code =
       error.kind === "llm"
         ? ERROR_CODES.UPSTREAM_LLM_FAILURE
         : ERROR_CODES.EXTERNAL_SERVICE_ERROR;
-
     sendError(res, code, {
       message: error.message,
       upstream_status: error.upstreamStatus ?? null
     });
     return;
   }
-
   sendError(res, ERROR_CODES.INTERNAL_SERVER_ERROR);
 }
-
 function getTenantId(req: AppRequest, res: ExpressResponse): string | null {
   const tenantId = req.tenant_id;
-
   if (typeof tenantId !== "string" || tenantId.trim().length === 0) {
     sendError(
       res,
@@ -113,16 +97,13 @@ function getTenantId(req: AppRequest, res: ExpressResponse): string | null {
     );
     return null;
   }
-
   return tenantId;
 }
-
 function getAuthenticatedUserId(
   req: AppRequest,
   res: ExpressResponse
 ): string | null {
   const userId = req.user?.id;
-
   if (typeof userId !== "string" || userId.trim().length === 0) {
     sendError(
       res,
@@ -131,16 +112,13 @@ function getAuthenticatedUserId(
     );
     return null;
   }
-
   return userId;
 }
-
 function getSingleString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
 }
-
 function parseInteger(
   value: unknown,
   fallback: number,
@@ -149,13 +127,10 @@ function parseInteger(
 ): number | null {
   if (value === undefined || value === null || value === "") return fallback;
   if (Array.isArray(value) || typeof value === "object") return null;
-
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < min || parsed > max) return null;
-
   return parsed;
 }
-
 function getFileExtension(fileName: string): string {
   const normalized = fileName.toLowerCase();
   for (const extension of ALLOWED_FILE_EXTENSIONS) {
@@ -163,24 +138,20 @@ function getFileExtension(fileName: string): string {
   }
   return "";
 }
-
 function safeUploadName(fileName: string): string {
   const safeBaseName = basename(fileName).replace(
-    /[\x00-\x1f<>:"/\\|?*]+/g,
+    /[\x00-\x1f<>:"\/\\|?*]+/g,
     "_"
   );
   return safeBaseName.slice(0, 255) || "upload";
 }
-
 function aiUrl(pathname: string): URL {
   return new URL(pathname, `${AI_SERVICE_URL}/`);
 }
-
 function forwardedAuthHeaders(req: AppRequest): Record<string, string> {
   const authorization = req.headers.authorization;
   return authorization ? { Authorization: authorization } : {};
 }
-
 async function fetchWithTimeout(
   input: string | URL,
   init: RequestInit = {},
@@ -188,7 +159,6 @@ async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     return await fetch(input, {
       ...init,
@@ -205,7 +175,6 @@ async function fetchWithTimeout(
     clearTimeout(timeout);
   }
 }
-
 async function parseJsonResponse(response: Response): Promise<JsonObject> {
   try {
     const data = await response.json();
@@ -220,7 +189,6 @@ async function parseJsonResponse(response: Response): Promise<JsonObject> {
     );
   }
 }
-
 async function requestAiJson(
   url: URL,
   init: RequestInit,
@@ -235,24 +203,20 @@ async function requestAiJson(
     init,
     options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   );
-
   if (!response.ok) {
     const isLlmFailure =
       options.mapServerErrorsToLlmFailure &&
       (response.status === 500 ||
         response.status === 502 ||
         response.status === 503);
-
     throw createAiServiceError(
       `${options.serviceName} returned HTTP ${response.status}.`,
       response.status,
       isLlmFailure ? "llm" : "external"
     );
   }
-
   return parseJsonResponse(response);
 }
-
 async function requireAvailableUsage(
   tenantId: string,
   featureCode: string,
@@ -261,15 +225,12 @@ async function requireAvailableUsage(
   exhaustedMessage: string
 ): Promise<UsageState | null> {
   const usage = await getRemainingUsage(tenantId, featureCode);
-
   if (!usage) {
     sendError(res, ERROR_CODES.FORBIDDEN, unavailableMessage);
     return null;
   }
-
   const noRemainingQuota =
     usage.remaining !== null && Number(usage.remaining) <= 0;
-
   if (usage.isExceeded || noRemainingQuota) {
     sendError(res, ERROR_CODES.PAYMENT_REQUIRED, {
       message: exhaustedMessage,
@@ -279,30 +240,24 @@ async function requireAvailableUsage(
     });
     return null;
   }
-
   return usage;
 }
-
 function extractTotalTokens(data: JsonObject): number {
   const explicitTotal = Number(
     data.totalTokens ?? data.total_tokens ?? data.usage?.total_tokens
   );
-
   if (Number.isFinite(explicitTotal) && explicitTotal >= 0) {
     return Math.floor(explicitTotal);
   }
-
   const inputTokens = Number(
     data.inputTokens ?? data.input_tokens ?? data.usage?.input_tokens ?? 0
   );
   const outputTokens = Number(
     data.outputTokens ?? data.output_tokens ?? data.usage?.output_tokens ?? 0
   );
-
   const total = inputTokens + outputTokens;
   return Number.isFinite(total) && total > 0 ? Math.floor(total) : 0;
 }
-
 function mockExtractionData(tenantId: string, fileName: string): JsonObject {
   return {
     job_id: "a5d8b76e-34e8-48b2-b5e1-88981f2c24ef",
@@ -328,7 +283,6 @@ function mockExtractionData(tenantId: string, fileName: string): JsonObject {
     }
   };
 }
-
 const MOCK_RAG_RESPONSE: JsonObject = {
   totalTokens: 400,
   answer:
@@ -346,7 +300,6 @@ const MOCK_RAG_RESPONSE: JsonObject = {
     }
   ]
 };
-
 const MOCK_RAG_CHUNKS: Record<string, JsonObject> = {
   "c1f7a3b2-9d4e-48c5-a2b1-3e6f9a8d7c4b": {
     chunk_id: "c1f7a3b2-9d4e-48c5-a2b1-3e6f9a8d7c4b",
@@ -361,7 +314,6 @@ const MOCK_RAG_CHUNKS: Record<string, JsonObject> = {
     file_name: "System_Architecture_Guide.pdf"
   }
 };
-
 export const extractionController = {
   uploadFile: async (req: AppRequest, res: ExpressResponse): Promise<void> => {
     try {
@@ -372,6 +324,7 @@ export const extractionController = {
       if (!userId) return;
 
       const file = req.file;
+
       if (!file) {
         sendError(
           res,
@@ -382,6 +335,7 @@ export const extractionController = {
       }
 
       const extension = getFileExtension(file.originalname);
+
       if (!extension) {
         sendError(
           res,
@@ -409,7 +363,16 @@ export const extractionController = {
         return;
       }
 
-      const mbUsed = Math.max(1, Math.ceil(file.size / (1024 * 1024)));
+      // -----------------------------------------------------
+      // DOCUMENT EXTRACTION USAGE
+      // Stored internally as whole KB.
+      //
+      // Example:
+      // 340 KB file -> ~340 KB usage
+      // 1.5 MB file -> ~1536 KB usage
+      // -----------------------------------------------------
+      const kbUsed = Math.max(1, Math.ceil(file.size / 1024));
+
       const usage = await requireAvailableUsage(
         tenantId,
         "document_extraction",
@@ -417,26 +380,67 @@ export const extractionController = {
         "Document extraction is not available for this subscription.",
         "Document extraction quota has been reached."
       );
+
       if (!usage) return;
 
-      if (usage.remaining !== null && mbUsed > Number(usage.remaining)) {
+      if (usage.remaining !== null && kbUsed > Number(usage.remaining)) {
         sendError(res, ERROR_CODES.PAYMENT_REQUIRED, {
           message:
             "This upload exceeds the remaining document extraction quota.",
-          requested: mbUsed,
+          requested: kbUsed,
           remaining: usage.remaining,
-          unit: "MB"
+          unit: "KB"
         });
         return;
       }
 
+      // -----------------------------------------------------
+      // DOCUMENT STORAGE CAPACITY
+      // document_storage_mb is measured in MB.
+      // Keep fractional MB here because capacity usage is
+      // derived from actual file bytes.
+      // -----------------------------------------------------
+      const storageMb = file.size / 1024 ** 2;
+
+      const storage = await assertFeatureCapacity({
+        tenantId,
+        featureCode: "document_storage_mb",
+        additionalAmount: storageMb
+      });
+
+      if (!storage.allowed) {
+        if (storage.reason === "FEATURE_NOT_INCLUDED") {
+          sendError(
+            res,
+            ERROR_CODES.FORBIDDEN,
+            "Document storage is not available for this subscription."
+          );
+        } else {
+          sendError(res, ERROR_CODES.PAYMENT_REQUIRED, {
+            message:
+              "This upload exceeds the available document storage capacity.",
+            feature_code: "document_storage_mb",
+            reason: "CAPACITY_REACHED",
+            current_usage: storage.entitlement.currentUsage,
+            limit: storage.entitlement.limit,
+            requested: storageMb,
+            remaining: storage.entitlement.remaining,
+            unit: "MB"
+          });
+        }
+
+        return;
+      }
+
       const fileName = safeUploadName(file.originalname);
+
       let data: JsonObject;
 
       if (USE_AI_MOCKS) {
         data = mockExtractionData(tenantId, fileName);
       } else {
         const formData = new FormData();
+
         formData.append(
           "file",
           new Blob([new Uint8Array(file.buffer)], { type: file.mimetype }),
@@ -458,6 +462,7 @@ export const extractionController = {
       }
 
       const minioObjectKey = getSingleString(data.minio_object_key);
+
       if (!minioObjectKey) {
         throw createAiServiceError(
           "AI extraction service response is missing minio_object_key."
@@ -473,7 +478,8 @@ export const extractionController = {
         mimetype: file.mimetype
       });
 
-      await incrementUsage(tenantId, "document_extraction", mbUsed);
+      // Extraction usage is now persisted in KB.
+      await incrementUsage(tenantId, "document_extraction", kbUsed);
 
       res.status(200).json(
         successResponse(
@@ -497,7 +503,6 @@ export const extractionController = {
       handleControllerError(res, "ExtractionController.uploadFile", error);
     }
   },
-
   processPending: async (
     req: AppRequest,
     res: ExpressResponse
@@ -505,7 +510,6 @@ export const extractionController = {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
-
       const requestedLimit = parseInteger(
         req.query.limit,
         DEFAULT_PENDING_LIMIT,
@@ -520,7 +524,6 @@ export const extractionController = {
         );
         return;
       }
-
       const usage = await requireAvailableUsage(
         tenantId,
         "document_extraction",
@@ -529,12 +532,10 @@ export const extractionController = {
         "Document extraction quota has been reached."
       );
       if (!usage) return;
-
       const allowedLimit =
         usage.remaining === null
           ? requestedLimit
           : Math.max(0, Math.min(requestedLimit, Number(usage.remaining)));
-
       // This endpoint currently has no documented downstream processing call.
       // Return the quota-safe limit rather than silently calculating and ignoring it.
       res.status(200).json(
@@ -552,7 +553,6 @@ export const extractionController = {
     }
   }
 };
-
 export const ragController = {
   queryAssistant: async (
     req: AppRequest,
@@ -561,7 +561,6 @@ export const ragController = {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
-
       const queryText = getSingleString(req.query.query_text);
       if (!queryText) {
         sendError(
@@ -571,7 +570,6 @@ export const ragController = {
         );
         return;
       }
-
       if (queryText.length > MAX_QUERY_LENGTH) {
         sendError(
           res,
@@ -580,7 +578,6 @@ export const ragController = {
         );
         return;
       }
-
       const topK = parseInteger(req.query.top_k, DEFAULT_TOP_K, 1, MAX_TOP_K);
       if (topK === null) {
         sendError(
@@ -590,7 +587,6 @@ export const ragController = {
         );
         return;
       }
-
       let historyJson: string | undefined;
       if (req.query.history_json !== undefined) {
         if (typeof req.query.history_json !== "string") {
@@ -601,7 +597,6 @@ export const ragController = {
           );
           return;
         }
-
         try {
           const parsedHistory = JSON.parse(req.query.history_json);
           if (!Array.isArray(parsedHistory)) {
@@ -617,7 +612,6 @@ export const ragController = {
           return;
         }
       }
-
       const usage = await requireAvailableUsage(
         tenantId,
         "rag_assistant",
@@ -626,7 +620,6 @@ export const ragController = {
         "RAG token quota has been reached."
       );
       if (!usage) return;
-
       let data: JsonObject;
       if (USE_AI_MOCKS) {
         data = MOCK_RAG_RESPONSE;
@@ -635,7 +628,6 @@ export const ragController = {
         url.searchParams.set("query_text", queryText);
         url.searchParams.set("top_k", String(topK));
         if (historyJson) url.searchParams.set("history_json", historyJson);
-
         data = await requestAiJson(
           url,
           {
@@ -649,7 +641,6 @@ export const ragController = {
           }
         );
       }
-
       const totalTokens = extractTotalTokens(data);
       if (totalTokens > 0) {
         // Charge actual model consumption (input + output tokens when available).
@@ -658,7 +649,6 @@ export const ragController = {
         // will then be blocked by requireAvailableUsage().
         await incrementUsage(tenantId, "rag_assistant", totalTokens);
       }
-
       res.status(200).json(
         successResponse(
           {
@@ -672,12 +662,10 @@ export const ragController = {
       handleControllerError(res, "RagController.queryAssistant", error);
     }
   },
-
   getChunk: async (req: AppRequest, res: ExpressResponse): Promise<void> => {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
-
       const chunkId = getSingleString(req.params.chunk_id);
       if (!chunkId) {
         sendError(
@@ -687,9 +675,7 @@ export const ragController = {
         );
         return;
       }
-
       let chunkData: JsonObject | null = null;
-
       if (USE_AI_MOCKS) {
         chunkData = MOCK_RAG_CHUNKS[chunkId] ?? null;
       } else {
@@ -710,7 +696,6 @@ export const ragController = {
           throw error;
         }
       }
-
       if (!chunkData) {
         sendError(
           res,
@@ -719,7 +704,6 @@ export const ragController = {
         );
         return;
       }
-
       res
         .status(200)
         .json(successResponse(chunkData, "Chunk fetched successfully"));
@@ -728,7 +712,6 @@ export const ragController = {
     }
   }
 };
-
 export const pricingController = {
   getRecommendation: async (
     req: AppRequest,
@@ -737,7 +720,6 @@ export const pricingController = {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
-
       const productId = getSingleString(req.query.product_id);
       if (!productId) {
         sendError(
@@ -747,7 +729,6 @@ export const pricingController = {
         );
         return;
       }
-
       const usage = await requireAvailableUsage(
         tenantId,
         "ai_pricing",
@@ -756,10 +737,8 @@ export const pricingController = {
         "AI pricing quota has been reached."
       );
       if (!usage) return;
-
       const url = aiUrl("pricing/recommend");
       url.searchParams.set("product_id", productId);
-
       const data = await requestAiJson(
         url,
         {
@@ -770,9 +749,7 @@ export const pricingController = {
           serviceName: "AI pricing service"
         }
       );
-
       await incrementUsage(tenantId, "ai_pricing");
-
       res.status(200).json(
         successResponse(
           {
@@ -801,7 +778,6 @@ export const pricingController = {
     }
   }
 };
-
 export const sentimentController = {
   analyzePending: async (
     req: AppRequest,
@@ -810,7 +786,6 @@ export const sentimentController = {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
-
       const requestedBatchSize = parseInteger(
         req.query.batch_size,
         DEFAULT_SENTIMENT_BATCH_SIZE,
@@ -825,7 +800,6 @@ export const sentimentController = {
         );
         return;
       }
-
       const usage = await requireAvailableUsage(
         tenantId,
         "sentiment_analysis",
@@ -834,12 +808,10 @@ export const sentimentController = {
         "Sentiment analysis quota has been reached."
       );
       if (!usage) return;
-
       const allowedBatchSize =
         usage.remaining === null
           ? requestedBatchSize
           : Math.max(0, Math.min(requestedBatchSize, Number(usage.remaining)));
-
       if (allowedBatchSize <= 0) {
         sendError(res, ERROR_CODES.PAYMENT_REQUIRED, {
           message: "Sentiment analysis quota has been reached.",
@@ -849,10 +821,8 @@ export const sentimentController = {
         });
         return;
       }
-
       const url = aiUrl("sentiment/analyze-pending");
       url.searchParams.set("batch_size", String(allowedBatchSize));
-
       const data = await requestAiJson(
         url,
         {
@@ -864,25 +834,21 @@ export const sentimentController = {
           serviceName: "AI sentiment service"
         }
       );
-
       const analyzedCount = Number(data.analyzed_count ?? 0);
       if (!Number.isFinite(analyzedCount) || analyzedCount < 0) {
         throw createAiServiceError(
           "AI sentiment service returned an invalid analyzed_count."
         );
       }
-
       const safeAnalyzedCount = Math.floor(analyzedCount);
       if (safeAnalyzedCount > allowedBatchSize) {
         throw createAiServiceError(
           "AI sentiment service processed more records than the allowed batch size."
         );
       }
-
       if (safeAnalyzedCount > 0) {
         await incrementUsage(tenantId, "sentiment_analysis", safeAnalyzedCount);
       }
-
       res.status(200).json(
         successResponse(
           {
@@ -898,12 +864,10 @@ export const sentimentController = {
       handleControllerError(res, "SentimentController.analyzePending", error);
     }
   },
-
   getSummary: async (req: AppRequest, res: ExpressResponse): Promise<void> => {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
-
       const subjectType = getSingleString(req.query.subject_type);
       const subjectId = getSingleString(req.query.subject_id);
       if (!subjectType || !subjectId) {
@@ -914,11 +878,9 @@ export const sentimentController = {
         );
         return;
       }
-
       const url = aiUrl("sentiment/summary");
       url.searchParams.set("subject_type", subjectType);
       url.searchParams.set("subject_id", subjectId);
-
       const data = await requestAiJson(
         url,
         {
@@ -929,7 +891,6 @@ export const sentimentController = {
           serviceName: "AI sentiment service"
         }
       );
-
       res.status(200).json(
         successResponse(
           {
@@ -947,13 +908,11 @@ export const sentimentController = {
     }
   }
 };
-
 export const mpiController = {
   getSummary: async (req: AppRequest, res: ExpressResponse): Promise<void> => {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
-
       const subjectType = getSingleString(req.query.subject_type);
       const subjectId = getSingleString(req.query.subject_id);
       if (!subjectType || !subjectId) {
@@ -964,11 +923,9 @@ export const mpiController = {
         );
         return;
       }
-
       const url = aiUrl("mpi/summary");
       url.searchParams.set("subject_type", subjectType);
       url.searchParams.set("subject_id", subjectId);
-
       const data = await requestAiJson(
         url,
         {
@@ -979,7 +936,6 @@ export const mpiController = {
           serviceName: "AI MPI service"
         }
       );
-
       res.status(200).json(
         successResponse(
           {
@@ -1003,7 +959,6 @@ export const mpiController = {
     }
   }
 };
-
 export const documentController = {
   listDocuments: async (
     req: AppRequest,
@@ -1012,7 +967,6 @@ export const documentController = {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
-
       const page = parseInteger(req.query.page, 1, 1, 1_000_000);
       if (page === null) {
         sendError(
@@ -1022,8 +976,7 @@ export const documentController = {
         );
         return;
       }
-
-      const pageSize = 10;
+      const pageSize = 3;
       const [documents, total] = await Promise.all([
         documentsRepo.getDocuments({
           tenant_id: tenantId,
@@ -1032,7 +985,6 @@ export const documentController = {
         }),
         documentsRepo.getCountDocuments(tenantId)
       ]);
-
       const formattedDocuments = documents.map((doc) => ({
         ...doc,
         file_size_bytes:
@@ -1040,7 +992,6 @@ export const documentController = {
             ? null
             : doc.file_size_bytes.toString()
       }));
-
       res.status(200).json(
         successResponse(
           {
@@ -1060,3 +1011,4 @@ export const documentController = {
     }
   }
 };
+console.log("AI mocks enabled:", USE_AI_MOCKS);
