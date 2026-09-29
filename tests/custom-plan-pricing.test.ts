@@ -184,3 +184,131 @@ test("vendor-backed positive usage cannot be silently priced without a vendor ra
     maxVendorCostRevenueRatio: 0.2
   }), /Missing vendor rate/);
 });
+
+test("competitor monitoring prices each vendor rate in its native unit", () => {
+  const result = calculateCustomPlanPrice({
+    quoteCurrency: "USD",
+    features: [
+      {
+        featureId: "competitor-management",
+        featureCode: "competitor_management",
+        estimatedUsage: 1,
+        configuration: {
+          monitoringFrequencyMinutes: 10080,
+          monitoringChecksPerMonth: 4,
+        },
+      },
+      {
+        featureId: "tracked-competitors",
+        featureCode: "tracked_competitors",
+        limitValue: 5,
+        estimatedUsage: 5,
+      },
+    ],
+    vendorRates: [
+      {
+        id: "compute-rate",
+        featureId: "competitor-management",
+        feature: { code: "competitor_management" },
+        vendor: "collector",
+        service: "browser-compute",
+        billingUnit: "CU",
+        unitCost: 0.2,
+        currency: "USD",
+        operationalMultiplier: 1,
+        variabilityReserve: 1,
+        verificationStatus: "confirmed",
+        metadata: {
+          usageAssumption: {
+            model: "competitor_monitoring",
+            unitsPerCompetitorCheck: 0.3,
+          },
+        },
+      },
+      {
+        id: "credit-rate",
+        featureId: "competitor-management",
+        feature: { code: "competitor_management" },
+        vendor: "search-provider",
+        service: "search-credits",
+        billingUnit: "credit",
+        unitCost: 0.002,
+        currency: "USD",
+        operationalMultiplier: 2,
+        variabilityReserve: 1,
+        verificationStatus: "confirmed",
+        metadata: {
+          usageAssumption: {
+            model: "competitor_monitoring",
+            unitsPerCompetitorCheck: 15,
+          },
+        },
+      },
+    ],
+    vendorCostRequiredFeatureIds: ["competitor-management"],
+    monthlyInfrastructureCost: 0,
+    activePayingTenants: 1,
+    estimatedOtherCost: 0,
+    targetGrossMargin: 0,
+  });
+
+  assert.equal(result.estimatedVendorCost.toString(), "2.4");
+  assert.deepEqual(
+    result.vendorBreakdown.map((item) => [
+      item.billingUnit,
+      item.estimatedUsage,
+    ]),
+    [
+      ["CU", "6"],
+      ["credit", "300"],
+    ],
+  );
+  assert.equal(
+    result.vendorBreakdown[0].usageCalculation?.monitoringRunsPerMonth,
+    "4",
+  );
+});
+
+test("configured competitor monitoring requires a rate-specific usage assumption", () => {
+  assert.throws(
+    () =>
+      calculateCustomPlanPrice({
+        quoteCurrency: "USD",
+        features: [
+          {
+            featureId: "competitor-management",
+            featureCode: "competitor_management",
+            estimatedUsage: 1,
+            configuration: { monitoringFrequencyMinutes: 1440 },
+          },
+          {
+            featureId: "tracked-competitors",
+            featureCode: "tracked_competitors",
+            limitValue: 5,
+            estimatedUsage: 5,
+          },
+        ],
+        vendorRates: [
+          {
+            id: "legacy-rate",
+            featureId: "competitor-management",
+            feature: { code: "competitor_management" },
+            vendor: "collector",
+            service: "compute",
+            billingUnit: "CU",
+            unitCost: 1,
+            currency: "USD",
+            operationalMultiplier: 1,
+            variabilityReserve: 1,
+            verificationStatus: "confirmed",
+          },
+        ],
+        vendorCostRequiredFeatureIds: ["competitor-management"],
+        monthlyInfrastructureCost: 0,
+        activePayingTenants: 1,
+        estimatedOtherCost: 0,
+        targetGrossMargin: 0,
+      }),
+    /Missing competitor-monitoring usage assumption/,
+  );
+});

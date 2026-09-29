@@ -34,7 +34,7 @@ test("canonical MAX capacity features are lifetime capacities", () => {
     "tracked_products",
     "connected_data_sources",
     "team_members",
-    "document_storage_gb"
+    "document_storage_mb"
   ]);
 
   for (const feature of CANONICAL_FEATURES) {

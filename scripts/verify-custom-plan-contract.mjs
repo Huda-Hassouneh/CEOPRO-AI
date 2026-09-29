@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const read = (file) => fs.readFileSync(file, "utf8");
 const schema = read("prisma/schema.prisma");
+const dto = read("src/DTO/customPlan.dto.ts");
 const pricing = read("src/modules/subscription/service/custom-plan-pricing.service.ts");
 const policy = read("src/modules/subscription/service/custom-plan-policy.service.ts");
 const configurator = read("src/modules/subscription/service/custom-plan-configurator.service.ts");
@@ -47,7 +48,11 @@ const checks = [
   ["any entitlement loss uses the period-end scheduling path", transitionService.includes('losses.length > 0 ? "period_end" : "immediate"') && plansService.includes('effectiveTiming === "period_end"')],
   ["custom-plan lifecycle is separated from subscription relationship", customService.includes("subscriptionRelationship") && customService.includes('planState: plan.isActive ? "enabled" : "disabled"')],
   ["schedule terminal webhook reconciles Stripe before clearing scheduled plan", webhookHandlers.includes("await syncSubscriptionFromStripe(stripeSubscription)") && webhookHandlers.includes("scheduledPlanId: null")],
-  ["vendor rates are persisted separately from Plan.price", customRepo.includes("vendorRate") && schema.includes("model VendorRate")]
+  ["vendor rates are persisted separately from Plan.price", customRepo.includes("vendorRate") && schema.includes("model VendorRate")],
+  ["competitor cadence is configuration rather than a standalone feature", dto.includes("monitoringFrequencyMinutes") && !dto.includes('featureCode: "monitoring_frequency"')],
+  ["competitor pricing multiplies capacity, cadence and rate-specific usage", pricing.includes('featureCode === "tracked_competitors"') && pricing.includes("monitoringRunsPerMonth") && pricing.includes("unitsPerCompetitorCheck")],
+  ["rate-specific billing units remain in the quote snapshot", pricing.includes("billingUnit") && pricing.includes("sourceUnitCost") && pricing.includes("sourceCurrency")],
+  ["accepted plans preserve feature configuration", schema.includes("model PlanFeature") && schema.includes("metadata    Json?") && customRepo.includes("metadata: feature.metadata")]
 ];
 
 let failed = 0;
