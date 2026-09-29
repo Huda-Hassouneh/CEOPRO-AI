@@ -6,6 +6,7 @@ import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
 import Button from "../../../shared/components/ui/Button.jsx";
 import Modal from "../../../shared/components/ui/Modal.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
+
 import { FileUploadDropzone } from "../../data-ingestion/components/FileUploadDropzone.jsx";
 import { ingestionApi } from "../../data-ingestion/api/ingestionApi.js";
 import { RagChatWindow } from "../components/RagChatWindow.jsx";
@@ -34,12 +35,13 @@ export function RagAssistantPage() {
   const [files, setFiles] = useState([]);
   const [notice, setNotice] = useState(null);
   const [requestError, setRequestError] = useState(false);
+  const [page, setPage] = useState(1);
   const documentsQuery = useKnowledgeDocuments({
     companyId,
     search,
     type,
     sort,
-    page: 1
+    page
   });
   const chatMutation = useRagChat();
   const uploadMutation = useDocumentUpload();
@@ -116,10 +118,14 @@ export function RagAssistantPage() {
   };
 
   const uploadDocuments = async () => {
-    if (!files.length) return;
+    if (!files.length || uploadMutation.isPending) return;
+
     try {
-      await ingestionApi.prepareFiles(files);
-      const result = await uploadMutation.mutateAsync({ files, companyId });
+      const result = await uploadMutation.mutateAsync({
+        files,
+        companyId
+      });
+
       if (!result?.uploaded) {
         setNotice({
           variant: "info",
@@ -127,12 +133,15 @@ export function RagAssistantPage() {
         });
         return;
       }
+
       setFiles([]);
       setUploadOpen(false);
+
       setNotice({
         variant: "success",
         message: t("ragAssistant.feedback.uploaded")
       });
+
       documentsQuery.refetch();
     } catch {
       setNotice({
@@ -141,7 +150,20 @@ export function RagAssistantPage() {
       });
     }
   };
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    setPage(1);
+  };
 
+  const handleTypeChange = (value) => {
+    setType(value);
+    setPage(1);
+  };
+
+  const handleSortChange = (value) => {
+    setSort(value);
+    setPage(1);
+  };
   return (
     <div className="rag-assistant-page" dir={dir}>
       <PageHeader
@@ -179,14 +201,16 @@ export function RagAssistantPage() {
             isPending={documentsQuery.isPending}
             isError={documentsQuery.isError}
             search={search}
-            onSearch={setSearch}
+            onSearch={handleSearchChange}
             type={type}
-            onType={setType}
+            onType={handleTypeChange}
             sort={sort}
-            onSort={setSort}
+            onSort={handleSortChange}
+            onPageChange={setPage}
             onUpload={() => setUploadOpen(true)}
             onCollapse={() => setKnowledgeOpen(false)}
             onRetry={() => documentsQuery.refetch()}
+            dir={dir}
             t={t}
             formatDate={formatDate}
             formatSize={formatSize}
