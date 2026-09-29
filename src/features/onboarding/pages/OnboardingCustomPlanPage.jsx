@@ -88,7 +88,15 @@ export function OnboardingCustomPlanPage() {
         limitValue:
           feature.type === "limit"
             ? (previous?.limitValue ?? feature.min ?? 0)
-            : null
+            : null,
+        ...(feature.configuration?.monitoringCadence
+          ? {
+              configuration: previous?.configuration ?? {
+                monitoringFrequencyMinutes:
+                  feature.configuration.monitoringCadence.defaultMinutes
+              }
+            }
+          : {})
       };
     }
 
@@ -112,7 +120,8 @@ export function OnboardingCustomPlanPage() {
           limitValue:
             feature.type === "limit"
               ? (configuration[feature.id]?.limitValue ?? feature.min ?? 0)
-              : null
+              : null,
+          configuration: configuration[feature.id]?.configuration ?? null
         })),
     [configurator, configuration]
   );
@@ -121,7 +130,10 @@ export function OnboardingCustomPlanPage() {
     () =>
       selectedFeatureDetails.map((feature) => ({
         featureId: feature.id,
-        ...(feature.type === "limit" ? { limitValue: feature.limitValue } : {})
+        ...(feature.type === "limit" ? { limitValue: feature.limitValue } : {}),
+        ...(feature.configuration
+          ? { configuration: feature.configuration }
+          : {})
       })),
     [selectedFeatureDetails]
   );

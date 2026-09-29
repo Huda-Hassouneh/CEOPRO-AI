@@ -4,9 +4,12 @@ import { SubscriptionResult } from "../../billing/components/SubscriptionResult.
 import { useSubscriptionConfirmation } from "../../billing/hooks/useSubscriptionConfirmation.js";
 import { OnboardingPageShell } from "../components/OnboardingPageShell.jsx";
 import { useOnboardingStore } from "../store/onboardingStore.js";
+import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 
 export function OnboardingSubscriptionSuccessPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
+
   const completePlanStep = useOnboardingStore(
     (state) => state.completePlanStep
   );
@@ -27,6 +30,7 @@ export function OnboardingSubscriptionSuccessPage() {
         onPrimary={
           confirmation.status === "confirmed" ? continueOnboarding : undefined
         }
+        primaryLabel={t("onboarding.paymentSuccess.continueSetup")}
       />
     </OnboardingPageShell>
   );
