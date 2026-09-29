@@ -8,18 +8,16 @@ export const getAggregate = async (
 ) => {
   try {
     // Extract companyId from URL params (based on your frontend /companies/:companyId/dashboard route)
-    const tenantId = req.params.companyId as string;
+    const tenantId = (req as Request & { tenant_id?: string }).tenant_id;
 
     // Extract and parse periodDays from query string, defaulting to 30
-    const periodDays = req.query.periodDays
-      ? parseInt(req.query.periodDays as string, 10)
-      : 30;
+    const periodDays = Number(req.query.periodDays ?? 30);
 
-    if (!tenantId) {
-      return res.status(400).json({
-        status: "error",
-        message: "Company/Tenant ID is required"
-      });
+    if (!tenantId || req.params.companyId !== tenantId) {
+      return res.status(403).json({ status: "error", message: "Tenant access denied" });
+    }
+    if (![7, 30, 90].includes(periodDays)) {
+      return res.status(400).json({ status: "error", message: "Invalid periodDays" });
     }
 
     const data = await dashboardService.getDashboardAggregate(

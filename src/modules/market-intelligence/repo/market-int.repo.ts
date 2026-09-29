@@ -58,6 +58,7 @@ const normalizeMapTo10 = (values: Map<string, number>) => {
 type CompetitorScoreRow = {
   global_competitor_id: string;
   composite_score: unknown;
+  relevance_score: unknown;
 };
 const toFiniteNumber = (value: unknown): number | null => {
   if (value === null || value === undefined) return null;
@@ -116,7 +117,11 @@ export const getMarketIntelligence = async (
     : rawProducts[0];
   const actualProductId = selectedProductRaw.product_id;
   const selectedProduct = products.find((p) => p.id === actualProductId);
-  const currentPrice = toFiniteNumber(selectedProductRaw.current_price) ?? 0;
+  const currentPrice = toFiniteNumber(selectedProductRaw.current_price);
+  const now = new Date();
+  const periodStart = new Date(
+    now.getTime() - periodDays * 24 * 60 * 60 * 1000
+  );
   // ============================================================
   // 2. REAL COMPETITOR MAPPINGS + REAL SCRAPED PRICES
   // ============================================================
@@ -124,7 +129,8 @@ export const getMarketIntelligence = async (
     where: {
       tenant_id,
       product_id: actualProductId,
-      is_active: true
+      is_active: true,
+      tenant_competitors: { is_tracked: true }
     },
     include: {
       tenant_competitors: {
@@ -134,7 +140,11 @@ export const getMarketIntelligence = async (
       },
       competitor_prices: {
         where: {
-          is_available: true
+          is_available: true,
+          is_exact_data: true,
+          source_status: "ALLOWED",
+          currency: selectedProductRaw.currency,
+          observed_at: { gte: periodStart, lte: now }
         },
         orderBy: {
           observed_at: "desc"
@@ -155,7 +165,8 @@ export const getMarketIntelligence = async (
   const latestCompetitorScores = await prisma.$queryRaw<CompetitorScoreRow[]>`
     SELECT DISTINCT ON (s.global_competitor_id)
       s.global_competitor_id,
-      s.composite_score
+      s.composite_score,
+      s.relevance_score
     FROM competitor_score_snapshots s
     INNER JOIN competitor_product_mappings m
       ON m.tenant_id = s.tenant_id
@@ -163,6 +174,8 @@ export const getMarketIntelligence = async (
     WHERE s.tenant_id = ${tenant_id}::uuid
       AND m.product_id = ${actualProductId}::uuid
       AND m.is_active = TRUE
+      AND s.calculated_at >= ${periodStart}
+      AND s.calculated_at <= ${now}
     ORDER BY
       s.global_competitor_id,
       s.calculated_at DESC,
@@ -174,11 +187,27 @@ export const getMarketIntelligence = async (
       toFiniteNumber(row.composite_score)
     ])
   );
+  const relevanceScoreByCompetitorId = new Map<string, number | null>(
+    latestCompetitorScores.map((row) => [
+      row.global_competitor_id,
+      toFiniteNumber(row.relevance_score)
+    ])
+  );
   const marketPrices: number[] = [];
   const recentPriceChanges: any[] = [];
   const competitorsData = mappings.map((mapping) => {
     const compositeScore =
       compositeScoreByCompetitorId.get(mapping.global_competitor_id) ?? null;
+    const snapshotRelevance =
+      relevanceScoreByCompetitorId.get(mapping.global_competitor_id) ?? null;
+    const matchRate = toFiniteNumber(
+      mapping.tenant_competitors.product_match_rate
+    );
+    const derivedRelevance =
+      matchRate !== null && matchRate >= 0 && matchRate <= 1
+        ? Number((matchRate * 100).toFixed(1))
+        : null;
+    const relevanceScore = snapshotRelevance ?? derivedRelevance;
     const competitorName =
       mapping.tenant_competitors.custom_alias ||
       mapping.tenant_competitors.global_competitors.competitor_name;
@@ -234,7 +263,13 @@ export const getMarketIntelligence = async (
       // produced a snapshot. The remaining nullable fields are preserved
       // because this service has no agreed real source for them yet.
       compositeScore,
-      relevanceScore: null,
+      relevanceScore,
+      relevanceSource:
+        snapshotRelevance !== null
+          ? "snapshot"
+          : derivedRelevance !== null
+            ? "product_match_rate"
+            : null,
       marketPresenceScore: null,
       marketPerception: null,
       dataStatus: latestScrapedPrice !== null ? "verified" : "unavailable",
@@ -252,17 +287,15 @@ export const getMarketIntelligence = async (
       (score): score is number => score !== null && Number.isFinite(score)
     );
   const averageCompositeScore100 = average(compositeScores);
-  const averageCompositeScore =
-    averageCompositeScore100 !== null ? averageCompositeScore100 / 10 : null;
   // ============================================================
   // 4. REAL MARKET AGGREGATES
   // ============================================================
   const totalCompetitors = competitorsData.length;
   const pricedCompetitorCount = marketPrices.length;
-  let marketMin = currentPrice;
-  let marketMax = currentPrice;
-  let marketAverage = currentPrice;
-  let marketMedian = currentPrice;
+  let marketMin: number | null = null;
+  let marketMax: number | null = null;
+  let marketAverage: number | null = null;
+  let marketMedian: number | null = null;
   if (marketPrices.length > 0) {
     marketPrices.sort((a, b) => a - b);
     marketMin = marketPrices[0];
@@ -283,13 +316,13 @@ export const getMarketIntelligence = async (
   // ============================================================
   let action = "hold";
   let suggestedPrice = currentPrice;
-  if (marketPrices.length > 0) {
+  if (marketMedian !== null && currentPrice !== null) {
     if (currentPrice < marketMedian * 0.9) {
       action = "raise";
-      suggestedPrice = Math.floor(marketMedian * 0.95);
+      suggestedPrice = Number((marketMedian * 0.95).toFixed(4));
     } else if (currentPrice > marketMedian * 1.1) {
       action = "reduce";
-      suggestedPrice = Math.floor(marketMedian * 1.05);
+      suggestedPrice = Number((marketMedian * 1.05).toFixed(4));
     }
   }
   // ============================================================
@@ -358,11 +391,9 @@ export const getMarketIntelligence = async (
       });
     }
   }
-  const now = new Date();
-  const periodStart = new Date(now);
-  periodStart.setDate(periodStart.getDate() - periodDays);
-  const previousPeriodStart = new Date(periodStart);
-  previousPeriodStart.setDate(previousPeriodStart.getDate() - periodDays);
+  const previousPeriodStart = new Date(
+    periodStart.getTime() - periodDays * 24 * 60 * 60 * 1000
+  );
   const forecastWindowEnd = new Date(now);
   forecastWindowEnd.setDate(forecastWindowEnd.getDate() + periodDays);
   const [forecastRows, reviewRows, segmentPriceMappings] = await Promise.all([
@@ -413,8 +444,11 @@ export const getMarketIntelligence = async (
           in: productIds
         },
         review_date: {
-          gte: periodStart
-        }
+          gte: periodStart,
+          lte: now
+        },
+        source_status: "ALLOWED",
+        safety_status: "SAFE"
       },
       select: {
         product_id: true,
@@ -434,20 +468,25 @@ export const getMarketIntelligence = async (
         product_id: {
           in: productIds
         },
-        is_active: true
+        is_active: true,
+        tenant_competitors: { is_tracked: true }
       },
       select: {
         product_id: true,
         competitor_prices: {
           where: {
-            is_available: true
+            is_available: true,
+            is_exact_data: true,
+            source_status: "ALLOWED",
+            observed_at: { gte: periodStart, lte: now }
           },
           orderBy: {
             observed_at: "desc"
           },
           take: 1,
           select: {
-            scraped_price: true
+            scraped_price: true,
+            currency: true
           }
         }
       }
@@ -512,12 +551,17 @@ export const getMarketIntelligence = async (
         ]
     )
   );
+  const currencyByProductId = new Map(
+    rawProducts.map((product) => [product.product_id, product.currency])
+  );
   for (const mapping of segmentPriceMappings) {
     const segment = segmentByProductId.get(mapping.product_id);
     if (!segment) continue;
     const ownPrice = currentPriceByProductId.get(mapping.product_id);
     const competitorPrice =
-      mapping.competitor_prices.length > 0
+      mapping.competitor_prices.length > 0 &&
+      mapping.competitor_prices[0].currency ===
+        currencyByProductId.get(mapping.product_id)
         ? toFiniteNumber(mapping.competitor_prices[0].scraped_price)
         : null;
     const pricingScore = calculatePricingScore(
@@ -864,12 +908,13 @@ export const getMarketIntelligence = async (
       {
         id: "averageCompositeScore",
         value:
-          averageCompositeScore !== null
-            ? Number(averageCompositeScore.toFixed(1))
+          averageCompositeScore100 !== null
+            ? Number(averageCompositeScore100.toFixed(1))
             : null,
-        format: "score10",
+        format: "score100",
         icon: "composite",
-        dataStatus: averageCompositeScore !== null ? "derived" : "unavailable"
+        dataStatus:
+          averageCompositeScore100 !== null ? "derived" : "unavailable"
       },
       {
         id: "topSegmentScore",
@@ -895,32 +940,38 @@ export const getMarketIntelligence = async (
     // ==========================================================
     // PRICING RECOMMENDATIONS
     // ==========================================================
-    pricingRecommendations: [
-      {
-        id: `price-rec-${actualProductId}`,
-        currentPrice,
-        action,
-        suggestedPrice,
-        marketMin,
-        marketMax,
-        marketAverage: Math.round(marketAverage),
-        marketMedian,
-        matchedCompetitors: pricedCompetitorCount,
-        explanation: {
-          en:
-            pricedCompetitorCount > 0
-              ? `Algorithm derived from ${pricedCompetitorCount} tracked competitors with recorded prices.`
-              : "No competitor price data is currently available.",
-          ar:
-            pricedCompetitorCount > 0
-              ? `الخوارزمية مستمدة من ${pricedCompetitorCount} منافسين متابعين لديهم أسعار مسجلة.`
-              : "لا تتوفر حاليًا بيانات أسعار للمنافسين."
-        },
-        dataStatus: pricedCompetitorCount > 0 ? "derived" : "unavailable",
-        productId: actualProductId,
-        productName: selectedProduct?.name
-      }
-    ],
+    pricingRecommendations:
+      pricedCompetitorCount > 0 && currentPrice !== null
+        ? [
+            {
+              id: `price-rec-${actualProductId}`,
+              currentPrice,
+              action,
+              suggestedPrice,
+              marketMin,
+              marketMax,
+              marketAverage:
+                marketAverage === null
+                  ? null
+                  : Number(marketAverage.toFixed(4)),
+              marketMedian,
+              matchedCompetitors: pricedCompetitorCount,
+              explanation: {
+                en:
+                  pricedCompetitorCount > 0
+                    ? `Algorithm derived from ${pricedCompetitorCount} tracked competitors with recorded prices.`
+                    : "No competitor price data is currently available.",
+                ar:
+                  pricedCompetitorCount > 0
+                    ? `الخوارزمية مستمدة من ${pricedCompetitorCount} منافسين متابعين لديهم أسعار مسجلة.`
+                    : "لا تتوفر حاليًا بيانات أسعار للمنافسين."
+              },
+              dataStatus: pricedCompetitorCount > 0 ? "derived" : "unavailable",
+              productId: actualProductId,
+              productName: selectedProduct?.name
+            }
+          ]
+        : [],
     // ==========================================================
     // REAL PRICE HISTORY
     // ==========================================================

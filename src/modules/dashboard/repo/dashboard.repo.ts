@@ -6,9 +6,8 @@ export const getMainDashboardKPIs = async (
 ) => {
   // 1. Date Calculations & Setup
   const endDate = new Date();
-  const startDate = new Date(
-    endDate.getTime() - periodDays * 24 * 60 * 60 * 1000
-  );
+  const endExclusive = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate() + 1));
+  const startDate = new Date(endExclusive.getTime() - periodDays * 24 * 60 * 60 * 1000);
   const previousPeriodStartDate = new Date(
     startDate.getTime() - periodDays * 24 * 60 * 60 * 1000
   );
@@ -21,7 +20,8 @@ export const getMainDashboardKPIs = async (
     where: { id: tenant_id },
     select: { primaryCurrency: true, preferredLanguage: true }
   });
-  const currency = company?.primaryCurrency || "JOD";
+  if (!company?.primaryCurrency) throw new Error("Company currency is unavailable");
+  const currency = company.primaryCurrency;
   const locale = company?.preferredLanguage || "en";
 
   // 3. Revenues & Sales Chart Data (Current Period)
@@ -29,7 +29,8 @@ export const getMainDashboardKPIs = async (
     where: {
       tenant_id,
       payment_status: "PAID",
-      created_at: { gte: startDate }
+      currency,
+      created_at: { gte: startDate, lt: endExclusive }
     },
     select: { created_at: true, total_amount: true }
   });
@@ -65,16 +66,15 @@ export const getMainDashboardKPIs = async (
     where: {
       tenant_id,
       payment_status: "PAID",
+      currency,
       created_at: { gte: previousPeriodStartDate, lt: startDate }
     }
   });
 
   const lastRevenue = Number(previousSales._sum.total_amount || 0);
-  let growth = 0;
+  let growth: number | null = null;
   if (lastRevenue > 0) {
     growth = ((currentRevenue - lastRevenue) / lastRevenue) * 100;
-  } else if (currentRevenue > 0) {
-    growth = 100;
   }
 
   // 5. Inventory & Products
@@ -83,10 +83,9 @@ export const getMainDashboardKPIs = async (
   });
 
   const inventoryData = await prisma.inventory.findMany({
-    where: { tenant_id },
+    where: { tenant_id, products: { deleted_at: null } },
     include: { products: { select: { product_name: true } } },
-    orderBy: { stock_quantity: "asc" },
-    take: 10
+    orderBy: { stock_quantity: "asc" }
   });
 
   let inStock = 0,
@@ -116,7 +115,7 @@ export const getMainDashboardKPIs = async (
 
   const totalItems = inStock + lowStock + outOfStock;
   const inventoryHealthPercent =
-    totalItems > 0 ? Math.round(((inStock + lowStock) / totalItems) * 100) : 0;
+    totalItems > 0 ? Math.round((inStock / totalItems) * 100) : null;
 
   // 6. Tracked Competitors Count
   const trackedCompetitorsCount = await prisma.tenant_competitors.count({
@@ -126,39 +125,46 @@ export const getMainDashboardKPIs = async (
   // 7. Market Sentiment
   const sentiment = await prisma.sentiment_results.aggregate({
     _avg: { sentiment_score: true },
-    where: { tenant_id, processed_at: { gte: startDate } }
+    where: {
+      tenant_id,
+      reviews: {
+        review_date: { gte: startDate, lt: endExclusive },
+        source_status: "ALLOWED",
+        safety_status: "SAFE"
+      }
+    }
   });
 
-  const sentimentScore = Number(sentiment._avg?.sentiment_score || 0);
-  const sentimentLabel =
-    sentimentScore > 0.6
-      ? "positive"
-      : sentimentScore < 0.4
-        ? "negative"
-        : "neutral";
+  const sentimentScore = sentiment._avg?.sentiment_score == null ? null : Number(sentiment._avg.sentiment_score);
+  const sentimentLabel = sentimentScore == null ? null :
+    sentimentScore > 0.1 ? "positive" : sentimentScore < -0.1 ? "negative" : "neutral";
 
-  // 8. Fetch Demand Forecasts for Dashboard Preview
+  // 8. Latest forecast per product overlapping the next seven days
+  const forecastToday = new Date(endExclusive.getTime() - 24 * 60 * 60 * 1000);
+  const forecastWindowEnd = new Date(endExclusive.getTime() + 6 * 24 * 60 * 60 * 1000);
   const rawForecasts = await prisma.demand_forecasts.findMany({
     where: {
       tenant_id,
+      products: { deleted_at: null },
       OR: [
         {
-          forecast_start_date: {
-            gte: new Date(new Date().toISOString().slice(0, 10))
-          }
+          forecast_start_date: { gte: forecastToday },
+          forecast_end_date: { lte: forecastWindowEnd }
         },
         {
-          forecast_target_date: {
-            gte: new Date(new Date().toISOString().slice(0, 10))
-          }
+          forecast_target_date: { gte: forecastToday, lte: forecastWindowEnd }
         }
       ]
     },
     include: { products: { select: { product_name: true } } },
-    take: 4
+    orderBy: { created_at: "desc" }
   });
-
-  const demandForecastRows = rawForecasts.map((f) => {
+  const seenForecastProducts = new Set<string>();
+  const demandForecastRows = rawForecasts.filter((f) => {
+    if (seenForecastProducts.has(f.product_id)) return false;
+    seenForecastProducts.add(f.product_id);
+    return true;
+  }).slice(0, 4).map((f) => {
     const rawName = f.products?.product_name as any;
     const productName =
       typeof rawName === "object" && rawName !== null
@@ -181,9 +187,10 @@ export const getMainDashboardKPIs = async (
       tenant_id,
       deleted_at: null
     },
-    take: 4,
     include: {
+      // The dashboard formats both prices in the company's currency.
       competitor_product_mappings: {
+        where: { is_active: true, tenant_competitors: { is_tracked: true } },
         include: {
           tenant_competitors: {
             include: {
@@ -192,7 +199,10 @@ export const getMainDashboardKPIs = async (
           },
           competitor_prices: {
             where: {
-              is_available: true
+              is_available: true,
+              is_exact_data: true,
+              source_status: "ALLOWED",
+              currency
             },
             orderBy: {
               observed_at: "desc"
@@ -219,7 +229,8 @@ export const getMainDashboardKPIs = async (
               ar: String(rawName || "غير معروف")
             };
 
-      const ourPrice = Number(prod.current_price || 0);
+      if (prod.currency !== currency) return null;
+      const ourPrice = Number(prod.current_price);
 
       const competitorPrices = prod.competitor_product_mappings.flatMap(
         (mapping) =>
@@ -260,36 +271,39 @@ export const getMainDashboardKPIs = async (
         dataStatus: "verified"
       };
     })
-    .filter(Boolean);
+    .filter(Boolean).slice(0, 4);
   // 10. Fetch Recent Activity from Audit Logs
   // 10. Fetch Recent Activity from Audit Logs
   const rawActivities = await prisma.audit_logs.findMany({
     where: { tenant_id },
     orderBy: { created_at: "desc" },
-    take: 5
+    take: 20
   });
 
   const recentActivityRows = rawActivities.map((log: any) => {
     // Safely parse the JSON payload whether it's an object or stringified
-    const payload =
-      typeof log.changed_data_json === "string"
+    let payload: Record<string, any> = {};
+    try {
+      const parsed = typeof log.changed_data_json === "string"
         ? JSON.parse(log.changed_data_json)
-        : log.changed_data_json || {};
+        : log.changed_data_json;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) payload = parsed as Record<string, any>;
+    } catch { /* Malformed audit details must not break the dashboard. */ }
 
     return {
       id: log.audit_id,
       date: log.created_at
         ? new Date(log.created_at).toISOString().split("T")[0]
-        : new Date().toISOString().split("T")[0],
+        : null,
       activity: {
         en: log.action_type || "System Activity",
         ar: log.action_type || "نشاط النظام"
       },
       // If there are no details, pass null so the frontend hides the line completely
-      details: payload.details
+      details: typeof payload.details === "string"
         ? { en: payload.details, ar: payload.details }
         : null,
-      status: payload.status || payload.severity?.toLowerCase() || "completed"
+      status: typeof payload.status === "string" ? payload.status.toLowerCase() : null
     };
   });
 
@@ -307,7 +321,7 @@ export const getMainDashboardKPIs = async (
         id: "totalSales",
         labelKey: "dashboard.kpis.totalSales",
         value: currentInvoices.length,
-        format: "currency",
+        format: "number",
         icon: "sales",
         tone: "blue",
         dataStatus: "verified"
@@ -346,7 +360,7 @@ export const getMainDashboardKPIs = async (
         format: "percent",
         icon: "inventory",
         tone: "orange",
-        dataStatus: "derived"
+        dataStatus: inventoryHealthPercent === null ? "unavailable" : "derived"
       },
       {
         id: "marketSentiment",
@@ -355,16 +369,16 @@ export const getMainDashboardKPIs = async (
         format: "sentiment",
         icon: "sentiment",
         tone: "green",
-        dataStatus: "estimated"
+        dataStatus: sentimentLabel === null ? "unavailable" : "estimated"
       },
       {
         id: "growth",
         labelKey: "dashboard.kpis.growth",
-        value: parseFloat(growth.toFixed(1)),
+        value: growth === null ? null : parseFloat(growth.toFixed(1)),
         format: "signedPercent",
         icon: "growth",
         tone: "green",
-        dataStatus: "derived"
+        dataStatus: growth === null ? "unavailable" : "derived"
       }
     ],
     salesOverview: {
@@ -373,11 +387,11 @@ export const getMainDashboardKPIs = async (
       updatedAt: endDate.toISOString(),
       points: salesPoints
     },
-    inventoryStatus: {
+    inventoryStatus: totalItems > 0 ? {
       dataStatus: "verified",
       totals: { inStock, lowStock, outOfStock, totalItems },
-      items: inventoryItems.slice(0, 4)
-    },
+      items: inventoryItems
+    } : null,
     demandForecast: {
       dataStatus: "estimated",
       source: "forecast-model",

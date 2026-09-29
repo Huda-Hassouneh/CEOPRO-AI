@@ -10,7 +10,18 @@ export const getMarketIntelligence = async (
     productId,
     periodDays
   );
-  console.log({ data: data?.competitors });
-  if (!data) throw new Error("Failed to load market intelligence data");
-  return data;
+  if (data) return data;
+  return {
+    companyId: tenantId,
+    period: { days: periodDays ?? 30 },
+    availablePeriods: [30, 90],
+    products: [],
+    selectedProduct: null,
+    metrics: [],
+    aiMarketIntelligence: null,
+    expansionOpportunities: [],
+    competitors: [],
+    pricingRecommendations: [],
+    recentPriceChanges: []
+  };
 };
