@@ -233,6 +233,7 @@ model Feature {
   plan_features       PlanFeature[]
   subscription_usage  SubscriptionUsage[]
   vendorRates         VendorRate[]
+  infrastructureRates InfrastructureRate[]
 
   @@map("features")
 }
@@ -241,6 +242,7 @@ model PlanFeature {
   plan_id     String  @db.Uuid
   feature_id  String  @db.Uuid
   limit_value Int?
+  metadata    Json?
   feature     Feature @relation(fields: [feature_id], references: [id], onDelete: Cascade)
   plan        Plan    @relation(fields: [plan_id], references: [id], onDelete: Cascade)
 
@@ -285,6 +287,32 @@ model VendorRate {
   @@index([featureId, effectiveFrom])
   @@index([vendor, service])
   @@map("vendor_rates")
+}
+
+model InfrastructureRate {
+  id                         String                               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  featureId                  String?                              @map("feature_id") @db.Uuid
+  costDriver                 String                               @map("cost_driver") @db.VarChar(100)
+  usageBasis                 InfrastructureRateUsageBasis         @default(estimated_usage) @map("usage_basis")
+  billingUnit                String                               @map("billing_unit") @db.VarChar(80)
+  billingUnitsPerFeatureUnit Decimal                              @default(1) @map("billing_units_per_feature_unit") @db.Decimal(18, 10)
+  unitCost                   Decimal                              @map("unit_cost") @db.Decimal(14, 6)
+  currency                   String                               @db.VarChar(3)
+  operationalMultiplier      Decimal                              @default(1) @map("operational_multiplier") @db.Decimal(8, 4)
+  variabilityReserve         Decimal                              @default(1) @map("variability_reserve") @db.Decimal(8, 4)
+  effectiveFrom              DateTime                             @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo                DateTime?                           @map("effective_to") @db.Timestamptz(6)
+  verificationStatus         InfrastructureRateVerificationStatus @default(unconfirmed) @map("verification_status")
+  source                     String?
+  metadata                   Json?
+  createdAt                  DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  feature                    Feature?                             @relation(fields: [featureId], references: [id])
+
+  @@index([featureId, effectiveFrom])
+  @@index([costDriver, effectiveFrom])
+  @@index([verificationStatus])
+  @@map("infrastructure_rates")
 }
 
 model CustomPlanQuote {
@@ -1210,4 +1238,21 @@ enum VendorRateVerificationStatus {
   deprecated
 
   @@map("vendor_rate_verification_status_enum")
+}
+
+enum InfrastructureRateUsageBasis {
+  limit_value
+  estimated_usage
+  enabled_feature
+
+  @@map("infrastructure_rate_usage_basis_enum")
+}
+
+enum InfrastructureRateVerificationStatus {
+  confirmed
+  estimated
+  unconfirmed
+  deprecated
+
+  @@map("infrastructure_rate_verification_status_enum")
 }
