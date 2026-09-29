@@ -26,7 +26,6 @@ import { DashboardChartCard } from "../components/DashboardChartCard.jsx";
 import { DashboardTableCard } from "../components/DashboardTableCard.jsx";
 import { DashboardStateBoundary } from "../components/DashboardStateBoundary.jsx";
 import { useDashboardAggregate } from "../hooks/useDashboardAggregate.js";
-import { getMockDashboard } from "../mocks/dashboardMockData.js";
 import "../styles/Dashboard.css";
 
 const INVENTORY_COLORS = ["#4f46e5", "#f59e0b", "#ef476f"];
@@ -66,6 +65,7 @@ function DataTable({ columns, rows, emptyState }) {
 }
 
 function ActivityStatus({ status, t }) {
+  if (!status || !["completed", "processing", "failed"].includes(status)) return "—";
   return (
     <span className={`dashboard-activity-status is-${status}`}>
       <i aria-hidden="true" />
@@ -74,7 +74,7 @@ function ActivityStatus({ status, t }) {
   );
 }
 
-export function DashboardHomePage({ status, dashboardData }) {
+export function DashboardHomePage() {
   const { t, locale, dir } = useI18n();
   const navigate = useNavigate();
   const companyId = useAuthStore((state) => state.tenantId);
@@ -82,17 +82,8 @@ export function DashboardHomePage({ status, dashboardData }) {
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const dashboardQuery = useDashboardAggregate(days, companyId);
-  const dashboard =
-    dashboardData || dashboardQuery.data || getMockDashboard(days);
-  const effectiveStatus =
-    status ||
-    (dashboardQuery.isPending
-      ? "loading"
-      : dashboardQuery.isError
-        ? "error"
-        : dashboard
-          ? "ready"
-          : "empty");
+  const dashboard = dashboardQuery.data;
+  const displayCurrency = dashboard?.company?.currency || "JOD";
 
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
@@ -102,20 +93,19 @@ export function DashboardHomePage({ status, dashboardData }) {
     () =>
       new Intl.NumberFormat(locale, {
         style: "currency",
-        currency: dashboard.company.currency,
-        maximumFractionDigits: 0
+        currency: displayCurrency
       }),
-    [dashboard.company.currency, locale]
+    [displayCurrency, locale]
   );
   const compactCurrencyFormatter = useMemo(
     () =>
       new Intl.NumberFormat(locale, {
         style: "currency",
-        currency: dashboard.company.currency,
+        currency: displayCurrency,
         notation: "compact",
         maximumFractionDigits: 1
       }),
-    [dashboard.company.currency, locale]
+    [displayCurrency, locale]
   );
   const dateFormatter = useMemo(
     () =>
@@ -126,9 +116,13 @@ export function DashboardHomePage({ status, dashboardData }) {
       }),
     [locale]
   );
-  const formatDate = (value) =>
-    dateFormatter.format(new Date(`${value}T00:00:00Z`));
+  const formatDate = (value) => {
+    if (!value) return "—";
+    const parsed = new Date(value.includes("T") ? value : `${value}T00:00:00Z`);
+    return Number.isNaN(parsed.getTime()) ? "—" : dateFormatter.format(parsed);
+  };
   const formatMetric = (metric) => {
+    if (metric.value == null) return "—";
     if (metric.formattedValue) return localize(metric.formattedValue, locale);
     if (metric.format === "currency")
       return currencyFormatter.format(metric.value);
@@ -160,6 +154,15 @@ export function DashboardHomePage({ status, dashboardData }) {
       }
     />
   );
+  if (dashboardQuery.isPending || dashboardQuery.isError || !dashboard) {
+    return (
+      <DashboardStateBoundary
+        status={dashboardQuery.isPending ? "loading" : dashboardQuery.isError ? "error" : "empty"}
+        title={t("dashboard.page.title")}
+        onRetry={dashboardQuery.refetch}
+      />
+    );
+  }
   const inventoryRows = dashboard.inventoryStatus?.items || [];
   const activityRows = dashboard.recentActivity?.rows || [];
   const inventoryChart = dashboard.inventoryStatus
@@ -209,7 +212,7 @@ export function DashboardHomePage({ status, dashboardData }) {
 
   return (
     <DashboardStateBoundary
-      status={effectiveStatus}
+      status="ready"
       title={t("dashboard.page.title")}
       onRetry={dashboardQuery.refetch}
     >
@@ -254,7 +257,7 @@ export function DashboardHomePage({ status, dashboardData }) {
             subtitle={t("dashboard.sales.subtitle", {
               days: numberFormatter.format(days),
               currency:
-                dashboard.salesOverview?.currency || dashboard.company.currency
+                dashboard.salesOverview?.currency || displayCurrency
             })}
             dataStatus={dashboard.salesOverview?.dataStatus}
           >
@@ -452,6 +455,11 @@ export function DashboardHomePage({ status, dashboardData }) {
                   label: t("dashboard.tables.competitorPrice"),
                   render: (row) =>
                     currencyFormatter.format(row.lowestCompetitorPrice)
+                },
+                {
+                  key: "lastObservedAt",
+                  label: t("dashboard.tables.lastObserved"),
+                  render: (row) => formatDate(row.lastObservedAt)
                 }
               ]}
               rows={dashboard.competitorComparison?.rows}

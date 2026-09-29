@@ -3,7 +3,6 @@ import DataStatusBadge from "../../../shared/components/ui/DataStatusBadge.jsx";
 import { DashboardIcon } from "./DashboardIcon.jsx";
 
 export function KpiCard({ metric, label }) {
-  console.log({ metric });
   return (
     <Card className={`dashboard-kpi-card is-${metric.tone || "purple"}`}>
       <div className="dashboard-kpi-card__top">
