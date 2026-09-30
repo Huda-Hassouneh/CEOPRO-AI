@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ArrowLeft,
   BrainCircuit,
@@ -8,7 +8,7 @@ import {
   Sparkles,
   Target
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 import { routePaths } from "../../../app/router/routePaths.js";
 import BusinessPageContainer from "../../../shared/components/layout/BusinessPageContainer.jsx";
@@ -22,8 +22,12 @@ import { DemandDataSection } from "../components/DemandDataSection.jsx";
 import { DemandForecastChart } from "../components/DemandForecastChart.jsx";
 import { DemandForecastTable } from "../components/DemandForecastTable.jsx";
 import { DemandStatusBadge } from "../components/DemandStatusBadge.jsx";
-import { forecastingApi } from "../api/forecastingApi.js";
+import { useDemandPdfExport } from "../hooks/useDemandPdfExport.js";
 import { useForecastDetail } from "../hooks/useForecastDetail.js";
+import {
+  forecastFormatters,
+  localize
+} from "../utils/forecastFormatters.js";
 import "../styles/DemandPrediction.css";
 
 const metricIcons = {
@@ -33,48 +37,46 @@ const metricIcons = {
   confidenceRange: Target,
   modelAccuracy: Gauge
 };
-const localize = (value, locale) =>
-  value && typeof value === "object" ? value[locale] || value.en : value;
 
 export function ProductForecastDetailPage() {
   const { t, locale, dir } = useI18n();
   const { productId } = useParams();
   const navigate = useNavigate();
-  const query = useForecastDetail(productId);
-  const [exportNotice, setExportNotice] = useState(false);
+  const [params] = useSearchParams();
+  const periodDays = params.get("periodDays") === "7" ? 7 : 30;
+  const query = useForecastDetail(productId, periodDays);
   const detail = query.data;
-  console.log({ detail });
 
-  const number = useMemo(
-    () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
-    [locale]
-  );
-  const date = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC"
-      }),
-    [locale]
-  );
-  const formatDate = (value) => {
-    if (typeof value !== "string" || !value.trim()) return "—";
-    const parsed = new Date(
-      /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value
-    );
-    return Number.isNaN(parsed.getTime()) ? "—" : date.format(parsed);
-  };
-  const requestExport = async () => {
-    const result = await forecastingApi.requestTablePdf({
-      productId,
-      table: "forecast-history"
-    });
-    if (!result.available) setExportNotice(true);
-  };
+  const {
+    formatNumber,
+    formatDate,
+    formatRange,
+    formatPeriod,
+    formatMetric: formatMetricValue
+  } = useMemo(() => forecastFormatters(locale), [locale]);
 
-  if (query.isPending)
+  const canExport = Boolean(
+    detail &&
+      !query.isFetching &&
+      !query.isError &&
+      !query.isPlaceholderData &&
+      detail.product?.id === productId &&
+      detail.filters?.periodDays === periodDays
+  );
+
+  const {
+    exporting,
+    exportError,
+    clearExportError,
+    requestExport
+  } = useDemandPdfExport({
+    data: detail,
+    locale,
+    scope: `${productId}:${periodDays}:detail`,
+    enabled: canExport
+  });
+
+  if (query.isPending) {
     return (
       <div className="demand-approved-loading" aria-busy="true">
         <Skeleton height="74px" variant="rectangular" />
@@ -86,11 +88,17 @@ export function ProductForecastDetailPage() {
         <Skeleton height="330px" variant="rectangular" />
       </div>
     );
-  if (query.isError)
+  }
+
+  if (query.isError && query.error?.response?.status !== 404) {
     return (
       <EmptyState
         title={t("demandApproved.error.detailTitle")}
-        description={t("demandApproved.error.description")}
+        description={t(
+          query.error?.response?.status === 403
+            ? "demandApproved.error.access"
+            : "demandApproved.error.description"
+        )}
         action={
           <Button size="sm" variant="outline" onClick={() => query.refetch()}>
             {t("demandApproved.actions.retry")}
@@ -98,7 +106,9 @@ export function ProductForecastDetailPage() {
         }
       />
     );
-  if (!detail)
+  }
+
+  if (!detail || query.error?.response?.status === 404) {
     return (
       <EmptyState
         title={t("demandApproved.empty.detailTitle")}
@@ -110,36 +120,31 @@ export function ProductForecastDetailPage() {
         }
       />
     );
+  }
 
-  const formatMetric = (metric) => {
-    if (metric.format === "units")
-      return `${number.format(metric.value)} ${t("demandApproved.common.units")}`;
-    if (metric.format === "date") return formatDate(metric.value);
-    if (metric.format === "range")
-      return `${number.format(metric.value.lower)}–${number.format(metric.value.upper)}`;
-    if (metric.format === "percent") return `${number.format(metric.value)}%`;
-    return number.format(metric.value);
-  };
+  const formatMetric = (metric) =>
+    formatMetricValue(metric, t("demandApproved.common.units"));
+
   const historyColumns = [
     {
       key: "date",
       label: t("demandApproved.history.date"),
-      render: (row) => formatDate(row.date)
+      render: (row) => formatPeriod(row)
     },
     {
       key: "forecastedDemand",
       label: t("demandApproved.history.forecast"),
-      render: (row) => number.format(row.forecastedDemand)
+      render: (row) => formatNumber(row.forecastedDemand)
     },
     {
       key: "lowerBound",
       label: t("demandApproved.history.lower"),
-      render: (row) => number.format(row.lowerBound)
+      render: (row) => formatNumber(row.lowerBound)
     },
     {
       key: "upperBound",
       label: t("demandApproved.history.upper"),
-      render: (row) => number.format(row.upperBound)
+      render: (row) => formatNumber(row.upperBound)
     },
     {
       key: "actualDemand",
@@ -147,7 +152,7 @@ export function ProductForecastDetailPage() {
       render: (row) =>
         row.actualDemand == null
           ? t("demandApproved.common.notAvailable")
-          : number.format(row.actualDemand)
+          : formatNumber(row.actualDemand)
     }
   ];
 
@@ -165,6 +170,7 @@ export function ProductForecastDetailPage() {
         <ArrowLeft size={15} />
         {t("demandApproved.actions.back")}
       </button>
+
       <header className="demand-approved-detail__title">
         <span>
           <Package size={24} />
@@ -196,15 +202,15 @@ export function ProductForecastDetailPage() {
       <DemandDataSection
         title={t("demandApproved.detail.chartTitle")}
         subtitle={t("demandApproved.detail.chartSubtitle")}
-        dataStatus={detail.chart.dataStatus}
+        dataStatus={detail.chart?.dataStatus}
         className="demand-approved-chart-panel"
       >
         <DemandForecastChart
-          points={detail.chart.points}
+          points={detail.chart?.points ?? []}
           detailed
           t={t}
           formatDate={formatDate}
-          formatNumber={number.format}
+          formatNumber={formatNumber}
         />
         <div className="demand-approved-chart-legend">
           <span className="is-actual">{t("demandApproved.chart.actual")}</span>
@@ -221,14 +227,20 @@ export function ProductForecastDetailPage() {
         <DemandDataSection
           title={t("demandApproved.history.title")}
           subtitle={t("demandApproved.history.subtitle")}
-          dataStatus={detail.forecastHistory[0]?.dataStatus}
-          exportLabel={t("demandApproved.actions.exportPdf")}
+          dataStatus={detail.forecastHistory?.[0]?.dataStatus}
+          exportLabel={t(
+            exporting
+              ? "demandApproved.export.loading"
+              : "demandApproved.actions.exportPdf"
+          )}
+          exportDisabled={!canExport}
+          exporting={exporting}
           onExport={requestExport}
         >
           <DemandForecastTable
             className="is-history"
             columns={historyColumns}
-            rows={detail.forecastHistory}
+            rows={detail.forecastHistory ?? []}
             emptyState={
               <EmptyState
                 title={t("demandApproved.empty.historyTitle")}
@@ -237,6 +249,7 @@ export function ProductForecastDetailPage() {
             }
           />
         </DemandDataSection>
+
         <section className="demand-approved-recommendation">
           <div className="demand-approved-panel__header">
             <div>
@@ -245,6 +258,7 @@ export function ProductForecastDetailPage() {
             </div>
             <DataStatusBadge status={detail.recommendation?.dataStatus} />
           </div>
+
           {detail.recommendation ? (
             <>
               <DemandStatusBadge
@@ -256,24 +270,37 @@ export function ProductForecastDetailPage() {
                 <div>
                   <dt>{t("demandApproved.recommendation.quantity")}</dt>
                   <dd>
-                    {number.format(detail.recommendation.suggestedQuantity)}
+                    {formatNumber(detail.recommendation.suggestedQuantity)}
                   </dd>
                 </div>
                 <div>
                   <dt>{t("demandApproved.recommendation.priority")}</dt>
                   <dd>
-                    {t(
-                      `demandApproved.priorities.${detail.recommendation.priority}`
-                    )}
+                    {detail.recommendation.priority
+                      ? t(
+                          `demandApproved.priorities.${detail.recommendation.priority}`
+                        )
+                      : t("demandApproved.common.notAvailable")}
                   </dd>
                 </div>
                 <div>
                   <dt>{t("demandApproved.recommendation.targetDate")}</dt>
-                  <dd>{formatDate(detail.recommendation.targetDate)}</dd>
+                  <dd>
+                    {formatPeriod({
+                      date: detail.recommendation.startDate,
+                      endDate: detail.recommendation.targetDate
+                    })}
+                  </dd>
                 </div>
                 <div>
                   <dt>{t("demandApproved.recommendation.accuracy")}</dt>
-                  <dd>{number.format(detail.recommendation.modelAccuracy)}%</dd>
+                  <dd>
+                    {detail.recommendation.modelAccuracy == null
+                      ? t("demandApproved.common.notAvailable")
+                      : `${formatNumber(
+                          detail.recommendation.modelAccuracy
+                        )}%`}
+                  </dd>
                 </div>
               </dl>
             </>
@@ -305,18 +332,21 @@ export function ProductForecastDetailPage() {
           <blockquote>{localize(detail.aiInsight.text, locale)}</blockquote>
           <small>
             {t("demandApproved.insight.confidence", {
-              value: Math.round(detail.aiInsight.confidence * 100)
+              value:
+                detail.aiInsight.confidence == null
+                  ? t("demandApproved.common.notAvailable")
+                  : Math.round(detail.aiInsight.confidence * 100)
             })}
           </small>
         </section>
       )}
 
-      {exportNotice && (
+      {exportError && (
         <div className="demand-approved-toast">
           <Toast
-            variant="info"
-            message={t("demandApproved.export.unavailable")}
-            onClose={() => setExportNotice(false)}
+            variant="error"
+            message={t("demandApproved.export.failed")}
+            onClose={clearExportError}
           />
         </div>
       )}

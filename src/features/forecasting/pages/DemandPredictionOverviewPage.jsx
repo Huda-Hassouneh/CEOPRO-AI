@@ -14,55 +14,50 @@ import { DemandForecastChart } from "../components/DemandForecastChart.jsx";
 import { DemandForecastTable } from "../components/DemandForecastTable.jsx";
 import { DemandMetricCard } from "../components/DemandMetricCard.jsx";
 import { DemandStatusBadge } from "../components/DemandStatusBadge.jsx";
-import { forecastingApi } from "../api/forecastingApi.js";
+import { useDemandPdfExport } from "../hooks/useDemandPdfExport.js";
 import { useDemandPrediction } from "../hooks/useDemandPrediction.js";
+import {
+  forecastFormatters,
+  localize
+} from "../utils/forecastFormatters.js";
 import "../styles/DemandPrediction.css";
-
-const localize = (value, locale) =>
-  value && typeof value === "object" ? value[locale] || value.en : value;
 
 export function DemandPredictionOverviewPage() {
   const { t, locale, dir } = useI18n();
   const navigate = useNavigate();
-  const companyId = useAuthStore((state) => state.tenantId);
+  const tenantId = useAuthStore((state) => state.tenantId);
   const [productId, setProductId] = useState("all");
   const [periodDays, setPeriodDays] = useState(30);
-  const [exportNotice, setExportNotice] = useState(false);
-  const query = useDemandPrediction({ companyId, productId, periodDays });
+  const query = useDemandPrediction({ productId, periodDays });
   const data = query.data;
-  console.log({ demandPrediction: data });
 
-  const number = useMemo(
-    () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
+  const { formatNumber, formatDate, formatRange } = useMemo(
+    () => forecastFormatters(locale),
     [locale]
   );
-  const date = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        month: "short",
-        day: "numeric",
-        timeZone: "UTC"
-      }),
-    [locale]
-  );
-  const formatDate = (value) => {
-    if (typeof value !== "string" || !value.trim()) return "—";
-    const parsed = new Date(
-      /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value
-    );
-    return Number.isNaN(parsed.getTime()) ? "—" : date.format(parsed);
-  };
-  const requestExport = async () => {
-    const result = await forecastingApi.requestTablePdf({
-      companyId,
-      productId,
-      periodDays,
-      table: "product-forecasts"
-    });
-    if (!result.available) setExportNotice(true);
-  };
 
-  if (query.isPending)
+  const canExport = Boolean(
+    data &&
+      !query.isFetching &&
+      !query.isError &&
+      !query.isPlaceholderData &&
+      data.filters?.productId === productId &&
+      data.filters?.periodDays === periodDays
+  );
+
+  const {
+    exporting,
+    exportError,
+    clearExportError,
+    requestExport
+  } = useDemandPdfExport({
+    data,
+    locale,
+    scope: `${tenantId}:${productId}:${periodDays}:overview`,
+    enabled: canExport
+  });
+
+  if (query.isPending) {
     return (
       <div className="demand-approved-loading" aria-busy="true">
         <Skeleton height="70px" variant="rectangular" />
@@ -74,11 +69,18 @@ export function DemandPredictionOverviewPage() {
         <Skeleton height="300px" variant="rectangular" />
       </div>
     );
-  if (query.isError)
+  }
+
+  if (query.isError) {
+    const accessDenied = query.error?.response?.status === 403;
     return (
       <EmptyState
         title={t("demandApproved.error.title")}
-        description={t("demandApproved.error.description")}
+        description={t(
+          accessDenied
+            ? "demandApproved.error.access"
+            : "demandApproved.error.description"
+        )}
         action={
           <Button size="sm" variant="outline" onClick={() => query.refetch()}>
             {t("demandApproved.actions.retry")}
@@ -86,13 +88,16 @@ export function DemandPredictionOverviewPage() {
         }
       />
     );
-  if (!data?.products?.length)
+  }
+
+  if (!data?.products?.length) {
     return (
       <EmptyState
         title={t("demandApproved.empty.productsTitle")}
         description={t("demandApproved.empty.productsDescription")}
       />
     );
+  }
 
   const columns = [
     {
@@ -108,12 +113,12 @@ export function DemandPredictionOverviewPage() {
     {
       key: "currentStock",
       label: t("demandApproved.table.currentStock"),
-      render: (row) => number.format(row.currentStock)
+      render: (row) => formatNumber(row.currentStock)
     },
     {
       key: "expectedDemand",
       label: t("demandApproved.table.expectedDemand"),
-      render: (row) => number.format(row.expectedDemand)
+      render: (row) => formatNumber(row.expectedDemand)
     },
     {
       key: "targetDate",
@@ -123,8 +128,7 @@ export function DemandPredictionOverviewPage() {
     {
       key: "confidenceRange",
       label: t("demandApproved.table.confidenceRange"),
-      render: (row) =>
-        `${number.format(row.confidenceRange.lower)}–${number.format(row.confidenceRange.upper)}`
+      render: (row) => formatRange(row.confidenceRange)
     },
     {
       key: "trend",
@@ -157,10 +161,10 @@ export function DemandPredictionOverviewPage() {
           variant="secondary"
           onClick={() =>
             navigate(
-              routePaths.forecastProductDetail.replace(
+              `${routePaths.forecastProductDetail.replace(
                 ":productId",
                 encodeURIComponent(row.id)
-              )
+              )}?periodDays=${periodDays}`
             )
           }
         >
@@ -212,47 +216,64 @@ export function DemandPredictionOverviewPage() {
         className="demand-approved-metrics"
         aria-label={t("demandApproved.metrics.label")}
       >
-        {data.metrics.map((metric) => (
-          <DemandMetricCard
-            key={metric.id}
-            metric={metric}
-            label={t(`demandApproved.metrics.${metric.id}`)}
-            value={
-              metric.id === "next30Forecast"
-                ? `${number.format(metric.value)} ${t("demandApproved.common.units")}`
-                : number.format(metric.value)
-            }
-          />
-        ))}
+        {data.metrics.map((metric) => {
+          const label =
+            metric.id === "next30Forecast"
+              ? t("demandApproved.metrics.selectedForecast", {
+                  days: periodDays
+                })
+              : t(`demandApproved.metrics.${metric.id}`);
+          const value =
+            metric.id === "next30Forecast" && metric.value != null
+              ? `${formatNumber(metric.value)} ${t(
+                  "demandApproved.common.units"
+                )}`
+              : formatNumber(metric.value);
+
+          return (
+            <DemandMetricCard
+              key={metric.id}
+              metric={metric}
+              label={label}
+              value={value}
+            />
+          );
+        })}
       </section>
 
       <DemandDataSection
         title={t("demandApproved.chart.totalTitle")}
         subtitle={t("demandApproved.chart.totalSubtitle", {
-          days: number.format(periodDays)
+          days: formatNumber(periodDays)
         })}
-        dataStatus={data.totalForecast.dataStatus}
+        dataStatus={data.totalForecast?.dataStatus}
         className="demand-approved-chart-panel"
       >
         <DemandForecastChart
-          points={data.totalForecast.points}
+          points={data.totalForecast?.points ?? []}
           t={t}
           formatDate={formatDate}
-          formatNumber={number.format}
+          formatNumber={formatNumber}
         />
       </DemandDataSection>
 
       <DemandDataSection
         title={t("demandApproved.forecasts.title")}
         subtitle={t("demandApproved.forecasts.subtitle")}
-        dataStatus={data.forecasts[0]?.dataStatus}
-        exportLabel={t("demandApproved.actions.exportPdf")}
+        dataStatus={data.forecasts?.[0]?.dataStatus}
+        exportLabel={t(
+          exporting
+            ? "demandApproved.export.loading"
+            : "demandApproved.actions.exportPdf"
+        )}
+        exportDisabled={!canExport}
+        exporting={exporting}
         onExport={requestExport}
       >
         <DemandForecastTable
           className="is-main"
           columns={columns}
-          rows={data.forecasts}
+          rows={data.forecasts ?? []}
           emptyState={
             <EmptyState
               title={t("demandApproved.empty.forecastsTitle")}
@@ -262,12 +283,12 @@ export function DemandPredictionOverviewPage() {
         />
       </DemandDataSection>
 
-      {exportNotice && (
+      {exportError && (
         <div className="demand-approved-toast">
           <Toast
-            variant="info"
-            message={t("demandApproved.export.unavailable")}
-            onClose={() => setExportNotice(false)}
+            variant="error"
+            message={t("demandApproved.export.failed")}
+            onClose={clearExportError}
           />
         </div>
       )}
