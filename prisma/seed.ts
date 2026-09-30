@@ -360,22 +360,106 @@ async function main() {
   );
   const forecasts = products
     .filter((_, i) => i % 9 !== 0)
-    .flatMap((p, i) =>
-      [0, 1].map((k) => ({
-        forecast_id: uuid(`forecast:${p.product_id}:${k}`),
-        tenant_id: p.tenant_id,
-        product_id: p.product_id,
-        forecast_start_date: ago(k ? 30 : 0),
-        forecast_end_date: ago(k ? 0 : -30),
-        forecast_target_date: ago(k ? 0 : -30),
-        expected_demand: 25 + (i % 65) + k * 7,
-        confidence_range_lower: 18 + (i % 65) + k * 7,
-        confidence_range_upper: 34 + (i % 65) + k * 7,
-        model_version: "synthetic-integration-v1",
-        features_used: { fixture: true },
-        created_at: ago(k * 30)
-      }))
-    );
+    .flatMap((p, productIndex) => {
+      const rows = [];
+
+      // Previous 30-day forecast:
+      // today - 30 days through yesterday.
+      for (let day = 0; day < 30; day++) {
+        const forecastDate = ago(30 - day);
+
+        const baseDemand = 2 + (productIndex % 8);
+
+        // Deterministic daily variation.
+        const dailyDemand =
+          baseDemand + ((day + productIndex) % 4) + Math.floor(day / 10);
+
+        rows.push({
+          forecast_id: uuid(`forecast:${p.product_id}:previous:${day}`),
+          tenant_id: p.tenant_id,
+          product_id: p.product_id,
+
+          // A daily forecast is represented by a one-day interval.
+          forecast_start_date: forecastDate,
+          forecast_end_date: forecastDate,
+          forecast_target_date: forecastDate,
+
+          expected_demand: dailyDemand,
+
+          confidence_range_lower: Math.max(0, dailyDemand - 2),
+          confidence_range_upper: dailyDemand + 3,
+
+          model_version: "synthetic-integration-v2-daily",
+
+          features_used: {
+            fixture: true,
+            granularity: "daily",
+            horizon: "previous-30-days"
+          },
+
+          // Ensure the prediction existed before the forecasted date.
+          created_at: ago(31)
+        });
+      }
+
+      // Current / future 30-day forecast:
+      // today through today + 29 days.
+      for (let day = 0; day < 30; day++) {
+        const forecastDate = ago(-day);
+
+        const baseDemand = 3 + (productIndex % 9);
+
+        /*
+         * Produce deterministic examples of all three trends:
+         *
+         * productIndex % 3 === 0 -> increasing
+         * productIndex % 3 === 1 -> decreasing
+         * productIndex % 3 === 2 -> stable
+         */
+        let dailyDemand: number;
+
+        switch (productIndex % 3) {
+          case 0:
+            dailyDemand = baseDemand + Math.floor(day / 5);
+            break;
+
+          case 1:
+            dailyDemand = Math.max(1, baseDemand + 6 - Math.floor(day / 5));
+            break;
+
+          default:
+            dailyDemand = baseDemand;
+            break;
+        }
+
+        rows.push({
+          forecast_id: uuid(`forecast:${p.product_id}:current:${day}`),
+          tenant_id: p.tenant_id,
+          product_id: p.product_id,
+
+          forecast_start_date: forecastDate,
+          forecast_end_date: forecastDate,
+          forecast_target_date: forecastDate,
+
+          expected_demand: dailyDemand,
+
+          confidence_range_lower: Math.max(0, dailyDemand - 2),
+          confidence_range_upper: dailyDemand + 3,
+
+          model_version: "synthetic-integration-v2-daily",
+
+          features_used: {
+            fixture: true,
+            granularity: "daily",
+            horizon: "next-30-days"
+          },
+
+          created_at: now
+        });
+      }
+
+      return rows;
+    });
   await chunk(forecasts, (batch) =>
     prisma.demand_forecasts.createMany({ data: batch, skipDuplicates: true })
   );

@@ -1,4 +1,6 @@
 import { prisma } from "../../../config/database.js";
+import { getFeatureAccessInfo } from '../../features/repo/usage.repo.js';
+import { summarizeForecasts, addDays } from '../../forecasting/service/forecasting.calculations.js';
 
 export const getMainDashboardKPIs = async (
   tenant_id: string,
@@ -139,47 +141,34 @@ export const getMainDashboardKPIs = async (
   const sentimentLabel = sentimentScore == null ? null :
     sentimentScore > 0.1 ? "positive" : sentimentScore < -0.1 ? "negative" : "neutral";
 
-  // 8. Latest forecast per product overlapping the next seven days
+  // 8. Same seven-day demand semantics and boolean entitlement as forecasting.
   const forecastToday = new Date(endExclusive.getTime() - 24 * 60 * 60 * 1000);
-  const forecastWindowEnd = new Date(endExclusive.getTime() + 6 * 24 * 60 * 60 * 1000);
-  const rawForecasts = await prisma.demand_forecasts.findMany({
+  const forecastWindowEnd = addDays(forecastToday, 6);
+  const forecastAccess = await getFeatureAccessInfo(tenant_id, 'demand_prediction');
+  const rawForecasts = forecastAccess.planFeature ? await prisma.demand_forecasts.findMany({
     where: {
-      tenant_id,
-      products: { deleted_at: null },
+      tenant_id, products: { tenant_id, deleted_at: null },
       OR: [
-        {
-          forecast_start_date: { gte: forecastToday },
-          forecast_end_date: { lte: forecastWindowEnd }
-        },
-        {
-          forecast_target_date: { gte: forecastToday, lte: forecastWindowEnd }
-        }
+        { forecast_start_date: { lte: forecastWindowEnd }, forecast_end_date: { gte: forecastToday } },
+        { forecast_start_date: null, forecast_end_date: null, forecast_target_date: { gte: forecastToday, lte: forecastWindowEnd } }
       ]
     },
     include: { products: { select: { product_name: true } } },
-    orderBy: { created_at: "desc" }
-  });
-  const seenForecastProducts = new Set<string>();
-  const demandForecastRows = rawForecasts.filter((f) => {
-    if (seenForecastProducts.has(f.product_id)) return false;
-    seenForecastProducts.add(f.product_id);
-    return true;
-  }).slice(0, 4).map((f) => {
-    const rawName = f.products?.product_name as any;
-    const productName =
-      typeof rawName === "object" && rawName !== null
-        ? { en: rawName.en || "Unknown", ar: rawName.ar || "غير معروف" }
-        : {
-            en: String(rawName || "Unknown"),
-            ar: String(rawName || "غير معروف")
-          };
-
-    return {
-      id: f.forecast_id,
-      product: productName,
-      forecastedDemand: Number(f.expected_demand)
-    };
-  });
+    orderBy: [{ created_at: { sort: 'desc', nulls: 'last' } }, { forecast_id: 'desc' }]
+  }) : [];
+  const groupedForecasts = new Map<string, typeof rawForecasts>();
+  for (const row of rawForecasts) {
+    const group = groupedForecasts.get(row.product_id) ?? [];
+    group.push(row);
+    groupedForecasts.set(row.product_id, group);
+  }
+  const demandForecastRows = [...groupedForecasts].sort(([a], [b]) => a.localeCompare(b)).flatMap(([productId, rows]) => {
+    const summary = summarizeForecasts(rows, forecastToday, 7, endDate);
+    return summary.expectedDemand == null ? [] : [{
+      id: productId, product: rows[0]!.products.product_name,
+      forecastedDemand: summary.expectedDemand
+    }];
+  }).slice(0, 4);
 
   // 9. Fetch Competitor Price Comparison for Dashboard
   const tenantProducts = await prisma.products.findMany({
