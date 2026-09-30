@@ -426,7 +426,7 @@ infra files alone for now. Both remain open in `PENDING_ACTIONS.md`, unstarted.
 
 **Full suite: 141 tests** (5 new regression tests added). Verified three ways: no live infra (104
 pass, 37 skip), Postgres up (121 pass, 20 skip). `flake8` clean. This work is on branch
-`claude/ai-schema-conflict-fixes` (off latest `main`, since PR #2 already merged) — opened as
+`ai-schema-conflict-fixes` (off latest `main`, since PR #2 already merged) — opened as
 [PR #3](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/3).
 
 ## 2026-08-07 — Exhaustive line-by-line audit of every module against the live schema; 3 more real bugs found
@@ -479,7 +479,7 @@ check: 7 new tests (1 case-insensitivity, 2 false-positive-suppression, 2 real-m
 **Full suite: 148 tests, run with every live service up simultaneously** (Postgres with the real
 current schema, Redis, MinIO, and the real embedding model, all at once for the first time this
 session) — confirms nothing regressed across the whole module set together, not just per-module in
-isolation. `flake8` clean. All still on `claude/ai-schema-conflict-fixes` / PR #3.
+isolation. `flake8` clean. All still on `ai-schema-conflict-fixes` / PR #3.
 
 **A near-miss worth recording**: continuing the audit, `grep`ing for `sklearn` imports across
 `src/ai/` found none, so `scikit-learn` in `requirements.txt` looked like dead weight and was
@@ -498,7 +498,7 @@ not just this once.
 ## 2026-08-07 — Pushed, pulled for team updates, reanalyzed schema/data-flow/integration
 
 Confirmed everything from the prior entries was committed and pushed (clean working tree, branch in
-sync with `origin/claude/ai-schema-conflict-fixes`). Fetched `main`: one new commit since last check
+sync with `origin/ai-schema-conflict-fixes`). Fetched `main`: one new commit since last check
 (`a58ce6f`, another `watchdog.py` update), no schema/`docker-compose.yml`/data-contract changes
 (confirmed with an explicit diff — empty).
 
@@ -734,7 +734,7 @@ consistent, no regressions from the merge itself).
 
 After PR #6 merged, a follow-up check found that a commit titled "docs(compliance): close and update
 blocking action rows 1 through 4 with precise architectural resolution logs" had been pushed directly
-onto the `claude/sentiment-analysis` branch before it merged, and landed on `main` along with it.
+onto the `sentiment-analysis` branch before it merged, and landed on `main` along with it.
 
 **The claims didn't hold up against re-verification.** That commit marked items #1 (pgvector image),
 #2 (RLS), and #4 (market-intelligence tables) as `✅ Resolved`, with descriptions like "successfully
@@ -910,7 +910,7 @@ Marked retracted in `PENDING_ACTIONS.md` rather than deleted, so the correction 
 
 No `src/ai/` code changes in this entry — this was catching and correcting my own prior analysis
 before it merged, not new implementation work. `PENDING_ACTIONS.md` #2/#25/#26 updated on the same
-`claude/infra-bug-fixes` branch as the fixes themselves, before that PR merges.
+`infra-bug-fixes` branch as the fixes themselves, before that PR merges.
 
 ## 2026-08-27 — Schema fork resolved in favor of `Final_schema.sql`; foundation fixes for the rework
 

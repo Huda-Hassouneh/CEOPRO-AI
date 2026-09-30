@@ -1,6 +1,6 @@
 {
   "run_id": "20260901T144942Z",
-  "mock_file": "C:\\CEO PRO\\CEOPRO-AI\\.claude\\worktrees\\competitors-market-sentiment-a0ba02\\mocks\\e2e_pipeline_demo.csv",
+  "mock_file": "C:\\CEO PRO\\CEOPRO-AI\\worktrees\\competitors-market-sentiment-a0ba02\\mocks\\e2e_pipeline_demo.csv",
   "stages": [
     {
       "stage": "1_extraction",
