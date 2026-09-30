@@ -1,5 +1,9 @@
 {
   "common": {
+    "no": "No",
+    "yes": "Yes",
+    "deactivate": "Deactivate",
+
     "comingSoon": "Coming Soon",
     "comingSoonDescription": "We are building something extraordinary. Advanced analytics and deeper market insights are currently in development to elevate your strategy",
     "custom": "custom",
@@ -1488,7 +1492,6 @@
       "remaining": "remaining",
       "limit": "limit",
       "overLimit": "over limit",
-
       "cancelling": "cancelling",
       "reviewDowngrade": "Review Downgrade",
       "cancelsOn": "Active Until",
@@ -1933,6 +1936,9 @@
       "actions": "Actions",
       "readOnly": "Read only",
       "tabs": {
+        "subscriptions": "subscriptions",
+        "customQuotes": "Custom Quotas",
+
         "plans": "Plans",
         "promos": "Promo Codes",
         "features": "Features",
@@ -1986,6 +1992,7 @@
         "title": "Plan Feature Limits",
         "subtitle": "Link existing features to plans and maintain the configured quota for each link.",
         "link": "Link Feature",
+        "unlink": "Un-Link",
         "linked": "Feature linked to plan successfully.",
         "updated": "Feature limit updated successfully.",
         "noAvailable": "All features are already linked",
@@ -2020,8 +2027,17 @@
           "effectiveFrom": "Effective from",
           "effectiveTo": "Effective to",
           "source": "Source / evidence",
-          "usageBasisValues": { "limit_value": "Configured limit", "estimated_usage": "Estimated usage", "enabled_feature": "Enabled feature" },
-          "status": { "confirmed": "Confirmed", "estimated": "Estimated", "unconfirmed": "Unconfirmed", "deprecated": "Deprecated" }
+          "usageBasisValues": {
+            "limit_value": "Configured limit",
+            "estimated_usage": "Estimated usage",
+            "enabled_feature": "Enabled feature"
+          },
+          "status": {
+            "confirmed": "Confirmed",
+            "estimated": "Estimated",
+            "unconfirmed": "Unconfirmed",
+            "deprecated": "Deprecated"
+          }
         }
       },
       "fields": {
@@ -2329,16 +2345,17 @@
       "product": "Product",
       "period": "Date range",
       "allProducts": "All Products",
-      "last7": "Last 7 days",
-      "last30": "Last 30 days"
+      "last7": "Next 7 days",
+      "last30": "Next 30 days"
     },
     "metrics": {
       "label": "Demand prediction summary",
       "next30Forecast": "Next 30 Days Forecast",
-      "productsForecasted": "Products Forecasted",
+      "productsForecasted": "Products with Full Forecasts",
       "predictedIncrease": "Predicted Increase",
       "predictedDecrease": "Predicted Decrease",
-      "stableDemand": "Stable Demand"
+      "stableDemand": "Stable Demand",
+      "selectedForecast": "Next {{days}} Days Forecast"
     },
     "common": {
       "units": "units",
@@ -2349,7 +2366,7 @@
       "totalTitle": "Total Forecasted Demand",
       "totalSubtitle": "Aggregated demand forecast over the selected {{days}} days.",
       "value": "Forecasted demand",
-      "actual": "Historical demand",
+      "actual": "Recorded sales",
       "forecast": "Forecast demand",
       "confidence": "Confidence range"
     },
@@ -2402,16 +2419,18 @@
     },
     "history": {
       "title": "Forecast Table",
-      "subtitle": "Available forecast entries for this product.",
+      "subtitle": "Upcoming forecasts and prior predictions from the last 30 days. Recorded sales may be incomplete; no records does not mean zero.",
       "date": "Date / Period",
       "forecast": "Forecasted Demand",
       "lower": "Lower Bound",
       "upper": "Upper Bound",
-      "actual": "Actual Demand"
+      "actual": "Recorded Sales Units",
+      "modelVersion": "Model Version",
+      "generatedAt": "Generated At"
     },
     "recommendation": {
       "title": "Inventory Recommendation",
-      "subtitle": "Supported recommendation returned by the forecast service.",
+      "subtitle": "Stored recommendation for the shown period. Restock quantity uses forecast demand, safety stock and current stock; it is not a purchase order.",
       "quantity": "Suggested Quantity",
       "priority": "Priority",
       "targetDate": "Target Date",
@@ -2426,21 +2445,42 @@
       "productsTitle": "No products available",
       "productsDescription": "Connect product data before generating demand forecasts.",
       "forecastsTitle": "No forecasts available",
-      "forecastsDescription": "Forecasts will appear when supported product data is available.",
+      "forecastsDescription": "No forecasts are available for this period. Sufficient sales history and saved model results are required; processing status is currently unavailable.",
       "detailTitle": "Product forecast not found",
       "detailDescription": "No supported forecast was found for this product.",
       "historyTitle": "No forecast history",
       "historyDescription": "Forecast entries will appear here when available.",
       "recommendationTitle": "No recommendation available",
-      "recommendationDescription": "No inventory recommendation was returned for this product."
+      "recommendationDescription": "No inventory recommendation was returned for this product.",
+      "accuracyTitle": "Model evaluation unavailable",
+      "accuracyDescription": "There are no evaluation results reliably linked to your company’s forecasts. Performance metrics will appear when validated evaluations are available."
     },
     "error": {
       "title": "Demand prediction unavailable",
       "detailTitle": "Product forecast unavailable",
-      "description": "We could not load the forecast data. Please try again."
+      "description": "We could not load the forecast data. Please try again.",
+      "access": "This feature is not available in your current subscription."
     },
     "export": {
-      "unavailable": "PDF export is not connected yet. No file was generated."
+      "unavailable": "PDF export is not connected yet. No file was generated.",
+      "loading": "Generating PDF…",
+      "failed": "Could not generate the PDF. Please try again."
+    },
+    "coverage": {
+      "label": "Forecast coverage",
+      "complete": "Complete",
+      "partial": "Partial",
+      "overlapping": "Overlapping periods",
+      "unavailable": "Unavailable",
+      "note": "Totals require complete, non-overlapping coverage of the selected period. Missing values are not zero. Trend compares the first and last daily forecasts of a complete period. All dates use UTC.",
+      "chartNote": "Only available daily values are shown. Gaps remain unknown; period totals are not spread across days."
+    },
+    "pdf": {
+      "metric": "Metric",
+      "value": "Value",
+      "source": "Data status",
+      "generated": "Report generated",
+      "filteredRows": "Rows match the table filters. Summary metrics describe the selected product and period."
     }
   },
   "demand": {
@@ -2665,7 +2705,6 @@
       "loading": "Loading source document...",
       "error": "Could not load source document."
     },
-
     "page": {
       "title": "RAG Assistant",
       "subtitle": "Ask questions about your business documents and get AI-powered answers."
