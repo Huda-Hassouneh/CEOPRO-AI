@@ -1,9 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
-import { forecastingApi } from '../api/forecastingApi.js';
-
+// No tenant-scoped model evaluation endpoint exists. Do not call a nonexistent API.
 export function useModelAccuracy() {
-  return useQuery({
-    queryKey: ['model-accuracy'],
-    queryFn: forecastingApi.getModelAccuracy,
-  });
+  return { data: null, isPending: false, isError: false };
 }

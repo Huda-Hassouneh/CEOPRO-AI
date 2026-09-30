@@ -1,49 +1,37 @@
 import httpClient from "../../../shared/lib/httpClient";
 
+// Tenant scope comes from the authenticated session. The backend derives the
+// tenant from authentication rather than trusting a browser-supplied company ID.
 export const forecastingApi = {
-  // GET /companies/:companyId/forecasting/list
-  listForecasts: async (companyId) => {
+  predictDemand: async ({ productId = "all", periodDays = 30, signal } = {}) => {
+    const response = await httpClient.get("/forecasting/demand", {
+      params: { productId, periodDays },
+      signal
+    });
+    return response.data?.data ?? response.data;
+  },
+
+  getForecastDetail: async (
+    productId,
+    { periodDays = 30, signal } = {}
+  ) => {
     const response = await httpClient.get(
-      `/companies/${companyId}/forecasting/list`
+      `/forecasting/demand/${encodeURIComponent(productId)}`,
+      { params: { periodDays }, signal }
     );
     return response.data?.data ?? response.data;
   },
 
-  // GET /companies/:companyId/forecasting/demand/:productId
-  getForecastDetail: async (productId) => {
-    console.log({ productId });
+  listForecasts: async (options = {}) =>
+    forecastingApi.predictDemand(options),
 
-    const response = await httpClient.get(`/forecasting/demand/${productId}`);
-    console.log({ data: response.data?.data });
-
-    return response.data?.data ?? response.data;
-  },
-
-  // GET /companies/:companyId/forecasting/demand?productId=&periodDays=
-  predictDemand: async ({
-    companyId,
-    productId = "all",
-    periodDays = 30
-  } = {}) => {
-    const response = await httpClient.get(`/forecasting/demand`, {
-      params: { productId, periodDays }
-    });
-
-    return response.data?.data ?? response.data;
-  },
-
-  // GET /companies/:companyId/forecasting/recommendations
-  getRecommendations: async (companyId) => {
-    const response = await httpClient.get(`/forecasting/recommendations`);
-    return response.data?.data ?? response.data;
-  },
-
-  // GET /companies/:companyId/forecasting/accuracy
-  getModelAccuracy: async (companyId) => {
-    const response = await httpClient.get(`/forecasting/accuracy`);
-    return response.data?.data ?? response.data;
-  },
-
-  // No backend export endpoint currently exists.
-  requestTablePdf: async () => ({ available: false })
+  getRecommendations: async (options = {}) => {
+    const data = await forecastingApi.predictDemand(options);
+    return {
+      ...data,
+      forecasts: (data?.forecasts ?? []).filter(
+        (row) => row.recommendedAction != null
+      )
+    };
+  }
 };
