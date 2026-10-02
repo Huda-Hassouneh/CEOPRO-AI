@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import * as dashboardService from "../service/dashboard.service.js";
+import { da } from "zod/v4/locales";
 
 export const getAggregate = async (
   req: Request,
@@ -14,10 +15,14 @@ export const getAggregate = async (
     const periodDays = Number(req.query.periodDays ?? 30);
 
     if (!tenantId || req.params.companyId !== tenantId) {
-      return res.status(403).json({ status: "error", message: "Tenant access denied" });
+      return res
+        .status(403)
+        .json({ status: "error", message: "Tenant access denied" });
     }
     if (![7, 30, 90].includes(periodDays)) {
-      return res.status(400).json({ status: "error", message: "Invalid periodDays" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Invalid periodDays" });
     }
 
     const data = await dashboardService.getDashboardAggregate(
