@@ -1,9 +1,9 @@
 import { Router } from "express";
-import * as leaderboardController from "./controller.js";
+import * as leaderboardController from "../controller/opportunities.controller.js";
 import {
   authenticateUser,
   requireTenant
-} from "../../validators/validateUser.js";
+} from "../../../validators/validateUser.js";
 
 const router = Router({ mergeParams: true });
 

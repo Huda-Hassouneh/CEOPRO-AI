@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import * as leaderboardService from "./service.js";
+import * as leaderboardService from "../service/opportunities.service.js";
 
 export const getLeaderboard = async (
   req: any,

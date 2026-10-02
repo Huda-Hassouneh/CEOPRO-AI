@@ -1,4 +1,4 @@
-import { prisma } from "../../config/database.js";
+import { prisma } from "../../../config/database.js";
 
 export const getCompetitorLeaderboard = async (tenant_id: string) => {
   // 1. Fetch all tracked competitors with their product mappings and latest prices[cite: 9]
