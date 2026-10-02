@@ -9,6 +9,10 @@ export const ERROR_DEFINITIONS = {
     statusCode: 400,
     message: "webhook signature is required"
   },
+  [ERROR_CODES.INVALID_TEMPLATE]: {
+    statusCode: 400,
+    message: "Invalid template."
+  },
   [ERROR_CODES.SUBSCRIPTION_CANCELLATION_SCHEDULED]: {
     statusCode: 200,
     message:
