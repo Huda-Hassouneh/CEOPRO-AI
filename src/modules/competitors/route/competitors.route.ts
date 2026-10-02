@@ -1,9 +1,9 @@
 import { Router } from "express";
-import * as competitorsController from "./controller.js";
+import * as competitorsController from "../controller/competitors.controller.js";
 import {
   authenticateUser,
   requireTenant
-} from "../../validators/validateUser.js";
+} from "../../../validators/validateUser.js";
 
 const router = Router({ mergeParams: true });
 

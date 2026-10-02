@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import * as competitorsService from "./service.js";
+import * as competitorsService from "../service/competitors.service.js";
 
 export const listCompetitors = async (
   req: any,

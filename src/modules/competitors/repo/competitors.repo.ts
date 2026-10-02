@@ -1,4 +1,4 @@
-import { prisma } from "../../config/database.js";
+import { prisma } from "../../../config/database.js";
 
 // Helper to safely parse localized JSON from Prisma
 const parseLocalized = (json: any, fallback: string = "Unknown") => {

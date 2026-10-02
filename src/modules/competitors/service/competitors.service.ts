@@ -1,4 +1,4 @@
-import * as competitorsRepo from "./repo.js";
+import * as competitorsRepo from "../repo/competitors.repo.js";
 
 export const getCompetitorsList = async (tenantId: string) => {
   return await competitorsRepo.getCompetitorsList(tenantId);
