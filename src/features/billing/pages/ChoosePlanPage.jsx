@@ -16,7 +16,10 @@ import Toast from "../../../shared/components/ui/Toast.jsx";
 import { billingApi, getApiError } from "../api/billingApi.js";
 import { PlanCard } from "../components/PlanCard.jsx";
 import { PlanComparisonTable } from "../components/PlanComparisonTable.jsx";
+import { SubscriptionRecoveryBanner } from "../components/SubscriptionRecoveryBanner.jsx";
+import { useSubscriptionRecovery } from "../hooks/useSubscriptionRecovery.js";
 import { describeBillingOption, listBillingPeriods } from "../utils/billingPeriodPresentation.js";
+import { isRecoverableSubscriptionStatus } from "../utils/subscriptionStatus.js";
 
 import "../styles/Billing.css";
 import "../styles/PlansSubscription.css";
@@ -30,6 +33,7 @@ export function ChoosePlanPage() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const [notice, setNotice] = useState(null);
   const [billingPeriod, setBillingPeriod] = useState("monthly");
+  const recovery = useSubscriptionRecovery();
 
   const {
     data: plansResponse,
@@ -71,6 +75,7 @@ export function ChoosePlanPage() {
   const currentPlan = subscription
     ? plans.find((plan) => plan.id === subscription.planId) || subscription.plan
     : null;
+  const needsRecovery = isRecoverableSubscriptionStatus(subscription?.status);
 
   const dynamicPeriods = useMemo(() => {
     return listBillingPeriods(plans).map((period) => ({ ...period, value: period.period }));
@@ -178,6 +183,15 @@ export function ChoosePlanPage() {
         title={t("billing.management.compareTitle")}
         subtitle={t("billing.management.compareSubtitle")}
       />
+
+      {needsRecovery && (
+        <SubscriptionRecoveryBanner
+          status={subscription.status}
+          onRecover={recovery.recover}
+          recovering={recovery.isRecovering}
+          error={recovery.error}
+        />
+      )}
       {subscription && currentPlan && !plans.some((plan) => plan.id === subscription.planId) && (
         <p className="billing-inline-notice">
           {t("billing.management.inactiveCurrentPlan", {
@@ -237,7 +251,9 @@ export function ChoosePlanPage() {
                   billingPeriod={billingPeriod}
                   onSelect={() => handlePlanSelection(plan)}
                   actionLabel={actionLabel}
-                  actionDisabled={current || plan.isActive === false}
+                  actionDisabled={
+                    needsRecovery || current || plan.isActive === false
+                  }
                 />
               );
             })}
@@ -249,6 +265,7 @@ export function ChoosePlanPage() {
               actionLabel={
                 t("billing.plans.custom.action") || "Build Your Plan"
               }
+              actionDisabled={needsRecovery}
               onSelect={() => {
                 navigate(
                   `${routePaths.billingCustomPlan}?period=${encodeURIComponent(

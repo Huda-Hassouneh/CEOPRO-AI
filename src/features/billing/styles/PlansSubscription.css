@@ -1277,3 +1277,78 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================================
+   SUBSCRIPTION PAYMENT RECOVERY
+   ========================================================= */
+
+.billing-recovery-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--ceopro-warning) 34%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ceopro-warning) 7%, #fff);
+}
+
+.billing-recovery-banner--pending {
+  border-color: color-mix(in srgb, var(--ceopro-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--ceopro-primary) 6%, #fff);
+}
+
+.billing-recovery-banner__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ceopro-warning) 14%, #fff);
+  color: var(--ceopro-warning);
+}
+
+.billing-recovery-banner--pending .billing-recovery-banner__icon {
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+}
+
+.billing-recovery-banner__copy {
+  min-width: 0;
+}
+
+.billing-recovery-banner__copy h2,
+.billing-recovery-banner__copy p {
+  margin: 0;
+}
+
+.billing-recovery-banner__copy h2 {
+  color: var(--ceopro-text-primary);
+  font-size: 13px;
+}
+
+.billing-recovery-banner__copy > p {
+  margin-top: 4px;
+  color: var(--ceopro-text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.billing-recovery-banner__copy .billing-recovery-banner__error {
+  margin-top: 7px;
+  color: var(--ceopro-error);
+  font-weight: 650;
+}
+
+@media (max-width: 640px) {
+  .billing-recovery-banner {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .billing-recovery-banner .ceopro-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

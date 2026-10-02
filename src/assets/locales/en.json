@@ -3,7 +3,6 @@
     "no": "No",
     "yes": "Yes",
     "deactivate": "Deactivate",
-
     "comingSoon": "Coming Soon",
     "comingSoonDescription": "We are building something extraordinary. Advanced analytics and deeper market insights are currently in development to elevate your strategy",
     "custom": "custom",
@@ -17,11 +16,14 @@
     "close": "Close",
     "keep": "No, Keep It",
     "cancel": "Cancel",
+    "confirm": "Confirm",
     "save": "Save",
     "edit": "Edit",
     "remove": "Remove",
     "retry": "Retry",
-    "unlimited": "Unlimited"
+    "unlimited": "Unlimited",
+    "back": "Back",
+    "continue": "Continue"
   },
   "businessShell": {
     "brandSubtitle": "Business Intelligence",
@@ -548,6 +550,7 @@
     },
     "actions": {
       "generateRecommendation": "Generate Recommendation",
+      "refreshRecommendation": "Refresh Recommendation",
       "dateRange": "Date range",
       "exportPdf": "Export to PDF",
       "retry": "Try again",
@@ -788,7 +791,8 @@
       "oneDay": "1d ago",
       "twoDays": "2d ago",
       "threeDays": "3d ago",
-      "fourDays": "4d ago"
+      "fourDays": "4d ago",
+      "oneWeek": "1 week ago"
     },
     "status": {
       "positive": "Positive",
@@ -799,7 +803,8 @@
       "highPotential": "High Potential",
       "mediumPotential": "Medium",
       "highImpact": "High Impact",
-      "mediumImpact": "Medium"
+      "mediumImpact": "Medium",
+      "low": "Low"
     },
     "insight": {
       "title": "AI Market Insight",
@@ -832,7 +837,10 @@
       "newCampaign": "New campaign",
       "bundlePricing": "Updated bundle pricing",
       "newProduct": "New product detected",
-      "launchedFiber": "Launched new fiber package 'Ultra Speed'"
+      "launchedFiber": "Launched new fiber package 'Ultra Speed'",
+      "coverage": "Coverage expanded",
+      "mobilePlan": "New mobile plan",
+      "partnership": "New partnership"
     },
     "badges": {
       "newProduct": "New Product",
@@ -907,7 +915,12 @@
       "filter": "Filter",
       "showing": "Showing {{start}} to {{end}} of {{total}} competitors",
       "previous": "Previous page",
-      "next": "Next page"
+      "next": "Next page",
+      "errorTitle": "Error Loading Competitors",
+      "retry": "Retry",
+      "industryTelecom": "Telecom",
+      "industryInternet": "Internet",
+      "industryAnalytics": "Analytics"
     },
     "modal": {
       "title": "Add Competitor",
@@ -969,7 +982,15 @@
       "priceChanged": "Price change",
       "campaignDetected": "Marketing campaign detected",
       "bundleUpdated": "Updated bundle pricing",
-      "serviceDetected": "New service detected"
+      "serviceDetected": "New service detected",
+      "ourPrice": "Our Price",
+      "competitorPrice": "Competitor Price",
+      "notFoundTitle": "Competitor Not Found",
+      "notFoundDescription": "This competitor could not be loaded or is not tracked.",
+      "goBack": "Go Back",
+      "noMappedProducts": "No products mapped to this competitor yet.",
+      "noHistoricalPriceChanges": "No historical price changes detected.",
+      "priceChangedFrom": "Price changed from {{previous}} to {{next}} {{currency}}"
     },
     "signals": {
       "indicator": "Indicator",
@@ -990,6 +1011,18 @@
       "sentimentInsight": "Positive sentiment in customer discussions.",
       "productInsight": "New packages and features detected.",
       "competitorInsight": "Increased marketing campaigns and price changes."
+    },
+    "leaderboard": {
+      "rank": "Rank",
+      "mappedProducts": "Tracked Products",
+      "priceIndex": "Price Index (vs Our Prices)",
+      "loadError": "Failed to load leaderboard.",
+      "empty": "No tracked competitors found.",
+      "noPriceData": "No Price Data"
+    },
+    "reports": {
+      "title": "Intelligence Reports",
+      "subtitle": "Automated executive summaries"
     }
   },
   "auth": {
@@ -1335,6 +1368,9 @@
           "description": "Deploy an internal RAG assistant to query company documents and metrics instantly."
         }
       }
+    },
+    "paymentSuccess": {
+      "continueSetup": "Continue setup"
     }
   },
   "settings": {
@@ -1490,6 +1526,12 @@
   },
   "billing": {
     "management": {
+      "cancelScheduledChangeTitle": "Cancel scheduled plan change?",
+      "cancelScheduledChangeConfirmMessage": "This will cancel the scheduled change to {{plan}} ({{billingPeriod}}). Your current subscription will continue unchanged.",
+      "cancelScheduledChange": "Cancel scheduled change",
+      "cancellingScheduledChange": "Cancelling scheduled change...",
+      "cancelScheduledChangeSuccess": "Scheduled plan change cancelled successfully.",
+      "cancelScheduledChangeError": "The scheduled plan change could not be cancelled.",
       "remaining": "remaining",
       "limit": "limit",
       "overLimit": "over limit",
@@ -1635,7 +1677,19 @@
       "errorDescription": "We could not load the information required to review this upgrade.",
       "changeSuccess": "Subscription change submitted successfully.",
       "planChangeDescription": "The backend will apply an upgrade immediately or schedule a downgrade according to the current subscription state.",
-      "confirmChange": "Confirm Plan Change"
+      "confirmChange": "Confirm Plan Change",
+      "planChangeStates": {
+        "applied": "Your plan change has been applied successfully.",
+        "trialApplied": "Your plan has been updated. Your current free trial and its original end date remain unchanged.",
+        "scheduled": "Your plan change is scheduled for the end of the current billing period. Your current plan remains active until then.",
+        "paymentActionRequired": "Additional payment authentication is required before this plan change can be applied. Your current plan remains active until payment is confirmed.",
+        "paymentPending": "Payment for this plan change is still processing. Your current plan remains active until payment is confirmed.",
+        "failed": "The payment for this plan change could not be completed. Your current plan remains active.",
+        "unknown": "We could not confirm the outcome of this plan change. Your current plan has not been reported as changed.",
+        "completePayment": "Complete payment",
+        "resolvePayment": "Resolve payment",
+        "reviewPayment": "Review payment"
+      }
     },
     "choose": {
       "title": "Choose the plan that fits you",
@@ -1912,7 +1966,8 @@
       },
       "pending": {
         "title": "Subscription confirmation pending",
-        "description": "Stripe completed the checkout, but the subscription has not appeared in the application yet. You can retry the status check."
+        "description": "Your subscription is still being finalized. You can check again, or complete the payment if Stripe still requires action.",
+        "action": "Complete payment"
       },
       "failed": {
         "title": "Payment was not completed",
@@ -1927,6 +1982,16 @@
         "title": "Unable to verify subscription",
         "description": "We could not verify the subscription status with the backend. You can retry the check or return to plan selection.",
         "action": "Try Again"
+      },
+      "paymentIssue": {
+        "title": "Payment issue",
+        "description": "We could not complete payment for your subscription. Review your billing details to restore access.",
+        "action": "Resolve billing issue"
+      },
+      "paused": {
+        "title": "Subscription paused",
+        "description": "Your subscription is currently paused and access is temporarily unavailable.",
+        "action": "Manage billing"
       }
     },
     "catalog": {
@@ -1939,7 +2004,6 @@
       "tabs": {
         "subscriptions": "subscriptions",
         "customQuotes": "Custom Quotas",
-
         "plans": "Plans",
         "promos": "Promo Codes",
         "features": "Features",
@@ -1951,7 +2015,11 @@
         "none": "Your current tenant permissions do not allow catalog management.",
         "allRequired": "This area requires the backend 'all' permission for the current tenant.",
         "catalogRequired": "This area requires the backend 'manage_catalog' permission for the current tenant.",
-        "planWrite": "Plan creation and editing require the backend 'all' permission."
+        "planWrite": "Plan creation and editing require the backend 'all' permission.",
+        "ownerDescription": "Only the tenant owner or a member with the required catalog permission can manage plans, features, promo codes, and billing configuration.",
+        "ownerTitle": "Billing catalog access required",
+        "platformBillingDescription": "Your platform role does not have permission to manage the global billing catalog.",
+        "platformBillingTitle": "Platform billing access required"
       },
       "plans": {
         "title": "Plans",
@@ -1965,7 +2033,13 @@
         "created": "Plan created successfully.",
         "updated": "Plan updated successfully.",
         "emptyTitle": "No active plans",
-        "emptyDescription": "Create an active plan before linking features."
+        "emptyDescription": "Create an active plan before linking features.",
+        "activateDescription": "Activate this plan so it can be offered where the billing catalog allows it.",
+        "activateTitle": "Activate Plan",
+        "activated": "Plan activated successfully.",
+        "deactivateDescription": "Deactivate this plan to stop offering it to new customers. Existing subscriptions are not automatically cancelled.",
+        "deactivateTitle": "Deactivate Plan",
+        "deactivated": "Plan deactivated successfully."
       },
       "promos": {
         "title": "Promo Codes",
@@ -1978,7 +2052,10 @@
         "linkTitle": "Link Promo Code to Plan",
         "linkAction": "Link to Plan",
         "linkHelp": "Choose the plan that should accept promo code {{code}}.",
-        "linked": "Promo code linked to plan successfully."
+        "linked": "Promo code linked to plan successfully.",
+        "deactivateDescription": "Deactivate this promo code so it can no longer be applied to new checkouts.",
+        "deactivateTitle": "Deactivate Promo Code",
+        "deactivated": "Promo code deactivated successfully."
       },
       "features": {
         "title": "Features",
@@ -1987,7 +2064,11 @@
         "createTitle": "Create Feature",
         "editTitle": "Edit Feature",
         "created": "Feature created successfully.",
-        "updated": "Feature updated successfully."
+        "updated": "Feature updated successfully.",
+        "removeDescription": "Remove this feature from the catalog? Existing plan links or usage dependencies may prevent removal.",
+        "removeTitle": "Remove Feature",
+        "removed": "Feature removed successfully.",
+        "unitHint": "Use the business unit shown to customers, such as token, KB, MB, or competitor."
       },
       "planFeatures": {
         "title": "Plan Feature Limits",
@@ -1997,19 +2078,45 @@
         "linked": "Feature linked to plan successfully.",
         "updated": "Feature limit updated successfully.",
         "noAvailable": "All features are already linked",
-        "notApplicable": "Not applicable"
+        "notApplicable": "Not applicable",
+        "unlinkDescription": "Remove this feature from the selected plan? Customers on that plan will no longer receive this configured entitlement once the backend change takes effect.",
+        "unlinkTitle": "Unlink Feature from Plan",
+        "unlinked": "Feature unlinked from plan successfully."
       },
       "customPlans": {
         "validation": {
           "monitoringCadence": "Select a monitoring cadence for competitor management.",
-          "trackedCompetitors": "Select tracked competitors with a positive limit when competitor management is enabled."
+          "trackedCompetitors": "Select tracked competitors with a positive limit when competitor management is enabled.",
+          "feature": "Select at least one feature.",
+          "limit": "Feature limits cannot be negative.",
+          "names": "English and Arabic plan names are required.",
+          "policy": "Gross margin must be 0–99.99% and vendor cost ratio must be above 0 and at most 100%.",
+          "tenant": "Select the customer tenant for this quote."
         },
         "vendorRates": {
           "edit": "Edit vendor rate",
           "unitsPerCompetitorCheck": "Units per competitor check",
           "unitsPerCompetitorCheckHelp": "Rate-specific quantity in the billing unit above, such as CU or credits.",
           "usageAssumption": "Usage assumption",
-          "perCompetitorCheck": "{{units}} {{unit}} per competitor check"
+          "perCompetitorCheck": "{{units}} {{unit}} per competitor check",
+          "create": "Add vendor rate",
+          "operationalMultiplier": "Operational multiplier",
+          "permission": "Vendor rates require the strongest catalog permission because they are global internal cost inputs.",
+          "service": "Service",
+          "source": "Source / evidence",
+          "status": {
+            "confirmed": "Confirmed",
+            "estimated": "Estimated",
+            "unconfirmed": "Unconfirmed",
+            "deprecated": "Deprecated"
+          },
+          "subtitle": "Internal cost inputs used by the backend pricing service. These are never customer prices.",
+          "title": "Vendor Rate Cards",
+          "unassigned": "Not tied to a feature",
+          "unit": "Billing unit",
+          "unitCost": "Unit cost",
+          "variabilityReserve": "Variability reserve",
+          "vendor": "Vendor"
         },
         "infrastructureRates": {
           "title": "Infrastructure Rate Cards",
@@ -2039,7 +2146,103 @@
             "unconfirmed": "Unconfirmed",
             "deprecated": "Deprecated"
           }
-        }
+        },
+        "acceptedSubtitle": "Accepted quotes become immutable tenant-specific plan definitions. Enabled does not mean the tenant is currently subscribed; the subscription relationship is shown separately.",
+        "acceptedTitle": "Accepted Custom Plans",
+        "activeTenants": "Active paying tenants",
+        "approve": "Approve",
+        "approveTitle": "Approve Custom Plan Price",
+        "belowFloor": "This price is below the backend-calculated safe floor. Only an authorized override can approve it.",
+        "calculate": "Calculate",
+        "calculated": "Pricing recalculated.",
+        "commercialTermsImmutable": "Commercial terms are immutable after acceptance.",
+        "create": "Create Quote",
+        "createQuote": "Create & calculate quote",
+        "createTitle": "Create Custom Plan Quote",
+        "currentPlan": "Current plan",
+        "disableTitle": "Disable Custom Plan",
+        "disabledMessage": "Custom plan disabled.",
+        "editTitle": "Edit Custom Plan Quote",
+        "effectiveDate": "Effective date",
+        "emptyAcceptedDescription": "Accepted tenant-specific plans will appear here after a custom quote is accepted.",
+        "emptyAcceptedTitle": "No accepted custom plans",
+        "emptyDescription": "Create a quote to calculate cost-aware pricing for this tenant.",
+        "emptyTitle": "No custom quotes yet",
+        "enableTitle": "Enable Custom Plan",
+        "enabledMessage": "Custom plan enabled.",
+        "estimatedTotal": "Estimated cost",
+        "estimatedUsage": "Estimated monthly usage",
+        "featuresSelected": "features selected",
+        "finalPrice": "Final customer price",
+        "fxFrom": "From currency",
+        "fxHelp": "Required when an active vendor rate uses a different currency from the quote.",
+        "fxRate": "FX rate",
+        "fxSource": "FX source",
+        "fxTitle": "Optional FX snapshot",
+        "fxTo": "To currency",
+        "infrastructure": "Shared infrastructure cost / month",
+        "maxVendorRatio": "Max vendor-cost / revenue %",
+        "minimumSafePrice": "Minimum safe price",
+        "openOffer": "Offer",
+        "otherCost": "Other included monthly cost",
+        "overrideReason": "Authorized override reason",
+        "planState": "Plan state",
+        "pricingPolicy": {
+          "enforceVendorCostRatioFloor": "Enforce vendor-cost/revenue floor before sale (optional conservative guardrail)",
+          "featureLimitsHelp": "Leave a value blank to use the global default. Requests above a configured maximum become manual-review quotes instead of failing.",
+          "featureLimitsTitle": "Per-feature instant-checkout limits",
+          "fixedPlatformFee": "Fixed platform fee",
+          "maxAutomaticMonthlyPrice": "Maximum instant monthly price",
+          "maxAutomaticQuotaPerFeature": "Default max instant quota / feature",
+          "maximum": "Maximum",
+          "minimum": "Minimum",
+          "monthlyInfrastructure": "Monthly shared infrastructure",
+          "otherEstimatedCostPerTenant": "Other estimated cost / tenant",
+          "permission": "Pricing policy requires the strongest owner permission because it controls internal margins and costs.",
+          "roundingIncrement": "Round price up to increment",
+          "save": "Save policy",
+          "saved": "Automated custom-plan pricing policy saved.",
+          "step": "Step",
+          "subtitle": "Internal-only inputs used by self-service previews and recalculated again at checkout. Vendor-cost ratio enforcement is optional.",
+          "title": "Automated Custom Pricing Policy",
+          "vendorCostRevenueThreshold": "Vendor cost/revenue threshold %"
+        },
+        "recommendedAutomatedPrice": "Recommended automated price",
+        "recommendedPrice": "Recommended price",
+        "reject": "Reject",
+        "rejected": "Quote rejected.",
+        "relationship": {
+          "current": "Current subscription",
+          "notSubscribed": "Not subscribed",
+          "scheduled": "Scheduled subscription"
+        },
+        "selectTenant": "Select tenant",
+        "send": "Send",
+        "sent": "Quote marked ready for customer review.",
+        "serverPricingNotice": "The backend calculates all authoritative vendor costs and pricing floors after this draft is created.",
+        "sourceQuote": "Source quote",
+        "status": {
+          "draft": "Draft",
+          "calculated": "Calculated",
+          "approved": "Approved",
+          "sent": "Sent",
+          "accepted": "Accepted",
+          "rejected": "Rejected",
+          "expired": "Expired"
+        },
+        "steps": {
+          "costs": "Cost assumptions",
+          "details": "Plan",
+          "features": "Features",
+          "review": "Review"
+        },
+        "subscriptionRelationship": "Subscription relationship",
+        "subtitle": "Build tenant-private offers. Backend pricing is authoritative; accepted offers become normal plans.",
+        "targetMargin": "Target gross margin %",
+        "tenant": "Customer tenant",
+        "title": "Custom Plan Quotes",
+        "toggleDescription": "This changes whether the accepted custom plan is available for use. It does not replace or duplicate the tenant's current subscription.",
+        "updateQuote": "Update & calculate quote"
       },
       "fields": {
         "name": "Name",
@@ -2116,6 +2319,23 @@
         "dates": "Expiration must be later than the start date.",
         "featureNames": "Required feature names are missing.",
         "featureCode": "Feature code must be 3-50 lowercase letters, numbers, or underscores."
+      },
+      "subscriptions": {
+        "billingPeriod": "Billing period",
+        "cancelAtPeriodEnd": "Cancels at period end",
+        "currentPeriodEnd": "Current period end",
+        "currentPlan": "Current plan",
+        "emptyDescription": "Customer subscriptions will appear here when tenants subscribe to a plan.",
+        "emptyTitle": "No subscriptions yet",
+        "scheduledChange": "Scheduled plan",
+        "subtitle": "Review each tenant's current subscription, scheduled plan changes, billing period, and renewal state.",
+        "title": "Customer Subscriptions",
+        "transition": "Plan transition",
+        "transitionTypes": {
+          "upgrade": "Upgrade",
+          "downgrade": "Downgrade",
+          "mixed": "Mixed change"
+        }
       }
     },
     "checkoutRoute": {
@@ -2166,6 +2386,25 @@
       "capacityReached": "You are using {{current}} of {{limit}} available. Remove an item or choose another plan to add more.",
       "resetsOn": "Your allowance resets on {{date}}.",
       "viewPlans": "View plans"
+    },
+    "recovery": {
+      "pending": {
+        "title": "Payment still needs to be completed",
+        "description": "Your subscription exists, but the payment is not complete yet. Continue with Stripe to finish the payment.",
+        "action": "Complete payment"
+      },
+      "paymentIssue": {
+        "title": "Payment issue",
+        "description": "We could not collect the payment for your existing subscription. Resolve the billing issue to restore access.",
+        "action": "Resolve billing issue"
+      },
+      "paused": {
+        "title": "Subscription paused",
+        "description": "Your subscription is paused. Open billing management to review the subscription and available actions.",
+        "action": "Manage billing"
+      },
+      "redirecting": "Opening secure billing...",
+      "failed": "We could not open the secure billing recovery page. Please try again."
     }
   },
   "connectData": {

@@ -4,6 +4,7 @@ const endpoints = Object.freeze({
   plans: "/subscription/plans",
   subscriptions: "/subscription",
   currentSubscription: "/subscription/current",
+  recovery: "/subscription/current/recovery",
   checkout: "/subscription/checkout",
   currentPlan: "/subscription/current/plan",
   cancel: "/subscription/current/cancel",
@@ -19,7 +20,8 @@ const endpoints = Object.freeze({
   customPlanManualReview: "/subscription/custom-plans/manual-review",
   customPlanCheckout: "/subscription/custom-plans/checkout",
   customPlanPricingPolicy: "/subscription/custom-plans/pricing-policy",
-  vendorRates: "/subscription/custom-plans/vendor-rates"
+  vendorRates: "/subscription/custom-plans/vendor-rates",
+  scheduledPlanChange: "/subscription/current/plan/scheduled"
 });
 
 const unwrap = (request) => request.then((response) => response.data);
@@ -93,7 +95,8 @@ const unsupported = (capability) => {
 
 export const billingApi = Object.freeze({
   getPlans: () => unwrap(httpClient.get(endpoints.plans)),
-
+  cancelScheduledPlanChange: () =>
+    unwrap(httpClient.delete(endpoints.scheduledPlanChange)),
   createPlan: (payload) => unwrap(httpClient.post(endpoints.plans, payload)),
   updatePlan: (planId, payload) =>
     unwrap(
@@ -104,6 +107,7 @@ export const billingApi = Object.freeze({
     ),
 
   getSubscription: () => unwrap(httpClient.get(endpoints.currentSubscription)),
+  createSubscriptionRecovery: () => unwrap(httpClient.post(endpoints.recovery)),
   getSubscriptionUsage: async () =>
     normalizeUsage(await unwrap(httpClient.get(endpoints.usage))),
   createCheckout: (payload) =>

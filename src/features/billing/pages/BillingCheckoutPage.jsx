@@ -14,7 +14,16 @@ import EmptyState from "../../../shared/components/ui/EmptyState.jsx";
 import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
 import { CouponInput } from "../components/CouponInput.jsx";
+import { SubscriptionRecoveryBanner } from "../components/SubscriptionRecoveryBanner.jsx";
+import { useSubscriptionRecovery } from "../hooks/useSubscriptionRecovery.js";
 import { describeBillingOption } from "../utils/billingPeriodPresentation.js";
+import { isRecoverableSubscriptionStatus } from "../utils/subscriptionStatus.js";
+import {
+  getPlanChangeNotice,
+  getPlanChangeRecoveryLabel,
+  isKnownPlanChangeState,
+  isPlanChangePaymentRecoveryState
+} from "../utils/planChangeResult.js";
 
 import "../styles/Billing.css";
 import "../styles/PlansSubscription.css";
@@ -36,6 +45,8 @@ export function BillingCheckoutPage() {
   const [notice, setNotice] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [promoCode, setPromoCode] = useState("");
+  const [planChangeResult, setPlanChangeResult] = useState(null);
+  const recovery = useSubscriptionRecovery();
   const selectedPlanId = params.get("plan");
   const requestedPeriod = params.get("period");
 
@@ -129,9 +140,10 @@ export function BillingCheckoutPage() {
   const currentPlan = subscription
     ? plans.find((plan) => plan.id === subscription.planId)
     : null;
-  const hasActiveSubscription = Boolean(subscription);
+  const hasCurrentSubscription = Boolean(subscription);
+  const needsRecovery = isRecoverableSubscriptionStatus(subscription?.status);
   const isTrialingChange =
-    hasActiveSubscription && subscription?.status === "trialing";
+    hasCurrentSubscription && subscription?.status === "trialing";
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId);
   const pricingOption = getPlanPricingOptions(selectedPlan).find(
     (option) => getPricingPeriod(option) === requestedPeriod
@@ -153,6 +165,29 @@ export function BillingCheckoutPage() {
     );
   }
 
+  if (hasCurrentSubscription && needsRecovery) {
+    return (
+      <div className="billing-checkout-page" dir={dir}>
+        <Link className="billing-back-link" to={routePaths.billing}>
+          <ArrowLeft className="ceopro-setup-direction-icon" size={15} />
+          {t("billing.checkoutInApp.backToBilling")}
+        </Link>
+
+        <PageHeader
+          title={t("billing.checkoutInApp.title")}
+          subtitle={t("billing.checkoutInApp.subtitle")}
+        />
+
+        <SubscriptionRecoveryBanner
+          status={subscription.status}
+          onRecover={recovery.recover}
+          recovering={recovery.isRecovering}
+          error={recovery.error}
+        />
+      </div>
+    );
+  }
+
   const currentPricingOption = getPlanPricingOptions(currentPlan).find(
     (option) => getPricingPeriod(option) === subscription?.billingPeriod
   );
@@ -160,16 +195,27 @@ export function BillingCheckoutPage() {
   const submit = async () => {
     setIsSubmitting(true);
     setNotice(null);
+    setPlanChangeResult(null);
     try {
-      if (hasActiveSubscription) {
+      if (hasCurrentSubscription) {
         const response = await billingApi.changePlan({
           planId: selectedPlan.id,
           billing_period: requestedPeriod
         });
-        setNotice({
-          variant: "success",
-          message: response?.message || t("billing.checkoutInApp.changeSuccess")
-        });
+        const result = response?.data ?? null;
+
+        if (!isKnownPlanChangeState(result?.state)) {
+          throw new Error(
+            t("billing.checkoutInApp.planChangeStates.unknown")
+          );
+        }
+
+        setPlanChangeResult(result);
+        setNotice(
+          getPlanChangeNotice(result, t, {
+            trialing: isTrialingChange
+          })
+        );
         return;
       }
 
@@ -195,6 +241,27 @@ export function BillingCheckoutPage() {
     }
   };
 
+  const planChangeNeedsPaymentAction =
+    isPlanChangePaymentRecoveryState(planChangeResult?.state) &&
+    Boolean(planChangeResult?.recoveryUrl);
+  const planChangeRecoveryLabel = planChangeNeedsPaymentAction
+    ? getPlanChangeRecoveryLabel(planChangeResult?.state, t)
+    : null;
+
+  const handlePrimaryAction = () => {
+    if (planChangeNeedsPaymentAction && planChangeResult?.recoveryUrl) {
+      window.location.assign(planChangeResult.recoveryUrl);
+      return;
+    }
+
+    if (planChangeResult) {
+      navigate(routePaths.billing);
+      return;
+    }
+
+    submit();
+  };
+
   return (
     <div className="billing-checkout-page" dir={dir}>
       <Link className="billing-back-link" to={routePaths.billingPlans}>
@@ -211,7 +278,7 @@ export function BillingCheckoutPage() {
         <Card className="billing-upgrade-review">
           <h2>{t("billing.checkoutInApp.summaryTitle")}</h2>
           <dl>
-            {hasActiveSubscription && (
+            {hasCurrentSubscription && (
               <div>
                 <dt>{t("billing.checkoutInApp.currentPlan")}</dt>
                 <dd>
@@ -248,7 +315,7 @@ export function BillingCheckoutPage() {
                 )}
               </dd>
             </div>
-            {hasActiveSubscription && subscription?.currentPeriodEnd && (
+            {hasCurrentSubscription && subscription?.currentPeriodEnd && (
               <div>
                 <dt>{t("billing.checkoutInApp.currentRenewal")}</dt>
                 <dd>
@@ -264,7 +331,7 @@ export function BillingCheckoutPage() {
             </div>
           </dl>
 
-          {!hasActiveSubscription && (
+          {!hasCurrentSubscription && (
             <CouponInput
               planId={selectedPlan.id}
               value={promoCode}
@@ -282,7 +349,7 @@ export function BillingCheckoutPage() {
           <p>
             {isTrialingChange
               ? t("billing.checkoutInApp.trialUpgradeDescription")
-              : hasActiveSubscription
+              : hasCurrentSubscription
                 ? t("billing.checkoutInApp.planChangeDescription")
                 : t("billing.checkoutInApp.securePaymentDescription")}
           </p>
@@ -293,12 +360,16 @@ export function BillingCheckoutPage() {
             }
             loading={isSubmitting}
             loadingLabel={t("billing.checkoutInApp.preparing")}
-            onClick={submit}
+            onClick={handlePrimaryAction}
           >
-            {hasActiveSubscription
-              ? t("billing.checkoutInApp.confirmChange") ||
-                "Confirm Plan Change"
-              : t("billing.checkoutInApp.continue")}
+            {planChangeRecoveryLabel
+              ? planChangeRecoveryLabel
+              : planChangeResult
+                ? t("billing.checkoutInApp.backToBilling")
+                : hasCurrentSubscription
+                  ? t("billing.checkoutInApp.confirmChange") ||
+                    "Confirm Plan Change"
+                  : t("billing.checkoutInApp.continue")}
           </Button>
           <small>{t("billing.checkoutInApp.noPaymentStored")}</small>
         </aside>

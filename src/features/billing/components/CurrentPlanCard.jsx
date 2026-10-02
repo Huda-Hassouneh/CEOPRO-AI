@@ -1,12 +1,18 @@
 import { CalendarDays, CreditCard, Crown, AlertTriangle } from "lucide-react";
 
 import Badge from "../../../shared/components/ui/Badge.jsx";
+import Button from "../../../shared/components/ui/Button.jsx";
+
 import { describeBillingOption } from "../utils/billingPeriodPresentation.js";
 
 /*
+
  * ============================================================================
+
  * PLAN HELPERS
+
  * ============================================================================
+
  */
 
 const getPlanName = (plan, locale, t) => {
@@ -46,8 +52,11 @@ const getPlanDescription = (plan, locale) => {
 };
 
 const getPlanPricing = (plan, billingPeriod, currentPrice) => {
-  if (currentPrice) return currentPrice.amount === null
-    ? null : { total: Number(currentPrice.amount), currency: currentPrice.currency };
+  if (currentPrice)
+    return currentPrice.amount === null
+      ? null
+      : { total: Number(currentPrice.amount), currency: currentPrice.currency };
+
   const option = plan?.pricingOptions?.find(
     (item) => item.period === billingPeriod
   );
@@ -64,41 +73,57 @@ const getPlanPricing = (plan, billingPeriod, currentPrice) => {
 
   return {
     total,
+
     currency: plan.currency || "USD"
   };
 };
 
 const getPlanBillingPeriod = (plan, billingPeriod, currentPrice) => {
-  if (currentPrice) return {
-    intervalUnit: currentPrice.intervalUnit,
-    intervalCount: currentPrice.intervalCount
-  };
+  if (currentPrice)
+    return {
+      intervalUnit: currentPrice.intervalUnit,
+
+      intervalCount: currentPrice.intervalCount
+    };
+
   const configured = plan?.pricingOptions?.find(
     (option) => option.period === billingPeriod
   );
+
   if (configured?.months) return { months: configured.months };
 
   const known = {
     monthly: 1,
+
     "three-months": 3,
+
     "six-months": 6,
+
     yearly: 12
   };
+
   return { months: known[billingPeriod] || 1 };
 };
 
 const formatCurrency = (amount, currency, locale) =>
   new Intl.NumberFormat(locale === "ar" ? "ar-JO" : "en-US", {
     style: "currency",
+
     currency,
+
     minimumFractionDigits: 2,
+
     maximumFractionDigits: 2
   }).format(amount || 0);
 
 /*
+
  * ============================================================================
+
  * STATUS HELPERS
+
  * ============================================================================
+
  */
 
 const normalizeStatus = (status) => {
@@ -107,9 +132,13 @@ const normalizeStatus = (status) => {
   }
 
   /*
+
    * Support old Stripe spelling and your
+
    * local database spelling.
+
    */
+
   if (status === "canceled") {
     return "cancelled";
   }
@@ -126,14 +155,17 @@ const getStatusVariant = (status) => {
       return "primary";
 
     case "past_due":
+
     case "payment_failed":
       return "warning";
 
     case "paused":
+
     case "pending":
       return "secondary";
 
     case "cancelled":
+
     case "expired":
       return "error";
 
@@ -143,69 +175,118 @@ const getStatusVariant = (status) => {
 };
 
 /*
+
  * ============================================================================
+
  * COMPONENT
+
  * ============================================================================
+
  */
 
 export function CurrentPlanCard({
   subscription,
+
   plan,
+
   locale,
+
   t,
+
   formatDate,
-  currentSubscription
+
+  currentSubscription,
+
+  onCancelScheduledChange,
+
+  cancellingScheduledChange = false
 }) {
   /*
+
    * Use the actual subscription status.
+
    */
+
   const status = normalizeStatus(subscription?.status);
 
   /*
+
    * IMPORTANT:
+
    *
+
    * A scheduled plan change / downgrade is NOT
+
    * cancellation.
+
    *
+
    * scheduledPlanId can exist while:
+
    *
+
    * status = active
+
    *
+
    * and the badge should remain "Active".
+
    */
+
   const hasScheduledPlanChange = Boolean(currentSubscription?.scheduledPlanId);
+
   const scheduledPlan = currentSubscription?.scheduledPlan ?? null;
+
   const scheduledPlanName = scheduledPlan
     ? getPlanName(scheduledPlan, locale, t)
     : null;
+
   const scheduledEffectiveAt = hasScheduledPlanChange
-    ? currentSubscription?.currentPeriodEnd ?? subscription?.renewsAt ?? null
+    ? (currentSubscription?.currentPeriodEnd ?? subscription?.renewsAt ?? null)
     : null;
 
   /*
+
    * Cancellation should be based on
+
    * cancelAtPeriodEnd.
+
    *
+
    * Do NOT use scheduledPlanId here.
+
    */
+
   const isCancellationScheduled = Boolean(
     currentSubscription?.cancelAtPeriodEnd
   );
 
   const isActuallyCancelled = status === "cancelled";
 
-  const period = getPlanBillingPeriod(plan, subscription.billingPeriod, subscription.currentPrice);
+  const period = getPlanBillingPeriod(
+    plan,
+    subscription.billingPeriod,
+    subscription.currentPrice
+  );
 
-  const pricing = getPlanPricing(plan, subscription.billingPeriod, subscription.currentPrice);
+  const pricing = getPlanPricing(
+    plan,
+    subscription.billingPeriod,
+    subscription.currentPrice
+  );
 
   const planName = getPlanName(plan, locale, t);
 
   const planDescription = getPlanDescription(plan, locale);
 
   /*
+
    * ========================================================
+
    * TRIAL
+
    * ========================================================
+
    */
 
   const trialEnd =
@@ -220,9 +301,13 @@ export function CurrentPlanCard({
   const statusVariant = getStatusVariant(status);
 
   /*
+
    * ========================================================
+
    * STATUS LABEL
+
    * ========================================================
+
    */
 
   const statusLabel = t(`billing.management.status.${status}`) || status;
@@ -254,7 +339,9 @@ export function CurrentPlanCard({
             <p
               style={{
                 fontSize: "13px",
+
                 color: "var(--ceopro-text-muted)",
+
                 margin: "4px 0 8px 0"
               }}
             >
@@ -263,42 +350,67 @@ export function CurrentPlanCard({
           )}
 
           {/*
+
            * ==================================================
+
            * STATUS
+
            * ==================================================
+
            *
+
            * Example:
+
            *
+
            * [ Active ]   ● Cancels Soon
+
            *
+
            * The actual status remains Active.
+
            */}
 
           <div
             style={{
               display: "flex",
+
               alignItems: "center",
+
               flexWrap: "wrap",
+
               gap: "8px"
             }}
           >
             <Badge variant={statusVariant}>{statusLabel}</Badge>
 
             {/*
+
              * Cancellation indicator.
+
              *
+
              * This is deliberately separate from
+
              * the status Badge.
+
              */}
+
             {isCancellationScheduled && !isActuallyCancelled && (
               <span
                 style={{
                   display: "inline-flex",
+
                   alignItems: "center",
+
                   gap: "6px",
+
                   fontSize: "12px",
+
                   fontWeight: 600,
+
                   color: "var(--ceopro-error, #dc2626)",
+
                   whiteSpace: "nowrap"
                 }}
               >
@@ -306,18 +418,26 @@ export function CurrentPlanCard({
                   aria-hidden="true"
                   style={{
                     position: "relative",
+
                     display: "inline-flex",
+
                     width: "8px",
+
                     height: "8px"
                   }}
                 >
                   <span
                     style={{
                       position: "absolute",
+
                       inset: 0,
+
                       borderRadius: "9999px",
+
                       backgroundColor: "var(--ceopro-error, #dc2626)",
+
                       opacity: 0.25,
+
                       transform: "scale(1.7)"
                     }}
                   />
@@ -325,10 +445,15 @@ export function CurrentPlanCard({
                   <span
                     style={{
                       position: "relative",
+
                       display: "inline-block",
+
                       width: "8px",
+
                       height: "8px",
+
                       borderRadius: "9999px",
+
                       backgroundColor: "var(--ceopro-error, #dc2626)"
                     }}
                   />
@@ -340,9 +465,13 @@ export function CurrentPlanCard({
       </div>
 
       {/*
+
        * ======================================================
+
        * CANCELLATION WARNING
+
        * ======================================================
+
        */}
 
       {isCancellationScheduled && !isActuallyCancelled && (
@@ -350,15 +479,25 @@ export function CurrentPlanCard({
           className="billing-current-plan__warning"
           style={{
             display: "flex",
+
             alignItems: "flex-start",
+
             gap: "10px",
+
             padding: "12px 16px",
+
             marginTop: "16px",
+
             backgroundColor: "var(--ceopro-error-light, #fef2f2)",
+
             border: "1px solid var(--ceopro-error-border, #fecaca)",
+
             color: "var(--ceopro-error, #dc2626)",
+
             borderRadius: "8px",
+
             fontSize: "13px",
+
             lineHeight: "1.4"
           }}
         >
@@ -366,6 +505,7 @@ export function CurrentPlanCard({
             size={16}
             style={{
               flexShrink: 0,
+
               marginTop: "2px"
             }}
           />
@@ -382,30 +522,42 @@ export function CurrentPlanCard({
           className="billing-current-plan__warning"
           style={{
             display: "grid",
+
             gap: "10px",
+
             padding: "14px 16px",
+
             marginTop: "16px",
+
             backgroundColor: "var(--ceopro-surface-soft)",
+
             border: "1px solid var(--ceopro-border)",
+
             color: "var(--ceopro-text-primary)",
+
             borderRadius: "8px",
+
             fontSize: "13px",
+
             lineHeight: "1.5"
           }}
         >
           <div
             style={{
               display: "flex",
+
               alignItems: "center",
+
               justifyContent: "space-between",
+
               gap: "12px",
+
               flexWrap: "wrap"
             }}
           >
             <strong>{t("billing.management.scheduledChangeTitle")}</strong>
-            <Badge variant="warning">
-              {t("billing.management.scheduled")}
-            </Badge>
+
+            <Badge variant="warning">{t("billing.management.scheduled")}</Badge>
           </div>
 
           <div>
@@ -423,19 +575,38 @@ export function CurrentPlanCard({
           <span style={{ color: "var(--ceopro-text-secondary)" }}>
             {t("billing.management.scheduledChangeExplanation", {
               currentPlan: planName,
+
               nextPlan: scheduledPlanName,
+
               date: scheduledEffectiveAt
                 ? formatDate(scheduledEffectiveAt)
                 : t("billing.management.endOfCurrentCycle")
             })}
           </span>
+
+          {onCancelScheduledChange && (
+            <div>
+              <Button
+                variant="outline"
+                onClick={onCancelScheduledChange}
+                loading={cancellingScheduledChange}
+                loadingLabel={t("billing.management.cancellingScheduledChange")}
+              >
+                {t("billing.management.cancelScheduledChange")}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/*
+
        * ======================================================
+
        * SUBSCRIPTION DETAILS
+
        * ======================================================
+
        */}
 
       <dl
@@ -451,7 +622,8 @@ export function CurrentPlanCard({
           </dt>
 
           <dd>
-            {subscription.currentPrice && !subscription.currentPrice.intervalCount
+            {subscription.currentPrice &&
+            !subscription.currentPrice.intervalCount
               ? t("billing.management.historicalPeriodUnavailable")
               : describeBillingOption(period, t)}
           </dd>
@@ -464,9 +636,13 @@ export function CurrentPlanCard({
             <dd>{formatCurrency(pricing.total, pricing.currency, locale)}</dd>
           </div>
         )}
+
         {subscription.currentPrice?.amount === null && (
-          <div><dt>{t("billing.management.planPrice")}</dt>
-            <dd>{t("billing.management.historicalPriceUnavailable")}</dd></div>
+          <div>
+            <dt>{t("billing.management.planPrice")}</dt>
+
+            <dd>{t("billing.management.historicalPriceUnavailable")}</dd>
+          </div>
         )}
 
         {subscription.renewsAt && (
@@ -507,12 +683,19 @@ export function CurrentPlanCard({
       </dl>
 
       {/*
+
        * This value is intentionally computed independently
+
        * from cancellation.
+
        *
+
        * A future downgrade/upgrade does NOT make the
+
        * subscription inactive.
+
        */}
+
       {hasScheduledPlanChange && status === "active" && (
         <span
           style={{

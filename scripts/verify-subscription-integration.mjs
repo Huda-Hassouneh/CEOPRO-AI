@@ -18,12 +18,18 @@ const billingSources = [
   "src/features/billing/pages/PlansSubscriptionPage.jsx",
   "src/features/billing/pages/ChoosePlanPage.jsx",
   "src/features/billing/pages/BillingCheckoutPage.jsx",
+  "src/features/billing/pages/BillingCustomPlanPage.jsx",
   "src/features/billing/pages/BillingCatalogPage.jsx",
   "src/features/billing/pages/CustomPlanOfferPage.jsx",
   "src/features/billing/components/CustomPlanQuoteManager.jsx",
   "src/features/billing/pages/CheckoutPage.jsx",
   "src/features/billing/pages/PaymentSuccessPage.jsx",
   "src/features/billing/pages/PaymentFailedPage.jsx",
+  "src/features/billing/hooks/useSubscriptionRecovery.js",
+  "src/features/billing/components/SubscriptionRecoveryBanner.jsx",
+  "src/features/billing/utils/subscriptionStatus.js",
+  "src/features/billing/utils/planChangeResult.js",
+  "src/features/onboarding/pages/OnboardingSubscriptionSuccessPage.jsx",
   "src/features/onboarding/pages/OnboardingPlanSelectionPage.jsx",
   "src/features/onboarding/pages/OnboardingPaymentPage.jsx",
   "src/features/onboarding/pages/OnboardingCustomPlanPage.jsx"
@@ -34,6 +40,7 @@ const billingSources = [
 const requiredApiContracts = [
   "/subscription/plans",
   "/subscription/current",
+  "/subscription/current/recovery",
   "/subscription/checkout",
   "/subscription/current/plan",
   "/subscription/current/cancel",
@@ -87,6 +94,13 @@ for (const contract of obsoleteContracts) {
 }
 if (billingSources.includes("localStorage.accessToken"))
   failures.push("Billing still reads localStorage.accessToken directly.");
+
+if (!api.includes("createSubscriptionRecovery"))
+  failures.push("Subscription recovery API helper is missing.");
+if (!billingSources.includes("useSubscriptionRecovery"))
+  failures.push("Subscription recovery is not wired into the frontend billing flow.");
+if (!billingSources.includes("SubscriptionRecoveryBanner"))
+  failures.push("Billing management does not expose a subscription recovery state.");
 if (!routePaths.includes('billingCatalog: "/billing/catalog"'))
   failures.push("Legacy billing catalog redirect path is missing.");
 if (!routePaths.includes('platformBilling: "/admin/billing"'))
@@ -118,6 +132,26 @@ if (
   failures.push(
     "Custom plan quote still uses the legacy unsupported API path."
   );
+
+const billingCheckout = read(
+  "src/features/billing/pages/BillingCheckoutPage.jsx"
+);
+const planChangeResult = read(
+  "src/features/billing/utils/planChangeResult.js"
+);
+if (!billingCheckout.includes("response?.data ?? null"))
+  failures.push("Billing checkout does not inspect the authoritative plan-change result payload.");
+if (!billingCheckout.includes("isKnownPlanChangeState"))
+  failures.push("Billing checkout does not validate explicit plan-change states.");
+if (
+  !planChangeResult.includes('"payment_action_required"') ||
+  !planChangeResult.includes('"payment_pending"') ||
+  !planChangeResult.includes('"scheduled"') ||
+  !planChangeResult.includes('"failed"')
+)
+  failures.push("Plan-change result policy is missing required payment/scheduling states.");
+if (billingCheckout.includes('response?.message || t("billing.checkoutInApp.changeSuccess")'))
+  failures.push("Billing checkout still treats every successful HTTP plan-change response as an applied change.");
 
 const customPage = read(
   "src/features/onboarding/pages/OnboardingCustomPlanPage.jsx"

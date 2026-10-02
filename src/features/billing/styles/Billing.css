@@ -1329,3 +1329,19 @@
   color: #16415c;
   line-height: 1.5;
 }
+
+.ceopro-subscription-result.is-warning .ceopro-subscription-result__icon {
+  background: color-mix(in srgb, var(--ceopro-warning) 14%, #fff);
+  color: var(--ceopro-warning);
+}
+
+.ceopro-subscription-result__action-error {
+  margin: 12px 0 0 !important;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--ceopro-error) 24%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ceopro-error) 6%, #fff);
+  color: var(--ceopro-error) !important;
+  font-size: 10px !important;
+  line-height: 1.5;
+}

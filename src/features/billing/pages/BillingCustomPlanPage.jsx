@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
@@ -12,6 +12,15 @@ import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
 import { billingApi, getApiError } from "../api/billingApi.js";
 import { CustomPlanBuilder } from "../components/CustomPlanBuilder.jsx";
+import { SubscriptionRecoveryBanner } from "../components/SubscriptionRecoveryBanner.jsx";
+import { useSubscriptionRecovery } from "../hooks/useSubscriptionRecovery.js";
+import { isRecoverableSubscriptionStatus } from "../utils/subscriptionStatus.js";
+import {
+  getPlanChangeNotice,
+  getPlanChangeRecoveryLabel,
+  isKnownPlanChangeState,
+  isPlanChangePaymentRecoveryState
+} from "../utils/planChangeResult.js";
 
 import "../styles/Billing.css";
 import "../styles/PlansSubscription.css";
@@ -43,6 +52,8 @@ const friendlyReviewReason = (reason) => {
 export function BillingCustomPlanPage() {
   const { t, locale, dir } = useI18n();
   const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const recovery = useSubscriptionRecovery();
 
   const {
     data: configuratorResponse,
@@ -53,7 +64,11 @@ export function BillingCustomPlanPage() {
     billingApi.getCustomPlanConfigurator,
     swrOptions
   );
-  const { data: subscriptionResponse, error: subscriptionError } = useSWR(
+  const {
+    data: subscriptionResponse,
+    error: subscriptionError,
+    isLoading: subscriptionLoading
+  } = useSWR(
     "subscription-current",
     billingApi.getSubscription,
     swrOptions
@@ -63,8 +78,15 @@ export function BillingCustomPlanPage() {
   const subscriptionApiError = subscriptionError
     ? getApiError(subscriptionError)
     : null;
-  const hasActiveSubscription =
-    Boolean(subscriptionResponse?.data) && !subscriptionApiError;
+  const subscriptionMissing =
+    subscriptionApiError?.status === 404 ||
+    subscriptionApiError?.code === "SUBSCRIPTION_NOT_FOUND";
+  const currentSubscription = subscriptionResponse?.data ?? null;
+  const hasCurrentSubscription =
+    Boolean(currentSubscription) && !subscriptionApiError;
+  const needsRecovery = isRecoverableSubscriptionStatus(
+    currentSubscription?.status
+  );
 
   const [billingPeriod, setBillingPeriod] = useState(
     params.get("period") || "monthly"
@@ -75,6 +97,7 @@ export function BillingCustomPlanPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [planChangeResult, setPlanChangeResult] = useState(null);
 
   useEffect(() => {
     if (!configurator?.features?.length) return;
@@ -179,6 +202,7 @@ export function BillingCustomPlanPage() {
 
     setSubmitting(true);
     setNotice(null);
+    setPlanChangeResult(null);
     try {
       const payload = {
         requestId: requestId(),
@@ -207,24 +231,19 @@ export function BillingCustomPlanPage() {
 
       if (data?.subscriptionChanged) {
         const transition = data?.transition;
-        const effectiveDate = transition?.effectiveAt
-          ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-              new Date(transition.effectiveAt)
-            )
-          : null;
 
-        const scheduledMessage =
-          transition?.effectiveTiming === "period_end"
-            ? `Your Custom Plan has been created successfully and is scheduled to become active${effectiveDate ? ` on ${effectiveDate}` : " at the end of the current billing cycle"}. Your current ${transition?.currentPlan?.name || "plan"} remains active until then.`
-            : null;
+        if (!isKnownPlanChangeState(transition?.state)) {
+          throw new Error(
+            t("billing.checkoutInApp.planChangeStates.unknown")
+          );
+        }
 
-        setNotice({
-          variant: "success",
-          message:
-            scheduledMessage ||
-            response?.message ||
-            "Your Custom Plan change has been applied successfully."
-        });
+        setPlanChangeResult(transition);
+        setNotice(
+          getPlanChangeNotice(transition, t, {
+            trialing: currentSubscription?.status === "trialing"
+          })
+        );
         return;
       }
 
@@ -253,7 +272,7 @@ export function BillingCustomPlanPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || subscriptionLoading) {
     return (
       <div className="billing-checkout-loading">
         <Skeleton height="520px" variant="rectangular" />
@@ -279,6 +298,59 @@ export function BillingCustomPlanPage() {
     );
   }
 
+  if (subscriptionError && !subscriptionMissing) {
+    return (
+      <div className="billing-management-page" dir={dir}>
+        <PageHeader
+          title={t("billing.custom.title") || "Build Your Custom Plan"}
+          subtitle={t("billing.custom.subtitle")}
+        />
+        <p className="billing-inline-error">
+          {subscriptionApiError?.message || t("billing.recovery.failed")}
+        </p>
+      </div>
+    );
+  }
+
+  if (needsRecovery) {
+    return (
+      <div className="billing-management-page" dir={dir}>
+        <Link className="billing-back-link" to={routePaths.billing}>
+          <ArrowLeft className="ceopro-setup-direction-icon" size={15} />
+          {t("billing.checkoutInApp.backToBilling")}
+        </Link>
+
+        <PageHeader
+          title={t("billing.custom.title") || "Build Your Custom Plan"}
+          subtitle={t("billing.custom.subtitle")}
+        />
+
+        <SubscriptionRecoveryBanner
+          status={currentSubscription.status}
+          onRecover={recovery.recover}
+          recovering={recovery.isRecovering}
+          error={recovery.error}
+        />
+      </div>
+    );
+  }
+
+  const planChangeNeedsPaymentAction =
+    isPlanChangePaymentRecoveryState(planChangeResult?.state) &&
+    Boolean(planChangeResult?.recoveryUrl);
+  const planChangeRecoveryLabel = planChangeNeedsPaymentAction
+    ? getPlanChangeRecoveryLabel(planChangeResult?.state, t)
+    : null;
+
+  const handlePlanChangePrimaryAction = () => {
+    if (planChangeNeedsPaymentAction && planChangeResult?.recoveryUrl) {
+      window.location.assign(planChangeResult.recoveryUrl);
+      return;
+    }
+
+    navigate(routePaths.billing);
+  };
+
   const periodOptions = (configurator.billingOptions || []).map((option) => ({
     value: option.period,
     label:
@@ -301,7 +373,7 @@ export function BillingCustomPlanPage() {
       <PageHeader
         title={t("billing.custom.title") || "Build Your Custom Plan"}
         subtitle={
-          hasActiveSubscription
+          hasCurrentSubscription
             ? "Configure the custom plan that should replace your current subscription."
             : t("billing.custom.subtitle") ||
               "Choose the features and quotas that fit your business."
@@ -397,13 +469,17 @@ export function BillingCustomPlanPage() {
                   fullWidth
                   loading={submitting}
                   disabled={previewLoading || Boolean(previewError)}
-                  onClick={submit}
+                  onClick={planChangeResult ? handlePlanChangePrimaryAction : submit}
                 >
-                  {!preview.eligibleForInstantCheckout
-                    ? "Request Manual Review"
-                    : hasActiveSubscription
-                      ? "Confirm Custom Plan Change"
-                      : "Continue to Checkout"}
+                  {planChangeRecoveryLabel
+                    ? planChangeRecoveryLabel
+                    : planChangeResult
+                      ? t("billing.checkoutInApp.backToBilling")
+                      : !preview.eligibleForInstantCheckout
+                        ? "Request Manual Review"
+                        : hasCurrentSubscription
+                          ? "Confirm Custom Plan Change"
+                          : "Continue to Checkout"}
                 </Button>
               </>
             ) : null}
