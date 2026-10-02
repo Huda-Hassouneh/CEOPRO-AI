@@ -1,431 +1,428 @@
-**# CEOPRO AI — Project Progress Checklist**
+# CEOPRO AI — Project Progress Checklist
 
-\> Simple project-status view for quickly seeing what is done, what is currently being worked on, and what is still left before production readiness.
+> Simple project-status view for quickly seeing what is done, what is currently being worked on, and what is still left before production readiness.
 
-**## Status**
+## Status
 
-\- [x] Done
+- [x] Done
 
-\- [ ] Not completed yet
+- [ ] Not completed yet
 
-\- 🟡 Currently being worked on
+- 🟡 Currently being worked on
 
-\---
+---
 
-**# 🟡 Doing Now**
+# 🟡 Doing Now
 
-\- [ ] 🟡 **\*\*Production-readiness cleanup and verification\*\***
+- [ ] 🟡 **Production-readiness cleanup and verification**
+  - [x] Update subscription route-contract verification for the new recovery and scheduled-plan-change endpoints.
 
-  - [x] Update subscription route-contract verification for the new recovery and scheduled-plan-change endpoints.
+  - [ ] Audit remaining verification scripts that still depend on old route/file locations.
 
-  - [ ] Audit remaining verification scripts that still depend on old route/file locations.
+  - [ ] Remove confirmed legacy duplicate source files safely.
 
-  - [ ] Remove confirmed legacy duplicate source files safely.
+  - [ ] Run the full validation suite after the completed subscription lifecycle changes.
 
-  - [ ] Run the full validation suite after the completed subscription lifecycle changes.
+---
 
-\---
+# ⬜ To Do Next
 
-**# ⬜ To Do Next**
+## Customer / Product Experience
 
-**## Customer / Product Experience**
+- [ ] **Alert / notification system**
+  - [ ] Define which customer/admin events should generate alerts.
 
-\- [ ] **\*\*Alert / notification system\*\***
+  - [ ] Add alert delivery and persistence rules.
 
-  - [ ] Define which customer/admin events should generate alerts.
+  - [ ] Add user-facing alert/notification UI where required.
 
-  - [ ] Add alert delivery and persistence rules.
+- [ ] **Invitation system completion**
+  - [ ] Finalize the public auth/invitation route mounting decision.
 
-  - [ ] Add user-facing alert/notification UI where required.
+  - [ ] Complete invitation acceptance flow end to end.
 
-\- [ ] **\*\*Invitation system completion\*\***
+  - [ ] Verify invitation security, expiration, and tenant/role handling.
 
-  - [ ] Finalize the public auth/invitation route mounting decision.
+## AI / Background Processing
 
-  - [ ] Complete invitation acceptance flow end to end.
+- [ ] Finalize the production trigger for extraction pending processing.
 
-  - [ ] Verify invitation security, expiration, and tenant/role handling.
+- [ ] Finalize the production trigger for sentiment pending processing.
 
-**## AI / Background Processing**
+- [ ] Decide whether to use completion events, scheduled workers, or both.
 
-\- [ ] Finalize the production trigger for extraction pending processing.
+- [ ] Add retry/idempotency rules for background processing.
 
-\- [ ] Finalize the production trigger for sentiment pending processing.
+- [ ] Add batch-size and operational limits.
 
-\- [ ] Decide whether to use completion events, scheduled workers, or both.
+- [ ] Add monitoring/logging for failed background jobs.
 
-\- [ ] Add retry/idempotency rules for background processing.
+## Feature / Commercial Decisions
 
-\- [ ] Add batch-size and operational limits.
+- [ ] Decide whether `ai_pricing` has its own entitlement gate or belongs under another commercial feature.
 
-\- [ ] Add monitoring/logging for failed background jobs.
+- [ ] Decide whether `market_perception` has its own feature gate or is included under Market Intelligence.
 
-**## Feature / Commercial Decisions**
+- [ ] Update feature catalog, tests, pricing behavior, and API docs after those decisions.
 
-\- [ ] Decide whether \`ai_pricing\` has its own entitlement gate or belongs under another commercial feature.
+## Stripe / Billing Production Validation
 
-\- [ ] Decide whether \`market_perception\` has its own feature gate or is included under Market Intelligence.
+- [ ] Test onboarding/bootstrap with Stripe test mode.
 
-\- [ ] Update feature catalog, tests, pricing behavior, and API docs after those decisions.
+- [ ] Test successful new checkout.
 
-**## Stripe / Billing Production Validation**
+- [ ] Test insufficient funds and generic declines.
 
-\- [ ] Test onboarding/bootstrap with Stripe test mode.
+- [ ] Test 3DS/SCA required, success, failure, and abandonment.
 
-\- [ ] Test successful new checkout.
+- [ ] Test trials and trial-end payment behavior.
 
-\- [ ] Test insufficient funds and generic declines.
+- [ ] Test asynchronous browser-return vs webhook timing.
 
-\- [ ] Test 3DS/SCA required, success, failure, and abandonment.
+- [ ] Test renewal success and failure.
 
-\- [ ] Test trials and trial-end payment behavior.
+- [ ] Test `past_due`, recovery, `payment_failed` / unpaid behavior, and access restoration.
 
-\- [ ] Test asynchronous browser-return vs webhook timing.
+- [ ] Test pause, cancellation, expiration, and cancel-at-period-end.
 
-\- [ ] Test renewal success and failure.
+- [ ] Test plan upgrades and downgrades.
 
-\- [ ] Test \`past_due\`, recovery, \`payment_failed\` / unpaid behavior, and access restoration.
+- [ ] Test paid-upgrade outcomes for `applied`, `payment_action_required`, `payment_pending`, `scheduled`, and failed payment cases.
 
-\- [ ] Test pause, cancellation, expiration, and cancel-at-period-end.
+- [ ] Test cancelling a scheduled plan change against a real Stripe Subscription Schedule.
 
-\- [ ] Test plan upgrades and downgrades.
+- [ ] Test fixed and percentage promotions.
 
-\- [ ] Test paid-upgrade outcomes for \`applied\`, \`payment_action_required\`, \`payment_pending\`, \`scheduled\`, and failed payment cases.
+- [ ] Test zero-dollar and partially discounted payment outcomes.
 
-\- [ ] Test cancelling a scheduled plan change against a real Stripe Subscription Schedule.
+- [ ] Test webhook retries and duplicate-delivery idempotency.
 
-\- [ ] Test fixed and percentage promotions.
+- [ ] Verify webhook signatures through the production reverse proxy / ingress.
 
-\- [ ] Test zero-dollar and partially discounted payment outcomes.
+## Database / Production Environment
 
-\- [ ] Test webhook retries and duplicate-delivery idempotency.
+- [ ] Run migrations against a clean production-like database.
 
-\- [ ] Verify webhook signatures through the production reverse proxy / ingress.
+- [ ] Verify pgvector availability.
 
-**## Database / Production Environment**
+- [ ] Verify required roles, catalog data, features, and configuration after migrations.
 
-\- [ ] Run migrations against a clean production-like database.
+- [ ] Define which bootstrap scripts are allowed in production.
 
-\- [ ] Verify pgvector availability.
+- [ ] Keep destructive bootstrap operations explicitly guarded.
 
-\- [ ] Verify required roles, catalog data, features, and configuration after migrations.
+- [ ] Validate tenant isolation against production-shaped multi-tenant data.
 
-\- [ ] Define which bootstrap scripts are allowed in production.
+## AI Service Production Validation
 
-\- [ ] Keep destructive bootstrap operations explicitly guarded.
+- [ ] Disable AI mocks in production.
 
-\- [ ] Validate tenant isolation against production-shaped multi-tenant data.
+- [ ] Validate RAG success, failure, and usage accounting.
 
-**## AI Service Production Validation**
+- [ ] Validate extraction upload and persisted metadata.
 
-\- [ ] Disable AI mocks in production.
+- [ ] Validate pending extraction processing.
 
-\- [ ] Validate RAG success, failure, and usage accounting.
+- [ ] Validate pricing service `OK` / `UNKNOWN` behavior.
 
-\- [ ] Validate extraction upload and persisted metadata.
+- [ ] Validate sentiment success, low-sample, and pending-analysis behavior.
 
-\- [ ] Validate pending extraction processing.
+- [ ] Validate MPI `OK` / `UNKNOWN` behavior.
 
-\- [ ] Validate pricing service \`OK\` / \`UNKNOWN\` behavior.
+- [ ] Verify AI timeouts and malformed-response handling.
 
-\- [ ] Validate sentiment success, low-sample, and pending-analysis behavior.
+- [ ] Verify forwarded authentication context with the deployed AI service.
 
-\- [ ] Validate MPI \`OK\` / \`UNKNOWN\` behavior.
+## Analytics / Data Quality
 
-\- [ ] Verify AI timeouts and malformed-response handling.
+- [ ] Validate dashboard metrics using production-shaped data.
 
-\- [ ] Verify forwarded authentication context with the deployed AI service.
+- [ ] Validate demand-forecast coverage over real periods.
 
-**## Analytics / Data Quality**
+- [ ] Validate Market Intelligence score ranges and missing-data behavior.
 
-\- [ ] Validate dashboard metrics using production-shaped data.
+- [ ] Validate competitor mappings/prices before showing derived rankings.
 
-\- [ ] Validate demand-forecast coverage over real periods.
+- [ ] Preserve `—` / unknown states when data is genuinely unavailable.
 
-\- [ ] Validate Market Intelligence score ranges and missing-data behavior.
+## Monitoring / Operations
 
-\- [ ] Validate competitor mappings/prices before showing derived rankings.
+- [ ] Add structured logs for provider/external-service failures.
 
-\- [ ] Preserve \`—\` / unknown states when data is genuinely unavailable.
+- [ ] Track webhook failures and retries.
 
-**## Monitoring / Operations**
+- [ ] Track background extraction/sentiment failures.
 
-\- [ ] Add structured logs for provider/external-service failures.
+- [ ] Add alerts for repeatedly failing provider/AI operations.
 
-\- [ ] Track webhook failures and retries.
+- [ ] Configure application health monitoring.
 
-\- [ ] Track background extraction/sentiment failures.
+- [ ] Define database backup and restore procedure.
 
-\- [ ] Add alerts for repeatedly failing provider/AI operations.
+- [ ] Document production environment variables in the deployment system.
 
-\- [ ] Configure application health monitoring.
+## Final Production Checks
 
-\- [ ] Define database backup and restore procedure.
+- [ ] `npm ci`
 
-\- [ ] Document production environment variables in the deployment system.
+- [ ] `npm run prisma:validate`
 
-**## Final Production Checks**
+- [ ] `npm run build`
 
-\- [ ] \`npm ci\`
+- [ ] `npm test`
 
-\- [ ] \`npm run prisma:validate\`
+- [ ] `npm run validate`
 
-\- [ ] \`npm run build\`
+- [ ] Confirm no real secrets are committed.
 
-\- [ ] \`npm test\`
+- [ ] Rotate/store production JWT secrets securely.
 
-\- [ ] \`npm run validate\`
+- [ ] Verify production CORS origins.
 
-\- [ ] Confirm no real secrets are committed.
+- [ ] Verify upload/body limits.
 
-\- [ ] Rotate/store production JWT secrets securely.
+- [ ] Verify tenant isolation and platform permissions.
 
-\- [ ] Verify production CORS origins.
+- [ ] Verify provider errors do not leak sensitive information.
 
-\- [ ] Verify upload/body limits.
+---
 
-\- [ ] Verify tenant isolation and platform permissions.
+# ✅ Done
 
-\- [ ] Verify provider errors do not leak sensitive information.
+## Core Architecture
 
-\---
+- [x] Backend organized by feature domains.
 
-**# ✅ Done**
+- [x] Route → Controller → Service → Repo/client responsibilities established.
 
-**## Core Architecture**
+- [x] Functional programming style preserved where used by the project.
 
-\- [x] Backend organized by feature domains.
+- [x] Prisma persistence kept in repository layers.
 
-\- [x] Route → Controller → Service → Repo/client responsibilities established.
+- [x] External provider transport isolated in clients.
 
-\- [x] Functional programming style preserved where used by the project.
+- [x] Stripe provider code isolated under the subscription domain.
 
-\- [x] Prisma persistence kept in repository layers.
+- [x] Stripe webhook raw-body handling preserved.
 
-\- [x] External provider transport isolated in clients.
+## Security / Multi-Tenancy
 
-\- [x] Stripe provider code isolated under the subscription domain.
+- [x] Server-side tenant membership checks.
 
-\- [x] Stripe webhook raw-body handling preserved.
+- [x] Platform role and permission checks.
 
-**## Security / Multi-Tenancy**
+- [x] Centralized JWT verification.
 
-\- [x] Server-side tenant membership checks.
+- [x] Environment-driven CORS.
 
-\- [x] Platform role and permission checks.
+- [x] Tenant-aware Stripe customer reuse.
 
-\- [x] Centralized JWT verification.
+- [x] Stripe webhook signature verification.
 
-\- [x] Environment-driven CORS.
+- [x] Global JSON error handling.
 
-\- [x] Tenant-aware Stripe customer reuse.
+- [x] Configurable request/upload size limits.
 
-\- [x] Stripe webhook signature verification.
+- [x] Custom-plan tenant privacy protections.
 
-\- [x] Global JSON error handling.
+- [x] Accepted custom-plan immutability protections.
 
-\- [x] Configurable request/upload size limits.
+## Subscription / Billing Foundation
 
-\- [x] Custom-plan tenant privacy protections.
+- [x] Plan management.
 
-\- [x] Accepted custom-plan immutability protections.
+- [x] Plan-feature assignments.
 
-**## Subscription / Billing Foundation**
+- [x] Standard subscription checkout.
 
-\- [x] Plan management.
+- [x] Subscription plan-change flow.
 
-\- [x] Plan-feature assignments.
+- [x] Status-aware subscription confirmation: only `active` / `trialing` are treated as confirmed access states.
 
-\- [x] Standard subscription checkout.
+- [x] Dedicated subscription payment-recovery flow for `pending`, `past_due`, `payment_failed`, and `paused`.
 
-\- [x] Subscription plan-change flow.
+- [x] Billing checkout branches by actual subscription status instead of treating every current subscription as active.
 
-\- [x] Status-aware subscription confirmation: only \`active\` / \`trialing\` are treated as confirmed access states.
+- [x] Paid plan upgrades return explicit provider outcomes: `applied`, `payment_action_required`, `payment_pending`, `scheduled`, or `failed`.
 
-\- [x] Dedicated subscription payment-recovery flow for \`pending\`, \`past_due\`, \`payment_failed\`, and \`paused\`.
+- [x] Stripe pending-update lifecycle remains provider/webhook-authoritative before local plan state is finalized.
 
-\- [x] Billing checkout branches by actual subscription status instead of treating every current subscription as active.
+- [x] Dedicated cancel-scheduled-plan-change backend action and customer-facing UI.
 
-\- [x] Paid plan upgrades return explicit provider outcomes: \`applied\`, \`payment_action_required\`, \`payment_pending\`, \`scheduled\`, or \`failed\`.
+- [x] Subscription cancellation flow.
 
-\- [x] Stripe pending-update lifecycle remains provider/webhook-authoritative before local plan state is finalized.
+- [x] Current subscription retrieval.
 
-\- [x] Dedicated cancel-scheduled-plan-change backend action and customer-facing UI.
+- [x] Invoice retrieval.
 
-\- [x] Subscription cancellation flow.
+- [x] Promo-code validation and linking.
 
-\- [x] Current subscription retrieval.
+- [x] Stripe webhook integration.
 
-\- [x] Invoice retrieval.
+- [x] Webhook idempotency protections.
 
-\- [x] Promo-code validation and linking.
+- [x] Server-authoritative pricing rules.
 
-\- [x] Stripe webhook integration.
+- [x] Custom-plan configurator.
 
-\- [x] Webhook idempotency protections.
+- [x] Automatic custom-plan quote flow.
 
-\- [x] Server-authoritative pricing rules.
+- [x] Manual-review custom-plan quote flow.
 
-\- [x] Custom-plan configurator.
+- [x] Custom-plan checkout.
 
-\- [x] Automatic custom-plan quote flow.
+- [x] Manual quote lifecycle.
 
-\- [x] Manual-review custom-plan quote flow.
+- [x] Vendor rate cards.
 
-\- [x] Custom-plan checkout.
+- [x] Infrastructure rates.
 
-\- [x] Manual quote lifecycle.
+- [x] Custom-plan pricing policy.
 
-\- [x] Vendor rate cards.
+- [x] Pricing snapshots and fingerprints.
 
-\- [x] Infrastructure rates.
+- [x] Monitoring frequency stored as competitor-management configuration rather than a fake standalone feature.
 
-\- [x] Custom-plan pricing policy.
+## Feature / Entitlement Foundation
 
-\- [x] Pricing snapshots and fingerprints.
+- [x] Feature catalog.
 
-\- [x] Monitoring frequency stored as competitor-management configuration rather than a fake standalone feature.
+- [x] Boolean feature-access rules.
 
-**## Feature / Entitlement Foundation**
+- [x] Metered usage/limit rules.
 
-\- [x] Feature catalog.
+- [x] Plan-feature entitlement mapping.
 
-\- [x] Boolean feature-access rules.
+- [x] Usage accounting infrastructure.
 
-\- [x] Metered usage/limit rules.
+- [x] RAG Assistant.
 
-\- [x] Plan-feature entitlement mapping.
+- [x] Document Extraction.
 
-\- [x] Usage accounting infrastructure.
+- [x] Document Storage commercial model.
 
-\- [x] RAG Assistant.
+- [x] Dashboard Analytics.
 
-\- [x] Document Extraction.
+- [x] Market Intelligence.
 
-\- [x] Document Storage commercial model.
+- [x] Tracked Competitors / competitor management.
 
-\- [x] Dashboard Analytics.
+- [x] Demand Prediction / forecasting read flows.
 
-\- [x] Market Intelligence.
+- [x] Data Connections / ingestion foundation.
 
-\- [x] Tracked Competitors / competitor management.
+- [x] Sentiment analysis endpoints.
 
-\- [x] Demand Prediction / forecasting read flows.
+- [x] Market Perception Index endpoint.
 
-\- [x] Data Connections / ingestion foundation.
+- [x] AI pricing recommendation endpoint.
 
-\- [x] Sentiment analysis endpoints.
+## Product Modules
 
-\- [x] Market Perception Index endpoint.
+- [x] Dashboard aggregation.
 
-\- [x] AI pricing recommendation endpoint.
+- [x] Competitor management.
 
-**## Product Modules**
+- [x] Opportunity / leaderboard flow.
 
-\- [x] Dashboard aggregation.
+- [x] Market Intelligence metrics flow.
 
-\- [x] Competitor management.
+- [x] Demand Forecasting pages/data flow.
 
-\- [x] Opportunity / leaderboard flow.
+- [x] Knowledge Base / RAG flow.
 
-\- [x] Market Intelligence metrics flow.
+- [x] Data-connection file ingestion flow.
 
-\- [x] Demand Forecasting pages/data flow.
+- [x] Market Intelligence PDF export.
 
-\- [x] Knowledge Base / RAG flow.
+- [x] Demand Prediction PDF export pattern.
 
-\- [x] Data-connection file ingestion flow.
+## Admin / Owner Platform Foundation
 
-\- [x] Market Intelligence PDF export.
+- [x] Platform owner/admin role model.
 
-\- [x] Demand Prediction PDF export pattern.
+- [x] Platform admin permission checks.
 
-**## Admin / Owner Platform Foundation**
+- [x] Companies management/read flows.
 
-\- [x] Platform owner/admin role model.
+- [x] Users management/read flows.
 
-\- [x] Platform admin permission checks.
+- [x] Plans/features/billing administration foundation.
 
-\- [x] Companies management/read flows.
+- [x] Custom-plan policies/rates administration foundation.
 
-\- [x] Users management/read flows.
+- [x] Owner protection rules.
 
-\- [x] Plans/features/billing administration foundation.
+- [x] Admin-team permission model foundation.
 
-\- [x] Custom-plan policies/rates administration foundation.
+## Verification / Testing Foundation
 
-\- [x] Owner protection rules.
+- [x] Unit tests exist.
 
-\- [x] Admin-team permission model foundation.
+- [x] Route-contract verification exists.
 
-**## Verification / Testing Foundation**
+- [x] Security-regression verification exists.
 
-\- [x] Unit tests exist.
+- [x] Subscription-integration verification exists.
 
-\- [x] Route-contract verification exists.
+- [x] Custom-plan contract verification exists.
 
-\- [x] Security-regression verification exists.
+- [x] Feature-entitlement verification exists.
 
-\- [x] Subscription-integration verification exists.
+- [x] Full local validation command exists.
 
-\- [x] Custom-plan contract verification exists.
+---
 
-\- [x] Feature-entitlement verification exists.
+# Quick View
 
-\- [x] Full local validation command exists.
+## Doing now
 
-\---
+- [ ] 🟡 Production-readiness cleanup and verification after completing subscription/payment lifecycle hardening.
 
-**# Quick View**
+## Next major items
 
-**## Doing now**
+- [ ] Alert / notification system.
 
-\- [ ] 🟡 Production-readiness cleanup and verification after completing subscription/payment lifecycle hardening.
+- [ ] Invitation system completion.
 
-**## Next major items**
+- [ ] AI/background worker triggers.
 
-\- [ ] Alert / notification system.
+- [ ] Remaining feature-gate decisions.
 
-\- [ ] Invitation system completion.
+- [ ] Full Stripe production scenario validation.
 
-\- [ ] AI/background worker triggers.
+- [ ] Production database/environment validation.
 
-\- [ ] Remaining feature-gate decisions.
+- [ ] Monitoring and operational alerts.
 
-\- [ ] Full Stripe production scenario validation.
+- [ ] Final production-readiness checks.
 
-\- [ ] Production database/environment validation.
+## Main completed areas
 
-\- [ ] Monitoring and operational alerts.
+- [x] Core backend architecture.
 
-\- [ ] Final production-readiness checks.
+- [x] Multi-tenant security foundation.
 
-**## Main completed areas**
+- [x] Subscription/billing foundation and lifecycle hardening.
 
-\- [x] Core backend architecture.
+- [x] Custom plans and pricing foundation.
 
-\- [x] Multi-tenant security foundation.
+- [x] Feature catalog and entitlements.
 
-\- [x] Subscription/billing foundation and lifecycle hardening.
+- [x] RAG and document ingestion.
 
-\- [x] Custom plans and pricing foundation.
+- [x] Market Intelligence.
 
-\- [x] Feature catalog and entitlements.
+- [x] Demand Prediction.
 
-\- [x] RAG and document ingestion.
+- [x] Competitor management.
 
-\- [x] Market Intelligence.
+- [x] Sentiment and MPI integration foundation.
 
-\- [x] Demand Prediction.
+- [x] Platform admin / owner foundation.
 
-\- [x] Competitor management.
+- [x] Verification/test foundation.
 
-\- [x] Sentiment and MPI integration foundation.
+---
 
-\- [x] Platform admin / owner foundation.
-
-\- [x] Verification/test foundation.
-
-\---
-
-\_\_Last updated: 2026-10-02\_\_
+_\_Last updated: 2026-10-02\__
