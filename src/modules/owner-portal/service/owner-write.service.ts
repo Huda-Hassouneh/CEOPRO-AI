@@ -9,7 +9,7 @@ import {
 import {
   InvitablePlatformRole,
   isInvitablePlatformRole
-} from "../platform-roles.js";
+} from "../types/platform-roles.js";
 
 export class PortalError extends Error {
   constructor(

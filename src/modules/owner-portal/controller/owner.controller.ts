@@ -16,7 +16,7 @@ import {
   revokeSession
 } from "../service/owner-write.service.js";
 import * as read from "../service/owner-read.service.js";
-import { INVITABLE_PLATFORM_ROLES } from "../platform-roles.js";
+import { INVITABLE_PLATFORM_ROLES } from "../types/platform-roles.js";
 
 export const permission = requirePlatformPermission;
 const uuid = z.uuid();
