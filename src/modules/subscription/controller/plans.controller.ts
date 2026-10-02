@@ -52,10 +52,10 @@ export async function changePlanHandler(req: AppRequest, resp: Response) {
       return sendApiError(resp, result.code);
     }
 
-    const response: SuccessResponse<null> = {
+    const response: SuccessResponse<typeof result.data> = {
       success: true,
-      message: result.message || "Subscription updated successfully",
-      data: null
+      message: result.message || "Subscription update processed successfully",
+      data: result.data
     };
     return resp.status(200).json(response);
   } catch (error) {

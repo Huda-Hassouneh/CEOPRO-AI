@@ -16,6 +16,8 @@ import { PlanCreateInput } from "../../../generated/prisma/models.js";
 import type { ServiceResult } from "../../../types/service.js";
 import {
   analyzePlanTransition,
+  mapProviderPlanChangeOutcome,
+  type PlanChangeState,
   type PlanTransitionAnalysis,
   type PlanTransitionTiming,
   type PlanTransitionType
@@ -116,12 +118,14 @@ export async function getManagedStandardPlans() {
 }
 
 export type PlanChangeResult = {
+  state: PlanChangeState;
   transitionType: PlanTransitionType;
   effectiveTiming: PlanTransitionTiming;
   effectiveAt: Date | null;
   currentPlan: { id: string; name: string };
   targetPlan: { id: string; name: string };
   priceDelta: number;
+  recoveryUrl: string | null;
   entitlementAnalysis: Pick<
     PlanTransitionAnalysis,
     "hasEntitlementGain" | "hasEntitlementLoss" | "gains" | "losses"
@@ -266,12 +270,14 @@ export async function changePlanService(
       action === "upgrade" && stripeSubscription.status === "trialing";
     const stripeSubscriptionItemId = stripeSubscription.items.data[0].id;
 
-    await stripeService.updateSubscription({
+    const providerUpdate = await stripeService.updateSubscription({
       paymentProviderPriceId: selectedPricingOption.stripePriceId,
       paymentProviderSubscriptionId: stripeSubscription.id,
       stripeSubscriptionItemId,
       action
     });
+
+    const state = mapProviderPlanChangeOutcome(providerUpdate.outcome);
 
     await subscriptionRepo.updateSubscription(subscription.id, {
       scheduledPlanId: effectiveTiming === "period_end" ? plan.id : null,
@@ -280,6 +286,7 @@ export async function changePlanService(
     });
 
     const result: PlanChangeResult = {
+      state,
       transitionType,
       effectiveTiming,
       effectiveAt:
@@ -287,6 +294,7 @@ export async function changePlanService(
       currentPlan: { id: currentPlan.id, name: currentPlan.name },
       targetPlan: { id: plan.id, name: plan.name },
       priceDelta: Number(plan.price) - Number(currentPlan.price),
+      recoveryUrl: providerUpdate.latestInvoice?.hostedInvoiceUrl ?? null,
       entitlementAnalysis: {
         hasEntitlementGain: entitlementTransition.hasEntitlementGain,
         hasEntitlementLoss: entitlementTransition.hasEntitlementLoss,
@@ -296,16 +304,25 @@ export async function changePlanService(
     };
 
     let message: string;
-    if (isTrialingImmediateChange) {
+    if (isTrialingImmediateChange && state === "applied") {
       message =
         "Plan changed successfully. Your current free trial remains unchanged. You will not be charged now; the full new plan price will be charged when the trial ends.";
-    } else if (effectiveTiming === "immediate") {
+    } else if (state === "payment_action_required") {
+      message =
+        "Additional payment authentication is required before this plan change can be applied. Your current plan remains active until payment is confirmed.";
+    } else if (state === "payment_pending") {
+      message =
+        "Payment for this plan change is still processing. Your current plan remains active until the payment is confirmed and Stripe applies the change.";
+    } else if (state === "failed") {
+      message =
+        "The payment for this plan change could not be completed. Your current plan remains active. Resolve the payment issue before the change can be applied.";
+    } else if (state === "applied") {
       message =
         plan.planType === "custom"
-          ? "Your Custom Plan change has been applied immediately."
+          ? "Your Custom Plan change has been applied successfully."
           : transitionType === "equivalent"
-            ? "Subscription billing cycle changed successfully. Any applicable billing adjustment has been handled by the payment provider."
-            : "Subscription upgraded successfully. The applicable prorated amount has been charged.";
+            ? "Subscription billing cycle changed successfully."
+            : "Subscription upgrade has been applied successfully.";
     } else if (plan.planType === "custom") {
       message =
         transitionType === "mixed"

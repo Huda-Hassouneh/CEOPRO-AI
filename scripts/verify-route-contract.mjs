@@ -36,6 +36,7 @@ const checks = [
   ["src/modules/subscription/route/promo-codes.route.ts", '"/:promoCodeId/plans/:planId"'],
 
   ["src/modules/subscription/route/subscriptions.route.ts", 'router.get("/current", getCurrentSubscription)'],
+  ["src/modules/subscription/route/subscriptions.route.ts", '"/current/recovery"'],
   ["src/modules/subscription/route/subscriptions.route.ts", '"/current/cancel"'],
   ["src/modules/subscription/route/subscriptions.route.ts", '"/current/cancel/undo"'],
   ["src/modules/subscription/route/subscriptions.route.ts", '"/current/plan"'],

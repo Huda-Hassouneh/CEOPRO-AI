@@ -95,7 +95,9 @@ export async function webhookService(
 
       case "customer.subscription.updated":
       case "customer.subscription.paused":
-      case "customer.subscription.resumed": {
+      case "customer.subscription.resumed":
+      case "customer.subscription.pending_update_applied":
+      case "customer.subscription.pending_update_expired": {
         await handleSubscriptionUpdated(
           event.data.object as Stripe.Subscription
         );

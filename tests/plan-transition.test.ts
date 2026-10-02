@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzePlanTransition } from "../src/modules/subscription/service/plan-transition.service.js";
+import {
+  analyzePlanTransition,
+  mapProviderPlanChangeOutcome
+} from "../src/modules/subscription/service/plan-transition.service.js";
 
 const feature = (id: string, limit: number | null) => ({
   feature_id: id,
@@ -96,4 +99,15 @@ test("legacy plans with no configured entitlements are marked non-comparable", (
 
   assert.equal(result.comparable, false);
   assert.equal(result.type, "equivalent");
+});
+
+test("provider plan-change outcomes map to explicit customer states", () => {
+  assert.equal(mapProviderPlanChangeOutcome("applied"), "applied");
+  assert.equal(
+    mapProviderPlanChangeOutcome("action_required"),
+    "payment_action_required"
+  );
+  assert.equal(mapProviderPlanChangeOutcome("pending"), "payment_pending");
+  assert.equal(mapProviderPlanChangeOutcome("scheduled"), "scheduled");
+  assert.equal(mapProviderPlanChangeOutcome("failed"), "failed");
 });

@@ -141,7 +141,10 @@ export const ERROR_DEFINITIONS = {
     statusCode: 409,
     message: "User already exists"
   },
-
+  [ERROR_CODES.NO_SCHEDULED_PLAN_CHANGE]: {
+    statusCode: 409,
+    message: "There is no scheduled plan change to cancel."
+  },
   [ERROR_CODES.TENANT_ALREADY_EXISTS]: {
     statusCode: 409,
     message: "Tenant already exists"

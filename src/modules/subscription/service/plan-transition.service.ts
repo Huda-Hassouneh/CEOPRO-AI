@@ -166,3 +166,41 @@ export function analyzePlanTransition(
     recommendedEffectiveTiming: losses.length > 0 ? "period_end" : "immediate"
   };
 }
+
+/**
+ * Customer-facing outcome of a requested plan change.
+ *
+ * This is intentionally separate from the subscription's long-lived status.
+ * An existing subscription can remain `active` while a paid upgrade is waiting
+ * for SCA/payment and Stripe keeps the requested update in `pending_update`.
+ */
+export type PlanChangeState =
+  | "applied"
+  | "payment_action_required"
+  | "payment_pending"
+  | "scheduled"
+  | "failed";
+
+export type ProviderPlanChangeOutcome =
+  | "applied"
+  | "action_required"
+  | "pending"
+  | "scheduled"
+  | "failed";
+
+export function mapProviderPlanChangeOutcome(
+  outcome: ProviderPlanChangeOutcome
+): PlanChangeState {
+  switch (outcome) {
+    case "applied":
+      return "applied";
+    case "action_required":
+      return "payment_action_required";
+    case "pending":
+      return "payment_pending";
+    case "scheduled":
+      return "scheduled";
+    case "failed":
+      return "failed";
+  }
+}

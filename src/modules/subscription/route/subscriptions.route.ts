@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
   checkoutHandler,
+  createSubscriptionRecoveryHandler,
+  deleteScheduledPlanChangeHandler,
   getCurrentSubscription,
   patchCancelSubscriptionHandler,
   patchUndoCancelSubscriptionHandler
@@ -25,6 +27,11 @@ router.use(authenticateUser);
 router.use(requireTenant);
 
 router.get("/current", getCurrentSubscription);
+router.post(
+  "/current/recovery",
+  requirePermission("manage_billing"),
+  createSubscriptionRecoveryHandler
+);
 router.patch(
   "/current/cancel",
   requirePermission("manage_billing"),
@@ -49,5 +56,10 @@ router.post(
   requirePermission("manage_billing"),
   validateBody(checkoutSchema),
   checkoutHandler
+);
+router.delete(
+  "/current/plan/scheduled",
+  requirePermission("manage_billing"),
+  deleteScheduledPlanChangeHandler
 );
 export default router;

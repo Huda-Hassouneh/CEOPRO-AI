@@ -8,7 +8,9 @@ import type {
   StripeService,
   StripeCustomerDetails,
   StripeSubscriptionDetails,
-  StripeCheckoutDetails
+  StripeCheckoutDetails,
+  StripeSubscriptionRecoverySnapshot,
+  StripeSubscriptionUpdateResult
 } from "../../../types/stripe-provider.types.js";
 
 /*
@@ -69,6 +71,28 @@ function getExpandableId(
   return value.id ?? null;
 }
 
+export async function releaseSubscriptionSchedule(
+  subscriptionId: string
+): Promise<Stripe.Subscription> {
+  if (!subscriptionId) {
+    throw new Error("Stripe Subscription ID is required");
+  }
+
+  let subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  const scheduleId = getExpandableId(subscription.schedule);
+
+  if (scheduleId) {
+    await stripe.subscriptionSchedules.release(scheduleId, {
+      preserve_cancel_date: true
+    });
+
+    subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  }
+
+  return subscription;
+}
+
 /*
  * Resolve a Price ID from an expandable Price.
  */
@@ -80,6 +104,84 @@ function getPriceId(
       }
 ): string {
   return typeof price === "string" ? price : price.id;
+}
+
+function getInvoicePaymentIntentStatus(invoice: Stripe.Invoice): string | null {
+  /*
+   * Stripe v22 / Dahlia exposes invoice payments through invoice.payments.
+   * Keep a small legacy fallback so this remains safe if the account is pinned
+   * to an older API shape where invoice.payment_intent is still present.
+   */
+  const rawInvoice = invoice as any;
+  const invoicePayments = Array.isArray(rawInvoice?.payments?.data)
+    ? rawInvoice.payments.data
+    : [];
+
+  const orderedPayments = [
+    ...invoicePayments.filter((item: any) => item?.is_default === true),
+    ...invoicePayments.filter((item: any) => item?.is_default !== true)
+  ];
+
+  for (const invoicePayment of orderedPayments) {
+    const payment = invoicePayment?.payment;
+    if (payment?.type !== "payment_intent") continue;
+
+    const paymentIntent = payment?.payment_intent;
+    if (paymentIntent && typeof paymentIntent === "object") {
+      return typeof paymentIntent.status === "string"
+        ? paymentIntent.status
+        : null;
+    }
+  }
+
+  const legacyPaymentIntent = rawInvoice?.payment_intent;
+  if (legacyPaymentIntent && typeof legacyPaymentIntent === "object") {
+    return typeof legacyPaymentIntent.status === "string"
+      ? legacyPaymentIntent.status
+      : null;
+  }
+
+  return null;
+}
+
+async function retrievePlanChangeInvoice(
+  invoiceId: string
+): Promise<Stripe.Invoice> {
+  return await stripe.invoices.retrieve(invoiceId, {
+    /*
+     * Current Stripe invoice shape: Invoice -> payments -> payment ->
+     * payment_intent. `as any` keeps this compatible with Stripe accounts
+     * pinned to nearby API versions while the runtime response remains
+     * validated below before any field is used.
+     */
+    expand: ["payments.data.payment.payment_intent"]
+  } as any);
+}
+
+function classifyPendingStripeUpdate(
+  invoiceStatus: string | null,
+  paymentIntentStatus: string | null
+): StripeSubscriptionUpdateResult["outcome"] {
+  if (paymentIntentStatus === "requires_action") {
+    return "action_required";
+  }
+
+  if (
+    paymentIntentStatus === "requires_payment_method" ||
+    paymentIntentStatus === "canceled" ||
+    invoiceStatus === "uncollectible" ||
+    invoiceStatus === "void"
+  ) {
+    return "failed";
+  }
+
+  /*
+   * processing / requires_confirmation / requires_capture, or an open invoice
+   * without a readable PaymentIntent, are all unresolved. Even if the payment
+   * intent already says succeeded, a still-present subscription.pending_update
+   * means Stripe has not applied the requested plan change yet.
+   */
+  return "pending";
 }
 
 /*
@@ -744,6 +846,43 @@ export async function retrieveSubscription(
 
 /*
  * ============================================================================
+ * RETRIEVE SUBSCRIPTION FOR RECOVERY
+ * ============================================================================
+ */
+export async function retrieveSubscriptionForRecovery(
+  subscriptionId: string
+): Promise<StripeSubscriptionRecoverySnapshot> {
+  if (!subscriptionId) {
+    throw new Error("Stripe Subscription ID is required");
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ["latest_invoice"]
+  });
+
+  const latestInvoice =
+    subscription.latest_invoice &&
+    typeof subscription.latest_invoice !== "string"
+      ? subscription.latest_invoice
+      : null;
+
+  return {
+    subscriptionId: subscription.id,
+    customerId: getExpandableId(subscription.customer),
+    status: subscription.status,
+    tenantId: subscription.metadata?.tenantId?.trim() || null,
+    latestInvoice: latestInvoice
+      ? {
+          id: latestInvoice.id,
+          status: latestInvoice.status ?? null,
+          hostedInvoiceUrl: latestInvoice.hosted_invoice_url ?? null
+        }
+      : null
+  };
+}
+
+/*
+ * ============================================================================
  * UPDATE SUBSCRIPTION
  * ============================================================================
  *
@@ -775,7 +914,7 @@ export async function updateSubscription(data: {
   paymentProviderPriceId: string;
 
   action: "upgrade" | "downgrade";
-}): Promise<Stripe.Subscription> {
+}): Promise<StripeSubscriptionUpdateResult> {
   const {
     paymentProviderSubscriptionId,
     stripeSubscriptionItemId,
@@ -854,25 +993,34 @@ export async function updateSubscription(data: {
         );
       }
 
-      return await stripe.subscriptions.update(paymentProviderSubscriptionId, {
-        items,
+      const updatedSubscription = await stripe.subscriptions.update(
+        paymentProviderSubscriptionId,
+        {
+          items,
 
-        /*
-         * Critical:
-         * Don't generate credits or upgrade prorations
-         * for a period the customer has not paid for.
-         */
-        proration_behavior: "none",
+          /*
+           * Critical:
+           * Don't generate credits or upgrade prorations
+           * for a period the customer has not paid for.
+           */
+          proration_behavior: "none",
 
-        /*
-         * Critical:
-         * Explicitly preserve the original trial end.
-         *
-         * This also protects the trial when changing between
-         * monthly / three-month / six-month prices.
-         */
-        trial_end: subscription.trial_end
-      });
+          /*
+           * Critical:
+           * Explicitly preserve the original trial end.
+           *
+           * This also protects the trial when changing between
+           * monthly / three-month / six-month prices.
+           */
+          trial_end: subscription.trial_end
+        }
+      );
+
+      return {
+        subscription: updatedSubscription,
+        outcome: "applied",
+        latestInvoice: null
+      };
     }
 
     /*
@@ -884,15 +1032,84 @@ export async function updateSubscription(data: {
      *
      * User already paid for the current billing period,
      * therefore Stripe should calculate the unused-time credit
-     * and charge the prorated upgrade amount immediately.
+     * and attempt collection of the prorated upgrade amount immediately.
      */
-    return await stripe.subscriptions.update(paymentProviderSubscriptionId, {
-      items,
+    const updatedSubscription = await stripe.subscriptions.update(
+      paymentProviderSubscriptionId,
+      {
+        items,
 
-      proration_behavior: "always_invoice",
+        proration_behavior: "always_invoice",
 
-      payment_behavior: "pending_if_incomplete"
-    });
+        payment_behavior: "pending_if_incomplete"
+      }
+    );
+
+    /*
+     * With pending_if_incomplete, Stripe only applies the requested update
+     * after the invoice is successfully paid. Therefore pending_update is the
+     * authoritative signal that we MUST NOT claim the upgrade succeeded yet.
+     */
+    if (!updatedSubscription.pending_update) {
+      return {
+        subscription: updatedSubscription,
+        outcome: "applied",
+        latestInvoice: null
+      };
+    }
+
+    const latestInvoiceId = getExpandableId(updatedSubscription.latest_invoice);
+    if (!latestInvoiceId) {
+      return {
+        subscription: updatedSubscription,
+        outcome: "pending",
+        latestInvoice: null
+      };
+    }
+
+    let latestInvoice: Stripe.Invoice;
+    try {
+      latestInvoice = await retrievePlanChangeInvoice(latestInvoiceId);
+    } catch (error) {
+      /*
+       * The subscription update has already been submitted to Stripe. A
+       * follow-up invoice read failure must not turn this into a generic 500
+       * that encourages the customer to submit the upgrade again. The
+       * populated pending_update already proves the change is not applied, so
+       * return the conservative unresolved state and let webhooks reconcile it.
+       */
+      console.error(
+        `Unable to inspect Stripe invoice ${latestInvoiceId} after pending subscription update`,
+        error
+      );
+
+      return {
+        subscription: updatedSubscription,
+        outcome: "pending",
+        latestInvoice: {
+          id: latestInvoiceId,
+          status: null,
+          hostedInvoiceUrl: null,
+          paymentIntentStatus: null
+        }
+      };
+    }
+
+    const paymentIntentStatus = getInvoicePaymentIntentStatus(latestInvoice);
+
+    return {
+      subscription: updatedSubscription,
+      outcome: classifyPendingStripeUpdate(
+        latestInvoice.status ?? null,
+        paymentIntentStatus
+      ),
+      latestInvoice: {
+        id: latestInvoice.id,
+        status: latestInvoice.status ?? null,
+        hostedInvoiceUrl: latestInvoice.hosted_invoice_url ?? null,
+        paymentIntentStatus
+      }
+    };
   }
 
   /*
@@ -1014,7 +1231,15 @@ export async function updateSubscription(data: {
    * Your local scheduledPlanId /
    * scheduledBillingPeriod should represent the future plan.
    */
-  return await stripe.subscriptions.retrieve(paymentProviderSubscriptionId);
+  const scheduledSubscription = await stripe.subscriptions.retrieve(
+    paymentProviderSubscriptionId
+  );
+
+  return {
+    subscription: scheduledSubscription,
+    outcome: "scheduled",
+    latestInvoice: null
+  };
 }
 
 /*
@@ -1097,11 +1322,14 @@ export const stripeService: StripeService = {
 
   retrieveSubscription,
 
+  retrieveSubscriptionForRecovery,
+
   updateSubscriptionCancellation,
 
   deleteCustomerByCustomerId,
 
   createCustomerPortalSession,
+  releaseSubscriptionSchedule,
 
   stripe
 };

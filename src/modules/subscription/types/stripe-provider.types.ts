@@ -36,6 +36,36 @@ export interface StripeCheckoutDetails {
   newPlanId?: string;
 }
 
+export type StripeSubscriptionUpdateOutcome =
+  | "applied"
+  | "action_required"
+  | "pending"
+  | "scheduled"
+  | "failed";
+
+export interface StripeSubscriptionUpdateResult {
+  subscription: Stripe.Subscription;
+  outcome: StripeSubscriptionUpdateOutcome;
+  latestInvoice: {
+    id: string;
+    status: string | null;
+    hostedInvoiceUrl: string | null;
+    paymentIntentStatus: string | null;
+  } | null;
+}
+
+export interface StripeSubscriptionRecoverySnapshot {
+  subscriptionId: string;
+  customerId: string | null;
+  status: string;
+  tenantId: string | null;
+  latestInvoice: {
+    id: string;
+    status: string | null;
+    hostedInvoiceUrl: string | null;
+  } | null;
+}
+
 export interface StripeService {
   createCatalog(payload?: {
     name: string;
@@ -53,16 +83,24 @@ export interface StripeService {
   createCheckoutSession(
     details: StripeCheckoutDetails
   ): Promise<Stripe.Checkout.Session>;
-  createPromoCode(type: string, amount: number, discountAppliedFor?: string, currency?: string): Promise<Stripe.Coupon>;
+  createPromoCode(
+    type: string,
+    amount: number,
+    discountAppliedFor?: string,
+    currency?: string
+  ): Promise<Stripe.Coupon>;
   retrievePromoCode(couponId: string): Promise<Stripe.Coupon>;
   stripe: Stripe;
   updateSubscription(data: {
     paymentProviderSubscriptionId: string;
     stripeSubscriptionItemId: string;
     paymentProviderPriceId: string;
-    action: string;
-  }): Promise<Stripe.Subscription>;
+    action: "upgrade" | "downgrade";
+  }): Promise<StripeSubscriptionUpdateResult>;
   retrieveSubscription(subscriptionId: string): Promise<Stripe.Subscription>;
+  retrieveSubscriptionForRecovery(
+    subscriptionId: string
+  ): Promise<StripeSubscriptionRecoverySnapshot>;
   updateSubscriptionCancellation(
     subscriptionId: string,
     cancelAtPeriodEnds: boolean,
@@ -73,4 +111,7 @@ export interface StripeService {
     customerId: string,
     returnUrl: string
   ): Promise<string>;
+  releaseSubscriptionSchedule(
+    subscriptionId: string
+  ): Promise<Stripe.Subscription>;
 }

@@ -1,12 +1,15 @@
 import type { Response } from "express";
 import {
+  cancelScheduledPlanChangeService,
   cancelSubscriptionService,
   checkoutService,
+  createSubscriptionRecoveryService,
   getCurrentSubscriptionService,
   undoCancelSubscriptionService
 } from "../service/subscription.service.js";
 import type { SuccessResponse } from "../../../types/response.js";
 import type { Subscription } from "../../../generated/prisma/client.js";
+import type { SubscriptionRecoveryData } from "../types/subscription-recovery.types.js";
 import type { AppRequest } from "../../../types/request.js";
 import { ERROR_CODES } from "../../../errors/error-codes.js";
 import { sendApiError } from "../../../utils/http.js";
@@ -93,6 +96,54 @@ export async function patchUndoCancelSubscriptionHandler(
     success: true,
     message: "Subscription uncanceled successfully",
     data: result.data
+  };
+
+  return resp.status(200).json(response);
+}
+
+export async function createSubscriptionRecoveryHandler(
+  req: AppRequest,
+  resp: Response
+) {
+  if (!req.tenant_id) {
+    return sendApiError(resp, ERROR_CODES.UNAUTHORIZED);
+  }
+
+  const result = await createSubscriptionRecoveryService(req.tenant_id);
+  if (!result.success) {
+    return sendApiError(resp, result.code, {
+      publicMessage: result.message
+    });
+  }
+
+  const response: SuccessResponse<SubscriptionRecoveryData> = {
+    success: true,
+    message: "Subscription recovery session created successfully",
+    data: result.data
+  };
+
+  return resp.status(200).json(response);
+}
+export async function deleteScheduledPlanChangeHandler(
+  req: AppRequest,
+  resp: Response
+) {
+  if (!req.tenant_id) {
+    return sendApiError(resp, ERROR_CODES.UNAUTHORIZED);
+  }
+
+  const result = await cancelScheduledPlanChangeService(req.tenant_id);
+
+  if (!result.success) {
+    return sendApiError(resp, result.code, {
+      publicMessage: result.message
+    });
+  }
+
+  const response: SuccessResponse<null> = {
+    success: true,
+    message: "Scheduled plan change cancelled successfully",
+    data: null
   };
 
   return resp.status(200).json(response);
