@@ -2,7 +2,7 @@ import Stripe from "stripe";
 
 import { Plan, Subscription } from "../generated/prisma/client.js";
 
-import { stripeService } from "../modules/subscription/External Services/Payment providers/stripe/stripeService.js";
+import { stripeService } from "../modules/subscription/client/payment-providers/stripe/stripe.client.js";
 
 import plansRepo from "../modules/subscription/repo/plans.repo.js";
 import subscriptionRepo from "../modules/subscription/repo/subscription.repo.js";
