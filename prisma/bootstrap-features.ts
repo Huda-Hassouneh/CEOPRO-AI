@@ -4,7 +4,7 @@ import {
   CANONICAL_FEATURES,
   CANONICAL_FEATURE_CODES,
   canonicalizeFeatureCode
-} from "../src/modules/features/catalog.js";
+} from "../src/modules/features/types/feature.catalog.js";
 
 const EXPECTED_FEATURE_COUNT = 21;
 
