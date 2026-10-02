@@ -1,5 +1,6 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import * as marketIntelligenceService from "../service/market-int.service.js";
+import { write } from "node:fs";
 
 export const getMarketOverview = async (
   req: any,
@@ -15,15 +16,16 @@ export const getMarketOverview = async (
     const productId = req.query.productId
       ? String(req.query.productId)
       : undefined;
-    console.log({ tenantId, periodDays, productId });
+    const authorization = req.headers.authorization;
 
     const data = await marketIntelligenceService.getMarketIntelligence(
       tenantId,
       productId,
-      periodDays
+      periodDays,
+      authorization
     );
 
-    // Formatted strictly to { status, data } so httpClient unwraps cleanly
+    // Formatted strictly to { status, data } so httpClient unwraps cleanly.
     return res.status(200).json({ status: "success", data });
   } catch (error) {
     next(error);
