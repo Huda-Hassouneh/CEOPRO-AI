@@ -1,16 +1,16 @@
 import { Router } from "express";
-import ownerPortalRouter from "../owner-portal/route/owner.route.js";
+import ownerPortalRouter from "../../owner-portal/index.js";
 import { z } from "zod";
 import {
   authenticateUser,
   requireTenant
-} from "../../validators/validateUser.js";
+} from "../../../validators/validateUser.js";
 import {
   requirePlatformPermission,
   requirePlatformRole
-} from "../../validators/validatePlatformUser.js";
-import { validateBody } from "../../validators/validateBody.js";
-import { validateParams } from "../../validators/validateParams.js";
+} from "../../../validators/validatePlatformUser.js";
+import { validateBody } from "../../../validators/validateBody.js";
+import { validateParams } from "../../../validators/validateParams.js";
 import {
   approveCustomPlanQuoteSchema,
   createCustomPlanQuoteSchema,
@@ -23,39 +23,39 @@ import {
   infrastructureRateIdParamsSchema,
   vendorRateIdParamsSchema,
   vendorRateSchema
-} from "../../DTO/customPlan.dto.js";
+} from "../../subscription/types/custom-plan.dto.js";
 import {
   planParamsSchema,
   planSchema,
   updatePlanSchema
-} from "../../DTO/plan.dto.js";
+} from "../../subscription/types/plan.dto.js";
 import {
   createPromoCodeSchema,
   promoCodePlanParamsSchema,
   updatePromoCodeSchema
-} from "../../DTO/promoCode.dto.js";
+} from "../../subscription/types/promo-code.dto.js";
 import {
   createFeatureSchema,
   featureIdParamSchema,
   updateFeatureSchema
-} from "../../DTO/features.dto.js";
+} from "../../features/types/features.dto.js";
 import {
   linkFeatureBodySchema,
   planAndFeatureIdParamSchema,
   planIdParamSchema,
   updateFeatureLimitsBodySchema
-} from "../../DTO/billing.dto.js";
+} from "../../features/types/billing.dto.js";
 import {
   patchPlanHandler,
   postPlanHandler
-} from "../subscription/controllers/plans.controller.js";
+} from "../../subscription/controller/plans.controller.js";
 import {
   getPromocodeHandler,
   patchPromocodeHandler,
   postPromocodeHandler
-} from "../subscription/controllers/promocode.controller.js";
-import { featureController } from "../features/controller/features-managment.controller.js";
-import { planFeatureController } from "../features/controller/plan-feature.controller.js";
+} from "../../subscription/controller/promocode.controller.js";
+import { featureController } from "../../features/controller/features-management.controller.js";
+import { planFeatureController } from "../../features/controller/plan-feature.controller.js";
 import {
   approvePlatformQuoteHandler,
   calculatePlatformQuoteHandler,
@@ -80,7 +80,7 @@ import {
   updatePlatformQuoteHandler,
   updatePlatformVendorRateHandler,
   updatePlatformInfrastructureRateHandler
-} from "./platform-admin.controller.js";
+} from "../controller/platform-admin.controller.js";
 
 const router = Router();
 router.use(authenticateUser, requireTenant, requirePlatformRole);

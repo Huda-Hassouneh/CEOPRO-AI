@@ -1,13 +1,13 @@
 import type { Response } from "express";
-import { ERROR_CODES } from "../../errors/error-codes.js";
-import type { AppRequest } from "../../types/request.js";
-import { successResponse } from "../../types/response.js";
-import { sendApiError } from "../../utils/http.js";
-import { getPlatformRole } from "../../validators/validatePlatformUser.js";
-import { prisma } from "../../config/database.js";
-import { getManagedStandardPlans } from "../subscription/service/plans.service.js";
-import { analyzePlanTransition } from "../subscription/service/plan-transition.service.js";
-import subscriptionRepo from "../subscription/repo/subscription.repo.js";
+import { ERROR_CODES } from "../../../errors/error-codes.js";
+import type { AppRequest } from "../../../types/request.js";
+import { successResponse } from "../../../types/response.js";
+import { sendApiError } from "../../../utils/http.js";
+import { getPlatformRole } from "../../../validators/validatePlatformUser.js";
+import { prisma } from "../../../config/database.js";
+import { getManagedStandardPlans } from "../../subscription/service/plans.service.js";
+import { analyzePlanTransition } from "../../subscription/service/plan-transition.service.js";
+import subscriptionRepo from "../../subscription/repo/subscription.repo.js";
 import {
   approveCustomPlanQuote,
   calculateCustomPlanQuote,
@@ -26,12 +26,12 @@ import {
   updateCustomPlanQuote,
   updateVendorRate,
   updateInfrastructureRate
-} from "../subscription/service/custom-plan.service.js";
+} from "../../subscription/service/custom-plan.service.js";
 import {
   getCustomPlanPricingPolicy,
   updateCustomPlanPricingPolicy
-} from "../subscription/service/custom-plan-policy.service.js";
-import { linkPromoCodePlanForPlatform } from "../subscription/service/promocodes-plans.service.js";
+} from "../../subscription/service/custom-plan-policy.service.js";
+import { linkPromoCodePlanForPlatform } from "../../subscription/service/promocodes-plans.service.js";
 
 function reply<T>(
   res: Response,
