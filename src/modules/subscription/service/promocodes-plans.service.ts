@@ -1,4 +1,4 @@
-import { stripeService } from "../External Services/Payment providers/stripe/stripeService.js";
+import { stripeService } from "../client/payment-providers/stripe/stripe.client.js";
 import { ERROR_CODES } from "../../../errors/error-codes.js";
 import plansRepo from "../repo/plans.repo.js";
 import { getPromocodeById } from "../repo/promocodes.repo.js";

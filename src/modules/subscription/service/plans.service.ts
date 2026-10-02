@@ -1,15 +1,15 @@
 import { ERROR_CODES } from "../../../errors/error-codes.js";
 import plansRepo from "../repo/plans.repo.js";
 import subscriptionRepo from "../repo/subscription.repo.js";
-import { getAppConfig } from "../repo/repo.js";
+import { getAppConfig } from "../repo/app-config.repo.js";
 import {
   AppConfig,
   Plan,
   Subscription
 } from "../../../generated/prisma/client.js";
 import { configKeys } from "../../../config/keys.config.js";
-import { stripeService } from "../External Services/Payment providers/stripe/stripeService.js";
-import { PlanBillingOptionType } from "../../../types/plans.js";
+import { stripeService } from "../client/payment-providers/stripe/stripe.client.js";
+import { PlanBillingOptionType } from "../types/plans.types.js";
 import { optionPrice, resolveBillingOption, validatePlanOptions } from "./plan-pricing.js";
 import { PlanCreateInput } from "../../../generated/prisma/models.js";
 

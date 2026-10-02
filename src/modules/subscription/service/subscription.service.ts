@@ -7,12 +7,12 @@ import { validatePromoCode } from "./promocodes.service.js";
 
 import { Plan, Subscription } from "../../../generated/prisma/client.js";
 
-import { stripeService } from "../External Services/Payment providers/stripe/stripeService.js";
+import { stripeService } from "../client/payment-providers/stripe/stripe.client.js";
 
-import { createCustomerWithClock } from "../External Services/Payment providers/stripe/stripe.test-clock.js";
+import { createCustomerWithClock } from "../client/payment-providers/stripe/stripe.test-clock.js";
 
-import { BillingOptionType } from "../../../types/plans.js";
-import type { CheckoutInput } from "../../../DTO/checkout.dto.js";
+import { BillingOptionType } from "../types/plans.types.js";
+import type { CheckoutInput } from "../types/checkout.dto.js";
 
 /*
  * ============================================================

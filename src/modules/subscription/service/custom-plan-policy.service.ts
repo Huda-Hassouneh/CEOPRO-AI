@@ -1,6 +1,6 @@
 import { configKeys } from "../../../config/keys.config.js";
-import type { CustomPlanPricingPolicyUpdateInput } from "../../../DTO/customPlan.dto.js";
-import { getAppConfig, upsertAppConfig } from "../repo/repo.js";
+import type { CustomPlanPricingPolicyUpdateInput } from "../types/custom-plan.dto.js";
+import { getAppConfig, upsertAppConfig } from "../repo/app-config.repo.js";
 
 export type AutomaticFeatureLimit = {
   min?: number;

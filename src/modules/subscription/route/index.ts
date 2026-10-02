@@ -1,16 +1,25 @@
 import { Router } from "express";
-import { authenticateUser, requireTenant, requirePermission } from "../../../validators/validateUser.js";
-import { onBoardingHandler } from "../controllers/controller.js";
+import {
+  authenticateUser,
+  requireTenant,
+  requirePermission
+} from "../../../validators/validateUser.js";
+import { onBoardingHandler } from "../controller/onboarding.controller.js";
 
-// Import the modular routers you just created
-import plansRoutes from "./plans.routes.js";
-import promoCodeRoutes from "./promo-codes.routes.js";
-import subscriptionRoutes from "./subscriptions.routes.js";
-import invoices from "./invoice.routes.js";
+import plansRoutes from "./plans.route.js";
+import promoCodeRoutes from "./promo-codes.route.js";
+import subscriptionRoutes from "./subscriptions.route.js";
+import invoices from "./invoice.route.js";
 
 const router = Router();
 
-router.post("/", authenticateUser, requireTenant, requirePermission("all"), onBoardingHandler);
+router.post(
+  "/",
+  authenticateUser,
+  requireTenant,
+  requirePermission("all"),
+  onBoardingHandler
+);
 
 router.use("/plans", plansRoutes);
 router.use("/promo-codes", promoCodeRoutes);

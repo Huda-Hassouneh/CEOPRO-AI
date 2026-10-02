@@ -6,7 +6,7 @@ import type {
   CustomPlanInstantCheckoutInput,
   CustomPlanManualReviewInput,
   CustomPlanPreviewInput
-} from "../../../DTO/customPlan.dto.js";
+} from "../types/custom-plan.dto.js";
 import customPlanRepository from "../repo/custom-plan.repo.js";
 import subscriptionRepo from "../repo/subscription.repo.js";
 import { calculateCustomPlanPrice } from "./custom-plan-pricing.service.js";

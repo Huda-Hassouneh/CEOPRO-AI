@@ -4,15 +4,16 @@ import {
   requireTenant,
   requirePermission
 } from "../../validators/validateUser.js";
-import { onBoardingHandler } from "./controllers/controller.js";
+import { onBoardingHandler } from "./controller/onboarding.controller.js";
 
 // Import the modular routers you just created
-import plansRoutes from "./route/plans.routes.js";
-import promoCodeRoutes from "./route/promo-codes.routes.js";
+import plansRoutes from "./route/plans.route.js";
+import promoCodeRoutes from "./route/promo-codes.route.js";
 
-import subscriptionRoutes from "./route/subscriptions.routes.js";
-import invoices from "./route/invoice.routes.js";
-import customPlanRoutes from "./route/custom-plan.routes.js";
+import subscriptionRoutes from "./route/subscriptions.route.js";
+import invoices from "./route/invoice.route.js";
+import customPlanRoutes from "./route/custom-plan.route.js";
+export { default as stripeWebhookRouter } from "./route/stripe-webhook.route.js";
 const router = Router();
 
 // Existing onboarding route

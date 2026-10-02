@@ -9,8 +9,8 @@ import {
   updatePromocode
 } from "../repo/promocodes.repo.js";
 import type { PromoCode } from "../../../generated/prisma/client.js";
-import type { CreatePromoCodeDTO, UpdatePromoCodeDTO } from "../../../DTO/promoCode.dto.js";
-import { stripeService } from "../External Services/Payment providers/stripe/stripeService.js";
+import type { CreatePromoCodeDTO, UpdatePromoCodeDTO } from "../types/promo-code.dto.js";
+import { stripeService } from "../client/payment-providers/stripe/stripe.client.js";
 import { getRequiredEnv } from "../../../config/env.js";
 
 import type { ServiceResult } from "../../../types/service.js";

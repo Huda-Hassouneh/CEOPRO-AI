@@ -7,7 +7,7 @@ import type {
   UpdateCustomPlanQuoteInput,
   VendorRateInput,
   InfrastructureRateInput,
-} from "../../../DTO/customPlan.dto.js";
+} from "../types/custom-plan.dto.js";
 import {
   CUSTOM_PLAN_PAYMENT_CURRENCY,
   convertCustomPlanAmountToPaymentCurrency,
@@ -17,10 +17,10 @@ import {
   calculateCustomPlanPrice,
   calculateExpectedProfitability,
 } from "./custom-plan-pricing.service.js";
-import { getAppConfig } from "../repo/repo.js";
+import { getAppConfig } from "../repo/app-config.repo.js";
 import { configKeys } from "../../../config/keys.config.js";
-import { stripeService } from "../External Services/Payment providers/stripe/stripeService.js";
-import type { BillingOptionType } from "../../../types/plans.js";
+import { stripeService } from "../client/payment-providers/stripe/stripe.client.js";
+import type { BillingOptionType } from "../types/plans.types.js";
 import { getCustomPlanPricingPolicy } from "./custom-plan-policy.service.js";
 
 const EDITABLE_STATUSES = new Set(["draft", "calculated"]);

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { onBoardingService } from "../service/service.js";
+import { onBoardingService } from "../service/onboarding.service.js";
 import { configKeys } from "../../../config/keys.config.js";
 import type { SuccessResponse } from "../../../types/response.js";
 import { sendApiError } from "../../../utils/http.js";

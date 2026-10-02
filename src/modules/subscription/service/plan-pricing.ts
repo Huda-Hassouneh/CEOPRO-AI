@@ -1,4 +1,4 @@
-import type { PlanBillingOptionType } from "../../../types/plans.js";
+import type { PlanBillingOptionType } from "../types/plans.types.js";
 import { toStripeMinorUnits, fromStripeMinorUnits } from "../../../utils/currency.js";
 
 export type IntervalUnit = "day" | "month" | "year";
