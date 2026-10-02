@@ -1,4 +1,4 @@
-import { CreateFeatureDTO, UpdateFeatureDTO } from "../../../types/features.js";
+import { CreateFeatureDTO, UpdateFeatureDTO } from "../types/features.types.js";
 import { prisma } from "../../../config/database.js";
 import { FeatureCreateInput } from "../../../generated/prisma/models.js";
 

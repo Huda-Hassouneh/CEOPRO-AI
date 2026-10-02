@@ -1,7 +1,7 @@
 import { Router } from "express";
-import featuresRoutes from "./routes/features-managment.route.js";
-import planFeaturesRoutes from "./routes/feature-plan.js";
-import featureOperationRoutes from "./routes/features.route.js";
+import featuresRoutes from "./route/features-management.route.js";
+import planFeaturesRoutes from "./route/feature-plan.route.js";
+import featureOperationRoutes from "./route/features.route.js";
 
 const router = Router();
 

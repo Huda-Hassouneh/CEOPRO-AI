@@ -1,5 +1,5 @@
 import { prisma } from "../../../config/database.js";
-import { LinkFeatureDTO } from "../../../types/features.js";
+import { LinkFeatureDTO } from "../types/features.types.js";
 
 export const planFeatureRepository = {
   create: async (data: LinkFeatureDTO) => {

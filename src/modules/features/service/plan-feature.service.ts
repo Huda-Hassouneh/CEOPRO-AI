@@ -1,6 +1,6 @@
 import { planFeatureRepository } from "../repo/plan-feature.repo.js";
 import { ERROR_CODES } from "../../../errors/error-codes.js"; // Adjust path as needed
-import { LinkFeatureDTO } from "../../../types/features.js";
+import { LinkFeatureDTO } from "../types/features.types.js";
 import { prisma } from "../../../config/database.js";
 
 export const planFeatureService = {

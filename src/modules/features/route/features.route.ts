@@ -14,7 +14,7 @@ import {
 import {
   ragQuerySchema,
   extractionPendingQuerySchema
-} from "../../../DTO/features.dto.js";
+} from "../types/features.dto.js";
 import { validateQuery } from "../../../validators/validateQuery.js";
 import {
   documentController,

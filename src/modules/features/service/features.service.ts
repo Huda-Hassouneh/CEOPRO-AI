@@ -1,4 +1,4 @@
-import { CreateFeatureDTO, UpdateFeatureDTO } from "../../../types/features.js";
+import { CreateFeatureDTO, UpdateFeatureDTO } from "../types/features.types.js";
 import { ERROR_CODES } from "../../../errors/error-codes.js";
 import { featureRepository } from "../repo/feature.repo.js";
 import {
@@ -6,7 +6,7 @@ import {
   FeatureType,
   ResetCycle
 } from "../../../generated/prisma/enums.js";
-import { CANONICAL_FEATURE_CODES } from "../catalog.js";
+import { CANONICAL_FEATURE_CODES } from "../types/feature.catalog.js";
 import { prisma } from "../../../config/database.js";
 import { documentsRepo } from "../repo/usage.repo.js";
 
