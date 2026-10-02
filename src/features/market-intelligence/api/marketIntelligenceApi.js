@@ -1,18 +1,38 @@
 import httpClient from "../../../shared/lib/httpClient.js";
 
+function unwrapResponse(response) {
+  return response.data?.data ?? response.data;
+}
+
 export const marketIntelligenceApi = {
-  // Replaces the mock with a live call to your new Express route
-  getOverview: async (params = {}) => {
-    const { productId, periodDays } = params;
-    // Uses axios/httpClient params to build ?productId=xyz&periodDays=30
-    const response = await httpClient.get(`/market-intelligence`, {
+  getOverview: async ({ productId, periodDays } = {}) => {
+    const response = await httpClient.get("/market-intelligence", {
       params: {
-        productId: productId !== "all" ? productId : undefined,
+        productId: productId && productId !== "all" ? productId : undefined,
         periodDays
       }
     });
 
-    // Unwrap the nested Express response to pass clean data to React Query
-    return response.data?.data || response.data;
+    return unwrapResponse(response);
+  },
+
+  generatePricingRecommendation: async (productId) => {
+    if (!productId || productId === "all") {
+      throw new Error(
+        "A product ID is required to generate a pricing recommendation."
+      );
+    }
+
+    const response = await httpClient.post(
+      "/features/pricing/recommend",
+      null,
+      {
+        params: {
+          product_id: productId
+        }
+      }
+    );
+
+    return unwrapResponse(response);
   }
 };

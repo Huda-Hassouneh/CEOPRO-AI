@@ -11,13 +11,12 @@ export const dataConnectionsApi = Object.freeze({
     const response = await httpClient.get(`/data-connection`, {
       params: { tenantId: companyId }
     });
+    console.log(response?.data?.data);
 
     // Returns the { connectedSources, recentImports, availableSourceTypes } structure
     // expected by ConnectDataPage[cite: 10]
     return response?.data?.data;
   },
-
-  // --- MOCKED METHODS (Keep until backend endpoints are ready) ---
 
   connectGoogleAnalytics: async (sourceId) => {
     try {
@@ -32,16 +31,25 @@ export const dataConnectionsApi = Object.freeze({
     }
   },
 
-  configureWebsite: (payload) =>
-    previewDelay({
-      ok: Boolean(payload?.url),
-      operation: "configureWebsite",
-      payload,
-      preview: true,
-      connected: Boolean(payload?.url),
-      status: payload?.url ? "connected" : "error"
-    }),
+  configureWebsite: async (payload) => {
+    if (!payload?.url || typeof payload.url !== "string") {
+      throw new Error("Website URL is required.");
+    }
 
+    const url = payload.url.trim();
+
+    const response = await httpClient.post("/data-connection/sources", {
+      name: payload.name?.trim() || new URL(url).hostname,
+
+      sourceType: "website",
+
+      url,
+
+      syncFrequencyMinutes: Number(payload.syncFrequencyMinutes) || 1440
+    });
+
+    return response?.data?.data;
+  },
   prepareDatabase: (payload) =>
     previewDelay({
       ok: true,

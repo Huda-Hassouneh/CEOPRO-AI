@@ -17,7 +17,10 @@
   background: #fff;
   box-shadow: var(--ceopro-shadow-sm);
   text-align: center;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .ceopro-data-source-card:hover,
@@ -139,7 +142,10 @@
   cursor: pointer;
   font: inherit;
   text-align: start;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .ceopro-database-provider:hover,
@@ -166,11 +172,21 @@
   object-fit: contain;
 }
 
-.ceopro-database-provider__mark--mysql { color: #16718f; }
-.ceopro-database-provider__mark--postgresql { color: #336791; }
-.ceopro-database-provider__mark--sqlServer { color: #c7363d; }
-.ceopro-database-provider__mark--mongodb { color: #168b45; }
-.ceopro-database-provider__mark--oracle { color: #e11920; }
+.ceopro-database-provider__mark--mysql {
+  color: #16718f;
+}
+.ceopro-database-provider__mark--postgresql {
+  color: #336791;
+}
+.ceopro-database-provider__mark--sqlServer {
+  color: #c7363d;
+}
+.ceopro-database-provider__mark--mongodb {
+  color: #168b45;
+}
+.ceopro-database-provider__mark--oracle {
+  color: #e11920;
+}
 
 .ceopro-database-provider > span:nth-child(2) {
   display: grid;

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 import { routePaths } from "../../../app/router/routePaths.js";
 import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
@@ -14,34 +15,111 @@ import { MarketIntelligenceMetricCard } from "../components/MarketIntelligenceMe
 import { MarketIntelligenceSection } from "../components/MarketIntelligenceSection.jsx";
 import { MarketIntelligenceTable } from "../components/MarketIntelligenceTable.jsx";
 import { useMarketIntelligenceOverview } from "../hooks/useMarketIntelligenceOverview.js";
+import { usePricingRecommendation } from "../hooks/usePricingRecommendation.js";
 import "../styles/MarketIntelligence.css";
-import { LeaderboardTable } from "../components/LeaderboardTable.jsx";
+
 function localizeValue(value, locale) {
-  if (value && typeof value === "object")
+  if (value && typeof value === "object") {
     return value[locale] || value.en || Object.values(value)[0];
+  }
+
   return value;
 }
 
 function ToneBadge({ value, namespace }) {
+  if (!value) return "—";
+
   return (
     <span className={`market-main-badge is-${value}`}>{namespace(value)}</span>
   );
 }
 
+function buildPricingRows({ overviewRows, recommendation, selectedProduct }) {
+  if (!selectedProduct) return [];
+
+  const baseRow =
+    overviewRows?.find((row) => row.productId === selectedProduct.id) ??
+    overviewRows?.[0] ??
+    null;
+
+  if (!recommendation) {
+    if (!baseRow) return [];
+
+    return [
+      {
+        ...baseRow,
+        action: null,
+        suggestedPrice: null,
+        matchedCompetitors: null,
+        explanation: null,
+        confidenceScore: null,
+        guardrailClamped: null,
+        marginGuardrailClamped: null,
+        evidenceId: null,
+        outcomeId: null
+      }
+    ];
+  }
+
+  return [
+    {
+      ...(baseRow ?? {}),
+      id: `price-rec-${selectedProduct.id}`,
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      status: recommendation.status,
+      currentPrice:
+        recommendation.current_price ?? baseRow?.currentPrice ?? null,
+      action: recommendation.status === "OK" ? recommendation.action : null,
+      suggestedPrice:
+        recommendation.status === "OK" ? recommendation.suggested_price : null,
+      marketMin: recommendation.market_min ?? baseRow?.marketMin ?? null,
+      marketMax: recommendation.market_max ?? baseRow?.marketMax ?? null,
+      marketAverage:
+        recommendation.market_avg ?? baseRow?.marketAverage ?? null,
+      marketMedian:
+        recommendation.market_median ?? baseRow?.marketMedian ?? null,
+      matchedCompetitors: recommendation.matched_competitor_count ?? null,
+      explanation: recommendation.explanation ?? null,
+      confidenceScore: recommendation.confidence_score ?? null,
+      guardrailClamped: recommendation.guardrail_clamped ?? null,
+      marginGuardrailClamped: recommendation.margin_guardrail_clamped ?? null,
+      evidenceId: recommendation.evidence_id ?? null,
+      outcomeId: recommendation.outcome_id ?? null,
+      currency: recommendation.currency ?? selectedProduct.currency,
+      dataStatus: recommendation.status === "OK" ? "derived" : "unavailable"
+    }
+  ];
+}
+
 export function MarketIntelligenceOverviewPage() {
   const { t, locale, dir } = useI18n();
   const navigate = useNavigate();
+
   const [productId, setProductId] = useState(null);
   const [periodDays, setPeriodDays] = useState(30);
   const [exportNotice, setExportNotice] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [pricingByProduct, setPricingByProduct] = useState({});
+
   const exportInProgress = useRef(false);
+
   const query = useMarketIntelligenceOverview({
     productId,
     periodDays
   });
+  const pricingMutation = usePricingRecommendation();
 
   const data = query.data;
+  const selectedProduct = data?.selectedProduct ?? null;
+  const selectedProductId = selectedProduct?.id ?? null;
+  const pricingRecommendation = selectedProductId
+    ? (pricingByProduct[selectedProductId] ?? null)
+    : null;
+  const isGeneratingPricing =
+    pricingMutation.isPending &&
+    pricingMutation.variables === selectedProductId;
+  const hasRecommendation = Boolean(pricingRecommendation);
 
   const number = useMemo(
     () => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
@@ -58,32 +136,83 @@ export function MarketIntelligenceOverviewPage() {
     [locale]
   );
   const moneyFormatters = useMemo(() => new Map(), [locale]);
+
   const localize = (value) => localizeValue(value, locale);
+
   const formatDate = (value) => {
     if (!value) return "—";
-    const parsed = new Date(value.includes("T") ? value : `${value}T00:00:00Z`);
+
+    const normalized =
+      typeof value === "string" && !value.includes("T")
+        ? `${value}T00:00:00Z`
+        : value;
+    const parsed = new Date(normalized);
+
     return Number.isNaN(parsed.getTime()) ? "—" : date.format(parsed);
   };
+
   const money = (value, currency) => {
     if (value == null) return "—";
-    if (!moneyFormatters.has(currency))
+
+    const normalizedCurrency = currency?.toUpperCase() || "JOD";
+
+    if (!moneyFormatters.has(normalizedCurrency)) {
       moneyFormatters.set(
-        currency,
+        normalizedCurrency,
         new Intl.NumberFormat(locale, {
           style: "currency",
-          currency
+          currency: normalizedCurrency
         })
       );
-    return moneyFormatters.get(currency).format(value);
+    }
+
+    return moneyFormatters.get(normalizedCurrency).format(value);
   };
+
+  const pricingRows = buildPricingRows({
+    overviewRows: data?.pricingRecommendations,
+    recommendation: pricingRecommendation,
+    selectedProduct
+  });
+
+  const handleGeneratePricingRecommendation = () => {
+    if (!selectedProductId || pricingMutation.isPending) return;
+
+    pricingMutation.mutate(selectedProductId, {
+      onSuccess: (recommendation) => {
+        setPricingByProduct((current) => ({
+          ...current,
+          [selectedProductId]: recommendation
+        }));
+      }
+    });
+  };
+
+  const handleProductChange = (event) => {
+    setProductId(event.target.value);
+  };
+
   const requestExport = async (section) => {
     if (exportInProgress.current || query.isFetching || !data) return;
+
     exportInProgress.current = true;
     setIsExporting(true);
     setExportNotice(false);
+
     try {
-      const { exportMarketIntelligencePdf } = await import("../utils/exportMarketIntelligencePdf.js");
-      await exportMarketIntelligencePdf({ data, section, locale, periodDays });
+      const exportData =
+        section === "pricing"
+          ? { ...data, pricingRecommendations: pricingRows }
+          : data;
+      const { exportMarketIntelligencePdf } =
+        await import("../utils/exportMarketIntelligencePdf.js");
+
+      await exportMarketIntelligencePdf({
+        data: exportData,
+        section,
+        locale,
+        periodDays
+      });
     } catch (error) {
       console.error("Market Intelligence PDF export failed:", error);
       setExportNotice(true);
@@ -92,6 +221,7 @@ export function MarketIntelligenceOverviewPage() {
       setIsExporting(false);
     }
   };
+
   const empty = (titleKey, descriptionKey, action) => (
     <EmptyState
       className="market-main-empty"
@@ -101,7 +231,7 @@ export function MarketIntelligenceOverviewPage() {
     />
   );
 
-  if (query.isPending)
+  if (query.isPending) {
     return (
       <div className="market-main-loading" aria-busy="true">
         <Skeleton height="72px" variant="rectangular" />
@@ -113,7 +243,9 @@ export function MarketIntelligenceOverviewPage() {
         <Skeleton height="300px" variant="rectangular" />
       </div>
     );
-  if (query.isError)
+  }
+
+  if (query.isError) {
     return (
       <EmptyState
         title={t("marketMain.error.title")}
@@ -125,7 +257,9 @@ export function MarketIntelligenceOverviewPage() {
         }
       />
     );
-  if (!data?.products?.length)
+  }
+
+  if (!data?.products?.length) {
     return (
       <EmptyState
         title={t("marketMain.empty.productsTitle")}
@@ -137,10 +271,11 @@ export function MarketIntelligenceOverviewPage() {
         }
       />
     );
+  }
 
-  const selectedProduct = data.selectedProduct;
   const currency = selectedProduct?.currency?.toUpperCase() || "JOD";
   const productName = (row) => localize(row.productName);
+
   const formatMetric = (metric) => {
     if (metric.value == null) return "—";
 
@@ -154,51 +289,69 @@ export function MarketIntelligenceOverviewPage() {
 
     return number.format(metric.value);
   };
+
   const productColumn = {
     key: "product",
     label: t("marketMain.tables.product"),
     render: productName
   };
+
   const competitorColumns = [
     productColumn,
     { key: "competitorName", label: t("marketMain.tables.competitor") },
     {
       key: "pricingScore",
       label: t("marketMain.tables.pricingScore"),
-      render: (row) => row.pricingScore == null ? "—" : `${number.format(row.pricingScore)} / 10`
+      render: (row) =>
+        row.pricingScore == null
+          ? "—"
+          : `${number.format(row.pricingScore)} / 10`
     },
     {
       key: "compositeScore",
       label: t("marketMain.tables.compositeScore"),
-      render: (row) => row.compositeScore == null ? "—" : `${number.format(row.compositeScore)} / 100`
+      render: (row) =>
+        row.compositeScore == null
+          ? "—"
+          : `${number.format(row.compositeScore)} / 100`
     },
     {
       key: "relevanceScore",
       label: t("marketMain.tables.relevanceScore"),
-      render: (row) => row.relevanceScore == null ? "—" : `${number.format(row.relevanceScore)} / 100`
+      render: (row) =>
+        row.relevanceScore == null
+          ? "—"
+          : `${number.format(row.relevanceScore)} / 100`
     },
     {
       key: "marketPresenceScore",
       label: t("marketMain.tables.presenceScore"),
-      render: (row) => row.marketPresenceScore == null ? "—" : `${number.format(row.marketPresenceScore)} / 100`
+      render: (row) =>
+        row.marketPresenceScore == null
+          ? "—"
+          : `${number.format(row.marketPresenceScore)} / 100`
     },
     {
       key: "marketPerception",
       label: t("marketMain.tables.perception"),
-      render: (row) => row.marketPerception == null ? "—" : (
-        <ToneBadge
-          value={row.marketPerception}
-          namespace={(value) => t(`marketMain.sentiments.${value}`)}
-        />
-      )
+      render: (row) =>
+        row.marketPerception == null ? (
+          "—"
+        ) : (
+          <ToneBadge
+            value={row.marketPerception}
+            namespace={(value) => t(`marketMain.sentiments.${value}`)}
+          />
+        )
     }
   ];
+
   const pricingColumns = [
     productColumn,
     {
       key: "currentPrice",
       label: t("marketMain.tables.currentPrice"),
-      render: (row) => money(row.currentPrice, currency)
+      render: (row) => money(row.currentPrice, row.currency || currency)
     },
     {
       key: "action",
@@ -213,40 +366,44 @@ export function MarketIntelligenceOverviewPage() {
     {
       key: "suggestedPrice",
       label: t("marketMain.tables.suggestedPrice"),
-      render: (row) => money(row.suggestedPrice, currency)
+      render: (row) => money(row.suggestedPrice, row.currency || currency)
     },
     {
       key: "marketMin",
       label: t("marketMain.tables.marketMin"),
-      render: (row) => money(row.marketMin, currency)
+      render: (row) => money(row.marketMin, row.currency || currency)
     },
     {
       key: "marketMax",
       label: t("marketMain.tables.marketMax"),
-      render: (row) => money(row.marketMax, currency)
+      render: (row) => money(row.marketMax, row.currency || currency)
     },
     {
       key: "marketAverage",
       label: t("marketMain.tables.marketAverage"),
-      render: (row) => money(row.marketAverage, currency)
+      render: (row) => money(row.marketAverage, row.currency || currency)
     },
     {
       key: "marketMedian",
       label: t("marketMain.tables.marketMedian"),
-      render: (row) => money(row.marketMedian, currency)
+      render: (row) => money(row.marketMedian, row.currency || currency)
     },
     {
       key: "matchedCompetitors",
       label: t("marketMain.tables.matchedCompetitors"),
-      render: (row) => number.format(row.matchedCompetitors)
+      render: (row) =>
+        row.matchedCompetitors == null
+          ? "—"
+          : number.format(row.matchedCompetitors)
     },
     {
       key: "explanation",
       label: t("marketMain.tables.explanation"),
       className: "market-main-table__explanation",
-      render: (row) => localize(row.explanation)
+      render: (row) => localize(row.explanation) || "—"
     }
   ];
+
   const changesColumns = [
     {
       key: "date",
@@ -286,6 +443,10 @@ export function MarketIntelligenceOverviewPage() {
       render: (row) => formatDate(row.detectedAt)
     }
   ];
+
+  const pricingMutationFailedForSelectedProduct =
+    pricingMutation.isError && pricingMutation.variables === selectedProductId;
+
   return (
     <div className="market-intelligence-main" dir={dir}>
       <PageHeader
@@ -321,7 +482,8 @@ export function MarketIntelligenceOverviewPage() {
         <select
           className="market-main-select"
           value={selectedProduct.id}
-          onChange={(event) => setProductId(event.target.value)}
+          onChange={handleProductChange}
+          disabled={pricingMutation.isPending}
         >
           {data.products.map((product) => (
             <option key={product.id} value={product.id}>
@@ -335,16 +497,14 @@ export function MarketIntelligenceOverviewPage() {
         className="market-main-metrics"
         aria-label={t("marketMain.metrics.label")}
       >
-        {data.metrics.map((metric) => {
-          return (
-            <MarketIntelligenceMetricCard
-              key={metric.id}
-              metric={metric}
-              label={t(`marketMain.metrics.${metric.id}`)}
-              value={formatMetric(metric)}
-            />
-          );
-        })}
+        {data.metrics.map((metric) => (
+          <MarketIntelligenceMetricCard
+            key={metric.id}
+            metric={metric}
+            label={t(`marketMain.metrics.${metric.id}`)}
+            value={formatMetric(metric)}
+          />
+        ))}
       </section>
 
       <section>
@@ -391,15 +551,29 @@ export function MarketIntelligenceOverviewPage() {
       <MarketIntelligenceSection
         title={t("marketMain.pricing.title")}
         subtitle={t("marketMain.pricing.subtitle")}
-        dataStatus={data.pricingRecommendations[0]?.dataStatus}
+        dataStatus={pricingRows[0]?.dataStatus}
         exportLabel={t("marketMain.actions.exportPdf")}
         exportDisabled={isExporting || query.isFetching}
         onExport={() => requestExport("pricing")}
+        actions={
+          <Button
+            size="sm"
+            variant="outline"
+            leadingIcon={<RefreshCw size={15} />}
+            onClick={handleGeneratePricingRecommendation}
+            disabled={!selectedProductId || pricingMutation.isPending}
+            aria-busy={isGeneratingPricing || undefined}
+          >
+            {hasRecommendation
+              ? t("marketMain.actions.refreshRecommendation")
+              : t("marketMain.actions.generateRecommendation")}
+          </Button>
+        }
       >
         <MarketIntelligenceTable
           className="is-pricing"
           columns={pricingColumns}
-          rows={data.pricingRecommendations}
+          rows={pricingRows}
           emptyState={empty(
             "marketMain.empty.pricingTitle",
             "marketMain.empty.pricingDescription"
@@ -454,13 +628,22 @@ export function MarketIntelligenceOverviewPage() {
         />
       </MarketIntelligenceSection>
 
-      {exportNotice && (
+      {(exportNotice || pricingMutationFailedForSelectedProduct) && (
         <div className="market-main-toast">
-          <Toast
-            variant="error"
-            message={t("marketMain.export.failed")}
-            onClose={() => setExportNotice(false)}
-          />
+          {exportNotice && (
+            <Toast
+              variant="error"
+              message={t("marketMain.export.failed")}
+              onClose={() => setExportNotice(false)}
+            />
+          )}
+          {pricingMutationFailedForSelectedProduct && (
+            <Toast
+              variant="error"
+              message={t("marketMain.error.description")}
+              onClose={() => pricingMutation.reset()}
+            />
+          )}
         </div>
       )}
     </div>

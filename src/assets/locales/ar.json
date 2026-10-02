@@ -546,6 +546,8 @@
       "label": "اختر المنتج"
     },
     "actions": {
+      "generateRecommendation": "Generate Recommendation",
+
       "dateRange": "النطاق الزمني",
       "exportPdf": "تصدير إلى PDF",
       "retry": "حاول مرة أخرى",
@@ -2187,7 +2189,8 @@
       "completed": "مكتمل",
       "processing": "قيد المعالجة",
       "needsAttention": "يحتاج إلى مراجعة",
-      "failed": "فشل"
+      "failed": "فشل",
+      "notsynced": "غير مرتبط"
     },
     "connected": {
       "title": "مصادر البيانات المتصلة",
@@ -2238,7 +2241,8 @@
       "csv": "CSV",
       "pdf": "PDF",
       "connection": "اتصال",
-      "excel": "Excel"
+      "excel": "Excel",
+      "file": "ملف"
     }
   },
   "dataConnections": {
@@ -2407,6 +2411,7 @@
       "low": "منخفضة"
     },
     "detailMetrics": {
+      "modelPerformance": "أداء النموذج",
       "currentStock": "المخزون الحالي",
       "expectedDemand": "الطلب المتوقع",
       "targetDate": "التاريخ المستهدف",

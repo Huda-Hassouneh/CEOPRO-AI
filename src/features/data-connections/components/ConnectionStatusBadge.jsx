@@ -11,6 +11,7 @@ const icons = {
 export function ConnectionStatusBadge({ status = "", t }) {
   const lowredStatus = status.toLowerCase();
   const Icon = icons[lowredStatus] || AlertTriangle;
+
   return (
     <span className={`connect-data-status is-${lowredStatus}`}>
       <Icon size={11} aria-hidden="true" />

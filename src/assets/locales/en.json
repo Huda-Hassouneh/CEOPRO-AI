@@ -547,6 +547,7 @@
       "label": "Select Product"
     },
     "actions": {
+      "generateRecommendation": "Generate Recommendation",
       "dateRange": "Date range",
       "exportPdf": "Export to PDF",
       "retry": "Try again",
@@ -2187,7 +2188,8 @@
       "completed": "Completed",
       "processing": "Processing",
       "needsAttention": "Needs Attention",
-      "failed": "Failed"
+      "failed": "Failed",
+      "notsynced": "Not Synced"
     },
     "connected": {
       "title": "Connected Data Sources",
@@ -2238,7 +2240,8 @@
       "csv": "CSV",
       "connection": "Connection",
       "pdf": "PDF",
-      "excel": "Excel"
+      "excel": "Excel",
+      "file": "File"
     }
   },
   "dataConnections": {
@@ -2407,6 +2410,7 @@
       "low": "Low"
     },
     "detailMetrics": {
+      "modelPerformance": "Model Performance",
       "currentStock": "Current Stock",
       "expectedDemand": "Expected Demand",
       "targetDate": "Target Date",
