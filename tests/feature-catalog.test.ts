@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   CANONICAL_FEATURES,
   CANONICAL_FEATURE_CODES
-} from "../src/modules/features/catalog.js";
+} from "../src/modules/features/types/feature.catalog.js";
 
 test("canonical catalog contains exactly 21 unique features", () => {
   assert.equal(CANONICAL_FEATURES.length, 21);

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkoutSchema } from "../src/DTO/checkout.dto.js";
+import { checkoutSchema } from "../src/modules/subscription/types/checkout.dto.js";
 
 test("checkout contract retains payment_method and rejects unknown fields", () => {
   const result = checkoutSchema.safeParse({

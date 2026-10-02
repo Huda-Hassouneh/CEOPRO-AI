@@ -4,10 +4,10 @@ import { readFileSync } from "node:fs";
 const read = (path) =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const pkg = JSON.parse(read("package.json"));
-const catalog = read("src/modules/features/catalog.ts");
+const catalog = read("src/modules/features/types/feature.catalog.ts");
 const usage = read("src/modules/features/repo/usage.repo.ts");
 const validator = read("src/validators/validateFeatures.ts");
-const routes = read("src/modules/features/routes/features.route.ts");
+const routes = read("src/modules/features/route/features.route.ts");
 const featureIndex = read("src/modules/features/index.ts");
 const bootstrap = read("prisma/bootstrap-features.ts");
 

@@ -2,21 +2,21 @@ import fs from "node:fs";
 
 const read = (file) => fs.readFileSync(file, "utf8");
 const schema = read("prisma/schema.prisma");
-const dto = read("src/DTO/customPlan.dto.ts");
+const dto = read("src/modules/subscription/types/custom-plan.dto.ts");
 const pricing = read("src/modules/subscription/service/custom-plan-pricing.service.ts");
 const policy = read("src/modules/subscription/service/custom-plan-policy.service.ts");
 const configurator = read("src/modules/subscription/service/custom-plan-configurator.service.ts");
 const customService = read("src/modules/subscription/service/custom-plan.service.ts");
 const customRepo = read("src/modules/subscription/repo/custom-plan.repo.ts");
-const customRoutes = read("src/modules/subscription/route/custom-plan.routes.ts");
-const platformRoutes = read("src/modules/platform-admin/platform-admin.routes.ts");
+const customRoutes = read("src/modules/subscription/route/custom-plan.route.ts");
+const platformRoutes = read("src/modules/platform-admin/route/platform-admin.route.ts");
 const plansRepo = read("src/modules/subscription/repo/plans.repo.ts");
 const plansService = read("src/modules/subscription/service/plans.service.ts");
 const transitionService = read("src/modules/subscription/service/plan-transition.service.ts");
 const webhookHandlers = read("src/utils/webhook handlers.ts");
 const checkout = read("src/modules/subscription/service/subscription.service.ts");
 const promoPlan = read("src/modules/subscription/service/promocodes-plans.service.ts");
-const stripe = read("src/modules/subscription/External Services/Payment providers/stripe/stripeService.ts");
+const stripe = read("src/modules/subscription/client/payment-providers/stripe/stripe.client.ts");
 
 const checks = [
   ["schema distinguishes standard and custom plans", schema.includes("enum PlanType") && schema.includes("planType") && schema.includes("tenantId")],

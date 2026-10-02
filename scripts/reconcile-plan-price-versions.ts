@@ -4,7 +4,7 @@
  * Run with the Stripe key for the same environment as this database.
  */
 import { prisma } from "../src/config/database.js";
-import { stripe } from "../src/modules/subscription/External Services/Payment providers/stripe/stripeService.js";
+import { stripe } from "../src/modules/subscription/client/payment-providers/stripe/stripe.client.js";
 import { fromStripeMinorUnits } from "../src/utils/currency.js";
 
 async function main() {

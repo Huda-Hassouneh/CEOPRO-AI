@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { optionPrice, validatePlanOptions } from "../src/modules/subscription/service/plan-pricing.ts";
+import { optionPrice, validatePlanOptions } from "../src/modules/subscription/service/plan-pricing.js";
 
 test("monthly, quarterly and semiannual prices are the actual renewal totals", () => {
   const options = validatePlanOptions([

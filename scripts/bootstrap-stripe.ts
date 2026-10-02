@@ -1,7 +1,7 @@
 import "dotenv/config";
 
-import { onBoardingService } from "../src/modules/subscription/service/service.js";
-import { getAppConfig } from "../src/modules/subscription/repo/repo.js";
+import { onBoardingService } from "../src/modules/subscription/service/onboarding.service.js";
+import { getAppConfig } from "../src/modules/subscription/repo/app-config.repo.js";
 import { configKeys } from "../src/config/keys.config.js";
 import { prisma } from "../src/config/database.js";
 

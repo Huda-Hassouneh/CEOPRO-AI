@@ -29,7 +29,7 @@ const subscriptionService = read(
 const subscriptionIndex = read("src/modules/subscription/index.ts");
 
 const stripeService = read(
-  "src/modules/subscription/External Services/Payment providers/stripe/stripeService.ts"
+  "src/modules/subscription/client/payment-providers/stripe/stripe.client.ts"
 );
 
 const webhookUtils = read("src/utils/webhook.ts");
@@ -64,7 +64,7 @@ const customPlanService = read(
 );
 
 const customPlanRoutes = read(
-  "src/modules/subscription/route/custom-plan.routes.ts"
+  "src/modules/subscription/route/custom-plan.route.ts"
 );
 
 const plansService = read("src/modules/subscription/service/plans.service.ts");
@@ -78,7 +78,7 @@ const promoPlanService = read(
 // -----------------------------------------------------------------------------
 
 const platformRoutes = read(
-  "src/modules/platform-admin/platform-admin.routes.ts"
+  "src/modules/platform-admin/route/platform-admin.route.ts"
 );
 
 const validatePlatformUser = read("src/validators/validatePlatformUser.ts");
@@ -97,7 +97,7 @@ const ownerWriteService = read(
   "src/modules/owner-portal/service/owner-write.service.ts"
 );
 
-const platformRoles = read("src/modules/owner-portal/platform-roles.ts");
+const platformRoles = read("src/modules/owner-portal/types/platform-roles.ts");
 
 // -----------------------------------------------------------------------------
 // Checks
