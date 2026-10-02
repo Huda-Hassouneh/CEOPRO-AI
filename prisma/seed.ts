@@ -361,16 +361,18 @@ async function main() {
   const forecasts = products
     .filter((_, i) => i % 9 !== 0)
     .flatMap((p, productIndex) => {
-      const rows = [];
+      const rows: any[] = [];
 
-      // Previous 30-day forecast:
-      // today - 30 days through yesterday.
+      /*
+       * Previous 30 daily forecasts:
+       * today - 30 days through yesterday.
+       *
+       * Keep these for historical chart/trend testing.
+       */
       for (let day = 0; day < 30; day++) {
         const forecastDate = ago(30 - day);
-
         const baseDemand = 2 + (productIndex % 8);
 
-        // Deterministic daily variation.
         const dailyDemand =
           baseDemand + ((day + productIndex) % 4) + Math.floor(day / 10);
 
@@ -379,7 +381,6 @@ async function main() {
           tenant_id: p.tenant_id,
           product_id: p.product_id,
 
-          // A daily forecast is represented by a one-day interval.
           forecast_start_date: forecastDate,
           forecast_end_date: forecastDate,
           forecast_target_date: forecastDate,
@@ -397,20 +398,28 @@ async function main() {
             horizon: "previous-30-days"
           },
 
-          // Ensure the prediction existed before the forecasted date.
+          // Prediction existed before its forecast date.
           created_at: ago(31)
         });
       }
 
-      // Current / future 30-day forecast:
-      // today through today + 29 days.
+      /*
+       * Current/future daily forecasts:
+       * today through today + 29 days.
+       *
+       * These remain the source for daily charts.
+       */
+      const currentDaily: Array<{
+        date: Date;
+        expectedDemand: number;
+      }> = [];
+
       for (let day = 0; day < 30; day++) {
         const forecastDate = ago(-day);
-
         const baseDemand = 3 + (productIndex % 9);
 
         /*
-         * Produce deterministic examples of all three trends:
+         * Deterministic fixture trends:
          *
          * productIndex % 3 === 0 -> increasing
          * productIndex % 3 === 1 -> decreasing
@@ -431,6 +440,11 @@ async function main() {
             dailyDemand = baseDemand;
             break;
         }
+
+        currentDaily.push({
+          date: forecastDate,
+          expectedDemand: dailyDemand
+        });
 
         rows.push({
           forecast_id: uuid(`forecast:${p.product_id}:current:${day}`),
@@ -458,8 +472,163 @@ async function main() {
         });
       }
 
+      /*
+       * Add one model-level forecast for a requested horizon.
+       *
+       * IMPORTANT:
+       * The confidence range below is synthetic fixture data only.
+       * Production values must be supplied/calibrated by the forecasting model.
+       *
+       * Do NOT derive production confidence bounds by summing the daily
+       * lower/upper bounds.
+       */
+      const addHorizonForecast = (horizonDays: 7 | 30) => {
+        const horizon = currentDaily.slice(0, horizonDays);
+
+        if (horizon.length !== horizonDays) {
+          return;
+        }
+
+        const expectedDemand = horizon.reduce(
+          (sum, item) => sum + item.expectedDemand,
+          0
+        );
+
+        /*
+         * Synthetic uncertainty solely for DEV/TEST fixtures.
+         *
+         * This is NOT intended to represent a statistically calibrated
+         * production confidence interval.
+         */
+        const fixtureMargin = Math.max(3, Math.ceil(expectedDemand * 0.12));
+
+        const startDate = horizon[0]!.date;
+        const endDate = horizon[horizon.length - 1]!.date;
+
+        rows.push({
+          forecast_id: uuid(
+            `forecast:${p.product_id}:current-horizon:${horizonDays}`
+          ),
+
+          tenant_id: p.tenant_id,
+          product_id: p.product_id,
+
+          /*
+           * One row represents the TOTAL forecast for the entire horizon.
+           */
+          forecast_start_date: startDate,
+          forecast_end_date: endDate,
+
+          /*
+           * A multi-day forecast already has an explicit start/end window.
+           * Leave target_date null to avoid treating it like a daily forecast.
+           */
+          forecast_target_date: null,
+
+          expected_demand: expectedDemand,
+
+          confidence_range_lower: Math.max(0, expectedDemand - fixtureMargin),
+
+          confidence_range_upper: expectedDemand + fixtureMargin,
+
+          model_version: `synthetic-integration-v3-${horizonDays}d-horizon`,
+
+          features_used: {
+            fixture: true,
+
+            granularity: "horizon",
+
+            horizon_days: horizonDays,
+
+            /*
+             * Makes it explicit that these bounds are test data,
+             * not actual calibrated AI output.
+             */
+            confidence_source: "synthetic-fixture-only"
+          },
+
+          created_at: now
+        });
+      };
+
+      /*
+       * These are the rows your new calculations code will prefer
+       * for summary metrics.
+       */
+      addHorizonForecast(7);
+      addHorizonForecast(30);
+
       return rows;
     });
+
+  await chunk(forecasts, (batch) =>
+    prisma.demand_forecasts.createMany({
+      data: batch,
+      skipDuplicates: true
+    })
+  );
+  /*
+   * Stored inventory recommendations.
+   *
+   * Recommendations are attached to the explicit 7-day and 30-day horizon
+   * forecasts, because those are the forecasts used by the demand summary.
+   *
+   * These are deterministic DEV/TEST fixtures only. In production the AI /
+   * forecasting pipeline must generate the recommendation.
+   */
+  const recommendationForecasts = forecasts.filter(
+    (forecast) =>
+      forecast.model_version === "synthetic-integration-v3-7d-horizon" ||
+      forecast.model_version === "synthetic-integration-v3-30d-horizon"
+  );
+
+  const recommendations = recommendationForecasts.map((forecast, index) => {
+    /*
+     * Produce examples of every supported recommendation type.
+     *
+     * The forecasting service only accepts:
+     *   restock
+     *   reduce
+     *   monitor
+     */
+    const action =
+      index % 3 === 0 ? "restock" : index % 3 === 1 ? "reduce" : "monitor";
+
+    return {
+      recommendation_id: uuid(`recommendation:${forecast.forecast_id}`),
+
+      tenant_id: forecast.tenant_id,
+      forecast_id: forecast.forecast_id,
+
+      recommended_action: action,
+
+      expected_impact_json: {
+        fixture: true,
+        source: "synthetic-demand-forecast",
+        horizon:
+          forecast.model_version === "synthetic-integration-v3-7d-horizon"
+            ? "7-days"
+            : "30-days"
+      },
+
+      user_decision: "PENDING",
+
+      actual_outcome_json: {
+        fixture: true,
+        status: "not_observed"
+      },
+
+      created_at: now,
+      updated_at: now
+    };
+  });
+
+  await chunk(recommendations, (batch) =>
+    prisma.recommendation_outcomes.createMany({
+      data: batch,
+      skipDuplicates: true
+    })
+  );
   await chunk(forecasts, (batch) =>
     prisma.demand_forecasts.createMany({ data: batch, skipDuplicates: true })
   );
