@@ -1,6 +1,6 @@
 import type { NextFunction, Response } from "express";
 import { ERROR_CODES } from "../errors/error-codes.js";
-import { stripeService } from "../modules/subscription/External Services/Payment providers/stripe/stripeService.js";
+import { stripeService } from "../modules/subscription/client/payment-providers/stripe/stripe.client.js";
 import type { AppRequest } from "../types/request.js";
 import { sendApiError } from "../utils/http.js";
 
