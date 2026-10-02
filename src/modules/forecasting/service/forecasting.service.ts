@@ -2,27 +2,94 @@ import { loadForecastData } from "../repo/forecasting.repo.js";
 import {
   addDays,
   dayKey,
-  forecastWindow,
   finiteNumber,
+  forecastWindow,
+  forecastWindowDays,
   interval,
   latestForecasts,
   summarizeForecasts,
   utcDay
 } from "./forecasting.calculations.js";
-
 type Snapshot = Awaited<ReturnType<typeof loadForecastData>>;
 type StoredForecast = Snapshot["forecasts"][number];
+type StoredModelVersion = Snapshot["modelVersions"][number];
 
+type ModelPerformance = {
+  modelVersionId: string;
+  modelName: string;
+  version: string;
+  status: string;
+  trainedAt: string | null;
+  mae: number | null;
+  rmse: number | null;
+  mase: number | null;
+  nFolds: number | null;
+  baselineScores: Record<string, unknown> | null;
+};
 const groupByProduct = <T extends { product_id: string }>(rows: T[]) => {
   const groups = new Map<string, T[]>();
-
   for (const row of rows) {
     const group = groups.get(row.product_id) ?? [];
     group.push(row);
     groups.set(row.product_id, group);
   }
-
   return groups;
+};
+const jsonObject = (value: unknown): Record<string, unknown> | null => {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+};
+
+const resolveModelPerformance = (
+  rows: StoredForecast[],
+  modelVersions: StoredModelVersion[]
+): ModelPerformance | null => {
+  const versions = [
+    ...new Set(
+      rows
+        .map((row) => row.model_version?.trim())
+        .filter(
+          (version): version is string =>
+            typeof version === "string" && version.length > 0
+        )
+    )
+  ];
+
+  // One requested horizon must resolve to one model version. Do not combine
+  // evaluation metrics from different model versions.
+  if (versions.length !== 1) return null;
+
+  const matches = modelVersions.filter(
+    (modelVersion) => modelVersion.version === versions[0]
+  );
+
+  // model_versions.version is not currently guaranteed unique by the schema.
+  // Refuse to guess when the registry contains an ambiguous match.
+  if (matches.length !== 1) return null;
+
+  const modelVersion = matches[0];
+  const metrics = jsonObject(modelVersion.metrics);
+  if (!metrics) return null;
+
+  const nFoldsValue = finiteNumber(metrics.n_folds);
+
+  return {
+    modelVersionId: modelVersion.model_version_id,
+    modelName: modelVersion.model_name,
+    version: modelVersion.version,
+    status: modelVersion.status,
+    trainedAt: modelVersion.trained_at?.toISOString() ?? null,
+    mae: finiteNumber(metrics.mae),
+    rmse: finiteNumber(metrics.rmse),
+    mase: finiteNumber(metrics.mase),
+    nFolds:
+      nFoldsValue != null && Number.isInteger(nFoldsValue) && nFoldsValue >= 0
+        ? nFoldsValue
+        : null,
+    baselineScores: jsonObject(metrics.baseline_scores)
+  };
 };
 
 const recommendation = (
@@ -33,25 +100,22 @@ const recommendation = (
   const candidates = rows.flatMap((forecast) =>
     forecast.recommendation_outcomes.map((result) => ({ forecast, result }))
   );
-
   candidates.sort(
     (a, b) =>
       (b.result.created_at?.getTime() ?? 0) -
         (a.result.created_at?.getTime() ?? 0) ||
       b.result.recommendation_id.localeCompare(a.result.recommendation_id)
   );
-
   const candidate = candidates[0];
   if (!candidate) return null;
-
   const { forecast, result } = candidate;
-
   // Do not invent action thresholds or interpret arbitrary JSON as ML output.
   const action = result.recommended_action?.trim().toLowerCase();
-  if (!action || !["restock", "reduce", "monitor"].includes(action)) return null;
-
-  const window = forecastWindow(forecast)!;
-
+  if (!action || !["restock", "reduce", "monitor"].includes(action)) {
+    return null;
+  }
+  const window = forecastWindow(forecast);
+  if (!window) return null;
   return {
     id: result.recommendation_id,
     action,
@@ -68,11 +132,10 @@ const recommendation = (
     generatedAt: result.created_at?.toISOString() ?? null
   };
 };
-
 const serialize = (forecast: StoredForecast) => {
-  const window = forecastWindow(forecast)!;
+  const window = forecastWindow(forecast);
+  if (!window) return null;
   const bounds = interval(forecast);
-
   return {
     id: forecast.forecast_id,
     date: dayKey(window.start),
@@ -86,7 +149,6 @@ const serialize = (forecast: StoredForecast) => {
     generatedAt: forecast.created_at?.toISOString() ?? null
   };
 };
-
 function productSummary(
   product: Snapshot["products"][number],
   inventory: Snapshot["inventory"],
@@ -96,12 +158,10 @@ function productSummary(
   now: Date
 ) {
   const summary = summarizeForecasts(forecasts, start, days, now);
-
   // Inventory rows are warehouse positions, so stock is additive across rows.
   const currentStock = inventory.length
     ? inventory.reduce((sum, row) => sum + row.stock_quantity, 0)
     : null;
-
   // Missing safety stock is unknown, not zero. Only expose an aggregate when
   // every contributing inventory row has a finite safety-stock value.
   const safetyValues = inventory.map((row) => finiteNumber(row.safety_stock));
@@ -110,21 +170,46 @@ function productSummary(
   const safetyStock = hasCompleteSafetyStock
     ? safetyValues.reduce<number>((sum, value) => sum + value!, 0)
     : null;
-
+  /*
+   * Summary metrics and recommendations must use only the rows selected by the
+   * calculations layer for this exact requested horizon.
+   *
+   * When the requested horizon is represented by multiple daily rows, there is
+   * no single horizon-level recommendation whose suggested quantity can safely
+   * be treated as the recommendation for the entire period. In that case keep
+   * the recommendation unavailable instead of borrowing one daily result.
+   */
+  const recommendationRows =
+    summary.status === "complete" && summary.summaryRows.length === 1
+      ? summary.summaryRows
+      : [];
   const rec = recommendation(
-    summary.status === "overlapping"
-      ? []
-      : summary.selected.filter((forecast) => {
-          const window = forecastWindow(forecast)!;
-          return (
-            window.start >= start &&
-            window.end <= addDays(start, days - 1)
-          );
-        }),
+    recommendationRows as StoredForecast[],
     currentStock,
     safetyStock
   );
-
+  const targetDate =
+    summary.status === "complete" && summary.summaryRows.length
+      ? dayKey(
+          new Date(
+            Math.max(
+              ...summary.summaryRows.map((forecast) =>
+                forecastWindow(forecast)!.end.getTime()
+              )
+            )
+          )
+        )
+      : null;
+  /*
+   * Keep daily rows available for charts independently from the horizon row
+   * used by the summary cards. Multi-day rows are not daily chart points.
+   */
+  const dailyForecasts = summary.selected
+    .filter((forecast) => forecastWindowDays(forecast) === 1)
+    .map(serialize)
+    .filter(
+      (forecast): forecast is NonNullable<typeof forecast> => forecast != null
+    );
   return {
     id: product.product_id,
     name: product.product_name,
@@ -132,17 +217,7 @@ function productSummary(
     currentStock,
     safetyStock,
     expectedDemand: summary.expectedDemand,
-    targetDate: summary.selected.length
-      ? dayKey(
-          new Date(
-            Math.max(
-              ...summary.selected.map(
-                (forecast) => forecastWindow(forecast)!.end.getTime()
-              )
-            )
-          )
-        )
-      : null,
+    targetDate,
     trend: summary.trend,
     confidenceRange: summary.confidenceRange,
     recommendedAction: rec?.action ?? null,
@@ -156,11 +231,10 @@ function productSummary(
       coveredDays: summary.coveredDays,
       periodDays: days
     },
-    forecast: summary.selected.map(serialize),
+    forecast: dailyForecasts,
     recommendation: rec
   };
 }
-
 export const getDemandOverview = async (
   tenantId: string,
   periodDays: number,
@@ -170,7 +244,6 @@ export const getDemandOverview = async (
   const now = new Date();
   const start = utcDay(now);
   const end = addDays(start, periodDays - 1);
-
   // Load one preceding horizon as well as the requested horizon. Interval-based
   // forecasts need the preceding comparable period to derive increase/decrease/
   // stable without inventing daily values from an aggregate forecast.
@@ -182,20 +255,17 @@ export const getDemandOverview = async (
     end,
     productId
   );
-
   if (
     productId !== "all" &&
     !snapshot.products.some((product) => product.product_id === productId)
   ) {
     return null;
   }
-
   const stocks = groupByProduct(snapshot.inventory);
   const forecasts = groupByProduct(snapshot.forecasts);
   const selected = snapshot.products.filter(
     (product) => productId === "all" || product.product_id === productId
   );
-
   const rows = selected.map((product) =>
     productSummary(
       product,
@@ -206,37 +276,28 @@ export const getDemandOverview = async (
       now
     )
   );
-
   const completeRows = rows.filter(
     (product) =>
       product.coverage.status === "complete" && product.expectedDemand != null
   );
-
   // Do not blank the tenant-wide forecast merely because one catalog product
   // has no forecast. Sum only products with a complete requested horizon; the
   // productsForecasted metric exposes exactly how many products contributed.
   const total = completeRows.length
-    ? completeRows.reduce(
-        (sum, product) => sum + product.expectedDemand!,
-        0
-      )
+    ? completeRows.reduce((sum, product) => sum + product.expectedDemand!, 0)
     : null;
-
   const points = Array.from({ length: periodDays }, (_, index) => {
     const date = dayKey(addDays(start, index));
-    const values = rows.map((product) =>
-      product.coverage.status === "overlapping"
-        ? null
-        : product.forecast.find(
-              (forecast) =>
-                forecast.date === date && forecast.endDate === date
-            )?.forecastedDemand ?? null
+    const values = rows.map(
+      (product) =>
+        product.forecast.find(
+          (forecast) => forecast.date === date && forecast.endDate === date
+        )?.forecastedDemand ?? null
     );
     const coveredProducts = values.filter((value) => value != null).length;
-
-    // A stored multi-day interval is a horizon total, not a daily value. Keep
-    // daily chart points null unless every selected product has an actual daily
-    // forecast for that date.
+    // Multi-day horizon forecasts are aggregate totals and must never be smeared
+    // across chart days. A chart point exists only when every selected product
+    // has an actual daily forecast for that date.
     return {
       date,
       value:
@@ -247,9 +308,7 @@ export const getDemandOverview = async (
       totalProducts: rows.length
     };
   });
-
   const hasTrend = rows.some((product) => product.trend != null);
-
   return {
     companyId: tenantId,
     generatedAt: now.toISOString(),
@@ -296,12 +355,11 @@ export const getDemandOverview = async (
         ? "estimated"
         : null
     },
-    forecasts: rows.map(({ forecast, recommendation: _recommendation, ...product }) =>
-      product
+    forecasts: rows.map(
+      ({ forecast, recommendation: _recommendation, ...product }) => product
     )
   };
 };
-
 export const getDemandDetail = async (
   tenantId: string,
   productId: string,
@@ -312,7 +370,6 @@ export const getDemandDetail = async (
   const start = utcDay(now);
   const end = addDays(start, periodDays - 1);
   const historyStart = addDays(start, -30);
-
   const snapshot = await loadForecastData(
     tenantId,
     userId,
@@ -321,12 +378,10 @@ export const getDemandDetail = async (
     productId,
     true
   );
-
   const product = snapshot.products.find(
     (candidate) => candidate.product_id === productId
   );
   if (!product) return null;
-
   const summary = productSummary(
     product,
     snapshot.inventory,
@@ -335,7 +390,6 @@ export const getDemandDetail = async (
     periodDays,
     now
   );
-
   const historical = latestForecasts(
     snapshot.forecasts.filter((forecast) => {
       const window = forecastWindow(forecast);
@@ -351,24 +405,24 @@ export const getDemandDetail = async (
     }),
     now
   );
-
   const future = latestForecasts(snapshot.forecasts, now).filter((forecast) => {
-    const window = forecastWindow(forecast)!;
-    return window.start <= end && window.end >= start;
+    const window = forecastWindow(forecast);
+    return window != null && window.start <= end && window.end >= start;
   });
-
-  const historyRows = [...historical, ...future].map(serialize);
+  const historyRows = [...historical, ...future]
+    .map(serialize)
+    .filter(
+      (forecast): forecast is NonNullable<typeof forecast> => forecast != null
+    );
   const actuals = new Map(
     snapshot.history
       .filter((row) => row.date < dayKey(start))
       .map((row) => [row.date, Number(row.units)])
   );
-
   // These are recorded units only: absent transaction dates are unknown, not
   // zero sales.
   for (const row of historyRows) {
     if (row.endDate >= dayKey(start)) continue;
-
     const observations = [...actuals].filter(
       ([date]) => date >= row.date && date <= row.endDate
     );
@@ -376,32 +430,37 @@ export const getDemandDetail = async (
       ? observations.reduce((sum, [, units]) => sum + units, 0)
       : null;
   }
-
+  /*
+   * Chart only true daily forecasts. A 7-day/30-day aggregate forecast may
+   * overlap those dates, but that is expected and must not hide the daily series.
+   */
   const dailyForecasts = new Map(
     historyRows
       .filter((forecast) => forecast.date === forecast.endDate)
       .map((forecast) => [forecast.date, forecast])
   );
-
   const points = Array.from({ length: 30 + periodDays }, (_, index) => {
     const date = dayKey(addDays(historyStart, index));
     const row = dailyForecasts.get(date);
-    const overlapping = historyRows.some(
-      (forecast) =>
-        forecast.date !== forecast.endDate &&
-        forecast.date <= date &&
-        forecast.endDate >= date
-    );
-
     return {
       date,
       actual: actuals.get(date) ?? null,
-      forecast: overlapping ? null : row?.forecastedDemand ?? null,
-      lower: overlapping ? null : row?.lowerBound ?? null,
-      upper: overlapping ? null : row?.upperBound ?? null
+      forecast: row?.forecastedDemand ?? null,
+      lower: row?.lowerBound ?? null,
+      upper: row?.upperBound ?? null
     };
   });
-
+  const hasForecastChartData = points.some((point) => point.forecast != null);
+  const detailForecastSummary = summarizeForecasts(
+    snapshot.forecasts,
+    start,
+    periodDays,
+    now
+  );
+  const modelPerformance = resolveModelPerformance(
+    detailForecastSummary.summaryRows as StoredForecast[],
+    snapshot.modelVersions
+  );
   return {
     companyId: tenantId,
     generatedAt: now.toISOString(),
@@ -444,17 +503,22 @@ export const getDemandDetail = async (
         format: "range"
       },
       {
-        id: "modelAccuracy",
-        value: null,
-        dataStatus: null,
-        format: "percent"
+        id: "modelPerformance",
+        value: modelPerformance?.mase ?? null,
+        dataStatus: modelPerformance?.mase != null ? "estimated" : null,
+        format: "decimal",
+        metric: "MASE",
+        lowerIsBetter: true
       }
     ],
-    chart: { points, dataStatus: summary.dataStatus },
+    chart: {
+      points,
+      dataStatus: hasForecastChartData ? "estimated" : null
+    },
     forecastHistory: historyRows,
     recommendation: summary.recommendation,
     aiInsight: null,
-    modelPerformance: null,
+    modelPerformance,
     pipelineStatus: "unavailable"
   };
 };
