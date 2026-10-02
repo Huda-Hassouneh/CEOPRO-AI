@@ -1,16 +1,18 @@
 import express from "express";
 import cors from "cors";
 import { getCorsOrigins } from "./config/env.js";
-import subscriptionModuleRouter from "./modules/subscription/index.js";
+import subscriptionModuleRouter, { stripeWebhookRouter as stripeRouter } from "./modules/subscription/index.js";
 import dashboard from "./modules/dashboard/index.js";
 import marketInt from "./modules/market-intelligence/index.js";
-import competitors from "./modules/competitors/route.js";
+import competitors from "./modules/competitors/index.js";
 import dataconnection from "./modules/dataconnection/index.js";
 import forecasting from "./modules/forecasting/index.js";
-import leaderboard from "./modules/opputunities/route.js";
+import pricing from "./modules/pricing/index.js";
+import sentiment from "./modules/sentiment/index.js";
+import mpi from "./modules/mpi/index.js";
+import leaderboard from "./modules/opportunities/index.js";
 import featureModuleRouter from "./modules/features/index.js";
-import platformAdminRouter from "./modules/platform-admin/platform-admin.routes.js";
-import stripeRouter from "./modules/subscription/External Services/Payment providers/stripe/stripeRoutes.js";
+import platformAdminRouter from "./modules/platform-admin/index.js";
 import {
   globalErrorHandler,
   notFoundHandler
@@ -44,6 +46,9 @@ app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "1mb" }));
 
 app.use("/platform-admin", platformAdminRouter);
 app.use("/subscription", subscriptionModuleRouter);
+app.use("/features/pricing", pricing);
+app.use("/features/sentiment", sentiment);
+app.use("/features/mpi", mpi);
 app.use("/", featureModuleRouter);
 app.use("/", dashboard);
 app.use("/", forecasting);
