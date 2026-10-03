@@ -29,12 +29,12 @@
 
 ## Customer / Product Experience
 
-- [ ] **Alert / notification system**
-  - [ ] Define which customer/admin events should generate alerts.
+- [x] **Alert / notification system**
+  - [x] Define which customer/admin events should generate alerts.
 
-  - [ ] Add alert delivery and persistence rules.
+  - [x] Add alert delivery and persistence rules.
 
-  - [ ] Add user-facing alert/notification UI where required.
+  - [x] Add user-facing alert/notification UI where required.
 
 - [ ] **Invitation system completion**
   - [ ] Finalize the public auth/invitation route mounting decision.
@@ -425,4 +425,4 @@
 
 ---
 
-_\_Last updated: 2026-10-02\__
+\_\_Last updated: 2026-10-02\_\_

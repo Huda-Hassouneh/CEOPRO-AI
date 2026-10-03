@@ -49,16 +49,16 @@ Stripe is the payment source of truth. CEOPRO remains authoritative for tenant o
 
 The current backend maps Stripe statuses into CEOPRO statuses as follows:
 
-| Stripe state | CEOPRO state | Access granted? | Business meaning |
-|---|---|---:|---|
-| `trialing` | `trialing` | Yes | Customer is inside a valid free trial. |
-| `active` | `active` | Yes | Subscription is commercially active. |
-| `past_due` | `past_due` | **No** | Renewal/payment is overdue but Stripe may still retry. |
-| `incomplete` | `pending` | **No** | Initial subscription payment/authentication is incomplete. |
-| `unpaid` | `payment_failed` | **No** | Stripe considers collection unsuccessful after recovery attempts. |
-| `paused` | `paused` | **No** | Subscription exists but access is suspended. |
-| `canceled` | `cancelled` | **No** | Subscription has ended. |
-| `incomplete_expired` | `expired` | **No** | Initial incomplete subscription expired. |
+| Stripe state         | CEOPRO state     | Access granted? | Business meaning                                                  |
+| -------------------- | ---------------- | --------------: | ----------------------------------------------------------------- |
+| `trialing`           | `trialing`       |             Yes | Customer is inside a valid free trial.                            |
+| `active`             | `active`         |             Yes | Subscription is commercially active.                              |
+| `past_due`           | `past_due`       |          **No** | Renewal/payment is overdue but Stripe may still retry.            |
+| `incomplete`         | `pending`        |          **No** | Initial subscription payment/authentication is incomplete.        |
+| `unpaid`             | `payment_failed` |          **No** | Stripe considers collection unsuccessful after recovery attempts. |
+| `paused`             | `paused`         |          **No** | Subscription exists but access is suspended.                      |
+| `canceled`           | `cancelled`      |          **No** | Subscription has ended.                                           |
+| `incomplete_expired` | `expired`        |          **No** | Initial incomplete subscription expired.                          |
 
 The entitlement layer currently grants subscription-based access only for:
 
