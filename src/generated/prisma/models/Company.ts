@@ -274,6 +274,9 @@ export type CompanyWhereInput = {
   tenant_competitors?: Prisma.Tenant_competitorsListRelationFilter
   tenantUsers?: Prisma.TenantUserListRelationFilter
   transactions?: Prisma.TransactionsListRelationFilter
+  platformNotificationsReceived?: Prisma.PlatformNotificationListRelationFilter
+  platformNotificationsSourced?: Prisma.PlatformNotificationListRelationFilter
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxListRelationFilter
 }
 
 export type CompanyOrderByWithRelationInput = {
@@ -316,6 +319,9 @@ export type CompanyOrderByWithRelationInput = {
   tenant_competitors?: Prisma.tenant_competitorsOrderByRelationAggregateInput
   tenantUsers?: Prisma.TenantUserOrderByRelationAggregateInput
   transactions?: Prisma.transactionsOrderByRelationAggregateInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationOrderByRelationAggregateInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationOrderByRelationAggregateInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxOrderByRelationAggregateInput
 }
 
 export type CompanyWhereUniqueInput = Prisma.AtLeast<{
@@ -361,6 +367,9 @@ export type CompanyWhereUniqueInput = Prisma.AtLeast<{
   tenant_competitors?: Prisma.Tenant_competitorsListRelationFilter
   tenantUsers?: Prisma.TenantUserListRelationFilter
   transactions?: Prisma.TransactionsListRelationFilter
+  platformNotificationsReceived?: Prisma.PlatformNotificationListRelationFilter
+  platformNotificationsSourced?: Prisma.PlatformNotificationListRelationFilter
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxListRelationFilter
 }, "id">
 
 export type CompanyOrderByWithAggregationInput = {
@@ -445,6 +454,9 @@ export type CompanyCreateInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateInput = {
@@ -487,6 +499,9 @@ export type CompanyUncheckedCreateInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUpdateInput = {
@@ -529,6 +544,9 @@ export type CompanyUpdateInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateInput = {
@@ -571,6 +589,9 @@ export type CompanyUncheckedUpdateInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateManyInput = {
@@ -1068,6 +1089,50 @@ export type CompanyUpdateOneRequiredWithoutTransactionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutTransactionsInput, Prisma.CompanyUpdateWithoutTransactionsInput>, Prisma.CompanyUncheckedUpdateWithoutTransactionsInput>
 }
 
+export type CompanyCreateNestedOneWithoutPlatformNotificationsReceivedInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutPlatformNotificationsReceivedInput
+  connect?: Prisma.CompanyWhereUniqueInput
+}
+
+export type CompanyCreateNestedOneWithoutPlatformNotificationsSourcedInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutPlatformNotificationsSourcedInput
+  connect?: Prisma.CompanyWhereUniqueInput
+}
+
+export type CompanyUpdateOneRequiredWithoutPlatformNotificationsReceivedNestedInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutPlatformNotificationsReceivedInput
+  upsert?: Prisma.CompanyUpsertWithoutPlatformNotificationsReceivedInput
+  connect?: Prisma.CompanyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUpdateWithoutPlatformNotificationsReceivedInput>, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput>
+}
+
+export type CompanyUpdateOneWithoutPlatformNotificationsSourcedNestedInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutPlatformNotificationsSourcedInput
+  upsert?: Prisma.CompanyUpsertWithoutPlatformNotificationsSourcedInput
+  disconnect?: Prisma.CompanyWhereInput | boolean
+  delete?: Prisma.CompanyWhereInput | boolean
+  connect?: Prisma.CompanyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUpdateWithoutPlatformNotificationsSourcedInput>, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput>
+}
+
+export type CompanyCreateNestedOneWithoutPlatformNotificationOutboxInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutPlatformNotificationOutboxInput
+  connect?: Prisma.CompanyWhereUniqueInput
+}
+
+export type CompanyUpdateOneRequiredWithoutPlatformNotificationOutboxNestedInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutPlatformNotificationOutboxInput
+  upsert?: Prisma.CompanyUpsertWithoutPlatformNotificationOutboxInput
+  connect?: Prisma.CompanyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutPlatformNotificationOutboxInput, Prisma.CompanyUpdateWithoutPlatformNotificationOutboxInput>, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput>
+}
+
 export type CompanyCreateWithoutCustomPlansInput = {
   id?: string
   businessName: string
@@ -1107,6 +1172,9 @@ export type CompanyCreateWithoutCustomPlansInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutCustomPlansInput = {
@@ -1148,6 +1216,9 @@ export type CompanyUncheckedCreateWithoutCustomPlansInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutCustomPlansInput = {
@@ -1205,6 +1276,9 @@ export type CompanyUpdateWithoutCustomPlansInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutCustomPlansInput = {
@@ -1246,6 +1320,9 @@ export type CompanyUncheckedUpdateWithoutCustomPlansInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutSubscriptionsInput = {
@@ -1287,6 +1364,9 @@ export type CompanyCreateWithoutSubscriptionsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutSubscriptionsInput = {
@@ -1328,6 +1408,9 @@ export type CompanyUncheckedCreateWithoutSubscriptionsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutSubscriptionsInput = {
@@ -1385,6 +1468,9 @@ export type CompanyUpdateWithoutSubscriptionsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutSubscriptionsInput = {
@@ -1426,6 +1512,9 @@ export type CompanyUncheckedUpdateWithoutSubscriptionsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutCustomPlanQuotesInput = {
@@ -1467,6 +1556,9 @@ export type CompanyCreateWithoutCustomPlanQuotesInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutCustomPlanQuotesInput = {
@@ -1508,6 +1600,9 @@ export type CompanyUncheckedCreateWithoutCustomPlanQuotesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutCustomPlanQuotesInput = {
@@ -1565,6 +1660,9 @@ export type CompanyUpdateWithoutCustomPlanQuotesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutCustomPlanQuotesInput = {
@@ -1606,6 +1704,9 @@ export type CompanyUncheckedUpdateWithoutCustomPlanQuotesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutTenantUsersInput = {
@@ -1647,6 +1748,9 @@ export type CompanyCreateWithoutTenantUsersInput = {
   system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutTenantUsersInput = {
@@ -1688,6 +1792,9 @@ export type CompanyUncheckedCreateWithoutTenantUsersInput = {
   system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutTenantUsersInput = {
@@ -1745,6 +1852,9 @@ export type CompanyUpdateWithoutTenantUsersInput = {
   system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutTenantUsersInput = {
@@ -1786,6 +1896,9 @@ export type CompanyUncheckedUpdateWithoutTenantUsersInput = {
   system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutPlatformInvitationsInput = {
@@ -1827,6 +1940,9 @@ export type CompanyCreateWithoutPlatformInvitationsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutPlatformInvitationsInput = {
@@ -1868,6 +1984,9 @@ export type CompanyUncheckedCreateWithoutPlatformInvitationsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutPlatformInvitationsInput = {
@@ -1925,6 +2044,9 @@ export type CompanyUpdateWithoutPlatformInvitationsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutPlatformInvitationsInput = {
@@ -1966,6 +2088,9 @@ export type CompanyUncheckedUpdateWithoutPlatformInvitationsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutAuthSessionsInput = {
@@ -2007,6 +2132,9 @@ export type CompanyCreateWithoutAuthSessionsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutAuthSessionsInput = {
@@ -2048,6 +2176,9 @@ export type CompanyUncheckedCreateWithoutAuthSessionsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutAuthSessionsInput = {
@@ -2105,6 +2236,9 @@ export type CompanyUpdateWithoutAuthSessionsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutAuthSessionsInput = {
@@ -2146,6 +2280,9 @@ export type CompanyUncheckedUpdateWithoutAuthSessionsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutData_sourcesInput = {
@@ -2187,6 +2324,9 @@ export type CompanyCreateWithoutData_sourcesInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutData_sourcesInput = {
@@ -2228,6 +2368,9 @@ export type CompanyUncheckedCreateWithoutData_sourcesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutData_sourcesInput = {
@@ -2285,6 +2428,9 @@ export type CompanyUpdateWithoutData_sourcesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutData_sourcesInput = {
@@ -2326,6 +2472,9 @@ export type CompanyUncheckedUpdateWithoutData_sourcesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutDemand_forecastsInput = {
@@ -2367,6 +2516,9 @@ export type CompanyCreateWithoutDemand_forecastsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutDemand_forecastsInput = {
@@ -2408,6 +2560,9 @@ export type CompanyUncheckedCreateWithoutDemand_forecastsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutDemand_forecastsInput = {
@@ -2465,6 +2620,9 @@ export type CompanyUpdateWithoutDemand_forecastsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutDemand_forecastsInput = {
@@ -2506,6 +2664,9 @@ export type CompanyUncheckedUpdateWithoutDemand_forecastsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutGlobal_competitorsInput = {
@@ -2547,6 +2708,9 @@ export type CompanyCreateWithoutGlobal_competitorsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutGlobal_competitorsInput = {
@@ -2588,6 +2752,9 @@ export type CompanyUncheckedCreateWithoutGlobal_competitorsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutGlobal_competitorsInput = {
@@ -2645,6 +2812,9 @@ export type CompanyUpdateWithoutGlobal_competitorsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutGlobal_competitorsInput = {
@@ -2686,6 +2856,9 @@ export type CompanyUncheckedUpdateWithoutGlobal_competitorsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutInventoryInput = {
@@ -2727,6 +2900,9 @@ export type CompanyCreateWithoutInventoryInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutInventoryInput = {
@@ -2768,6 +2944,9 @@ export type CompanyUncheckedCreateWithoutInventoryInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutInventoryInput = {
@@ -2825,6 +3004,9 @@ export type CompanyUpdateWithoutInventoryInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutInventoryInput = {
@@ -2866,6 +3048,9 @@ export type CompanyUncheckedUpdateWithoutInventoryInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutInvoicesInput = {
@@ -2907,6 +3092,9 @@ export type CompanyCreateWithoutInvoicesInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutInvoicesInput = {
@@ -2948,6 +3136,9 @@ export type CompanyUncheckedCreateWithoutInvoicesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutInvoicesInput = {
@@ -3005,6 +3196,9 @@ export type CompanyUpdateWithoutInvoicesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutInvoicesInput = {
@@ -3046,6 +3240,9 @@ export type CompanyUncheckedUpdateWithoutInvoicesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutProductsInput = {
@@ -3087,6 +3284,9 @@ export type CompanyCreateWithoutProductsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutProductsInput = {
@@ -3128,6 +3328,9 @@ export type CompanyUncheckedCreateWithoutProductsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutProductsInput = {
@@ -3185,6 +3388,9 @@ export type CompanyUpdateWithoutProductsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutProductsInput = {
@@ -3226,6 +3432,9 @@ export type CompanyUncheckedUpdateWithoutProductsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutRag_documents_metadataInput = {
@@ -3267,6 +3476,9 @@ export type CompanyCreateWithoutRag_documents_metadataInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutRag_documents_metadataInput = {
@@ -3308,6 +3520,9 @@ export type CompanyUncheckedCreateWithoutRag_documents_metadataInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutRag_documents_metadataInput = {
@@ -3365,6 +3580,9 @@ export type CompanyUpdateWithoutRag_documents_metadataInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutRag_documents_metadataInput = {
@@ -3406,6 +3624,9 @@ export type CompanyUncheckedUpdateWithoutRag_documents_metadataInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutRecommendation_outcomesInput = {
@@ -3447,6 +3668,9 @@ export type CompanyCreateWithoutRecommendation_outcomesInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutRecommendation_outcomesInput = {
@@ -3488,6 +3712,9 @@ export type CompanyUncheckedCreateWithoutRecommendation_outcomesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutRecommendation_outcomesInput = {
@@ -3545,6 +3772,9 @@ export type CompanyUpdateWithoutRecommendation_outcomesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutRecommendation_outcomesInput = {
@@ -3586,6 +3816,9 @@ export type CompanyUncheckedUpdateWithoutRecommendation_outcomesInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutReviewsInput = {
@@ -3627,6 +3860,9 @@ export type CompanyCreateWithoutReviewsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutReviewsInput = {
@@ -3668,6 +3904,9 @@ export type CompanyUncheckedCreateWithoutReviewsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutReviewsInput = {
@@ -3725,6 +3964,9 @@ export type CompanyUpdateWithoutReviewsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutReviewsInput = {
@@ -3766,6 +4008,9 @@ export type CompanyUncheckedUpdateWithoutReviewsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutSystem_alertsInput = {
@@ -3807,6 +4052,9 @@ export type CompanyCreateWithoutSystem_alertsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutSystem_alertsInput = {
@@ -3848,6 +4096,9 @@ export type CompanyUncheckedCreateWithoutSystem_alertsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutSystem_alertsInput = {
@@ -3905,6 +4156,9 @@ export type CompanyUpdateWithoutSystem_alertsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutSystem_alertsInput = {
@@ -3946,6 +4200,9 @@ export type CompanyUncheckedUpdateWithoutSystem_alertsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutTenant_competitorsInput = {
@@ -3987,6 +4244,9 @@ export type CompanyCreateWithoutTenant_competitorsInput = {
   system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutTenant_competitorsInput = {
@@ -4028,6 +4288,9 @@ export type CompanyUncheckedCreateWithoutTenant_competitorsInput = {
   system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutTenant_competitorsInput = {
@@ -4085,6 +4348,9 @@ export type CompanyUpdateWithoutTenant_competitorsInput = {
   system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutTenant_competitorsInput = {
@@ -4126,6 +4392,9 @@ export type CompanyUncheckedUpdateWithoutTenant_competitorsInput = {
   system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutCampaignsInput = {
@@ -4167,6 +4436,9 @@ export type CompanyCreateWithoutCampaignsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutCampaignsInput = {
@@ -4208,6 +4480,9 @@ export type CompanyUncheckedCreateWithoutCampaignsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutCampaignsInput = {
@@ -4265,6 +4540,9 @@ export type CompanyUpdateWithoutCampaignsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutCampaignsInput = {
@@ -4306,6 +4584,9 @@ export type CompanyUncheckedUpdateWithoutCampaignsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutExtracted_entityInput = {
@@ -4347,6 +4628,9 @@ export type CompanyCreateWithoutExtracted_entityInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutExtracted_entityInput = {
@@ -4388,6 +4672,9 @@ export type CompanyUncheckedCreateWithoutExtracted_entityInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutExtracted_entityInput = {
@@ -4445,6 +4732,9 @@ export type CompanyUpdateWithoutExtracted_entityInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutExtracted_entityInput = {
@@ -4486,6 +4776,9 @@ export type CompanyUncheckedUpdateWithoutExtracted_entityInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutMarket_alert_eventsInput = {
@@ -4527,6 +4820,9 @@ export type CompanyCreateWithoutMarket_alert_eventsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutMarket_alert_eventsInput = {
@@ -4568,6 +4864,9 @@ export type CompanyUncheckedCreateWithoutMarket_alert_eventsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutMarket_alert_eventsInput = {
@@ -4625,6 +4924,9 @@ export type CompanyUpdateWithoutMarket_alert_eventsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutMarket_alert_eventsInput = {
@@ -4666,6 +4968,9 @@ export type CompanyUncheckedUpdateWithoutMarket_alert_eventsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutMarket_eventsInput = {
@@ -4707,6 +5012,9 @@ export type CompanyCreateWithoutMarket_eventsInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutMarket_eventsInput = {
@@ -4748,6 +5056,9 @@ export type CompanyUncheckedCreateWithoutMarket_eventsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutMarket_eventsInput = {
@@ -4805,6 +5116,9 @@ export type CompanyUpdateWithoutMarket_eventsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutMarket_eventsInput = {
@@ -4846,6 +5160,9 @@ export type CompanyUncheckedUpdateWithoutMarket_eventsInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutNews_recordInput = {
@@ -4887,6 +5204,9 @@ export type CompanyCreateWithoutNews_recordInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutNews_recordInput = {
@@ -4928,6 +5248,9 @@ export type CompanyUncheckedCreateWithoutNews_recordInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutNews_recordInput = {
@@ -4985,6 +5308,9 @@ export type CompanyUpdateWithoutNews_recordInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutNews_recordInput = {
@@ -5026,6 +5352,9 @@ export type CompanyUncheckedUpdateWithoutNews_recordInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutSocial_mentionInput = {
@@ -5067,6 +5396,9 @@ export type CompanyCreateWithoutSocial_mentionInput = {
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutSocial_mentionInput = {
@@ -5108,6 +5440,9 @@ export type CompanyUncheckedCreateWithoutSocial_mentionInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
   transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutSocial_mentionInput = {
@@ -5165,6 +5500,9 @@ export type CompanyUpdateWithoutSocial_mentionInput = {
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutSocial_mentionInput = {
@@ -5206,6 +5544,9 @@ export type CompanyUncheckedUpdateWithoutSocial_mentionInput = {
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
   transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateWithoutTransactionsInput = {
@@ -5247,6 +5588,9 @@ export type CompanyCreateWithoutTransactionsInput = {
   system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
   tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutTransactionsInput = {
@@ -5288,6 +5632,9 @@ export type CompanyUncheckedCreateWithoutTransactionsInput = {
   system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
   tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutTransactionsInput = {
@@ -5345,6 +5692,9 @@ export type CompanyUpdateWithoutTransactionsInput = {
   system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
   tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutTransactionsInput = {
@@ -5386,6 +5736,585 @@ export type CompanyUncheckedUpdateWithoutTransactionsInput = {
   system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutPlatformNotificationsReceivedInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutPlatformNotificationsReceivedInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput>
+}
+
+export type CompanyCreateWithoutPlatformNotificationsSourcedInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutPlatformNotificationsSourcedInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput>
+}
+
+export type CompanyUpsertWithoutPlatformNotificationsReceivedInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationsReceivedInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput>
+}
+
+export type CompanyUpdateWithoutPlatformNotificationsReceivedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUpsertWithoutPlatformNotificationsSourcedInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationsSourcedInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput>
+}
+
+export type CompanyUpdateWithoutPlatformNotificationsSourcedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutPlatformNotificationOutboxInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutPlatformNotificationOutboxInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput>
+}
+
+export type CompanyUpsertWithoutPlatformNotificationOutboxInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationOutboxInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput>
+}
+
+export type CompanyUpdateWithoutPlatformNotificationOutboxInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
 }
 
 
@@ -5418,6 +6347,9 @@ export type CompanyCountOutputType = {
   tenant_competitors: number
   tenantUsers: number
   transactions: number
+  platformNotificationsReceived: number
+  platformNotificationsSourced: number
+  platformNotificationOutbox: number
 }
 
 export type CompanyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -5445,6 +6377,9 @@ export type CompanyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   tenant_competitors?: boolean | CompanyCountOutputTypeCountTenant_competitorsArgs
   tenantUsers?: boolean | CompanyCountOutputTypeCountTenantUsersArgs
   transactions?: boolean | CompanyCountOutputTypeCountTransactionsArgs
+  platformNotificationsReceived?: boolean | CompanyCountOutputTypeCountPlatformNotificationsReceivedArgs
+  platformNotificationsSourced?: boolean | CompanyCountOutputTypeCountPlatformNotificationsSourcedArgs
+  platformNotificationOutbox?: boolean | CompanyCountOutputTypeCountPlatformNotificationOutboxArgs
 }
 
 /**
@@ -5625,6 +6560,27 @@ export type CompanyCountOutputTypeCountTransactionsArgs<ExtArgs extends runtime.
   where?: Prisma.transactionsWhereInput
 }
 
+/**
+ * CompanyCountOutputType without action
+ */
+export type CompanyCountOutputTypeCountPlatformNotificationsReceivedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PlatformNotificationWhereInput
+}
+
+/**
+ * CompanyCountOutputType without action
+ */
+export type CompanyCountOutputTypeCountPlatformNotificationsSourcedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PlatformNotificationWhereInput
+}
+
+/**
+ * CompanyCountOutputType without action
+ */
+export type CompanyCountOutputTypeCountPlatformNotificationOutboxArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PlatformNotificationOutboxWhereInput
+}
+
 
 export type CompanySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -5666,6 +6622,9 @@ export type CompanySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   tenant_competitors?: boolean | Prisma.Company$tenant_competitorsArgs<ExtArgs>
   tenantUsers?: boolean | Prisma.Company$tenantUsersArgs<ExtArgs>
   transactions?: boolean | Prisma.Company$transactionsArgs<ExtArgs>
+  platformNotificationsReceived?: boolean | Prisma.Company$platformNotificationsReceivedArgs<ExtArgs>
+  platformNotificationsSourced?: boolean | Prisma.Company$platformNotificationsSourcedArgs<ExtArgs>
+  platformNotificationOutbox?: boolean | Prisma.Company$platformNotificationOutboxArgs<ExtArgs>
   _count?: boolean | Prisma.CompanyCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["company"]>
 
@@ -5749,6 +6708,9 @@ export type CompanyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   tenant_competitors?: boolean | Prisma.Company$tenant_competitorsArgs<ExtArgs>
   tenantUsers?: boolean | Prisma.Company$tenantUsersArgs<ExtArgs>
   transactions?: boolean | Prisma.Company$transactionsArgs<ExtArgs>
+  platformNotificationsReceived?: boolean | Prisma.Company$platformNotificationsReceivedArgs<ExtArgs>
+  platformNotificationsSourced?: boolean | Prisma.Company$platformNotificationsSourcedArgs<ExtArgs>
+  platformNotificationOutbox?: boolean | Prisma.Company$platformNotificationOutboxArgs<ExtArgs>
   _count?: boolean | Prisma.CompanyCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CompanyIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -5781,6 +6743,9 @@ export type $CompanyPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     tenant_competitors: Prisma.$tenant_competitorsPayload<ExtArgs>[]
     tenantUsers: Prisma.$TenantUserPayload<ExtArgs>[]
     transactions: Prisma.$transactionsPayload<ExtArgs>[]
+    platformNotificationsReceived: Prisma.$PlatformNotificationPayload<ExtArgs>[]
+    platformNotificationsSourced: Prisma.$PlatformNotificationPayload<ExtArgs>[]
+    platformNotificationOutbox: Prisma.$PlatformNotificationOutboxPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -6216,6 +7181,9 @@ export interface Prisma__CompanyClient<T, Null = never, ExtArgs extends runtime.
   tenant_competitors<T extends Prisma.Company$tenant_competitorsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$tenant_competitorsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$tenant_competitorsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   tenantUsers<T extends Prisma.Company$tenantUsersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$tenantUsersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TenantUserPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   transactions<T extends Prisma.Company$transactionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$transactionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$transactionsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  platformNotificationsReceived<T extends Prisma.Company$platformNotificationsReceivedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$platformNotificationsReceivedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  platformNotificationsSourced<T extends Prisma.Company$platformNotificationsSourcedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$platformNotificationsSourcedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  platformNotificationOutbox<T extends Prisma.Company$platformNotificationOutboxArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$platformNotificationOutboxArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformNotificationOutboxPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -7226,6 +8194,78 @@ export type Company$transactionsArgs<ExtArgs extends runtime.Types.Extensions.In
   take?: number
   skip?: number
   distinct?: Prisma.TransactionsScalarFieldEnum | Prisma.TransactionsScalarFieldEnum[]
+}
+
+/**
+ * Company.platformNotificationsReceived
+ */
+export type Company$platformNotificationsReceivedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PlatformNotification
+   */
+  select?: Prisma.PlatformNotificationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PlatformNotification
+   */
+  omit?: Prisma.PlatformNotificationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PlatformNotificationInclude<ExtArgs> | null
+  where?: Prisma.PlatformNotificationWhereInput
+  orderBy?: Prisma.PlatformNotificationOrderByWithRelationInput | Prisma.PlatformNotificationOrderByWithRelationInput[]
+  cursor?: Prisma.PlatformNotificationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PlatformNotificationScalarFieldEnum | Prisma.PlatformNotificationScalarFieldEnum[]
+}
+
+/**
+ * Company.platformNotificationsSourced
+ */
+export type Company$platformNotificationsSourcedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PlatformNotification
+   */
+  select?: Prisma.PlatformNotificationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PlatformNotification
+   */
+  omit?: Prisma.PlatformNotificationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PlatformNotificationInclude<ExtArgs> | null
+  where?: Prisma.PlatformNotificationWhereInput
+  orderBy?: Prisma.PlatformNotificationOrderByWithRelationInput | Prisma.PlatformNotificationOrderByWithRelationInput[]
+  cursor?: Prisma.PlatformNotificationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PlatformNotificationScalarFieldEnum | Prisma.PlatformNotificationScalarFieldEnum[]
+}
+
+/**
+ * Company.platformNotificationOutbox
+ */
+export type Company$platformNotificationOutboxArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PlatformNotificationOutbox
+   */
+  select?: Prisma.PlatformNotificationOutboxSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PlatformNotificationOutbox
+   */
+  omit?: Prisma.PlatformNotificationOutboxOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PlatformNotificationOutboxInclude<ExtArgs> | null
+  where?: Prisma.PlatformNotificationOutboxWhereInput
+  orderBy?: Prisma.PlatformNotificationOutboxOrderByWithRelationInput | Prisma.PlatformNotificationOutboxOrderByWithRelationInput[]
+  cursor?: Prisma.PlatformNotificationOutboxWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PlatformNotificationOutboxScalarFieldEnum | Prisma.PlatformNotificationOutboxScalarFieldEnum[]
 }
 
 /**

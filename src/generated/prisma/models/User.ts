@@ -243,6 +243,7 @@ export type UserWhereInput = {
   authSessions?: Prisma.AuthSessionListRelationFilter
   sentPlatformInvitations?: Prisma.PlatformInvitationListRelationFilter
   tenantUsers?: Prisma.TenantUserListRelationFilter
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -257,6 +258,7 @@ export type UserOrderByWithRelationInput = {
   authSessions?: Prisma.AuthSessionOrderByRelationAggregateInput
   sentPlatformInvitations?: Prisma.PlatformInvitationOrderByRelationAggregateInput
   tenantUsers?: Prisma.TenantUserOrderByRelationAggregateInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -274,6 +276,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   authSessions?: Prisma.AuthSessionListRelationFilter
   sentPlatformInvitations?: Prisma.PlatformInvitationListRelationFilter
   tenantUsers?: Prisma.TenantUserListRelationFilter
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptListRelationFilter
 }, "userId">
 
 export type UserOrderByWithAggregationInput = {
@@ -318,6 +321,7 @@ export type UserCreateInput = {
   authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
   sentPlatformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutInviterInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutUserInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptCreateNestedManyWithoutRecipientInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -332,6 +336,7 @@ export type UserUncheckedCreateInput = {
   authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
   sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutInviterInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutUserInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUncheckedCreateNestedManyWithoutRecipientInput
 }
 
 export type UserUpdateInput = {
@@ -346,6 +351,7 @@ export type UserUpdateInput = {
   authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
   sentPlatformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutInviterNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutUserNestedInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUpdateManyWithoutRecipientNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -360,6 +366,7 @@ export type UserUncheckedUpdateInput = {
   authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
   sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutInviterNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutUserNestedInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUncheckedUpdateManyWithoutRecipientNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -483,6 +490,20 @@ export type UserUpdateOneRequiredWithoutAuthSessionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAuthSessionsInput, Prisma.UserUpdateWithoutAuthSessionsInput>, Prisma.UserUncheckedUpdateWithoutAuthSessionsInput>
 }
 
+export type UserCreateNestedOneWithoutPlatformNotificationReceiptsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutPlatformNotificationReceiptsInput, Prisma.UserUncheckedCreateWithoutPlatformNotificationReceiptsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPlatformNotificationReceiptsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutPlatformNotificationReceiptsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutPlatformNotificationReceiptsInput, Prisma.UserUncheckedCreateWithoutPlatformNotificationReceiptsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPlatformNotificationReceiptsInput
+  upsert?: Prisma.UserUpsertWithoutPlatformNotificationReceiptsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutPlatformNotificationReceiptsInput, Prisma.UserUpdateWithoutPlatformNotificationReceiptsInput>, Prisma.UserUncheckedUpdateWithoutPlatformNotificationReceiptsInput>
+}
+
 export type UserCreateWithoutTenantUsersInput = {
   userId?: string
   email: string
@@ -494,6 +515,7 @@ export type UserCreateWithoutTenantUsersInput = {
   sessionVersion?: number
   authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
   sentPlatformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutInviterInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptCreateNestedManyWithoutRecipientInput
 }
 
 export type UserUncheckedCreateWithoutTenantUsersInput = {
@@ -507,6 +529,7 @@ export type UserUncheckedCreateWithoutTenantUsersInput = {
   sessionVersion?: number
   authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
   sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutInviterInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUncheckedCreateNestedManyWithoutRecipientInput
 }
 
 export type UserCreateOrConnectWithoutTenantUsersInput = {
@@ -536,6 +559,7 @@ export type UserUpdateWithoutTenantUsersInput = {
   sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
   sentPlatformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutInviterNestedInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUpdateManyWithoutRecipientNestedInput
 }
 
 export type UserUncheckedUpdateWithoutTenantUsersInput = {
@@ -549,6 +573,7 @@ export type UserUncheckedUpdateWithoutTenantUsersInput = {
   sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
   sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutInviterNestedInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUncheckedUpdateManyWithoutRecipientNestedInput
 }
 
 export type UserCreateWithoutSentPlatformInvitationsInput = {
@@ -562,6 +587,7 @@ export type UserCreateWithoutSentPlatformInvitationsInput = {
   sessionVersion?: number
   authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutUserInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptCreateNestedManyWithoutRecipientInput
 }
 
 export type UserUncheckedCreateWithoutSentPlatformInvitationsInput = {
@@ -575,6 +601,7 @@ export type UserUncheckedCreateWithoutSentPlatformInvitationsInput = {
   sessionVersion?: number
   authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutUserInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUncheckedCreateNestedManyWithoutRecipientInput
 }
 
 export type UserCreateOrConnectWithoutSentPlatformInvitationsInput = {
@@ -604,6 +631,7 @@ export type UserUpdateWithoutSentPlatformInvitationsInput = {
   sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutUserNestedInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUpdateManyWithoutRecipientNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSentPlatformInvitationsInput = {
@@ -617,6 +645,7 @@ export type UserUncheckedUpdateWithoutSentPlatformInvitationsInput = {
   sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutUserNestedInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUncheckedUpdateManyWithoutRecipientNestedInput
 }
 
 export type UserCreateWithoutAuthSessionsInput = {
@@ -630,6 +659,7 @@ export type UserCreateWithoutAuthSessionsInput = {
   sessionVersion?: number
   sentPlatformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutInviterInput
   tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutUserInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptCreateNestedManyWithoutRecipientInput
 }
 
 export type UserUncheckedCreateWithoutAuthSessionsInput = {
@@ -643,6 +673,7 @@ export type UserUncheckedCreateWithoutAuthSessionsInput = {
   sessionVersion?: number
   sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutInviterInput
   tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutUserInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUncheckedCreateNestedManyWithoutRecipientInput
 }
 
 export type UserCreateOrConnectWithoutAuthSessionsInput = {
@@ -672,6 +703,7 @@ export type UserUpdateWithoutAuthSessionsInput = {
   sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   sentPlatformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutInviterNestedInput
   tenantUsers?: Prisma.TenantUserUpdateManyWithoutUserNestedInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUpdateManyWithoutRecipientNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAuthSessionsInput = {
@@ -685,6 +717,79 @@ export type UserUncheckedUpdateWithoutAuthSessionsInput = {
   sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutInviterNestedInput
   tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutUserNestedInput
+  platformNotificationReceipts?: Prisma.PlatformNotificationReceiptUncheckedUpdateManyWithoutRecipientNestedInput
+}
+
+export type UserCreateWithoutPlatformNotificationReceiptsInput = {
+  userId?: string
+  email: string
+  passwordHash: string
+  fullName?: string | null
+  preferredLanguage?: string | null
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  sessionVersion?: number
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutInviterInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutPlatformNotificationReceiptsInput = {
+  userId?: string
+  email: string
+  passwordHash: string
+  fullName?: string | null
+  preferredLanguage?: string | null
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  sessionVersion?: number
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutInviterInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutPlatformNotificationReceiptsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutPlatformNotificationReceiptsInput, Prisma.UserUncheckedCreateWithoutPlatformNotificationReceiptsInput>
+}
+
+export type UserUpsertWithoutPlatformNotificationReceiptsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutPlatformNotificationReceiptsInput, Prisma.UserUncheckedUpdateWithoutPlatformNotificationReceiptsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutPlatformNotificationReceiptsInput, Prisma.UserUncheckedCreateWithoutPlatformNotificationReceiptsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutPlatformNotificationReceiptsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutPlatformNotificationReceiptsInput, Prisma.UserUncheckedUpdateWithoutPlatformNotificationReceiptsInput>
+}
+
+export type UserUpdateWithoutPlatformNotificationReceiptsInput = {
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutInviterNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutPlatformNotificationReceiptsInput = {
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  preferredLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sessionVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  sentPlatformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutInviterNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -696,12 +801,14 @@ export type UserCountOutputType = {
   authSessions: number
   sentPlatformInvitations: number
   tenantUsers: number
+  platformNotificationReceipts: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   authSessions?: boolean | UserCountOutputTypeCountAuthSessionsArgs
   sentPlatformInvitations?: boolean | UserCountOutputTypeCountSentPlatformInvitationsArgs
   tenantUsers?: boolean | UserCountOutputTypeCountTenantUsersArgs
+  platformNotificationReceipts?: boolean | UserCountOutputTypeCountPlatformNotificationReceiptsArgs
 }
 
 /**
@@ -735,6 +842,13 @@ export type UserCountOutputTypeCountTenantUsersArgs<ExtArgs extends runtime.Type
   where?: Prisma.TenantUserWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountPlatformNotificationReceiptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PlatformNotificationReceiptWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   userId?: boolean
@@ -748,6 +862,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   authSessions?: boolean | Prisma.User$authSessionsArgs<ExtArgs>
   sentPlatformInvitations?: boolean | Prisma.User$sentPlatformInvitationsArgs<ExtArgs>
   tenantUsers?: boolean | Prisma.User$tenantUsersArgs<ExtArgs>
+  platformNotificationReceipts?: boolean | Prisma.User$platformNotificationReceiptsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -789,6 +904,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   authSessions?: boolean | Prisma.User$authSessionsArgs<ExtArgs>
   sentPlatformInvitations?: boolean | Prisma.User$sentPlatformInvitationsArgs<ExtArgs>
   tenantUsers?: boolean | Prisma.User$tenantUsersArgs<ExtArgs>
+  platformNotificationReceipts?: boolean | Prisma.User$platformNotificationReceiptsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -800,6 +916,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     authSessions: Prisma.$AuthSessionPayload<ExtArgs>[]
     sentPlatformInvitations: Prisma.$PlatformInvitationPayload<ExtArgs>[]
     tenantUsers: Prisma.$TenantUserPayload<ExtArgs>[]
+    platformNotificationReceipts: Prisma.$PlatformNotificationReceiptPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     userId: string
@@ -1207,6 +1324,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   authSessions<T extends Prisma.User$authSessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$authSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuthSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   sentPlatformInvitations<T extends Prisma.User$sentPlatformInvitationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$sentPlatformInvitationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformInvitationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   tenantUsers<T extends Prisma.User$tenantUsersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$tenantUsersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TenantUserPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  platformNotificationReceipts<T extends Prisma.User$platformNotificationReceiptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$platformNotificationReceiptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformNotificationReceiptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1706,6 +1824,30 @@ export type User$tenantUsersArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.TenantUserScalarFieldEnum | Prisma.TenantUserScalarFieldEnum[]
+}
+
+/**
+ * User.platformNotificationReceipts
+ */
+export type User$platformNotificationReceiptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PlatformNotificationReceipt
+   */
+  select?: Prisma.PlatformNotificationReceiptSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PlatformNotificationReceipt
+   */
+  omit?: Prisma.PlatformNotificationReceiptOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PlatformNotificationReceiptInclude<ExtArgs> | null
+  where?: Prisma.PlatformNotificationReceiptWhereInput
+  orderBy?: Prisma.PlatformNotificationReceiptOrderByWithRelationInput | Prisma.PlatformNotificationReceiptOrderByWithRelationInput[]
+  cursor?: Prisma.PlatformNotificationReceiptWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PlatformNotificationReceiptScalarFieldEnum | Prisma.PlatformNotificationReceiptScalarFieldEnum[]
 }
 
 /**

@@ -108,7 +108,10 @@ export const ModelName = {
   search_quota_usage: 'search_quota_usage',
   social_mention: 'social_mention',
   transactions: 'transactions',
-  web_search_cache: 'web_search_cache'
+  web_search_cache: 'web_search_cache',
+  PlatformNotification: 'PlatformNotification',
+  PlatformNotificationReceipt: 'PlatformNotificationReceipt',
+  PlatformNotificationOutbox: 'PlatformNotificationOutbox'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1097,6 +1100,56 @@ export const Web_search_cacheScalarFieldEnum = {
 } as const
 
 export type Web_search_cacheScalarFieldEnum = (typeof Web_search_cacheScalarFieldEnum)[keyof typeof Web_search_cacheScalarFieldEnum]
+
+
+export const PlatformNotificationScalarFieldEnum = {
+  id: 'id',
+  platformTenantId: 'platformTenantId',
+  sourceTenantId: 'sourceTenantId',
+  eventType: 'eventType',
+  severity: 'severity',
+  titleKey: 'titleKey',
+  bodyKey: 'bodyKey',
+  payload: 'payload',
+  resourceType: 'resourceType',
+  resourceId: 'resourceId',
+  dedupeKey: 'dedupeKey',
+  occurredAt: 'occurredAt',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type PlatformNotificationScalarFieldEnum = (typeof PlatformNotificationScalarFieldEnum)[keyof typeof PlatformNotificationScalarFieldEnum]
+
+
+export const PlatformNotificationReceiptScalarFieldEnum = {
+  notificationId: 'notificationId',
+  platformTenantId: 'platformTenantId',
+  recipientUserId: 'recipientUserId',
+  readAt: 'readAt',
+  archivedAt: 'archivedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type PlatformNotificationReceiptScalarFieldEnum = (typeof PlatformNotificationReceiptScalarFieldEnum)[keyof typeof PlatformNotificationReceiptScalarFieldEnum]
+
+
+export const PlatformNotificationOutboxScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  eventType: 'eventType',
+  dedupeKey: 'dedupeKey',
+  payload: 'payload',
+  status: 'status',
+  attempts: 'attempts',
+  occurredAt: 'occurredAt',
+  nextAttemptAt: 'nextAttemptAt',
+  deliveredAt: 'deliveredAt',
+  lastErrorCode: 'lastErrorCode',
+  createdAt: 'createdAt'
+} as const
+
+export type PlatformNotificationOutboxScalarFieldEnum = (typeof PlatformNotificationOutboxScalarFieldEnum)[keyof typeof PlatformNotificationOutboxScalarFieldEnum]
 
 
 export const SortOrder = {

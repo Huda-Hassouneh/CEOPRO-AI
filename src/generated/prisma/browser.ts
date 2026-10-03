@@ -332,3 +332,18 @@ export type transactions = Prisma.transactionsModel
  * 
  */
 export type web_search_cache = Prisma.web_search_cacheModel
+/**
+ * Model PlatformNotification
+ * 
+ */
+export type PlatformNotification = Prisma.PlatformNotificationModel
+/**
+ * Model PlatformNotificationReceipt
+ * 
+ */
+export type PlatformNotificationReceipt = Prisma.PlatformNotificationReceiptModel
+/**
+ * Model PlatformNotificationOutbox
+ * 
+ */
+export type PlatformNotificationOutbox = Prisma.PlatformNotificationOutboxModel

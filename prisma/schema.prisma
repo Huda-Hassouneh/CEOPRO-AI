@@ -18,75 +18,78 @@ model AppConfig {
 }
 
 model Company {
-  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_id") @db.Uuid
-  businessName            String                    @map("business_name") @db.VarChar(255)
-  businessType            String?                   @map("business_type") @db.VarChar(100)
-  countryCode             String                    @map("country_code") @db.VarChar(2)
-  operatingCountries      String[]                  @default([]) @map("operating_countries")
-  primaryCurrency         String                    @map("primary_currency") @db.VarChar(3)
-  supportedCurrencies     String[]                  @default(["JOD"]) @map("supported_currencies")
-  timezone                String                    @default("Asia/Amman") @db.VarChar(64)
-  preferredLanguage       String                    @default("en") @map("preferred_language") @db.VarChar(5)
-  supportedLanguages      String[]                  @default(["en"]) @map("supported_languages")
-  createdAt               DateTime?                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime?                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt               DateTime?                 @map("deleted_at") @db.Timestamptz(6)
-  platformStatus          String                    @default("active") @map("platform_status") @db.VarChar(20)
-  platformNotes           String?                   @map("platform_notes") @db.VarChar(2000)
-  authSessions            AuthSession[]
-  campaigns               campaigns[]
-  customPlanQuotes        CustomPlanQuote[]
-  data_sources            data_sources[]
-  demand_forecasts        demand_forecasts[]
-  extracted_entity        extracted_entity[]
-  global_competitors      global_competitors[]
-  inventory               inventory[]
-  invoices                invoices[]
-  market_alert_events     market_alert_events[]
-  market_events           market_events[]
-  news_record             news_record[]
-  customPlans             Plan[]
-  platformInvitations     PlatformInvitation[]
-  products                products[]
-  rag_documents_metadata  rag_documents_metadata[]
-  recommendation_outcomes recommendation_outcomes[]
-  reviews                 reviews[]
-  social_mention          social_mention[]
-  subscriptions           Subscription[]
-  system_alerts           system_alerts[]
-  tenant_competitors      tenant_competitors[]
-  tenantUsers             TenantUser[]
-  transactions            transactions[]
+  id                            String                       @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_id") @db.Uuid
+  businessName                  String                       @map("business_name") @db.VarChar(255)
+  businessType                  String?                      @map("business_type") @db.VarChar(100)
+  countryCode                   String                       @map("country_code") @db.VarChar(2)
+  operatingCountries            String[]                     @default([]) @map("operating_countries")
+  primaryCurrency               String                       @map("primary_currency") @db.VarChar(3)
+  supportedCurrencies           String[]                     @default(["JOD"]) @map("supported_currencies")
+  timezone                      String                       @default("Asia/Amman") @db.VarChar(64)
+  preferredLanguage             String                       @default("en") @map("preferred_language") @db.VarChar(5)
+  supportedLanguages            String[]                     @default(["en"]) @map("supported_languages")
+  createdAt                     DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime?                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                     DateTime?                    @map("deleted_at") @db.Timestamptz(6)
+  platformStatus                String                       @default("active") @map("platform_status") @db.VarChar(20)
+  platformNotes                 String?                      @map("platform_notes") @db.VarChar(2000)
+  authSessions                  AuthSession[]
+  campaigns                     campaigns[]
+  customPlanQuotes              CustomPlanQuote[]
+  data_sources                  data_sources[]
+  demand_forecasts              demand_forecasts[]
+  extracted_entity              extracted_entity[]
+  global_competitors            global_competitors[]
+  inventory                     inventory[]
+  invoices                      invoices[]
+  market_alert_events           market_alert_events[]
+  market_events                 market_events[]
+  news_record                   news_record[]
+  customPlans                   Plan[]
+  platformInvitations           PlatformInvitation[]
+  products                      products[]
+  rag_documents_metadata        rag_documents_metadata[]
+  recommendation_outcomes       recommendation_outcomes[]
+  reviews                       reviews[]
+  social_mention                social_mention[]
+  subscriptions                 Subscription[]
+  system_alerts                 system_alerts[]
+  tenant_competitors            tenant_competitors[]
+  tenantUsers                   TenantUser[]
+  transactions                  transactions[]
+  platformNotificationsReceived PlatformNotification[]       @relation("PlatformNotificationPlatformTenant")
+  platformNotificationsSourced  PlatformNotification[]       @relation("PlatformNotificationSourceTenant")
+  platformNotificationOutbox    PlatformNotificationOutbox[]
 
   @@map("companies")
 }
 
 model Plan {
-  id                       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                     String           @db.VarChar(50)
-  name_ar                  String           @db.VarChar(50)
-  tierLevel                Int?             @map("tier_level")
-  planType                 PlanType         @default(standard) @map("plan_type")
-  tenantId                 String?          @map("tenant_id") @db.Uuid
+  id                       String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                     String             @db.VarChar(50)
+  name_ar                  String             @db.VarChar(50)
+  tierLevel                Int?               @map("tier_level")
+  planType                 PlanType           @default(standard) @map("plan_type")
+  tenantId                 String?            @map("tenant_id") @db.Uuid
   description              String?
   description_ar           String?
-  price                    Decimal          @db.Decimal(10, 2)
-  currency                 String           @default("JOD") @db.VarChar(3)
-  billingIntervalValue     Int              @map("billing_interval_value")
-  billingIntervalUnit      String           @map("billing_interval_unit") @db.VarChar(10)
-  trialPeriodValue         Int              @default(0) @map("trial_period_value")
-  paymentProviderProductId String?          @map("payment_provider_product_id") @db.VarChar(255)
-  paymentProviderPlanId    String?          @unique @map("payment_provider_plan_id") @db.VarChar(255)
-  billingOptions           Json?            @map("billing_options")
-  isActive                 Boolean          @default(true) @map("is_active")
-  createdAt                DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  sourceQuote              CustomPlanQuote? @relation("QuoteCreatedPlan")
+  price                    Decimal            @db.Decimal(10, 2)
+  currency                 String             @default("JOD") @db.VarChar(3)
+  billingIntervalValue     Int                @map("billing_interval_value")
+  billingIntervalUnit      String             @map("billing_interval_unit") @db.VarChar(10)
+  trialPeriodValue         Int                @default(0) @map("trial_period_value")
+  paymentProviderProductId String?            @map("payment_provider_product_id") @db.VarChar(255)
+  paymentProviderPlanId    String?            @unique @map("payment_provider_plan_id") @db.VarChar(255)
+  billingOptions           Json?              @map("billing_options")
+  isActive                 Boolean            @default(true) @map("is_active")
+  createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sourceQuote              CustomPlanQuote?   @relation("QuoteCreatedPlan")
   planFeatures             PlanFeature[]
-  tenant                   Company?         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant                   Company?           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   promoCodes               PromoCodePlan[]
-  activeSubscriptions      Subscription[]   @relation("ActivePlan")
-  scheduledSubscriptions   Subscription[]   @relation("ScheduledPlan")
+  activeSubscriptions      Subscription[]     @relation("ActivePlan")
+  scheduledSubscriptions   Subscription[]     @relation("ScheduledPlan")
   priceVersions            PlanPriceVersion[]
 
   @@index([tenantId])
@@ -97,17 +100,17 @@ model Plan {
 // A Stripe Price remains the source of truth for its subscribers even after the
 // owner edits or removes the option from the public plan catalog.
 model PlanPriceVersion {
-  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  planId             String   @map("plan_id") @db.Uuid
-  stripePriceId      String   @unique @map("stripe_price_id") @db.VarChar(255)
-  periodCode         String   @map("period_code") @db.VarChar(100)
-  intervalUnit       String?  @map("interval_unit") @db.VarChar(10)
-  intervalCount      Int?     @map("interval_count")
-  amount             Decimal? @db.Decimal(10, 2)
-  currency           String   @db.VarChar(3)
-  retiredAt          DateTime? @map("retired_at") @db.Timestamptz(6)
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  plan               Plan     @relation(fields: [planId], references: [id], onDelete: Restrict)
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId        String    @map("plan_id") @db.Uuid
+  stripePriceId String    @unique @map("stripe_price_id") @db.VarChar(255)
+  periodCode    String    @map("period_code") @db.VarChar(100)
+  intervalUnit  String?   @map("interval_unit") @db.VarChar(10)
+  intervalCount Int?      @map("interval_count")
+  amount        Decimal?  @db.Decimal(10, 2)
+  currency      String    @db.VarChar(3)
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan          Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
 
   @@index([planId, retiredAt])
   @@map("plan_price_versions")
@@ -301,7 +304,7 @@ model InfrastructureRate {
   operationalMultiplier      Decimal                              @default(1) @map("operational_multiplier") @db.Decimal(8, 4)
   variabilityReserve         Decimal                              @default(1) @map("variability_reserve") @db.Decimal(8, 4)
   effectiveFrom              DateTime                             @default(now()) @map("effective_from") @db.Timestamptz(6)
-  effectiveTo                DateTime?                           @map("effective_to") @db.Timestamptz(6)
+  effectiveTo                DateTime?                            @map("effective_to") @db.Timestamptz(6)
   verificationStatus         InfrastructureRateVerificationStatus @default(unconfirmed) @map("verification_status")
   source                     String?
   metadata                   Json?
@@ -381,17 +384,18 @@ model CustomPlanQuoteFeature {
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model User {
-  userId                  String               @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
-  email                   String               @db.VarChar(255)
-  passwordHash            String               @map("password_hash")
-  fullName                String?              @map("full_name") @db.VarChar(150)
-  preferredLanguage       String?              @default("en") @map("preferred_language") @db.VarChar(5)
-  createdAt               DateTime?            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime?            @default(now()) @map("updated_at") @db.Timestamptz(6)
-  sessionVersion          Int                  @default(0) @map("session_version")
-  authSessions            AuthSession[]
-  sentPlatformInvitations PlatformInvitation[]
-  tenantUsers             TenantUser[]
+  userId                       String                        @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  email                        String                        @db.VarChar(255)
+  passwordHash                 String                        @map("password_hash")
+  fullName                     String?                       @map("full_name") @db.VarChar(150)
+  preferredLanguage            String?                       @default("en") @map("preferred_language") @db.VarChar(5)
+  createdAt                    DateTime?                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime?                     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  sessionVersion               Int                           @default(0) @map("session_version")
+  authSessions                 AuthSession[]
+  sentPlatformInvitations      PlatformInvitation[]
+  tenantUsers                  TenantUser[]
+  platformNotificationReceipts PlatformNotificationReceipt[]
 
   @@map("users")
 }
@@ -1189,6 +1193,81 @@ model web_search_cache {
   expires_at   DateTime @db.Timestamptz(6)
 
   @@index([expires_at], map: "idx_web_search_cache_expires_at")
+}
+
+model PlatformNotification {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  platformTenantId String  @map("platform_tenant_id") @db.Uuid
+  sourceTenantId   String? @map("source_tenant_id") @db.Uuid
+
+  eventType String @map("event_type") @db.VarChar(80)
+  severity  String @db.VarChar(20)
+
+  titleKey String @map("title_key") @db.VarChar(120)
+  bodyKey  String @map("body_key") @db.VarChar(120)
+
+  payload Json @default("{}")
+
+  resourceType String? @map("resource_type") @db.VarChar(80)
+  resourceId   String? @map("resource_id") @db.Uuid
+
+  dedupeKey String @map("dedupe_key") @db.VarChar(255)
+
+  occurredAt DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  platformTenant Company  @relation("PlatformNotificationPlatformTenant", fields: [platformTenantId], references: [id], onDelete: Restrict)
+  sourceTenant   Company? @relation("PlatformNotificationSourceTenant", fields: [sourceTenantId], references: [id], onDelete: SetNull)
+
+  receipts PlatformNotificationReceipt[]
+
+  @@unique([platformTenantId, dedupeKey], map: "platform_notifications_platform_dedupe_key")
+  @@unique([platformTenantId, id], map: "platform_notifications_platform_id_key")
+  @@map("platform_notifications")
+}
+
+model PlatformNotificationReceipt {
+  notificationId   String @map("notification_id") @db.Uuid
+  platformTenantId String @map("platform_tenant_id") @db.Uuid
+  recipientUserId  String @map("recipient_user_id") @db.Uuid
+
+  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  notification PlatformNotification @relation(fields: [platformTenantId, notificationId], references: [platformTenantId, id], onDelete: Cascade)
+  recipient    User                 @relation(fields: [recipientUserId], references: [userId], onDelete: Cascade)
+
+  @@id([notificationId, recipientUserId])
+  @@index([recipientUserId, platformTenantId, archivedAt, readAt, notificationId], map: "platform_notification_receipts_inbox_idx")
+  @@map("platform_notification_receipts")
+}
+
+model PlatformNotificationOutbox {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  eventType String @map("event_type") @db.VarChar(80)
+  dedupeKey String @map("dedupe_key") @db.VarChar(255)
+
+  payload Json @default("{}")
+
+  status   String @default("pending") @db.VarChar(20)
+  attempts Int    @default(0)
+
+  occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(6)
+  lastErrorCode String?   @map("last_error_code") @db.VarChar(100)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Company @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, dedupeKey], map: "platform_notification_outbox_tenant_dedupe_key")
+  @@map("platform_notification_outbox")
 }
 
 enum FeatureType {
