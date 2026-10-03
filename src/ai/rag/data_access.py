@@ -34,6 +34,7 @@ a format this simple.
 
 import io
 import os
+import uuid
 from typing import List, Optional, Tuple
 
 import docx
@@ -43,6 +44,18 @@ import pdfplumber
 from psycopg2.extras import execute_values
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".xlsx"}
+
+# Server-derived, never trusted from the client's own multipart content-type
+# header (the same reasoning extraction/file_dispatch.py's extension
+# allowlist already applies to the filename) - one real MIME type per
+# extension this module actually knows how to extract text from.
+CONTENT_TYPES_BY_EXTENSION = {
+    ".txt": "text/plain",
+    ".md": "text/markdown",
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
 
 
 class UnsupportedDocumentTypeError(ValueError):
@@ -55,6 +68,104 @@ def _to_pgvector_literal(embedding: np.ndarray) -> str:
 
 def _from_pgvector_literal(value: str) -> np.ndarray:
     return np.array([float(x) for x in value.strip("[]").split(",")], dtype=np.float32)
+
+
+def detect_document_type(filename: str) -> str:
+    """
+    Returns the lowercased extension (with leading '.'), or raises
+    UnsupportedDocumentTypeError if it's not one this module can extract
+    text from. Mirrors extraction/file_dispatch.py::detect_file_type()'s
+    exact convention (same shape, same error message style) for this
+    module's own, differently-scoped extension set - that module validates
+    against SUPPORTED_EXTENSIONS (tabular import formats), this one against
+    SUPPORTED_DOCUMENT_EXTENSIONS (prose/knowledge-base document formats).
+    """
+    _, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    if ext not in SUPPORTED_DOCUMENT_EXTENSIONS:
+        raise UnsupportedDocumentTypeError(
+            f"Unsupported document type '{ext or '(no extension)'}' for '{filename}' - "
+            f"supported: {', '.join(sorted(SUPPORTED_DOCUMENT_EXTENSIONS))}"
+        )
+    return ext
+
+
+def register_uploaded_document(
+    conn, minio_client, bucket: str, tenant_id: str, uploaded_by_user_id: str, file_name: str,
+    contents: bytes, ext: str,
+) -> dict:
+    """
+    The real human-upload half of this module's own document lifecycle -
+    rag/README.md's "Ingest a document" section has always hedged this
+    exact gap ("rag_documents_metadata needs a row with processed_status=
+    'Pending' first - however your upload flow creates that row"), and
+    pipeline.py::ingest_pending_documents()'s own docstring talks about
+    "whatever upload path exists" the same way: a real caller that lands a
+    human-uploaded file in MinIO and registers it never existed anywhere in
+    this codebase until now. structured_summaries.py's auto-generated
+    narrative documents are the only thing that has ever written a real
+    rag_documents_metadata row - this is the human-upload counterpart to
+    that, landing in the exact same table/bucket/pipeline, not a parallel
+    mechanism.
+
+    Storage path follows MINIO_STORAGE_ARCHITECTURE.md's own documented
+    convention for this bucket (tenant_{tenant_id}/rag/{document_id}{ext}),
+    generated here (not left to the DB's gen_random_uuid() default) since
+    the object key the row points at has to exist before the row does -
+    MinIO is written to FIRST, so a document_id is needed up front.
+
+    Bucket creation mirrors the only other place in this codebase that has
+    ever actually performed the first real write to this bucket
+    (scripts/run_e2e_pipeline.py's own stage_rag_grounding()) - a plain
+    bucket_exists()/make_bucket() - since nothing else in the repo
+    provisions ceopro-rag-knowledge ahead of time.
+
+    Returns {"document_id", "storage_bucket_path"} - the registered row's
+    identity, for the caller (main.py's endpoint) to look up the
+    processed_status ingest_pending_documents() leaves it in afterward.
+    Does not call ingest_pending_documents() itself - that stays the
+    caller's responsibility, keeping this function's job limited to
+    "land the file + register it," the same boundary list_documents()/
+    mark_document_status() already keep (reads/writes rag_documents_
+    metadata; pipeline.py owns ingestion).
+    """
+    document_id = str(uuid.uuid4())
+    object_key = f"tenant_{tenant_id}/rag/{document_id}{ext}"
+    content_type = CONTENT_TYPES_BY_EXTENSION[ext]
+
+    if not minio_client.bucket_exists(bucket):
+        minio_client.make_bucket(bucket)
+    minio_client.put_object(
+        bucket, object_key, io.BytesIO(contents), length=len(contents), content_type=content_type,
+    )
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO rag_documents_metadata
+                (document_id, tenant_id, file_name, storage_bucket_path, file_size_bytes,
+                 content_type, uploaded_by_user_id, processed_status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending');
+            """,
+            (document_id, tenant_id, file_name, object_key, len(contents), content_type, uploaded_by_user_id),
+        )
+
+    return {"document_id": document_id, "storage_bucket_path": object_key}
+
+
+def get_document_status(conn, tenant_id: str, document_id: str) -> Optional[str]:
+    """Returns this document's current processed_status (Pending/Processed/
+    Failed), or None if it doesn't exist for this tenant - used right after
+    ingest_pending_documents() runs to report the real outcome of one
+    specific document's ingestion, not just the tenant-wide processed count
+    that function itself returns."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT processed_status FROM rag_documents_metadata WHERE tenant_id = %s AND document_id = %s;",
+            (tenant_id, document_id),
+        )
+        row = cursor.fetchone()
+    return row[0] if row else None
 
 
 def list_documents(conn, tenant_id: str, status: str = None) -> List[dict]:
