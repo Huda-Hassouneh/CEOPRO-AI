@@ -164,7 +164,12 @@ export async function webhookService(
        * Actual payment attempt failed.
        */
       case "invoice.payment_failed": {
-        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+        console.log(`Event Name: payment_failed, Event id: ${event.id}`);
+
+        await handleInvoicePaymentFailed(
+          event.data.object as Stripe.Invoice,
+          event.id
+        );
 
         break;
       }

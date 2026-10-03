@@ -13,6 +13,8 @@ import {
 } from "./webhook.js";
 
 import { consumePromocode } from "../modules/subscription/repo/promocodes.repo.js";
+import { prisma } from "../config/database.js";
+import { platformNotificationProducer } from "../modules/platform-notifications/platform-notification.producer.js";
 
 /*
  * ============================================================
@@ -424,12 +426,17 @@ export async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
  * ============================================================
  */
 
-export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+export async function handleInvoicePaymentFailed(
+  invoice: Stripe.Invoice,
+  stripeEventId: string
+) {
+  console.log(`Handling payment_failed event ,event id: ${stripeEventId}`);
+
   const stripeSubscriptionId = extractSubscriptionId(invoice);
 
   if (!stripeSubscriptionId) {
     console.warn(
-      `[Stripe] Invoice ${invoice.id} payment failed ` + `without subscription`
+      `[Stripe] Invoice ${invoice.id} payment failed without subscription`
     );
 
     return;
@@ -483,17 +490,54 @@ export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     failureReason = "Payment collection failed";
   }
 
-  await webhookRepo.createInvoicePayment(
-    invoice,
-    subscription.id,
-    "failed",
-    failureReason
-  );
+  /*
+   * ========================================================
+   * PAYMENT RECORD + NOTIFICATION OUTBOX
+   * ========================================================
+   *
+   * These two database writes MUST commit together.
+   *
+   * If either operation fails, the entire transaction rolls
+   * back so we never store a failed payment without also
+   * recording the corresponding notification event.
+   */
+
+  await prisma.$transaction(async (tx) => {
+    /*
+     * Persist/update the failed payment transaction.
+     */
+    await webhookRepo.createInvoicePayment(
+      invoice,
+      subscription.id,
+      "failed",
+      failureReason,
+      tx
+    );
+
+    /*
+     * Record only the business event here.
+     *
+     * Do NOT create platform_notifications or receipts here.
+     * The notification worker will process this outbox event
+     * asynchronously.
+     */
+    await platformNotificationProducer.paymentFailed(tx, {
+      tenantId: subscription.tenantId,
+      subscriptionId: subscription.id,
+
+      stripeEventId,
+      stripeInvoiceId: invoice.id,
+
+      paymentIntentId,
+      failureReason
+    });
+  });
 
   console.warn(
     `[Stripe][Payment] FAILED` +
       ` | invoice=${invoice.id}` +
       ` | subscription=${stripeSubscriptionId}` +
+      ` | event=${stripeEventId}` +
       ` | reason=${failureReason}`
   );
 }

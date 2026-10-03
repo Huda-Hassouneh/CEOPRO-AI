@@ -6,7 +6,9 @@ import { resolvePaymentIntentId } from "../../../utils/webhook.js";
 
 async function createWebhookEvent(event: Stripe.Event) {
   return prisma.payment_providerWebhookEvent.upsert({
-    where: { payment_providerEventId: event.id },
+    where: {
+      payment_providerEventId: event.id
+    },
     update: {},
     create: {
       payment_providerEventId: event.id,
@@ -21,19 +23,27 @@ async function createInvoicePayment(
   invoice: Stripe.Invoice,
   subscriptionId: string,
   status: "succeeded" | "failed" | "pending" = "succeeded",
-  failureReason: string | null = null
+  failureReason: string | null = null,
+  db: Prisma.TransactionClient = prisma
 ) {
-  const rawAmount = status === "failed" ? invoice.amount_due : invoice.amount_paid;
-  const paymentIntentId = await resolvePaymentIntentId(invoice);
-  const idempotencyKey = `stripe:invoice:${invoice.id}`;
-  const paidAt = status === "succeeded"
-    ? invoice.status_transitions?.paid_at
-      ? new Date(invoice.status_transitions.paid_at * 1000)
-      : new Date()
-    : null;
+  const rawAmount =
+    status === "failed" ? invoice.amount_due : invoice.amount_paid;
 
-  return prisma.paymentTransaction.upsert({
-    where: { idempotencyKey },
+  const paymentIntentId = await resolvePaymentIntentId(invoice);
+
+  const idempotencyKey = `stripe:invoice:${invoice.id}`;
+
+  const paidAt =
+    status === "succeeded"
+      ? invoice.status_transitions?.paid_at
+        ? new Date(invoice.status_transitions.paid_at * 1000)
+        : new Date()
+      : null;
+
+  return db.paymentTransaction.upsert({
+    where: {
+      idempotencyKey
+    },
     update: {
       subscriptionId,
       payment_providerInvoiceId: invoice.id,
@@ -60,14 +70,21 @@ async function createInvoicePayment(
 
 async function markWebhookEventProcessed(webhookEventId: string) {
   return prisma.payment_providerWebhookEvent.update({
-    where: { id: webhookEventId },
-    data: { processed: true, processedAt: new Date() }
+    where: {
+      id: webhookEventId
+    },
+    data: {
+      processed: true,
+      processedAt: new Date()
+    }
   });
 }
 
 async function getWebhookEventByProviderId(payment_providerEventId: string) {
   return prisma.payment_providerWebhookEvent.findUnique({
-    where: { payment_providerEventId }
+    where: {
+      payment_providerEventId
+    }
   });
 }
 
