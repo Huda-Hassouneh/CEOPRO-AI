@@ -20,7 +20,7 @@ in [`PENDING_ACTIONS.md`](PENDING_ACTIONS.md) so it stays visible without diggin
 | Spec phase | Module | Status | Notes |
 |---|---|---|---|
 | Phase 2 — Demand Intelligence (§18, §23, §25) | `src/ai/forecasting/` | 🟢 Built, tested (unit + integration) | Baselines, XGBoost + walk-forward validation, cold-start policy, evidence writers, Redis consumer. See entries below. |
-| Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟢 Full pipeline built/tested end to end: ingest → persist → hybrid fusion → re-rank → context assembly → **LLM reasoning (Groq-hosted `openai/gpt-oss-20b` by default, or a local zero-cost `llama.cpp` server)**, exposed via `POST /rag/query`. Live-verified with real embedding/reranker models; the Groq call itself has been made for real with a real key and returned a correct, correctly-cited answer (2026-09-05). The local backend was also live-verified end to end (2026-09-06): real answer, correctly cited, 32.6s on a 4-core/8-thread CPU with Qwen2.5-3B-Instruct (Q5_K_M) - see `scripts/download_local_llm_model.py` and `docker-compose.yml`'s `llm-local` service (profile `local-llm`) | Document ingestion persists chunks + `pgvector` embeddings to `rag_document_chunks` instead of re-fetching/re-chunking/re-embedding from MinIO on every retrieval call. BM25 + FAISS + Reciprocal Rank Fusion (candidate pool widened before fusion) + a multilingual Cross-Encoder re-ranker + context assembly, composed by `run_retrieval()`. `llm_client.py` is the only file in the package aware an LLM provider exists — `generate_answer()`/`answer_query()` default to Groq's OpenAI-compatible API, with `LOCAL_LLM_BASE_URL` as a purely-additive override to a local server instead, same request/response shape either way. The model name has moved twice as Groq's catalog changed under us (see that module's own docstring) - re-check before relying on `GROQ_MODEL`'s default long-term. `docker-compose.yml`'s `ai` service previously never wired `GROQ_API_KEY`/`GROQ_MODEL` through at all (would have failed in a real deployment despite working when run outside Docker) - fixed 2026-09-06, along with adding `GROQ_MAX_TOKENS` (a real free latency lever discovered while wiring the local backend: an uncapped response is what caused a real `httpx.ReadTimeout` against the much-slower local generation speed). Three real schema gaps found and fixed while wiring this up for real (`storage_bucket_path` rename, a genuinely missing `processed_status` column, plus — while fixing an unrelated seed-script bug for a different request — two more schema mismatches in `seed_demo_data.py`'s tenant/product seeding, see `PENDING_ACTIONS.md` #45/#46). Still missing: chat history (needs a new table), and a real side-by-side accuracy comparison between the Groq and local backends (only a single smoke test exists for the local path so far). The short-chunk BM25/RRF fusion edge case found earlier is documented, not fixed. See entries below and `src/ai/rag/README.md` for setup/usage. |
+| Phase 3 — RAG Chatbot (§21) | `src/ai/rag/` | 🟢 Full pipeline built/tested end to end: ingest → persist → hybrid fusion → re-rank → context assembly → **LLM reasoning (Groq-hosted `openai/gpt-oss-20b` by default, or a local zero-cost `llama.cpp` server)**, exposed via `POST /rag/query`. Live-verified with real embedding/reranker models; the Groq call itself has been made for real with a real key and returned a correct, correctly-cited answer (2026-09-05). The local backend was also live-verified end to end (2026-09-06): real answer, correctly cited, 32.6s on a 4-core/8-thread CPU with Qwen2.5-3B-Instruct (Q5_K_M) - see `scripts/download_local_llm_model.py` and `docker-compose.yml`'s `llm-local` service (profile `local-llm`) | Document ingestion persists chunks + `pgvector` embeddings to `rag_document_chunks` instead of re-fetching/re-chunking/re-embedding from MinIO on every retrieval call. BM25 + FAISS + Reciprocal Rank Fusion (candidate pool widened before fusion) + a multilingual Cross-Encoder re-ranker + context assembly, composed by `run_retrieval()`. `llm_client.py` is the only file in the package aware an LLM provider exists — `generate_answer()`/`answer_query()` default to Groq's OpenAI-compatible API, with `LOCAL_LLM_BASE_URL` as a purely-additive override to a local server instead, same request/response shape either way. The model name has moved twice as Groq's catalog changed under us (see that module's own docstring) - re-check before relying on `GROQ_MODEL`'s default long-term. `docker-compose.yml`'s `ai` service previously never wired `GROQ_API_KEY`/`GROQ_MODEL` through at all (would have failed in a real deployment despite working when run outside Docker) - fixed 2026-09-06, along with adding `GROQ_MAX_TOKENS` (a real free latency lever discovered while wiring the local backend: an uncapped response is what caused a real `httpx.ReadTimeout` against the much-slower local generation speed). Three real schema gaps found and fixed while wiring this up for real (`storage_bucket_path` rename, a genuinely missing `processed_status` column, plus — while fixing an unrelated seed-script bug for a different request — two more schema mismatches in `seed_demo_data.py`'s tenant/product seeding, see `PENDING_ACTIONS.md` #45/#46). Still missing: chat history (needs a new table), and a real side-by-side accuracy comparison between the Groq and local backends (only a single smoke test exists for the local path so far). The short-chunk BM25/RRF fusion edge case found earlier is documented, not fixed. `POST /rag/documents` (2026-10-03) closes the real human-upload gap this row's own history never flagged as missing until it was actually traced: `ingest_pending_documents()` always assumed "whatever upload path exists" created its `Pending` rows, but none ever did - only `structured_summaries.py`'s auto-generated narratives ever wrote a real `rag_documents_metadata` row. See entries below and `src/ai/rag/README.md` for setup/usage. |
 | Phase 4 — Market Intelligence (§15, §16, §17) | `src/ai/extraction/`, `src/ai/sentiment/`, `src/ai/mpi/` | 🟢 Built, tested (unit + integration); NER persistence + MPI both landed since this row was last updated | Regex extraction (MONEY/CURRENCY/PERCENT/DISCOUNT/EMAIL/PHONE/INVOICE_ID/ORDER_ID/DATE) + catalog matching (PRODUCT/COMPETITOR) + Redis-cached catalog lookups, reworked against `Final_schema.sql`. NER persistence (`extracted_entity`) built and live-DB tested — the "not started" note here was stale, corrected 2026-08-28. `mpi/` (Market Perception Index, §17: sentiment + source reliability + recency + volume + entity relevance) built and live-DB tested, including cross-country comparison with a volume floor. Sentiment analysis (`sentiment/`) built: XLM-RoBERTa-based classifier (`cardiffnlp/twitter-xlm-roberta-base-sentiment`), per-subject aggregation, LOW SAMPLE SIZE policy, plus (2026-08-28) a fine-tuning/evaluation harness (`sentiment/finetune.py`) ready to run once real labeled data exists. `competitor_prices`/`reviews`/`news_record`/`social_mention` are still empty in prod, so the `UNKNOWN`-evidence/cold-start path is what actually runs today. Universal Import Engine (`extraction/ingestion_pipeline.py` + adapters, spec §12) - file-type detection and value validation added 2026-08-28, previously missing entirely. See entries below. |
 | Market Collection / Pipeline B (§13, §19) | `src/market_scraper/` | Production-hardened and live-DB/RLS tested; awaiting accountable approval for real competitor sources | Deny-by-default policy and privacy approval, tenant/source mapping allocation, Tier-2 staging, 0.82 product gate, Scrapy/Playwright collection, DNS/redirect SSRF checks, Redis retry/dead-letter worker, stale-job recovery, quarantine-without-price promotion, retention maintenance, Prometheus alerts, independently deployed analysis worker, and canonical `competitor_prices` persistence. The Books to Scrape sandbox passes the bounded live canary; actual competitor approval/mapping remains external (`PENDING_ACTIONS.md` #5). Two official-API collectors added 2026-08-31: `google_places` (reviews only, no price — routes through the same staging/0.82-gate/safety-scan pipeline, `competitor_prices` and price-derived `market_events` are skipped for price-less records) and `amazon_paapi` (exact-ASIN price/availability, AWS SigV4-signed). The generic-website adapter from the original 3-source ask ("Google Places, Amazon PA-API, generic website") needed no new code — the pre-existing `standards`/`MarketSourceSpider` collector already covers STRUCTURED_DATA (JSON-LD) and WEB_SCRAPE (reviewed CSS selectors) for arbitrary competitor sites. |
 | Phase 5 — Price Intelligence (§9, §19) | `src/ai/pricing/` | 🟢 Built, tested (unit + integration) | Product matching, rule-based recommendation, price-change guardrail, evidence + recommendation_outcomes writers, plus traceable currency conversion (`currency.py`) surfacing cross-currency competitor prices as reference-only context ([PR #5](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/5), merged 2026-08-07). See entries below. Margin guardrails are weaker than spec'd — `products` has no cost column (`PENDING_ACTIONS.md` #14). Real competitor price data still doesn't exist (`PENDING_ACTIONS.md` #5), so the cold-start/UNKNOWN path is what actually runs today, same as Phase 2. |
@@ -1672,6 +1672,77 @@ Full repo live-DB suite re-run clean alongside the RAG-specific run: 69 passed, 
 regressions elsewhere from anything in PR #32. Full offline suite re-confirmed clean too: 390 passed,
 0 failed. No code changes in this pass - this is a testing-only follow-up closing the verification
 gap PR #32 itself flagged.
+
+## 2026-10-03 — Real human-upload endpoint for RAG documents (`POST /rag/documents`)
+
+A real gap, not a documentation gap: traced in response to a direct question ("should
+`/extraction/upload` be used for RAG documents, or is there a separate endpoint?"). There wasn't
+one. `rag/README.md`'s own "Ingest a document" section had always hedged this exact thing
+("`rag_documents_metadata` needs a row with `processed_status='Pending'` first - *however your
+upload flow creates that row*"), and `pipeline.py::ingest_pending_documents()`'s own docstring talks
+about "whatever upload path exists" the same way. Neither was ever true: the only code that has ever
+written a real `rag_documents_metadata` row is `structured_summaries.py`'s auto-generated narrative
+summaries (sales history, competitor landscape, sentiment, pricing) - a human-uploaded knowledge-base
+document (a policy PDF, a supplier manual, a product spec) had no real way into the pipeline at all.
+`/extraction/upload` is a different endpoint for a different purpose (tabular CSV/XLSX/PDF import
+into `products`/`invoices`/`inventory`) and does not write to `rag_documents_metadata` or the
+`ceopro-rag-knowledge` bucket in any way.
+
+**Built**, reusing the existing pipeline/schema/bucket exactly, no parallel mechanism:
+- `rag/data_access.py`: `detect_document_type()` (mirrors `extraction/file_dispatch.py`'s own
+  convention, validated against this module's own `SUPPORTED_DOCUMENT_EXTENSIONS` -
+  `.txt`/`.md`/`.pdf`/`.docx`/`.xlsx` - a genuinely different set than `/extraction/upload`'s
+  `.csv`/`.xlsx`/`.xlsm`/`.pdf`); `register_uploaded_document()` (writes the raw file to
+  `ceopro-rag-knowledge` at `tenant_{tenant_id}/rag/{document_id}{ext}` -
+  `MINIO_STORAGE_ARCHITECTURE.md`'s own documented path convention for this bucket, MinIO first so a
+  DB row never points at an object that doesn't exist, then a plain `INSERT` with
+  `processed_status='Pending'` - the exact state `ingest_pending_documents()` already expects);
+  `get_document_status()` (looks up one document's real post-ingestion status for the response).
+- `main.py`: `POST /rag/documents` - same auth/validation order as `/extraction/upload`
+  (`get_tenant_context` → extension allowlist → `_read_upload_within_limit` (same
+  `_MAX_UPLOAD_BYTES`, no RAG-specific precedent to diverge from) → `_validate_upload_content`
+  (`_MAGIC_BYTES` extended with `.docx`'s own zip signature)), then registers the document and runs
+  the real, unmodified `ingest_pending_documents()` synchronously in the same request - with no
+  endpoint anywhere to list or re-trigger processing after the fact, this is the only point a caller
+  ever learns whether their upload actually got indexed. Returns `{document_id, file_name,
+  processed_status}`.
+
+**Verified live**, not just unit-tested: 11 new offline unit tests (`test_main.py`, mocked DB/MinIO -
+auth, extension/size/magic-byte validation, the full register→ingest→status-lookup happy path,
+tenant_id/user_id threading, 500-and-rollback on an unexpected error) plus a new
+`test_rag_upload_integration_db.py` (real Postgres + real MinIO, skipped here the same way
+`test_main_integration_db.py` already is - gated on `AI_TEST_DATABASE_URL`/`APP_DB_PASSWORD`/
+`AI_TEST_MINIO_ENDPOINT`/`AI_TEST_MINIO_ROOT_PASSWORD`). Real MinIO could not be provisioned in this
+session's own sandbox to run that file for real here - every registry tried returned a pull failure
+(`minio/minio`: "pull access denied, repository does not exist"; `quay.io/minio/minio`: 403
+Forbidden; `bitnami/minio`: "not found"), the same class of registry lockout already documented
+elsewhere in this repo for MinIO specifically. Instead ran the exact same scenarios manually against
+a real local Postgres (full `Final_schema.sql` + all migrations applied) with an in-memory `FakeMinio`
+standing in only for the object-storage network calls (`bucket_exists`/`make_bucket`/`put_object`/
+`get_object` against a dict) and deterministic fake embeddings (same technique this repo's own
+`test_replace_document_chunks_bulk_inserts_preserve_chunk_order` already uses, since the real
+embedding model download is separately blocked by this sandbox's network policy - confirmed directly:
+without the fake, the endpoint correctly returned `processed_status: "Failed"`, the real
+`ingest_pending_documents()` error path working exactly as designed, not a bug in this change). With
+both substitutions: a real `.txt` upload genuinely lands in the fake store, registers with the exact
+documented storage path/content-type/size, runs the real chunk/persist path (`rag_document_chunks`
+genuinely populated), and reports back `"Processed"`; a second tenant's `list_documents()` call
+genuinely cannot see the first tenant's document (real RLS via `db.app_role_connection()`'s
+`app.current_tenant_id`, not an application-level filter); an unsupported extension is rejected
+before any MinIO/DB write; two uploads for the same tenant produce two independent documents, never
+overwriting each other (unlike `structured_summaries.py`'s own stable-slot upsert, correctly not
+reused here since every human upload is a genuinely new document).
+
+Full regression check: `src/ai/tests/` offline (479 passed, 0 failed) and with a real Postgres
+available (703 passed, 54 skipped - MinIO/embedding-gated, 0 failed); full `src/` (ai + market_scraper
++ infrastructure) with Postgres: 1166 passed, 60 skipped, 1 failed -
+`test_market_integration_db.py::test_reply_parent_from_an_earlier_job_run_is_still_linked`, confirmed
+via `git stash` to fail identically on `main` before this change (a pre-existing `str`-vs-`uuid.UUID`
+comparison bug in review-threading, unrelated to and untouched by this work).
+
+No frontend change: this repo (`CEOPRO-AI`) has no frontend source tree at all (only a committed
+`dist/` build artifact) - the Knowledge Base UI that calls `/extraction/upload` today lives in the
+separate `backend_for_ceopro` repo, out of scope for a CEOPRO-AI-only change.
 
 ## How to add an entry
 
