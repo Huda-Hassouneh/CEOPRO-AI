@@ -23,6 +23,7 @@ import Toast from "../../../shared/components/ui/Toast.jsx";
 import { ShieldCheck } from "lucide-react";
 
 const Context = createContext(null);
+
 export function useAdminText() {
   const { t, ...rest } = useI18n();
 
@@ -31,7 +32,9 @@ export function useAdminText() {
     t: (key, values) => t(`platformAdmin.${key}`, values)
   };
 }
+
 export const useAdmin = () => useContext(Context);
+
 export const roleDescriptions = {
   owner: "superDescription",
   admin: "adminDescription",
@@ -39,14 +42,17 @@ export const roleDescriptions = {
   accountant: "accountantDescription",
   staff: "staffDescription"
 };
+
 export function AdminProvider({ children }) {
   const { t } = useAdminText(),
     auth = useAuthStore(),
     location = useLocation(),
     client = useQueryClient();
+
   const [previewRole, setRole] = useState(""),
     [notice, setNotice] = useState(null),
     [selecting, setSelecting] = useState(false);
+
   const query = useQuery({
     queryKey: [
       "platform-admin",
@@ -60,41 +66,55 @@ export function AdminProvider({ children }) {
     retry: false,
     staleTime: 0
   });
+
   const notify = useCallback(
     (message, variant = "success") => setNotice({ message, variant }),
     []
   );
+
   useEffect(() => {
     if (!notice) return;
+
     const timer = setTimeout(() => setNotice(null), 6500);
     return () => clearTimeout(timer);
   }, [notice]);
+
   const chooseRole = async (value) => {
     setSelecting(true);
+
     await api.setPreviewRole(value);
+
     client.removeQueries({
       queryKey: ["platform-admin"],
       predicate: (q) => q.queryKey[1] !== "me"
     });
+
     setRole(value);
     await query.refetch();
     setSelecting(false);
   };
-  if (!auth.isHydrated)
+
+  if (!auth.isHydrated) {
     return (
       <div className="pa-gate" role="status">
         {t("loading")}
       </div>
     );
-  if (!ADMIN_PREVIEW && auth.status !== "authenticated")
+  }
+
+  if (!ADMIN_PREVIEW && auth.status !== "authenticated") {
     return <Navigate to="/login" state={{ from: location }} replace />;
-  if (query.isPending)
+  }
+
+  if (query.isPending) {
     return (
       <div className="pa-gate" role="status">
         {t("loading")}
       </div>
     );
-  if (query.isError)
+  }
+
+  if (query.isError) {
     return (
       <div className="pa-gate">
         <ShieldCheck size={36} />
@@ -110,15 +130,19 @@ export function AdminProvider({ children }) {
         <a href="/dashboard">{t("customerApp")}</a>
       </div>
     );
-  if (!can(query.data))
+  }
+
+  if (!can(query.data)) {
     return (
       <div className="pa-gate">
         <ShieldCheck size={42} />
         <h1>{t(ADMIN_PREVIEW ? "platform" : "forbiddenTitle")}</h1>
         <p>{t(ADMIN_PREVIEW ? "previewIntro" : "forbidden")}</p>
+
         {ADMIN_PREVIEW ? (
           <>
             <div className="pa-notice">{t("previewNote")}</div>
+
             {PLATFORM_ROLES.map((role) => (
               <Button
                 disabled={selecting}
@@ -134,6 +158,8 @@ export function AdminProvider({ children }) {
         )}
       </div>
     );
+  }
+
   const value = {
     principal: query.data,
     can: (permission) => can(query.data, permission),
@@ -141,9 +167,11 @@ export function AdminProvider({ children }) {
     chooseRole,
     notify
   };
+
   return (
     <Context.Provider value={value}>
       {children}
+
       {notice && (
         <div className="pa-toast">
           <Toast message={notice.message} variant={notice.variant} />
@@ -152,10 +180,12 @@ export function AdminProvider({ children }) {
     </Context.Provider>
   );
 }
+
 export function useAdminQuery(domain, params = {}, id, options = {}) {
   const { principal } = useAdmin();
 
   return useQuery({
+    ...options,
     queryKey: [
       "platform-admin",
       principal.id,
@@ -166,17 +196,20 @@ export function useAdminQuery(domain, params = {}, id, options = {}) {
     ],
     queryFn: ({ signal }) =>
       id ? api.detail(domain, id, signal) : api.list(domain, params, signal),
-    retry: false,
+    retry: options.retry ?? false,
     enabled: options.enabled ?? true
   });
 }
+
 export function useAdminMutation(permission) {
   const { principal, notify, preview } = useAdmin(),
     { t } = useAdminText(),
     client = useQueryClient();
+
   return useMutation({
     mutationFn: ({ domain, id, action, payload }) => {
       requirePermission(principal, permission);
+
       return domain === "account"
         ? api.account(action, payload)
         : api.mutate(domain, id, action, payload);
