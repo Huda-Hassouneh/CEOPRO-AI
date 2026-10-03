@@ -21,7 +21,9 @@
     "bootstrap:admin": "tsx prisma/bootstrap/admin.ts",
     "bootstrap:features": "tsx prisma/bootstrap-features.ts",
     "test:features": "node scripts/verify-feature-entitlements.mjs",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "worker:notifications": "tsx src/workers/platform-notification.worker.ts",
+    "test:notifications": "tsx --test tests/platform-notifications/platform-notification-source-contract.test.ts tests/platform-notifications/platform-notification-definition.test.ts tests/platform-notifications/platform-notification-producer.test.ts tests/platform-notifications/platform-notification-migration-contract.test.ts"
   },
   "keywords": [],
   "author": "",

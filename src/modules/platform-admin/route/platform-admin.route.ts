@@ -1,6 +1,8 @@
 import { Router } from "express";
 import ownerPortalRouter from "../../owner-portal/index.js";
 import { z } from "zod";
+import platformNotificationRouter from "../../platform-notifications/route/platform-notification.route.js";
+
 import {
   authenticateUser,
   requireTenant
@@ -113,7 +115,11 @@ router.patch(
   validateBody(updatePlanSchema),
   patchPlanHandler
 );
-router.get("/billing/infrastructure-rates", read, listPlatformInfrastructureRatesHandler);
+router.get(
+  "/billing/infrastructure-rates",
+  read,
+  listPlatformInfrastructureRatesHandler
+);
 router.post(
   "/billing/infrastructure-rates",
   pricing,
@@ -286,4 +292,5 @@ router.patch(
   planFeatureController.updateLimits
 );
 
+router.use(platformNotificationRouter);
 export default router;

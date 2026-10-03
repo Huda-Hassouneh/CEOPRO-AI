@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
 import { getCorsOrigins } from "./config/env.js";
-import subscriptionModuleRouter, { stripeWebhookRouter as stripeRouter } from "./modules/subscription/index.js";
+import subscriptionModuleRouter, {
+  stripeWebhookRouter as stripeRouter
+} from "./modules/subscription/index.js";
 import dashboard from "./modules/dashboard/index.js";
 import marketInt from "./modules/market-intelligence/index.js";
 import competitors from "./modules/competitors/index.js";
@@ -17,7 +19,9 @@ import {
   globalErrorHandler,
   notFoundHandler
 } from "./middleware/errorHandler.js";
+import { updateSubscriptionCancellation } from "./modules/subscription/External Services/Payment providers/stripe/stripeService.js";
 // import "../scripts/generate-mock-token.js";
+// updateSubscriptionCancellation("sub_1UMRxSDvEnSheKucIGd81uTd", false, true);
 
 const app = express();
 app.disable("x-powered-by");
