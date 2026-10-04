@@ -34,6 +34,7 @@ a format this simple.
 
 import io
 import os
+import uuid
 from typing import List, Optional, Tuple
 
 import docx
@@ -44,9 +45,105 @@ from psycopg2.extras import execute_values
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".xlsx"}
 
+# One real content-type per extension fetch_document_text() can actually
+# extract from - derived here, never trusted from a client-supplied
+# multipart content-type header, the same way extraction/file_dispatch.py's
+# extension allowlist is never trusted from a client either.
+_CONTENT_TYPE_BY_EXTENSION = {
+    ".txt": "text/plain",
+    ".md": "text/markdown",
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
 
 class UnsupportedDocumentTypeError(ValueError):
     """Raised for a file extension fetch_document_text() has no extractor for."""
+
+
+def validate_document_extension(filename: str) -> str:
+    """
+    Returns the lowercased extension (with leading '.') if it's one
+    fetch_document_text() can actually extract from, or raises
+    UnsupportedDocumentTypeError otherwise. Same shape as extraction/
+    file_dispatch.py::detect_file_type() (lowercase, leading dot, same
+    error-message style), checked against this module's own
+    SUPPORTED_DOCUMENT_EXTENSIONS - the single source of truth
+    fetch_document_text() itself already dispatches on - so a filename
+    accepted here is guaranteed extractable there, not just assumed to be.
+    """
+    _, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    if ext not in SUPPORTED_DOCUMENT_EXTENSIONS:
+        raise UnsupportedDocumentTypeError(
+            f"Unsupported document type '{ext or '(no extension)'}' for '{filename}' - "
+            f"supported: {', '.join(sorted(SUPPORTED_DOCUMENT_EXTENSIONS))}"
+        )
+    return ext
+
+
+def register_document_upload(
+    conn, minio_client, bucket: str, tenant_id: str, uploaded_by_user_id: str, file_name: str,
+    contents: bytes, ext: str,
+) -> dict:
+    """
+    Lands a human-uploaded knowledge-base document in MinIO and registers
+    it in rag_documents_metadata with processed_status='Pending' - the
+    upload half of the lifecycle ingest_pending_documents() already
+    implements the processing half of (see that function's own docstring:
+    "once whatever upload path exists flips a re-uploaded document back
+    to 'Pending'" - no such path existed anywhere in this codebase before
+    this function).
+
+    Storage path follows MINIO_STORAGE_ARCHITECTURE.md's documented
+    convention for this bucket (tenant_{tenant_id}/rag/{document_id}{ext}).
+    The document_id is generated here, before the row is inserted, because
+    the object has to exist at that path before a row can point at it -
+    MinIO is written first, so a row is never left referencing a missing
+    object if the DB write were to fail instead.
+
+    Returns {"document_id", "storage_bucket_path"} for the caller to look
+    up this document's processed_status after running
+    ingest_pending_documents().
+    """
+    document_id = str(uuid.uuid4())
+    object_key = f"tenant_{tenant_id}/rag/{document_id}{ext}"
+    content_type = _CONTENT_TYPE_BY_EXTENSION[ext]
+
+    if not minio_client.bucket_exists(bucket):
+        minio_client.make_bucket(bucket)
+    minio_client.put_object(
+        bucket, object_key, io.BytesIO(contents), length=len(contents), content_type=content_type,
+    )
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO rag_documents_metadata
+                (document_id, tenant_id, file_name, storage_bucket_path, file_size_bytes,
+                 content_type, uploaded_by_user_id, processed_status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending');
+            """,
+            (document_id, tenant_id, file_name, object_key, len(contents), content_type, uploaded_by_user_id),
+        )
+
+    return {"document_id": document_id, "storage_bucket_path": object_key}
+
+
+def get_document_processed_status(conn, tenant_id: str, document_id: str) -> Optional[str]:
+    """Returns this document's current processed_status, or None if no such
+    document exists for this tenant - used right after
+    ingest_pending_documents() runs, to report what actually happened to
+    this one upload rather than just the tenant-wide count that function
+    itself returns."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT processed_status FROM rag_documents_metadata WHERE tenant_id = %s AND document_id = %s;",
+            (tenant_id, document_id),
+        )
+        row = cursor.fetchone()
+    return row[0] if row else None
 
 
 def _to_pgvector_literal(embedding: np.ndarray) -> str:

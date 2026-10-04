@@ -397,6 +397,165 @@ def test_rag_query_rejects_history_json_over_the_length_cap():
     assert response.status_code == 422
 
 
+def test_rag_upload_requires_auth():
+    response = client.post("/rag/documents", files={"file": ("policy.txt", b"Our return policy.", "text/plain")})
+    assert response.status_code == 401
+
+
+def test_rag_upload_rejects_invalid_token():
+    response = client.post(
+        "/rag/documents",
+        files={"file": ("policy.txt", b"Our return policy.", "text/plain")},
+        headers={"Authorization": "Bearer not-a-real-token"},
+    )
+    assert response.status_code == 401
+
+
+def test_rag_upload_rejects_unsupported_extension():
+    """.csv is /extraction/upload's tabular-import territory, not a
+    document format rag/data_access.py has a text extractor for - the
+    inverse of test_upload_rejects_unsupported_extension's .docx case
+    above, confirming the two endpoints validate against genuinely
+    different, non-overlapping-by-mistake extension sets."""
+    response = client.post(
+        "/rag/documents", files={"file": ("data.csv", b"a,b\n1,2\n", "text/csv")}, headers=_auth()
+    )
+    assert response.status_code == 400
+    assert "csv" in response.json()["detail"]
+
+
+def test_rag_upload_rejects_empty_file():
+    response = client.post(
+        "/rag/documents", files={"file": ("policy.txt", b"", "text/plain")}, headers=_auth()
+    )
+    assert response.status_code == 400
+
+
+def test_rag_upload_rejects_oversized_file():
+    with patch("src.ai.main._MAX_UPLOAD_BYTES", 10):
+        response = client.post(
+            "/rag/documents", files={"file": ("policy.txt", b"x" * 100, "text/plain")}, headers=_auth()
+        )
+    assert response.status_code == 413
+
+
+def test_rag_upload_rejects_content_that_does_not_match_extension():
+    """Same magic-byte gate as /extraction/upload, extended to cover docx's
+    own zip signature - a file renamed to .docx without real DOCX (ZIP)
+    content must be rejected, not silently mis-parsed."""
+    response = client.post(
+        "/rag/documents",
+        files={"file": ("manual.docx", b"this is not a real docx file", "application/octet-stream")},
+        headers=_auth(),
+    )
+    assert response.status_code == 400
+    assert "extension" in response.json()["detail"]
+
+
+def test_rag_upload_accepts_a_genuine_pdf_magic_header():
+    """The magic-byte check itself must not falsely reject real content -
+    downstream registration/ingestion is mocked out here, only the
+    content-sniffing gate is under test (mirrors test_main.py's own
+    test_upload_accepts_a_genuine_pdf_magic_header for /extraction/upload)."""
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.db.minio_client", return_value=MagicMock()), \
+         patch(
+             "src.ai.main.rag_data_access.register_document_upload",
+             return_value={"document_id": "doc-1", "storage_bucket_path": "tenant_t1/rag/doc-1.pdf"},
+         ), \
+         patch("src.ai.main.rag_pipeline.ingest_pending_documents", return_value=1), \
+         patch("src.ai.main.rag_data_access.get_document_processed_status", return_value="Processed"):
+        response = client.post(
+            "/rag/documents", files={"file": ("manual.pdf", b"%PDF-1.4\n...", "application/pdf")}, headers=_auth(),
+        )
+    assert response.status_code == 200
+
+
+def test_rag_upload_txt_has_no_magic_byte_check():
+    """.txt (like .csv on /extraction/upload) has no reliable magic bytes -
+    any content is accepted past the content-sniffing gate."""
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.db.minio_client", return_value=MagicMock()), \
+         patch(
+             "src.ai.main.rag_data_access.register_document_upload",
+             return_value={"document_id": "doc-1", "storage_bucket_path": "tenant_t1/rag/doc-1.txt"},
+         ), \
+         patch("src.ai.main.rag_pipeline.ingest_pending_documents", return_value=1), \
+         patch("src.ai.main.rag_data_access.get_document_processed_status", return_value="Processed"):
+        response = client.post(
+            "/rag/documents", files={"file": ("policy.txt", b"Our return policy.", "text/plain")}, headers=_auth(),
+        )
+    assert response.status_code == 200
+
+
+def test_rag_upload_registers_document_runs_ingestion_and_returns_its_status():
+    """The full happy path: register -> ingest -> look up the resulting
+    status -> return it. Asserts each mocked collaborator receives the
+    arguments the real objects require, not just that a 200 came back."""
+    from src.ai.rag.pipeline import DEFAULT_BUCKET
+
+    fake_conn = MagicMock()
+    fake_minio = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn) as mock_conn_factory, \
+         patch("src.ai.main.db.minio_client", return_value=fake_minio), \
+         patch(
+             "src.ai.main.rag_data_access.register_document_upload",
+             return_value={"document_id": "doc-42", "storage_bucket_path": "tenant_t1/rag/doc-42.pdf"},
+         ) as mock_register, \
+         patch("src.ai.main.rag_pipeline.ingest_pending_documents", return_value=1) as mock_ingest, \
+         patch(
+             "src.ai.main.rag_data_access.get_document_processed_status", return_value="Processed"
+         ) as mock_get_status:
+        response = client.post(
+            "/rag/documents", files={"file": ("manual.pdf", b"%PDF-1.4\n...", "application/pdf")}, headers=_auth(),
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"document_id": "doc-42", "file_name": "manual.pdf", "processed_status": "Processed"}
+
+    mock_conn_factory.assert_called_once_with("t1", "u1")
+    mock_register.assert_called_once_with(
+        fake_conn, fake_minio, DEFAULT_BUCKET, "t1", "u1", "manual.pdf", b"%PDF-1.4\n...", ".pdf",
+    )
+    mock_ingest.assert_called_once_with(fake_conn, fake_minio, "t1", bucket=DEFAULT_BUCKET)
+    mock_get_status.assert_called_once_with(fake_conn, "t1", "doc-42")
+
+
+def test_rag_upload_surfaces_a_failed_ingestion_status_without_erroring():
+    """A downstream ingestion failure (e.g. an unparseable file) must not
+    be reported as a 500 - it's a normal 200 carrying processed_status=
+    'Failed', the same outcome ingest_pending_documents() already produces
+    for any other document it can't process."""
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.db.minio_client", return_value=MagicMock()), \
+         patch(
+             "src.ai.main.rag_data_access.register_document_upload",
+             return_value={"document_id": "doc-7", "storage_bucket_path": "tenant_t1/rag/doc-7.pdf"},
+         ), \
+         patch("src.ai.main.rag_pipeline.ingest_pending_documents", return_value=0), \
+         patch("src.ai.main.rag_data_access.get_document_processed_status", return_value="Failed"):
+        response = client.post(
+            "/rag/documents", files={"file": ("manual.pdf", b"%PDF-1.4\n...", "application/pdf")}, headers=_auth(),
+        )
+    assert response.status_code == 200
+    assert response.json()["processed_status"] == "Failed"
+
+
+def test_rag_upload_rolls_back_and_returns_500_on_an_unexpected_error():
+    fake_conn = MagicMock()
+    with patch("src.ai.main.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.main.db.minio_client", return_value=MagicMock()), \
+         patch("src.ai.main.rag_data_access.register_document_upload", side_effect=RuntimeError("boom")):
+        response = client.post(
+            "/rag/documents", files={"file": ("manual.pdf", b"%PDF-1.4\n...", "application/pdf")}, headers=_auth(),
+        )
+    assert response.status_code == 500
+    fake_conn.rollback.assert_called_once()
+
+
 def test_onboarding_status_requires_auth():
     response = client.get("/onboarding/status")
     assert response.status_code == 401
