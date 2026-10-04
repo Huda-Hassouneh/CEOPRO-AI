@@ -24,8 +24,18 @@ import io
 import numpy as np
 import pytest
 
+from unittest.mock import MagicMock
+
 import src.ai.rag.data_access as data_access_module
-from src.ai.rag.data_access import UnsupportedDocumentTypeError, _from_pgvector_literal, _to_pgvector_literal, fetch_document_text
+from src.ai.rag.data_access import (
+    UnsupportedDocumentTypeError,
+    _from_pgvector_literal,
+    _to_pgvector_literal,
+    fetch_document_text,
+    get_document_processed_status,
+    register_document_upload,
+    validate_document_extension,
+)
 
 
 def test_round_trips_a_realistic_384_dim_embedding():
@@ -231,3 +241,130 @@ def test_fetch_document_text_skips_fully_blank_xlsx_rows_and_renders_empty_cells
     assert "Widget A\t" in text
     lines = [line for line in text.splitlines() if line.strip()]
     assert len(lines) == 3  # "Sheet: ..." + header row + "Widget A" row, no blank-row artifact
+
+
+def test_validate_document_extension_accepts_every_supported_format():
+    for ext in data_access_module.SUPPORTED_DOCUMENT_EXTENSIONS:
+        assert validate_document_extension(f"file{ext}") == ext
+
+
+def test_validate_document_extension_is_case_insensitive():
+    assert validate_document_extension("POLICY.PDF") == ".pdf"
+
+
+def test_validate_document_extension_rejects_a_tabular_import_format():
+    """.csv/.xlsm are /extraction/upload's territory, not this module's -
+    confirms the two endpoints' extension sets don't silently overlap."""
+    with pytest.raises(UnsupportedDocumentTypeError, match="\\.csv"):
+        validate_document_extension("export.csv")
+
+
+def test_validate_document_extension_rejects_no_extension_at_all():
+    with pytest.raises(UnsupportedDocumentTypeError, match="no extension"):
+        validate_document_extension("README")
+
+
+class _FakeMinioClientForUpload:
+    """Records what register_document_upload() actually writes, without a
+    real MinIO server - bucket_exists/make_bucket/put_object are the only
+    methods that function calls."""
+
+    def __init__(self, bucket_already_exists: bool = True):
+        self.bucket_already_exists = bucket_already_exists
+        self.made_bucket = None
+        self.put_calls = []
+
+    def bucket_exists(self, bucket):
+        return self.bucket_already_exists
+
+    def make_bucket(self, bucket):
+        self.made_bucket = bucket
+
+    def put_object(self, bucket, object_key, data, length, content_type=None):
+        self.put_calls.append(
+            {"bucket": bucket, "object_key": object_key, "data": data.read(), "length": length, "content_type": content_type}
+        )
+
+
+class _FakeCursor:
+    def __init__(self):
+        self.executed = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def execute(self, query, params=None):
+        self.executed.append((query, params))
+
+
+class _FakeConnForUpload:
+    def __init__(self):
+        self.cursor_obj = _FakeCursor()
+
+    def cursor(self):
+        return self.cursor_obj
+
+
+def test_register_document_upload_writes_to_the_documented_storage_path():
+    minio_client = _FakeMinioClientForUpload()
+    conn = _FakeConnForUpload()
+
+    result = register_document_upload(
+        conn, minio_client, "ceopro-rag-knowledge", "tenant-1", "user-1", "policy.pdf", b"%PDF-1.4 fake", ".pdf",
+    )
+
+    assert result["document_id"]
+    assert result["storage_bucket_path"] == f"tenant_tenant-1/rag/{result['document_id']}.pdf"
+    assert len(minio_client.put_calls) == 1
+    put_call = minio_client.put_calls[0]
+    assert put_call["bucket"] == "ceopro-rag-knowledge"
+    assert put_call["object_key"] == result["storage_bucket_path"]
+    assert put_call["data"] == b"%PDF-1.4 fake"
+    assert put_call["content_type"] == "application/pdf"
+
+
+def test_register_document_upload_creates_the_bucket_if_missing():
+    minio_client = _FakeMinioClientForUpload(bucket_already_exists=False)
+    conn = _FakeConnForUpload()
+
+    register_document_upload(
+        conn, minio_client, "ceopro-rag-knowledge", "tenant-1", "user-1", "policy.txt", b"text", ".txt",
+    )
+
+    assert minio_client.made_bucket == "ceopro-rag-knowledge"
+
+
+def test_register_document_upload_inserts_a_pending_row_with_the_right_fields():
+    minio_client = _FakeMinioClientForUpload()
+    conn = _FakeConnForUpload()
+
+    result = register_document_upload(
+        conn, minio_client, "ceopro-rag-knowledge", "tenant-1", "user-1", "policy.txt", b"hello world", ".txt",
+    )
+
+    query, params = conn.cursor_obj.executed[0]
+    assert "INSERT INTO rag_documents_metadata" in query
+    assert "'Pending'" in query
+    document_id, tenant_id, file_name, storage_bucket_path, file_size_bytes, content_type, uploaded_by_user_id = params
+    assert document_id == result["document_id"]
+    assert tenant_id == "tenant-1"
+    assert file_name == "policy.txt"
+    assert storage_bucket_path == result["storage_bucket_path"]
+    assert file_size_bytes == len(b"hello world")
+    assert content_type == "text/plain"
+    assert uploaded_by_user_id == "user-1"
+
+
+def test_get_document_processed_status_returns_the_stored_status():
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = ("Processed",)
+    assert get_document_processed_status(conn, "tenant-1", "doc-1") == "Processed"
+
+
+def test_get_document_processed_status_returns_none_when_no_such_document():
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = None
+    assert get_document_processed_status(conn, "tenant-1", "missing-doc") is None
