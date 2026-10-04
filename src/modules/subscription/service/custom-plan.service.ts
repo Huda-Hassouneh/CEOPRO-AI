@@ -22,12 +22,19 @@ import { configKeys } from "../../../config/keys.config.js";
 import { stripeService } from "../client/payment-providers/stripe/stripe.client.js";
 import type { BillingOptionType } from "../types/plans.types.js";
 import { getCustomPlanPricingPolicy } from "./custom-plan-policy.service.js";
+import { prisma } from "../../../config/database.js";
+import { tenantNotificationProducer } from "../../tenant-notifications/tenant-notification.producer.js";
 
 const EDITABLE_STATUSES = new Set(["draft", "calculated"]);
 const SENDABLE_STATUS = "approved";
 const ACCEPTABLE_STATUSES = new Set(["approved", "sent"]);
 
 type DecimalInput = ConstructorParameters<typeof Prisma.Decimal>[0];
+
+type NotificationActor = {
+  tenantId: string;
+  userId: string;
+};
 
 function decimal(value: DecimalInput) {
   return new Prisma.Decimal(value);
@@ -694,15 +701,57 @@ export async function approveCustomPlanQuote(
 export async function sendCustomPlanQuote(
   tenantId: string,
   id: string,
+  actor: NotificationActor,
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!quote)
     return { success: false, code: ERROR_CODES.CUSTOM_PLAN_QUOTE_NOT_FOUND };
   if (quote.status !== SENDABLE_STATUS)
     return { success: false, code: ERROR_CODES.INVALID_QUOTE_STATUS };
-  const updated = await customPlanRepository.updateQuote(id, {
-    status: "sent",
+
+  const sent = await prisma.$transaction(async (tx) => {
+    // The quote belongs to the customer tenant, while the sender is a Platform
+    // Admin. Keep the actor's platform identity in the transaction-local RLS
+    // context so the cross-tenant outbox INSERT is authorized by the dedicated
+    // producer policy rather than by the worker DB identity.
+    await tx.$queryRaw`
+      SELECT
+        set_config('app.current_tenant_id', ${actor.tenantId}, true),
+        set_config('app.current_user_id', ${actor.userId}, true)
+    `;
+
+    const claimed = await tx.customPlanQuote.updateMany({
+      where: {
+        id,
+        tenantId,
+        status: SENDABLE_STATUS,
+      },
+      data: {
+        status: "sent",
+      },
+    });
+
+    if (claimed.count !== 1) {
+      return false;
+    }
+
+    await tenantNotificationProducer.customPlanOfferReady(tx, {
+      tenantId,
+      quoteId: quote.id,
+      quoteName: quote.name,
+      expiresAt: quote.expiresAt,
+    });
+
+    return true;
   });
+
+  if (!sent)
+    return { success: false, code: ERROR_CODES.INVALID_QUOTE_STATUS };
+
+  const updated = await customPlanRepository.findQuoteForTenant(id, tenantId);
+  if (!updated)
+    return { success: false, code: ERROR_CODES.CUSTOM_PLAN_QUOTE_NOT_FOUND };
+
   return { success: true, data: normalizeQuote(updated) };
 }
 

@@ -257,11 +257,20 @@ export async function approvePlatformQuoteHandler(
 }
 
 export async function sendPlatformQuoteHandler(req: AppRequest, res: Response) {
+  const actorTenantId = req.tenant_id;
+  const actorUserId = req.user?.id;
+  if (!actorTenantId || !actorUserId)
+    return sendApiError(res, ERROR_CODES.FORBIDDEN);
+
   const quote = await resolvePlatformQuote(String(req.params.id));
   if (!quote) return sendApiError(res, ERROR_CODES.CUSTOM_PLAN_QUOTE_NOT_FOUND);
+
   return reply(
     res,
-    await sendCustomPlanQuote(quote.tenantId, String(req.params.id)),
+    await sendCustomPlanQuote(quote.tenantId, String(req.params.id), {
+      tenantId: actorTenantId,
+      userId: actorUserId
+    }),
     "Custom plan quote sent successfully"
   );
 }

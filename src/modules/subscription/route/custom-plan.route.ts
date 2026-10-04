@@ -93,7 +93,7 @@ router.get(
 );
 router.post(
   "/quotes/:id/accept",
-  requirePermission("manage_catalog"),
+  requirePermission("manage_billing"),
   validateParams(customPlanQuoteIdParamsSchema),
   acceptQuoteHandler
 );

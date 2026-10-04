@@ -227,7 +227,10 @@ export async function sendQuoteHandler(req: AppRequest, res: Response) {
   if (!ctx) return;
   return reply(
     res,
-    await sendCustomPlanQuote(ctx.tenantId, String(req.params.id)),
+    await sendCustomPlanQuote(ctx.tenantId, String(req.params.id), {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+    }),
     "Custom plan quote is ready for customer review",
   );
 }

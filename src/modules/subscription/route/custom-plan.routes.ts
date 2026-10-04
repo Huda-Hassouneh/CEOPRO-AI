@@ -20,7 +20,7 @@ import {
   checkoutCustomPlanHandler,
   getPricingPolicyHandler,
   updatePricingPolicyHandler
-} from "../controllers/custom-plan.controller.js";
+} from "../controller/custom-plan.controller.js";
 import {
   authenticateUser,
   requirePermission,
@@ -93,13 +93,18 @@ router.get(
 );
 router.post(
   "/quotes/:id/accept",
-  requirePermission("manage_catalog"),
+  requirePermission("manage_billing"),
   validateParams(customPlanQuoteIdParamsSchema),
   acceptQuoteHandler
 );
 
 // Internal quote management. All pricing values are calculated server-side.
-router.get("/quotes", requirePlatformRole, requirePlatformPermission("billing.read"), listQuotesHandler);
+router.get(
+  "/quotes",
+  requirePlatformRole,
+  requirePlatformPermission("billing.read"),
+  listQuotesHandler
+);
 router.post(
   "/quotes",
   requirePlatformRole,
@@ -154,7 +159,12 @@ router.post(
 
 // Vendor rates are global internal cost inputs, so only the strongest existing
 // tenant permission (all) may mutate/read them.
-router.get("/vendor-rates", requirePlatformRole, requirePlatformPermission("billing.read"), listVendorRatesHandler);
+router.get(
+  "/vendor-rates",
+  requirePlatformRole,
+  requirePlatformPermission("billing.read"),
+  listVendorRatesHandler
+);
 router.post(
   "/vendor-rates",
   requirePlatformRole,
