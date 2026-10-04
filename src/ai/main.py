@@ -57,6 +57,7 @@ from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, j
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.mpi import pipeline as mpi_pipeline
 from src.ai.pricing import pipeline as pricing_pipeline
+from src.ai.rag import data_access as rag_data_access
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
 from src.ai.sales import quick_sale
@@ -139,7 +140,11 @@ _MAX_HISTORY_JSON_LENGTH = int(os.getenv("RAG_MAX_HISTORY_JSON_LENGTH", "20000")
 # Content sniffing beyond the file extension - catches a trivial extension
 # spoof (e.g. an arbitrary file renamed to .xlsx). CSV has no reliable magic
 # bytes (it's plain text) so isn't checked here; PDF/XLSX/XLSM do.
-_MAGIC_BYTES = {".pdf": b"%PDF-", ".xlsx": b"PK\x03\x04", ".xlsm": b"PK\x03\x04"}
+_MAGIC_BYTES = {
+    ".pdf": b"%PDF-", ".xlsx": b"PK\x03\x04", ".xlsm": b"PK\x03\x04",
+    # .docx is the same OOXML/zip container format as .xlsx - same magic number.
+    ".docx": b"PK\x03\x04",
+}
 
 _TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "templates")
 
@@ -355,6 +360,85 @@ def rag_query(
         raise HTTPException(status_code=500, detail="RAG query failed.")
     finally:
         conn.close()
+
+
+@app.post("/rag/documents")
+def rag_upload_document(file: UploadFile = File(...), ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The missing human-upload half of the RAG document lifecycle: lands a
+    knowledge-base document in rag/pipeline.py's own ceopro-rag-knowledge
+    MinIO bucket, registers it in rag_documents_metadata with
+    processed_status='Pending' (the only state ingest_pending_documents()
+    picks up), then runs that same, unmodified ingestion function before
+    returning - so the document is chunked/embedded/persisted to
+    rag_document_chunks and immediately answerable through POST /rag/query,
+    in this same request. No new table, bucket, or pipeline: everything
+    below is the existing rag/data_access.py + rag/pipeline.py code this
+    module already relies on for retrieval.
+
+    Security/validation, same order and same helpers /extraction/upload
+    already uses: auth required (get_tenant_context); extension allowlist
+    (rag_data_access.validate_document_extension(), checked against this
+    module's own SUPPORTED_DOCUMENT_EXTENSIONS - a prose/knowledge-base
+    document set, distinct from /extraction/upload's tabular CSV/XLSX/XLSM/
+    PDF import set, so the two endpoints can never be confused for one
+    another); size-capped read (_read_upload_within_limit(), the same
+    _MAX_UPLOAD_BYTES limit); magic-byte content sniffing for pdf/xlsx/docx
+    (_validate_upload_content(), the same _MAGIC_BYTES table).
+
+    Tenant isolation: db.app_role_connection() opens this request's
+    connection as the restricted ceopro_app role with app.current_tenant_id
+    set, so rag_documents_metadata's own isolation_rag_docs RLS policy is
+    what actually confines this write to the caller's tenant - not an
+    application-level check layered on top.
+
+    Ingestion runs synchronously because nothing in this service lists or
+    re-triggers processing for a document after the fact - this request is
+    the only point a caller ever learns whether their upload actually got
+    indexed. A downstream ingestion failure (e.g. an unparseable file) is
+    not an error response here - it surfaces as processed_status='Failed'
+    in an otherwise-normal 200, the same "mark Failed, don't raise" outcome
+    ingest_pending_documents() already produces for any other document.
+    """
+    try:
+        ext = rag_data_access.validate_document_extension(file.filename or "")
+    except rag_data_access.UnsupportedDocumentTypeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    contents = _read_upload_within_limit(file)
+    _validate_upload_content(ext, contents)
+
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        minio_client = db.minio_client()
+        registration = rag_data_access.register_document_upload(
+            conn, minio_client, rag_pipeline.DEFAULT_BUCKET, ctx.tenant_id, ctx.user_id,
+            file.filename, contents, ext,
+        )
+        conn.commit()
+
+        rag_pipeline.ingest_pending_documents(conn, minio_client, ctx.tenant_id, bucket=rag_pipeline.DEFAULT_BUCKET)
+
+        processed_status = rag_data_access.get_document_processed_status(
+            conn, ctx.tenant_id, registration["document_id"]
+        )
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        logging.getLogger("CEOPRO_AI_MAIN").exception(
+            "RAG document upload failed for tenant=%s file=%s", ctx.tenant_id, file.filename
+        )
+        raise HTTPException(status_code=500, detail="Document upload failed.")
+    finally:
+        conn.close()
+
+    return {
+        "document_id": registration["document_id"],
+        "file_name": file.filename,
+        "processed_status": processed_status,
+    }
 
 
 @app.post("/extraction/process-pending")
