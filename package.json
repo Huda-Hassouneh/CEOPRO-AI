@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "verify:subscription": "node scripts/verify-subscription-integration.mjs",
-    "verify:entitlements": "node scripts/verify-entitlement-integration.mjs"
+    "verify:entitlements": "node scripts/verify-entitlement-integration.mjs",
+    "test:tenant-notifications": "node --test --test-reporter=spec tests/tenant-notifications-today.test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

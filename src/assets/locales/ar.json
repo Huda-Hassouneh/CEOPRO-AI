@@ -49,7 +49,13 @@
     "notifications": {
       "label": "الإشعارات",
       "unread": "إشعارات غير مقروءة",
-      "preview": "لا توجد إشعارات جديدة"
+      "title": "الإشعارات",
+      "unreadCount": "{{count}} غير مقروء",
+      "markAllRead": "تعليم الكل كمقروء",
+      "loading": "جارٍ تحميل الإشعارات...",
+      "error": "تعذر تحميل الإشعارات.",
+      "empty": "لا توجد إشعارات جديدة",
+      "archive": "أرشفة الإشعار"
     },
     "profile": {
       "label": "ملف الحساب",
@@ -1324,7 +1330,6 @@
         "giza": "الجيزة",
         "conakry": "كوناكري",
         "confirm": "تأكيد",
-
         "nzerekore": "نزيريكوري",
         "bissau": "بيساو",
         "bafata": "بافاتا",
@@ -3061,5 +3066,11 @@
     "removeAll": "إزالة الكل",
     "removeFile": "إزالة {{name}}",
     "ready": "جاهز"
+  },
+  "tenantNotifications": {
+    "customPlanOfferReady": {
+      "title": "عرض خطتك المخصصة جاهز",
+      "body": "العرض {{quoteName}} جاهز لمراجعتك."
+    }
   }
 }

@@ -256,14 +256,158 @@
   position: absolute;
   inset-inline-end: 155px;
   top: 44px;
-  width: 190px;
-  padding: 12px;
+  width: min(360px, calc(100vw - 28px));
+  overflow: hidden;
   border: 1px solid var(--ceopro-border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
   box-shadow: var(--ceopro-shadow);
   color: var(--ceopro-text-secondary);
+  z-index: 40;
+}
+.business-topbar__notification-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--ceopro-border);
+}
+.business-topbar__notification-heading > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.business-topbar__notification-heading strong {
+  color: var(--ceopro-text-primary);
   font-size: 12px;
+}
+.business-topbar__notification-heading small {
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+}
+.business-topbar__notification-read-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ceopro-primary);
+  font: 600 10px var(--ceopro-font-family);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.business-topbar__notification-read-all:hover,
+.business-topbar__notification-read-all:focus-visible {
+  background: var(--ceopro-primary-light);
+  outline: none;
+}
+.business-topbar__notification-read-all:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.business-topbar__notification-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.business-topbar__notification-state {
+  margin: 0;
+  padding: 22px 16px;
+  color: var(--ceopro-text-muted);
+  font-size: 11px;
+  text-align: center;
+}
+.business-topbar__notification-state.is-error {
+  color: #b42318;
+}
+.business-topbar__notification-item {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  border-bottom: 1px solid var(--ceopro-border);
+}
+.business-topbar__notification-item:last-child {
+  border-bottom: 0;
+}
+.business-topbar__notification-item.is-unread {
+  background: var(--ceopro-primary-light);
+}
+.business-topbar__notification-item.is-unread::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 7px;
+  top: 17px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ceopro-primary);
+}
+.business-topbar__notification-main {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 12px 10px 12px 15px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.business-topbar__notification-item.is-unread .business-topbar__notification-main {
+  padding-inline-start: 19px;
+}
+.business-topbar__notification-main:hover,
+.business-topbar__notification-main:focus-visible {
+  background: rgba(255, 255, 255, 0.5);
+  outline: none;
+}
+.business-topbar__notification-main strong {
+  overflow: hidden;
+  color: var(--ceopro-text-primary);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.business-topbar__notification-main span {
+  color: var(--ceopro-text-secondary);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.business-topbar__notification-main small {
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+}
+.business-topbar__notification-archive {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-inline-end: 8px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ceopro-text-muted);
+  cursor: pointer;
+}
+.business-topbar__notification-archive:hover,
+.business-topbar__notification-archive:focus-visible {
+  background: #fff;
+  color: var(--ceopro-primary);
+  outline: none;
+}
+.business-topbar__notification-archive:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 .business-topbar__profile-menu {
   position: absolute;
@@ -425,7 +569,10 @@
     display: none;
   }
   .business-topbar__notification-preview {
-    inset-inline-end: 10px;
+    position: fixed;
+    inset-inline: 12px;
+    top: 58px;
+    width: auto;
   }
 }
 @media (prefers-reduced-motion: reduce) {
