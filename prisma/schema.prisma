@@ -60,7 +60,9 @@ model Company {
   platformNotificationsReceived PlatformNotification[]       @relation("PlatformNotificationPlatformTenant")
   platformNotificationsSourced  PlatformNotification[]       @relation("PlatformNotificationSourceTenant")
   platformNotificationOutbox    PlatformNotificationOutbox[]
-  onboarding                    Onboarding?
+  onboarding                 Onboarding?
+  tenantNotifications        TenantNotification[]
+  tenantNotificationOutbox  TenantNotificationOutbox[]
 
   @@map("companies")
 }
@@ -413,21 +415,22 @@ model SystemRole {
 }
 
 model TenantUser {
-  id                                                           String                   @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_user_id") @db.Uuid
-  tenantId                                                     String                   @map("tenant_id") @db.Uuid
-  userId                                                       String                   @map("user_id") @db.Uuid
-  roleKey                                                      String                   @map("role_key") @db.VarChar(50)
-  removedAt                                                    DateTime?                @map("removed_at") @db.Timestamptz(6)
-  joinedAt                                                     DateTime?                @default(now()) @map("joined_at") @db.Timestamptz(6)
-  platformStatus                                               String                   @default("active") @map("platform_status") @db.VarChar(20)
+  id                                                           String                      @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_user_id") @db.Uuid
+  tenantId                                                     String                      @map("tenant_id") @db.Uuid
+  userId                                                       String                      @map("user_id") @db.Uuid
+  roleKey                                                      String                      @map("role_key") @db.VarChar(50)
+  removedAt                                                    DateTime?                   @map("removed_at") @db.Timestamptz(6)
+  joinedAt                                                     DateTime?                   @default(now()) @map("joined_at") @db.Timestamptz(6)
+  platformStatus                                               String                      @default("active") @map("platform_status") @db.VarChar(20)
   invoices                                                     invoices[]
   product_price_history                                        product_price_history[]
-  products_products_tenant_id_created_by_user_idTotenant_users products[]               @relation("products_tenant_id_created_by_user_idTotenant_users")
-  products_products_tenant_id_updated_by_user_idTotenant_users products[]               @relation("products_tenant_id_updated_by_user_idTotenant_users")
+  products_products_tenant_id_created_by_user_idTotenant_users products[]                  @relation("products_tenant_id_created_by_user_idTotenant_users")
+  products_products_tenant_id_updated_by_user_idTotenant_users products[]                  @relation("products_tenant_id_updated_by_user_idTotenant_users")
   rag_documents_metadata                                       rag_documents_metadata[]
-  role                                                         SystemRole               @relation(fields: [roleKey], references: [roleKey], onDelete: NoAction, onUpdate: NoAction)
-  tenant                                                       Company                  @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user                                                         User                     @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+  role                                                         SystemRole                  @relation(fields: [roleKey], references: [roleKey], onDelete: NoAction, onUpdate: NoAction)
+  tenant                                                       Company                     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                                                         User                        @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+  tenantNotificationReceipts                                   TenantNotificationReceipt[]
 
   @@unique([tenantId, userId], map: "uq_tenant_user_composite_perimeter")
   @@map("tenant_users")
@@ -1269,6 +1272,78 @@ model PlatformNotificationOutbox {
 
   @@unique([tenantId, dedupeKey], map: "platform_notification_outbox_tenant_dedupe_key")
   @@map("platform_notification_outbox")
+}
+
+model TenantNotification {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  eventType String @map("event_type") @db.VarChar(80)
+  severity  String @db.VarChar(20)
+
+  titleKey String @map("title_key") @db.VarChar(120)
+  bodyKey  String @map("body_key") @db.VarChar(120)
+
+  payload Json @default("{}")
+
+  resourceType String? @map("resource_type") @db.VarChar(80)
+  resourceId   String? @map("resource_id") @db.Uuid
+
+  dedupeKey String @map("dedupe_key") @db.VarChar(255)
+
+  occurredAt DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  tenant   Company                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  receipts TenantNotificationReceipt[]
+
+  @@unique([tenantId, dedupeKey], map: "tenant_notifications_tenant_dedupe_key")
+  @@unique([tenantId, id], map: "tenant_notifications_tenant_id_key")
+  @@map("tenant_notifications")
+}
+
+model TenantNotificationReceipt {
+  notificationId  String @map("notification_id") @db.Uuid
+  tenantId        String @map("tenant_id") @db.Uuid
+  recipientUserId String @map("recipient_user_id") @db.Uuid
+
+  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  notification        TenantNotification @relation(fields: [tenantId, notificationId], references: [tenantId, id], onDelete: Cascade)
+  recipientMembership TenantUser         @relation(fields: [tenantId, recipientUserId], references: [tenantId, userId], onDelete: Cascade)
+
+  @@id([notificationId, recipientUserId])
+  @@index([recipientUserId, tenantId, archivedAt, readAt, notificationId], map: "tenant_notification_receipts_inbox_idx")
+  @@map("tenant_notification_receipts")
+}
+
+model TenantNotificationOutbox {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  eventType String @map("event_type") @db.VarChar(80)
+  dedupeKey String @map("dedupe_key") @db.VarChar(255)
+
+  payload Json @default("{}")
+
+  status   String @default("pending") @db.VarChar(20)
+  attempts Int    @default(0)
+
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(6)
+  lastErrorCode String?   @map("last_error_code") @db.VarChar(100)
+
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Company @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, dedupeKey], map: "tenant_notification_outbox_tenant_dedupe_key")
+  @@map("tenant_notification_outbox")
 }
 
 enum FeatureType {

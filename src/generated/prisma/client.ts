@@ -372,6 +372,21 @@ export type PlatformNotificationReceipt = Prisma.PlatformNotificationReceiptMode
  */
 export type PlatformNotificationOutbox = Prisma.PlatformNotificationOutboxModel
 /**
+ * Model TenantNotification
+ * 
+ */
+export type TenantNotification = Prisma.TenantNotificationModel
+/**
+ * Model TenantNotificationReceipt
+ * 
+ */
+export type TenantNotificationReceipt = Prisma.TenantNotificationReceiptModel
+/**
+ * Model TenantNotificationOutbox
+ * 
+ */
+export type TenantNotificationOutbox = Prisma.TenantNotificationOutboxModel
+/**
  * Model Onboarding
  * 
  */

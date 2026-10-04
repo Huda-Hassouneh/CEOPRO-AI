@@ -112,6 +112,9 @@ export const ModelName = {
   PlatformNotification: 'PlatformNotification',
   PlatformNotificationReceipt: 'PlatformNotificationReceipt',
   PlatformNotificationOutbox: 'PlatformNotificationOutbox',
+  TenantNotification: 'TenantNotification',
+  TenantNotificationReceipt: 'TenantNotificationReceipt',
+  TenantNotificationOutbox: 'TenantNotificationOutbox',
   Onboarding: 'Onboarding'
 } as const
 
@@ -1151,6 +1154,55 @@ export const PlatformNotificationOutboxScalarFieldEnum = {
 } as const
 
 export type PlatformNotificationOutboxScalarFieldEnum = (typeof PlatformNotificationOutboxScalarFieldEnum)[keyof typeof PlatformNotificationOutboxScalarFieldEnum]
+
+
+export const TenantNotificationScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  eventType: 'eventType',
+  severity: 'severity',
+  titleKey: 'titleKey',
+  bodyKey: 'bodyKey',
+  payload: 'payload',
+  resourceType: 'resourceType',
+  resourceId: 'resourceId',
+  dedupeKey: 'dedupeKey',
+  occurredAt: 'occurredAt',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type TenantNotificationScalarFieldEnum = (typeof TenantNotificationScalarFieldEnum)[keyof typeof TenantNotificationScalarFieldEnum]
+
+
+export const TenantNotificationReceiptScalarFieldEnum = {
+  notificationId: 'notificationId',
+  tenantId: 'tenantId',
+  recipientUserId: 'recipientUserId',
+  readAt: 'readAt',
+  archivedAt: 'archivedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type TenantNotificationReceiptScalarFieldEnum = (typeof TenantNotificationReceiptScalarFieldEnum)[keyof typeof TenantNotificationReceiptScalarFieldEnum]
+
+
+export const TenantNotificationOutboxScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  eventType: 'eventType',
+  dedupeKey: 'dedupeKey',
+  payload: 'payload',
+  status: 'status',
+  attempts: 'attempts',
+  nextAttemptAt: 'nextAttemptAt',
+  deliveredAt: 'deliveredAt',
+  lastErrorCode: 'lastErrorCode',
+  occurredAt: 'occurredAt',
+  createdAt: 'createdAt'
+} as const
+
+export type TenantNotificationOutboxScalarFieldEnum = (typeof TenantNotificationOutboxScalarFieldEnum)[keyof typeof TenantNotificationOutboxScalarFieldEnum]
 
 
 export const OnboardingScalarFieldEnum = {

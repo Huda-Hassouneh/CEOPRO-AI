@@ -458,6 +458,9 @@ export const ModelName = {
   PlatformNotification: 'PlatformNotification',
   PlatformNotificationReceipt: 'PlatformNotificationReceipt',
   PlatformNotificationOutbox: 'PlatformNotificationOutbox',
+  TenantNotification: 'TenantNotification',
+  TenantNotificationReceipt: 'TenantNotificationReceipt',
+  TenantNotificationOutbox: 'TenantNotificationOutbox',
   Onboarding: 'Onboarding'
 } as const
 
@@ -474,7 +477,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "appConfig" | "company" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache" | "platformNotification" | "platformNotificationReceipt" | "platformNotificationOutbox" | "onboarding"
+    modelProps: "appConfig" | "company" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache" | "platformNotification" | "platformNotificationReceipt" | "platformNotificationOutbox" | "tenantNotification" | "tenantNotificationReceipt" | "tenantNotificationOutbox" | "onboarding"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -4992,6 +4995,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    TenantNotification: {
+      payload: Prisma.$TenantNotificationPayload<ExtArgs>
+      fields: Prisma.TenantNotificationFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TenantNotificationFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TenantNotificationFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>
+        }
+        findFirst: {
+          args: Prisma.TenantNotificationFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TenantNotificationFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>
+        }
+        findMany: {
+          args: Prisma.TenantNotificationFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>[]
+        }
+        create: {
+          args: Prisma.TenantNotificationCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>
+        }
+        createMany: {
+          args: Prisma.TenantNotificationCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TenantNotificationCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>[]
+        }
+        delete: {
+          args: Prisma.TenantNotificationDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>
+        }
+        update: {
+          args: Prisma.TenantNotificationUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>
+        }
+        deleteMany: {
+          args: Prisma.TenantNotificationDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TenantNotificationUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TenantNotificationUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>[]
+        }
+        upsert: {
+          args: Prisma.TenantNotificationUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationPayload>
+        }
+        aggregate: {
+          args: Prisma.TenantNotificationAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTenantNotification>
+        }
+        groupBy: {
+          args: Prisma.TenantNotificationGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TenantNotificationGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TenantNotificationCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TenantNotificationCountAggregateOutputType> | number
+        }
+      }
+    }
+    TenantNotificationReceipt: {
+      payload: Prisma.$TenantNotificationReceiptPayload<ExtArgs>
+      fields: Prisma.TenantNotificationReceiptFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TenantNotificationReceiptFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TenantNotificationReceiptFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>
+        }
+        findFirst: {
+          args: Prisma.TenantNotificationReceiptFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TenantNotificationReceiptFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>
+        }
+        findMany: {
+          args: Prisma.TenantNotificationReceiptFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>[]
+        }
+        create: {
+          args: Prisma.TenantNotificationReceiptCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>
+        }
+        createMany: {
+          args: Prisma.TenantNotificationReceiptCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TenantNotificationReceiptCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>[]
+        }
+        delete: {
+          args: Prisma.TenantNotificationReceiptDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>
+        }
+        update: {
+          args: Prisma.TenantNotificationReceiptUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>
+        }
+        deleteMany: {
+          args: Prisma.TenantNotificationReceiptDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TenantNotificationReceiptUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TenantNotificationReceiptUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>[]
+        }
+        upsert: {
+          args: Prisma.TenantNotificationReceiptUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationReceiptPayload>
+        }
+        aggregate: {
+          args: Prisma.TenantNotificationReceiptAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTenantNotificationReceipt>
+        }
+        groupBy: {
+          args: Prisma.TenantNotificationReceiptGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TenantNotificationReceiptGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TenantNotificationReceiptCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TenantNotificationReceiptCountAggregateOutputType> | number
+        }
+      }
+    }
+    TenantNotificationOutbox: {
+      payload: Prisma.$TenantNotificationOutboxPayload<ExtArgs>
+      fields: Prisma.TenantNotificationOutboxFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TenantNotificationOutboxFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TenantNotificationOutboxFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>
+        }
+        findFirst: {
+          args: Prisma.TenantNotificationOutboxFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TenantNotificationOutboxFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>
+        }
+        findMany: {
+          args: Prisma.TenantNotificationOutboxFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>[]
+        }
+        create: {
+          args: Prisma.TenantNotificationOutboxCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>
+        }
+        createMany: {
+          args: Prisma.TenantNotificationOutboxCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TenantNotificationOutboxCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>[]
+        }
+        delete: {
+          args: Prisma.TenantNotificationOutboxDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>
+        }
+        update: {
+          args: Prisma.TenantNotificationOutboxUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>
+        }
+        deleteMany: {
+          args: Prisma.TenantNotificationOutboxDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TenantNotificationOutboxUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TenantNotificationOutboxUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>[]
+        }
+        upsert: {
+          args: Prisma.TenantNotificationOutboxUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TenantNotificationOutboxPayload>
+        }
+        aggregate: {
+          args: Prisma.TenantNotificationOutboxAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTenantNotificationOutbox>
+        }
+        groupBy: {
+          args: Prisma.TenantNotificationOutboxGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TenantNotificationOutboxGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TenantNotificationOutboxCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TenantNotificationOutboxCountAggregateOutputType> | number
+        }
+      }
+    }
     Onboarding: {
       payload: Prisma.$OnboardingPayload<ExtArgs>
       fields: Prisma.OnboardingFieldRefs
@@ -6127,6 +6352,55 @@ export const PlatformNotificationOutboxScalarFieldEnum = {
 export type PlatformNotificationOutboxScalarFieldEnum = (typeof PlatformNotificationOutboxScalarFieldEnum)[keyof typeof PlatformNotificationOutboxScalarFieldEnum]
 
 
+export const TenantNotificationScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  eventType: 'eventType',
+  severity: 'severity',
+  titleKey: 'titleKey',
+  bodyKey: 'bodyKey',
+  payload: 'payload',
+  resourceType: 'resourceType',
+  resourceId: 'resourceId',
+  dedupeKey: 'dedupeKey',
+  occurredAt: 'occurredAt',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type TenantNotificationScalarFieldEnum = (typeof TenantNotificationScalarFieldEnum)[keyof typeof TenantNotificationScalarFieldEnum]
+
+
+export const TenantNotificationReceiptScalarFieldEnum = {
+  notificationId: 'notificationId',
+  tenantId: 'tenantId',
+  recipientUserId: 'recipientUserId',
+  readAt: 'readAt',
+  archivedAt: 'archivedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type TenantNotificationReceiptScalarFieldEnum = (typeof TenantNotificationReceiptScalarFieldEnum)[keyof typeof TenantNotificationReceiptScalarFieldEnum]
+
+
+export const TenantNotificationOutboxScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  eventType: 'eventType',
+  dedupeKey: 'dedupeKey',
+  payload: 'payload',
+  status: 'status',
+  attempts: 'attempts',
+  nextAttemptAt: 'nextAttemptAt',
+  deliveredAt: 'deliveredAt',
+  lastErrorCode: 'lastErrorCode',
+  occurredAt: 'occurredAt',
+  createdAt: 'createdAt'
+} as const
+
+export type TenantNotificationOutboxScalarFieldEnum = (typeof TenantNotificationOutboxScalarFieldEnum)[keyof typeof TenantNotificationOutboxScalarFieldEnum]
+
+
 export const OnboardingScalarFieldEnum = {
   tenantId: 'tenantId',
   currentStep: 'currentStep',
@@ -6635,6 +6909,9 @@ export type GlobalOmitConfig = {
   platformNotification?: Prisma.PlatformNotificationOmit
   platformNotificationReceipt?: Prisma.PlatformNotificationReceiptOmit
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxOmit
+  tenantNotification?: Prisma.TenantNotificationOmit
+  tenantNotificationReceipt?: Prisma.TenantNotificationReceiptOmit
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxOmit
   onboarding?: Prisma.OnboardingOmit
 }
 

@@ -206,6 +206,7 @@ export type TenantUserWhereInput = {
   role?: Prisma.XOR<Prisma.SystemRoleScalarRelationFilter, Prisma.SystemRoleWhereInput>
   tenant?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptListRelationFilter
 }
 
 export type TenantUserOrderByWithRelationInput = {
@@ -224,6 +225,7 @@ export type TenantUserOrderByWithRelationInput = {
   role?: Prisma.SystemRoleOrderByWithRelationInput
   tenant?: Prisma.CompanyOrderByWithRelationInput
   user?: Prisma.UserOrderByWithRelationInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptOrderByRelationAggregateInput
 }
 
 export type TenantUserWhereUniqueInput = Prisma.AtLeast<{
@@ -246,6 +248,7 @@ export type TenantUserWhereUniqueInput = Prisma.AtLeast<{
   role?: Prisma.XOR<Prisma.SystemRoleScalarRelationFilter, Prisma.SystemRoleWhereInput>
   tenant?: Prisma.XOR<Prisma.CompanyScalarRelationFilter, Prisma.CompanyWhereInput>
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptListRelationFilter
 }, "id" | "tenantId_userId">
 
 export type TenantUserOrderByWithAggregationInput = {
@@ -287,6 +290,7 @@ export type TenantUserCreateInput = {
   role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
   tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
   user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateInput = {
@@ -302,6 +306,7 @@ export type TenantUserUncheckedCreateInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUpdateInput = {
@@ -317,6 +322,7 @@ export type TenantUserUpdateInput = {
   role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
   tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
   user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateInput = {
@@ -332,6 +338,7 @@ export type TenantUserUncheckedUpdateInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserCreateManyInput = {
@@ -409,6 +416,11 @@ export type TenantUserMinOrderByAggregateInput = {
 export type TenantUserNullableScalarRelationFilter = {
   is?: Prisma.TenantUserWhereInput | null
   isNot?: Prisma.TenantUserWhereInput | null
+}
+
+export type TenantUserScalarRelationFilter = {
+  is?: Prisma.TenantUserWhereInput
+  isNot?: Prisma.TenantUserWhereInput
 }
 
 export type TenantUserCreateNestedManyWithoutTenantInput = {
@@ -617,6 +629,20 @@ export type TenantUserUpdateOneWithoutRag_documents_metadataNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.TenantUserUpdateToOneWithWhereWithoutRag_documents_metadataInput, Prisma.TenantUserUpdateWithoutRag_documents_metadataInput>, Prisma.TenantUserUncheckedUpdateWithoutRag_documents_metadataInput>
 }
 
+export type TenantUserCreateNestedOneWithoutTenantNotificationReceiptsInput = {
+  create?: Prisma.XOR<Prisma.TenantUserCreateWithoutTenantNotificationReceiptsInput, Prisma.TenantUserUncheckedCreateWithoutTenantNotificationReceiptsInput>
+  connectOrCreate?: Prisma.TenantUserCreateOrConnectWithoutTenantNotificationReceiptsInput
+  connect?: Prisma.TenantUserWhereUniqueInput
+}
+
+export type TenantUserUpdateOneRequiredWithoutTenantNotificationReceiptsNestedInput = {
+  create?: Prisma.XOR<Prisma.TenantUserCreateWithoutTenantNotificationReceiptsInput, Prisma.TenantUserUncheckedCreateWithoutTenantNotificationReceiptsInput>
+  connectOrCreate?: Prisma.TenantUserCreateOrConnectWithoutTenantNotificationReceiptsInput
+  upsert?: Prisma.TenantUserUpsertWithoutTenantNotificationReceiptsInput
+  connect?: Prisma.TenantUserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.TenantUserUpdateToOneWithWhereWithoutTenantNotificationReceiptsInput, Prisma.TenantUserUpdateWithoutTenantNotificationReceiptsInput>, Prisma.TenantUserUncheckedUpdateWithoutTenantNotificationReceiptsInput>
+}
+
 export type TenantUserCreateWithoutTenantInput = {
   id?: string
   removedAt?: Date | string | null
@@ -629,6 +655,7 @@ export type TenantUserCreateWithoutTenantInput = {
   rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutTenant_usersInput
   role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
   user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateWithoutTenantInput = {
@@ -643,6 +670,7 @@ export type TenantUserUncheckedCreateWithoutTenantInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserCreateOrConnectWithoutTenantInput = {
@@ -696,6 +724,7 @@ export type TenantUserCreateWithoutUserInput = {
   rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutTenant_usersInput
   role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
   tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateWithoutUserInput = {
@@ -710,6 +739,7 @@ export type TenantUserUncheckedCreateWithoutUserInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserCreateOrConnectWithoutUserInput = {
@@ -750,6 +780,7 @@ export type TenantUserCreateWithoutRoleInput = {
   rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutTenant_usersInput
   tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
   user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateWithoutRoleInput = {
@@ -764,6 +795,7 @@ export type TenantUserUncheckedCreateWithoutRoleInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserCreateOrConnectWithoutRoleInput = {
@@ -804,6 +836,7 @@ export type TenantUserCreateWithoutInvoicesInput = {
   role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
   tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
   user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateWithoutInvoicesInput = {
@@ -818,6 +851,7 @@ export type TenantUserUncheckedCreateWithoutInvoicesInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserCreateOrConnectWithoutInvoicesInput = {
@@ -848,6 +882,7 @@ export type TenantUserUpdateWithoutInvoicesInput = {
   role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
   tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
   user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateWithoutInvoicesInput = {
@@ -862,6 +897,7 @@ export type TenantUserUncheckedUpdateWithoutInvoicesInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserCreateWithoutProduct_price_historyInput = {
@@ -876,6 +912,7 @@ export type TenantUserCreateWithoutProduct_price_historyInput = {
   role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
   tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
   user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateWithoutProduct_price_historyInput = {
@@ -890,6 +927,7 @@ export type TenantUserUncheckedCreateWithoutProduct_price_historyInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserCreateOrConnectWithoutProduct_price_historyInput = {
@@ -920,6 +958,7 @@ export type TenantUserUpdateWithoutProduct_price_historyInput = {
   role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
   tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
   user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateWithoutProduct_price_historyInput = {
@@ -934,6 +973,7 @@ export type TenantUserUncheckedUpdateWithoutProduct_price_historyInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserCreateWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput = {
@@ -948,6 +988,7 @@ export type TenantUserCreateWithoutProducts_products_tenant_id_created_by_user_i
   role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
   tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
   user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput = {
@@ -962,6 +1003,7 @@ export type TenantUserUncheckedCreateWithoutProducts_products_tenant_id_created_
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserCreateOrConnectWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput = {
@@ -981,6 +1023,7 @@ export type TenantUserCreateWithoutProducts_products_tenant_id_updated_by_user_i
   role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
   tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
   user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput = {
@@ -995,6 +1038,7 @@ export type TenantUserUncheckedCreateWithoutProducts_products_tenant_id_updated_
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserCreateOrConnectWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput = {
@@ -1025,6 +1069,7 @@ export type TenantUserUpdateWithoutProducts_products_tenant_id_created_by_user_i
   role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
   tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
   user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateWithoutProducts_products_tenant_id_created_by_user_idTotenant_usersInput = {
@@ -1039,6 +1084,7 @@ export type TenantUserUncheckedUpdateWithoutProducts_products_tenant_id_created_
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUpsertWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput = {
@@ -1064,6 +1110,7 @@ export type TenantUserUpdateWithoutProducts_products_tenant_id_updated_by_user_i
   role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
   tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
   user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateWithoutProducts_products_tenant_id_updated_by_user_idTotenant_usersInput = {
@@ -1078,6 +1125,7 @@ export type TenantUserUncheckedUpdateWithoutProducts_products_tenant_id_updated_
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserCreateWithoutRag_documents_metadataInput = {
@@ -1092,6 +1140,7 @@ export type TenantUserCreateWithoutRag_documents_metadataInput = {
   role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
   tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
   user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserUncheckedCreateWithoutRag_documents_metadataInput = {
@@ -1106,6 +1155,7 @@ export type TenantUserUncheckedCreateWithoutRag_documents_metadataInput = {
   product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedCreateNestedManyWithoutRecipientMembershipInput
 }
 
 export type TenantUserCreateOrConnectWithoutRag_documents_metadataInput = {
@@ -1136,6 +1186,7 @@ export type TenantUserUpdateWithoutRag_documents_metadataInput = {
   role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
   tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
   user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateWithoutRag_documents_metadataInput = {
@@ -1150,6 +1201,83 @@ export type TenantUserUncheckedUpdateWithoutRag_documents_metadataInput = {
   product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
+}
+
+export type TenantUserCreateWithoutTenantNotificationReceiptsInput = {
+  id?: string
+  removedAt?: Date | string | null
+  joinedAt?: Date | string | null
+  platformStatus?: string
+  invoices?: Prisma.invoicesCreateNestedManyWithoutTenant_usersInput
+  product_price_history?: Prisma.product_price_historyCreateNestedManyWithoutTenant_usersInput
+  products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
+  products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutTenant_usersInput
+  role: Prisma.SystemRoleCreateNestedOneWithoutTenantUsersInput
+  tenant: Prisma.CompanyCreateNestedOneWithoutTenantUsersInput
+  user: Prisma.UserCreateNestedOneWithoutTenantUsersInput
+}
+
+export type TenantUserUncheckedCreateWithoutTenantNotificationReceiptsInput = {
+  id?: string
+  tenantId: string
+  userId: string
+  roleKey: string
+  removedAt?: Date | string | null
+  joinedAt?: Date | string | null
+  platformStatus?: string
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutTenant_usersInput
+  product_price_history?: Prisma.product_price_historyUncheckedCreateNestedManyWithoutTenant_usersInput
+  products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput
+  products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedCreateNestedManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutTenant_usersInput
+}
+
+export type TenantUserCreateOrConnectWithoutTenantNotificationReceiptsInput = {
+  where: Prisma.TenantUserWhereUniqueInput
+  create: Prisma.XOR<Prisma.TenantUserCreateWithoutTenantNotificationReceiptsInput, Prisma.TenantUserUncheckedCreateWithoutTenantNotificationReceiptsInput>
+}
+
+export type TenantUserUpsertWithoutTenantNotificationReceiptsInput = {
+  update: Prisma.XOR<Prisma.TenantUserUpdateWithoutTenantNotificationReceiptsInput, Prisma.TenantUserUncheckedUpdateWithoutTenantNotificationReceiptsInput>
+  create: Prisma.XOR<Prisma.TenantUserCreateWithoutTenantNotificationReceiptsInput, Prisma.TenantUserUncheckedCreateWithoutTenantNotificationReceiptsInput>
+  where?: Prisma.TenantUserWhereInput
+}
+
+export type TenantUserUpdateToOneWithWhereWithoutTenantNotificationReceiptsInput = {
+  where?: Prisma.TenantUserWhereInput
+  data: Prisma.XOR<Prisma.TenantUserUpdateWithoutTenantNotificationReceiptsInput, Prisma.TenantUserUncheckedUpdateWithoutTenantNotificationReceiptsInput>
+}
+
+export type TenantUserUpdateWithoutTenantNotificationReceiptsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  invoices?: Prisma.invoicesUpdateManyWithoutTenant_usersNestedInput
+  product_price_history?: Prisma.product_price_historyUpdateManyWithoutTenant_usersNestedInput
+  products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
+  products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutTenant_usersNestedInput
+  role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
+  user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+}
+
+export type TenantUserUncheckedUpdateWithoutTenantNotificationReceiptsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  roleKey?: Prisma.StringFieldUpdateOperationsInput | string
+  removedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  joinedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutTenant_usersNestedInput
+  product_price_history?: Prisma.product_price_historyUncheckedUpdateManyWithoutTenant_usersNestedInput
+  products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
+  products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
 }
 
 export type TenantUserCreateManyTenantInput = {
@@ -1173,6 +1301,7 @@ export type TenantUserUpdateWithoutTenantInput = {
   rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutTenant_usersNestedInput
   role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
   user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateWithoutTenantInput = {
@@ -1187,6 +1316,7 @@ export type TenantUserUncheckedUpdateWithoutTenantInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateManyWithoutTenantInput = {
@@ -1219,6 +1349,7 @@ export type TenantUserUpdateWithoutUserInput = {
   rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutTenant_usersNestedInput
   role?: Prisma.SystemRoleUpdateOneRequiredWithoutTenantUsersNestedInput
   tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateWithoutUserInput = {
@@ -1233,6 +1364,7 @@ export type TenantUserUncheckedUpdateWithoutUserInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateManyWithoutUserInput = {
@@ -1265,6 +1397,7 @@ export type TenantUserUpdateWithoutRoleInput = {
   rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutTenant_usersNestedInput
   tenant?: Prisma.CompanyUpdateOneRequiredWithoutTenantUsersNestedInput
   user?: Prisma.UserUpdateOneRequiredWithoutTenantUsersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateWithoutRoleInput = {
@@ -1279,6 +1412,7 @@ export type TenantUserUncheckedUpdateWithoutRoleInput = {
   products_products_tenant_id_created_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersNestedInput
   products_products_tenant_id_updated_by_user_idTotenant_users?: Prisma.productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutTenant_usersNestedInput
+  tenantNotificationReceipts?: Prisma.TenantNotificationReceiptUncheckedUpdateManyWithoutRecipientMembershipNestedInput
 }
 
 export type TenantUserUncheckedUpdateManyWithoutRoleInput = {
@@ -1301,6 +1435,7 @@ export type TenantUserCountOutputType = {
   products_products_tenant_id_created_by_user_idTotenant_users: number
   products_products_tenant_id_updated_by_user_idTotenant_users: number
   rag_documents_metadata: number
+  tenantNotificationReceipts: number
 }
 
 export type TenantUserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1309,6 +1444,7 @@ export type TenantUserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extens
   products_products_tenant_id_created_by_user_idTotenant_users?: boolean | TenantUserCountOutputTypeCountProducts_products_tenant_id_created_by_user_idTotenant_usersArgs
   products_products_tenant_id_updated_by_user_idTotenant_users?: boolean | TenantUserCountOutputTypeCountProducts_products_tenant_id_updated_by_user_idTotenant_usersArgs
   rag_documents_metadata?: boolean | TenantUserCountOutputTypeCountRag_documents_metadataArgs
+  tenantNotificationReceipts?: boolean | TenantUserCountOutputTypeCountTenantNotificationReceiptsArgs
 }
 
 /**
@@ -1356,6 +1492,13 @@ export type TenantUserCountOutputTypeCountRag_documents_metadataArgs<ExtArgs ext
   where?: Prisma.rag_documents_metadataWhereInput
 }
 
+/**
+ * TenantUserCountOutputType without action
+ */
+export type TenantUserCountOutputTypeCountTenantNotificationReceiptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.TenantNotificationReceiptWhereInput
+}
+
 
 export type TenantUserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1373,6 +1516,7 @@ export type TenantUserSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   role?: boolean | Prisma.SystemRoleDefaultArgs<ExtArgs>
   tenant?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  tenantNotificationReceipts?: boolean | Prisma.TenantUser$tenantNotificationReceiptsArgs<ExtArgs>
   _count?: boolean | Prisma.TenantUserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["tenantUser"]>
 
@@ -1422,6 +1566,7 @@ export type TenantUserInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   role?: boolean | Prisma.SystemRoleDefaultArgs<ExtArgs>
   tenant?: boolean | Prisma.CompanyDefaultArgs<ExtArgs>
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  tenantNotificationReceipts?: boolean | Prisma.TenantUser$tenantNotificationReceiptsArgs<ExtArgs>
   _count?: boolean | Prisma.TenantUserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type TenantUserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1446,6 +1591,7 @@ export type $TenantUserPayload<ExtArgs extends runtime.Types.Extensions.Internal
     role: Prisma.$SystemRolePayload<ExtArgs>
     tenant: Prisma.$CompanyPayload<ExtArgs>
     user: Prisma.$UserPayload<ExtArgs>
+    tenantNotificationReceipts: Prisma.$TenantNotificationReceiptPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1857,6 +2003,7 @@ export interface Prisma__TenantUserClient<T, Null = never, ExtArgs extends runti
   role<T extends Prisma.SystemRoleDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SystemRoleDefaultArgs<ExtArgs>>): Prisma.Prisma__SystemRoleClient<runtime.Types.Result.GetResult<Prisma.$SystemRolePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   tenant<T extends Prisma.CompanyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CompanyDefaultArgs<ExtArgs>>): Prisma.Prisma__CompanyClient<runtime.Types.Result.GetResult<Prisma.$CompanyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  tenantNotificationReceipts<T extends Prisma.TenantUser$tenantNotificationReceiptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TenantUser$tenantNotificationReceiptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TenantNotificationReceiptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2411,6 +2558,30 @@ export type TenantUser$rag_documents_metadataArgs<ExtArgs extends runtime.Types.
   take?: number
   skip?: number
   distinct?: Prisma.Rag_documents_metadataScalarFieldEnum | Prisma.Rag_documents_metadataScalarFieldEnum[]
+}
+
+/**
+ * TenantUser.tenantNotificationReceipts
+ */
+export type TenantUser$tenantNotificationReceiptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the TenantNotificationReceipt
+   */
+  select?: Prisma.TenantNotificationReceiptSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the TenantNotificationReceipt
+   */
+  omit?: Prisma.TenantNotificationReceiptOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TenantNotificationReceiptInclude<ExtArgs> | null
+  where?: Prisma.TenantNotificationReceiptWhereInput
+  orderBy?: Prisma.TenantNotificationReceiptOrderByWithRelationInput | Prisma.TenantNotificationReceiptOrderByWithRelationInput[]
+  cursor?: Prisma.TenantNotificationReceiptWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.TenantNotificationReceiptScalarFieldEnum | Prisma.TenantNotificationReceiptScalarFieldEnum[]
 }
 
 /**
