@@ -17,6 +17,7 @@ import featureModuleRouter from "./modules/features/index.js";
 import platformAdminRouter from "./modules/platform-admin/index.js";
 import authRouter from "./modules/auth/index.js";
 import onboardingRouter from "./modules/onboarding/index.js";
+import tenantNotificationRouter from "./modules/tenant-notifications/route/tenant-notification.route.js";
 import {
   globalErrorHandler,
   notFoundHandler
@@ -53,6 +54,7 @@ app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "1mb" }));
 app.use("/auth", authRouter);
 app.use("/onboarding", onboardingRouter);
 app.use("/platform-admin", platformAdminRouter);
+app.use("/notifications", tenantNotificationRouter);
 app.use("/subscription", subscriptionModuleRouter);
 app.use("/features/pricing", pricing);
 app.use("/features/sentiment", sentiment);
