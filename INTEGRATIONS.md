@@ -223,7 +223,8 @@ The Node backend still performs its own route-level authentication/tenant checks
 
 | CEOPRO backend feature | Upstream AI endpoint | Backend client |
 |---|---|---|
-| RAG query | `POST /rag/query` | `features/client/features-ai.client.ts` |
+| RAG query | `POST /rag/query` | `rag/client/rag.client.ts` |
+| RAG document upload | `POST /rag/documents` | `rag/client/rag.client.ts` |
 | Document extraction upload | `POST /extraction/upload` | `features/client/features-ai.client.ts` |
 | Business-data ingestion upload | `POST /extraction/upload` | `dataconnection/client/ingestion.client.ts` |
 | Pending extraction processing | `POST /extraction/process-pending` | feature/data-ingestion client flow |
@@ -267,20 +268,21 @@ CEOPRO owns the entitlement and usage decision.
 
 ## RAG documents/chunks
 
-The backend also exposes tenant-scoped document/chunk reads:
+The dedicated RAG module exposes tenant-scoped document/chunk reads and the Knowledge Base upload route:
 
 ```text
-GET /features/rag/documents
-GET /features/rag/chunks/:chunk_id
+GET  /features/rag/documents
+POST /features/rag/documents
+GET  /features/rag/chunks/:chunk_id
 ```
 
-These remain subject to the relevant feature access rules.
+`POST /features/rag/documents` forwards multipart field `file` to the AI service at `POST /rag/documents`. Supported upload extensions are `.txt`, `.md`, `.pdf`, `.docx`, and `.xlsx`. The AI response contract is `document_id`, `file_name`, and `processed_status`. These routes remain subject to the relevant feature access rules.
 
 ---
 
 ## Extraction upload
 
-The knowledge/extraction endpoint is:
+The legacy/general extraction endpoint is:
 
 ```text
 POST /features/extraction/upload
@@ -308,7 +310,7 @@ I keep these as separate product flows:
 
 ### Knowledge/RAG
 
-Used to make documents searchable/answerable by the assistant.
+Used to make documents searchable/answerable by the assistant. Knowledge Base uploads use `POST /features/rag/documents`, which delegates to AI `POST /rag/documents`.
 
 ### Data Connection ingestion
 

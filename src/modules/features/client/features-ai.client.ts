@@ -142,47 +142,6 @@ function mockExtractionData(tenantId: string, fileName: string): JsonObject {
   };
 }
 
-const MOCK_RAG_RESPONSE: JsonObject = {
-  totalTokens: 400,
-  answer:
-    "MinIO utilizes erasure coding rather than traditional data replication to ensure high resilience and protect against multiple drive failures.",
-  sources: [
-    {
-      source_index: 1,
-      chunk_id: "c1f7a3b2-9d4e-48c5-a2b1-3e6f9a8d7c4b",
-      score: 0.94
-    },
-    {
-      source_index: 2,
-      chunk_id: "e8d9c0b1-4a5f-42e3-b6c7-1d2a3f4e5b6c",
-      score: 0.88
-    }
-  ]
-};
-
-const MOCK_RAG_CHUNKS: Record<string, JsonObject> = {
-  "c1f7a3b2-9d4e-48c5-a2b1-3e6f9a8d7c4b": {
-    chunk_id: "c1f7a3b2-9d4e-48c5-a2b1-3e6f9a8d7c4b",
-    text_content:
-      "The expected Q3 marketing budget is strictly capped at $150,000. This includes $50,000 allocated for digital ad spend across social channels, $75,000 for regional event sponsorships, and $25,000 reserved for influencer partnerships and affiliate programs.",
-    file_name: "2026_Q3_Marketing_Strategy.pdf"
-  },
-  "e8d9c0b1-4a5f-42e3-b6c7-1d2a3f4e5b6c": {
-    chunk_id: "e8d9c0b1-4a5f-42e3-b6c7-1d2a3f4e5b6c",
-    text_content:
-      "MinIO utilizes erasure coding rather than traditional data replication to ensure high resilience and protect against multiple drive failures. This allows the storage cluster to lose up to half of its drives and still reconstruct the missing data automatically during data ingestion pipelines.",
-    file_name: "System_Architecture_Guide.pdf"
-  }
-};
-
-export function isFeaturesAiMockModeEnabled(): boolean {
-  return USE_AI_MOCKS;
-}
-
-export function getMockRagChunk(chunkId: string): JsonObject | null {
-  return MOCK_RAG_CHUNKS[chunkId] ?? null;
-}
-
 export async function uploadExtractionFileToAi(input: {
   tenantId: string;
   file: {
@@ -217,37 +176,6 @@ export async function uploadExtractionFileToAi(input: {
     {
       timeoutMs: LONG_TIMEOUT_MS,
       serviceName: "AI extraction service"
-    }
-  );
-}
-
-export async function queryRagAi(input: {
-  queryText: string;
-  topK: number;
-  historyJson?: string;
-  authorization?: string;
-}): Promise<JsonObject> {
-  if (USE_AI_MOCKS) {
-    return MOCK_RAG_RESPONSE;
-  }
-
-  const url = aiUrl("rag/query");
-  url.searchParams.set("query_text", input.queryText);
-  url.searchParams.set("top_k", String(input.topK));
-  if (input.historyJson) url.searchParams.set("history_json", input.historyJson);
-
-  return requestAiJson(
-    url,
-    {
-      method: "POST",
-      headers: input.authorization
-        ? { Authorization: input.authorization }
-        : {}
-    },
-    {
-      timeoutMs: LONG_TIMEOUT_MS,
-      serviceName: "RAG AI service",
-      mapServerErrorsToLlmFailure: true
     }
   );
 }

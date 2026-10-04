@@ -8,7 +8,6 @@ import {
 } from "../../../generated/prisma/enums.js";
 import { CANONICAL_FEATURE_CODES } from "../types/feature.catalog.js";
 import { prisma } from "../../../config/database.js";
-import { documentsRepo } from "../repo/usage.repo.js";
 
 function normalizeFeatureSemantics<
   T extends CreateFeatureDTO | UpdateFeatureDTO
@@ -87,23 +86,5 @@ export const featureService = {
       resetCycle: data.resetCycle ?? existing.resetCycle
     });
     return featureRepository.update(id, normalized);
-  }
-};
-export const ragService = {
-  fetchChunkDetails: async (tenantId: string, chunkId: string) => {
-    const chunk = await documentsRepo.getChunkById(tenantId, chunkId);
-
-    if (!chunk) {
-      throw {
-        code: "NOT_FOUND",
-        message: "Citation chunk not found or access denied."
-      };
-    }
-
-    return {
-      chunk_id: chunk.chunk_id,
-      text_content: chunk.chunk_text_content,
-      file_name: chunk.rag_documents_metadata?.file_name || "Unknown File"
-    };
   }
 };

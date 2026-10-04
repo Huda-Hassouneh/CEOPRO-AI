@@ -1,7 +1,7 @@
 # Features & Entitlements Domain
 
 ## Purpose
-Owns the feature catalog, plan-feature assignments, subscription usage/entitlement checks, RAG assistant endpoints, and document extraction/storage capacity enforcement.
+Owns the feature catalog, plan-feature assignments, subscription usage/entitlement checks, and document extraction/storage capacity enforcement. Dedicated RAG HTTP endpoints now live in `src/modules/rag`.
 
 ## Structure
 - `index.ts` composes feature routes.
@@ -9,7 +9,7 @@ Owns the feature catalog, plan-feature assignments, subscription usage/entitleme
 - `controller/` owns HTTP request/response handling.
 - `service/` owns entitlement/feature business rules.
 - `repo/` owns Prisma access and usage persistence.
-- `client/` owns RAG/extraction AI transport.
+- `client/` owns the remaining extraction AI transport. RAG AI transport lives in `src/modules/rag/client/`.
 - `types/` owns schemas, DTOs, catalog definitions, and domain types.
 
 ## Important decisions
@@ -25,4 +25,4 @@ Owns the feature catalog, plan-feature assignments, subscription usage/entitleme
 Subscription plans and platform-admin management call into this domain for feature catalog and plan-feature operations.
 
 ## AI integration
-See `RAG_AND_EXTRACTION_AI_INTEGRATION.md`.
+See `RAG_AND_EXTRACTION_AI_INTEGRATION.md` and `../rag/RAG_AI_INTEGRATION.md`.

@@ -18,6 +18,7 @@ import platformAdminRouter from "./modules/platform-admin/index.js";
 import authRouter from "./modules/auth/index.js";
 import onboardingRouter from "./modules/onboarding/index.js";
 import tenantNotificationRouter from "./modules/tenant-notifications/route/tenant-notification.route.js";
+import ragRouter from "./modules/rag/index.js";
 import {
   globalErrorHandler,
   notFoundHandler
@@ -59,6 +60,7 @@ app.use("/subscription", subscriptionModuleRouter);
 app.use("/features/pricing", pricing);
 app.use("/features/sentiment", sentiment);
 app.use("/features/mpi", mpi);
+app.use("/features/rag", ragRouter);
 app.use("/", featureModuleRouter);
 app.use("/", dashboard);
 app.use("/", forecasting);

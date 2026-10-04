@@ -26,7 +26,8 @@
     "test:notifications": "tsx --test tests/platform-notifications/platform-notification-source-contract.test.ts tests/platform-notifications/platform-notification-definition.test.ts tests/platform-notifications/platform-notification-producer.test.ts tests/platform-notifications/platform-notification-migration-contract.test.ts",
     "worker:tenant-notifications": "tsx src/workers/tenant-notification.worker.ts",
     "test:tenant-notifications": "tsx --test tests/tenant-notifications/tenant-notification-definition.test.ts tests/tenant-notifications/tenant-notification-producer.test.ts tests/tenant-notifications/tenant-notification-source-contract.test.ts tests/tenant-notifications/tenant-notification-migration-contract.test.ts",
-    "worker:platform-notifications": "tsx src/workers/platform-notification.worker.ts"
+    "worker:platform-notifications": "tsx src/workers/platform-notification.worker.ts",
+    "test:rag": "node --test --test-reporter=spec tests/rag/rag-document-upload-contract.test.mjs"
   },
   "keywords": [],
   "author": "",

@@ -34,14 +34,6 @@ const ResetCycleEnum = z.enum(["billing_period", "lifetime"], {
   error: "reset_cycle must be either 'billing_period' or 'lifetime'"
 });
 
-export const ragQuerySchema = z.object({
-  query_text: requiredString("query_text query parameter is required").min(
-    1,
-    "query_text cannot be empty"
-  ),
-  top_k: optionalPositiveInt("top_k", 20) // Defaults to 5 in the controller
-});
-
 export const extractionPendingQuerySchema = z.object({
   limit: optionalPositiveInt("limit")
 });
