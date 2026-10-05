@@ -457,7 +457,8 @@ export const ModelName = {
   web_search_cache: 'web_search_cache',
   PlatformNotification: 'PlatformNotification',
   PlatformNotificationReceipt: 'PlatformNotificationReceipt',
-  PlatformNotificationOutbox: 'PlatformNotificationOutbox'
+  PlatformNotificationOutbox: 'PlatformNotificationOutbox',
+  Onboarding: 'Onboarding'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -473,7 +474,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "appConfig" | "company" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache" | "platformNotification" | "platformNotificationReceipt" | "platformNotificationOutbox"
+    modelProps: "appConfig" | "company" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache" | "platformNotification" | "platformNotificationReceipt" | "platformNotificationOutbox" | "onboarding"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -4991,6 +4992,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Onboarding: {
+      payload: Prisma.$OnboardingPayload<ExtArgs>
+      fields: Prisma.OnboardingFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.OnboardingFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.OnboardingFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        findFirst: {
+          args: Prisma.OnboardingFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.OnboardingFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        findMany: {
+          args: Prisma.OnboardingFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
+        }
+        create: {
+          args: Prisma.OnboardingCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        createMany: {
+          args: Prisma.OnboardingCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.OnboardingCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
+        }
+        delete: {
+          args: Prisma.OnboardingDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        update: {
+          args: Prisma.OnboardingUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        deleteMany: {
+          args: Prisma.OnboardingDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.OnboardingUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.OnboardingUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
+        }
+        upsert: {
+          args: Prisma.OnboardingUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        aggregate: {
+          args: Prisma.OnboardingAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateOnboarding>
+        }
+        groupBy: {
+          args: Prisma.OnboardingGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OnboardingGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.OnboardingCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OnboardingCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -6052,6 +6127,32 @@ export const PlatformNotificationOutboxScalarFieldEnum = {
 export type PlatformNotificationOutboxScalarFieldEnum = (typeof PlatformNotificationOutboxScalarFieldEnum)[keyof typeof PlatformNotificationOutboxScalarFieldEnum]
 
 
+export const OnboardingScalarFieldEnum = {
+  tenantId: 'tenantId',
+  currentStep: 'currentStep',
+  highestCompletedStep: 'highestCompletedStep',
+  industry: 'industry',
+  businessSize: 'businessSize',
+  annualRevenue: 'annualRevenue',
+  city: 'city',
+  objectives: 'objectives',
+  selectedPlan: 'selectedPlan',
+  checkoutMode: 'checkoutMode',
+  billingPeriod: 'billingPeriod',
+  customPlan: 'customPlan',
+  sourceStatuses: 'sourceStatuses',
+  websiteUrl: 'websiteUrl',
+  databaseProvider: 'databaseProvider',
+  downloadedTemplates: 'downloadedTemplates',
+  isComplete: 'isComplete',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type OnboardingScalarFieldEnum = (typeof OnboardingScalarFieldEnum)[keyof typeof OnboardingScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -6534,6 +6635,7 @@ export type GlobalOmitConfig = {
   platformNotification?: Prisma.PlatformNotificationOmit
   platformNotificationReceipt?: Prisma.PlatformNotificationReceiptOmit
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxOmit
+  onboarding?: Prisma.OnboardingOmit
 }
 
 /* Types for Logging */

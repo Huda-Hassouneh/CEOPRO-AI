@@ -60,6 +60,7 @@ model Company {
   platformNotificationsReceived PlatformNotification[]       @relation("PlatformNotificationPlatformTenant")
   platformNotificationsSourced  PlatformNotification[]       @relation("PlatformNotificationSourceTenant")
   platformNotificationOutbox    PlatformNotificationOutbox[]
+  onboarding                    Onboarding?
 
   @@map("companies")
 }
@@ -1334,4 +1335,30 @@ enum InfrastructureRateVerificationStatus {
   deprecated
 
   @@map("infrastructure_rate_verification_status_enum")
+}
+
+model Onboarding {
+  tenantId             String    @id @map("tenant_id") @db.Uuid
+  currentStep          Int       @default(1) @map("current_step") @db.SmallInt
+  highestCompletedStep Int       @default(0) @map("highest_completed_step") @db.SmallInt
+  industry             String?   @db.VarChar(50)
+  businessSize         String?   @map("business_size") @db.VarChar(20)
+  annualRevenue        String?   @map("annual_revenue") @db.VarChar(20)
+  city                 String?   @db.VarChar(100)
+  objectives           String[]  @default([])
+  selectedPlan         String?   @map("selected_plan") @db.VarChar(50)
+  checkoutMode         String    @default("trial") @map("checkout_mode") @db.VarChar(10)
+  billingPeriod        String    @default("monthly") @map("billing_period") @db.VarChar(20)
+  customPlan           Json      @default("{}") @map("custom_plan")
+  sourceStatuses       Json      @default("{}") @map("source_statuses")
+  websiteUrl           String?   @map("website_url") @db.VarChar(2048)
+  databaseProvider     String?   @map("database_provider") @db.VarChar(50)
+  downloadedTemplates  String[]  @default([]) @map("downloaded_templates")
+  isComplete           Boolean   @default(false) @map("is_complete")
+  completedAt          DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  tenant               Company   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("onboarding")
 }

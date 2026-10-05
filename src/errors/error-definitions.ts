@@ -141,6 +141,10 @@ export const ERROR_DEFINITIONS = {
     statusCode: 409,
     message: "User already exists"
   },
+  [ERROR_CODES.ONBOARDING_INCOMPLETE]: {
+    statusCode: 409,
+    message: "Complete the previous onboarding steps first"
+  },
   [ERROR_CODES.NO_SCHEDULED_PLAN_CHANGE]: {
     statusCode: 409,
     message: "There is no scheduled plan change to cancel."

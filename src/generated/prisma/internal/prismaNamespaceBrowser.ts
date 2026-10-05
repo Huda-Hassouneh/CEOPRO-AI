@@ -111,7 +111,8 @@ export const ModelName = {
   web_search_cache: 'web_search_cache',
   PlatformNotification: 'PlatformNotification',
   PlatformNotificationReceipt: 'PlatformNotificationReceipt',
-  PlatformNotificationOutbox: 'PlatformNotificationOutbox'
+  PlatformNotificationOutbox: 'PlatformNotificationOutbox',
+  Onboarding: 'Onboarding'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1150,6 +1151,32 @@ export const PlatformNotificationOutboxScalarFieldEnum = {
 } as const
 
 export type PlatformNotificationOutboxScalarFieldEnum = (typeof PlatformNotificationOutboxScalarFieldEnum)[keyof typeof PlatformNotificationOutboxScalarFieldEnum]
+
+
+export const OnboardingScalarFieldEnum = {
+  tenantId: 'tenantId',
+  currentStep: 'currentStep',
+  highestCompletedStep: 'highestCompletedStep',
+  industry: 'industry',
+  businessSize: 'businessSize',
+  annualRevenue: 'annualRevenue',
+  city: 'city',
+  objectives: 'objectives',
+  selectedPlan: 'selectedPlan',
+  checkoutMode: 'checkoutMode',
+  billingPeriod: 'billingPeriod',
+  customPlan: 'customPlan',
+  sourceStatuses: 'sourceStatuses',
+  websiteUrl: 'websiteUrl',
+  databaseProvider: 'databaseProvider',
+  downloadedTemplates: 'downloadedTemplates',
+  isComplete: 'isComplete',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type OnboardingScalarFieldEnum = (typeof OnboardingScalarFieldEnum)[keyof typeof OnboardingScalarFieldEnum]
 
 
 export const SortOrder = {

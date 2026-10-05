@@ -17,6 +17,8 @@ export interface TokenPayload {
   tenant_id?: string;
   email: string;
   roleKey: string;
+  sessionId?: string;
+  sessionVersion?: number;
 }
 
 export function generateAccessToken(

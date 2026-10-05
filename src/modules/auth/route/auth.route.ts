@@ -1,7 +1,7 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { prisma } from "../../../config/database.js";
-import { verifyPassword, generateAccessToken } from "../../../utils/token.js";
+import { verifyPassword } from "../../../utils/token.js";
+import { validateBody } from "../../../validators/validateBody.js";
 import {
   authenticateUser,
   requireTenant
@@ -14,6 +14,13 @@ import {
   invitationDetails,
   acceptInvite
 } from "../../owner-portal/service/owner-write.service.js";
+import { issueSession } from "../service/auth.service.js";
+import { changePasswordSchema, registerSchema } from "../types/auth.dto.js";
+import {
+  changePasswordHandler,
+  meHandler,
+  registerHandler
+} from "../controller/auth.controller.js";
 
 const router = Router();
 const failures = new Map<string, { count: number; expires: number }>();
@@ -76,60 +83,30 @@ router.post("/login", async (req: AppRequest, res) => {
     const membership =
       user.tenantUsers.find((m) => m.tenant.businessType === "platform") ||
       user.tenantUsers[0];
-    const session = await prisma.authSession.create({
-      data: {
-        userId: user.userId,
-        tenantId: membership.tenantId,
-        device: (req.headers["user-agent"] || "Browser").slice(0, 255),
-        expiresAt: new Date(Date.now() + 3600_000)
-      }
-    });
-    const accessToken = generateAccessToken({
-      id: user.userId,
-      email: user.email,
-      tenant_id: membership.tenantId,
-      roleKey: membership.roleKey,
-      sessionId: session.id,
-      sessionVersion: user.sessionVersion
-    });
-    const decoded = jwt.decode(accessToken);
-    if (
-      decoded &&
-      typeof decoded !== "string" &&
-      typeof decoded.exp === "number"
-    ) {
-      await prisma.authSession.update({
-        where: { id: session.id },
-        data: { expiresAt: new Date(decoded.exp * 1000) }
-      });
-    }
-    res.json({
-      session: {
-        accessToken,
-        refreshToken: null,
-        tenantId: membership.tenantId,
-        roleKey: membership.roleKey,
-        roles: [membership.roleKey],
-        user: {
-          id: user.userId,
-          email: user.email,
-          fullName: user.fullName,
-          preferredLanguage: user.preferredLanguage,
-          company: {
-            id: membership.tenant.id,
-            business_name: membership.tenant.businessName,
-            business_type: membership.tenant.businessType,
-            country_code: membership.tenant.countryCode,
-            primary_currency: membership.tenant.primaryCurrency
-          }
-        }
-      }
-    });
+    res.json(
+      await issueSession(
+        user,
+        membership,
+        req.headers["user-agent"] || "Browser"
+      )
+    );
   } catch (error) {
     console.error("Authentication failed:", error);
     sendApiError(res, ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 });
+
+router.post("/register", validateBody(registerSchema), registerHandler);
+
+router.get("/me", authenticateUser, requireTenant, meHandler);
+
+router.post(
+  "/change-password",
+  authenticateUser,
+  requireTenant,
+  validateBody(changePasswordSchema),
+  changePasswordHandler
+);
 
 router.get(
   "/session",

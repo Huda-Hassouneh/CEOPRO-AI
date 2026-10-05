@@ -371,3 +371,8 @@ export type PlatformNotificationReceipt = Prisma.PlatformNotificationReceiptMode
  * 
  */
 export type PlatformNotificationOutbox = Prisma.PlatformNotificationOutboxModel
+/**
+ * Model Onboarding
+ * 
+ */
+export type Onboarding = Prisma.OnboardingModel
