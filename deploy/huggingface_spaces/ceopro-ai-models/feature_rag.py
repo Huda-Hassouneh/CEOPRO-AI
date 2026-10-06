@@ -10,9 +10,11 @@ so retrieval and the Groq call stay separately visible. Structured facts need th
 which a public endpoint doesn't have, so include_structured_facts is off (the documented flag for that case).
 """
 import base64
+import io
 import json
 import os
 import uuid
+import zipfile
 
 import gradio as gr
 
@@ -20,10 +22,22 @@ from memdb import MemConn
 from src.ai.rag import data_access as rag_data_access
 from src.ai.rag import embeddings, llm_client, reranking
 from src.ai.rag import pipeline as rag_pipeline
+from src.ai.rag.chunking import DEFAULT_CHUNK_SIZE_WORDS, chunk_text as rag_chunk_text
 from src.ai.rag.retrieval_types import ScoredChunk
 
 MAX_DOCS = 10
-MAX_DOC_BYTES = 2 * 1024 * 1024
+# Upload limits, chosen from live measurements on this Space (see
+# deploy/huggingface_spaces/UPLOAD_LIMITS.md). Request time is driven by how
+# much TEXT has to be embedded on this Space's CPU, not by the file size, so
+# there is also a per-request chunk budget: a 20 MB plain-text document
+# (~22,000 chunks, measured 137 s end to end) fits it, ten of them would not.
+MAX_DOC_MB = int(os.getenv("RAG_MAX_DOC_MB", "20"))
+MAX_DOC_BYTES = MAX_DOC_MB * 1024 * 1024
+MAX_REQUEST_MB = int(os.getenv("RAG_MAX_REQUEST_MB", "100"))
+MAX_REQUEST_BYTES = MAX_REQUEST_MB * 1024 * 1024
+MAX_REQUEST_CHUNKS = int(os.getenv("RAG_MAX_REQUEST_CHUNKS", "25000"))
+# .docx/.xlsx are zip archives; a 20 MB one can unpack to gigabytes (zip bomb).
+MAX_UNPACKED_MB = 512
 MAX_PASSAGES = 50
 
 # Load both retrieval models once at startup (same module-level caches the pipeline uses).
@@ -84,7 +98,7 @@ class _ObjectStore:
 
 
 def _normalise_docs(documents):
-    docs = []
+    docs, total = [], 0
     for i, d in enumerate(documents or []):
         if not isinstance(d, dict):
             raise gr.Error(f"Document #{i + 1} must be an object with file_name and text (or content_base64).")
@@ -92,21 +106,72 @@ def _normalise_docs(documents):
         ext = os.path.splitext(name)[1].lower()
         if ext not in rag_data_access.SUPPORTED_DOCUMENT_EXTENSIONS:
             raise gr.Error(f"{name}: unsupported type; supported {sorted(rag_data_access.SUPPORTED_DOCUMENT_EXTENSIONS)}")
+        if len(docs) >= MAX_DOCS:
+            raise gr.Error(f"At most {MAX_DOCS} documents per request.")
         if d.get("content_base64"):
+            encoded = str(d["content_base64"])
+            size = len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip("=")))
+            if size > MAX_DOC_BYTES:  # checked before decoding
+                raise gr.Error(_too_large(name, size))
             try:
-                data = base64.b64decode(d["content_base64"], validate=True)
+                data = base64.b64decode(encoded, validate=True)
             except Exception:
                 raise gr.Error(f"{name}: content_base64 is not valid base64.")
         else:
             data = str(d.get("text") or "").encode("utf-8")
         if len(data) > MAX_DOC_BYTES:
-            raise gr.Error(f"{name}: exceeds {MAX_DOC_BYTES} bytes.")
+            raise gr.Error(_too_large(name, len(data)))
+        total += len(data)
+        if total > MAX_REQUEST_BYTES:
+            raise gr.Error(f"The documents total more than {MAX_REQUEST_MB} MB; the maximum per request is {MAX_REQUEST_MB} MB "
+                           f"({MAX_DOC_MB} MB per document). Send fewer documents per request.")
         docs.append((f"doc-{i + 1}", name, data))
     if not docs:
         raise gr.Error("Provide at least one document.")
-    if len(docs) > MAX_DOCS:
-        raise gr.Error(f"At most {MAX_DOCS} documents per request.")
     return docs
+
+
+def _too_large(name, size):
+    return f"{name}: file is {size / 1048576:.1f} MB; the maximum is {MAX_DOC_MB} MB ({MAX_DOC_BYTES} bytes) per document."
+
+
+def _check_unpacked_size(name, data):
+    try:
+        unpacked = sum(m.file_size for m in zipfile.ZipFile(io.BytesIO(data)).infolist())
+    except zipfile.BadZipFile:
+        return  # not a valid archive: extraction fails and the document is marked Failed, as before
+    if unpacked > MAX_UNPACKED_MB * 1048576:
+        raise gr.Error(f"{name}: unpacks to {unpacked / 1048576:.0f} MB; the maximum is {MAX_UNPACKED_MB} MB. "
+                       "Split the document or save it as PDF or text.")
+
+
+def _extract_and_budget(docs):
+    """Extracts each document's text once, with the pipeline's own extractor
+    (data_access.fetch_document_text), and enforces MAX_REQUEST_CHUNKS before
+    any embedding starts. Returns the object key and bytes the pipeline should
+    ingest: the extracted text as UTF-8 (so it isn't extracted a second time;
+    fetch_document_text() of a .txt key is exactly .decode("utf-8")), or the
+    original bytes when extraction fails, so the pipeline marks that document
+    Failed exactly as before."""
+    store, staged, chunks = _ObjectStore(), [], 0
+    for doc_id, name, data in docs:
+        if os.path.splitext(name)[1].lower() in (".docx", ".xlsx"):
+            _check_unpacked_size(name, data)
+        key = f"{doc_id}/{name}"
+        store.objects[(rag_pipeline.DEFAULT_BUCKET, key)] = data
+        try:
+            text = rag_data_access.fetch_document_text(store, rag_pipeline.DEFAULT_BUCKET, key)
+        except Exception:
+            staged.append((doc_id, name, name, data))
+            continue
+        chunks += len(rag_chunk_text(text))
+        if chunks > MAX_REQUEST_CHUNKS:
+            raise gr.Error(f"The documents contain too much text for one request (more than {MAX_REQUEST_CHUNKS} passages of "
+                           f"~{DEFAULT_CHUNK_SIZE_WORDS} words, "
+                           f"about 20 MB of plain text). Send fewer or shorter documents per request.")
+        staged.append((doc_id, name, f"{name}.txt" if os.path.splitext(name)[1].lower() not in (".txt", ".md") else name,
+                       text.encode("utf-8")))
+    return staged
 
 
 def _inserted_chunks(conn):
@@ -118,11 +183,12 @@ def _ingest_and_retrieve(docs, question, top_k):
     tenant_id = f"req-{uuid.uuid4()}"
     store = _ObjectStore()
     status = {}
-    for doc_id, name, data in docs:
-        store.objects[(rag_pipeline.DEFAULT_BUCKET, f"{tenant_id}/{doc_id}/{name}")] = data
+    staged = _extract_and_budget(docs)
+    for doc_id, name, key_name, data in staged:
+        store.objects[(rag_pipeline.DEFAULT_BUCKET, f"{tenant_id}/{doc_id}/{key_name}")] = data
 
     def pending(q, params):
-        return [(doc_id, name, f"{tenant_id}/{doc_id}/{name}", "Pending") for doc_id, name, _ in docs if doc_id not in status]
+        return [(doc_id, name, f"{tenant_id}/{doc_id}/{key_name}", "Pending") for doc_id, name, key_name, _ in staged if doc_id not in status]
 
     def chunks(q, params):
         return [(c["id"], c["chunk_text_content"], c["embedding"]) for c in _inserted_chunks(conn)]
