@@ -45,4 +45,6 @@ with demo.route("Demand Forecasting", "/forecasting"):
 with demo.route("Pricing", "/pricing"):
     feature_pricing.build_ui()
 
-demo.queue(default_concurrency_limit=4).launch(show_error=True)
+# Gradio's own upload cap for the Extraction page's file picker, kept equal to
+# the service limit so an oversized file is refused before it is stored.
+demo.queue(default_concurrency_limit=4).launch(show_error=True, max_file_size=f"{feature_extraction.MAX_UPLOAD_MB}mb")
