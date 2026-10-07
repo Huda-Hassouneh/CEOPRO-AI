@@ -1,4 +1,5 @@
 import httpClient from "../../../shared/lib/httpClient.js";
+import { getApiError as parseApiError, getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 
 const endpoints = Object.freeze({
   plans: "/subscription/plans",
@@ -28,16 +29,11 @@ const unwrap = (request) => request.then((response) => response.data);
 const unwrapData = (response) => response?.data ?? response;
 
 export const getApiError = (error) => {
-  const payload = error?.response?.data ?? error;
+  const parsed = parseApiError(error);
   return {
-    status: error?.response?.status ?? payload?.error?.statusCode ?? null,
-    code: payload?.error?.code ?? payload?.code ?? null,
-    message:
-      payload?.error?.message ??
-      payload?.message ??
-      (typeof error?.message === "string" ? error.message : "Request failed."),
-    details: payload?.error?.details ?? payload?.details ?? null,
-    payload
+    ...parsed,
+    message: getApiErrorMessage(error),
+    payload: parsed.payload
   };
 };
 

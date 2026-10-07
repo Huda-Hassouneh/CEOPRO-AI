@@ -169,7 +169,7 @@ export function OnboardingPaymentPage() {
       <OnboardingPageShell wide showProgress={false}>
         <EmptyState
           title={t('billing.checkoutInApp.invalidTitle')}
-          description={t('billing.checkoutInApp.invalidDescription')}
+          description={error ? getApiError(error).message : t('billing.checkoutInApp.invalidDescription')}
           action={(
             <Link className="billing-link-button" to={isCustom ? routePaths.onboardingPlanCustom : routePaths.onboardingPlan}>
               {t('billing.payment.backToPlans')}
