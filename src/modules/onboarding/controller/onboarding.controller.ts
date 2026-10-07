@@ -20,7 +20,7 @@ function respond(
 }
 
 export async function getStateHandler(req: AppRequest, res: Response) {
-  return respond(res, await service.getState(req.tenant_id!));
+  return respond(res, await service.getState(req.tenant_id!, req.user!.id));
 }
 
 export async function saveRegionHandler(req: AppRequest, res: Response) {
@@ -37,27 +37,43 @@ export async function saveRegionHandler(req: AppRequest, res: Response) {
 export async function saveProfileHandler(req: AppRequest, res: Response) {
   return respond(
     res,
-    await service.saveProfile(req.tenant_id!, req.body as ProfileInput)
+    await service.saveProfile(
+      req.tenant_id!,
+      req.user!.id,
+      req.body as ProfileInput
+    )
   );
 }
 
 export async function saveGoalsHandler(req: AppRequest, res: Response) {
   return respond(
     res,
-    await service.saveGoals(req.tenant_id!, req.body as GoalsInput)
+    await service.saveGoals(
+      req.tenant_id!,
+      req.user!.id,
+      req.body as GoalsInput
+    )
   );
 }
 
 export async function savePlanHandler(req: AppRequest, res: Response) {
   return respond(
     res,
-    await service.savePlan(req.tenant_id!, req.body as PlanInput)
+    await service.savePlan(
+      req.tenant_id!,
+      req.user!.id,
+      req.body as PlanInput
+    )
   );
 }
 
 export async function completeHandler(req: AppRequest, res: Response) {
   return respond(
     res,
-    await service.complete(req.tenant_id!, req.body as CompleteOnboardingInput)
+    await service.complete(
+      req.tenant_id!,
+      req.user!.id,
+      req.body as CompleteOnboardingInput
+    )
   );
 }

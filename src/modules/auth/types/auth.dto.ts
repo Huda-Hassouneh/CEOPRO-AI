@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { z } from "zod";
 
 const emailSchema = z
@@ -11,7 +12,10 @@ const emailSchema = z
 const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters")
-  .max(72, "Password cannot be longer than 72 characters")
+  .refine(
+    (value) => Buffer.byteLength(value, "utf8") <= 72,
+    "Password cannot be longer than 72 bytes"
+  )
   .regex(/[A-Za-z]/, "Password must contain at least one letter")
   .regex(/[0-9]/, "Password must contain at least one digit");
 
@@ -40,7 +44,7 @@ export const registerSchema = z
     email: emailSchema,
     password: passwordSchema,
     fullName: z.string().trim().min(1).max(150).optional(),
-    preferredLanguage: z.string().trim().max(5).optional(),
+    preferredLanguage: z.enum(["en", "ar"]).optional(),
     businessName: z.string().trim().min(1).max(255),
     // "platform" marks the CEOPRO owner workspace and grants platform admin
     // access, so self-registered companies must never claim it.
@@ -52,9 +56,9 @@ export const registerSchema = z
         message: "Business type is not allowed"
       })
       .optional(),
-    countryCode: countryCodeSchema,
-    primaryCurrency: currencySchema,
-    timezone: z.string().trim().max(64).optional()
+    countryCode: countryCodeSchema.default("JO"),
+    primaryCurrency: currencySchema.default("JOD"),
+    timezone: z.string().trim().max(64).default("Asia/Amman")
   })
   .strict();
 
@@ -68,6 +72,14 @@ export const changePasswordSchema = z
     message: "New password must be different from the current password",
     path: ["newPassword"]
   });
+
+export const emailOnlySchema = z.object({ email: emailSchema }).strict();
+export const emailVerificationTokenSchema = z
+  .object({ token: z.string().regex(/^[a-f0-9]{64}$/i) })
+  .strict();
+export const emailVerificationCodeSchema = z
+  .object({ code: z.string().regex(/^[a-f0-9]{64}$/i) })
+  .strict();
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

@@ -1,29 +1,69 @@
-import { Router } from "express";
+import express, { Router, type NextFunction, type Response } from "express";
+import jwt from "jsonwebtoken";
 import { prisma } from "../../../config/database.js";
-import { verifyPassword } from "../../../utils/token.js";
-import { validateBody } from "../../../validators/validateBody.js";
+import { verifyPassword, generateAccessToken } from "../../../utils/token.js";
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import { ERROR_CODES } from "../../../errors/error-codes.js";
 import { sendApiError } from "../../../utils/http.js";
 import type { AppRequest } from "../../../types/request.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
 import {
   PortalError,
   invitationDetails,
   acceptInvite
 } from "../../owner-portal/service/owner-write.service.js";
-import { issueSession } from "../service/auth.service.js";
-import { changePasswordSchema, registerSchema } from "../types/auth.dto.js";
+import { selectLoginMembership } from "../service/login-membership.js";
+import {
+  changePasswordSchema,
+  emailOnlySchema,
+  emailVerificationCodeSchema,
+  emailVerificationTokenSchema,
+  registerSchema
+} from "../types/auth.dto.js";
 import {
   changePasswordHandler,
+  confirmEmailHandler,
+  exchangeVerificationCodeHandler,
   meHandler,
-  registerHandler
+  registerHandler,
+  resendVerificationHandler,
+  verificationPageHandler
 } from "../controller/auth.controller.js";
 
 const router = Router();
 const failures = new Map<string, { count: number; expires: number }>();
+const verificationRequests = new Map<
+  string,
+  { count: number; expires: number }
+>();
+
+function rateLimitVerificationRequests(
+  req: AppRequest,
+  res: Response,
+  next: NextFunction
+) {
+  const key = req.ip || "unknown";
+  const now = Date.now();
+  const request = verificationRequests.get(key);
+  if (request && request.expires > now && request.count >= 10) {
+    return res
+      .status(429)
+      .json({ error: { code: "RATE_LIMITED", message: "Try again later" } });
+  }
+
+  if (request && request.expires > now) request.count += 1;
+  else verificationRequests.set(key, { count: 1, expires: now + 15 * 60_000 });
+
+  if (verificationRequests.size > 5000) {
+    for (const [requestKey, value] of verificationRequests) {
+      if (value.expires <= now) verificationRequests.delete(requestKey);
+    }
+  }
+  next();
+}
 
 router.post("/login", async (req: AppRequest, res) => {
   const email =
@@ -79,24 +119,88 @@ router.post("/login", async (req: AppRequest, res) => {
       return;
     }
     failures.delete(key);
-    // An accepted owner invitation should lead to the platform workspace.
-    const membership =
-      user.tenantUsers.find((m) => m.tenant.businessType === "platform") ||
-      user.tenantUsers[0];
-    res.json(
-      await issueSession(
-        user,
-        membership,
-        req.headers["user-agent"] || "Browser"
-      )
-    );
+    const membership = selectLoginMembership(user.tenantUsers);
+    const session = await prisma.authSession.create({
+      data: {
+        userId: user.userId,
+        tenantId: membership.tenantId,
+        device: (req.headers["user-agent"] || "Browser").slice(0, 255),
+        expiresAt: new Date(Date.now() + 3600_000)
+      }
+    });
+    const accessToken = generateAccessToken({
+      user_id: user.userId,
+      id: user.userId,
+
+      email: user.email,
+      tenant_id: membership.tenantId,
+      roleKey: membership.roleKey,
+      sessionId: session.id,
+      sessionVersion: user.sessionVersion
+    });
+    const decoded = jwt.decode(accessToken);
+    if (
+      decoded &&
+      typeof decoded !== "string" &&
+      typeof decoded.exp === "number"
+    ) {
+      await prisma.authSession.update({
+        where: { id: session.id },
+        data: { expiresAt: new Date(decoded.exp * 1000) }
+      });
+    }
+    res.json({
+      session: {
+        accessToken,
+        refreshToken: null,
+        tenantId: membership.tenantId,
+        roleKey: membership.roleKey,
+        roles: [membership.roleKey],
+        user: {
+          id: user.userId,
+          email: user.email,
+          fullName: user.fullName,
+          preferredLanguage: user.preferredLanguage,
+          company: {
+            id: membership.tenant.id,
+            business_name: membership.tenant.businessName,
+            business_type: membership.tenant.businessType,
+            country_code: membership.tenant.countryCode,
+            primary_currency: membership.tenant.primaryCurrency
+          }
+        }
+      }
+    });
   } catch (error) {
     console.error("Authentication failed:", error);
     sendApiError(res, ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 });
 
-router.post("/register", validateBody(registerSchema), registerHandler);
+router.post(
+  "/register",
+  rateLimitVerificationRequests,
+  validateBody(registerSchema),
+  registerHandler
+);
+router.post(
+  "/verification/resend",
+  rateLimitVerificationRequests,
+  validateBody(emailOnlySchema),
+  resendVerificationHandler
+);
+router.get("/verify-email", verificationPageHandler);
+router.post(
+  "/verify-email/confirm",
+  express.urlencoded({ extended: false, limit: "1kb" }),
+  validateBody(emailVerificationTokenSchema),
+  confirmEmailHandler
+);
+router.post(
+  "/verification/exchange",
+  validateBody(emailVerificationCodeSchema),
+  exchangeVerificationCodeHandler
+);
 
 router.get("/me", authenticateUser, requireTenant, meHandler);
 
@@ -114,7 +218,7 @@ router.get(
   requireTenant,
   (req: AppRequest, res) => {
     res.json({
-      userId: req.user!.id,
+      userId: req.user!.user_id,
       tenantId: req.tenant_id,
       roleKey: req.tenantUser?.roleKey
     });
@@ -130,7 +234,7 @@ router.post(
       await prisma.authSession.updateMany({
         where: {
           id: req.user.sessionId,
-          userId: req.user.id
+          userId: req.user.user_id
         },
         data: { revokedAt: new Date() }
       });
@@ -159,7 +263,7 @@ router.post(
       const token = String(req.params.token || "");
       if (token.length < 32 || token.length > 128)
         throw new PortalError("notFound");
-      res.json(await acceptInvite(token, req.user!.id));
+      res.json(await acceptInvite(token, req.user?.user_id as string));
     } catch (error) {
       if (error instanceof PortalError)
         res

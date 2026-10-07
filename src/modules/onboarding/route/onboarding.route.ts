@@ -2,8 +2,8 @@ import { Router } from "express";
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
-import { validateBody } from "../../../validators/validateBody.js";
+} from "../../../middleware/validators/validateUser.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
 import {
   completeOnboardingSchema,
   goalsSchema,

@@ -5,7 +5,7 @@ import { verifyPassword, generateAccessToken } from "../../utils/token.js";
 import {
   authenticateUser,
   requireTenant
-} from "../../validators/validateUser.js";
+} from "../../middleware/validators/validateUser.js";
 import { ERROR_CODES } from "../../errors/error-codes.js";
 import { sendApiError } from "../../utils/http.js";
 import type { AppRequest } from "../../types/request.js";
@@ -14,6 +14,7 @@ import {
   invitationDetails,
   acceptInvite
 } from "../owner-portal/service/owner-write.service.js";
+import { selectLoginMembership } from "./service/login-membership.js";
 
 const router = Router();
 const failures = new Map<string, { count: number; expires: number }>();
@@ -72,10 +73,7 @@ router.post("/login", async (req: AppRequest, res) => {
       return;
     }
     failures.delete(key);
-    // An accepted owner invitation should lead to the platform workspace.
-    const membership =
-      user.tenantUsers.find((m) => m.tenant.businessType === "platform") ||
-      user.tenantUsers[0];
+    const membership = selectLoginMembership(user.tenantUsers);
     const session = await prisma.authSession.create({
       data: {
         userId: user.userId,
@@ -85,7 +83,9 @@ router.post("/login", async (req: AppRequest, res) => {
       }
     });
     const accessToken = generateAccessToken({
+      user_id: user.userId,
       id: user.userId,
+
       email: user.email,
       tenant_id: membership.tenantId,
       roleKey: membership.roleKey,

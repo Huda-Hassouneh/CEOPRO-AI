@@ -1,4 +1,4 @@
-import { Prisma } from "../../../generated/prisma/client.js";
+import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../config/database.js";
 
 export interface OnboardingRecord {
@@ -23,8 +23,25 @@ export interface OnboardingRecord {
   preferredLanguage: string;
 }
 
-async function selectState(tenantId: string) {
-  const rows = await prisma.$queryRaw<OnboardingRecord[]>`
+type Transaction = Prisma.TransactionClient;
+
+async function withTenantContext<T>(
+  tenantId: string,
+  userId: string,
+  operation: (tx: Transaction) => Promise<T>
+): Promise<T> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT
+        set_config('app.current_tenant_id', ${tenantId}, true),
+        set_config('app.current_user_id', ${userId}, true)
+    `;
+    return operation(tx);
+  });
+}
+
+async function selectState(tx: Transaction, tenantId: string) {
+  const rows = await tx.$queryRaw<OnboardingRecord[]>`
     SELECT
       o.tenant_id AS "tenantId",
       o.current_step AS "currentStep",
@@ -49,16 +66,20 @@ async function selectState(tenantId: string) {
     JOIN companies c ON c.tenant_id = o.tenant_id
     WHERE o.tenant_id = ${tenantId}::uuid
   `;
-  return rows[0];
+  const state = rows[0];
+  if (!state) throw new Error("Onboarding state was not found after write.");
+  return state;
 }
 
-export async function ensureState(tenantId: string) {
-  await prisma.$executeRaw`
-    INSERT INTO onboarding (tenant_id)
-    VALUES (${tenantId}::uuid)
-    ON CONFLICT (tenant_id) DO NOTHING
-  `;
-  return selectState(tenantId);
+export async function ensureState(tenantId: string, userId: string) {
+  return withTenantContext(tenantId, userId, async (tx) => {
+    await tx.$executeRaw`
+      INSERT INTO onboarding (tenant_id)
+      VALUES (${tenantId}::uuid)
+      ON CONFLICT (tenant_id) DO NOTHING
+    `;
+    return selectState(tx, tenantId);
+  });
 }
 
 export async function updateRegion(
@@ -72,7 +93,7 @@ export async function updateRegion(
     timezone: string;
   }
 ) {
-  await prisma.$transaction(async (tx) => {
+  return withTenantContext(tenantId, userId, async (tx) => {
     await tx.company.update({
       where: { id: tenantId },
       data: {
@@ -98,12 +119,13 @@ export async function updateRegion(
         highest_completed_step = GREATEST(onboarding.highest_completed_step, 1),
         updated_at = NOW()
     `;
+    return selectState(tx, tenantId);
   });
-  return selectState(tenantId);
 }
 
 export async function updateProfile(
   tenantId: string,
+  userId: string,
   input: {
     industry: string;
     businessSize?: string;
@@ -111,35 +133,52 @@ export async function updateProfile(
     completedStep: number;
   }
 ) {
-  await ensureState(tenantId);
-  await prisma.$executeRaw`
-    UPDATE onboarding SET
-      industry = ${input.industry},
-      business_size = COALESCE(${input.businessSize ?? null}, business_size),
-      annual_revenue = COALESCE(${input.annualRevenue ?? null}, annual_revenue),
-      current_step = GREATEST(current_step, ${Math.min(6, input.completedStep + 1)}),
-      highest_completed_step = GREATEST(highest_completed_step, ${input.completedStep}),
-      updated_at = NOW()
-    WHERE tenant_id = ${tenantId}::uuid
-  `;
-  return selectState(tenantId);
+  return withTenantContext(tenantId, userId, async (tx) => {
+    await tx.$executeRaw`
+      INSERT INTO onboarding (tenant_id)
+      VALUES (${tenantId}::uuid)
+      ON CONFLICT (tenant_id) DO NOTHING
+    `;
+    await tx.$executeRaw`
+      UPDATE onboarding SET
+        industry = ${input.industry},
+        business_size = COALESCE(${input.businessSize ?? null}, business_size),
+        annual_revenue = COALESCE(${input.annualRevenue ?? null}, annual_revenue),
+        current_step = GREATEST(current_step, ${Math.min(6, input.completedStep + 1)}),
+        highest_completed_step = GREATEST(highest_completed_step, ${input.completedStep}),
+        updated_at = NOW()
+      WHERE tenant_id = ${tenantId}::uuid
+    `;
+    return selectState(tx, tenantId);
+  });
 }
 
-export async function updateGoals(tenantId: string, objectives: string[]) {
-  await ensureState(tenantId);
-  await prisma.$executeRaw`
-    UPDATE onboarding SET
-      objectives = ${objectives},
-      current_step = GREATEST(current_step, 5),
-      highest_completed_step = GREATEST(highest_completed_step, 4),
-      updated_at = NOW()
-    WHERE tenant_id = ${tenantId}::uuid
-  `;
-  return selectState(tenantId);
+export async function updateGoals(
+  tenantId: string,
+  userId: string,
+  objectives: string[]
+) {
+  return withTenantContext(tenantId, userId, async (tx) => {
+    await tx.$executeRaw`
+      INSERT INTO onboarding (tenant_id)
+      VALUES (${tenantId}::uuid)
+      ON CONFLICT (tenant_id) DO NOTHING
+    `;
+    await tx.$executeRaw`
+      UPDATE onboarding SET
+        objectives = ${objectives},
+        current_step = GREATEST(current_step, 5),
+        highest_completed_step = GREATEST(highest_completed_step, 4),
+        updated_at = NOW()
+      WHERE tenant_id = ${tenantId}::uuid
+    `;
+    return selectState(tx, tenantId);
+  });
 }
 
 export async function updatePlan(
   tenantId: string,
+  userId: string,
   input: {
     selectedPlan: string;
     checkoutMode: string;
@@ -147,24 +186,31 @@ export async function updatePlan(
     customPlan?: Record<string, string | number | boolean>;
   }
 ) {
-  await ensureState(tenantId);
-  const customPlan = input.customPlan ? JSON.stringify(input.customPlan) : null;
-  await prisma.$executeRaw`
-    UPDATE onboarding SET
-      selected_plan = ${input.selectedPlan},
-      checkout_mode = ${input.checkoutMode},
-      billing_period = ${input.billingPeriod},
-      custom_plan = COALESCE(${customPlan}::jsonb, custom_plan),
-      current_step = 6,
-      highest_completed_step = GREATEST(highest_completed_step, 5),
-      updated_at = NOW()
-    WHERE tenant_id = ${tenantId}::uuid
-  `;
-  return selectState(tenantId);
+  return withTenantContext(tenantId, userId, async (tx) => {
+    await tx.$executeRaw`
+      INSERT INTO onboarding (tenant_id)
+      VALUES (${tenantId}::uuid)
+      ON CONFLICT (tenant_id) DO NOTHING
+    `;
+    const customPlan = input.customPlan ? JSON.stringify(input.customPlan) : null;
+    await tx.$executeRaw`
+      UPDATE onboarding SET
+        selected_plan = ${input.selectedPlan},
+        checkout_mode = ${input.checkoutMode},
+        billing_period = ${input.billingPeriod},
+        custom_plan = COALESCE(${customPlan}::jsonb, custom_plan),
+        current_step = 6,
+        highest_completed_step = GREATEST(highest_completed_step, 5),
+        updated_at = NOW()
+      WHERE tenant_id = ${tenantId}::uuid
+    `;
+    return selectState(tx, tenantId);
+  });
 }
 
 export async function completeState(
   tenantId: string,
+  userId: string,
   input: {
     sourceStatuses: Record<string, { status: string; error: string }>;
     websiteUrl: string;
@@ -172,18 +218,20 @@ export async function completeState(
     downloadedTemplates: string[];
   }
 ) {
-  await prisma.$executeRaw`
-    UPDATE onboarding SET
-      source_statuses = ${JSON.stringify(input.sourceStatuses)}::jsonb,
-      website_url = ${input.websiteUrl || null},
-      database_provider = ${input.databaseProvider || null},
-      downloaded_templates = ${input.downloadedTemplates},
-      current_step = 6,
-      highest_completed_step = 6,
-      is_complete = TRUE,
-      completed_at = NOW(),
-      updated_at = NOW()
-    WHERE tenant_id = ${tenantId}::uuid
-  `;
-  return selectState(tenantId);
+  return withTenantContext(tenantId, userId, async (tx) => {
+    await tx.$executeRaw`
+      UPDATE onboarding SET
+        source_statuses = ${JSON.stringify(input.sourceStatuses)}::jsonb,
+        website_url = ${input.websiteUrl || null},
+        database_provider = ${input.databaseProvider || null},
+        downloaded_templates = ${input.downloadedTemplates},
+        current_step = 6,
+        highest_completed_step = 6,
+        is_complete = TRUE,
+        completed_at = NOW(),
+        updated_at = NOW()
+      WHERE tenant_id = ${tenantId}::uuid
+    `;
+    return selectState(tx, tenantId);
+  });
 }

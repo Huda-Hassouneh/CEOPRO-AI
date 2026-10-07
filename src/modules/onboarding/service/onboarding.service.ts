@@ -63,8 +63,11 @@ function toState(record: repo.OnboardingRecord) {
   };
 }
 
-export async function getState(tenantId: string): Promise<OnboardingResult> {
-  const state = await repo.ensureState(tenantId);
+export async function getState(
+  tenantId: string,
+  userId: string
+): Promise<OnboardingResult> {
+  const state = await repo.ensureState(tenantId, userId);
   return ok(state, "Onboarding state retrieved successfully");
 }
 
@@ -79,30 +82,30 @@ export async function saveRegion(tenantId: string, userId: string, input: Region
   return ok(state, "Regional preferences saved successfully");
 }
 
-export async function saveProfile(tenantId: string, input: ProfileInput): Promise<OnboardingResult> {
-  const existing = await repo.ensureState(tenantId);
+export async function saveProfile(tenantId: string, userId: string, input: ProfileInput): Promise<OnboardingResult> {
+  const existing = await repo.ensureState(tenantId, userId);
   if (existing.highestCompletedStep < input.completedStep - 1) return incomplete;
-  const state = await repo.updateProfile(tenantId, input);
+  const state = await repo.updateProfile(tenantId, userId, input);
   return ok(state, "Business profile saved successfully");
 }
 
-export async function saveGoals(tenantId: string, input: GoalsInput): Promise<OnboardingResult> {
-  const existing = await repo.ensureState(tenantId);
+export async function saveGoals(tenantId: string, userId: string, input: GoalsInput): Promise<OnboardingResult> {
+  const existing = await repo.ensureState(tenantId, userId);
   if (existing.highestCompletedStep < 3) return incomplete;
-  const state = await repo.updateGoals(tenantId, [...new Set(input.objectives)]);
+  const state = await repo.updateGoals(tenantId, userId, [...new Set(input.objectives)]);
   return ok(state, "Strategic goals saved successfully");
 }
 
-export async function savePlan(tenantId: string, input: PlanInput): Promise<OnboardingResult> {
-  const existing = await repo.ensureState(tenantId);
+export async function savePlan(tenantId: string, userId: string, input: PlanInput): Promise<OnboardingResult> {
+  const existing = await repo.ensureState(tenantId, userId);
   if (existing.highestCompletedStep < 4) return incomplete;
-  const state = await repo.updatePlan(tenantId, input);
+  const state = await repo.updatePlan(tenantId, userId, input);
   return ok(state, "Plan selection saved successfully");
 }
 
-export async function complete(tenantId: string, input: CompleteOnboardingInput): Promise<OnboardingResult> {
-  const existing = await repo.ensureState(tenantId);
+export async function complete(tenantId: string, userId: string, input: CompleteOnboardingInput): Promise<OnboardingResult> {
+  const existing = await repo.ensureState(tenantId, userId);
   if (existing.highestCompletedStep < 5) return incomplete;
-  const state = await repo.completeState(tenantId, input);
+  const state = await repo.completeState(tenantId, userId, input);
   return ok(state, "Onboarding completed successfully");
 }

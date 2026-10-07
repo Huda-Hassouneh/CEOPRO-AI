@@ -16,7 +16,8 @@ Owns the tenant onboarding wizard: regional preferences, business profile, strat
 - State is one row per tenant in `onboarding`, created lazily on first read.
 - Steps must be completed in order; skipping ahead returns `ONBOARDING_INCOMPLETE`.
 - Saving regional preferences also updates the company's country, currency, timezone and language, and the user's preferred language, in one transaction.
-- This is unrelated to `POST /subscription`, which is the one-time Stripe account onboarding.
+- Every persistence operation sets transaction-local tenant and user context before touching RLS-protected tables.
+- This is separate from shared Stripe Product initialization, which remains a one-time bootstrap operation.
 
 ## Data touched
 `onboarding` (raw SQL), `Company`, and `User`.
