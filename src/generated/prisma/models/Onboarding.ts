@@ -708,6 +708,14 @@ export type OnboardingCreatedownloadedTemplatesInput = {
   set: string[]
 }
 
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type OnboardingUpdateobjectivesInput = {
   set?: string[]
   push?: string | string[]
@@ -716,6 +724,10 @@ export type OnboardingUpdateobjectivesInput = {
 export type OnboardingUpdatedownloadedTemplatesInput = {
   set?: string[]
   push?: string | string[]
+}
+
+export type BoolFieldUpdateOperationsInput = {
+  set?: boolean
 }
 
 export type OnboardingCreateWithoutTenantInput = {

@@ -399,6 +399,9 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   AppConfig: 'AppConfig',
   Company: 'Company',
+  Onboarding: 'Onboarding',
+  PendingSignup: 'PendingSignup',
+  EmailVerificationGrant: 'EmailVerificationGrant',
   Plan: 'Plan',
   PlanPriceVersion: 'PlanPriceVersion',
   PromoCode: 'PromoCode',
@@ -460,8 +463,7 @@ export const ModelName = {
   PlatformNotificationOutbox: 'PlatformNotificationOutbox',
   TenantNotification: 'TenantNotification',
   TenantNotificationReceipt: 'TenantNotificationReceipt',
-  TenantNotificationOutbox: 'TenantNotificationOutbox',
-  Onboarding: 'Onboarding'
+  TenantNotificationOutbox: 'TenantNotificationOutbox'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -477,7 +479,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "appConfig" | "company" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache" | "platformNotification" | "platformNotificationReceipt" | "platformNotificationOutbox" | "tenantNotification" | "tenantNotificationReceipt" | "tenantNotificationOutbox" | "onboarding"
+    modelProps: "appConfig" | "company" | "onboarding" | "pendingSignup" | "emailVerificationGrant" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache" | "platformNotification" | "platformNotificationReceipt" | "platformNotificationOutbox" | "tenantNotification" | "tenantNotificationReceipt" | "tenantNotificationOutbox"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -626,6 +628,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CompanyCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CompanyCountAggregateOutputType> | number
+        }
+      }
+    }
+    Onboarding: {
+      payload: Prisma.$OnboardingPayload<ExtArgs>
+      fields: Prisma.OnboardingFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.OnboardingFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.OnboardingFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        findFirst: {
+          args: Prisma.OnboardingFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.OnboardingFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        findMany: {
+          args: Prisma.OnboardingFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
+        }
+        create: {
+          args: Prisma.OnboardingCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        createMany: {
+          args: Prisma.OnboardingCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.OnboardingCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
+        }
+        delete: {
+          args: Prisma.OnboardingDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        update: {
+          args: Prisma.OnboardingUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        deleteMany: {
+          args: Prisma.OnboardingDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.OnboardingUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.OnboardingUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
+        }
+        upsert: {
+          args: Prisma.OnboardingUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
+        }
+        aggregate: {
+          args: Prisma.OnboardingAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateOnboarding>
+        }
+        groupBy: {
+          args: Prisma.OnboardingGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OnboardingGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.OnboardingCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OnboardingCountAggregateOutputType> | number
+        }
+      }
+    }
+    PendingSignup: {
+      payload: Prisma.$PendingSignupPayload<ExtArgs>
+      fields: Prisma.PendingSignupFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PendingSignupFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PendingSignupFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>
+        }
+        findFirst: {
+          args: Prisma.PendingSignupFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PendingSignupFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>
+        }
+        findMany: {
+          args: Prisma.PendingSignupFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>[]
+        }
+        create: {
+          args: Prisma.PendingSignupCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>
+        }
+        createMany: {
+          args: Prisma.PendingSignupCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PendingSignupCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>[]
+        }
+        delete: {
+          args: Prisma.PendingSignupDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>
+        }
+        update: {
+          args: Prisma.PendingSignupUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>
+        }
+        deleteMany: {
+          args: Prisma.PendingSignupDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PendingSignupUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PendingSignupUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>[]
+        }
+        upsert: {
+          args: Prisma.PendingSignupUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingSignupPayload>
+        }
+        aggregate: {
+          args: Prisma.PendingSignupAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePendingSignup>
+        }
+        groupBy: {
+          args: Prisma.PendingSignupGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PendingSignupGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PendingSignupCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PendingSignupCountAggregateOutputType> | number
+        }
+      }
+    }
+    EmailVerificationGrant: {
+      payload: Prisma.$EmailVerificationGrantPayload<ExtArgs>
+      fields: Prisma.EmailVerificationGrantFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.EmailVerificationGrantFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.EmailVerificationGrantFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>
+        }
+        findFirst: {
+          args: Prisma.EmailVerificationGrantFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.EmailVerificationGrantFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>
+        }
+        findMany: {
+          args: Prisma.EmailVerificationGrantFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>[]
+        }
+        create: {
+          args: Prisma.EmailVerificationGrantCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>
+        }
+        createMany: {
+          args: Prisma.EmailVerificationGrantCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.EmailVerificationGrantCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>[]
+        }
+        delete: {
+          args: Prisma.EmailVerificationGrantDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>
+        }
+        update: {
+          args: Prisma.EmailVerificationGrantUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>
+        }
+        deleteMany: {
+          args: Prisma.EmailVerificationGrantDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.EmailVerificationGrantUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.EmailVerificationGrantUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>[]
+        }
+        upsert: {
+          args: Prisma.EmailVerificationGrantUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$EmailVerificationGrantPayload>
+        }
+        aggregate: {
+          args: Prisma.EmailVerificationGrantAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateEmailVerificationGrant>
+        }
+        groupBy: {
+          args: Prisma.EmailVerificationGrantGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.EmailVerificationGrantGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.EmailVerificationGrantCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.EmailVerificationGrantCountAggregateOutputType> | number
         }
       }
     }
@@ -5217,80 +5441,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    Onboarding: {
-      payload: Prisma.$OnboardingPayload<ExtArgs>
-      fields: Prisma.OnboardingFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.OnboardingFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.OnboardingFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
-        }
-        findFirst: {
-          args: Prisma.OnboardingFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.OnboardingFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
-        }
-        findMany: {
-          args: Prisma.OnboardingFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
-        }
-        create: {
-          args: Prisma.OnboardingCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
-        }
-        createMany: {
-          args: Prisma.OnboardingCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.OnboardingCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
-        }
-        delete: {
-          args: Prisma.OnboardingDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
-        }
-        update: {
-          args: Prisma.OnboardingUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
-        }
-        deleteMany: {
-          args: Prisma.OnboardingDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.OnboardingUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.OnboardingUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>[]
-        }
-        upsert: {
-          args: Prisma.OnboardingUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$OnboardingPayload>
-        }
-        aggregate: {
-          args: Prisma.OnboardingAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateOnboarding>
-        }
-        groupBy: {
-          args: Prisma.OnboardingGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.OnboardingGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.OnboardingCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.OnboardingCountAggregateOutputType> | number
-        }
-      }
-    }
   }
 } & {
   other: {
@@ -5359,6 +5509,67 @@ export const CompanyScalarFieldEnum = {
 } as const
 
 export type CompanyScalarFieldEnum = (typeof CompanyScalarFieldEnum)[keyof typeof CompanyScalarFieldEnum]
+
+
+export const OnboardingScalarFieldEnum = {
+  tenantId: 'tenantId',
+  currentStep: 'currentStep',
+  highestCompletedStep: 'highestCompletedStep',
+  industry: 'industry',
+  businessSize: 'businessSize',
+  annualRevenue: 'annualRevenue',
+  city: 'city',
+  objectives: 'objectives',
+  selectedPlan: 'selectedPlan',
+  checkoutMode: 'checkoutMode',
+  billingPeriod: 'billingPeriod',
+  customPlan: 'customPlan',
+  sourceStatuses: 'sourceStatuses',
+  websiteUrl: 'websiteUrl',
+  databaseProvider: 'databaseProvider',
+  downloadedTemplates: 'downloadedTemplates',
+  isComplete: 'isComplete',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type OnboardingScalarFieldEnum = (typeof OnboardingScalarFieldEnum)[keyof typeof OnboardingScalarFieldEnum]
+
+
+export const PendingSignupScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  passwordHash: 'passwordHash',
+  fullName: 'fullName',
+  preferredLanguage: 'preferredLanguage',
+  businessName: 'businessName',
+  businessType: 'businessType',
+  countryCode: 'countryCode',
+  primaryCurrency: 'primaryCurrency',
+  timezone: 'timezone',
+  tokenHash: 'tokenHash',
+  expiresAt: 'expiresAt',
+  lastEmailSentAt: 'lastEmailSentAt',
+  consumedAt: 'consumedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PendingSignupScalarFieldEnum = (typeof PendingSignupScalarFieldEnum)[keyof typeof PendingSignupScalarFieldEnum]
+
+
+export const EmailVerificationGrantScalarFieldEnum = {
+  id: 'id',
+  tokenHash: 'tokenHash',
+  userId: 'userId',
+  tenantId: 'tenantId',
+  expiresAt: 'expiresAt',
+  consumedAt: 'consumedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type EmailVerificationGrantScalarFieldEnum = (typeof EmailVerificationGrantScalarFieldEnum)[keyof typeof EmailVerificationGrantScalarFieldEnum]
 
 
 export const PlanScalarFieldEnum = {
@@ -5877,7 +6088,9 @@ export const Ingestion_jobsScalarFieldEnum = {
   created_at: 'created_at',
   heartbeat_at: 'heartbeat_at',
   rows_quarantined: 'rows_quarantined',
-  rows_partial: 'rows_partial'
+  rows_partial: 'rows_partial',
+  processing_attempts: 'processing_attempts',
+  next_attempt_at: 'next_attempt_at'
 } as const
 
 export type Ingestion_jobsScalarFieldEnum = (typeof Ingestion_jobsScalarFieldEnum)[keyof typeof Ingestion_jobsScalarFieldEnum]
@@ -5985,6 +6198,7 @@ export const Rag_documents_metadataScalarFieldEnum = {
   file_name: 'file_name',
   storage_bucket_path: 'storage_bucket_path',
   file_size_bytes: 'file_size_bytes',
+  source_file_content: 'source_file_content',
   content_type: 'content_type',
   uploaded_by_user_id: 'uploaded_by_user_id',
   uploaded_at: 'uploaded_at',
@@ -6401,32 +6615,6 @@ export const TenantNotificationOutboxScalarFieldEnum = {
 export type TenantNotificationOutboxScalarFieldEnum = (typeof TenantNotificationOutboxScalarFieldEnum)[keyof typeof TenantNotificationOutboxScalarFieldEnum]
 
 
-export const OnboardingScalarFieldEnum = {
-  tenantId: 'tenantId',
-  currentStep: 'currentStep',
-  highestCompletedStep: 'highestCompletedStep',
-  industry: 'industry',
-  businessSize: 'businessSize',
-  annualRevenue: 'annualRevenue',
-  city: 'city',
-  objectives: 'objectives',
-  selectedPlan: 'selectedPlan',
-  checkoutMode: 'checkoutMode',
-  billingPeriod: 'billingPeriod',
-  customPlan: 'customPlan',
-  sourceStatuses: 'sourceStatuses',
-  websiteUrl: 'websiteUrl',
-  databaseProvider: 'databaseProvider',
-  downloadedTemplates: 'downloadedTemplates',
-  isComplete: 'isComplete',
-  completedAt: 'completedAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type OnboardingScalarFieldEnum = (typeof OnboardingScalarFieldEnum)[keyof typeof OnboardingScalarFieldEnum]
-
-
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -6435,19 +6623,19 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
 export const NullableJsonNullValueInput = {
   DbNull: DbNull,
   JsonNull: JsonNull
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
-
-
-export const JsonNullValueInput = {
-  JsonNull: JsonNull
-} as const
-
-export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {
@@ -6524,6 +6712,27 @@ export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
+ * Reference to a field of type 'Json'
+ */
+export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+/**
+ * Reference to a field of type 'QueryMode'
+ */
+export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
  * Reference to a field of type 'PlanType'
  */
 export type EnumPlanTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PlanType'>
@@ -6548,27 +6757,6 @@ export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
  * Reference to a field of type 'Decimal[]'
  */
 export type ListDecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal[]'>
-    
-
-
-/**
- * Reference to a field of type 'Json'
- */
-export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-    
-
-
-/**
- * Reference to a field of type 'QueryMode'
- */
-export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -6681,6 +6869,20 @@ export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 
  * Reference to a field of type 'BigInt[]'
  */
 export type ListBigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Bytes'
+ */
+export type BytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes'>
+    
+
+
+/**
+ * Reference to a field of type 'Bytes[]'
+ */
+export type ListBytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes[]'>
     
 
 
@@ -6850,6 +7052,9 @@ export type PrismaClientOptions = PrismaClientOptionsWithAccelerateUrl | PrismaC
 export type GlobalOmitConfig = {
   appConfig?: Prisma.AppConfigOmit
   company?: Prisma.CompanyOmit
+  onboarding?: Prisma.OnboardingOmit
+  pendingSignup?: Prisma.PendingSignupOmit
+  emailVerificationGrant?: Prisma.EmailVerificationGrantOmit
   plan?: Prisma.PlanOmit
   planPriceVersion?: Prisma.PlanPriceVersionOmit
   promoCode?: Prisma.PromoCodeOmit
@@ -6912,7 +7117,6 @@ export type GlobalOmitConfig = {
   tenantNotification?: Prisma.TenantNotificationOmit
   tenantNotificationReceipt?: Prisma.TenantNotificationReceiptOmit
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxOmit
-  onboarding?: Prisma.OnboardingOmit
 }
 
 /* Types for Logging */

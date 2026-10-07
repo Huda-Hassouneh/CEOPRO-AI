@@ -277,9 +277,10 @@ export type CompanyWhereInput = {
   platformNotificationsReceived?: Prisma.PlatformNotificationListRelationFilter
   platformNotificationsSourced?: Prisma.PlatformNotificationListRelationFilter
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxListRelationFilter
-  onboarding?: Prisma.XOR<Prisma.OnboardingNullableScalarRelationFilter, Prisma.OnboardingWhereInput> | null
   tenantNotifications?: Prisma.TenantNotificationListRelationFilter
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxListRelationFilter
+  onboarding?: Prisma.XOR<Prisma.OnboardingNullableScalarRelationFilter, Prisma.OnboardingWhereInput> | null
+  emailVerificationGrants?: Prisma.EmailVerificationGrantListRelationFilter
 }
 
 export type CompanyOrderByWithRelationInput = {
@@ -325,9 +326,10 @@ export type CompanyOrderByWithRelationInput = {
   platformNotificationsReceived?: Prisma.PlatformNotificationOrderByRelationAggregateInput
   platformNotificationsSourced?: Prisma.PlatformNotificationOrderByRelationAggregateInput
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxOrderByRelationAggregateInput
-  onboarding?: Prisma.OnboardingOrderByWithRelationInput
   tenantNotifications?: Prisma.TenantNotificationOrderByRelationAggregateInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxOrderByRelationAggregateInput
+  onboarding?: Prisma.OnboardingOrderByWithRelationInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantOrderByRelationAggregateInput
 }
 
 export type CompanyWhereUniqueInput = Prisma.AtLeast<{
@@ -376,9 +378,10 @@ export type CompanyWhereUniqueInput = Prisma.AtLeast<{
   platformNotificationsReceived?: Prisma.PlatformNotificationListRelationFilter
   platformNotificationsSourced?: Prisma.PlatformNotificationListRelationFilter
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxListRelationFilter
-  onboarding?: Prisma.XOR<Prisma.OnboardingNullableScalarRelationFilter, Prisma.OnboardingWhereInput> | null
   tenantNotifications?: Prisma.TenantNotificationListRelationFilter
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxListRelationFilter
+  onboarding?: Prisma.XOR<Prisma.OnboardingNullableScalarRelationFilter, Prisma.OnboardingWhereInput> | null
+  emailVerificationGrants?: Prisma.EmailVerificationGrantListRelationFilter
 }, "id">
 
 export type CompanyOrderByWithAggregationInput = {
@@ -466,9 +469,10 @@ export type CompanyCreateInput = {
   platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
   platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
   tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateInput = {
@@ -514,9 +518,10 @@ export type CompanyUncheckedCreateInput = {
   platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
   platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
   tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUpdateInput = {
@@ -562,9 +567,10 @@ export type CompanyUpdateInput = {
   platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
   platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
   tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateInput = {
@@ -610,9 +616,10 @@ export type CompanyUncheckedUpdateInput = {
   platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
   platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
   tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyCreateManyInput = {
@@ -725,14 +732,14 @@ export type CompanyMinOrderByAggregateInput = {
   platformNotes?: Prisma.SortOrder
 }
 
-export type CompanyNullableScalarRelationFilter = {
-  is?: Prisma.CompanyWhereInput | null
-  isNot?: Prisma.CompanyWhereInput | null
-}
-
 export type CompanyScalarRelationFilter = {
   is?: Prisma.CompanyWhereInput
   isNot?: Prisma.CompanyWhereInput
+}
+
+export type CompanyNullableScalarRelationFilter = {
+  is?: Prisma.CompanyWhereInput | null
+  isNot?: Prisma.CompanyWhereInput | null
 }
 
 export type CompanyCreateoperatingCountriesInput = {
@@ -768,6 +775,34 @@ export type CompanyUpdatesupportedLanguagesInput = {
 
 export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
+}
+
+export type CompanyCreateNestedOneWithoutOnboardingInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutOnboardingInput, Prisma.CompanyUncheckedCreateWithoutOnboardingInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutOnboardingInput
+  connect?: Prisma.CompanyWhereUniqueInput
+}
+
+export type CompanyUpdateOneRequiredWithoutOnboardingNestedInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutOnboardingInput, Prisma.CompanyUncheckedCreateWithoutOnboardingInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutOnboardingInput
+  upsert?: Prisma.CompanyUpsertWithoutOnboardingInput
+  connect?: Prisma.CompanyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutOnboardingInput, Prisma.CompanyUpdateWithoutOnboardingInput>, Prisma.CompanyUncheckedUpdateWithoutOnboardingInput>
+}
+
+export type CompanyCreateNestedOneWithoutEmailVerificationGrantsInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutEmailVerificationGrantsInput, Prisma.CompanyUncheckedCreateWithoutEmailVerificationGrantsInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutEmailVerificationGrantsInput
+  connect?: Prisma.CompanyWhereUniqueInput
+}
+
+export type CompanyUpdateOneRequiredWithoutEmailVerificationGrantsNestedInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutEmailVerificationGrantsInput, Prisma.CompanyUncheckedCreateWithoutEmailVerificationGrantsInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutEmailVerificationGrantsInput
+  upsert?: Prisma.CompanyUpsertWithoutEmailVerificationGrantsInput
+  connect?: Prisma.CompanyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutEmailVerificationGrantsInput, Prisma.CompanyUpdateWithoutEmailVerificationGrantsInput>, Prisma.CompanyUncheckedUpdateWithoutEmailVerificationGrantsInput>
 }
 
 export type CompanyCreateNestedOneWithoutCustomPlansInput = {
@@ -1182,5936 +1217,6 @@ export type CompanyUpdateOneRequiredWithoutTenantNotificationOutboxNestedInput =
   update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutTenantNotificationOutboxInput, Prisma.CompanyUpdateWithoutTenantNotificationOutboxInput>, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationOutboxInput>
 }
 
-export type CompanyCreateNestedOneWithoutOnboardingInput = {
-  create?: Prisma.XOR<Prisma.CompanyCreateWithoutOnboardingInput, Prisma.CompanyUncheckedCreateWithoutOnboardingInput>
-  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutOnboardingInput
-  connect?: Prisma.CompanyWhereUniqueInput
-}
-
-export type CompanyUpdateOneRequiredWithoutOnboardingNestedInput = {
-  create?: Prisma.XOR<Prisma.CompanyCreateWithoutOnboardingInput, Prisma.CompanyUncheckedCreateWithoutOnboardingInput>
-  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutOnboardingInput
-  upsert?: Prisma.CompanyUpsertWithoutOnboardingInput
-  connect?: Prisma.CompanyWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutOnboardingInput, Prisma.CompanyUpdateWithoutOnboardingInput>, Prisma.CompanyUncheckedUpdateWithoutOnboardingInput>
-}
-
-export type CompanyCreateWithoutCustomPlansInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutCustomPlansInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutCustomPlansInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutCustomPlansInput, Prisma.CompanyUncheckedCreateWithoutCustomPlansInput>
-}
-
-export type CompanyUpsertWithoutCustomPlansInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutCustomPlansInput, Prisma.CompanyUncheckedUpdateWithoutCustomPlansInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutCustomPlansInput, Prisma.CompanyUncheckedCreateWithoutCustomPlansInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutCustomPlansInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutCustomPlansInput, Prisma.CompanyUncheckedUpdateWithoutCustomPlansInput>
-}
-
-export type CompanyUpdateWithoutCustomPlansInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutCustomPlansInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutSubscriptionsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutSubscriptionsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutSubscriptionsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutSubscriptionsInput, Prisma.CompanyUncheckedCreateWithoutSubscriptionsInput>
-}
-
-export type CompanyUpsertWithoutSubscriptionsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutSubscriptionsInput, Prisma.CompanyUncheckedUpdateWithoutSubscriptionsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutSubscriptionsInput, Prisma.CompanyUncheckedCreateWithoutSubscriptionsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutSubscriptionsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutSubscriptionsInput, Prisma.CompanyUncheckedUpdateWithoutSubscriptionsInput>
-}
-
-export type CompanyUpdateWithoutSubscriptionsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutSubscriptionsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutCustomPlanQuotesInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutCustomPlanQuotesInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutCustomPlanQuotesInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutCustomPlanQuotesInput, Prisma.CompanyUncheckedCreateWithoutCustomPlanQuotesInput>
-}
-
-export type CompanyUpsertWithoutCustomPlanQuotesInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutCustomPlanQuotesInput, Prisma.CompanyUncheckedUpdateWithoutCustomPlanQuotesInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutCustomPlanQuotesInput, Prisma.CompanyUncheckedCreateWithoutCustomPlanQuotesInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutCustomPlanQuotesInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutCustomPlanQuotesInput, Prisma.CompanyUncheckedUpdateWithoutCustomPlanQuotesInput>
-}
-
-export type CompanyUpdateWithoutCustomPlanQuotesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutCustomPlanQuotesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutTenantUsersInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutTenantUsersInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutTenantUsersInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantUsersInput, Prisma.CompanyUncheckedCreateWithoutTenantUsersInput>
-}
-
-export type CompanyUpsertWithoutTenantUsersInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantUsersInput, Prisma.CompanyUncheckedUpdateWithoutTenantUsersInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantUsersInput, Prisma.CompanyUncheckedCreateWithoutTenantUsersInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutTenantUsersInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantUsersInput, Prisma.CompanyUncheckedUpdateWithoutTenantUsersInput>
-}
-
-export type CompanyUpdateWithoutTenantUsersInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutTenantUsersInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutPlatformInvitationsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutPlatformInvitationsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutPlatformInvitationsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformInvitationsInput, Prisma.CompanyUncheckedCreateWithoutPlatformInvitationsInput>
-}
-
-export type CompanyUpsertWithoutPlatformInvitationsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformInvitationsInput, Prisma.CompanyUncheckedUpdateWithoutPlatformInvitationsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformInvitationsInput, Prisma.CompanyUncheckedCreateWithoutPlatformInvitationsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutPlatformInvitationsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformInvitationsInput, Prisma.CompanyUncheckedUpdateWithoutPlatformInvitationsInput>
-}
-
-export type CompanyUpdateWithoutPlatformInvitationsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutPlatformInvitationsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutAuthSessionsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutAuthSessionsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutAuthSessionsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutAuthSessionsInput, Prisma.CompanyUncheckedCreateWithoutAuthSessionsInput>
-}
-
-export type CompanyUpsertWithoutAuthSessionsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutAuthSessionsInput, Prisma.CompanyUncheckedUpdateWithoutAuthSessionsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutAuthSessionsInput, Prisma.CompanyUncheckedCreateWithoutAuthSessionsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutAuthSessionsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutAuthSessionsInput, Prisma.CompanyUncheckedUpdateWithoutAuthSessionsInput>
-}
-
-export type CompanyUpdateWithoutAuthSessionsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutAuthSessionsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutData_sourcesInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutData_sourcesInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutData_sourcesInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutData_sourcesInput, Prisma.CompanyUncheckedCreateWithoutData_sourcesInput>
-}
-
-export type CompanyUpsertWithoutData_sourcesInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutData_sourcesInput, Prisma.CompanyUncheckedUpdateWithoutData_sourcesInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutData_sourcesInput, Prisma.CompanyUncheckedCreateWithoutData_sourcesInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutData_sourcesInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutData_sourcesInput, Prisma.CompanyUncheckedUpdateWithoutData_sourcesInput>
-}
-
-export type CompanyUpdateWithoutData_sourcesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutData_sourcesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutDemand_forecastsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutDemand_forecastsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutDemand_forecastsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutDemand_forecastsInput, Prisma.CompanyUncheckedCreateWithoutDemand_forecastsInput>
-}
-
-export type CompanyUpsertWithoutDemand_forecastsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutDemand_forecastsInput, Prisma.CompanyUncheckedUpdateWithoutDemand_forecastsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutDemand_forecastsInput, Prisma.CompanyUncheckedCreateWithoutDemand_forecastsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutDemand_forecastsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutDemand_forecastsInput, Prisma.CompanyUncheckedUpdateWithoutDemand_forecastsInput>
-}
-
-export type CompanyUpdateWithoutDemand_forecastsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutDemand_forecastsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutGlobal_competitorsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutGlobal_competitorsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutGlobal_competitorsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutGlobal_competitorsInput, Prisma.CompanyUncheckedCreateWithoutGlobal_competitorsInput>
-}
-
-export type CompanyUpsertWithoutGlobal_competitorsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutGlobal_competitorsInput, Prisma.CompanyUncheckedUpdateWithoutGlobal_competitorsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutGlobal_competitorsInput, Prisma.CompanyUncheckedCreateWithoutGlobal_competitorsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutGlobal_competitorsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutGlobal_competitorsInput, Prisma.CompanyUncheckedUpdateWithoutGlobal_competitorsInput>
-}
-
-export type CompanyUpdateWithoutGlobal_competitorsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutGlobal_competitorsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutInventoryInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutInventoryInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutInventoryInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutInventoryInput, Prisma.CompanyUncheckedCreateWithoutInventoryInput>
-}
-
-export type CompanyUpsertWithoutInventoryInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutInventoryInput, Prisma.CompanyUncheckedUpdateWithoutInventoryInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutInventoryInput, Prisma.CompanyUncheckedCreateWithoutInventoryInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutInventoryInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutInventoryInput, Prisma.CompanyUncheckedUpdateWithoutInventoryInput>
-}
-
-export type CompanyUpdateWithoutInventoryInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutInventoryInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutInvoicesInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutInvoicesInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutInvoicesInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutInvoicesInput, Prisma.CompanyUncheckedCreateWithoutInvoicesInput>
-}
-
-export type CompanyUpsertWithoutInvoicesInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutInvoicesInput, Prisma.CompanyUncheckedUpdateWithoutInvoicesInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutInvoicesInput, Prisma.CompanyUncheckedCreateWithoutInvoicesInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutInvoicesInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutInvoicesInput, Prisma.CompanyUncheckedUpdateWithoutInvoicesInput>
-}
-
-export type CompanyUpdateWithoutInvoicesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutInvoicesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutProductsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutProductsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutProductsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutProductsInput, Prisma.CompanyUncheckedCreateWithoutProductsInput>
-}
-
-export type CompanyUpsertWithoutProductsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutProductsInput, Prisma.CompanyUncheckedUpdateWithoutProductsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutProductsInput, Prisma.CompanyUncheckedCreateWithoutProductsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutProductsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutProductsInput, Prisma.CompanyUncheckedUpdateWithoutProductsInput>
-}
-
-export type CompanyUpdateWithoutProductsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutProductsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutRag_documents_metadataInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutRag_documents_metadataInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutRag_documents_metadataInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedCreateWithoutRag_documents_metadataInput>
-}
-
-export type CompanyUpsertWithoutRag_documents_metadataInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedUpdateWithoutRag_documents_metadataInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedCreateWithoutRag_documents_metadataInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutRag_documents_metadataInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedUpdateWithoutRag_documents_metadataInput>
-}
-
-export type CompanyUpdateWithoutRag_documents_metadataInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutRag_documents_metadataInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutRecommendation_outcomesInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutRecommendation_outcomesInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutRecommendation_outcomesInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutRecommendation_outcomesInput, Prisma.CompanyUncheckedCreateWithoutRecommendation_outcomesInput>
-}
-
-export type CompanyUpsertWithoutRecommendation_outcomesInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutRecommendation_outcomesInput, Prisma.CompanyUncheckedUpdateWithoutRecommendation_outcomesInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutRecommendation_outcomesInput, Prisma.CompanyUncheckedCreateWithoutRecommendation_outcomesInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutRecommendation_outcomesInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutRecommendation_outcomesInput, Prisma.CompanyUncheckedUpdateWithoutRecommendation_outcomesInput>
-}
-
-export type CompanyUpdateWithoutRecommendation_outcomesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutRecommendation_outcomesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutReviewsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutReviewsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutReviewsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutReviewsInput, Prisma.CompanyUncheckedCreateWithoutReviewsInput>
-}
-
-export type CompanyUpsertWithoutReviewsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutReviewsInput, Prisma.CompanyUncheckedUpdateWithoutReviewsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutReviewsInput, Prisma.CompanyUncheckedCreateWithoutReviewsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutReviewsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutReviewsInput, Prisma.CompanyUncheckedUpdateWithoutReviewsInput>
-}
-
-export type CompanyUpdateWithoutReviewsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutReviewsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutSystem_alertsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutSystem_alertsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutSystem_alertsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutSystem_alertsInput, Prisma.CompanyUncheckedCreateWithoutSystem_alertsInput>
-}
-
-export type CompanyUpsertWithoutSystem_alertsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutSystem_alertsInput, Prisma.CompanyUncheckedUpdateWithoutSystem_alertsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutSystem_alertsInput, Prisma.CompanyUncheckedCreateWithoutSystem_alertsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutSystem_alertsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutSystem_alertsInput, Prisma.CompanyUncheckedUpdateWithoutSystem_alertsInput>
-}
-
-export type CompanyUpdateWithoutSystem_alertsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutSystem_alertsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutTenant_competitorsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutTenant_competitorsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutTenant_competitorsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenant_competitorsInput, Prisma.CompanyUncheckedCreateWithoutTenant_competitorsInput>
-}
-
-export type CompanyUpsertWithoutTenant_competitorsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTenant_competitorsInput, Prisma.CompanyUncheckedUpdateWithoutTenant_competitorsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenant_competitorsInput, Prisma.CompanyUncheckedCreateWithoutTenant_competitorsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutTenant_competitorsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTenant_competitorsInput, Prisma.CompanyUncheckedUpdateWithoutTenant_competitorsInput>
-}
-
-export type CompanyUpdateWithoutTenant_competitorsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutTenant_competitorsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutCampaignsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutCampaignsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutCampaignsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutCampaignsInput, Prisma.CompanyUncheckedCreateWithoutCampaignsInput>
-}
-
-export type CompanyUpsertWithoutCampaignsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutCampaignsInput, Prisma.CompanyUncheckedUpdateWithoutCampaignsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutCampaignsInput, Prisma.CompanyUncheckedCreateWithoutCampaignsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutCampaignsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutCampaignsInput, Prisma.CompanyUncheckedUpdateWithoutCampaignsInput>
-}
-
-export type CompanyUpdateWithoutCampaignsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutCampaignsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutExtracted_entityInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutExtracted_entityInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutExtracted_entityInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutExtracted_entityInput, Prisma.CompanyUncheckedCreateWithoutExtracted_entityInput>
-}
-
-export type CompanyUpsertWithoutExtracted_entityInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutExtracted_entityInput, Prisma.CompanyUncheckedUpdateWithoutExtracted_entityInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutExtracted_entityInput, Prisma.CompanyUncheckedCreateWithoutExtracted_entityInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutExtracted_entityInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutExtracted_entityInput, Prisma.CompanyUncheckedUpdateWithoutExtracted_entityInput>
-}
-
-export type CompanyUpdateWithoutExtracted_entityInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutExtracted_entityInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutMarket_alert_eventsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutMarket_alert_eventsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutMarket_alert_eventsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutMarket_alert_eventsInput, Prisma.CompanyUncheckedCreateWithoutMarket_alert_eventsInput>
-}
-
-export type CompanyUpsertWithoutMarket_alert_eventsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutMarket_alert_eventsInput, Prisma.CompanyUncheckedUpdateWithoutMarket_alert_eventsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutMarket_alert_eventsInput, Prisma.CompanyUncheckedCreateWithoutMarket_alert_eventsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutMarket_alert_eventsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutMarket_alert_eventsInput, Prisma.CompanyUncheckedUpdateWithoutMarket_alert_eventsInput>
-}
-
-export type CompanyUpdateWithoutMarket_alert_eventsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutMarket_alert_eventsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutMarket_eventsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutMarket_eventsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutMarket_eventsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutMarket_eventsInput, Prisma.CompanyUncheckedCreateWithoutMarket_eventsInput>
-}
-
-export type CompanyUpsertWithoutMarket_eventsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutMarket_eventsInput, Prisma.CompanyUncheckedUpdateWithoutMarket_eventsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutMarket_eventsInput, Prisma.CompanyUncheckedCreateWithoutMarket_eventsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutMarket_eventsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutMarket_eventsInput, Prisma.CompanyUncheckedUpdateWithoutMarket_eventsInput>
-}
-
-export type CompanyUpdateWithoutMarket_eventsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutMarket_eventsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutNews_recordInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutNews_recordInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutNews_recordInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutNews_recordInput, Prisma.CompanyUncheckedCreateWithoutNews_recordInput>
-}
-
-export type CompanyUpsertWithoutNews_recordInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutNews_recordInput, Prisma.CompanyUncheckedUpdateWithoutNews_recordInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutNews_recordInput, Prisma.CompanyUncheckedCreateWithoutNews_recordInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutNews_recordInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutNews_recordInput, Prisma.CompanyUncheckedUpdateWithoutNews_recordInput>
-}
-
-export type CompanyUpdateWithoutNews_recordInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutNews_recordInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutSocial_mentionInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutSocial_mentionInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutSocial_mentionInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutSocial_mentionInput, Prisma.CompanyUncheckedCreateWithoutSocial_mentionInput>
-}
-
-export type CompanyUpsertWithoutSocial_mentionInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutSocial_mentionInput, Prisma.CompanyUncheckedUpdateWithoutSocial_mentionInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutSocial_mentionInput, Prisma.CompanyUncheckedCreateWithoutSocial_mentionInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutSocial_mentionInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutSocial_mentionInput, Prisma.CompanyUncheckedUpdateWithoutSocial_mentionInput>
-}
-
-export type CompanyUpdateWithoutSocial_mentionInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutSocial_mentionInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutTransactionsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutTransactionsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutTransactionsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTransactionsInput, Prisma.CompanyUncheckedCreateWithoutTransactionsInput>
-}
-
-export type CompanyUpsertWithoutTransactionsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTransactionsInput, Prisma.CompanyUncheckedUpdateWithoutTransactionsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTransactionsInput, Prisma.CompanyUncheckedCreateWithoutTransactionsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutTransactionsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTransactionsInput, Prisma.CompanyUncheckedUpdateWithoutTransactionsInput>
-}
-
-export type CompanyUpdateWithoutTransactionsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutTransactionsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutPlatformNotificationsReceivedInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutPlatformNotificationsReceivedInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput>
-}
-
-export type CompanyCreateWithoutPlatformNotificationsSourcedInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutPlatformNotificationsSourcedInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput>
-}
-
-export type CompanyUpsertWithoutPlatformNotificationsReceivedInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationsReceivedInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput>
-}
-
-export type CompanyUpdateWithoutPlatformNotificationsReceivedInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUpsertWithoutPlatformNotificationsSourcedInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationsSourcedInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput>
-}
-
-export type CompanyUpdateWithoutPlatformNotificationsSourcedInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutPlatformNotificationOutboxInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutPlatformNotificationOutboxInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput>
-}
-
-export type CompanyUpsertWithoutPlatformNotificationOutboxInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationOutboxInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput>
-}
-
-export type CompanyUpdateWithoutPlatformNotificationOutboxInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutTenantNotificationsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutTenantNotificationsInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutTenantNotificationsInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantNotificationsInput, Prisma.CompanyUncheckedCreateWithoutTenantNotificationsInput>
-}
-
-export type CompanyUpsertWithoutTenantNotificationsInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantNotificationsInput, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationsInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantNotificationsInput, Prisma.CompanyUncheckedCreateWithoutTenantNotificationsInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutTenantNotificationsInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantNotificationsInput, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationsInput>
-}
-
-export type CompanyUpdateWithoutTenantNotificationsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutTenantNotificationsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyCreateWithoutTenantNotificationOutboxInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyUncheckedCreateWithoutTenantNotificationOutboxInput = {
-  id?: string
-  businessName: string
-  businessType?: string | null
-  countryCode: string
-  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
-  primaryCurrency: string
-  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
-  timezone?: string
-  preferredLanguage?: string
-  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
-  createdAt?: Date | string | null
-  updatedAt?: Date | string | null
-  deletedAt?: Date | string | null
-  platformStatus?: string
-  platformNotes?: string | null
-  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
-  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
-  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
-  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
-  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
-  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
-  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
-  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
-  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
-  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
-  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
-  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
-  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
-  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
-  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
-  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
-}
-
-export type CompanyCreateOrConnectWithoutTenantNotificationOutboxInput = {
-  where: Prisma.CompanyWhereUniqueInput
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutTenantNotificationOutboxInput>
-}
-
-export type CompanyUpsertWithoutTenantNotificationOutboxInput = {
-  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationOutboxInput>
-  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutTenantNotificationOutboxInput>
-  where?: Prisma.CompanyWhereInput
-}
-
-export type CompanyUpdateToOneWithWhereWithoutTenantNotificationOutboxInput = {
-  where?: Prisma.CompanyWhereInput
-  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationOutboxInput>
-}
-
-export type CompanyUpdateWithoutTenantNotificationOutboxInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
-}
-
-export type CompanyUncheckedUpdateWithoutTenantNotificationOutboxInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  businessName?: Prisma.StringFieldUpdateOperationsInput | string
-  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
-  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
-  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
-  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
-  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
-  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
-  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
-  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
-  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
-  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
-  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
-  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
-  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
-  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
-  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
-  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
-  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
-  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
-  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
-  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
-  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
-  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
-  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
-  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
-  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
-  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
-  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
-  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
-  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
-}
-
 export type CompanyCreateWithoutOnboardingInput = {
   id?: string
   businessName: string
@@ -7157,6 +1262,7 @@ export type CompanyCreateWithoutOnboardingInput = {
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
   tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyUncheckedCreateWithoutOnboardingInput = {
@@ -7204,6 +1310,7 @@ export type CompanyUncheckedCreateWithoutOnboardingInput = {
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
   tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
 }
 
 export type CompanyCreateOrConnectWithoutOnboardingInput = {
@@ -7267,6 +1374,7 @@ export type CompanyUpdateWithoutOnboardingInput = {
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
   tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
 }
 
 export type CompanyUncheckedUpdateWithoutOnboardingInput = {
@@ -7314,6 +1422,6247 @@ export type CompanyUncheckedUpdateWithoutOnboardingInput = {
   platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
   tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
   tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutEmailVerificationGrantsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutEmailVerificationGrantsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutEmailVerificationGrantsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutEmailVerificationGrantsInput, Prisma.CompanyUncheckedCreateWithoutEmailVerificationGrantsInput>
+}
+
+export type CompanyUpsertWithoutEmailVerificationGrantsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutEmailVerificationGrantsInput, Prisma.CompanyUncheckedUpdateWithoutEmailVerificationGrantsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutEmailVerificationGrantsInput, Prisma.CompanyUncheckedCreateWithoutEmailVerificationGrantsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutEmailVerificationGrantsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutEmailVerificationGrantsInput, Prisma.CompanyUncheckedUpdateWithoutEmailVerificationGrantsInput>
+}
+
+export type CompanyUpdateWithoutEmailVerificationGrantsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutEmailVerificationGrantsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutCustomPlansInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutCustomPlansInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutCustomPlansInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutCustomPlansInput, Prisma.CompanyUncheckedCreateWithoutCustomPlansInput>
+}
+
+export type CompanyUpsertWithoutCustomPlansInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutCustomPlansInput, Prisma.CompanyUncheckedUpdateWithoutCustomPlansInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutCustomPlansInput, Prisma.CompanyUncheckedCreateWithoutCustomPlansInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutCustomPlansInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutCustomPlansInput, Prisma.CompanyUncheckedUpdateWithoutCustomPlansInput>
+}
+
+export type CompanyUpdateWithoutCustomPlansInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutCustomPlansInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutSubscriptionsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutSubscriptionsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutSubscriptionsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutSubscriptionsInput, Prisma.CompanyUncheckedCreateWithoutSubscriptionsInput>
+}
+
+export type CompanyUpsertWithoutSubscriptionsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutSubscriptionsInput, Prisma.CompanyUncheckedUpdateWithoutSubscriptionsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutSubscriptionsInput, Prisma.CompanyUncheckedCreateWithoutSubscriptionsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutSubscriptionsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutSubscriptionsInput, Prisma.CompanyUncheckedUpdateWithoutSubscriptionsInput>
+}
+
+export type CompanyUpdateWithoutSubscriptionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutSubscriptionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutCustomPlanQuotesInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutCustomPlanQuotesInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutCustomPlanQuotesInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutCustomPlanQuotesInput, Prisma.CompanyUncheckedCreateWithoutCustomPlanQuotesInput>
+}
+
+export type CompanyUpsertWithoutCustomPlanQuotesInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutCustomPlanQuotesInput, Prisma.CompanyUncheckedUpdateWithoutCustomPlanQuotesInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutCustomPlanQuotesInput, Prisma.CompanyUncheckedCreateWithoutCustomPlanQuotesInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutCustomPlanQuotesInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutCustomPlanQuotesInput, Prisma.CompanyUncheckedUpdateWithoutCustomPlanQuotesInput>
+}
+
+export type CompanyUpdateWithoutCustomPlanQuotesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutCustomPlanQuotesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutTenantUsersInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutTenantUsersInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutTenantUsersInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantUsersInput, Prisma.CompanyUncheckedCreateWithoutTenantUsersInput>
+}
+
+export type CompanyUpsertWithoutTenantUsersInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantUsersInput, Prisma.CompanyUncheckedUpdateWithoutTenantUsersInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantUsersInput, Prisma.CompanyUncheckedCreateWithoutTenantUsersInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutTenantUsersInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantUsersInput, Prisma.CompanyUncheckedUpdateWithoutTenantUsersInput>
+}
+
+export type CompanyUpdateWithoutTenantUsersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutTenantUsersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutPlatformInvitationsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutPlatformInvitationsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutPlatformInvitationsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformInvitationsInput, Prisma.CompanyUncheckedCreateWithoutPlatformInvitationsInput>
+}
+
+export type CompanyUpsertWithoutPlatformInvitationsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformInvitationsInput, Prisma.CompanyUncheckedUpdateWithoutPlatformInvitationsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformInvitationsInput, Prisma.CompanyUncheckedCreateWithoutPlatformInvitationsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutPlatformInvitationsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformInvitationsInput, Prisma.CompanyUncheckedUpdateWithoutPlatformInvitationsInput>
+}
+
+export type CompanyUpdateWithoutPlatformInvitationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutPlatformInvitationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutAuthSessionsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutAuthSessionsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutAuthSessionsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutAuthSessionsInput, Prisma.CompanyUncheckedCreateWithoutAuthSessionsInput>
+}
+
+export type CompanyUpsertWithoutAuthSessionsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutAuthSessionsInput, Prisma.CompanyUncheckedUpdateWithoutAuthSessionsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutAuthSessionsInput, Prisma.CompanyUncheckedCreateWithoutAuthSessionsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutAuthSessionsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutAuthSessionsInput, Prisma.CompanyUncheckedUpdateWithoutAuthSessionsInput>
+}
+
+export type CompanyUpdateWithoutAuthSessionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutAuthSessionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutData_sourcesInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutData_sourcesInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutData_sourcesInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutData_sourcesInput, Prisma.CompanyUncheckedCreateWithoutData_sourcesInput>
+}
+
+export type CompanyUpsertWithoutData_sourcesInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutData_sourcesInput, Prisma.CompanyUncheckedUpdateWithoutData_sourcesInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutData_sourcesInput, Prisma.CompanyUncheckedCreateWithoutData_sourcesInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutData_sourcesInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutData_sourcesInput, Prisma.CompanyUncheckedUpdateWithoutData_sourcesInput>
+}
+
+export type CompanyUpdateWithoutData_sourcesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutData_sourcesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutDemand_forecastsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutDemand_forecastsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutDemand_forecastsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutDemand_forecastsInput, Prisma.CompanyUncheckedCreateWithoutDemand_forecastsInput>
+}
+
+export type CompanyUpsertWithoutDemand_forecastsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutDemand_forecastsInput, Prisma.CompanyUncheckedUpdateWithoutDemand_forecastsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutDemand_forecastsInput, Prisma.CompanyUncheckedCreateWithoutDemand_forecastsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutDemand_forecastsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutDemand_forecastsInput, Prisma.CompanyUncheckedUpdateWithoutDemand_forecastsInput>
+}
+
+export type CompanyUpdateWithoutDemand_forecastsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutDemand_forecastsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutGlobal_competitorsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutGlobal_competitorsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutGlobal_competitorsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutGlobal_competitorsInput, Prisma.CompanyUncheckedCreateWithoutGlobal_competitorsInput>
+}
+
+export type CompanyUpsertWithoutGlobal_competitorsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutGlobal_competitorsInput, Prisma.CompanyUncheckedUpdateWithoutGlobal_competitorsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutGlobal_competitorsInput, Prisma.CompanyUncheckedCreateWithoutGlobal_competitorsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutGlobal_competitorsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutGlobal_competitorsInput, Prisma.CompanyUncheckedUpdateWithoutGlobal_competitorsInput>
+}
+
+export type CompanyUpdateWithoutGlobal_competitorsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutGlobal_competitorsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutInventoryInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutInventoryInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutInventoryInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutInventoryInput, Prisma.CompanyUncheckedCreateWithoutInventoryInput>
+}
+
+export type CompanyUpsertWithoutInventoryInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutInventoryInput, Prisma.CompanyUncheckedUpdateWithoutInventoryInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutInventoryInput, Prisma.CompanyUncheckedCreateWithoutInventoryInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutInventoryInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutInventoryInput, Prisma.CompanyUncheckedUpdateWithoutInventoryInput>
+}
+
+export type CompanyUpdateWithoutInventoryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutInventoryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutInvoicesInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutInvoicesInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutInvoicesInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutInvoicesInput, Prisma.CompanyUncheckedCreateWithoutInvoicesInput>
+}
+
+export type CompanyUpsertWithoutInvoicesInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutInvoicesInput, Prisma.CompanyUncheckedUpdateWithoutInvoicesInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutInvoicesInput, Prisma.CompanyUncheckedCreateWithoutInvoicesInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutInvoicesInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutInvoicesInput, Prisma.CompanyUncheckedUpdateWithoutInvoicesInput>
+}
+
+export type CompanyUpdateWithoutInvoicesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutInvoicesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutProductsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutProductsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutProductsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutProductsInput, Prisma.CompanyUncheckedCreateWithoutProductsInput>
+}
+
+export type CompanyUpsertWithoutProductsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutProductsInput, Prisma.CompanyUncheckedUpdateWithoutProductsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutProductsInput, Prisma.CompanyUncheckedCreateWithoutProductsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutProductsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutProductsInput, Prisma.CompanyUncheckedUpdateWithoutProductsInput>
+}
+
+export type CompanyUpdateWithoutProductsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutProductsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutRag_documents_metadataInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutRag_documents_metadataInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutRag_documents_metadataInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedCreateWithoutRag_documents_metadataInput>
+}
+
+export type CompanyUpsertWithoutRag_documents_metadataInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedUpdateWithoutRag_documents_metadataInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedCreateWithoutRag_documents_metadataInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutRag_documents_metadataInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedUpdateWithoutRag_documents_metadataInput>
+}
+
+export type CompanyUpdateWithoutRag_documents_metadataInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutRag_documents_metadataInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutRecommendation_outcomesInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutRecommendation_outcomesInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutRecommendation_outcomesInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutRecommendation_outcomesInput, Prisma.CompanyUncheckedCreateWithoutRecommendation_outcomesInput>
+}
+
+export type CompanyUpsertWithoutRecommendation_outcomesInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutRecommendation_outcomesInput, Prisma.CompanyUncheckedUpdateWithoutRecommendation_outcomesInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutRecommendation_outcomesInput, Prisma.CompanyUncheckedCreateWithoutRecommendation_outcomesInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutRecommendation_outcomesInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutRecommendation_outcomesInput, Prisma.CompanyUncheckedUpdateWithoutRecommendation_outcomesInput>
+}
+
+export type CompanyUpdateWithoutRecommendation_outcomesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutRecommendation_outcomesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutReviewsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutReviewsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutReviewsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutReviewsInput, Prisma.CompanyUncheckedCreateWithoutReviewsInput>
+}
+
+export type CompanyUpsertWithoutReviewsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutReviewsInput, Prisma.CompanyUncheckedUpdateWithoutReviewsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutReviewsInput, Prisma.CompanyUncheckedCreateWithoutReviewsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutReviewsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutReviewsInput, Prisma.CompanyUncheckedUpdateWithoutReviewsInput>
+}
+
+export type CompanyUpdateWithoutReviewsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutReviewsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutSystem_alertsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutSystem_alertsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutSystem_alertsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutSystem_alertsInput, Prisma.CompanyUncheckedCreateWithoutSystem_alertsInput>
+}
+
+export type CompanyUpsertWithoutSystem_alertsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutSystem_alertsInput, Prisma.CompanyUncheckedUpdateWithoutSystem_alertsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutSystem_alertsInput, Prisma.CompanyUncheckedCreateWithoutSystem_alertsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutSystem_alertsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutSystem_alertsInput, Prisma.CompanyUncheckedUpdateWithoutSystem_alertsInput>
+}
+
+export type CompanyUpdateWithoutSystem_alertsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutSystem_alertsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutTenant_competitorsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutTenant_competitorsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutTenant_competitorsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenant_competitorsInput, Prisma.CompanyUncheckedCreateWithoutTenant_competitorsInput>
+}
+
+export type CompanyUpsertWithoutTenant_competitorsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTenant_competitorsInput, Prisma.CompanyUncheckedUpdateWithoutTenant_competitorsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenant_competitorsInput, Prisma.CompanyUncheckedCreateWithoutTenant_competitorsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutTenant_competitorsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTenant_competitorsInput, Prisma.CompanyUncheckedUpdateWithoutTenant_competitorsInput>
+}
+
+export type CompanyUpdateWithoutTenant_competitorsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutTenant_competitorsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutCampaignsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutCampaignsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutCampaignsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutCampaignsInput, Prisma.CompanyUncheckedCreateWithoutCampaignsInput>
+}
+
+export type CompanyUpsertWithoutCampaignsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutCampaignsInput, Prisma.CompanyUncheckedUpdateWithoutCampaignsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutCampaignsInput, Prisma.CompanyUncheckedCreateWithoutCampaignsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutCampaignsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutCampaignsInput, Prisma.CompanyUncheckedUpdateWithoutCampaignsInput>
+}
+
+export type CompanyUpdateWithoutCampaignsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutCampaignsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutExtracted_entityInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutExtracted_entityInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutExtracted_entityInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutExtracted_entityInput, Prisma.CompanyUncheckedCreateWithoutExtracted_entityInput>
+}
+
+export type CompanyUpsertWithoutExtracted_entityInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutExtracted_entityInput, Prisma.CompanyUncheckedUpdateWithoutExtracted_entityInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutExtracted_entityInput, Prisma.CompanyUncheckedCreateWithoutExtracted_entityInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutExtracted_entityInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutExtracted_entityInput, Prisma.CompanyUncheckedUpdateWithoutExtracted_entityInput>
+}
+
+export type CompanyUpdateWithoutExtracted_entityInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutExtracted_entityInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutMarket_alert_eventsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutMarket_alert_eventsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutMarket_alert_eventsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutMarket_alert_eventsInput, Prisma.CompanyUncheckedCreateWithoutMarket_alert_eventsInput>
+}
+
+export type CompanyUpsertWithoutMarket_alert_eventsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutMarket_alert_eventsInput, Prisma.CompanyUncheckedUpdateWithoutMarket_alert_eventsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutMarket_alert_eventsInput, Prisma.CompanyUncheckedCreateWithoutMarket_alert_eventsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutMarket_alert_eventsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutMarket_alert_eventsInput, Prisma.CompanyUncheckedUpdateWithoutMarket_alert_eventsInput>
+}
+
+export type CompanyUpdateWithoutMarket_alert_eventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutMarket_alert_eventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutMarket_eventsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutMarket_eventsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutMarket_eventsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutMarket_eventsInput, Prisma.CompanyUncheckedCreateWithoutMarket_eventsInput>
+}
+
+export type CompanyUpsertWithoutMarket_eventsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutMarket_eventsInput, Prisma.CompanyUncheckedUpdateWithoutMarket_eventsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutMarket_eventsInput, Prisma.CompanyUncheckedCreateWithoutMarket_eventsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutMarket_eventsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutMarket_eventsInput, Prisma.CompanyUncheckedUpdateWithoutMarket_eventsInput>
+}
+
+export type CompanyUpdateWithoutMarket_eventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutMarket_eventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutNews_recordInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutNews_recordInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutNews_recordInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutNews_recordInput, Prisma.CompanyUncheckedCreateWithoutNews_recordInput>
+}
+
+export type CompanyUpsertWithoutNews_recordInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutNews_recordInput, Prisma.CompanyUncheckedUpdateWithoutNews_recordInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutNews_recordInput, Prisma.CompanyUncheckedCreateWithoutNews_recordInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutNews_recordInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutNews_recordInput, Prisma.CompanyUncheckedUpdateWithoutNews_recordInput>
+}
+
+export type CompanyUpdateWithoutNews_recordInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutNews_recordInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutSocial_mentionInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutSocial_mentionInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutSocial_mentionInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutSocial_mentionInput, Prisma.CompanyUncheckedCreateWithoutSocial_mentionInput>
+}
+
+export type CompanyUpsertWithoutSocial_mentionInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutSocial_mentionInput, Prisma.CompanyUncheckedUpdateWithoutSocial_mentionInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutSocial_mentionInput, Prisma.CompanyUncheckedCreateWithoutSocial_mentionInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutSocial_mentionInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutSocial_mentionInput, Prisma.CompanyUncheckedUpdateWithoutSocial_mentionInput>
+}
+
+export type CompanyUpdateWithoutSocial_mentionInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutSocial_mentionInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutTransactionsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutTransactionsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutTransactionsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTransactionsInput, Prisma.CompanyUncheckedCreateWithoutTransactionsInput>
+}
+
+export type CompanyUpsertWithoutTransactionsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTransactionsInput, Prisma.CompanyUncheckedUpdateWithoutTransactionsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTransactionsInput, Prisma.CompanyUncheckedCreateWithoutTransactionsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutTransactionsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTransactionsInput, Prisma.CompanyUncheckedUpdateWithoutTransactionsInput>
+}
+
+export type CompanyUpdateWithoutTransactionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutTransactionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutPlatformNotificationsReceivedInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutPlatformNotificationsReceivedInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput>
+}
+
+export type CompanyCreateWithoutPlatformNotificationsSourcedInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutPlatformNotificationsSourcedInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput>
+}
+
+export type CompanyUpsertWithoutPlatformNotificationsReceivedInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationsReceivedInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsReceivedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput>
+}
+
+export type CompanyUpdateWithoutPlatformNotificationsReceivedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUpsertWithoutPlatformNotificationsSourcedInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationsSourcedInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationsSourcedInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput>
+}
+
+export type CompanyUpdateWithoutPlatformNotificationsSourcedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutPlatformNotificationOutboxInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutPlatformNotificationOutboxInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput>
+}
+
+export type CompanyUpsertWithoutPlatformNotificationOutboxInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutPlatformNotificationOutboxInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutPlatformNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput>
+}
+
+export type CompanyUpdateWithoutPlatformNotificationOutboxInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutTenantNotificationsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutTenantNotificationsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutTenantNotificationsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantNotificationsInput, Prisma.CompanyUncheckedCreateWithoutTenantNotificationsInput>
+}
+
+export type CompanyUpsertWithoutTenantNotificationsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantNotificationsInput, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantNotificationsInput, Prisma.CompanyUncheckedCreateWithoutTenantNotificationsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutTenantNotificationsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantNotificationsInput, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationsInput>
+}
+
+export type CompanyUpdateWithoutTenantNotificationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutTenantNotificationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutTenantNotificationOutboxInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutTenantNotificationOutboxInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutTenantNotificationOutboxInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutTenantNotificationOutboxInput>
+}
+
+export type CompanyUpsertWithoutTenantNotificationOutboxInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationOutboxInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutTenantNotificationOutboxInput, Prisma.CompanyUncheckedCreateWithoutTenantNotificationOutboxInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutTenantNotificationOutboxInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutTenantNotificationOutboxInput, Prisma.CompanyUncheckedUpdateWithoutTenantNotificationOutboxInput>
+}
+
+export type CompanyUpdateWithoutTenantNotificationOutboxInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutTenantNotificationOutboxInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
 }
 
 
@@ -7351,6 +7700,7 @@ export type CompanyCountOutputType = {
   platformNotificationOutbox: number
   tenantNotifications: number
   tenantNotificationOutbox: number
+  emailVerificationGrants: number
 }
 
 export type CompanyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -7383,6 +7733,7 @@ export type CompanyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   platformNotificationOutbox?: boolean | CompanyCountOutputTypeCountPlatformNotificationOutboxArgs
   tenantNotifications?: boolean | CompanyCountOutputTypeCountTenantNotificationsArgs
   tenantNotificationOutbox?: boolean | CompanyCountOutputTypeCountTenantNotificationOutboxArgs
+  emailVerificationGrants?: boolean | CompanyCountOutputTypeCountEmailVerificationGrantsArgs
 }
 
 /**
@@ -7598,6 +7949,13 @@ export type CompanyCountOutputTypeCountTenantNotificationOutboxArgs<ExtArgs exte
   where?: Prisma.TenantNotificationOutboxWhereInput
 }
 
+/**
+ * CompanyCountOutputType without action
+ */
+export type CompanyCountOutputTypeCountEmailVerificationGrantsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.EmailVerificationGrantWhereInput
+}
+
 
 export type CompanySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -7642,9 +8000,10 @@ export type CompanySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   platformNotificationsReceived?: boolean | Prisma.Company$platformNotificationsReceivedArgs<ExtArgs>
   platformNotificationsSourced?: boolean | Prisma.Company$platformNotificationsSourcedArgs<ExtArgs>
   platformNotificationOutbox?: boolean | Prisma.Company$platformNotificationOutboxArgs<ExtArgs>
-  onboarding?: boolean | Prisma.Company$onboardingArgs<ExtArgs>
   tenantNotifications?: boolean | Prisma.Company$tenantNotificationsArgs<ExtArgs>
   tenantNotificationOutbox?: boolean | Prisma.Company$tenantNotificationOutboxArgs<ExtArgs>
+  onboarding?: boolean | Prisma.Company$onboardingArgs<ExtArgs>
+  emailVerificationGrants?: boolean | Prisma.Company$emailVerificationGrantsArgs<ExtArgs>
   _count?: boolean | Prisma.CompanyCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["company"]>
 
@@ -7731,9 +8090,10 @@ export type CompanyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   platformNotificationsReceived?: boolean | Prisma.Company$platformNotificationsReceivedArgs<ExtArgs>
   platformNotificationsSourced?: boolean | Prisma.Company$platformNotificationsSourcedArgs<ExtArgs>
   platformNotificationOutbox?: boolean | Prisma.Company$platformNotificationOutboxArgs<ExtArgs>
-  onboarding?: boolean | Prisma.Company$onboardingArgs<ExtArgs>
   tenantNotifications?: boolean | Prisma.Company$tenantNotificationsArgs<ExtArgs>
   tenantNotificationOutbox?: boolean | Prisma.Company$tenantNotificationOutboxArgs<ExtArgs>
+  onboarding?: boolean | Prisma.Company$onboardingArgs<ExtArgs>
+  emailVerificationGrants?: boolean | Prisma.Company$emailVerificationGrantsArgs<ExtArgs>
   _count?: boolean | Prisma.CompanyCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CompanyIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -7769,9 +8129,10 @@ export type $CompanyPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     platformNotificationsReceived: Prisma.$PlatformNotificationPayload<ExtArgs>[]
     platformNotificationsSourced: Prisma.$PlatformNotificationPayload<ExtArgs>[]
     platformNotificationOutbox: Prisma.$PlatformNotificationOutboxPayload<ExtArgs>[]
-    onboarding: Prisma.$OnboardingPayload<ExtArgs> | null
     tenantNotifications: Prisma.$TenantNotificationPayload<ExtArgs>[]
     tenantNotificationOutbox: Prisma.$TenantNotificationOutboxPayload<ExtArgs>[]
+    onboarding: Prisma.$OnboardingPayload<ExtArgs> | null
+    emailVerificationGrants: Prisma.$EmailVerificationGrantPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -8210,9 +8571,10 @@ export interface Prisma__CompanyClient<T, Null = never, ExtArgs extends runtime.
   platformNotificationsReceived<T extends Prisma.Company$platformNotificationsReceivedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$platformNotificationsReceivedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   platformNotificationsSourced<T extends Prisma.Company$platformNotificationsSourcedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$platformNotificationsSourcedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   platformNotificationOutbox<T extends Prisma.Company$platformNotificationOutboxArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$platformNotificationOutboxArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformNotificationOutboxPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  onboarding<T extends Prisma.Company$onboardingArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$onboardingArgs<ExtArgs>>): Prisma.Prisma__OnboardingClient<runtime.Types.Result.GetResult<Prisma.$OnboardingPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   tenantNotifications<T extends Prisma.Company$tenantNotificationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$tenantNotificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TenantNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   tenantNotificationOutbox<T extends Prisma.Company$tenantNotificationOutboxArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$tenantNotificationOutboxArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TenantNotificationOutboxPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  onboarding<T extends Prisma.Company$onboardingArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$onboardingArgs<ExtArgs>>): Prisma.Prisma__OnboardingClient<runtime.Types.Result.GetResult<Prisma.$OnboardingPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  emailVerificationGrants<T extends Prisma.Company$emailVerificationGrantsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$emailVerificationGrantsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EmailVerificationGrantPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -9298,25 +9660,6 @@ export type Company$platformNotificationOutboxArgs<ExtArgs extends runtime.Types
 }
 
 /**
- * Company.onboarding
- */
-export type Company$onboardingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Onboarding
-   */
-  select?: Prisma.OnboardingSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Onboarding
-   */
-  omit?: Prisma.OnboardingOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.OnboardingInclude<ExtArgs> | null
-  where?: Prisma.OnboardingWhereInput
-}
-
-/**
  * Company.tenantNotifications
  */
 export type Company$tenantNotificationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -9362,6 +9705,49 @@ export type Company$tenantNotificationOutboxArgs<ExtArgs extends runtime.Types.E
   take?: number
   skip?: number
   distinct?: Prisma.TenantNotificationOutboxScalarFieldEnum | Prisma.TenantNotificationOutboxScalarFieldEnum[]
+}
+
+/**
+ * Company.onboarding
+ */
+export type Company$onboardingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Onboarding
+   */
+  select?: Prisma.OnboardingSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Onboarding
+   */
+  omit?: Prisma.OnboardingOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.OnboardingInclude<ExtArgs> | null
+  where?: Prisma.OnboardingWhereInput
+}
+
+/**
+ * Company.emailVerificationGrants
+ */
+export type Company$emailVerificationGrantsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the EmailVerificationGrant
+   */
+  select?: Prisma.EmailVerificationGrantSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the EmailVerificationGrant
+   */
+  omit?: Prisma.EmailVerificationGrantOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.EmailVerificationGrantInclude<ExtArgs> | null
+  where?: Prisma.EmailVerificationGrantWhereInput
+  orderBy?: Prisma.EmailVerificationGrantOrderByWithRelationInput | Prisma.EmailVerificationGrantOrderByWithRelationInput[]
+  cursor?: Prisma.EmailVerificationGrantWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.EmailVerificationGrantScalarFieldEnum | Prisma.EmailVerificationGrantScalarFieldEnum[]
 }
 
 /**

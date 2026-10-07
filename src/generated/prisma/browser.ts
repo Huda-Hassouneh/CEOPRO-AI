@@ -28,6 +28,22 @@ export type AppConfig = Prisma.AppConfigModel
  */
 export type Company = Prisma.CompanyModel
 /**
+ * Model Onboarding
+ * 
+ */
+export type Onboarding = Prisma.OnboardingModel
+/**
+ * Model PendingSignup
+ * Signup data is held here until the email owner confirms the address.
+ * No User, Company, TenantUser, or AuthSession is created before confirmation.
+ */
+export type PendingSignup = Prisma.PendingSignupModel
+/**
+ * Model EmailVerificationGrant
+ * Short-lived, single-use bridge from email confirmation to the SPA session.
+ */
+export type EmailVerificationGrant = Prisma.EmailVerificationGrantModel
+/**
  * Model Plan
  * 
  */
@@ -362,8 +378,3 @@ export type TenantNotificationReceipt = Prisma.TenantNotificationReceiptModel
  * 
  */
 export type TenantNotificationOutbox = Prisma.TenantNotificationOutboxModel
-/**
- * Model Onboarding
- * 
- */
-export type Onboarding = Prisma.OnboardingModel

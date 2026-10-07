@@ -53,6 +53,9 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   AppConfig: 'AppConfig',
   Company: 'Company',
+  Onboarding: 'Onboarding',
+  PendingSignup: 'PendingSignup',
+  EmailVerificationGrant: 'EmailVerificationGrant',
   Plan: 'Plan',
   PlanPriceVersion: 'PlanPriceVersion',
   PromoCode: 'PromoCode',
@@ -114,8 +117,7 @@ export const ModelName = {
   PlatformNotificationOutbox: 'PlatformNotificationOutbox',
   TenantNotification: 'TenantNotification',
   TenantNotificationReceipt: 'TenantNotificationReceipt',
-  TenantNotificationOutbox: 'TenantNotificationOutbox',
-  Onboarding: 'Onboarding'
+  TenantNotificationOutbox: 'TenantNotificationOutbox'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -163,6 +165,67 @@ export const CompanyScalarFieldEnum = {
 } as const
 
 export type CompanyScalarFieldEnum = (typeof CompanyScalarFieldEnum)[keyof typeof CompanyScalarFieldEnum]
+
+
+export const OnboardingScalarFieldEnum = {
+  tenantId: 'tenantId',
+  currentStep: 'currentStep',
+  highestCompletedStep: 'highestCompletedStep',
+  industry: 'industry',
+  businessSize: 'businessSize',
+  annualRevenue: 'annualRevenue',
+  city: 'city',
+  objectives: 'objectives',
+  selectedPlan: 'selectedPlan',
+  checkoutMode: 'checkoutMode',
+  billingPeriod: 'billingPeriod',
+  customPlan: 'customPlan',
+  sourceStatuses: 'sourceStatuses',
+  websiteUrl: 'websiteUrl',
+  databaseProvider: 'databaseProvider',
+  downloadedTemplates: 'downloadedTemplates',
+  isComplete: 'isComplete',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type OnboardingScalarFieldEnum = (typeof OnboardingScalarFieldEnum)[keyof typeof OnboardingScalarFieldEnum]
+
+
+export const PendingSignupScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  passwordHash: 'passwordHash',
+  fullName: 'fullName',
+  preferredLanguage: 'preferredLanguage',
+  businessName: 'businessName',
+  businessType: 'businessType',
+  countryCode: 'countryCode',
+  primaryCurrency: 'primaryCurrency',
+  timezone: 'timezone',
+  tokenHash: 'tokenHash',
+  expiresAt: 'expiresAt',
+  lastEmailSentAt: 'lastEmailSentAt',
+  consumedAt: 'consumedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PendingSignupScalarFieldEnum = (typeof PendingSignupScalarFieldEnum)[keyof typeof PendingSignupScalarFieldEnum]
+
+
+export const EmailVerificationGrantScalarFieldEnum = {
+  id: 'id',
+  tokenHash: 'tokenHash',
+  userId: 'userId',
+  tenantId: 'tenantId',
+  expiresAt: 'expiresAt',
+  consumedAt: 'consumedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type EmailVerificationGrantScalarFieldEnum = (typeof EmailVerificationGrantScalarFieldEnum)[keyof typeof EmailVerificationGrantScalarFieldEnum]
 
 
 export const PlanScalarFieldEnum = {
@@ -681,7 +744,9 @@ export const Ingestion_jobsScalarFieldEnum = {
   created_at: 'created_at',
   heartbeat_at: 'heartbeat_at',
   rows_quarantined: 'rows_quarantined',
-  rows_partial: 'rows_partial'
+  rows_partial: 'rows_partial',
+  processing_attempts: 'processing_attempts',
+  next_attempt_at: 'next_attempt_at'
 } as const
 
 export type Ingestion_jobsScalarFieldEnum = (typeof Ingestion_jobsScalarFieldEnum)[keyof typeof Ingestion_jobsScalarFieldEnum]
@@ -789,6 +854,7 @@ export const Rag_documents_metadataScalarFieldEnum = {
   file_name: 'file_name',
   storage_bucket_path: 'storage_bucket_path',
   file_size_bytes: 'file_size_bytes',
+  source_file_content: 'source_file_content',
   content_type: 'content_type',
   uploaded_by_user_id: 'uploaded_by_user_id',
   uploaded_at: 'uploaded_at',
@@ -1205,32 +1271,6 @@ export const TenantNotificationOutboxScalarFieldEnum = {
 export type TenantNotificationOutboxScalarFieldEnum = (typeof TenantNotificationOutboxScalarFieldEnum)[keyof typeof TenantNotificationOutboxScalarFieldEnum]
 
 
-export const OnboardingScalarFieldEnum = {
-  tenantId: 'tenantId',
-  currentStep: 'currentStep',
-  highestCompletedStep: 'highestCompletedStep',
-  industry: 'industry',
-  businessSize: 'businessSize',
-  annualRevenue: 'annualRevenue',
-  city: 'city',
-  objectives: 'objectives',
-  selectedPlan: 'selectedPlan',
-  checkoutMode: 'checkoutMode',
-  billingPeriod: 'billingPeriod',
-  customPlan: 'customPlan',
-  sourceStatuses: 'sourceStatuses',
-  websiteUrl: 'websiteUrl',
-  databaseProvider: 'databaseProvider',
-  downloadedTemplates: 'downloadedTemplates',
-  isComplete: 'isComplete',
-  completedAt: 'completedAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type OnboardingScalarFieldEnum = (typeof OnboardingScalarFieldEnum)[keyof typeof OnboardingScalarFieldEnum]
-
-
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -1239,19 +1279,19 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
 export const NullableJsonNullValueInput = {
   DbNull: DbNull,
   JsonNull: JsonNull
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
-
-
-export const JsonNullValueInput = {
-  JsonNull: JsonNull
-} as const
-
-export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {
