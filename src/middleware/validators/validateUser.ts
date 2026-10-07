@@ -1,15 +1,16 @@
 import type { NextFunction, Response } from "express";
 import jwt from "jsonwebtoken";
-import { ERROR_CODES } from "../errors/error-codes.js";
-import { getActiveTenantUser } from "../modules/subscription/repo/user-tenant.repo.js";
-import type { AppRequest, AuthenticatedUser } from "../types/request.js";
-import { sendApiError } from "../utils/http.js";
+import { prisma } from "../../config/database.js";
+import { ERROR_CODES } from "../../errors/error-codes.js";
+import { getActiveTenantUser } from "../../modules/subscription/repo/user-tenant.repo.js";
+import type { AppRequest, AuthenticatedUser } from "../../types/request.js";
+import { sendApiError } from "../../utils/http.js";
 
-export function authenticateUser(
+export async function authenticateUser(
   req: AppRequest,
   res: Response,
   next: NextFunction
-): void {
+): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !/^Bearer\s+\S+$/i.test(authHeader)) {
     sendApiError(res, ERROR_CODES.INVALID_AUTH_HEADER);
@@ -23,24 +24,11 @@ export function authenticateUser(
     return;
   }
 
+  let decoded: string | jwt.JwtPayload;
   try {
-    const decoded = jwt.verify(authHeader.replace(/^Bearer\s+/i, ""), secret, {
+    decoded = jwt.verify(authHeader.replace(/^Bearer\s+/i, ""), secret, {
       algorithms: ["HS256"]
     });
-
-    if (
-      typeof decoded === "string" ||
-      !decoded ||
-      typeof decoded.id !== "string" ||
-      typeof decoded.email !== "string"
-    ) {
-      sendApiError(res, ERROR_CODES.INVALID_TOKEN);
-      return;
-    }
-
-    req.user = decoded as AuthenticatedUser;
-
-    next();
   } catch (error) {
     sendApiError(
       res,
@@ -48,7 +36,45 @@ export function authenticateUser(
         ? ERROR_CODES.TOKEN_EXPIRED
         : ERROR_CODES.INVALID_TOKEN
     );
+    return;
   }
+
+  if (
+    typeof decoded === "string" ||
+    !decoded ||
+    typeof decoded.id !== "string" ||
+    typeof decoded.email !== "string"
+  ) {
+    sendApiError(res, ERROR_CODES.INVALID_TOKEN);
+    return;
+  }
+
+  const user = decoded as AuthenticatedUser;
+  if (user.sessionId) {
+    try {
+      const activeSession = await prisma.authSession.findFirst({
+        where: {
+          id: user.sessionId,
+          userId: user.id,
+          ...(user.tenant_id ? { tenantId: user.tenant_id } : {}),
+          revokedAt: null,
+          expiresAt: { gt: new Date() }
+        },
+        select: { id: true }
+      });
+      if (!activeSession) {
+        sendApiError(res, ERROR_CODES.INVALID_TOKEN);
+        return;
+      }
+    } catch (error) {
+      console.error("Authentication session check failed:", error);
+      sendApiError(res, ERROR_CODES.INTERNAL_SERVER_ERROR);
+      return;
+    }
+  }
+
+  req.user = user;
+  next();
 }
 
 export async function requireTenant(
@@ -58,6 +84,7 @@ export async function requireTenant(
 ): Promise<void> {
   const tenantId = req.user?.tenant_id;
   const userId = req.user?.id;
+  console.log({ userId });
 
   if (!tenantId || !userId) {
     sendApiError(res, ERROR_CODES.TENANT_ACCESS_DENIED);

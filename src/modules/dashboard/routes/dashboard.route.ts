@@ -3,7 +3,7 @@ import * as dashboardController from "../controller/dashboard.controller.js";
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 
 // Import your existing auth middlewares here
 // import { authenticateUser, requireTenantAccess } from '../../middleware/auth';

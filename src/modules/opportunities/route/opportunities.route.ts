@@ -3,7 +3,7 @@ import * as leaderboardController from "../controller/opportunities.controller.j
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 
 const router = Router({ mergeParams: true });
 

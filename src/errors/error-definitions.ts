@@ -58,6 +58,14 @@ export const ERROR_DEFINITIONS = {
     statusCode: 401,
     message: "Invalid email or password"
   },
+  [ERROR_CODES.EMAIL_VERIFICATION_INVALID]: {
+    statusCode: 400,
+    message: "This email verification link is invalid or expired. Request a new one."
+  },
+  [ERROR_CODES.EMAIL_DELIVERY_FAILED]: {
+    statusCode: 503,
+    message: "We could not send the verification email. Please try again shortly."
+  },
 
   [ERROR_CODES.FORBIDDEN]: {
     statusCode: 403,
@@ -97,6 +105,11 @@ export const ERROR_DEFINITIONS = {
   [ERROR_CODES.RESOURCE_NOT_FOUND]: {
     statusCode: 404,
     message: "Resource not found"
+  },
+
+  [ERROR_CODES.INFRASTRUCTURE_RATE_NOT_FOUND]: {
+    statusCode: 404,
+    message: "Infrastrucuture rate not fOUND"
   },
 
   [ERROR_CODES.USER_NOT_FOUND]: {
@@ -157,6 +170,10 @@ export const ERROR_DEFINITIONS = {
   [ERROR_CODES.SUBSCRIPTION_ALREADY_EXISTS]: {
     statusCode: 409,
     message: "Subscription already exists"
+  },
+  [ERROR_CODES.ONBOARDING_INCOMPLETE]: {
+    statusCode: 409,
+    message: "Complete the previous onboarding steps first"
   },
 
   [ERROR_CODES.INVALID_SUBSCRIPTION_STATUS]: {
@@ -227,6 +244,11 @@ export const ERROR_DEFINITIONS = {
   [ERROR_CODES.EXTERNAL_SERVICE_ERROR]: {
     statusCode: 502,
     message: "External service error"
+  },
+
+  [ERROR_CODES.NOT_IMPLEMENTED]: {
+    statusCode: 501,
+    message: "This operation is not supported"
   },
 
   [ERROR_CODES.PAYMENT_PROVIDER_ERROR]: {

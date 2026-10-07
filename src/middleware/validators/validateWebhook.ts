@@ -1,8 +1,8 @@
 import type { NextFunction, Response } from "express";
-import { ERROR_CODES } from "../errors/error-codes.js";
-import { stripeService } from "../modules/subscription/client/payment-providers/stripe/stripe.client.js";
-import type { AppRequest } from "../types/request.js";
-import { sendApiError } from "../utils/http.js";
+import { ERROR_CODES } from "../../errors/error-codes.js";
+import { stripeService } from "../../modules/subscription/client/payment-providers/stripe/stripe.client.js";
+import type { AppRequest } from "../../types/request.js";
+import { sendApiError } from "../../utils/http.js";
 
 export default function validateWebhook(
   req: AppRequest,

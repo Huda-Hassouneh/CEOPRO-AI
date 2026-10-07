@@ -1,23 +1,25 @@
 import { Response, NextFunction } from "express";
-import { errorResponse } from "../types/response.js";
-import { ERROR_CODES } from "../errors/error-codes.js";
-import { ERROR_DEFINITIONS } from "../errors/error-definitions.js";
+import { errorResponse } from "../../types/response.js";
+import { ERROR_CODES } from "../../errors/error-codes.js";
+import { ERROR_DEFINITIONS } from "../../errors/error-definitions.js";
 import {
   getFeatureAccessInfo,
   getRemainingUsage
-} from "../modules/features/repo/usage.repo.js";
-import { getConsumptionBlockReason } from "../modules/features/service/entitlement-policy.js";
+} from "../../modules/features/repo/usage.repo.js";
+import { getConsumptionBlockReason } from "../../modules/features/service/entitlement-policy.js";
 
 function respondMissingSubscription(res: Response) {
   const errDef = ERROR_DEFINITIONS[ERROR_CODES.SUBSCRIPTION_NOT_FOUND];
-  res.status(errDef.statusCode).json(
-    errorResponse(
-      errDef.message,
-      errDef.statusCode,
-      ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-      { reason: "NO_ACTIVE_SUBSCRIPTION" }
-    )
-  );
+  res
+    .status(errDef.statusCode)
+    .json(
+      errorResponse(
+        errDef.message,
+        errDef.statusCode,
+        ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+        { reason: "NO_ACTIVE_SUBSCRIPTION" }
+      )
+    );
 }
 
 function respondFeatureNotIncluded(res: Response, featureCode: string) {
@@ -36,14 +38,16 @@ export const requireFeatureAccess = (featureCode: string) => {
       const tenantId = req.tenant_id;
       if (!tenantId) {
         const errDef = ERROR_DEFINITIONS[ERROR_CODES.INVALID_REQUEST];
-        res.status(errDef.statusCode).json(
-          errorResponse(
-            errDef.message,
-            errDef.statusCode,
-            ERROR_CODES.INVALID_REQUEST,
-            "Tenant context is missing."
-          )
-        );
+        res
+          .status(errDef.statusCode)
+          .json(
+            errorResponse(
+              errDef.message,
+              errDef.statusCode,
+              ERROR_CODES.INVALID_REQUEST,
+              "Tenant context is missing."
+            )
+          );
         return;
       }
 
@@ -57,13 +61,15 @@ export const requireFeatureAccess = (featureCode: string) => {
     } catch (error) {
       console.error(`Feature access check error for [${featureCode}]:`, error);
       const errDef = ERROR_DEFINITIONS[ERROR_CODES.INTERNAL_SERVER_ERROR];
-      res.status(errDef.statusCode).json(
-        errorResponse(
-          errDef.message,
-          errDef.statusCode,
-          ERROR_CODES.INTERNAL_SERVER_ERROR
-        )
-      );
+      res
+        .status(errDef.statusCode)
+        .json(
+          errorResponse(
+            errDef.message,
+            errDef.statusCode,
+            ERROR_CODES.INTERNAL_SERVER_ERROR
+          )
+        );
     }
   };
 };
@@ -74,14 +80,16 @@ export const requireEntitlement = (featureCode: string) => {
       const tenantId = req.tenant_id;
       if (!tenantId) {
         const errDef = ERROR_DEFINITIONS[ERROR_CODES.INVALID_REQUEST];
-        res.status(errDef.statusCode).json(
-          errorResponse(
-            errDef.message,
-            errDef.statusCode,
-            ERROR_CODES.INVALID_REQUEST,
-            "Tenant context is missing."
-          )
-        );
+        res
+          .status(errDef.statusCode)
+          .json(
+            errorResponse(
+              errDef.message,
+              errDef.statusCode,
+              ERROR_CODES.INVALID_REQUEST,
+              "Tenant context is missing."
+            )
+          );
         return;
       }
 
@@ -128,13 +136,15 @@ export const requireEntitlement = (featureCode: string) => {
     } catch (error) {
       console.error(`Entitlement check error for [${featureCode}]:`, error);
       const errDef = ERROR_DEFINITIONS[ERROR_CODES.INTERNAL_SERVER_ERROR];
-      res.status(errDef.statusCode).json(
-        errorResponse(
-          errDef.message,
-          errDef.statusCode,
-          ERROR_CODES.INTERNAL_SERVER_ERROR
-        )
-      );
+      res
+        .status(errDef.statusCode)
+        .json(
+          errorResponse(
+            errDef.message,
+            errDef.statusCode,
+            ERROR_CODES.INTERNAL_SERVER_ERROR
+          )
+        );
     }
   };
 };

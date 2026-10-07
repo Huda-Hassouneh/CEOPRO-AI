@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { ERROR_CODES } from "../errors/error-codes.js";
-import { ERROR_DEFINITIONS } from "../errors/error-definitions.js";
-import { errorResponse } from "../types/response.js";
+import { ERROR_CODES } from "../../errors/error-codes.js";
+import { ERROR_DEFINITIONS } from "../../errors/error-definitions.js";
+import { errorResponse } from "../../types/response.js";
 
-export function validateParams(schema: z.ZodType<Record<string, string>>) {
+export function validateBody(schema: z.ZodType) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.params);
+    const result = schema.safeParse(req.body);
 
     if (!result.success) {
       const error = ERROR_DEFINITIONS[ERROR_CODES.VALIDATION_ERROR];
@@ -16,14 +16,14 @@ export function validateParams(schema: z.ZodType<Record<string, string>>) {
         .json(
           errorResponse(
             error.message,
-            error.statusCode,
+            ERROR_DEFINITIONS[ERROR_CODES.VALIDATION_ERROR].statusCode,
             ERROR_CODES.VALIDATION_ERROR,
             result.error.flatten()
           )
         );
     }
 
-    req.params = result.data;
+    req.body = result.data;
     next();
   };
 }

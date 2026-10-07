@@ -1,8 +1,8 @@
 import type { NextFunction, Response } from "express";
-import { ERROR_CODES } from "../errors/error-codes.js";
-import { getActiveTenantUser } from "../modules/subscription/repo/user-tenant.repo.js";
-import type { AppRequest } from "../types/request.js";
-import { sendApiError } from "../utils/http.js";
+import { ERROR_CODES } from "../../errors/error-codes.js";
+import { getActiveTenantUser } from "../../modules/subscription/repo/user-tenant.repo.js";
+import type { AppRequest } from "../../types/request.js";
+import { sendApiError } from "../../utils/http.js";
 
 async function ensureTenantUser(req: AppRequest) {
   if (req.tenantUser) return req.tenantUser;

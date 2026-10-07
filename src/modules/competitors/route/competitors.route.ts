@@ -3,7 +3,7 @@ import * as competitorsController from "../controller/competitors.controller.js"
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 
 const router = Router({ mergeParams: true });
 

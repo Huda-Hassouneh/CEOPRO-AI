@@ -13,6 +13,7 @@ function getSecret(isRefresh: boolean): string {
 }
 
 export interface TokenPayload {
+  user_id?: string;
   id: string;
   tenant_id?: string;
   email: string;
@@ -24,7 +25,7 @@ export interface TokenPayload {
 export function generateAccessToken(
   payload: TokenPayload,
   expiresIn: jwt.SignOptions["expiresIn"] = (process.env
-    .JWT_ACCESS_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h",
+    .JWT_ACCESS_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "1h"
 ): string {
   return jwt.sign(payload, getSecret(false), { algorithm: "HS256", expiresIn });
 }
@@ -32,7 +33,7 @@ export function generateAccessToken(
 export function generateRefreshToken(
   payload: TokenPayload,
   expiresIn: jwt.SignOptions["expiresIn"] = (process.env
-    .JWT_REFRESH_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "7d",
+    .JWT_REFRESH_EXPIRES_IN as jwt.SignOptions["expiresIn"]) || "7d"
 ): string {
   return jwt.sign(payload, getSecret(true), { algorithm: "HS256", expiresIn });
 }
@@ -48,11 +49,11 @@ export function isTokenValid(token: string, isRefresh = false): boolean {
 
 export function getTokenPayload(
   token: string,
-  isRefresh = false,
+  isRefresh = false
 ): TokenPayload | null {
   try {
     const payload = jwt.verify(token, getSecret(isRefresh), {
-      algorithms: JWT_ALGORITHMS,
+      algorithms: JWT_ALGORITHMS
     });
     if (
       typeof payload === "string" ||
@@ -79,7 +80,7 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(
   password: string,
-  passwordHash: string,
+  passwordHash: string
 ): Promise<boolean> {
   return bcrypt.compare(password, passwordHash);
 }

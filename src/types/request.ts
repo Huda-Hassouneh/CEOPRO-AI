@@ -3,6 +3,7 @@ import type { JwtPayload } from "jsonwebtoken";
 import type Stripe from "stripe";
 
 export type AuthenticatedUser = JwtPayload & {
+  user_id?: string;
   id: string;
   email: string;
   tenant_id?: string;
