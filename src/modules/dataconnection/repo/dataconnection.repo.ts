@@ -1,4 +1,10 @@
 import { prisma } from "../../../config/database.js";
+import type { Prisma } from "../../../generated/prisma/client.js";
+import type {
+  ExtractionRowOutcome,
+  JsonObject
+} from "../types/dataconnection.types.js";
+import { mapExtractionOutcomeToStagingRow } from "../service/extraction-staging.mapper.js";
 
 // --- 1. Shared Localization & Formatting Helpers ---
 
@@ -239,20 +245,24 @@ export const dataManagementRepo = {
   },
   recordBusinessFileIngestion: async (input: {
     tenantId: string;
+    userId: string;
     jobId: string;
 
     fileName: string;
     mimeType: string;
     fileSizeBytes: number;
-    minioObjectKey: string;
-
-    rowsProcessed: number;
-    rowsFailed: number;
-
-    startedAt: Date;
-    endedAt: Date;
+    detectedType: string;
+    headerCoverageRatio: number;
+    rowsTruncatedToLimit: boolean | number;
+    rowOutcomes: ExtractionRowOutcome[];
   }) => {
     return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT
+          set_config('app.current_tenant_id', ${input.tenantId}, true),
+          set_config('app.current_user_id', ${input.userId}, true)
+      `;
+
       /*
        * A manual uploaded sales file is an ingestion source,
        * but it is NOT a persistent connected integration.
@@ -272,17 +282,14 @@ export const dataManagementRepo = {
 
           is_active: false,
 
-          /*
-           * Persist raw-upload provenance separately from RAG.
-           * collector_config already exists in your data_sources
-           * migrations.
-           */
           collector_config: {
             kind: "manual_business_file",
             original_file_name: input.fileName,
             content_type: input.mimeType,
             file_size_bytes: input.fileSizeBytes,
-            minio_object_key: input.minioObjectKey
+            detected_type: input.detectedType,
+            header_coverage_ratio: input.headerCoverageRatio,
+            rows_truncated_to_limit: input.rowsTruncatedToLimit
           }
         }
       });
@@ -293,19 +300,37 @@ export const dataManagementRepo = {
           tenant_id: input.tenantId,
           source_id: source.source_id,
 
-          job_status: "COMPLETED",
-
-          rows_processed: input.rowsProcessed,
-          rows_failed: input.rowsFailed,
-
-          started_at: input.startedAt,
-          ended_at: input.endedAt
+          job_status: "QUEUED",
+          rows_processed: 0,
+          rows_partial: 0,
+          rows_failed: 0,
+          rows_quarantined: 0
         }
       });
 
+      const stagedRows = input.rowOutcomes.map((outcome) => {
+        const mapped = mapExtractionOutcomeToStagingRow(
+          input.tenantId,
+          input.jobId,
+          outcome
+        );
+        return {
+          tenant_id: mapped.tenant_id,
+          job_id: mapped.job_id,
+          raw_payload_json: toPrismaJson(mapped.raw_payload),
+          validation_status: mapped.validation_status,
+          validation_errors: mapped.validation_errors
+        };
+      });
+
+      if (stagedRows.length > 0) {
+        await tx.import_staging_rows.createMany({ data: stagedRows });
+      }
+
       return {
         source,
-        job
+        job,
+        stagedRowCount: stagedRows.length
       };
     });
   },
@@ -320,7 +345,7 @@ export const dataManagementRepo = {
       | "ga4"
       | "website";
     syncFrequencyMinutes: number;
-    metadata: Record<string, unknown>;
+    metadata: JsonObject;
   }) => {
     return prisma.data_sources.create({
       data: {
@@ -404,3 +429,10 @@ export const dataManagementRepo = {
     });
   }
 };
+
+function toPrismaJson(value: unknown): Prisma.InputJsonValue {
+  const serialized = JSON.stringify(value);
+  return serialized === undefined
+    ? {}
+    : (JSON.parse(serialized) as Prisma.InputJsonValue);
+}

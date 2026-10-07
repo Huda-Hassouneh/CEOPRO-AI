@@ -6,10 +6,10 @@ Architecture:
 
 `Route -> Controller -> Service -> Repo -> Prisma`
 
-AI transport is isolated in:
+Uploads are stored in CEOPRO because the Gradio RAG API does not retain documents between requests. Query-time transport uses:
 
-`Service -> client/rag.client.ts -> CEOPRO AI API`
+`Service -> client/rag.client.ts -> shared Gradio transport`
 
 Public CEOPRO routes remain under `/features/rag/*`.
 
-See `RAG_AI_INTEGRATION.md` for the AI connection contract and mock-mode switch.
+See `RAG_AI_INTEGRATION.md` for the active contract.

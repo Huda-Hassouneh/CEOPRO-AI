@@ -1,62 +1,5 @@
 import { basename } from "node:path";
-
-export const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-
-const ALLOWED_FILE_EXTENSIONS = new Set([".csv", ".xlsx", ".xlsm", ".pdf"]);
-
-export type UploadValidationError =
-  | "MISSING_FILE"
-  | "INVALID_EXTENSION"
-  | "INVALID_SIZE"
-  | "FILE_TOO_LARGE";
-
-export function getFileExtension(fileName: string): string {
-  const normalized = fileName.toLowerCase();
-
-  for (const extension of ALLOWED_FILE_EXTENSIONS) {
-    if (normalized.endsWith(extension)) {
-      return extension;
-    }
-  }
-
-  return "";
-}
-
-export function safeUploadName(fileName: string): string {
-  const safeBaseName = basename(fileName).replace(
-    /[\x00-\x1f<>:"/\\|?*]+/g,
-    "_"
-  );
-
-  return safeBaseName.slice(0, 255) || "upload";
-}
-
-export function validateExtractionUpload(
-  file:
-    | {
-        originalname: string;
-        size: number;
-      }
-    | undefined
-): UploadValidationError | null {
-  if (!file) {
-    return "MISSING_FILE";
-  }
-
-  if (!getFileExtension(file.originalname)) {
-    return "INVALID_EXTENSION";
-  }
-
-  if (!Number.isFinite(file.size) || file.size <= 0) {
-    return "INVALID_SIZE";
-  }
-
-  if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-    return "FILE_TOO_LARGE";
-  }
-
-  return null;
-}
+import { validateExtractionFileContent } from "../validators/extraction-template.validation.js";
 import {
   CreateDataSourcePayload,
   JsonObject,
@@ -64,6 +7,54 @@ import {
   PERSISTENT_DATA_SOURCE_TYPES,
   PersistentDataSourceType
 } from "./dataconnection.types.js";
+
+const configuredMaxUploadBytes = Number(process.env.MAX_UPLOAD_BYTES);
+export const MAX_UPLOAD_SIZE_BYTES =
+  Number.isSafeInteger(configuredMaxUploadBytes) && configuredMaxUploadBytes > 0
+    ? configuredMaxUploadBytes
+    : 10 * 1024 * 1024;
+
+const ALLOWED_FILE_EXTENSIONS = new Set([".csv", ".xlsx", ".xlsm", ".pdf"]);
+
+export type UploadValidationError =
+  | "MISSING_FILE"
+  | "INVALID_EXTENSION"
+  | "INVALID_SIZE"
+  | "FILE_TOO_LARGE"
+  | "CONTENT_EXTENSION_MISMATCH"
+  | "TEMPLATE_MISMATCH";
+
+export function getFileExtension(fileName: string): string {
+  const normalized = fileName.toLowerCase();
+  for (const extension of ALLOWED_FILE_EXTENSIONS) {
+    if (normalized.endsWith(extension)) return extension;
+  }
+  return "";
+}
+
+export function safeUploadName(fileName: string): string {
+  const safeBaseName = basename(fileName).replace(/[\x00-\x1f<>:"/\\|?*]+/g, "_");
+  return safeBaseName.slice(0, 255) || "upload";
+}
+
+export function validateExtractionUpload(
+  file: { originalname: string; size: number; buffer: Buffer } | undefined
+): UploadValidationError | null {
+  if (!file) return "MISSING_FILE";
+  const extension = getFileExtension(file.originalname);
+  if (!extension) return "INVALID_EXTENSION";
+  if (
+    !Number.isFinite(file.size) ||
+    file.size <= 0 ||
+    !Buffer.isBuffer(file.buffer) ||
+    file.buffer.length === 0 ||
+    file.size !== file.buffer.length
+  ) {
+    return "INVALID_SIZE";
+  }
+  if (file.buffer.length > MAX_UPLOAD_SIZE_BYTES) return "FILE_TOO_LARGE";
+  return validateExtractionFileContent(extension, file.buffer);
+}
 
 type ValidationResult =
   | {

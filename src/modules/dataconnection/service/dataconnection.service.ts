@@ -2,20 +2,17 @@
 
 import {
   assertFeatureCapacity,
-  documentsRepo,
   getRemainingUsage,
   incrementUsage
 } from "../../features/repo/usage.repo.js";
-
-import {
-  uploadExtractionFile,
-  processPendingExtraction,
-  createAiServiceError
-} from "../client/ingestion.client.js";
+import { randomUUID } from "node:crypto";
+import { uploadExtractionFile } from "../client/ingestion.client.js";
+import { validateExtractionResultForDataConnection } from "../validators/extraction-result.validation.js";
 
 import {
   validateCreateDataSource,
-  validateExtractionUpload
+  validateExtractionUpload,
+  safeUploadName
 } from "../types/dataconnection.validation.js";
 
 import type {
@@ -36,13 +33,13 @@ export type DataConnectionServiceError = Error & {
     | "USAGE_EXCEEDED"
     | "INVALID_PARAMETER"
     | "STORAGE_EXCEEDED";
-  detail?: any;
+  detail?: unknown;
 };
 
 function createServiceError(
   code: DataConnectionServiceError["code"],
   message: string,
-  detail?: any
+  detail?: unknown
 ): DataConnectionServiceError {
   const error = new Error(message) as DataConnectionServiceError;
 
@@ -63,50 +60,14 @@ export function isDataConnectionServiceError(
 
 export const dataConnectionService = {
   getDataConnectionsOverview: async (tenantId: string) => {
-    console.log("accesseds");
-
     const data = await dataManagementRepo.getDataConnectionsOverview(tenantId);
-    console.log({ data });
 
     if (!data) throw new Error("Failed to load data connections overview");
     return data;
   },
-  processPending: async (args: {
-    tenantId: string;
-    authorization?: string;
-    requestedLimit: number;
-  }) => {
-    const usage = await getRemainingUsage(args.tenantId, "document_extraction");
-
-    if (!usage) {
-      throw createServiceError(
-        "FEATURE_NOT_INCLUDED",
-        "Document extraction is not available for this subscription."
-      );
-    }
-
-    const allowedLimit =
-      usage.remaining === null
-        ? args.requestedLimit
-        : Math.max(0, Math.min(args.requestedLimit, Number(usage.remaining)));
-
-    if (allowedLimit <= 0) {
-      throw createServiceError(
-        "USAGE_EXCEEDED",
-        "Document extraction quota has been reached."
-      );
-    }
-
-    return processPendingExtraction({
-      limit: allowedLimit,
-      authorization: args.authorization
-    });
-  },
   uploadExtraction: async (
     input: ExtractionUploadInput
   ): Promise<ExtractionResult> => {
-    console.log("accessed 2");
-
     const validationError = validateExtractionUpload(input.file);
 
     if (validationError === "MISSING_FILE") {
@@ -133,7 +94,21 @@ export const dataConnectionService = {
     if (validationError === "FILE_TOO_LARGE") {
       throw createServiceError(
         "FILE_SIZE_LIMIT_EXCEEDED",
-        "File exceeds the 10 MB size limit."
+        "File exceeds the configured upload size limit."
+      );
+    }
+
+    if (validationError === "CONTENT_EXTENSION_MISMATCH") {
+      throw createServiceError(
+        "INVALID_FILE_UPLOAD",
+        "The file content does not match its extension, or the file is malformed. Allowed files are valid .csv, .xlsx, .xlsm, or .pdf documents."
+      );
+    }
+
+    if (validationError === "TEMPLATE_MISMATCH") {
+      throw createServiceError(
+        "INVALID_FILE_UPLOAD",
+        "The file does not match the CEOPRO sales template. Use the required product_name, quantity, unit_price, currency, and transaction_date columns."
       );
     }
 
@@ -209,38 +184,25 @@ export const dataConnectionService = {
       );
     }
 
-    const startedAt = new Date();
-
+    const fileName = safeUploadName(input.file.originalname);
     const data = await uploadExtractionFile({
-      tenantId: input.tenantId,
-      file: input.file,
-      authorization: input.authorization
+      file: {
+        originalname: fileName,
+        buffer: input.file.buffer
+      }
     });
 
-    const endedAt = new Date();
-
-    const jobId = typeof data.job_id === "string" ? data.job_id.trim() : "";
-
-    if (!jobId) {
-      throw createAiServiceError(
-        "AI extraction service response is missing job_id."
+    const extractionValidationError = validateExtractionResultForDataConnection(data);
+    if (extractionValidationError) {
+      throw createServiceError(
+        "INVALID_FILE_UPLOAD",
+        extractionValidationError
       );
     }
 
-    const minioObjectKey =
-      typeof data.minio_object_key === "string"
-        ? data.minio_object_key.trim()
-        : "";
-
-    if (!minioObjectKey) {
-      throw createAiServiceError(
-        "AI extraction service response is missing minio_object_key."
-      );
-    }
-
-    const rowsProcessed = Number(data.rows_processed ?? 0);
-
-    const rowsFailed = Number(data.rows_failed ?? 0);
+    // The Gradio contract returns extracted rows, not a CEOPRO job ID or a
+    // storage key. CEOPRO creates and owns its local ingestion job.
+    const jobId = randomUUID();
 
     /*
      * Sales/business-file uploads belong to the Data Connection
@@ -250,43 +212,40 @@ export const dataConnectionService = {
      * ingestion_jobs so GET /data-connection can expose it through
      * recentImports.
      */
-    await dataManagementRepo.recordBusinessFileIngestion({
+    const persisted = await dataManagementRepo.recordBusinessFileIngestion({
       tenantId: input.tenantId,
+      userId: input.userId,
       jobId,
 
-      fileName: input.file.originalname,
+      fileName,
       mimeType: input.file.mimetype,
       fileSizeBytes: input.file.size,
-      minioObjectKey,
-
-      rowsProcessed:
-        Number.isFinite(rowsProcessed) && rowsProcessed >= 0
-          ? Math.trunc(rowsProcessed)
-          : 0,
-
-      rowsFailed:
-        Number.isFinite(rowsFailed) && rowsFailed >= 0
-          ? Math.trunc(rowsFailed)
-          : 0,
-
-      startedAt,
-      endedAt
+      detectedType: data.detected_type,
+      headerCoverageRatio: data.summary.header_coverage_ratio,
+      rowsTruncatedToLimit: data.rows_truncated_to_limit,
+      rowOutcomes: data.summary.row_outcomes
     });
 
     await incrementUsage(input.tenantId, "document_extraction", kbUsed);
 
     return {
-      job_id: data.job_id,
-      template_mode: data.template_mode,
-      is_template_compliant: data.is_template_compliant,
-      rows_processed: data.rows_processed,
-      rows_partial: data.rows_partial,
-      rows_failed: data.rows_failed,
-      data_loss_pct: data.data_loss_pct,
-      header_coverage_ratio: data.header_coverage_ratio,
-      row_outcomes: data.row_outcomes,
-      promotion: data.promotion,
-      currency_resolution: data.currency_resolution
+      job_id: jobId,
+      job_id_source: "ceopro",
+      file_name: fileName,
+      detected_type: data.detected_type,
+      headers: data.headers,
+      rows_processed: data.summary.rows_processed,
+      rows_partial: data.summary.rows_partial,
+      rows_failed: data.summary.rows_failed,
+      rows_truncated_to_limit: data.rows_truncated_to_limit,
+      staged_row_count: persisted.stagedRowCount,
+      template_mode: data.summary.template_mode,
+      is_template_compliant: null,
+      data_loss_pct: null,
+      header_coverage_ratio: data.summary.header_coverage_ratio,
+      row_outcomes: data.summary.row_outcomes,
+      promotion: null,
+      currency_resolution: null
     };
   },
   createDataSource: async (

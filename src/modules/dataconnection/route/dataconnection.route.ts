@@ -4,15 +4,17 @@ import { dataConnectionController } from "../controller/dataconnection.controlle
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
-import { requireEntitlement } from "../../../validators/validateFeatures.js";
+} from "../../../middleware/validators/validateUser.js";
+import { requireEntitlement } from "../../../middleware/validators/validateFeatures.js";
+import validateFile from "../../../middleware/validators/validateFile.js";
+import { MAX_UPLOAD_SIZE_BYTES } from "../types/dataconnection.validation.js";
 
 const router = Router({ mergeParams: true });
 router.use(authenticateUser, requireTenant);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: Number(process.env.MAX_UPLOAD_BYTES || 10 * 1024 * 1024),
+    fileSize: MAX_UPLOAD_SIZE_BYTES,
     files: 1
   }
 });
@@ -29,6 +31,7 @@ router.post(
   "/",
   requireEntitlement("document_extraction"),
   upload.single("file"),
+  validateFile,
   dataConnectionController.uploadFile
 );
 

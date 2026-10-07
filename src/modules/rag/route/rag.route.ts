@@ -1,12 +1,19 @@
 import { Router } from "express";
 import multer from "multer";
-import { requireEntitlement, requireFeatureAccess } from "../../../validators/validateFeatures.js";
-import { validateQuery } from "../../../validators/validateQuery.js";
-import { authenticateUser, requireTenant } from "../../../validators/validateUser.js";
+import {
+  requireEntitlement,
+  requireFeatureAccess
+} from "../../../middleware/validators/validateFeatures.js";
+import { validateQuery } from "../../../middleware/validators/validateQuery.js";
+import {
+  authenticateUser,
+  requireTenant
+} from "../../../middleware/validators/validateUser.js";
 import { ragController } from "../controller/rag.controller.js";
 import {
   ragDocumentsListQuerySchema,
-  ragQuerySchema
+  ragQuerySchema,
+  MAX_RAG_DOCUMENT_SIZE_BYTES
 } from "../types/rag.types.js";
 
 const router = Router();
@@ -14,7 +21,7 @@ const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: Number(process.env.MAX_UPLOAD_BYTES || 10 * 1024 * 1024),
+    fileSize: MAX_RAG_DOCUMENT_SIZE_BYTES,
     files: 1
   }
 });

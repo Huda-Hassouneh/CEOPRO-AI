@@ -1,8 +1,8 @@
-import { Response as ExpressResponse, NextFunction, Response } from "express";
+import type { NextFunction, Response as ExpressResponse } from "express";
 
 import { ERROR_CODES } from "../../../errors/error-codes.js";
 import { ERROR_DEFINITIONS } from "../../../errors/error-definitions.js";
-import { AppRequest } from "../../../types/request.js";
+import type { AppRequest } from "../../../types/request.js";
 import { errorResponse, successResponse } from "../../../types/response.js";
 
 import {
@@ -14,35 +14,12 @@ import { isAiServiceError } from "../client/ingestion.client.js";
 
 type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 
-function sendError(res: ExpressResponse, code: ErrorCode, detail?: any): void {
+function sendError(res: ExpressResponse, code: ErrorCode, detail?: unknown): void {
   const errDef = ERROR_DEFINITIONS[code];
 
   res
     .status(errDef.statusCode)
     .json(errorResponse(errDef.message, errDef.statusCode, code, detail));
-}
-
-function parseInteger(
-  value: unknown,
-  fallback: number,
-  min: number,
-  max: number
-): number | null {
-  if (value === undefined || value === null || value === "") {
-    return fallback;
-  }
-
-  if (Array.isArray(value) || typeof value === "object") {
-    return null;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
-    return null;
-  }
-
-  return parsed;
 }
 
 function handleError(res: ExpressResponse, error: unknown): void {
@@ -98,9 +75,8 @@ export const dataConnectionController = {
   uploadFile: async (req: AppRequest, res: ExpressResponse): Promise<void> => {
     try {
       const tenantId = req.tenant_id;
-      console.log({ tenantId });
 
-      const userId = req.user?.id;
+      const userId = req.user?.user_id;
 
       if (typeof tenantId !== "string" || !tenantId.trim()) {
         sendError(
@@ -132,65 +108,38 @@ export const dataConnectionController = {
       const result = await dataConnectionService.uploadExtraction({
         tenantId,
         userId,
-        file: req.file,
-        authorization: req.headers.authorization
+        file: req.file
       });
 
       res
         .status(200)
-        .json(successResponse(result, "Document extraction successful"));
+        .json(successResponse(result, "Document extracted and queued for import"));
     } catch (error) {
       handleError(res, error);
     }
   },
 
   processPending: async (
-    req: AppRequest,
+    _req: AppRequest,
     res: ExpressResponse
   ): Promise<void> => {
-    try {
-      const tenantId = req.tenant_id;
-
-      if (typeof tenantId !== "string" || !tenantId.trim()) {
-        sendError(
-          res,
-          ERROR_CODES.FORBIDDEN,
-          "Tenant context is required for this operation."
-        );
-        return;
-      }
-
-      const requestedLimit = parseInteger(req.query.limit, 100, 1, 1000);
-
-      if (requestedLimit === null) {
-        sendError(
-          res,
-          ERROR_CODES.INVALID_PARAMETER,
-          "limit must be an integer between 1 and 1000."
-        );
-        return;
-      }
-
-      const result = await dataConnectionService.processPending({
-        tenantId,
-        requestedLimit,
-        authorization: req.headers.authorization
-      });
-
-      res
-        .status(200)
-        .json(successResponse(result, "Pending extraction completed"));
-    } catch (error) {
-      handleError(res, error);
-    }
+    sendError(
+      res,
+      ERROR_CODES.NOT_IMPLEMENTED,
+      "Submit a file to extract it; the current AI service does not support pending batch processing."
+    );
   },
   getConnectionsOverview: async (
-    req: any,
-    res: Response,
+    req: AppRequest,
+    res: ExpressResponse,
     next: NextFunction
   ) => {
     try {
       const tenantId = req.tenant_id;
+      if (typeof tenantId !== "string" || !tenantId.trim()) {
+        sendError(res, ERROR_CODES.FORBIDDEN, "Tenant context is required.");
+        return;
+      }
 
       const data =
         await dataConnectionService.getDataConnectionsOverview(tenantId);

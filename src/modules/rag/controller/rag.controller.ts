@@ -69,6 +69,14 @@ function handleError(res: ExpressResponse, error: unknown): void {
           error.detail ?? error.message
         );
         return;
+      case "NO_DOCUMENTS":
+      case "DOCUMENT_CONTENT_UNAVAILABLE":
+        sendError(
+          res,
+          ERROR_CODES.INVALID_REQUEST,
+          error.detail ?? error.message
+        );
+        return;
       case "NOT_FOUND":
         sendError(
           res,
@@ -81,7 +89,8 @@ function handleError(res: ExpressResponse, error: unknown): void {
 
   if (isRagClientError(error)) {
     const code =
-      error.kind === "llm"
+      error.kind === "upstream_event" ||
+      [500, 502, 503].includes(error.upstreamStatus ?? 0)
         ? ERROR_CODES.UPSTREAM_LLM_FAILURE
         : ERROR_CODES.EXTERNAL_SERVICE_ERROR;
 
@@ -109,7 +118,7 @@ function getTenantId(req: AppRequest, res: ExpressResponse): string | null {
 }
 
 function getUserId(req: AppRequest, res: ExpressResponse): string | null {
-  const userId = req.user?.id;
+  const userId = req.user?.user_id;
   if (typeof userId !== "string" || !userId.trim()) {
     sendError(
       res,
@@ -129,9 +138,11 @@ export const ragController = {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
+      const userId = getUserId(req, res);
+      if (!userId) return;
 
       const page = Number(req.query.page ?? 1);
-      const data = await getRagDocuments({ tenantId, page });
+      const data = await getRagDocuments({ tenantId, userId, page });
 
       res
         .status(200)
@@ -164,7 +175,6 @@ export const ragController = {
       const data = await uploadRagDocument({
         tenantId,
         userId,
-        authorization: req.headers.authorization,
         file: {
           originalname: req.file.originalname,
           mimetype: req.file.mimetype,
@@ -188,16 +198,18 @@ export const ragController = {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
+      const userId = getUserId(req, res);
+      if (!userId) return;
 
       const data = await queryRag({
         tenantId,
+        userId,
         queryText: String(req.query.query_text),
         topK: Number(req.query.top_k ?? 5),
         historyJson:
           typeof req.query.history_json === "string"
             ? req.query.history_json
-            : undefined,
-        authorization: req.headers.authorization
+            : undefined
       });
 
       res
@@ -212,6 +224,8 @@ export const ragController = {
     try {
       const tenantId = getTenantId(req, res);
       if (!tenantId) return;
+      const userId = getUserId(req, res);
+      if (!userId) return;
 
       const chunkId = String(req.params.chunk_id || "").trim();
       if (!chunkId) {
@@ -223,7 +237,7 @@ export const ragController = {
         return;
       }
 
-      const data = await getRagChunkDetail(tenantId, chunkId);
+      const data = await getRagChunkDetail(tenantId, userId, chunkId);
       res
         .status(200)
         .json(successResponse(data, "Chunk fetched successfully"));

@@ -1,9 +1,10 @@
-export type JsonObject = Record<string, any>;
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export type JsonObject = { [key: string]: JsonValue };
 
 export type ExtractionUploadInput = {
   tenantId: string;
   userId: string;
-  authorization?: string;
   file: {
     originalname: string;
     mimetype: string;
@@ -12,18 +13,32 @@ export type ExtractionUploadInput = {
   };
 };
 
+export type ExtractionRowOutcome = {
+  row_index: number;
+  mode: string;
+  parse_result?: { typed_fields: Record<string, unknown> } | null;
+  field_errors: unknown[] | Record<string, unknown>;
+  error?: string | null;
+};
+
 export type ExtractionResult = {
-  job_id: unknown;
-  template_mode: unknown;
-  is_template_compliant: unknown;
-  rows_processed: unknown;
-  rows_partial: unknown;
-  rows_failed: unknown;
-  data_loss_pct: unknown;
-  header_coverage_ratio: unknown;
-  row_outcomes: unknown;
-  promotion: unknown;
-  currency_resolution: unknown;
+  job_id: string;
+  job_id_source: "ceopro";
+  file_name: string;
+  detected_type: string;
+  headers: string[];
+  rows_processed: number;
+  rows_partial: number;
+  rows_failed: number;
+  rows_truncated_to_limit: boolean | number;
+  staged_row_count: number;
+  template_mode: string;
+  is_template_compliant: null;
+  data_loss_pct: null;
+  header_coverage_ratio: number;
+  row_outcomes: ExtractionRowOutcome[];
+  promotion: null;
+  currency_resolution: null;
 };
 export const PERSISTENT_DATA_SOURCE_TYPES = [
   "shopify",
@@ -36,10 +51,6 @@ export const PERSISTENT_DATA_SOURCE_TYPES = [
 
 export type PersistentDataSourceType =
   (typeof PERSISTENT_DATA_SOURCE_TYPES)[number];
-
-export type JsonPrimitive = string | number | boolean | null;
-
-export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 
 export type jsonObject = {
   [key: string]: JsonValue;

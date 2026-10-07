@@ -1,192 +1,113 @@
-import { randomUUID } from "node:crypto";
-import type { JsonObject } from "../types/dataconnection.types.js";
+import { z } from "zod";
+import { gradioClient } from "../../../integrations/ai/gradio.client.js";
+import type { GradioClient } from "../../../integrations/ai/ai.types.js";
+import {
+  createAiIntegrationError,
+  isAiIntegrationError
+} from "../../../integrations/ai/ai.types.js";
 import { safeUploadName } from "../types/dataconnection.validation.js";
+import { MAX_UPLOAD_SIZE_BYTES } from "../types/dataconnection.validation.js";
 
-const TESTING_MODE = true;
-const AI_SERVICE_URL = (
-  process.env.AI_SERVICE_URL || "http://localhost:8000"
-).replace(/\/+$/, "");
+const rowOutcomeSchema = z
+  .object({
+    row_index: z.number().int().nonnegative(),
+    mode: z.string(),
+    parse_result: z
+      .object({
+        typed_fields: z.record(z.string(), z.unknown())
+      })
+      .passthrough()
+      .nullable()
+      .optional(),
+    field_errors: z
+      .union([z.array(z.unknown()), z.record(z.string(), z.unknown())])
+      .default([]),
+    error: z.string().nullable().optional()
+  })
+  .passthrough();
 
-const LONG_TIMEOUT_MS = 60_000;
+export const extractionResponseSchema = z.object({
+  file_name: z.string().min(1),
+  detected_type: z.string(),
+  headers: z.array(z.string()),
+  rows_processed: z.number().int().nonnegative(),
+  // The live extraction Space returns this as a boolean flag (despite the
+  // plural field name). Accept a numeric count too for older Space revisions.
+  rows_truncated_to_limit: z.union([
+    z.boolean(),
+    z.number().int().nonnegative()
+  ]),
+  staged_row_count: z.number().int().nonnegative(),
+  summary: z.object({
+    template_mode: z.string(),
+    header_coverage_ratio: z.number().finite().min(0).max(1),
+    rows_processed: z.number().int().nonnegative(),
+    rows_partial: z.number().int().nonnegative(),
+    rows_failed: z.number().int().nonnegative(),
+    total_fields_expected: z.number().int().nonnegative(),
+    total_fields_extracted: z.number().int().nonnegative(),
+    row_outcomes: z.array(rowOutcomeSchema)
+  })
+});
 
-export type AiServiceError = Error & {
-  name: "AiServiceError";
-  upstreamStatus?: number;
-};
+export type AiExtractionResponse = z.infer<typeof extractionResponseSchema>;
 
-export function createAiServiceError(
-  message: string,
-  upstreamStatus?: number
-): AiServiceError {
-  const error = new Error(message) as AiServiceError;
+export { isAiIntegrationError as isAiServiceError };
 
-  error.name = "AiServiceError";
-  error.upstreamStatus = upstreamStatus;
-
-  return error;
-}
-
-export function isAiServiceError(error: unknown): error is AiServiceError {
-  return error instanceof Error && error.name === "AiServiceError";
-}
-
-function aiUrl(pathname: string): URL {
-  return new URL(pathname, `${AI_SERVICE_URL}/`);
-}
-
-function mockExtractionData(tenantId: string, fileName: string): JsonObject {
-  return {
-    job_id: randomUUID(),
-    template_mode: "best-effort mapping",
-    is_template_compliant: false,
-
-    rows_processed: 150,
-    rows_partial: 12,
-    rows_failed: 3,
-
-    data_loss_pct: 2.0,
-    header_coverage_ratio: 0.88,
-
-    minio_object_key: `raw-uploads/tenant-${tenantId?.substring(0, 8)}/${fileName}`,
-
-    row_outcomes: [],
-
-    promotion: {
-      rows_promoted: 135,
-      rows_skipped_incomplete: 12,
-      rows_failed: 3,
-      products_created: 18,
-      errors: []
-    },
-
-    currency_resolution: {
-      currency: "USD",
-      needs_confirmation: true
-    }
-  };
-}
-
-function mockProcessPendingData(limit: number): JsonObject {
-  return {
-    news_processed: Math.min(limit, 10),
-    social_mentions_processed: Math.min(limit, 10)
-  };
-}
-
-async function parseJsonResponse(response: Response): Promise<JsonObject> {
-  try {
-    const data = await response.json();
-
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
-      throw new Error("Response body must be a JSON object.");
-    }
-
-    return data as JsonObject;
-  } catch {
-    throw createAiServiceError(
-      "AI service returned an invalid JSON response.",
-      response.status
+export async function uploadExtractionFile(
+  input: {
+    file: {
+      originalname: string;
+      buffer: Buffer;
+    };
+    countryCode?: string;
+    currency?: string;
+    timeoutMs?: number;
+  },
+  client: GradioClient = gradioClient
+): Promise<AiExtractionResponse> {
+  if (!Buffer.isBuffer(input.file.buffer) || input.file.buffer.length === 0) {
+    throw createAiIntegrationError(
+      "Extraction requires a non-empty file buffer.",
+      "configuration"
     );
   }
-}
+  if (input.file.buffer.length > MAX_UPLOAD_SIZE_BYTES) {
+    throw createAiIntegrationError(
+      "Extraction file exceeds the configured upload size limit.",
+      "configuration"
+    );
+  }
 
-async function requestJson(
-  url: URL,
-  init: RequestInit,
-  timeoutMs = LONG_TIMEOUT_MS
-): Promise<JsonObject> {
-  const controller = new AbortController();
+  const fileName = safeUploadName(input.file.originalname);
+  const payload = await client.call({
+    service: "analytics",
+    apiName: "extract_file",
+    data: [
+      fileName,
+      input.file.buffer.toString("base64"),
+      input.countryCode ?? "JO",
+      input.currency ?? "JOD"
+    ],
+    timeoutMs: input.timeoutMs
+  });
+  const parsed = extractionResponseSchema.safeParse(payload);
 
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      ...init,
-      signal: controller.signal
+  if (!parsed.success) {
+    // Keep response values out of logs/errors (the payload may contain
+    // extracted business data), but expose the failing schema paths so a
+    // provider contract drift can be diagnosed from the application log.
+    const invalidFields = parsed.error.issues.slice(0, 10).map((issue) => {
+      const path = issue.path.map(String).join(".") || "<root>";
+      return `${path} (${issue.code})`;
     });
-
-    if (!response.ok) {
-      throw createAiServiceError(
-        `AI extraction service returned HTTP ${response.status}.`,
-        response.status
-      );
-    }
-
-    return await parseJsonResponse(response);
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw createAiServiceError(
-        `AI extraction service request timed out after ${timeoutMs} ms.`
-      );
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeout);
+    const issueSuffix = invalidFields.length
+      ? ` Invalid fields: ${invalidFields.join(", ")}.`
+      : "";
+    throw createAiIntegrationError(
+      `Gradio extraction response did not match the documented output schema.${issueSuffix}`,
+      "malformed_response"
+    );
   }
-}
-
-export async function uploadExtractionFile(args: {
-  tenantId: string;
-
-  file: {
-    originalname: string;
-    mimetype: string;
-    buffer: Buffer;
-  };
-
-  authorization?: string;
-}): Promise<JsonObject> {
-  const fileName = safeUploadName(args.file.originalname);
-
-  // Replace TESTING_MODE with your existing
-  // project's actual global variable.
-  if (TESTING_MODE) {
-    return mockExtractionData(args.tenantId, fileName);
-  }
-
-  const formData = new FormData();
-
-  formData.append(
-    "file",
-    new Blob([new Uint8Array(args.file.buffer)], {
-      type: args.file.mimetype
-    }),
-    fileName
-  );
-
-  return requestJson(aiUrl("extraction/upload"), {
-    method: "POST",
-
-    headers: args.authorization
-      ? {
-          Authorization: args.authorization
-        }
-      : {},
-
-    body: formData
-  });
-}
-
-export async function processPendingExtraction(args: {
-  limit: number;
-  authorization?: string;
-}): Promise<JsonObject> {
-  if (TESTING_MODE) {
-    return mockProcessPendingData(args.limit);
-  }
-
-  const url = aiUrl("extraction/process-pending");
-
-  url.searchParams.set("limit", String(args.limit));
-
-  return requestJson(url, {
-    method: "POST",
-
-    headers: args.authorization
-      ? {
-          Authorization: args.authorization
-        }
-      : {}
-  });
+  return parsed.data;
 }

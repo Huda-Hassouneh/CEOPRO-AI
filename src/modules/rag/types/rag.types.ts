@@ -7,9 +7,15 @@ export const RAG_DOCUMENT_EXTENSIONS = [
   ".docx",
   ".xlsx"
 ] as const;
+// Keep the Knowledge Base upload cap aligned with the FastAPI contract.
+export const MAX_RAG_DOCUMENT_SIZE_BYTES = 2 * 1024 * 1024;
 
 export const ragDocumentsListQuerySchema = z.object({
-  page: z.coerce.number().int().positive("page must be a positive integer").optional()
+  page: z.coerce
+    .number()
+    .int()
+    .positive("page must be a positive integer")
+    .optional()
 });
 
 export const ragQuerySchema = z.object({
@@ -53,7 +59,20 @@ export const ragUploadResponseSchema = z.object({
 export const ragQueryResponseSchema = z
   .object({
     answer: z.string(),
-    sources: z.array(z.record(z.string(), z.unknown())).default([])
+    sources: z
+      .array(
+        z
+          .object({
+            source_index: z.number().int().nonnegative(),
+            document: z.string(),
+            chunk_index: z.number().int().nonnegative(),
+            text: z.string(),
+            score: z.number().finite()
+          })
+          .passthrough()
+      )
+      .default([]),
+    token_usage: z.record(z.string(), z.unknown()).optional()
   })
   .passthrough();
 
@@ -63,7 +82,6 @@ export type RagQueryResponse = z.infer<typeof ragQueryResponseSchema>;
 export type RagUploadInput = {
   tenantId: string;
   userId: string;
-  authorization?: string;
   file: {
     originalname: string;
     mimetype: string;
@@ -74,10 +92,10 @@ export type RagUploadInput = {
 
 export type RagQueryInput = {
   tenantId: string;
+  userId: string;
   queryText: string;
   topK: number;
   historyJson?: string;
-  authorization?: string;
 };
 
 export type RagDocumentStatus = "Pending" | "Processed" | "Failed";
@@ -91,7 +109,9 @@ export type RagServiceError = Error & {
     | "USAGE_EXCEEDED"
     | "STORAGE_EXCEEDED"
     | "MALFORMED_HISTORY_JSON"
-    | "NOT_FOUND";
+    | "NOT_FOUND"
+    | "NO_DOCUMENTS"
+    | "DOCUMENT_CONTENT_UNAVAILABLE";
   detail?: unknown;
 };
 
