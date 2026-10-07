@@ -13,7 +13,8 @@
     "test:auth-email-verification": "node --test tests/auth-email-verification.test.mjs",
     "test:billing:frontend": "node scripts/run-frontend-billing-production-tests.mjs",
     "test:billing:frontend:release": "npm run verify:subscription && npm run verify:entitlements && npm run test:billing:frontend && npm run build",
-    "test:platform-admin-route-access": "node --test tests/platform-admin-route-access.test.mjs"
+    "test:platform-admin-route-access": "node --test tests/platform-admin-route-access.test.mjs",
+    "test:api-errors": "node --test tests/api-error-messages.test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
