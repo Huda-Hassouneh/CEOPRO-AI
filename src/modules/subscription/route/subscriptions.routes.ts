@@ -4,9 +4,9 @@ import {
   getCurrentSubscription,
   patchCancelSubscriptionHandler,
   patchUndoCancelSubscriptionHandler
-} from "../controllers/subscription.controller.js";
-import { changePlanHandler } from "../controllers/plans.controller.js";
-import { validateBody } from "../../../validators/validateBody.js";
+} from "../controller/subscription.controller.js";
+import { changePlanHandler } from "../controller/plans.controller.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
 
 import { checkoutSchema } from "../../../DTO/checkout.dto.js";
 import { changePlanSchema } from "../../../DTO/changePlan.dto.js";
@@ -16,7 +16,7 @@ import {
   authenticateUser,
   requireTenant,
   requirePermission
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 
 const router = Router();
 

@@ -1,10 +1,4 @@
 import { Router } from "express";
-import {
-  authenticateUser,
-  requireTenant,
-  requirePermission
-} from "../../validators/validateUser.js";
-import { onBoardingHandler } from "./controller/onboarding.controller.js";
 
 // Import the modular routers you just created
 import plansRoutes from "./route/plans.route.js";
@@ -15,15 +9,6 @@ import invoices from "./route/invoice.route.js";
 import customPlanRoutes from "./route/custom-plan.route.js";
 export { default as stripeWebhookRouter } from "./route/stripe-webhook.route.js";
 const router = Router();
-
-// Existing onboarding route
-router.post(
-  "/",
-  authenticateUser,
-  requireTenant,
-  requirePermission("all"),
-  onBoardingHandler
-);
 
 // Mount the modular routes to their respective base paths
 router.use("/plans", plansRoutes);

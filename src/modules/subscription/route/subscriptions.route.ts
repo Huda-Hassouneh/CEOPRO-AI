@@ -8,7 +8,7 @@ import {
   patchUndoCancelSubscriptionHandler
 } from "../controller/subscription.controller.js";
 import { changePlanHandler } from "../controller/plans.controller.js";
-import { validateBody } from "../../../validators/validateBody.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
 
 import { checkoutSchema } from "../types/checkout.dto.js";
 import { changePlanSchema } from "../types/change-plan.dto.js";
@@ -18,7 +18,7 @@ import {
   authenticateUser,
   requireTenant,
   requirePermission
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 
 const router = Router();
 

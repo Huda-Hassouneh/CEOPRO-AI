@@ -1,5 +1,5 @@
 import express from "express";
-import validateWebhook from "../../../../../validators/validateWebhook.js";
+import validateWebhook from "../../../../../middleware/validators/validateWebhook.js";
 import { webhookHandler } from "./stripeController.js";
 
 const router = express.Router();

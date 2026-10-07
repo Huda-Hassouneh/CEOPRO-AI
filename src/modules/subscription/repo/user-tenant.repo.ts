@@ -3,25 +3,33 @@ import { Prisma } from "../../../generated/prisma/client.js";
 import { GetPlatformNotificationRecipientsArgs } from "../types/user-tenant.dto.js";
 
 export async function getActiveTenantUser(tenantId: string, userId: string) {
-  return prisma.tenantUser.findFirst({
-    where: {
-      userId,
-      tenantId,
-      removedAt: null,
-      platformStatus: "active",
-      tenant: {
-        deletedAt: null,
-        platformStatus: "active"
-      }
-    },
-    include: {
-      role: true,
-      tenant: {
-        select: {
-          businessType: true
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT
+        set_config('app.current_tenant_id', ${tenantId}, true),
+        set_config('app.current_user_id', ${userId}, true)
+    `;
+
+    return tx.tenantUser.findFirst({
+      where: {
+        userId,
+        tenantId,
+        removedAt: null,
+        platformStatus: "active",
+        tenant: {
+          deletedAt: null,
+          platformStatus: "active"
+        }
+      },
+      include: {
+        role: true,
+        tenant: {
+          select: {
+            businessType: true
+          }
         }
       }
-    }
+    });
   });
 }
 

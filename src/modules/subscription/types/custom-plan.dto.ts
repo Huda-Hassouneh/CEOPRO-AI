@@ -253,8 +253,25 @@ export const vendorRateSchema = vendorRateBaseSchema.refine(
  * .partial() cannot be used on object schemas
  * containing refinements
  */
-export const updateVendorRateSchema = vendorRateBaseSchema
-  .partial()
+export const updateVendorRateSchema = z
+  .object({
+    featureId: z.uuid().nullable().optional(),
+    vendor: z.string().trim().min(1).max(100).optional(),
+    service: z.string().trim().min(1).max(150).optional(),
+    billingUnit: z.string().trim().min(1).max(80).optional(),
+    unitCost: z.number().nonnegative().optional(),
+    currency: currencySchema.optional(),
+    operationalMultiplier: z.number().positive().optional(),
+    variabilityReserve: z.number().min(1).optional(),
+    effectiveFrom: z.iso.datetime().optional(),
+    effectiveTo: z.iso.datetime().nullable().optional(),
+    verificationStatus: z
+      .enum(["confirmed", "estimated", "unconfirmed", "deprecated"])
+      .optional(),
+    source: z.string().trim().max(4000).optional(),
+    metadata: vendorRateMetadataSchema.optional(),
+  })
+  .strict()
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required",
   })
@@ -287,9 +304,35 @@ const infrastructureRateBaseSchema = z.object({
 export const infrastructureRateSchema = infrastructureRateBaseSchema.refine(hasValidVendorRateDates, {
   message: "effectiveTo must be later than effectiveFrom", path: ["effectiveTo"],
 });
-export const updateInfrastructureRateSchema = infrastructureRateBaseSchema.partial()
-  .refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" })
-  .refine(hasValidVendorRateDates, { message: "effectiveTo must be later than effectiveFrom", path: ["effectiveTo"] });
+export const updateInfrastructureRateSchema = z
+  .object({
+    featureId: z.uuid().nullable().optional(),
+    costDriver: z.string().trim().min(1).max(100).optional(),
+    usageBasis: z
+      .enum(["limit_value", "estimated_usage", "enabled_feature"])
+      .optional(),
+    billingUnit: z.string().trim().min(1).max(80).optional(),
+    billingUnitsPerFeatureUnit: z.number().positive().max(1_000_000).optional(),
+    unitCost: z.number().nonnegative().optional(),
+    currency: currencySchema.optional(),
+    operationalMultiplier: z.number().positive().optional(),
+    variabilityReserve: z.number().min(1).optional(),
+    effectiveFrom: z.iso.datetime().optional(),
+    effectiveTo: z.iso.datetime().nullable().optional(),
+    verificationStatus: z
+      .enum(["confirmed", "estimated", "unconfirmed", "deprecated"])
+      .optional(),
+    source: z.string().trim().max(4000).optional(),
+    metadata: vendorRateMetadataSchema.optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required",
+  })
+  .refine(hasValidVendorRateDates, {
+    message: "effectiveTo must be later than effectiveFrom",
+    path: ["effectiveTo"],
+  });
 export const infrastructureRateIdParamsSchema = z.object({ id: z.uuid() });
 
 const customPlanSelectionFeatureSchema = z

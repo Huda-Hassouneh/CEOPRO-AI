@@ -3,7 +3,7 @@ import {
   authenticateUser,
   requireTenant,
   requirePermission
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import { onBoardingHandler } from "../controller/onboarding.controller.js";
 
 import plansRoutes from "./plans.route.js";

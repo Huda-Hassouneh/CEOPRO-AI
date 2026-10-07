@@ -5,7 +5,7 @@ import subscriptionRepo from "../repo/subscription.repo.js";
 
 import { validatePromoCode } from "./promocodes.service.js";
 
-import { Plan, Subscription } from "../../../generated/prisma/client.js";
+import { CurrentSubscriptionResponse } from "../types/subscription.types.js";
 
 import { stripeService } from "../client/payment-providers/stripe/stripe.client.js";
 
@@ -25,6 +25,7 @@ import {
  */
 
 import type { ServiceResult } from "../../../types/service.js";
+import { Plan } from "../../../generated/prisma/client.js";
 
 /*
  * ============================================================
@@ -176,7 +177,7 @@ export async function undoCancelSubscriptionService(
 
 export async function getCurrentSubscriptionService(
   tenantId: string
-): Promise<ServiceResult<Subscription>> {
+): Promise<ServiceResult<CurrentSubscriptionResponse>> {
   const subscription =
     await subscriptionRepo.getCurrentSubscriptionByTenant(tenantId);
 

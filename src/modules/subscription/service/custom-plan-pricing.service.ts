@@ -112,14 +112,14 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function resolveRateUsage(
   rate: PricingVendorRate,
   input: CustomPlanPricingInput,
-  fallbackUsage: Prisma.Decimal,
+  fallbackUsage: Prisma.Decimal
 ): RateUsage {
   if (rate.feature?.code !== "competitor_management") {
     return { usage: fallbackUsage, calculation: null };
   }
 
   const monitoringFeature = input.features.find(
-    (feature) => feature.featureId === rate.featureId,
+    (feature) => feature.featureId === rate.featureId
   );
   const monitoringFrequencyMinutes =
     monitoringFeature?.configuration?.monitoringFrequencyMinutes;
@@ -137,14 +137,14 @@ function resolveRateUsage(
   }
 
   const capacityFeature = input.features.find(
-    (feature) => feature.featureCode === "tracked_competitors",
+    (feature) => feature.featureCode === "tracked_competitors"
   );
   const competitorCount = capacityFeature
     ? D(capacityFeature.limitValue ?? capacityFeature.estimatedUsage)
     : ZERO;
   if (competitorCount.lessThanOrEqualTo(0)) {
     throw new Error(
-      "tracked_competitors must be selected with a positive limit when competitor monitoring is configured",
+      "tracked_competitors must be selected with a positive limit when competitor monitoring is configured"
     );
   }
 
@@ -155,15 +155,15 @@ function resolveRateUsage(
     assumption.unitsPerCompetitorCheck == null
   ) {
     throw new Error(
-      `Missing competitor-monitoring usage assumption on vendor rate ${rate.id}`,
+      `Missing competitor-monitoring usage assumption on vendor rate ${rate.id}`
     );
   }
   const unitsPerCompetitorCheck = D(
-    assumption.unitsPerCompetitorCheck as DecimalInput,
+    assumption.unitsPerCompetitorCheck as DecimalInput
   );
   if (unitsPerCompetitorCheck.lessThanOrEqualTo(0)) {
     throw new Error(
-      `Invalid competitor-monitoring usage assumption on vendor rate ${rate.id}`,
+      `Invalid competitor-monitoring usage assumption on vendor rate ${rate.id}`
     );
   }
 
@@ -185,8 +185,8 @@ function resolveRateUsage(
       competitorCount: competitorCount.toString(),
       monitoringFrequencyMinutes,
       monitoringRunsPerMonth: monitoringRunsPerMonth.toString(),
-      unitsPerCompetitorCheck: unitsPerCompetitorCheck.toString(),
-    },
+      unitsPerCompetitorCheck: unitsPerCompetitorCheck.toString()
+    }
   };
 }
 
@@ -213,7 +213,7 @@ function roundUpToIncrement(value: Prisma.Decimal, increment: Prisma.Decimal) {
 
 function convertRateToQuoteCurrency(
   rate: Pick<PricingVendorRate, "unitCost" | "currency" | "vendor" | "service">,
-  input: CustomPlanPricingInput,
+  input: CustomPlanPricingInput
 ): Prisma.Decimal {
   const unitCost = D(rate.unitCost);
   if (rate.currency === input.quoteCurrency) return unitCost;
@@ -224,7 +224,7 @@ function convertRateToQuoteCurrency(
     input.fxTargetCurrency !== input.quoteCurrency
   ) {
     throw new Error(
-      `Missing FX rate for ${rate.currency} -> ${input.quoteCurrency} (${rate.vendor}/${rate.service})`,
+      `Missing FX rate for ${rate.currency} -> ${input.quoteCurrency} (${rate.vendor}/${rate.service})`
     );
   }
 
@@ -233,12 +233,14 @@ function convertRateToQuoteCurrency(
 
 function resolveInfrastructureFeatureQuantity(
   rate: PricingInfrastructureRate,
-  feature: PricingFeatureInput,
+  feature: PricingFeatureInput
 ): Prisma.Decimal {
   if (rate.usageBasis === "enabled_feature") return ONE;
   if (rate.usageBasis === "limit_value") {
     if (feature.limitValue == null) {
-      throw new Error(`Infrastructure rate ${rate.id} requires a configured feature limit`);
+      throw new Error(
+        `Infrastructure rate ${rate.id} requires a configured feature limit`
+      );
     }
     return D(feature.limitValue);
   }
@@ -247,11 +249,11 @@ function resolveInfrastructureFeatureQuantity(
 
 function convertInfrastructureRateToQuoteCurrency(
   rate: PricingInfrastructureRate,
-  input: CustomPlanPricingInput,
+  input: CustomPlanPricingInput
 ): Prisma.Decimal {
   return convertRateToQuoteCurrency(
     { ...rate, vendor: "internal", service: rate.costDriver },
-    input,
+    input
   );
 }
 
@@ -277,7 +279,7 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
   }
   if (enforceVendorCostRatioFloor && !maxVendorCostRevenueRatio) {
     throw new Error(
-      "maxVendorCostRevenueRatio is required when vendor-cost floor enforcement is enabled",
+      "maxVendorCostRevenueRatio is required when vendor-cost floor enforcement is enabled"
     );
   }
 
@@ -290,8 +292,8 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
   const featureUsage = new Map(
     input.features.map((feature) => [
       feature.featureId,
-      D(feature.estimatedUsage),
-    ]),
+      D(feature.estimatedUsage)
+    ])
   );
   for (const [featureId, usage] of featureUsage) {
     if (usage.lessThan(0)) {
@@ -299,14 +301,16 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
     }
   }
 
-  const featureInputs = new Map(input.features.map((feature) => [feature.featureId, feature]));
+  const featureInputs = new Map(
+    input.features.map((feature) => [feature.featureId, feature])
+  );
 
   const pricedFeatureIds = new Set(
     input.vendorRates
       .filter(
-        (rate) => rate.featureId && rate.verificationStatus !== "deprecated",
+        (rate) => rate.featureId && rate.verificationStatus !== "deprecated"
       )
-      .map((rate) => rate.featureId as string),
+      .map((rate) => rate.featureId as string)
   );
 
   const explicitlyRequired = input.vendorCostRequiredFeatureIds
@@ -316,12 +320,12 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
     .filter(([, usage]) => usage.greaterThan(0))
     .map(([featureId]) => featureId)
     .filter((featureId) =>
-      explicitlyRequired ? explicitlyRequired.has(featureId) : true,
+      explicitlyRequired ? explicitlyRequired.has(featureId) : true
     )
     .filter((featureId) => !pricedFeatureIds.has(featureId));
   if (missingRateFeatureIds.length) {
     throw new Error(
-      `Missing vendor rate for feature(s): ${missingRateFeatureIds.join(", ")}`,
+      `Missing vendor rate for feature(s): ${missingRateFeatureIds.join(", ")}`
     );
   }
 
@@ -352,11 +356,7 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
     const fallbackUsage = featureUsage.get(rate.featureId);
     if (!fallbackUsage || fallbackUsage.lessThanOrEqualTo(0)) continue;
 
-    const { usage, calculation } = resolveRateUsage(
-      rate,
-      input,
-      fallbackUsage,
-    );
+    const { usage, calculation } = resolveRateUsage(rate, input, fallbackUsage);
 
     const normalizedUnitCost = convertRateToQuoteCurrency(rate, input);
     const operationalMultiplier = D(rate.operationalMultiplier);
@@ -398,7 +398,7 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
       effectiveTo:
         rate.effectiveTo instanceof Date
           ? rate.effectiveTo.toISOString()
-          : (rate.effectiveTo ?? null),
+          : (rate.effectiveTo ?? null)
     });
   }
 
@@ -409,12 +409,26 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
   }
 
   const infrastructureBreakdown: Array<{
-    rateId: string; featureId: string; featureCode?: string; costDriver: string;
-    usageBasis: PricingInfrastructureRate["usageBasis"]; originalFeatureQuantity: string;
-    normalizedBillableQuantity: string; billingUnit: string; billingUnitsPerFeatureUnit: string;
-    sourceUnitCost: string; sourceCurrency: string; quoteCurrency: string; normalizedUnitCost: string;
-    operationalMultiplier: string; variabilityReserve: string; verificationStatus: PricingInfrastructureRate["verificationStatus"];
-    source?: string | null; cost: string; effectiveFrom: string | null; effectiveTo: string | null;
+    rateId: string;
+    featureId: string;
+    featureCode?: string;
+    costDriver: string;
+    usageBasis: PricingInfrastructureRate["usageBasis"];
+    originalFeatureQuantity: string;
+    normalizedBillableQuantity: string;
+    billingUnit: string;
+    billingUnitsPerFeatureUnit: string;
+    sourceUnitCost: string;
+    sourceCurrency: string;
+    quoteCurrency: string;
+    normalizedUnitCost: string;
+    operationalMultiplier: string;
+    variabilityReserve: string;
+    verificationStatus: PricingInfrastructureRate["verificationStatus"];
+    source?: string | null;
+    cost: string;
+    effectiveFrom: string | null;
+    effectiveTo: string | null;
   }> = [];
   let usageDrivenInfrastructureCost = ZERO;
   const selectedInfrastructureRates = new Set<string>();
@@ -425,32 +439,71 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
     const selectionKey = `${rate.featureId}:${rate.costDriver}`;
     if (selectedInfrastructureRates.has(selectionKey)) continue;
     selectedInfrastructureRates.add(selectionKey);
-    const originalFeatureQuantity = resolveInfrastructureFeatureQuantity(rate, feature);
-    if (originalFeatureQuantity.lessThan(0)) throw new Error(`Invalid infrastructure quantity for ${rate.id}`);
+    const originalFeatureQuantity = resolveInfrastructureFeatureQuantity(
+      rate,
+      feature
+    );
+    if (originalFeatureQuantity.lessThan(0))
+      throw new Error(`Invalid infrastructure quantity for ${rate.id}`);
     const billingUnitsPerFeatureUnit = D(rate.billingUnitsPerFeatureUnit);
     const operationalMultiplier = D(rate.operationalMultiplier);
     const variabilityReserve = D(rate.variabilityReserve);
-    if (billingUnitsPerFeatureUnit.lessThanOrEqualTo(0) || operationalMultiplier.lessThanOrEqualTo(0) || variabilityReserve.lessThan(1)) {
-      throw new Error(`Invalid multiplier or conversion factor on infrastructure rate ${rate.id}`);
+    if (
+      billingUnitsPerFeatureUnit.lessThanOrEqualTo(0) ||
+      operationalMultiplier.lessThanOrEqualTo(0) ||
+      variabilityReserve.lessThan(1)
+    ) {
+      throw new Error(
+        `Invalid multiplier or conversion factor on infrastructure rate ${rate.id}`
+      );
     }
-    const normalizedBillableQuantity = originalFeatureQuantity.mul(billingUnitsPerFeatureUnit);
-    const normalizedUnitCost = convertInfrastructureRateToQuoteCurrency(rate, input);
-    const cost = normalizedBillableQuantity.mul(normalizedUnitCost).mul(operationalMultiplier).mul(variabilityReserve);
+    const normalizedBillableQuantity = originalFeatureQuantity.mul(
+      billingUnitsPerFeatureUnit
+    );
+    const normalizedUnitCost = convertInfrastructureRateToQuoteCurrency(
+      rate,
+      input
+    );
+    const cost = normalizedBillableQuantity
+      .mul(normalizedUnitCost)
+      .mul(operationalMultiplier)
+      .mul(variabilityReserve);
     usageDrivenInfrastructureCost = usageDrivenInfrastructureCost.add(cost);
     infrastructureBreakdown.push({
-      rateId: rate.id, featureId: rate.featureId, featureCode: rate.feature?.code, costDriver: rate.costDriver,
-      usageBasis: rate.usageBasis, originalFeatureQuantity: originalFeatureQuantity.toString(),
-      normalizedBillableQuantity: normalizedBillableQuantity.toString(), billingUnit: rate.billingUnit,
-      billingUnitsPerFeatureUnit: billingUnitsPerFeatureUnit.toString(), sourceUnitCost: D(rate.unitCost).toString(),
-      sourceCurrency: rate.currency, quoteCurrency: input.quoteCurrency, normalizedUnitCost: normalizedUnitCost.toString(),
-      operationalMultiplier: operationalMultiplier.toString(), variabilityReserve: variabilityReserve.toString(),
-      verificationStatus: rate.verificationStatus, source: rate.source, cost: money(cost).toString(),
-      effectiveFrom: rate.effectiveFrom instanceof Date ? rate.effectiveFrom.toISOString() : (rate.effectiveFrom ?? null),
-      effectiveTo: rate.effectiveTo instanceof Date ? rate.effectiveTo.toISOString() : (rate.effectiveTo ?? null),
+      rateId: rate.id,
+      featureId: rate.featureId,
+      featureCode: rate.feature?.code,
+      costDriver: rate.costDriver,
+      usageBasis: rate.usageBasis,
+      originalFeatureQuantity: originalFeatureQuantity.toString(),
+      normalizedBillableQuantity: normalizedBillableQuantity.toString(),
+      billingUnit: rate.billingUnit,
+      billingUnitsPerFeatureUnit: billingUnitsPerFeatureUnit.toString(),
+      sourceUnitCost: D(rate.unitCost).toString(),
+      sourceCurrency: rate.currency,
+      quoteCurrency: input.quoteCurrency,
+      normalizedUnitCost: normalizedUnitCost.toString(),
+      operationalMultiplier: operationalMultiplier.toString(),
+      variabilityReserve: variabilityReserve.toString(),
+      verificationStatus: rate.verificationStatus,
+      source: rate.source,
+      cost: money(cost).toString(),
+      effectiveFrom:
+        rate.effectiveFrom instanceof Date
+          ? rate.effectiveFrom.toISOString()
+          : (rate.effectiveFrom ?? null),
+      effectiveTo:
+        rate.effectiveTo instanceof Date
+          ? rate.effectiveTo.toISOString()
+          : (rate.effectiveTo ?? null)
     });
   }
-  const baseInfrastructureCost = monthlyInfrastructureCost.div(input.activePayingTenants);
-  const estimatedInfrastructureCost = baseInfrastructureCost.add(usageDrivenInfrastructureCost);
+  const baseInfrastructureCost = monthlyInfrastructureCost.div(
+    input.activePayingTenants
+  );
+  const estimatedInfrastructureCost = baseInfrastructureCost.add(
+    usageDrivenInfrastructureCost
+  );
   const estimatedTotalCost = estimatedVendorCost
     .add(estimatedInfrastructureCost)
     .add(estimatedOtherCost);
@@ -472,14 +525,14 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
   const recommendedPriceBeforeRounding = minimumSafePrice.add(fixedPlatformFee);
   const recommendedPrice = roundUpToIncrement(
     recommendedPriceBeforeRounding,
-    roundingIncrement,
+    roundingIncrement
   );
 
   const warnings = [...vendorBreakdown, ...infrastructureBreakdown]
     .filter((item) => item.verificationStatus !== "confirmed")
     .map(
-      (item) =>
-        `${item.vendor}/${item.service} rate is ${item.verificationStatus}`,
+      (item: any) =>
+        `${item.vendor}/${item.service} rate is ${item.verificationStatus}`
     );
 
   return {
@@ -500,14 +553,14 @@ export function calculateCustomPlanPrice(input: CustomPlanPricingInput) {
     infrastructureBreakdown,
     baseInfrastructureCost: money(baseInfrastructureCost),
     usageDrivenInfrastructureCost: money(usageDrivenInfrastructureCost),
-    warnings,
+    warnings
   };
 }
 
 export function calculateExpectedProfitability(
   finalPriceInput: number | string | Prisma.Decimal,
   estimatedTotalCostInput: number | string | Prisma.Decimal,
-  estimatedVendorCostInput: number | string | Prisma.Decimal,
+  estimatedVendorCostInput: number | string | Prisma.Decimal
 ) {
   const finalPrice = D(finalPriceInput);
   if (finalPrice.lessThanOrEqualTo(0)) {
@@ -518,6 +571,6 @@ export function calculateExpectedProfitability(
 
   return {
     expectedGrossMargin: ONE.sub(estimatedTotalCost.div(finalPrice)),
-    expectedVendorCostRatio: estimatedVendorCost.div(finalPrice),
+    expectedVendorCostRatio: estimatedVendorCost.div(finalPrice)
   };
 }

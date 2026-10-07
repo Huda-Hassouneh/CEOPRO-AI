@@ -4,11 +4,11 @@ import {
   patchPromocodeHandler,
   postPromocodeHandler,
   validatePromoHandler
-} from "../controllers/promocode.controller.js";
-import { linkPlanWithPromocodeHandler } from "../controllers/promocodes-plans..controller.js";
+} from "../controller/promocode.controller.js";
+import { linkPlanWithPromocodeHandler } from "../controller/promocodes-plans.controller.js";
 
-import { validateBody } from "../../../validators/validateBody.js";
-import { validateParams } from "../../../validators/validateParams.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
+import { validateParams } from "../../../middleware/validators/validateParams.js";
 
 import {
   applyPromoCodeSchema,
@@ -22,17 +22,22 @@ import {
   authenticateUser,
   requireTenant,
   requirePermission
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import {
   requirePlatformPermission,
   requirePlatformRole
-} from "../../../validators/validatePlatformUser.js";
+} from "../../../middleware/validators/validatePlatformUser.js";
 
 const router = Router();
 
 router.use(authenticateUser);
 
-router.get("/", requirePlatformRole, requirePlatformPermission("billing.read"), getPromocodeHandler);
+router.get(
+  "/",
+  requirePlatformRole,
+  requirePlatformPermission("billing.read"),
+  getPromocodeHandler
+);
 
 router.post(
   "/",

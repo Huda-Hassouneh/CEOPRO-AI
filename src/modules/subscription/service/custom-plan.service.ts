@@ -6,16 +6,16 @@ import type {
   CreateCustomPlanQuoteInput,
   UpdateCustomPlanQuoteInput,
   VendorRateInput,
-  InfrastructureRateInput,
+  InfrastructureRateInput
 } from "../types/custom-plan.dto.js";
 import {
   CUSTOM_PLAN_PAYMENT_CURRENCY,
-  convertCustomPlanAmountToPaymentCurrency,
+  convertCustomPlanAmountToPaymentCurrency
 } from "./custom-plan-payment-currency.service.js";
 import customPlanRepository from "../repo/custom-plan.repo.js";
 import {
   calculateCustomPlanPrice,
-  calculateExpectedProfitability,
+  calculateExpectedProfitability
 } from "./custom-plan-pricing.service.js";
 import { getAppConfig } from "../repo/app-config.repo.js";
 import { configKeys } from "../../../config/keys.config.js";
@@ -42,10 +42,10 @@ function decimal(value: DecimalInput) {
 function priceWithDiscount(
   basePrice: number,
   months: number,
-  discountPercent: number,
+  discountPercent: number
 ) {
   return Number(
-    (basePrice * months * (1 - (discountPercent || 0) / 100)).toFixed(2),
+    (basePrice * months * (1 - (discountPercent || 0) / 100)).toFixed(2)
   );
 }
 
@@ -62,7 +62,7 @@ function normalizeQuote(quote: any) {
     "vendorCostRatioFloor",
     "minimumSafePrice",
     "finalPrice",
-    "fxRate",
+    "fxRate"
   ];
   const normalized: any = { ...quote };
   for (const field of numberFields) {
@@ -77,14 +77,14 @@ function normalizeQuote(quote: any) {
         item.metadata &&
         typeof item.metadata === "object" &&
         !Array.isArray(item.metadata)
-          ? item.metadata.configuration ?? null
-          : null,
+          ? (item.metadata.configuration ?? null)
+          : null
     }));
   }
   if (normalized.createdPlan?.price != null) {
     normalized.createdPlan = {
       ...normalized.createdPlan,
-      price: Number(normalized.createdPlan.price),
+      price: Number(normalized.createdPlan.price)
     };
   }
   const snapshot = normalized.pricingSnapshot;
@@ -108,26 +108,26 @@ async function validateQuoteFeatures(
       monitoringFrequencyMinutes: number;
       monitoringChecksPerMonth?: number;
     };
-  }>,
+  }>
 ) {
   const uniqueIds = [...new Set(features.map((feature) => feature.featureId))];
   if (uniqueIds.length !== features.length) {
     return {
       success: false as const,
       code: ERROR_CODES.VALIDATION_ERROR,
-      message: "Duplicate features are not allowed.",
+      message: "Duplicate features are not allowed."
     };
   }
 
   const [existing, policy] = await Promise.all([
     customPlanRepository.getFeaturesByIds(uniqueIds),
-    getCustomPlanPricingPolicy(),
+    getCustomPlanPricingPolicy()
   ]);
   if (existing.length !== uniqueIds.length) {
     return {
       success: false as const,
       code: ERROR_CODES.RESOURCE_NOT_FOUND,
-      message: "One or more selected features do not exist.",
+      message: "One or more selected features do not exist."
     };
   }
 
@@ -138,7 +138,7 @@ async function validateQuoteFeatures(
       return {
         success: false as const,
         code: ERROR_CODES.INVALID_PARAMETER,
-        message: `Boolean feature '${definition.code}' cannot have a numeric limit.`,
+        message: `Boolean feature '${definition.code}' cannot have a numeric limit.`
       };
     }
     if (definition.code === "competitor_management") {
@@ -151,34 +151,34 @@ async function validateQuoteFeatures(
           success: false as const,
           code: ERROR_CODES.INVALID_PARAMETER,
           message:
-            "competitor_management uses a monitoring frequency that is not allowed by pricing policy.",
+            "competitor_management uses a monitoring frequency that is not allowed by pricing policy."
         };
       }
     } else if (feature.configuration) {
       return {
         success: false as const,
         code: ERROR_CODES.INVALID_PARAMETER,
-        message: `Feature '${definition.code}' does not accept monitoring configuration.`,
+        message: `Feature '${definition.code}' does not accept monitoring configuration.`
       };
     }
   }
 
   const configuredMonitoring = features.find(
-    (feature) => feature.configuration?.monitoringFrequencyMinutes != null,
+    (feature) => feature.configuration?.monitoringFrequencyMinutes != null
   );
   if (configuredMonitoring) {
     const competitorCapacityDefinition = existing.find(
-      (feature) => feature.code === "tracked_competitors",
+      (feature) => feature.code === "tracked_competitors"
     );
     const competitorCapacity = features.find(
-      (feature) => feature.featureId === competitorCapacityDefinition?.id,
+      (feature) => feature.featureId === competitorCapacityDefinition?.id
     );
     if (!competitorCapacity || (competitorCapacity.limitValue ?? 0) <= 0) {
       return {
         success: false as const,
         code: ERROR_CODES.INVALID_PARAMETER,
         message:
-          "tracked_competitors must have a positive limit when competitor monitoring cadence is configured.",
+          "tracked_competitors must have a positive limit when competitor monitoring cadence is configured."
       };
     }
   }
@@ -194,16 +194,16 @@ async function validateQuoteFeatures(
       }
       const cadence = policy.monitoringCadences.find(
         (item) =>
-          item.minutes === feature.configuration!.monitoringFrequencyMinutes,
+          item.minutes === feature.configuration!.monitoringFrequencyMinutes
       )!;
       return {
         ...feature,
         configuration: {
           monitoringFrequencyMinutes: cadence.minutes,
-          monitoringChecksPerMonth: cadence.checksPerMonth,
-        },
+          monitoringChecksPerMonth: cadence.checksPerMonth
+        }
       };
-    }),
+    })
   };
 }
 
@@ -223,10 +223,10 @@ function monitoringPricingInput(
           monitoringChecksPerMonth?: number;
         };
       }>
-    | undefined,
+    | undefined
 ) {
   const configured = features?.find(
-    (feature) => feature.configuration?.monitoringFrequencyMinutes != null,
+    (feature) => feature.configuration?.monitoringFrequencyMinutes != null
   );
   return configured
     ? {
@@ -234,7 +234,7 @@ function monitoringPricingInput(
         monitoringFrequencyMinutes:
           configured.configuration!.monitoringFrequencyMinutes,
         monitoringChecksPerMonth:
-          configured.configuration!.monitoringChecksPerMonth ?? null,
+          configured.configuration!.monitoringChecksPerMonth ?? null
       }
     : null;
 }
@@ -248,9 +248,7 @@ function quoteFeatureMetadata(feature: {
 }) {
   return {
     ...(feature.metadata ?? {}),
-    ...(feature.configuration
-      ? { configuration: feature.configuration }
-      : {}),
+    ...(feature.configuration ? { configuration: feature.configuration } : {})
   };
 }
 
@@ -264,7 +262,7 @@ function buildPricingInputs(
       };
     }>;
   },
-  previous: Record<string, any> = {},
+  previous: Record<string, any> = {}
 ) {
   const competitorMonitoring = input.features
     ? monitoringPricingInput(input.features)
@@ -278,14 +276,14 @@ function buildPricingInputs(
       input.activePayingTenants ?? previous.activePayingTenants ?? 1,
     estimatedOtherCost:
       input.estimatedOtherCost ?? previous.estimatedOtherCost ?? 0,
-    competitorMonitoring,
+    competitorMonitoring
   };
 }
 
 function quoteDbData(
   input: CreateCustomPlanQuoteInput,
   createdBy?: string,
-  features = input.features,
+  features = input.features
 ) {
   return {
     name: input.name,
@@ -305,20 +303,23 @@ function quoteDbData(
     fxSource: input.fxSource ?? null,
     fxRateAt: input.fxRateAt ? new Date(input.fxRateAt) : null,
     expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
-    pricingInputs: buildPricingInputs({ ...input, features }) as Prisma.InputJsonValue,
+    pricingInputs: buildPricingInputs({
+      ...input,
+      features
+    }) as Prisma.InputJsonValue,
     createdBy: createdBy ?? null,
     status: "draft" as const,
     finalPrice: null,
     overrideReason: null,
     approvedBy: null,
-    pricingSnapshot: Prisma.JsonNull,
+    pricingSnapshot: Prisma.JsonNull
   };
 }
 
 export async function createCustomPlanQuote(
   tenantId: string,
   userId: string,
-  input: CreateCustomPlanQuoteInput,
+  input: CreateCustomPlanQuoteInput
 ): Promise<ServiceResult<any>> {
   const featureValidation = await validateQuoteFeatures(input.features);
   if (!featureValidation.success) return featureValidation;
@@ -329,15 +330,15 @@ export async function createCustomPlanQuote(
     data: quoteDbData(input, userId, featureValidation.features),
     features: featureValidation.features.map((feature) => ({
       ...feature,
-      metadata: quoteFeatureMetadata(feature),
-    })),
+      metadata: quoteFeatureMetadata(feature)
+    }))
   });
 
   return { success: true, data: normalizeQuote(quote) };
 }
 
 export async function listCustomPlanQuotes(
-  tenantId: string,
+  tenantId: string
 ): Promise<ServiceResult<any[]>> {
   const quotes = await customPlanRepository.listQuotesForTenant(tenantId);
   return { success: true, data: quotes.map(normalizeQuote) };
@@ -351,7 +352,7 @@ export async function listPlatformCustomPlanQuotes(): Promise<
 }
 
 export async function getPlatformCustomPlanQuote(
-  id: string,
+  id: string
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteById(id);
   if (!quote)
@@ -362,13 +363,13 @@ export async function getPlatformCustomPlanQuote(
 export async function listPlatformTenants(): Promise<ServiceResult<any[]>> {
   return {
     success: true,
-    data: await customPlanRepository.listPlatformTenants(),
+    data: await customPlanRepository.listPlatformTenants()
   };
 }
 
 export async function getCustomPlanQuote(
   tenantId: string,
-  id: string,
+  id: string
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!quote)
@@ -378,7 +379,7 @@ export async function getCustomPlanQuote(
 
 export async function getCustomPlanOffer(
   tenantId: string,
-  id: string,
+  id: string
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!quote)
@@ -394,7 +395,7 @@ export async function getCustomPlanOffer(
     return {
       success: false,
       code: ERROR_CODES.INVALID_QUOTE_STATUS,
-      message: "This custom plan offer has expired.",
+      message: "This custom plan offer has expired."
     };
   }
 
@@ -422,18 +423,18 @@ export async function getCustomPlanOffer(
           item.metadata &&
           typeof item.metadata === "object" &&
           !Array.isArray(item.metadata)
-            ? (item.metadata as Record<string, any>).configuration ?? null
+            ? ((item.metadata as Record<string, any>).configuration ?? null)
             : null,
-        feature: item.feature,
-      })),
-    },
+        feature: item.feature
+      }))
+    }
   };
 }
 
 export async function updateCustomPlanQuote(
   tenantId: string,
   id: string,
-  input: UpdateCustomPlanQuoteInput,
+  input: UpdateCustomPlanQuoteInput
 ): Promise<ServiceResult<any>> {
   const existing = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!existing)
@@ -452,7 +453,7 @@ export async function updateCustomPlanQuote(
     (existing.pricingInputs as Record<string, any> | null) ?? {};
   const pricingInputPatch = buildPricingInputs(
     { ...input, features: normalizedFeatures },
-    previousPricingInputs,
+    previousPricingInputs
   );
   const data: Record<string, any> = {
     status: "draft",
@@ -460,7 +461,7 @@ export async function updateCustomPlanQuote(
     finalPrice: null,
     overrideReason: null,
     approvedBy: null,
-    pricingInputs: pricingInputPatch as Prisma.InputJsonValue,
+    pricingInputs: pricingInputPatch as Prisma.InputJsonValue
   };
 
   const direct: Record<string, any> = {
@@ -503,7 +504,7 @@ export async function updateCustomPlanQuote(
         ? null
         : input.expiresAt
           ? new Date(input.expiresAt)
-          : undefined,
+          : undefined
   };
   for (const [key, value] of Object.entries(direct))
     if (value !== undefined) data[key] = value;
@@ -514,8 +515,8 @@ export async function updateCustomPlanQuote(
     data,
     features: normalizedFeatures?.map((feature) => ({
       ...feature,
-      metadata: quoteFeatureMetadata(feature),
-    })),
+      metadata: quoteFeatureMetadata(feature)
+    }))
   });
   return updated
     ? { success: true, data: normalizeQuote(updated) }
@@ -524,7 +525,7 @@ export async function updateCustomPlanQuote(
 
 export async function calculateCustomPlanQuote(
   tenantId: string,
-  id: string,
+  id: string
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!quote)
@@ -535,12 +536,13 @@ export async function calculateCustomPlanQuote(
   const pricingInputs =
     (quote.pricingInputs as Record<string, any> | null) ?? {};
   const featureIds = quote.quoteFeatures.map((item) => item.featureId);
-  const [vendorRates, infrastructureRates, vendorBackedFeatureIds, policy] = await Promise.all([
-    customPlanRepository.getActiveVendorRates(featureIds),
-    customPlanRepository.getActiveInfrastructureRates(featureIds),
-    customPlanRepository.getVendorBackedFeatureIds(featureIds),
-    getCustomPlanPricingPolicy(),
-  ]);
+  const [vendorRates, infrastructureRates, vendorBackedFeatureIds, policy] =
+    await Promise.all([
+      customPlanRepository.getActiveVendorRates(featureIds),
+      customPlanRepository.getActiveInfrastructureRates(featureIds),
+      customPlanRepository.getVendorBackedFeatureIds(featureIds),
+      getCustomPlanPricingPolicy()
+    ]);
   const vendorBacked = new Set(vendorBackedFeatureIds);
 
   try {
@@ -562,7 +564,7 @@ export async function calculateCustomPlanQuote(
             ? vendorBacked.has(item.featureId)
               ? 1
               : 0
-            : item.estimatedUsage,
+            : item.estimatedUsage
       })),
 
       vendorRates,
@@ -578,7 +580,7 @@ export async function calculateCustomPlanQuote(
       roundingIncrement: policy.roundingIncrement,
       fxRate: quote.fxRate,
       fxSourceCurrency: quote.fxSourceCurrency,
-      fxTargetCurrency: quote.fxTargetCurrency,
+      fxTargetCurrency: quote.fxTargetCurrency
     });
 
     const pricingSnapshot = {
@@ -589,7 +591,8 @@ export async function calculateCustomPlanQuote(
       vendorBreakdown: result.vendorBreakdown,
       infrastructureBreakdown: result.infrastructureBreakdown,
       baseInfrastructureCost: result.baseInfrastructureCost.toString(),
-      usageDrivenInfrastructureCost: result.usageDrivenInfrastructureCost.toString(),
+      usageDrivenInfrastructureCost:
+        result.usageDrivenInfrastructureCost.toString(),
       warnings: result.warnings,
       fx: quote.fxRate
         ? {
@@ -597,7 +600,7 @@ export async function calculateCustomPlanQuote(
             sourceCurrency: quote.fxSourceCurrency,
             targetCurrency: quote.fxTargetCurrency,
             source: quote.fxSource,
-            rateAt: quote.fxRateAt?.toISOString() ?? null,
+            rateAt: quote.fxRateAt?.toISOString() ?? null
           }
         : null,
       inputs: pricingInputs,
@@ -610,15 +613,15 @@ export async function calculateCustomPlanQuote(
             typeof item.metadata === "object" &&
             !Array.isArray(item.metadata)
               ? ((item.metadata as Record<string, any>).configuration ?? null)
-              : null,
+              : null
         }))
         .filter((item) => item.configuration),
       pricingPolicy: {
         enforceVendorCostRatioFloor: policy.enforceVendorCostRatioFloor,
         fixedPlatformFee: result.fixedPlatformFee.toString(),
-        roundingIncrement: policy.roundingIncrement,
+        roundingIncrement: policy.roundingIncrement
       },
-      recommendedPrice: result.recommendedPrice.toString(),
+      recommendedPrice: result.recommendedPrice.toString()
     };
 
     const updated = await customPlanRepository.updateQuote(quote.id, {
@@ -630,7 +633,7 @@ export async function calculateCustomPlanQuote(
       grossMarginFloor: result.grossMarginFloor,
       vendorCostRatioFloor: result.vendorCostRatioFloor,
       minimumSafePrice: result.minimumSafePrice,
-      pricingSnapshot: pricingSnapshot as Prisma.InputJsonValue,
+      pricingSnapshot: pricingSnapshot as Prisma.InputJsonValue
     });
 
     return { success: true, data: normalizeQuote(updated) };
@@ -643,7 +646,7 @@ export async function calculateCustomPlanQuote(
       return {
         success: false,
         code: ERROR_CODES.VENDOR_RATE_REQUIRED,
-        message,
+        message
       };
     }
     return { success: false, code: ERROR_CODES.VALIDATION_ERROR, message };
@@ -655,7 +658,7 @@ export async function approveCustomPlanQuote(
   id: string,
   userId: string,
   input: ApproveCustomPlanQuoteInput,
-  canOverrideSafePrice: boolean,
+  canOverrideSafePrice: boolean
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!quote)
@@ -672,7 +675,7 @@ export async function approveCustomPlanQuote(
   const profitability = calculateExpectedProfitability(
     finalPrice,
     quote.estimatedTotalCost,
-    quote.estimatedVendorCost,
+    quote.estimatedVendorCost
   );
 
   const snapshot = {
@@ -684,8 +687,8 @@ export async function approveCustomPlanQuote(
       expectedGrossMargin: profitability.expectedGrossMargin.toString(),
       expectedVendorCostRatio: profitability.expectedVendorCostRatio.toString(),
       overrideUsed: belowFloor,
-      overrideReason: belowFloor ? input.overrideReason : null,
-    },
+      overrideReason: belowFloor ? input.overrideReason : null
+    }
   };
 
   const updated = await customPlanRepository.updateQuote(quote.id, {
@@ -693,7 +696,7 @@ export async function approveCustomPlanQuote(
     finalPrice,
     approvedBy: userId,
     overrideReason: belowFloor ? input.overrideReason : null,
-    pricingSnapshot: snapshot as Prisma.InputJsonValue,
+    pricingSnapshot: snapshot as Prisma.InputJsonValue
   });
   return { success: true, data: normalizeQuote(updated) };
 }
@@ -701,7 +704,7 @@ export async function approveCustomPlanQuote(
 export async function sendCustomPlanQuote(
   tenantId: string,
   id: string,
-  actor: NotificationActor,
+  actor: NotificationActor
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!quote)
@@ -724,11 +727,11 @@ export async function sendCustomPlanQuote(
       where: {
         id,
         tenantId,
-        status: SENDABLE_STATUS,
+        status: SENDABLE_STATUS
       },
       data: {
-        status: "sent",
-      },
+        status: "sent"
+      }
     });
 
     if (claimed.count !== 1) {
@@ -739,14 +742,13 @@ export async function sendCustomPlanQuote(
       tenantId,
       quoteId: quote.id,
       quoteName: quote.name,
-      expiresAt: quote.expiresAt,
+      expiresAt: quote.expiresAt
     });
 
     return true;
   });
 
-  if (!sent)
-    return { success: false, code: ERROR_CODES.INVALID_QUOTE_STATUS };
+  if (!sent) return { success: false, code: ERROR_CODES.INVALID_QUOTE_STATUS };
 
   const updated = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!updated)
@@ -757,7 +759,7 @@ export async function sendCustomPlanQuote(
 
 export async function rejectCustomPlanQuote(
   tenantId: string,
-  id: string,
+  id: string
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!quote)
@@ -765,14 +767,14 @@ export async function rejectCustomPlanQuote(
   if (["accepted", "rejected", "expired"].includes(quote.status))
     return { success: false, code: ERROR_CODES.INVALID_QUOTE_STATUS };
   const updated = await customPlanRepository.updateQuote(id, {
-    status: "rejected",
+    status: "rejected"
   });
   return { success: true, data: normalizeQuote(updated) };
 }
 
 export async function acceptCustomPlanQuote(
   tenantId: string,
-  id: string,
+  id: string
 ): Promise<ServiceResult<any>> {
   const quote = await customPlanRepository.findQuoteForTenant(id, tenantId);
   if (!quote)
@@ -781,7 +783,7 @@ export async function acceptCustomPlanQuote(
     return {
       success: true,
       data: normalizeQuote(quote.createdPlan),
-      message: "Quote was already accepted.",
+      message: "Quote was already accepted."
     };
   }
   if (!ACCEPTABLE_STATUSES.has(quote.status))
@@ -791,7 +793,7 @@ export async function acceptCustomPlanQuote(
     return {
       success: false,
       code: ERROR_CODES.INVALID_QUOTE_STATUS,
-      message: "This quote has expired.",
+      message: "This quote has expired."
     };
   }
   if (quote.finalPrice == null)
@@ -820,7 +822,7 @@ export async function acceptCustomPlanQuote(
       const quoteAmount = priceWithDiscount(
         finalBasePrice,
         option.months,
-        option.discountPercent,
+        option.discountPercent
       );
 
       /*
@@ -852,7 +854,7 @@ export async function acceptCustomPlanQuote(
 
         fxSourceCurrency: quote.fxSourceCurrency,
 
-        fxTargetCurrency: quote.fxTargetCurrency,
+        fxTargetCurrency: quote.fxTargetCurrency
       });
 
       const providerPrice = await stripeService.createPlan(
@@ -887,13 +889,13 @@ export async function acceptCustomPlanQuote(
           /*
            * Change the key because the old attempt used JOD.
            */
-          idempotencyKey: `custom-quote:${quote.id}:${option.period}:${CUSTOM_PLAN_PAYMENT_CURRENCY.toLowerCase()}`,
-        },
+          idempotencyKey: `custom-quote:${quote.id}:${option.period}:${CUSTOM_PLAN_PAYMENT_CURRENCY.toLowerCase()}`
+        }
       );
 
       providerOptions.push({
         ...option,
-        stripePriceId: providerPrice.id,
+        stripePriceId: providerPrice.id
       });
     }
 
@@ -905,38 +907,38 @@ export async function acceptCustomPlanQuote(
 
       paymentProviderPlanId: providerOptions[0].stripePriceId!,
 
-      billingOptions: providerOptions as unknown as Prisma.InputJsonValue,
+      billingOptions: providerOptions as unknown as Prisma.InputJsonValue
     });
 
     if (!plan) {
       const current = await customPlanRepository.findQuoteForTenant(
         id,
-        tenantId,
+        tenantId
       );
 
       if (current?.createdPlan) {
         return {
           success: true,
-          data: normalizeQuote(current.createdPlan),
+          data: normalizeQuote(current.createdPlan)
         };
       }
 
       return {
         success: false,
-        code: ERROR_CODES.INVALID_QUOTE_STATUS,
+        code: ERROR_CODES.INVALID_QUOTE_STATUS
       };
     }
 
     return {
       success: true,
-      data: normalizeQuote(plan),
+      data: normalizeQuote(plan)
     };
   } catch (error) {
     console.error("Custom plan quote conversion failed:", error);
 
     return {
       success: false,
-      code: ERROR_CODES.PAYMENT_PROVIDER_ERROR,
+      code: ERROR_CODES.PAYMENT_PROVIDER_ERROR
     };
   }
 }
@@ -970,12 +972,12 @@ function normalizeCustomPlan(plan: any) {
       const totalPrice = priceWithDiscount(
         Number(plan.price),
         option.months,
-        option.discountPercent,
+        option.discountPercent
       );
       return {
         ...option,
         totalPrice,
-        monthlyEquivalent: Number((totalPrice / option.months).toFixed(2)),
+        monthlyEquivalent: Number((totalPrice / option.months).toFixed(2))
       };
     }),
     // isActive is the plan definition lifecycle only. It does not mean the
@@ -1016,16 +1018,16 @@ function normalizeCustomPlan(plan: any) {
             link.metadata &&
             typeof link.metadata === "object" &&
             !Array.isArray(link.metadata)
-              ? link.metadata.configuration ?? null
-              : null,
-        },
-      ]),
-    ),
+              ? (link.metadata.configuration ?? null)
+              : null
+        }
+      ])
+    )
   };
 }
 
 export async function listTenantCustomPlans(
-  tenantId: string,
+  tenantId: string
 ): Promise<ServiceResult<any[]>> {
   const plans = await customPlanRepository.listCustomPlansForTenant(tenantId);
   return { success: true, data: plans.map(normalizeCustomPlan) };
@@ -1038,11 +1040,11 @@ export async function listPlatformCustomPlans(): Promise<ServiceResult<any[]>> {
 
 export async function setPlatformCustomPlanActiveState(
   id: string,
-  isActive: boolean,
+  isActive: boolean
 ): Promise<ServiceResult<any>> {
   const plan = await customPlanRepository.setCustomPlanActiveState(
     id,
-    isActive,
+    isActive
   );
   if (!plan) return { success: false, code: ERROR_CODES.PLAN_NOT_FOUND };
   return { success: true, data: normalizeCustomPlan(plan) };
@@ -1056,8 +1058,8 @@ export async function listVendorRates(): Promise<ServiceResult<any[]>> {
       ...rate,
       unitCost: Number(rate.unitCost),
       operationalMultiplier: Number(rate.operationalMultiplier),
-      variabilityReserve: Number(rate.variabilityReserve),
-    })),
+      variabilityReserve: Number(rate.variabilityReserve)
+    }))
   };
 }
 
@@ -1075,7 +1077,7 @@ function hasCompetitorMonitoringUsageAssumption(metadata: unknown) {
 
 async function validateVendorRateUsageAssumption(
   featureId: string | null | undefined,
-  metadata: unknown,
+  metadata: unknown
 ): Promise<ServiceResult<null>> {
   if (!featureId) return { success: true, data: null };
   const feature = (await customPlanRepository.getFeaturesByIds([featureId]))[0];
@@ -1090,18 +1092,18 @@ async function validateVendorRateUsageAssumption(
       success: false,
       code: ERROR_CODES.INVALID_PARAMETER,
       message:
-        "competitor_management vendor rates require unitsPerCompetitorCheck while preserving their own billing unit.",
+        "competitor_management vendor rates require unitsPerCompetitorCheck while preserving their own billing unit."
     };
   }
   return { success: true, data: null };
 }
 
 export async function createVendorRate(
-  input: VendorRateInput,
+  input: VendorRateInput
 ): Promise<ServiceResult<any>> {
   const assumptionValidation = await validateVendorRateUsageAssumption(
     input.featureId,
-    input.metadata,
+    input.metadata
   );
   if (!assumptionValidation.success) return assumptionValidation;
   const rate = await customPlanRepository.createVendorRate({
@@ -1114,7 +1116,7 @@ export async function createVendorRate(
       ? new Date(input.effectiveFrom)
       : new Date(),
     effectiveTo: input.effectiveTo ? new Date(input.effectiveTo) : null,
-    metadata: input.metadata as Prisma.InputJsonValue | undefined,
+    metadata: input.metadata as Prisma.InputJsonValue | undefined
   });
   return {
     success: true,
@@ -1122,21 +1124,21 @@ export async function createVendorRate(
       ...rate,
       unitCost: Number(rate.unitCost),
       operationalMultiplier: Number(rate.operationalMultiplier),
-      variabilityReserve: Number(rate.variabilityReserve),
-    },
+      variabilityReserve: Number(rate.variabilityReserve)
+    }
   };
 }
 
 export async function updateVendorRate(
   id: string,
-  input: Partial<VendorRateInput>,
+  input: Partial<VendorRateInput>
 ): Promise<ServiceResult<any>> {
   const existing = await customPlanRepository.findVendorRateById(id);
   if (!existing)
     return { success: false, code: ERROR_CODES.VENDOR_RATE_NOT_FOUND };
   const assumptionValidation = await validateVendorRateUsageAssumption(
     input.featureId === undefined ? existing.featureId : input.featureId,
-    input.metadata ?? existing.metadata,
+    input.metadata ?? existing.metadata
   );
   if (!assumptionValidation.success) return assumptionValidation;
   try {
@@ -1157,8 +1159,8 @@ export async function updateVendorRate(
         ...rate,
         unitCost: Number(rate.unitCost),
         operationalMultiplier: Number(rate.operationalMultiplier),
-        variabilityReserve: Number(rate.variabilityReserve),
-      },
+        variabilityReserve: Number(rate.variabilityReserve)
+      }
     };
   } catch (error: any) {
     if (error?.code === "P2025")
@@ -1173,11 +1175,13 @@ function normalizeInfrastructureRate(rate: any) {
     unitCost: Number(rate.unitCost),
     billingUnitsPerFeatureUnit: Number(rate.billingUnitsPerFeatureUnit),
     operationalMultiplier: Number(rate.operationalMultiplier),
-    variabilityReserve: Number(rate.variabilityReserve),
+    variabilityReserve: Number(rate.variabilityReserve)
   };
 }
 
-async function validateInfrastructureRateFeature(featureId: string | null | undefined) {
+async function validateInfrastructureRateFeature(
+  featureId: string | null | undefined
+) {
   if (!featureId) return { success: true as const, data: null };
   const feature = (await customPlanRepository.getFeaturesByIds([featureId]))[0];
   return feature
@@ -1190,8 +1194,12 @@ export async function listInfrastructureRates(): Promise<ServiceResult<any[]>> {
   return { success: true, data: rates.map(normalizeInfrastructureRate) };
 }
 
-export async function createInfrastructureRate(input: InfrastructureRateInput): Promise<ServiceResult<any>> {
-  const featureValidation = await validateInfrastructureRateFeature(input.featureId);
+export async function createInfrastructureRate(
+  input: InfrastructureRateInput
+): Promise<ServiceResult<any>> {
+  const featureValidation = await validateInfrastructureRateFeature(
+    input.featureId
+  );
   if (!featureValidation.success) return featureValidation;
   const rate = await customPlanRepository.createInfrastructureRate({
     ...input,
@@ -1200,34 +1208,63 @@ export async function createInfrastructureRate(input: InfrastructureRateInput): 
     billingUnitsPerFeatureUnit: decimal(input.billingUnitsPerFeatureUnit),
     operationalMultiplier: decimal(input.operationalMultiplier),
     variabilityReserve: decimal(input.variabilityReserve),
-    effectiveFrom: input.effectiveFrom ? new Date(input.effectiveFrom) : new Date(),
+    effectiveFrom: input.effectiveFrom
+      ? new Date(input.effectiveFrom)
+      : new Date(),
     effectiveTo: input.effectiveTo ? new Date(input.effectiveTo) : null,
-    metadata: input.metadata as Prisma.InputJsonValue | undefined,
+    metadata: input.metadata as Prisma.InputJsonValue | undefined
   });
   return { success: true, data: normalizeInfrastructureRate(rate) };
 }
 
-export async function updateInfrastructureRate(id: string, input: Partial<InfrastructureRateInput>): Promise<ServiceResult<any>> {
+export async function updateInfrastructureRate(
+  id: string,
+  input: Partial<InfrastructureRateInput>
+): Promise<ServiceResult<any>> {
   const existing = await customPlanRepository.findInfrastructureRateById(id);
-  if (!existing) return { success: false, code: ERROR_CODES.INFRASTRUCTURE_RATE_NOT_FOUND };
-  const featureValidation = await validateInfrastructureRateFeature(input.featureId === undefined ? existing.featureId : input.featureId);
+  if (!existing)
+    return { success: false, code: ERROR_CODES.INFRASTRUCTURE_RATE_NOT_FOUND };
+  const featureValidation = await validateInfrastructureRateFeature(
+    input.featureId === undefined ? existing.featureId : input.featureId
+  );
   if (!featureValidation.success) return featureValidation;
-  const effectiveFrom = input.effectiveFrom ? new Date(input.effectiveFrom) : existing.effectiveFrom;
-  const effectiveTo = input.effectiveTo === undefined ? existing.effectiveTo : input.effectiveTo ? new Date(input.effectiveTo) : null;
+  const effectiveFrom = input.effectiveFrom
+    ? new Date(input.effectiveFrom)
+    : existing.effectiveFrom;
+  const effectiveTo =
+    input.effectiveTo === undefined
+      ? existing.effectiveTo
+      : input.effectiveTo
+        ? new Date(input.effectiveTo)
+        : null;
   if (effectiveTo && effectiveTo <= effectiveFrom) {
-    return { success: false, code: ERROR_CODES.VALIDATION_ERROR, message: "effectiveTo must be later than effectiveFrom" };
+    return {
+      success: false,
+      code: ERROR_CODES.VALIDATION_ERROR,
+      message: "effectiveTo must be later than effectiveFrom"
+    };
   }
   try {
     const data: Record<string, any> = { ...input, effectiveFrom, effectiveTo };
     if (input.unitCost != null) data.unitCost = decimal(input.unitCost);
-    if (input.billingUnitsPerFeatureUnit != null) data.billingUnitsPerFeatureUnit = decimal(input.billingUnitsPerFeatureUnit);
-    if (input.operationalMultiplier != null) data.operationalMultiplier = decimal(input.operationalMultiplier);
-    if (input.variabilityReserve != null) data.variabilityReserve = decimal(input.variabilityReserve);
-    if (input.metadata !== undefined) data.metadata = input.metadata as Prisma.InputJsonValue;
+    if (input.billingUnitsPerFeatureUnit != null)
+      data.billingUnitsPerFeatureUnit = decimal(
+        input.billingUnitsPerFeatureUnit
+      );
+    if (input.operationalMultiplier != null)
+      data.operationalMultiplier = decimal(input.operationalMultiplier);
+    if (input.variabilityReserve != null)
+      data.variabilityReserve = decimal(input.variabilityReserve);
+    if (input.metadata !== undefined)
+      data.metadata = input.metadata as Prisma.InputJsonValue;
     const rate = await customPlanRepository.updateInfrastructureRate(id, data);
     return { success: true, data: normalizeInfrastructureRate(rate) };
   } catch (error: any) {
-    if (error?.code === "P2025") return { success: false, code: ERROR_CODES.INFRASTRUCTURE_RATE_NOT_FOUND };
+    if (error?.code === "P2025")
+      return {
+        success: false,
+        code: ERROR_CODES.INFRASTRUCTURE_RATE_NOT_FOUND
+      };
     throw error;
   }
 }

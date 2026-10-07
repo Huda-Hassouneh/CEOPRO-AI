@@ -25,13 +25,13 @@ import {
   authenticateUser,
   requirePermission,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import {
   requirePlatformPermission,
   requirePlatformRole
-} from "../../../validators/validatePlatformUser.js";
-import { validateBody } from "../../../validators/validateBody.js";
-import { validateParams } from "../../../validators/validateParams.js";
+} from "../../../middleware/validators/validatePlatformUser.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
+import { validateParams } from "../../../middleware/validators/validateParams.js";
 import {
   approveCustomPlanQuoteSchema,
   createCustomPlanQuoteSchema,
@@ -99,7 +99,12 @@ router.post(
 );
 
 // Internal quote management. All pricing values are calculated server-side.
-router.get("/quotes", requirePlatformRole, requirePlatformPermission("billing.read"), listQuotesHandler);
+router.get(
+  "/quotes",
+  requirePlatformRole,
+  requirePlatformPermission("billing.read"),
+  listQuotesHandler
+);
 router.post(
   "/quotes",
   requirePlatformRole,
@@ -154,7 +159,12 @@ router.post(
 
 // Vendor rates are global internal cost inputs, so only the strongest existing
 // tenant permission (all) may mutate/read them.
-router.get("/vendor-rates", requirePlatformRole, requirePlatformPermission("billing.read"), listVendorRatesHandler);
+router.get(
+  "/vendor-rates",
+  requirePlatformRole,
+  requirePlatformPermission("billing.read"),
+  listVendorRatesHandler
+);
 router.post(
   "/vendor-rates",
   requirePlatformRole,
