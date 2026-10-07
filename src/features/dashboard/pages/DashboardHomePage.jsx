@@ -159,6 +159,7 @@ export function DashboardHomePage() {
       <DashboardStateBoundary
         status={dashboardQuery.isPending ? "loading" : dashboardQuery.isError ? "error" : "empty"}
         title={t("dashboard.page.title")}
+        error={dashboardQuery.error}
         onRetry={dashboardQuery.refetch}
       />
     );

@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Plus, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { routePaths } from "../../../app/router/routePaths.js";
 import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
 import Button from "../../../shared/components/ui/Button.jsx";
@@ -249,7 +250,7 @@ export function MarketIntelligenceOverviewPage() {
     return (
       <EmptyState
         title={t("marketMain.error.title")}
-        description={t("marketMain.error.description")}
+        description={getApiErrorMessage(query.error, t)}
         action={
           <Button size="sm" variant="outline" onClick={() => query.refetch()}>
             {t("marketMain.actions.retry")}

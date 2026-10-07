@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { routePaths } from "../../../app/router/routePaths.js";
 import BusinessPageContainer from "../../../shared/components/layout/BusinessPageContainer.jsx";
 import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
@@ -98,11 +99,7 @@ export function ProductForecastsListPage() {
     return (
       <EmptyState
         title={t("demandApproved.error.title")}
-        description={t(
-          query.error?.response?.status === 403
-            ? "demandApproved.error.access"
-            : "demandApproved.error.description"
-        )}
+        description={query.error?.response?.status === 403 ? t("demandApproved.error.access") : getApiErrorMessage(query.error, t)}
         action={
           <Button size="sm" variant="outline" onClick={() => query.refetch()}>
             {t("demandApproved.actions.retry")}

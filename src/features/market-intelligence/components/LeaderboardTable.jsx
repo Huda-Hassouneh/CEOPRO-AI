@@ -1,15 +1,16 @@
 import { useCompetitorLeaderboard } from "../hooks/useCompetitorLeaderboard.js";
 import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
 import { ExternalLink } from "lucide-react";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 
 export function LeaderboardTable({ t }) {
-  const { data: leaderboard, isLoading, isError } = useCompetitorLeaderboard();
+  const { data: leaderboard, isLoading, isError, error } = useCompetitorLeaderboard();
 
   if (isLoading) return <Skeleton height="300px" variant="rectangular" />;
   if (isError)
     return (
       <div style={{ padding: "2rem", color: "red" }}>
-        Failed to load leaderboard.
+        {getApiErrorMessage(error, t)}
       </div>
     );
   if (!leaderboard || leaderboard.length === 0)

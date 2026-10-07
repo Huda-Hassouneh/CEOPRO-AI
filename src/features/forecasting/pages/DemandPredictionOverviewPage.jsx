@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { routePaths } from "../../../app/router/routePaths.js";
 import { useAuthStore } from "../../auth/store/authStore.js";
 import BusinessPageContainer from "../../../shared/components/layout/BusinessPageContainer.jsx";
@@ -76,11 +77,7 @@ export function DemandPredictionOverviewPage() {
     return (
       <EmptyState
         title={t("demandApproved.error.title")}
-        description={t(
-          accessDenied
-            ? "demandApproved.error.access"
-            : "demandApproved.error.description"
-        )}
+        description={accessDenied ? t("demandApproved.error.access") : getApiErrorMessage(query.error, t)}
         action={
           <Button size="sm" variant="outline" onClick={() => query.refetch()}>
             {t("demandApproved.actions.retry")}

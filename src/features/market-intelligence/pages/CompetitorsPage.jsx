@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Filter, Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { DashboardLayout } from "../../../app/layouts/DashboardLayout.jsx";
 import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
 import Button from "../../../shared/components/ui/Button.jsx";
@@ -17,7 +18,7 @@ import "../styles/MarketIntelligence.css";
 export function CompetitorsPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { data: rows = [], isLoading, isError, refetch } = useCompetitors();
+  const { data: rows = [], isLoading, isError, error, refetch } = useCompetitors();
 
   const [query, setQuery] = useState("");
   const [industry, setIndustry] = useState("all");
@@ -106,8 +107,9 @@ export function CompetitorsPage() {
             </div>
           ) : isError ? (
             <EmptyState
-              title="Error Loading Competitors"
-              action={<Button onClick={() => refetch()}>Retry</Button>}
+              title={t("market.competitorsPage.errorTitle", "Could not load competitors")}
+              description={getApiErrorMessage(error, t)}
+              action={<Button onClick={() => refetch()}>{t("common.retry")}</Button>}
             />
           ) : (
             <>

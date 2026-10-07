@@ -14,6 +14,7 @@ import { KnowledgeBasePanel } from "../components/KnowledgeBasePanel.jsx";
 import { useKnowledgeDocuments } from "../hooks/useKnowledgeDocuments.js";
 import { useDocumentUpload } from "../hooks/useDocumentUpload.js";
 import { useRagChat } from "../hooks/useRagChat.js";
+import { getRagErrorFeedback } from "../utils/ragErrorFeedback.js";
 import { FeatureGate } from "../../billing/components/FeatureGate.jsx";
 import "../../data-ingestion/styles/DataIngestion.css";
 import "../styles/RagAssistant.css";
@@ -98,12 +99,9 @@ export function RagAssistantPage() {
         return;
       }
       setMessages((current) => [...current, result.message]);
-    } catch {
+    } catch (error) {
       setRequestError(true);
-      setNotice({
-        variant: "error",
-        message: t("ragAssistant.feedback.requestFailed")
-      });
+      setNotice(getRagErrorFeedback(error, { action: "chat", t, locale }));
     }
   };
 
@@ -143,11 +141,8 @@ export function RagAssistantPage() {
       });
 
       documentsQuery.refetch();
-    } catch {
-      setNotice({
-        variant: "error",
-        message: t("ragAssistant.feedback.uploadFailed")
-      });
+    } catch (error) {
+      setNotice(getRagErrorFeedback(error, { action: "upload", t, locale }));
     }
   };
   const handleSearchChange = (value) => {

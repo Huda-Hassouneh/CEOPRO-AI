@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { useMemo, useRef, useState } from "react";
 import {
   BarChart3,
@@ -104,10 +105,7 @@ export function ConnectDataPage() {
       console.error("Action failed:", error);
       setNotice({
         variant: "error",
-        message: t(
-          "connectData.feedback.actionFailed",
-          "Action failed. Please try again."
-        )
+        message: getApiErrorMessage(error, t)
       });
     } finally {
       setBusySource(null);
@@ -145,10 +143,7 @@ export function ConnectDataPage() {
       console.error("Connection failed:", error);
       setNotice({
         variant: "error",
-        message: t(
-          "connectData.feedback.connectionFailed",
-          "Failed to connect data source."
-        )
+        message: getApiErrorMessage(error, t)
       });
     } finally {
       setBusySource(null);
@@ -172,10 +167,7 @@ export function ConnectDataPage() {
       console.error("Download failed:", error);
       setNotice({
         variant: "error",
-        message: t(
-          "connectData.feedback.downloadFailed",
-          "Failed to download template."
-        )
+        message: getApiErrorMessage(error, t)
       });
     }
   };
@@ -197,7 +189,7 @@ export function ConnectDataPage() {
       console.error("Upload failed:", error);
 
       // Extract the exact error message from your backend validator (e.g., "Missing required columns")
-      const backendMessage = error.response?.data?.error?.message;
+      const backendMessage = getApiErrorMessage(error, t);
 
       setNotice({
         variant: "error",
@@ -228,7 +220,7 @@ export function ConnectDataPage() {
     return (
       <EmptyState
         title={t("connectData.error.title")}
-        description={t("connectData.error.description")}
+        description={getApiErrorMessage(query.error, t)}
         action={
           <Button size="sm" variant="outline" onClick={() => query.refetch()}>
             {t("connectData.actions.retry")}

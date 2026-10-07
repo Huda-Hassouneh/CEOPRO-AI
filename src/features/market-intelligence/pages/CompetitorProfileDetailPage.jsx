@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { DashboardLayout } from "../../../app/layouts/DashboardLayout.jsx";
 import Card from "../../../shared/components/ui/Card.jsx";
 import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
@@ -16,7 +17,8 @@ export function CompetitorProfileDetailPage() {
   const {
     data: detail,
     isLoading,
-    isError
+    isError,
+    error
   } = useCompetitorProfile(competitorId);
 
   const formatDate = (dateString) => {
@@ -49,8 +51,8 @@ export function CompetitorProfileDetailPage() {
     return (
       <DashboardLayout>
         <EmptyState
-          title="Competitor Not Found"
-          description="This competitor could not be loaded or is not tracked."
+          title={t("market.detail.loadErrorTitle", "Could not load competitor")}
+          description={getApiErrorMessage(error, t)}
           action={
             <button onClick={() => navigate("/market/competitors")}>
               Go Back
