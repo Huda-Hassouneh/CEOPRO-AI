@@ -9,7 +9,9 @@ export function useLanding() {
   const { t, locale, ...rest } = useI18n();
   const language = locale === 'ar' ? 'ar-JO' : 'en-US';
   return {
-    ...rest, locale, t: (key, values) => t(`landing.${key}`, values),
+    ...rest,
+    locale,
+    t: (key, values) => t(`landing.${key}`, values),
     n: (value) => new Intl.NumberFormat(language, { maximumFractionDigits: 2 }).format(value),
     percent: (value) => new Intl.NumberFormat(language, { style: 'percent', maximumFractionDigits: 1 }).format(value / 100),
     money: (value) => new Intl.NumberFormat(language, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value),
@@ -30,7 +32,9 @@ export function TrialButton({ children, className = '' }) {
   const navigate = useNavigate();
   const setPlanChoice = useOnboardingStore((state) => state.setPlanChoice);
   const startTrial = () => {
-    setPlanChoice('pro', 'trial');
+    // Do not persist a hardcoded plan ID from the marketing page. The live
+    // catalog is loaded later and owns which plans/trials are actually valid.
+    setPlanChoice('', 'paid');
     navigate(routePaths.welcome);
   };
   return <Button size="lg" className={className} onClick={startTrial} trailingIcon={<ArrowRight className="lp-arrow" size={18} aria-hidden="true" />}>{children || t('common.trial')}</Button>;

@@ -125,7 +125,7 @@ function PlanFormModal({
       description: plan?.description ?? "",
       description_ar: plan?.description_ar ?? "",
       price: plan?.basePrice ?? 0,
-      currency: plan?.currency ?? "JOD",
+      currency: plan?.currency ?? "USD",
       billingIntervalValue: plan?.billingIntervalValue ?? 1,
       billingIntervalUnit: plan?.billingIntervalUnit ?? "month",
       trialPeriodValue: plan?.trialPeriodValue ?? 0,

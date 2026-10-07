@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import useSWR from "swr";
 
@@ -14,6 +14,7 @@ import SegmentedControl from "../../../shared/components/ui/SegmentedControl.jsx
 import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
 import { billingApi, getApiError } from "../api/billingApi.js";
+import { CustomPlanCallout } from "../components/CustomPlanCallout.jsx";
 import { PlanCard } from "../components/PlanCard.jsx";
 import { PlanComparisonTable } from "../components/PlanComparisonTable.jsx";
 import { SubscriptionRecoveryBanner } from "../components/SubscriptionRecoveryBanner.jsx";
@@ -25,6 +26,9 @@ import "../styles/Billing.css";
 import "../styles/PlansSubscription.css";
 
 const getPlanPricingOptions = (plan = {}) => plan.pricingOptions || [];
+const normalizePlanName = (plan) => String(plan?.name || "").trim().toLowerCase();
+const isFeaturedPlan = (plan) =>
+  plan?.featured === true || normalizePlanName(plan) === "growth";
 const swrOptions = { shouldRetryOnError: false, revalidateOnFocus: false };
 
 export function ChoosePlanPage() {
@@ -33,6 +37,7 @@ export function ChoosePlanPage() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const [notice, setNotice] = useState(null);
   const [billingPeriod, setBillingPeriod] = useState("monthly");
+  const [showComparison, setShowComparison] = useState(false);
   const recovery = useSubscriptionRecovery();
 
   const {
@@ -217,7 +222,7 @@ export function ChoosePlanPage() {
           </header>
 
           <div className="ceopro-plan-grid billing-management-plans">
-            {selectablePlans.map((plan) => {
+            {selectablePlans.map((plan, index) => {
               const current = Boolean(
                 currentPlan &&
                 plan.id === currentPlan.id &&
@@ -246,7 +251,9 @@ export function ChoosePlanPage() {
               return (
                 <PlanCard
                   key={plan.id}
-                  plan={plan}
+                  plan={isFeaturedPlan(plan) ? { ...plan, featured: true } : plan}
+                  previousPlan={index > 0 ? selectablePlans[index - 1] : null}
+                  compactSummary
                   currentPlan={current}
                   billingPeriod={billingPeriod}
                   onSelect={() => handlePlanSelection(plan)}
@@ -257,35 +264,53 @@ export function ChoosePlanPage() {
                 />
               );
             })}
-
-            <PlanCard
-              key="custom"
-              plan={customPlan}
-              billingPeriod={billingPeriod}
-              actionLabel={
-                t("billing.plans.custom.action") || "Build Your Plan"
-              }
-              actionDisabled={needsRecovery}
-              onSelect={() => {
-                navigate(
-                  `${routePaths.billingCustomPlan}?period=${encodeURIComponent(
-                    billingPeriod
-                  )}`
-                );
-              }}
-            />
           </div>
+
+          <CustomPlanCallout
+            actionLabel={t("billing.plans.custom.action") || "Build Your Plan"}
+            disabled={needsRecovery}
+            onSelect={() => {
+              navigate(
+                `${routePaths.billingCustomPlan}?period=${encodeURIComponent(
+                  billingPeriod
+                )}`
+              );
+            }}
+          />
         </section>
 
-        <section className="billing-management-section">
-          <header>
-            <h2>{t("billing.management.comparison.title")}</h2>
-            <p>{t("billing.management.comparison.subtitle")}</p>
-          </header>
-          <PlanComparisonTable
-            plans={[...plans, customPlan]}
-            currentPlanId={currentPlan?.id}
-          />
+        <section className="billing-management-section billing-comparison-section">
+          <div className="billing-comparison-heading">
+            <div>
+              <h2>{t("billing.management.comparison.title")}</h2>
+              <p>{t("billing.management.comparison.subtitle")}</p>
+            </div>
+            <button
+              type="button"
+              className="billing-comparison-toggle"
+              aria-expanded={showComparison}
+              aria-controls="billing-plan-comparison"
+              onClick={() => setShowComparison((value) => !value)}
+            >
+              {showComparison
+                ? t("billing.management.comparison.hide")
+                : t("billing.management.comparison.show")}
+              {showComparison ? (
+                <ChevronUp size={16} aria-hidden="true" />
+              ) : (
+                <ChevronDown size={16} aria-hidden="true" />
+              )}
+            </button>
+          </div>
+
+          {showComparison && (
+            <div id="billing-plan-comparison">
+              <PlanComparisonTable
+                plans={[...plans, customPlan]}
+                currentPlanId={currentPlan?.id}
+              />
+            </div>
+          )}
         </section>
       </div>
 

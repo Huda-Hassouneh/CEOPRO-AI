@@ -4,21 +4,22 @@ import { describeBillingOption } from '../utils/billingPeriodPresentation.js';
 
 const planIcons = {
   starter: Sprout,
-  standard: Sprout,
   growth: Crown,
-  pro: Crown,
   enterprise: Crown,
 };
 
 export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid' }) {
   const { locale, t } = useI18n();
-  const planNameSafe = plan.name?.toLowerCase() || '';
+  const planNameSafe = String(plan.name || '').trim().toLowerCase();
   const isTrial = Number(plan.trialPeriodValue) > 0 && checkoutMode === 'trial';
   const selectedPricingOption =
-    plan.pricingOptions?.find((option) => option.period === billingPeriod) || plan.pricingOptions?.[0];
+    plan.pricingOptions?.find((option) => option.period === billingPeriod) ||
+    plan.pricingOptions?.[0];
   const discountPercent = selectedPricingOption?.discountPercent || 0;
   const totalPrice = selectedPricingOption?.totalPrice ?? plan.basePrice ?? 0;
-  const subtotal = discountPercent > 0 ? totalPrice / (1 - discountPercent / 100) : totalPrice;
+  const subtotal = discountPercent > 0
+    ? totalPrice / (1 - discountPercent / 100)
+    : totalPrice;
   const discountAmount = subtotal - totalPrice;
   const dueToday = isTrial ? 0 : totalPrice;
   const PlanIcon = planIcons[planNameSafe] || Sprout;
@@ -43,19 +44,36 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
             <small>{finalDescription}</small>
           </div>
         </div>
-        <span>{isTrial ? t('billing.payment.proTrial') : finalPlanName}</span>
+        <span>
+          {isTrial
+            ? t('billing.payment.planTrial', { plan: finalPlanName })
+            : finalPlanName}
+        </span>
       </header>
 
       <ul>
         {Object.entries(plan.features || {}).map(([featureCode, feature]) => {
-          const featureName = locale === 'ar' && feature.name_ar ? feature.name_ar : feature.name;
-          const limitText = feature.limitValue === null ? t('common.unlimited') : formatNumber(feature.limitValue);
-          const unitText = locale === 'ar' ? feature.unit_ar || feature.unit : feature.unit;
+          const featureName =
+            locale === 'ar' && feature?.name_ar
+              ? feature.name_ar
+              : feature?.name || featureCode;
+          const isBoolean = feature?.type === 'boolean';
+          const limitText = isBoolean
+            ? t('billing.management.included')
+            : feature?.limitValue === null
+              ? t('common.unlimited')
+              : formatNumber(feature?.limitValue ?? 0);
+          const unitText =
+            locale === 'ar' ? feature?.unit_ar || feature?.unit : feature?.unit;
+
           return (
             <li className="ceopro-plan-summary__feature" key={featureCode}>
               <Check size={14} />
               <span>{featureName}</span>
-              <strong>{limitText} {feature.limitValue !== null ? unitText : ''}</strong>
+              <strong>
+                {limitText}
+                {!isBoolean && feature?.limitValue !== null && unitText ? ` ${unitText}` : ''}
+              </strong>
             </li>
           );
         })}
@@ -68,17 +86,34 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
         </div>
         {discountPercent > 0 && (
           <>
-            <div><span>{t('billing.payment.subtotal')}</span><strong>{formatCurrency(subtotal)}</strong></div>
-            <div><span>{t('billing.payment.discount', { percent: discountPercent })}</span><strong>-{formatCurrency(discountAmount)}</strong></div>
+            <div>
+              <span>{t('billing.payment.subtotal')}</span>
+              <strong>{formatCurrency(subtotal)}</strong>
+            </div>
+            <div>
+              <span>{t('billing.payment.discount', { percent: discountPercent })}</span>
+              <strong>-{formatCurrency(discountAmount)}</strong>
+            </div>
           </>
         )}
         {isTrial ? (
           <>
-            <div><span>{t('billing.payment.afterTrial', { days: plan.trialPeriodValue })}</span><strong>{formatCurrency(totalPrice)}</strong></div>
-            <div><span className="is-success">{t('billing.payment.trial', { days: plan.trialPeriodValue })}</span><strong className="is-success">{formatCurrency(0)}</strong></div>
+            <div>
+              <span>{t('billing.payment.afterTrial', { days: plan.trialPeriodValue })}</span>
+              <strong>{formatCurrency(totalPrice)}</strong>
+            </div>
+            <div>
+              <span className="is-success">
+                {t('billing.payment.trial', { days: plan.trialPeriodValue })}
+              </span>
+              <strong className="is-success">{formatCurrency(0)}</strong>
+            </div>
           </>
         ) : (
-          <div><span>{t('billing.payment.previewTotal')}</span><strong>{formatCurrency(totalPrice)}</strong></div>
+          <div>
+            <span>{t('billing.payment.previewTotal')}</span>
+            <strong>{formatCurrency(totalPrice)}</strong>
+          </div>
         )}
       </div>
 

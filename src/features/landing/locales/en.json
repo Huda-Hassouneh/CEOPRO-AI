@@ -38,7 +38,7 @@
     "title": "Smarter Decisions.",
     "accent": "Stronger Business Growth.",
     "description": "Your business data. Your market. One clear picture. Turn sales, competitor signals, and customer feedback into informed next steps with CEOPRO AI.",
-    "note": "{{days}}-day Pro trial",
+    "note": "Free trials available on eligible plans",
     "bilingual": "Built for English & Arabic",
     "eyebrow": "YOUR BUSINESS, IN FOCUS",
     "overview": "Business overview",
@@ -268,8 +268,8 @@
   "pricing": {
     "eyebrow": "PRICING THAT GROWS WITH YOU",
     "title": "Choose your next step.",
-    "description": "Start with the essentials, unlock more with Pro, or configure a plan around your needs.",
-    "note": "Plan prices and limits below use the same catalog as checkout. Payment is currently a development preview; no real payment is processed."
+    "description": "Start with Starter, unlock forecasting and competitor intelligence with Growth, choose Enterprise for higher workloads, or build a Custom plan.",
+    "note": "Prices and limits are loaded from the live plan catalog. Applicable taxes are calculated at checkout."
   },
   "trust": {
     "eyebrow": "CLARITY BUILDS CONFIDENCE",
@@ -284,7 +284,7 @@
   "cta": {
     "eyebrow": "YOUR NEXT CHAPTER STARTS WITH CLARITY",
     "title": "See more. Understand more.\nMove forward with CEOPRO.",
-    "description": "Bring your data and market into focus. Start your {{days}}-day Pro trial and explore a more connected way to make decisions."
+    "description": "Bring your business data and market into focus. Compare the live Starter, Growth, Enterprise, and Custom options to choose the right next step."
   },
   "footer": {
     "description": "Business intelligence for a clearer next move.",

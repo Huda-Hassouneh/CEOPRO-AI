@@ -1,12 +1,19 @@
 import { AlertCircle, Zap } from "lucide-react";
 import SegmentedControl from "../../../shared/components/ui/SegmentedControl.jsx";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { CustomPlanCallout } from "./CustomPlanCallout.jsx";
 import { PlanCard } from "./PlanCard.jsx";
-import { describeBillingOption, listBillingPeriods } from "../utils/billingPeriodPresentation.js";
+import {
+  describeBillingOption,
+  listBillingPeriods
+} from "../utils/billingPeriodPresentation.js";
 
-const getSupportedPeriods = (plans) => {
-  return listBillingPeriods(plans).map((period) => ({ ...period, value: period.period }));
-};
+const getSupportedPeriods = (plans) =>
+  listBillingPeriods(plans).map((period) => ({ ...period, value: period.period }));
+
+const normalizePlanName = (plan) => String(plan?.name || "").trim().toLowerCase();
+const isFeaturedPlan = (plan) =>
+  plan?.featured === true || normalizePlanName(plan) === "growth";
 
 export function PlanSelector({
   plans = [],
@@ -18,7 +25,9 @@ export function PlanSelector({
   showCustomPlan = true
 }) {
   const { t } = useI18n();
-  const activePlans = plans.filter((plan) => plan?.isActive !== false);
+  const activePlans = [...plans]
+    .filter((plan) => plan?.isActive !== false)
+    .sort((a, b) => (a.tier_level || a.tierLevel || 0) - (b.tier_level || b.tierLevel || 0));
 
   if (!activePlans.length && !showCustomPlan) {
     return (
@@ -39,44 +48,28 @@ export function PlanSelector({
   const periods = getSupportedPeriods(activePlans);
   const periodOptions = periods.map((period) => ({
     value: period.value,
-    label: period.mixedIntervals ? period.period : describeBillingOption(period, t),
+    label: period.mixedIntervals
+      ? period.period
+      : describeBillingOption(period, t),
     badge:
       period.discountPercent > 0 && !period.mixedDiscounts
         ? t("billing.periods.savePercent", { percent: period.discountPercent })
         : undefined
   }));
-  const trialPlan = activePlans.find(
+  const hasTrialPlans = activePlans.some(
     (plan) => Number(plan?.trialPeriodValue) > 0
   );
-  const customPlan = {
-    id: "custom",
-    name: t("billing.plans.custom.name") || "Custom",
-    description:
-      t("billing.plans.custom.description") || "Tailored for your business",
-    displayName: t("billing.plans.custom.name") || "Custom",
-    displayDescription:
-      t("billing.plans.custom.description") ||
-      "Choose your own features and quotas",
-    isCustomBuilder: true,
-    isActive: true,
-    features: {},
-    pricingOptions: []
-  };
 
   return (
     <div>
-      {trialPlan && (
+      {hasTrialPlans && (
         <div className="ceopro-trial-banner">
           <Zap size={20} fill="currentColor" aria-hidden="true" />
           <span>
-            <strong>
-              {t("billing.trial.title", { days: trialPlan.trialPeriodValue })}
-            </strong>
+            <strong>{t("billing.trial.title")}</strong>
             <small>{t("billing.trial.description")}</small>
           </span>
-          <b>
-            {t("billing.trial.badge", { days: trialPlan.trialPeriodValue })}
-          </b>
+          <b>{t("billing.trial.badge")}</b>
         </div>
       )}
 
@@ -96,25 +89,24 @@ export function PlanSelector({
         {activePlans.map((plan, index) => (
           <PlanCard
             key={plan.id}
-            plan={index === 1 ? { ...plan, featured: true } : plan}
+            plan={isFeaturedPlan(plan) ? { ...plan, featured: true } : plan}
+            previousPlan={index > 0 ? activePlans[index - 1] : null}
+            compactSummary
             billingPeriod={billingPeriod}
             selected={selectedPlan === plan.id}
             onSelect={() => onPlanSelect?.(plan.id)}
           />
         ))}
-        {showCustomPlan && (
-          <PlanCard
-            key="custom"
-            plan={customPlan}
-            billingPeriod={billingPeriod}
-            selected={selectedPlan === "custom"}
-            actionLabel={t("billing.plans.custom.action") || "Build Your Plan"}
-            onSelect={() =>
-              onBuildCustom ? onBuildCustom() : onPlanSelect?.("custom")
-            }
-          />
-        )}
       </div>
+
+      {showCustomPlan && (
+        <CustomPlanCallout
+          actionLabel={t("billing.plans.custom.action") || "Build Your Plan"}
+          onSelect={() =>
+            onBuildCustom ? onBuildCustom() : onPlanSelect?.("custom")
+          }
+        />
+      )}
     </div>
   );
 }

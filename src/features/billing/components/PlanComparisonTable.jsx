@@ -3,7 +3,6 @@ import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 
 export function PlanComparisonTable({ plans, currentPlanId }) {
   const { locale, t } = useI18n();
-  // Ensure the number formatter uses the correct locale styling
   const number = new Intl.NumberFormat(locale === "ar" ? "ar-JO" : "en-US");
 
   const featureKeys = [
@@ -19,13 +18,11 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
           <tr>
             <th>{t("billing.management.comparison.limit")}</th>
             {plans.map((plan) => {
-              // 1. Grab the localized plan name
               const finalPlanName = plan.displayName || plan.name || "";
               return (
                 <th key={plan.id}>
                   {finalPlanName
-                    ? finalPlanName.charAt(0).toUpperCase() +
-                      finalPlanName.slice(1)
+                    ? finalPlanName.charAt(0).toUpperCase() + finalPlanName.slice(1)
                     : ""}
                   {currentPlanId === plan.id && (
                     <span>
@@ -40,18 +37,12 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
         </thead>
         <tbody>
           {featureKeys.map((key) => {
-            // Find the first plan that has this feature to extract its metadata
             const sampleFeature = plans.find((plan) => plan.features?.[key])
               ?.features[key];
-
-            // 2. Extract Arabic or English Feature Name
             const featureName =
               locale === "ar" && sampleFeature?.name_ar
                 ? sampleFeature.name_ar
-                : sampleFeature?.name ||
-                  t(`billing.management.usageLabels.${key}`);
-
-            // 3. Extract Arabic or English Feature Description
+                : sampleFeature?.name || t(`billing.management.usageLabels.${key}`);
             const featureDesc =
               locale === "ar" && sampleFeature?.description_ar
                 ? sampleFeature.description_ar
@@ -60,25 +51,10 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
             return (
               <tr key={key}>
                 <th>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "2px"
-                    }}
-                  >
+                  <div className="billing-comparison-feature">
                     <span>{featureName}</span>
-                    {/* Add the database description smoothly into the table UI */}
                     {featureDesc && (
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          color: "var(--ceopro-text-muted)",
-                          fontWeight: "normal"
-                        }}
-                      >
-                        {featureDesc}
-                      </span>
+                      <small>{featureDesc}</small>
                     )}
                   </div>
                 </th>
@@ -86,12 +62,8 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
                   if (plan.isCustomBuilder) {
                     const customValue =
                       sampleFeature?.type === "boolean"
-                        ? locale === "ar"
-                          ? "اختياري"
-                          : "Optional"
-                        : locale === "ar"
-                          ? "قابل للتخصيص"
-                          : "Configurable";
+                        ? t("billing.management.optional")
+                        : t("billing.management.configurable");
 
                     return (
                       <td key={plan.id}>
@@ -101,24 +73,46 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
                   }
 
                   const feature = plan.features?.[key];
+                  if (!feature) return <td key={plan.id}>—</td>;
+
+                  if (feature.type === "boolean") {
+                    return (
+                      <td key={plan.id}>
+                        <strong className="billing-comparison-included">
+                          <Check size={14} aria-hidden="true" />
+                          {t("billing.management.included")}
+                        </strong>
+                      </td>
+                    );
+                  }
+
+                  if (feature.type === "configuration") {
+                    return (
+                      <td key={plan.id}>
+                        <strong>{t("billing.management.configured")}</strong>
+                      </td>
+                    );
+                  }
+
+                  if (feature.limitValue === null) {
+                    return (
+                      <td key={plan.id}>
+                        <strong>{t("common.unlimited")}</strong>
+                      </td>
+                    );
+                  }
+
+                  const displayUnit =
+                    locale === "ar"
+                      ? feature.unit_ar || feature.unit
+                      : feature.unit;
+
                   return (
                     <td key={plan.id}>
-                      {feature?.limitValue === null ? (
-                        "∞"
-                      ) : feature?.limitValue === undefined ? (
-                        "--"
-                      ) : (
-                        <bdi>
-                          {number.format(feature.limitValue)}
-                          {(
-                            locale === "ar"
-                              ? feature.unit_ar || feature.unit
-                              : feature.unit
-                          )
-                            ? ` ${locale === "ar" ? feature.unit_ar || feature.unit : feature.unit}`
-                            : ""}
-                        </bdi>
-                      )}
+                      <bdi>
+                        {number.format(feature.limitValue)}
+                        {displayUnit ? ` ${displayUnit}` : ""}
+                      </bdi>
                     </td>
                   );
                 })}

@@ -167,6 +167,84 @@
   margin-top: auto;
 }
 
+.ceopro-plan-card.is-compact {
+  min-height: 332px;
+}
+
+.ceopro-plan-card__feature-summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.ceopro-plan-card__feature-heading {
+  margin: 0;
+  color: var(--ceopro-text-primary);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.ceopro-plan-card__feature-summary ul {
+  margin-bottom: 0;
+}
+
+.ceopro-plan-card__capacity-note {
+  margin: 0;
+  color: var(--ceopro-text-secondary);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.ceopro-custom-plan-callout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px dashed #c9c4ef;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #fbfaff 0%, #f7f5ff 100%);
+}
+
+.ceopro-custom-plan-callout__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 10px;
+  background: #ebe8ff;
+  color: var(--ceopro-primary);
+}
+
+.ceopro-custom-plan-callout__copy {
+  min-width: 0;
+}
+
+.ceopro-custom-plan-callout__copy small {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ceopro-primary);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ceopro-custom-plan-callout__copy h3 {
+  margin: 0;
+  color: var(--ceopro-text-primary);
+  font-size: 14px;
+}
+
+.ceopro-custom-plan-callout__copy p {
+  margin: 3px 0 0;
+  color: var(--ceopro-text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .ceopro-custom-plan-layout,
 .ceopro-payment-layout {
   display: grid;
@@ -685,6 +763,15 @@
   .ceopro-custom-plan-layout,
   .ceopro-payment-layout {
     grid-template-columns: 1fr;
+  }
+
+  .ceopro-custom-plan-callout {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ceopro-custom-plan-callout .ceopro-button {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 
   .ceopro-plan-card {

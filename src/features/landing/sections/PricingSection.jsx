@@ -14,10 +14,9 @@ import "../../billing/styles/Billing.css";
 
 export function PricingSection() {
   const { t } = useLanding();
-  const { locale } = useI18n(); // 1. Added locale to extract Arabic vs English
+  const { locale } = useI18n();
   const navigate = useNavigate();
 
-  // Fetch plans using SWR
   const {
     data: response,
     error,
@@ -26,7 +25,6 @@ export function PricingSection() {
 
   const rawPlans = response?.data ?? [];
 
-  // 2. Sort by tier_level and map localized text before rendering[cite: 1]
   const plans = useMemo(() => {
     if (!rawPlans.length) return [];
 
@@ -46,8 +44,6 @@ export function PricingSection() {
   const setBillingPeriod = useOnboardingStore(
     (state) => state.setBillingPeriod
   );
-  console.log({ plansInSystem: plans });
-
   const [period, setPeriod] = useState("monthly");
 
   useEffect(() => {

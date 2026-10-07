@@ -1,15 +1,16 @@
 import { getUsagePresentation } from "./usagePresentation.js";
+
 const CONTEXT_LIMIT_KEYS = Object.freeze({
-  "product-limit": "products",
-  "competitor-limit": "competitors",
-  "rag-limit": "ragQueries",
-  "storage-limit": "storageGb"
+  "product-limit": "tracked_products",
+  "competitor-limit": "tracked_competitors",
+  "rag-limit": "rag_assistant",
+  "storage-limit": "document_storage_mb"
 });
 
 export function getUsageState(used, limit) {
   if (!Number.isFinite(used)) return "unknown";
 
-  // null means unlimited in our entitlement system
+  // null means unlimited for limit-type entitlements.
   if (limit === null) return "unlimited";
 
   if (!Number.isFinite(limit) || limit < 0) return "unknown";
@@ -26,7 +27,8 @@ export function getUsageState(used, limit) {
 export function getUpgradeRecommendation(subscription, reason) {
   if (!subscription) return null;
   if (subscription.planId === "custom") return null;
-  if (subscription.status === "trial") return { type: "trial" };
+  if (subscription.status === "trialing") return { type: "trial" };
+
   const supportedReasonKey = CONTEXT_LIMIT_KEYS[reason];
   if (
     supportedReasonKey &&
@@ -42,6 +44,7 @@ export function getUpgradeRecommendation(subscription, reason) {
   ) {
     return { type: "reached", key: supportedReasonKey, contextual: true };
   }
+
   const keys = Object.keys(subscription.limits || {}).filter(
     (key) =>
       getUsagePresentation(

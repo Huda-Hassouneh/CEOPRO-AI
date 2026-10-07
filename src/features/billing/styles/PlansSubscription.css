@@ -612,8 +612,8 @@
 .billing-compare-header .ceopro-segmented-control {
   flex: 0 0 auto;
 }
-.billing-management-plans .ceopro-plan-card {
-  min-height: 382px;
+.billing-management-plans .ceopro-plan-card.is-compact {
+  min-height: 332px;
 }
 .ceopro-plan-card__current {
   display: inline-flex;
@@ -630,6 +630,70 @@
 .ceopro-plan-card.is-current {
   background: linear-gradient(180deg, #fff, #fcfbff);
 }
+.billing-comparison-section {
+  display: grid;
+  gap: 14px;
+}
+
+.billing-comparison-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.billing-comparison-heading h2 {
+  margin: 0;
+}
+
+.billing-comparison-heading p {
+  margin: 4px 0 0;
+  color: var(--ceopro-text-secondary);
+  font-size: 10px;
+}
+
+.billing-comparison-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid var(--ceopro-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ceopro-primary);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.billing-comparison-toggle:hover,
+.billing-comparison-toggle:focus-visible {
+  border-color: #aaa3f5;
+  background: #faf9ff;
+}
+
+.billing-comparison-toggle:focus-visible {
+  outline: 3px solid var(--ceopro-auth-focus-ring);
+  outline-offset: 2px;
+}
+
+.billing-comparison-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.billing-comparison-feature small {
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
 .billing-comparison-wrap {
   width: 100%;
   max-width: 100%;
@@ -1349,6 +1413,18 @@
 
   .billing-recovery-banner .ceopro-button {
     grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+
+@media (max-width: 700px) {
+  .billing-comparison-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .billing-comparison-toggle {
     width: 100%;
   }
 }

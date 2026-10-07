@@ -1,7 +1,7 @@
 import { PREVIEW_BILLING_CURRENCY, PREVIEW_PLANS } from './billingPreviewData.js';
 
 const PREVIEW_SUBSCRIPTION = Object.freeze({
-  planId: 'standard',
+  planId: 'starter',
   status: 'active',
   billingPeriod: 'monthly',
   currency: PREVIEW_BILLING_CURRENCY,

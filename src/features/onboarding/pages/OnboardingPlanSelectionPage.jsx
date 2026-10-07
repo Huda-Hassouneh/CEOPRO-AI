@@ -12,6 +12,9 @@ import { useOnboardingStore } from '../store/onboardingStore.js';
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 
 const swrOptions = { shouldRetryOnError: false, revalidateOnFocus: false };
+const normalizePlanName = (plan) => String(plan?.name || '').trim().toLowerCase();
+const findNamedPlan = (plans, name) =>
+  plans.find((plan) => normalizePlanName(plan) === name);
 
 export function OnboardingPlanSelectionPage() {
   const navigate = useNavigate();
@@ -35,6 +38,15 @@ export function OnboardingPlanSelectionPage() {
       }));
   }, [response, locale]);
 
+  const starterPlan = useMemo(
+    () => findNamedPlan(plans, 'starter') || plans.find((plan) => Number(plan.tier_level) === 1),
+    [plans],
+  );
+  const growthPlan = useMemo(
+    () => findNamedPlan(plans, 'growth') || plans.find((plan) => Number(plan.tier_level) === 2),
+    [plans],
+  );
+
   const selectedPlan = useOnboardingStore((state) => state.selectedPlan);
   const standardRecommendationResolved = useOnboardingStore(
     (state) => state.standardRecommendationResolved,
@@ -52,15 +64,28 @@ export function OnboardingPlanSelectionPage() {
     if (isLoading || !plans.length) return;
 
     const supportedPeriods = plans.flatMap((plan) => plan.pricingOptions ?? []);
-    if (!billingPeriod || !supportedPeriods.some((option) => option.period === billingPeriod)) {
+    if (
+      !billingPeriod ||
+      !supportedPeriods.some((option) => option.period === billingPeriod)
+    ) {
       const firstPeriod = supportedPeriods[0]?.period;
       if (firstPeriod) setBillingPeriod(firstPeriod);
     }
 
     if (selectedPlan !== 'custom' && !plans.some((plan) => plan.id === selectedPlan)) {
-      selectPlan(plans[1]?.id || plans[0]?.id || '');
+      const defaultPlan = growthPlan || starterPlan || plans[0];
+      selectPlan(defaultPlan?.id || '');
     }
-  }, [plans, isLoading, billingPeriod, selectedPlan, setBillingPeriod, selectPlan]);
+  }, [
+    plans,
+    isLoading,
+    billingPeriod,
+    selectedPlan,
+    setBillingPeriod,
+    selectPlan,
+    starterPlan,
+    growthPlan,
+  ]);
 
   const goToPayment = (planId) => {
     const plan = plans.find((item) => item.id === planId);
@@ -76,16 +101,17 @@ export function OnboardingPlanSelectionPage() {
       navigate(routePaths.onboardingPlanCustom);
       return;
     }
+
     const plan = plans.find((item) => item.id === selectedPlan);
     if (!plan) return;
 
-    const lowestTierPlan = plans[0];
-    const middleTierPlan = plans[1];
     if (
-      selectedPlan === lowestTierPlan?.id &&
+      starterPlan &&
+      growthPlan &&
+      selectedPlan === starterPlan.id &&
       !standardRecommendationResolved &&
-      middleTierPlan?.isActive !== false &&
-      Number(middleTierPlan?.trialPeriodValue) > 0
+      growthPlan.isActive !== false &&
+      Number(growthPlan.trialPeriodValue) > 0
     ) {
       setShowRecommendation(true);
       return;
@@ -95,19 +121,22 @@ export function OnboardingPlanSelectionPage() {
   };
 
   const resolveRecommendation = (planId) => {
+    if (!planId) return;
     resolveStandardRecommendation();
     setShowRecommendation(false);
     goToPayment(planId);
   };
 
-  const selectedPlanData = selectedPlan === 'custom' ? { id: 'custom', isActive: true, pricingOptions: [{ period: billingPeriod }] } : plans.find((plan) => plan.id === selectedPlan);
+  const selectedPlanData = selectedPlan === 'custom'
+    ? { id: 'custom', isActive: true, pricingOptions: [{ period: billingPeriod }] }
+    : plans.find((plan) => plan.id === selectedPlan);
   const isContinueDisabled =
     isLoading ||
     Boolean(error) ||
     !selectedPlanData ||
     selectedPlanData.isActive === false ||
     !selectedPlanData.pricingOptions?.some((option) => option.period === billingPeriod);
-  const recommendedTrialDays = Number(plans[1]?.trialPeriodValue || 0);
+  const recommendedTrialDays = Number(growthPlan?.trialPeriodValue || 0);
 
   return (
     <OnboardingPageShell
@@ -149,8 +178,10 @@ export function OnboardingPlanSelectionPage() {
         open={showRecommendation}
         onClose={() => setShowRecommendation(false)}
         trialDays={recommendedTrialDays}
-        onTryPro={() => resolveRecommendation(plans[1]?.id)}
-        onContinueStandard={() => resolveRecommendation(plans[0]?.id)}
+        currentPlanName={starterPlan?.displayName || starterPlan?.name}
+        recommendedPlanName={growthPlan?.displayName || growthPlan?.name}
+        onTryRecommended={() => resolveRecommendation(growthPlan?.id)}
+        onContinueCurrent={() => resolveRecommendation(starterPlan?.id)}
       />
     </OnboardingPageShell>
   );

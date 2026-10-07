@@ -1,7 +1,6 @@
 import { BarChart3, Boxes, BrainCircuit, Check, CircleHelp, Compass, Database, FileSearch, Fingerprint, Globe2, Layers3, MessageCircle, ScanLine, Sparkles, Tags, Target, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { routePaths } from '../../../app/router/routePaths.js';
-import { getPreviewPlan } from '../../billing/config/billingPreviewData.js';
 import { SectionHeading, TrialButton, useLanding } from '../components/LandingPrimitives.jsx';
 
 const models = [['pricing', Tags, 'pricing-intelligence'], ['sentiment', MessageCircle, 'sentiment'], ['perception', Fingerprint, 'sentiment'], ['demand', TrendingUp, 'demand'], ['market', BarChart3, 'market'], ['rag', BrainCircuit, 'rag'], ['extraction', ScanLine, 'file-intelligence']];
@@ -32,5 +31,5 @@ export function TrustSection() {
 
 export function FinalCtaSection() {
   const { t } = useLanding();
-  return <section className="lp-final-cta"><div className="lp-container"><div className="lp-cta-orbit" aria-hidden="true" /><p className="lp-eyebrow">{t('cta.eyebrow')}</p><h2>{t('cta.title')}</h2><p>{t('cta.description', { days: getPreviewPlan('pro').trialDays })}</p><div className="lp-actions"><TrialButton /><Link to={routePaths.login}>{t('nav.login')}</Link></div></div></section>;
+  return <section className="lp-final-cta"><div className="lp-container"><div className="lp-cta-orbit" aria-hidden="true" /><p className="lp-eyebrow">{t('cta.eyebrow')}</p><h2>{t('cta.title')}</h2><p>{t('cta.description')}</p><div className="lp-actions"><TrialButton /><Link to={routePaths.login}>{t('nav.login')}</Link></div></div></section>;
 }
