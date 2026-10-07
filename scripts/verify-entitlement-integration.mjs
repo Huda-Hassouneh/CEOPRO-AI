@@ -31,7 +31,7 @@ assert.match(entitlements, /getFeatureState/);
 assert.match(entitlements, /canConsume/);
 assert.match(rag, /FeatureGate featureCode="rag_assistant" mode="consume"/);
 assert.match(competitor, /FeatureGate featureCode="tracked_competitors" mode="consume"/);
-assert.match(connectData, /FeatureGate featureCode="connected_data_sources" mode="consume"/);
+assert.match(connectData, /<FeatureGate\s+featureCode="connected_data_sources"\s+mode="consume"/);
 assert.match(catalogPage, /unit_ar: form\.unit_ar/);
 assert.match(catalogPage, /aggregation_type: form\.aggregation_type/);
 assert.match(catalogPage, /reset_cycle: form\.reset_cycle/);

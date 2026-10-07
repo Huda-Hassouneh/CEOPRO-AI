@@ -9,7 +9,11 @@
     "preview": "vite preview",
     "verify:subscription": "node scripts/verify-subscription-integration.mjs",
     "verify:entitlements": "node scripts/verify-entitlement-integration.mjs",
-    "test:tenant-notifications": "node --test --test-reporter=spec tests/tenant-notifications-today.test.mjs"
+    "test:tenant-notifications": "node --test --test-reporter=spec tests/tenant-notifications-today.test.mjs",
+    "test:auth-email-verification": "node --test tests/auth-email-verification.test.mjs",
+    "test:billing:frontend": "node scripts/run-frontend-billing-production-tests.mjs",
+    "test:billing:frontend:release": "npm run verify:subscription && npm run verify:entitlements && npm run test:billing:frontend && npm run build",
+    "test:platform-admin-route-access": "node --test tests/platform-admin-route-access.test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
