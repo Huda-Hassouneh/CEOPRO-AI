@@ -15,7 +15,7 @@ export type SentimentSampleSize = {
 
 export type AiSentimentUnknownResponse = {
   status: "UNKNOWN";
-  evidence_id: string;
+  evidence_id: null;
   sample_size: {
     status: "LOW_SAMPLE_SIZE";
     minimum_required: number;
@@ -24,7 +24,7 @@ export type AiSentimentUnknownResponse = {
 
 export type AiSentimentSuccessResponse = {
   status: "OK";
-  evidence_id: string;
+  evidence_id: null;
   sentiment_score: number;
   label_counts: SentimentLabelCounts;
   sample_size: SentimentSampleSize;
@@ -47,14 +47,16 @@ export type SentimentAnalyzeResult = {
 };
 
 export type SentimentClientError = Error & {
-  name: "SentimentClientError";
+  name: "AiIntegrationError";
+  kind: string;
   upstreamStatus?: number;
 };
 
 export type SentimentServiceErrorCode =
   | "ENTITLEMENT_NOT_AVAILABLE"
   | "QUOTA_EXCEEDED"
-  | "AI_PROCESSED_OVER_LIMIT";
+  | "AI_PROCESSED_OVER_LIMIT"
+  | "UNSUPPORTED_COUNTRY_FILTER";
 
 export type SentimentServiceError = Error & {
   name: "SentimentServiceError";

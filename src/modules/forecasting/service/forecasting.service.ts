@@ -1,4 +1,11 @@
-import { loadForecastData } from "../repo/forecasting.repo.js";
+import { Prisma } from "../../../generated/prisma/client.js";
+import { createAiIntegrationError } from "../../../integrations/ai/ai.types.js";
+import { requestDemandForecast } from "../client/forecasting.client.js";
+import {
+  loadForecastData,
+  loadForecastGenerationInput,
+  persistGeneratedForecast
+} from "../repo/forecasting.repo.js";
 import {
   addDays,
   dayKey,
@@ -13,6 +20,85 @@ import {
 type Snapshot = Awaited<ReturnType<typeof loadForecastData>>;
 type StoredForecast = Snapshot["forecasts"][number];
 type StoredModelVersion = Snapshot["modelVersions"][number];
+
+function parseUtcDate(dateText: string): Date {
+  const date = new Date(`${dateText}T00:00:00.000Z`);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== dateText
+  ) {
+    throw createAiIntegrationError(
+      "Gradio forecasting returned an invalid target date.",
+      "malformed_response"
+    );
+  }
+  return date;
+}
+
+function toInputJson(value: unknown): Prisma.InputJsonValue {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) return {};
+  const parsed: unknown = JSON.parse(serialized);
+  return parsed === null ? {} : (parsed as Prisma.InputJsonValue);
+}
+
+export async function generateDemandForecast(input: {
+  tenantId: string;
+  userId: string;
+  productId: string;
+  horizonDays: number;
+}) {
+  const product = await loadForecastGenerationInput(input);
+  if (!product) return null;
+  if (!product.productName) {
+    throw new Error("Product name is unavailable for forecast generation.");
+  }
+
+  const response = await requestDemandForecast({
+    transactions: product.transactions.map((transaction) => ({
+      ...transaction,
+      product_name: product.productName!
+    })),
+    horizonDays: input.horizonDays,
+    currentPrice: product.currentPrice,
+    currentStock: product.currentStock,
+    category: product.category,
+    productName: product.productName
+  });
+
+  const targetDate = parseUtcDate(response.result.forecast_target_date);
+  const forecastStartDate = addDays(targetDate, 1 - input.horizonDays);
+  const expectedDemand = Math.round(response.result.expected_demand);
+  const saved = await persistGeneratedForecast({
+    tenantId: input.tenantId,
+    userId: input.userId,
+    productId: product.productId,
+    forecastStartDate,
+    forecastEndDate: targetDate,
+    forecastTargetDate: targetDate,
+    expectedDemand,
+    source: response.result.source,
+    confidenceScore: response.result.confidence_score,
+    transactionsUsed: response.transactions_used,
+    horizonDays: input.horizonDays,
+    dataSufficiency: toInputJson(response.result.data_sufficiency)
+  });
+
+  return {
+    product_id: product.productId,
+    product_name: product.productName,
+    status: response.result.status,
+    source: response.result.source,
+    expected_demand: expectedDemand,
+    forecast_target_date: response.result.forecast_target_date,
+    forecast_start_date: forecastStartDate.toISOString().slice(0, 10),
+    confidence_score: response.result.confidence_score,
+    data_sufficiency: response.result.data_sufficiency,
+    transactions_used: response.transactions_used,
+    forecast_id: saved.forecastId,
+    evidence_id: saved.evidenceId
+  };
+}
 
 type ModelPerformance = {
   modelVersionId: string;

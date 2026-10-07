@@ -1,9 +1,13 @@
 import { incrementUsage } from "../../features/repo/usage.repo.js";
-import { requestPricingRecommendation } from "../client/pricing.client.js";
 import {
-  getLatestEligibleMarketPrices,
-  getPricingEvidence,
-  getProductPricingContext
+  readPricingExplanation,
+  requestPricingRecommendation
+} from "../client/pricing.client.js";
+import {
+  getEligibleMarketPrices,
+  getExchangeRates,
+  getProductPricingContext,
+  persistPricingRecommendation
 } from "../repo/pricing.repo.js";
 import type {
   MarketPriceStats,
@@ -34,15 +38,8 @@ function summarizeMarketPrices(prices: number[]): MarketPriceStats {
   const values = prices.filter(
     (value) => Number.isFinite(value) && value >= 0
   );
-
   if (values.length === 0) {
-    return {
-      min: null,
-      max: null,
-      average: null,
-      median: null,
-      count: 0
-    };
+    return { min: null, max: null, average: null, median: null, count: 0 };
   }
 
   const sorted = [...values].sort((a, b) => a - b);
@@ -52,7 +49,6 @@ function summarizeMarketPrices(prices: number[]): MarketPriceStats {
     sorted.length % 2 === 0
       ? (sorted[middle - 1] + sorted[middle]) / 2
       : sorted[middle];
-
   return {
     min: sorted[0],
     max: sorted[sorted.length - 1],
@@ -66,14 +62,12 @@ export async function getPricingRecommendation(input: {
   tenantId: string;
   userId: string;
   productId: string;
-  authorization: string;
 }): Promise<PricingRecommendationResult> {
   const product = await getProductPricingContext(
     input.tenantId,
     input.userId,
     input.productId
   );
-
   if (!product) {
     throw createPricingServiceError(
       "PRODUCT_NOT_FOUND",
@@ -85,91 +79,102 @@ export async function getPricingRecommendation(input: {
   const observedAfter = new Date(
     observedBefore.getTime() - MARKET_FRESHNESS_DAYS * DAY_MS
   );
-
-  // Trigger the canonical AI pricing pipeline first. The CEOPRO AI API is the
-  // authoritative contract for action/suggested price/confidence/guardrails.
-  const ai = await requestPricingRecommendation({
+  const marketPoints = await getEligibleMarketPrices({
+    tenantId: input.tenantId,
+    userId: input.userId,
     productId: input.productId,
-    authorization: input.authorization
+    observedAfter,
+    observedBefore
+  });
+  const exchangeRates = await getExchangeRates({
+    fromCurrencies: marketPoints.map((point) => point.currency),
+    toCurrency: product.currency
   });
 
-  // Backend-derived market context deliberately does not depend on undocumented
-  // AI response fields. It uses the same documented pricing-input constraints
-  // available in our schema: active/tracked mappings, available exact ALLOWED
-  // same-currency observations inside the 30-day freshness window.
-  //
-  // We keep every eligible observation in the window rather than inventing a
-  // "latest-only" rule that the AI team's pricing contract does not specify.
-  const [marketPoints, evidence] = await Promise.all([
-    getLatestEligibleMarketPrices({
-      tenantId: input.tenantId,
-      userId: input.userId,
-      productId: input.productId,
+  // Product and market inputs come from CEOPRO's tenant-scoped database. The
+  // Gradio API only returns a recommendation; its response cannot replace the
+  // server's product ownership, price, currency, or cost data.
+  const ai = await requestPricingRecommendation({
+    product: {
+      product_name: product.productName,
+      current_price: product.currentPrice,
       currency: product.currency,
-      observedAfter,
-      observedBefore
-    }),
-    // The AI pipeline persists evidence and returns evidence_id. Read the
-    // canonical explanation from the DB instead of expecting an undocumented
-    // `explanation` field from POST /pricing/recommend.
-    getPricingEvidence(
-      input.tenantId,
-      input.userId,
-      ai.evidence_id
-    )
-  ]);
+      cost_price: product.costPrice
+    },
+    competitorPrices: marketPoints.map((point) => ({
+      competitor_name: point.competitorName,
+      price: point.price,
+      currency: point.currency,
+      observed_at: point.observedAt.toISOString().slice(0, 10)
+    })),
+    exchangeRates:
+      exchangeRates.length > 0
+        ? exchangeRates.map((rate) => ({
+            from_currency: rate.fromCurrency,
+            to_currency: rate.toCurrency,
+            rate: rate.rate,
+            as_of: rate.asOf.toISOString().slice(0, 10),
+            source: rate.source
+          }))
+        : null
+  });
 
-  const market = summarizeMarketPrices(
-    marketPoints.map((point) => point.price)
+  const result = ai.result;
+  const sameCurrencyPrices = marketPoints.filter(
+    (point) => point.currency === product.currency
   );
+  const market = summarizeMarketPrices(
+    sameCurrencyPrices.map((point) => point.price)
+  );
+  const status = result.status;
+  const action = result.status === "OK" ? result.action : null;
+  const suggestedPrice = result.status === "OK" ? result.suggested_price : null;
+  const matchedCompetitorCount =
+    result.status === "OK" ? result.matched_competitor_count : 0;
+  const confidenceScore =
+    result.status === "OK" ? result.confidence_score : null;
+  const guardrailClamped =
+    result.status === "OK" ? result.guardrail_clamped : null;
+  const marginGuardrailClamped =
+    result.status === "OK" ? result.margin_guardrail_clamped : null;
+
+  const persisted = await persistPricingRecommendation({
+    tenantId: input.tenantId,
+    userId: input.userId,
+    productId: product.productId,
+    status,
+    action,
+    currentPrice: product.currentPrice,
+    suggestedPrice,
+    confidenceScore,
+    explanationText: readPricingExplanation(ai),
+    matchedCompetitorCount,
+    guardrailClamped,
+    marginGuardrailClamped
+  });
 
   await incrementUsage(input.tenantId, "ai_pricing");
 
-  if (ai.status === "UNKNOWN") {
-    return {
-      status: "UNKNOWN",
-      action: null,
-      current_price: product.currentPrice,
-      suggested_price: null,
-      market_min: market.min,
-      market_max: market.max,
-      market_avg: market.average,
-      market_median: market.median,
-      matched_competitor_count: 0,
-      confidence_score: evidence?.confidenceScore ?? null,
-      guardrail_clamped: null,
-      margin_guardrail_clamped: null,
-      clamped: null,
-      max_change_pct: null,
-      min_margin_pct: null,
-      floor_price: null,
-      explanation: evidence?.explanationText ?? null,
-      evidence_id: ai.evidence_id,
-      outcome_id: null,
-      currency: product.currency
-    };
-  }
-
   return {
-    status: "OK",
-    action: ai.action,
-    current_price: ai.current_price,
-    suggested_price: ai.suggested_price,
+    status,
+    action,
+    current_price: product.currentPrice,
+    suggested_price: suggestedPrice,
     market_min: market.min,
     market_max: market.max,
     market_avg: market.average,
     market_median: market.median,
-    matched_competitor_count: ai.matched_competitor_count,
-    confidence_score: ai.confidence_score,
-    guardrail_clamped: ai.guardrail_clamped,
-    margin_guardrail_clamped: ai.margin_guardrail_clamped,
-    clamped: ai.guardrail_clamped,
+    matched_competitor_count: matchedCompetitorCount,
+    confidence_score: confidenceScore,
+    guardrail_clamped: guardrailClamped,
+    margin_guardrail_clamped: marginGuardrailClamped,
+    clamped: guardrailClamped,
     max_change_pct: null,
     min_margin_pct: null,
     floor_price: null,
-    explanation: evidence?.explanationText ?? null,
-    evidence_id: ai.evidence_id,
-    outcome_id: ai.outcome_id,
+    explanation: readPricingExplanation(ai),
+    evidence_id: persisted.evidenceId,
+    outcome_id: persisted.outcomeId,
     currency: product.currency
   };
 }

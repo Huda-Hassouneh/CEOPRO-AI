@@ -15,12 +15,13 @@ export type MpiSampleSize = {
 
 export type AiMpiUnknownResponse = {
   status: "UNKNOWN";
-  evidence_id: string;
+  evidence_id: string | null;
+  sample_size: MpiSampleSize;
 };
 
 export type AiMpiSuccessResponse = {
   status: "OK";
-  evidence_id: string;
+  evidence_id: string | null;
   mpi: number;
   sample_size: MpiSampleSize;
   weighted_sentiment_score: number;
@@ -36,6 +37,7 @@ export type AiMpiSummaryResponse =
   | AiMpiSuccessResponse;
 
 export type MpiClientError = Error & {
-  name: "MpiClientError";
+  name: "AiIntegrationError";
+  kind: string;
   upstreamStatus?: number;
 };

@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { requireEntitlement } from "../../../validators/validateFeatures.js";
+import { requireEntitlement } from "../../../middleware/validators/validateFeatures.js";
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import { recommendPrice } from "../controller/pricing.controller.js";
 import { validatePricingRecommendationQuery } from "../types/pricing.validation.js";
 

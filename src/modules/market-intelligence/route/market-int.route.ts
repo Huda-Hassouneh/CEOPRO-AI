@@ -3,7 +3,7 @@ import * as marketIntelligenceController from "../controller/market-int.controll
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 
 const router = Router({ mergeParams: true });
 

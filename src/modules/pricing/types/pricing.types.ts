@@ -3,7 +3,6 @@ export type PricingStatus = "OK" | "UNKNOWN";
 
 export type AiPricingUnknownResponse = {
   status: "UNKNOWN";
-  evidence_id: string;
 };
 
 export type AiPricingSuccessResponse = {
@@ -15,17 +14,39 @@ export type AiPricingSuccessResponse = {
   margin_guardrail_clamped: boolean | null;
   matched_competitor_count: number;
   confidence_score: number;
-  evidence_id: string;
-  outcome_id: string;
 };
 
-export type AiPricingResponse =
+export type AiPricingResult =
   | AiPricingUnknownResponse
   | AiPricingSuccessResponse;
 
+export type AiPricingRequest = {
+  product: {
+    product_name: string;
+    current_price: number;
+    currency: string;
+    cost_price: number | null;
+  };
+  competitorPrices: Array<{
+    competitor_name: string;
+    price: number;
+    currency: string;
+    observed_at: string;
+  }>;
+  exchangeRates: Array<{
+    from_currency: string;
+    to_currency: string;
+    rate: number;
+    as_of: string;
+    source: string;
+  }> | null;
+};
+
 export type PricingProductContext = {
   productId: string;
+  productName: string;
   currentPrice: number;
+  costPrice: number | null;
   currency: string;
 };
 
@@ -33,6 +54,7 @@ export type MarketPricePoint = {
   competitorPriceId: string;
   mappingId: string;
   competitorId: string;
+  competitorName: string;
   price: number;
   currency: string;
   observedAt: Date;
@@ -81,7 +103,8 @@ export type PricingRecommendationResult = {
 };
 
 export type PricingClientError = Error & {
-  name: "PricingClientError";
+  name: "AiIntegrationError";
+  kind: string;
   upstreamStatus?: number;
 };
 

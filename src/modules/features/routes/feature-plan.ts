@@ -2,8 +2,8 @@ import { Router } from "express";
 import { planFeatureController } from "../controller/plan-feature.controller.js";
 import { usageController } from "../controller/usage.controller.js";
 
-import { validateParams } from "../../../validators/validateParams.js";
-import { validateBody } from "../../../validators/validateBody.js";
+import { validateParams } from "../../../middleware/validators/validateParams.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
 import {
   linkFeatureBodySchema,
   planAndFeatureIdParamSchema,
@@ -14,11 +14,11 @@ import {
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import {
   requirePlatformPermission,
   requirePlatformRole
-} from "../../../validators/validatePlatformUser.js";
+} from "../../../middleware/validators/validatePlatformUser.js";
 
 const router = Router();
 

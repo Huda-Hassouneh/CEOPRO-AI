@@ -422,7 +422,7 @@ export const getMarketIntelligence = async (
       // MPI module. The repo stays DB-only.
       marketPerception: null,
 
-      // Numeric 0-100 Market Perception Index from GET /mpi/summary.
+      // Numeric 0-100 Market Perception Index from the current MPI adapter.
       // Kept separate because the existing frontend uses marketPerception
       // as a qualitative positive/neutral/negative badge.
       marketPerceptionScore: null,

@@ -159,12 +159,12 @@ export const CANONICAL_FEATURES = Object.freeze([
     name: "AI Knowledge Assistant",
     name_ar: "مساعد المعرفة بالذكاء الاصطناعي",
     description:
-      "Number of AI knowledge assistant queries available per billing period.",
+      "Number of AI knowledge assistant tokens available per billing period.",
     description_ar:
-      "عدد الاستفسارات المتاحة لمساعد المعرفة بالذكاء الاصطناعي خلال دورة الفوترة.",
+      "عدد رموز المعالجة المتاحة لمساعد المعرفة بالذكاء الاصطناعي خلال دورة الفوترة.",
     type: FeatureType.limit,
-    unit: "queries",
-    unit_ar: "استفسار",
+    unit: "tokens",
+    unit_ar: "رمز",
     aggregationType: AggregationType.sum,
     resetCycle: ResetCycle.billing_period
   },

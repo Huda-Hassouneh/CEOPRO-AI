@@ -14,27 +14,23 @@ export async function getSummary(
 ): Promise<void> {
   try {
     const tenantId = req.tenant_id;
-    const authorization = req.headers.authorization;
+    const userId = req.user?.user_id;
     const subjectType = req.query.subject_type as MpiSubjectType;
     const subjectId =
       typeof req.query.subject_id === "string"
         ? req.query.subject_id
         : undefined;
 
-    if (!tenantId) {
+    if (!tenantId || !userId) {
       sendApiError(res, ERROR_CODES.TENANT_ACCESS_DENIED);
       return;
     }
 
-    if (!authorization) {
-      sendApiError(res, ERROR_CODES.INVALID_AUTH_HEADER);
-      return;
-    }
-
     const data = await getMpiSummary({
+      tenantId,
+      userId,
       subjectType,
-      subjectId,
-      authorization
+      subjectId
     });
 
     res

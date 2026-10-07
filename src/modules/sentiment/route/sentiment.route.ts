@@ -2,11 +2,11 @@ import { Router } from "express";
 import {
   requireEntitlement,
   requireFeatureAccess
-} from "../../../validators/validateFeatures.js";
+} from "../../../middleware/validators/validateFeatures.js";
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import {
   analyzePending,
   getSummary

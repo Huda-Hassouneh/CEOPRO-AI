@@ -1,7 +1,7 @@
 # Forecasting Domain
 
 ## Purpose
-Serves demand-prediction overview and product forecast detail data from persisted forecast records.
+Serves persisted demand-prediction overview/detail data and generates a product forecast through the analytics Gradio API.
 
 ## Structure
 `index.ts -> route/ -> controller/ -> service/ -> repo/`, with calculation helpers under `service/`.
@@ -12,11 +12,12 @@ Serves demand-prediction overview and product forecast detail data from persiste
 ## Important decisions
 - Access remains gated by the `demand_prediction` feature entitlement.
 - Forecast metrics are derived from persisted forecast coverage; missing or incomplete coverage is not treated as zero.
-- Existing date/coverage calculation logic is unchanged by this structural pass.
-- No mock forecasting values were introduced.
+- Forecast generation is exposed at `POST /forecasting/demand/:productId/generate` with `horizon_days` from 1 to 60.
+- Tenant product, inventory, and transaction data come from CEOPRO; generated forecasts and evidence are persisted locally.
+- Existing read routes remain database-backed; incomplete coverage stays unavailable rather than becoming zero.
 
 ## Primary data
-Demand forecast records and supporting product/inventory data accessed by the existing repository.
+Demand forecast records, product/inventory inputs, and transaction history accessed by the repository.
 
 ## AI integration
-This backend domain currently contains no direct AI HTTP client. It serves persisted forecasting results, so no AI integration document is added here until the backend owns such a contract.
+The generation client uses `src/integrations/ai/`. See [`../../../INTEGRATIONS.md`](../../../INTEGRATIONS.md#ceopro-ai-service) for transport details.

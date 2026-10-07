@@ -18,26 +18,21 @@ export async function analyzePending(
 ): Promise<void> {
   try {
     const tenantId = req.tenant_id;
-    const authorization = req.headers.authorization;
+    const userId = req.user?.user_id;
     const requestedBatchSize =
       typeof req.query.batch_size === "number"
         ? req.query.batch_size
         : undefined;
 
-    if (!tenantId) {
+    if (!tenantId || !userId) {
       sendApiError(res, ERROR_CODES.TENANT_ACCESS_DENIED);
-      return;
-    }
-
-    if (!authorization) {
-      sendApiError(res, ERROR_CODES.INVALID_AUTH_HEADER);
       return;
     }
 
     const data = await analyzePendingSentiment({
       tenantId,
-      requestedBatchSize,
-      authorization
+      userId,
+      requestedBatchSize
     });
 
     res
@@ -72,6 +67,12 @@ export async function analyzePending(
         });
         return;
       }
+      if (error.code === "UNSUPPORTED_COUNTRY_FILTER") {
+        sendApiError(res, ERROR_CODES.INVALID_PARAMETER, {
+          publicMessage: error.message
+        });
+        return;
+      }
     }
 
     if (isSentimentClientError(error)) {
@@ -95,7 +96,7 @@ export async function getSummary(
 ): Promise<void> {
   try {
     const tenantId = req.tenant_id;
-    const authorization = req.headers.authorization;
+    const userId = req.user?.user_id;
     const subjectType = req.query.subject_type as SentimentSubjectType;
     const subjectId =
       typeof req.query.subject_id === "string"
@@ -106,27 +107,32 @@ export async function getSummary(
         ? req.query.country_context
         : undefined;
 
-    if (!tenantId) {
+    if (!tenantId || !userId) {
       sendApiError(res, ERROR_CODES.TENANT_ACCESS_DENIED);
       return;
     }
 
-    if (!authorization) {
-      sendApiError(res, ERROR_CODES.INVALID_AUTH_HEADER);
-      return;
-    }
-
     const data = await getSentimentSummary({
+      tenantId,
+      userId,
       subjectType,
       subjectId,
-      countryContext,
-      authorization
+      countryContext
     });
 
     res
       .status(200)
       .json(successResponse(data, "Sentiment summary retrieved successfully"));
   } catch (error) {
+    if (
+      isSentimentServiceError(error) &&
+      error.code === "UNSUPPORTED_COUNTRY_FILTER"
+    ) {
+      sendApiError(res, ERROR_CODES.INVALID_PARAMETER, {
+        publicMessage: error.message
+      });
+      return;
+    }
     if (isSentimentClientError(error)) {
       sendApiError(res, ERROR_CODES.EXTERNAL_SERVICE_ERROR, {
         details: {

@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { requireFeatureAccess } from "../../../validators/validateFeatures.js";
+import { requireFeatureAccess } from "../../../middleware/validators/validateFeatures.js";
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import { getSummary } from "../controller/mpi.controller.js";
 import { validateMpiSummaryQuery } from "../types/mpi.validation.js";
 

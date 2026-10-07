@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { featureController } from "../controller/features-managment.controller.js";
-import { validateParams } from "../../../validators/validateParams.js";
-import { validateBody } from "../../../validators/validateBody.js";
+import { validateParams } from "../../../middleware/validators/validateParams.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
 import {
   createFeatureSchema,
   featureIdParamSchema,
@@ -9,11 +9,11 @@ import {
 } from "../../../DTO/features.dto.js";
 
 // Import your security middlewares
-import { authenticateUser } from "../../../validators/validateUser.js";
+import { authenticateUser } from "../../../middleware/validators/validateUser.js";
 import {
   requirePlatformPermission,
   requirePlatformRole
-} from "../../../validators/validatePlatformUser.js";
+} from "../../../middleware/validators/validatePlatformUser.js";
 
 const router = Router();
 

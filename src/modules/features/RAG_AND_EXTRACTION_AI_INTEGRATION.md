@@ -1,39 +1,7 @@
-# Feature/extraction AI integration
+# RAG and extraction route ownership
 
-## Ownership after the RAG split
+RAG routes belong to `src/modules/rag` and remain mounted at `/features/rag`. Uploads are stored in CEOPRO; queries submit tenant documents through the Gradio `rag_answer` API.
 
-Knowledge Base / RAG transport is no longer owned by the shared `features` module.
+The compatibility extraction route `/features/extraction/upload` delegates to the Data Connection domain, which submits files to analytics `extract_file` and persists CEOPRO-owned ingestion records. `/features/extraction/process-pending` remains mounted and returns HTTP 501 because the current extraction contract is synchronous.
 
-Dedicated RAG ownership now lives in:
-
-```text
-src/modules/rag/
-```
-
-and exposes:
-
-```text
-GET  /features/rag/documents
-POST /features/rag/documents
-GET  /features/rag/chunks/:chunk_id
-POST /features/rag/query
-```
-
-See:
-
-```text
-src/modules/rag/RAG_AI_INTEGRATION.md
-```
-
-for the upstream AI contract and mock/real connection instructions.
-
-## Extraction flow retained here
-
-The shared features module still contains the legacy/general extraction route:
-
-```text
-POST /features/extraction/upload
-POST /features/extraction/process-pending
-```
-
-The Data Connection domain owns its separate business-data ingestion API and client. Knowledge Base uploads must not use `/features/extraction/upload`; they now use `/features/rag/documents` and upstream AI `POST /rag/documents`.
+The user-facing route prefixes remain unchanged. See [`../../../INTEGRATIONS.md`](../../../INTEGRATIONS.md#ceopro-ai-service) for shared transport details.

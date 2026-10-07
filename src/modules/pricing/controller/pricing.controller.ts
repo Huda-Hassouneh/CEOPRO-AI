@@ -16,7 +16,7 @@ export async function recommendPrice(
 ): Promise<void> {
   try {
     const tenantId = req.tenant_id;
-    const userId = req.user?.id;
+    const userId = req.user?.user_id;
     const authorization = req.headers.authorization;
     const productId =
       typeof req.query.product_id === "string" ? req.query.product_id : null;
@@ -39,13 +39,14 @@ export async function recommendPrice(
     const data = await getPricingRecommendation({
       tenantId,
       userId,
-      productId,
-      authorization
+      productId
     });
 
     res
       .status(200)
-      .json(successResponse(data, "Pricing recommendation fetched successfully"));
+      .json(
+        successResponse(data, "Pricing recommendation fetched successfully")
+      );
   } catch (error) {
     if (isPricingServiceError(error)) {
       if (error.code === "PRODUCT_NOT_FOUND") {

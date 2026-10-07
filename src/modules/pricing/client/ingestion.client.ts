@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import type { JsonObject } from "../types/dataconnection.types.js";
-import { safeUploadName } from "../validators/dataconnection.validation.js";
+// import type { JsonObject } from "../t";
+import { safeUploadName } from "../validators/pricing.validation.js";
+import { JsonObject } from "../../dataconnection/types/dataconnection.types.js";
 
 const TESTING_MODE = true;
 const AI_SERVICE_URL = (

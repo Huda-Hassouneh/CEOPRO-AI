@@ -1,5 +1,4 @@
 import * as marketIntelligenceRepo from "../repo/market-int.repo.js";
-import { getFeatureAccessInfo } from "../../features/repo/usage.repo.js";
 import { getMpiSummary } from "../../mpi/service/mpi.service.js";
 import type { MpiLabelCounts } from "../../mpi/types/mpi.types.js";
 
@@ -32,15 +31,16 @@ type EnrichedMarketPerception<T> = Omit<
 
 const enrichMarketPerception = async <T extends { competitorId: string }>(
   competitor: T,
-  authorization: string
+  tenantId: string,
+  userId: string
 ): Promise<EnrichedMarketPerception<T>> => {
   try {
     const mpi = await getMpiSummary({
+      tenantId,
+      userId,
       subjectType: "COMPETITOR",
-      subjectId: competitor.competitorId,
-      authorization
+      subjectId: competitor.competitorId
     });
-    console.log({ mpi });
 
     if (mpi.status !== "OK") {
       return {
@@ -87,9 +87,9 @@ const enrichMarketPerception = async <T extends { competitorId: string }>(
 
 export const getMarketIntelligence = async (
   tenantId: string,
+  userId: string,
   productId?: string,
-  periodDays?: number,
-  authorization?: string
+  periodDays?: number
 ) => {
   const data = await marketIntelligenceRepo.getMarketIntelligence(
     tenantId,
@@ -113,41 +113,18 @@ export const getMarketIntelligence = async (
     };
   }
 
-  if (!authorization || data.competitors.length === 0) {
+  if (data.competitors.length === 0) {
     return data;
   }
 
-  let hasMarketPerceptionAccess = false;
-
-  try {
-    const { subscription, planFeature } = await getFeatureAccessInfo(
-      tenantId,
-      "market_perception"
-    );
-    hasMarketPerceptionAccess = Boolean(subscription && planFeature);
-  } catch (error) {
-    console.warn(
-      "Unable to verify market_perception access for Market Intelligence enrichment:",
-      error instanceof Error ? error.message : error
-    );
-    return data;
-  }
-  console.log({ hasMarketPerceptionAccess });
-
-  // MOCKED -- LATER IWOULD DEPEND ON THE market_perception FEATURE
-  // if (!hasMarketPerceptionAccess) {
-  //   return data;
-  // }
-
-  // periodDays is intentionally NOT passed to MPI. GET /mpi/summary has no
-  // period parameter, so changing Market Intelligence from 30 to 90 days does
-  // not redefine the Market Perception Index.
+  // periodDays is intentionally not passed to MPI. The market_intelligence
+  // model input has no period parameter, so this page filter does not redefine
+  // the Market Perception Index sample window.
   const competitors = await Promise.all(
     data.competitors.map((competitor) =>
-      enrichMarketPerception(competitor, authorization)
+      enrichMarketPerception(competitor, tenantId, userId)
     )
   );
-  console.log({ competitors });
 
   return {
     ...data,

@@ -1,218 +1,59 @@
 import { z } from "zod";
-import type {
-  AiSentimentAnalyzePendingResponse,
-  AiSentimentSummaryResponse,
-  SentimentClientError,
-  SentimentSubjectType
-} from "../types/sentiment.types.js";
+import { gradioClient } from "../../../integrations/ai/gradio.client.js";
+import type { GradioClient } from "../../../integrations/ai/ai.types.js";
+import {
+  createAiIntegrationError,
+  isAiIntegrationError
+} from "../../../integrations/ai/ai.types.js";
 
-const DEFAULT_TIMEOUT_MS = 20_000;
-const ANALYZE_TIMEOUT_MS = 60_000;
-
-const AI_SERVICE_URL = (
-  process.env.AI_SERVICE_URL || "http://localhost:8000"
-).replace(/\/+$/, "");
-
-const USE_AI_MOCKS = process.env.AI_SERVICE_USE_MOCKS === "true";
-
-const sampleSizeSchema = z.object({
-  status: z.enum(["OK", "LOW_SAMPLE_SIZE"]),
-  minimum_required: z.number().int().nonnegative()
+const sentimentResponseSchema = z.object({
+  model: z.string(),
+  model_revision: z.string(),
+  results: z.array(
+    z.object({
+      text: z.string(),
+      label: z.enum(["positive", "neutral", "negative"]),
+      positive_probability: z.number().finite().min(0).max(1),
+      neutral_probability: z.number().finite().min(0).max(1),
+      negative_probability: z.number().finite().min(0).max(1),
+      confidence: z.number().finite().min(0).max(1),
+      model_version: z.string()
+    })
+  )
 });
 
-const unknownSummarySchema = z.object({
-  status: z.literal("UNKNOWN"),
-  evidence_id: z.string().uuid(),
-  sample_size: z.object({
-    status: z.literal("LOW_SAMPLE_SIZE"),
-    minimum_required: z.number().int().nonnegative()
-  })
-});
+export type SentimentGradioResponse = z.infer<typeof sentimentResponseSchema>;
+export { isAiIntegrationError as isSentimentClientError };
 
-const successSummarySchema = z.object({
-  status: z.literal("OK"),
-  evidence_id: z.string().uuid(),
-  sentiment_score: z.number().min(-1).max(1),
-  label_counts: z.object({
-    positive: z.number().int().nonnegative(),
-    neutral: z.number().int().nonnegative(),
-    negative: z.number().int().nonnegative()
-  }),
-  sample_size: sampleSizeSchema
-});
-
-const summaryResponseSchema = z.discriminatedUnion("status", [
-  unknownSummarySchema,
-  successSummarySchema
-]);
-
-const analyzePendingResponseSchema = z.object({
-  status: z.literal("OK"),
-  analyzed_count: z.number().int().nonnegative()
-});
-
-const MOCK_SUMMARY_RESPONSE: AiSentimentSummaryResponse = {
-  status: "OK",
-  evidence_id: "33333333-3333-4333-8333-333333333333",
-  sentiment_score: 0.62,
-  label_counts: {
-    positive: 12,
-    neutral: 18,
-    negative: 2
-  },
-  sample_size: {
-    status: "OK",
-    minimum_required: 5
-  }
-};
-
-function createSentimentClientError(
-  message: string,
-  upstreamStatus?: number
-): SentimentClientError {
-  const error = new Error(message) as SentimentClientError;
-  error.name = "SentimentClientError";
-  error.upstreamStatus = upstreamStatus;
-  return error;
-}
-
-export function isSentimentClientError(
-  error: unknown
-): error is SentimentClientError {
-  return error instanceof Error && error.name === "SentimentClientError";
-}
-
-async function fetchWithTimeout(
-  input: string | URL,
-  init: RequestInit,
-  timeoutMs: number
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw createSentimentClientError(
-        `AI sentiment service timed out after ${timeoutMs} ms.`
-      );
-    }
-
-    throw createSentimentClientError(
-      error instanceof Error
-        ? `AI sentiment service request failed: ${error.message}`
-        : "AI sentiment service request failed."
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function requestJson(
-  url: URL,
-  init: RequestInit,
-  timeoutMs: number
-): Promise<unknown> {
-  const response = await fetchWithTimeout(url, init, timeoutMs);
-
-  if (!response.ok) {
-    throw createSentimentClientError(
-      `AI sentiment service returned HTTP ${response.status}.`,
-      response.status
+export async function requestSentimentClassification(
+  texts: string[],
+  client: GradioClient = gradioClient
+): Promise<SentimentGradioResponse> {
+  if (texts.length < 1 || texts.length > 64 || texts.some((text) => !text.trim())) {
+    throw createAiIntegrationError(
+      "Sentiment requests require 1 to 64 non-empty texts.",
+      "configuration"
     );
   }
 
-  try {
-    return await response.json();
-  } catch {
-    throw createSentimentClientError(
-      "AI sentiment service returned invalid JSON.",
-      response.status
-    );
-  }
-}
-
-export async function requestSentimentSummary(input: {
-  subjectType: SentimentSubjectType;
-  subjectId?: string;
-  countryContext?: string;
-  authorization: string;
-  timeoutMs?: number;
-}): Promise<AiSentimentSummaryResponse> {
-  if (USE_AI_MOCKS) {
-    return MOCK_SUMMARY_RESPONSE;
-  }
-
-  const url = new URL("sentiment/summary", `${AI_SERVICE_URL}/`);
-  url.searchParams.set("subject_type", input.subjectType);
-
-  if (input.subjectId) {
-    url.searchParams.set("subject_id", input.subjectId);
-  }
-
-  if (input.countryContext) {
-    url.searchParams.set("country_context", input.countryContext);
-  }
-
-  const payload = await requestJson(
-    url,
-    {
-      method: "GET",
-      headers: {
-        Authorization: input.authorization,
-        Accept: "application/json"
-      }
-    },
-    input.timeoutMs ?? DEFAULT_TIMEOUT_MS
-  );
-
-  const parsed = summaryResponseSchema.safeParse(payload);
+  const payload = await client.call({
+    service: "models",
+    apiName: "sentiment",
+    data: [texts],
+    timeoutMs: 60_000
+  });
+  const parsed = sentimentResponseSchema.safeParse(payload);
   if (!parsed.success) {
-    throw createSentimentClientError(
-      "AI sentiment service returned a summary response that does not match the CEOPRO AI API contract."
+    throw createAiIntegrationError(
+      "Gradio sentiment response did not match the documented output schema.",
+      "malformed_response"
     );
   }
-
-  return parsed.data;
-}
-
-export async function requestAnalyzePendingSentiment(input: {
-  batchSize: number;
-  authorization: string;
-  timeoutMs?: number;
-}): Promise<AiSentimentAnalyzePendingResponse> {
-  if (USE_AI_MOCKS) {
-    return {
-      status: "OK",
-      analyzed_count: Math.min(input.batchSize, 5)
-    };
-  }
-
-  const url = new URL("sentiment/analyze-pending", `${AI_SERVICE_URL}/`);
-  url.searchParams.set("batch_size", String(input.batchSize));
-
-  const payload = await requestJson(
-    url,
-    {
-      method: "POST",
-      headers: {
-        Authorization: input.authorization,
-        Accept: "application/json"
-      }
-    },
-    input.timeoutMs ?? ANALYZE_TIMEOUT_MS
-  );
-
-  const parsed = analyzePendingResponseSchema.safeParse(payload);
-  if (!parsed.success) {
-    throw createSentimentClientError(
-      "AI sentiment service returned an analyze-pending response that does not match the CEOPRO AI API contract."
+  if (parsed.data.results.length !== texts.length) {
+    throw createAiIntegrationError(
+      "Gradio sentiment response count did not match the submitted texts.",
+      "malformed_response"
     );
   }
-
   return parsed.data;
 }
