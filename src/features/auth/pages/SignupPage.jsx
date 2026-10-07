@@ -89,7 +89,7 @@ export function SignupPage() {
     setErrors(nextErrors);
     setRequestError('');
     if (Object.values(nextErrors).some(Boolean)) return;
-    signupMutation.mutate(values);
+    signupMutation.mutate({ ...values, preferredLanguage: locale });
   };
 
   return (

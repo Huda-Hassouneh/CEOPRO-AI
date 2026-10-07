@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { queryClient } from '../../../shared/lib/queryClient.js';
 import {
   authSessionStorage,
   normalizeAuthSession,
@@ -42,6 +43,10 @@ export const useAuthStore = create((set, get) => ({
   },
 
   setSession: (session) => {
+    // Never carry tenant/platform query data across authenticated sessions.
+    // This is especially important for /platform-admin/me because a cached
+    // platform principal must not be reusable by a later customer-tenant user.
+    queryClient.clear();
     const normalizedSession = normalizeAuthSession(session);
     authSessionStorage.write(normalizedSession);
     set({
@@ -54,6 +59,8 @@ export const useAuthStore = create((set, get) => ({
   },
 
   clearSession: () => {
+    // Authentication boundaries are also query-cache boundaries.
+    queryClient.clear();
     authSessionStorage.clear();
     set({
       ...emptySessionState,

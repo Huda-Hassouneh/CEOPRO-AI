@@ -5,7 +5,16 @@ const unwrap = (request) => request.then((response) => response.data);
 
 export const authHttpAdapter = Object.freeze({
   login: (payload) => unwrap(httpClient.post(authEndpoints.login, payload)),
-  signup: (payload) => unwrap(httpClient.post(authEndpoints.signup, payload)),
+  signup: (payload) => unwrap(httpClient.post(authEndpoints.signup, {
+    email: payload.email,
+    password: payload.password,
+    fullName: payload.fullName ?? payload.name,
+    businessName: payload.businessName ?? payload.business,
+    preferredLanguage: payload.preferredLanguage ?? 'en',
+    countryCode: payload.countryCode ?? 'JO',
+    primaryCurrency: payload.primaryCurrency ?? 'JOD',
+    timezone: payload.timezone ?? 'Asia/Amman',
+  })),
   googleAuth: (payload) => unwrap(httpClient.post(authEndpoints.googleAuth, payload)),
   forgotPassword: (payload) => unwrap(httpClient.post(authEndpoints.forgotPassword, payload)),
   verifyResetCode: (payload) => unwrap(httpClient.post(authEndpoints.verifyResetCode, payload)),

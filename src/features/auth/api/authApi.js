@@ -2,9 +2,12 @@ import { AUTH_API_MODE } from './authContracts.js';
 import { authHttpAdapter } from './authHttpAdapter.js';
 import { authMockAdapter } from './authMockAdapter.js';
 
-export const authApiMode = import.meta.env.VITE_AUTH_API_MODE === AUTH_API_MODE.HTTP
-  ? AUTH_API_MODE.HTTP
-  : AUTH_API_MODE.MOCK;
+// Real auth must be the default so signup/login never succeed silently in a
+// mock adapter when the environment file was not copied from .env.example.
+// Mock auth remains available as an explicit development opt-in.
+export const authApiMode = import.meta.env.VITE_AUTH_API_MODE === AUTH_API_MODE.MOCK
+  ? AUTH_API_MODE.MOCK
+  : AUTH_API_MODE.HTTP;
 
 const adapter = authApiMode === AUTH_API_MODE.HTTP ? authHttpAdapter : authMockAdapter;
 
