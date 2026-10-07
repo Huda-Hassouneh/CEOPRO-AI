@@ -3,7 +3,7 @@ import { ERROR_CODES } from "../../../errors/error-codes.js";
 import type { AppRequest } from "../../../types/request.js";
 import { successResponse } from "../../../types/response.js";
 import { sendApiError } from "../../../utils/http.js";
-import { getPlatformRole } from "../../../validators/validatePlatformUser.js";
+import { getPlatformRole } from "../../../middleware/validators/validatePlatformUser.js";
 import { prisma } from "../../../config/database.js";
 import { getManagedStandardPlans } from "../../subscription/service/plans.service.js";
 import { analyzePlanTransition } from "../../subscription/service/plan-transition.service.js";
@@ -258,7 +258,7 @@ export async function approvePlatformQuoteHandler(
 
 export async function sendPlatformQuoteHandler(req: AppRequest, res: Response) {
   const actorTenantId = req.tenant_id;
-  const actorUserId = req.user?.id;
+  const actorUserId = req.user?.user_id;
   if (!actorTenantId || !actorUserId)
     return sendApiError(res, ERROR_CODES.FORBIDDEN);
 
@@ -350,16 +350,38 @@ export async function updatePlatformVendorRateHandler(
   );
 }
 
-export async function listPlatformInfrastructureRatesHandler(_req: AppRequest, res: Response) {
-  return reply(res, await listInfrastructureRates(), "Infrastructure rates retrieved successfully");
+export async function listPlatformInfrastructureRatesHandler(
+  _req: AppRequest,
+  res: Response
+) {
+  return reply(
+    res,
+    await listInfrastructureRates(),
+    "Infrastructure rates retrieved successfully"
+  );
 }
 
-export async function createPlatformInfrastructureRateHandler(req: AppRequest, res: Response) {
-  return reply(res, await createInfrastructureRate(req.body), "Infrastructure rate created successfully", 201);
+export async function createPlatformInfrastructureRateHandler(
+  req: AppRequest,
+  res: Response
+) {
+  return reply(
+    res,
+    await createInfrastructureRate(req.body),
+    "Infrastructure rate created successfully",
+    201
+  );
 }
 
-export async function updatePlatformInfrastructureRateHandler(req: AppRequest, res: Response) {
-  return reply(res, await updateInfrastructureRate(String(req.params.id), req.body), "Infrastructure rate updated successfully");
+export async function updatePlatformInfrastructureRateHandler(
+  req: AppRequest,
+  res: Response
+) {
+  return reply(
+    res,
+    await updateInfrastructureRate(String(req.params.id), req.body),
+    "Infrastructure rate updated successfully"
+  );
 }
 
 export async function linkPlatformPromoToPlanHandler(

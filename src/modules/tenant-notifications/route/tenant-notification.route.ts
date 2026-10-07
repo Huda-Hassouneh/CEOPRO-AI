@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import { tenantNotificationController } from "../controller/tenant-notification.controller.js";
 
 const router = Router();

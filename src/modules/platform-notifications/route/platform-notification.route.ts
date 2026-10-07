@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requirePlatformPermission } from "../../../validators/validatePlatformUser.js";
+import { requirePlatformPermission } from "../../../middleware/validators/validatePlatformUser.js";
 import { platformNotificationController } from "../controller/platform-notification.controller.js";
 
 const router = Router();

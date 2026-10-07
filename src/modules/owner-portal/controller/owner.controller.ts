@@ -1,7 +1,7 @@
 import type { Response, NextFunction } from "express";
 import { z } from "zod";
 import type { AppRequest } from "../../../types/request.js";
-import { requirePlatformPermission } from "../../../validators/validatePlatformUser.js";
+import { requirePlatformPermission } from "../../../middleware/validators/validatePlatformUser.js";
 import {
   PortalError,
   type Actor,
@@ -16,7 +16,46 @@ import {
   revokeSession
 } from "../service/owner-write.service.js";
 import * as read from "../service/owner-read.service.js";
-import { INVITABLE_PLATFORM_ROLES } from "../types/platform-roles.js";
+
+/*
+ * Normal tenant/company membership roles.
+ */
+export const TENANT_ROLES = [
+  "owner",
+  "admin",
+  "manager",
+  "accountant",
+  "staff"
+] as const;
+
+export const tenantRoleSchema = z.enum(TENANT_ROLES);
+
+export type TenantRole = (typeof TENANT_ROLES)[number];
+
+/*
+ * CEOPRO platform administration roles.
+ */
+export const PLATFORM_ROLES = ["owner", "admin"] as const;
+
+export const platformRoleSchema = z.enum(PLATFORM_ROLES);
+
+export type PlatformRole = (typeof PLATFORM_ROLES)[number];
+
+/*
+ * The platform owner is protected and must not be created
+ * through the normal admin-team invitation flow.
+ */
+export const INVITABLE_PLATFORM_ROLES = ["admin"] as const;
+
+export const invitablePlatformRoleSchema = z.enum(INVITABLE_PLATFORM_ROLES);
+
+export type InvitablePlatformRole = (typeof INVITABLE_PLATFORM_ROLES)[number];
+
+export function isInvitablePlatformRole(
+  value: string
+): value is InvitablePlatformRole {
+  return (INVITABLE_PLATFORM_ROLES as readonly string[]).includes(value);
+}
 
 export const permission = requirePlatformPermission;
 const uuid = z.uuid();
@@ -134,17 +173,17 @@ export const userStatus = handle((req) =>
       .status
   )
 );
-const platformRoleSchema = z.enum(INVITABLE_PLATFORM_ROLES);
 export const teamInvite = handle((req) => {
   const input = body(
     req,
     z
       .object({
         email: z.email().max(255),
-        role: platformRoleSchema
+        role: invitablePlatformRoleSchema
       })
       .strict()
   );
+
   return createInvite(actor(req), input.email, input.role);
 });
 export const teamRole = handle((req) =>
@@ -152,7 +191,14 @@ export const teamRole = handle((req) =>
     actor(req),
     id(req),
     "role",
-    body(req, z.object({ role: platformRoleSchema }).strict())
+    body(
+      req,
+      z
+        .object({
+          role: platformRoleSchema
+        })
+        .strict()
+    )
   )
 );
 export const teamStatus = handle((req) =>

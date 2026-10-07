@@ -6,13 +6,13 @@ import platformNotificationRouter from "../../platform-notifications/route/platf
 import {
   authenticateUser,
   requireTenant
-} from "../../../validators/validateUser.js";
+} from "../../../middleware/validators/validateUser.js";
 import {
   requirePlatformPermission,
   requirePlatformRole
-} from "../../../validators/validatePlatformUser.js";
-import { validateBody } from "../../../validators/validateBody.js";
-import { validateParams } from "../../../validators/validateParams.js";
+} from "../../../middleware/validators/validatePlatformUser.js";
+import { validateBody } from "../../../middleware/validators/validateBody.js";
+import { validateParams } from "../../../middleware/validators/validateParams.js";
 import {
   approveCustomPlanQuoteSchema,
   createCustomPlanQuoteSchema,

@@ -319,15 +319,23 @@ export async function acceptInvite(token: string, userId: string) {
     const invite = await tx.platformInvitation.findUnique({
       where: { tokenHash: tokenHash(token) }
     });
-    if (!isInvitablePlatformRole(invite.roleKey)) {
-      throw new PortalError("forbidden");
-    }
+
+    // Validate that the invitation exists and is still usable
+    // before reading any properties from it.
     if (
       !invite ||
       invite.status !== "pending" ||
       invite.expiresAt <= new Date()
-    )
+    ) {
       throw new PortalError("notFound");
+    }
+
+    // Platform invitations may only grant explicitly invitable
+    // platform roles (currently "admin").
+    if (!isInvitablePlatformRole(invite.roleKey)) {
+      throw new PortalError("forbidden");
+    }
+
     const platform = await tx.company.findFirst({
       where: {
         id: invite.tenantId,
@@ -337,10 +345,19 @@ export async function acceptInvite(token: string, userId: string) {
       },
       select: { id: true }
     });
-    if (!platform) throw new PortalError("notFound");
-    const user = await tx.user.findUnique({ where: { userId } });
-    if (!user || user.email.toLowerCase() !== invite.email.toLowerCase())
+
+    if (!platform) {
+      throw new PortalError("notFound");
+    }
+
+    const user = await tx.user.findUnique({
+      where: { userId }
+    });
+
+    if (!user || user.email.toLowerCase() !== invite.email.toLowerCase()) {
       throw new PortalError("forbidden");
+    }
+
     const existing = await tx.tenantUser.findUnique({
       where: {
         tenantId_userId: {
@@ -349,21 +366,46 @@ export async function acceptInvite(token: string, userId: string) {
         }
       }
     });
-    if (existing && !existing.removedAt) throw new PortalError("duplicate");
+
+    if (existing && !existing.removedAt) {
+      throw new PortalError("duplicate");
+    }
+
     const accepted = await tx.platformInvitation.updateMany({
-      where: { id: invite.id, status: "pending" },
-      data: { status: "accepted", acceptedAt: new Date() }
+      where: {
+        id: invite.id,
+        status: "pending"
+      },
+      data: {
+        status: "accepted",
+        acceptedAt: new Date()
+      }
     });
-    if (!accepted.count) throw new PortalError("conflict");
+
+    if (!accepted.count) {
+      throw new PortalError("conflict");
+    }
+
     await tx.tenantUser.upsert({
-      where: { tenantId_userId: { tenantId: invite.tenantId, userId } },
+      where: {
+        tenantId_userId: {
+          tenantId: invite.tenantId,
+          userId
+        }
+      },
       update: {
         roleKey: invite.roleKey,
         platformStatus: "active",
         removedAt: null
       },
-      create: { tenantId: invite.tenantId, userId, roleKey: invite.roleKey }
+      create: {
+        tenantId: invite.tenantId,
+        userId,
+        roleKey: invite.roleKey,
+        platformStatus: "active"
+      }
     });
+
     await auditWrite(
       tx,
       {
@@ -372,8 +414,13 @@ export async function acceptInvite(token: string, userId: string) {
         name: user.email,
         role: invite.roleKey
       },
-      { action: "invitationAccepted", domain: "admin-team", target: user.email }
+      {
+        action: "invitationAccepted",
+        domain: "admin-team",
+        target: user.email
+      }
     );
+
     return { accepted: true };
   });
 }

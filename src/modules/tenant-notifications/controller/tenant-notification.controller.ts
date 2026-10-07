@@ -31,17 +31,20 @@ const listQuerySchema = z
 const notificationIdSchema = z.uuid();
 
 function identity(req: AppRequest) {
-  if (!req.tenant_id || !req.user?.id) {
+  if (!req.tenant_id || !req.user?.user_id) {
     return null;
   }
 
   return {
     tenantId: req.tenant_id,
-    recipientUserId: req.user.id
+    recipientUserId: req.user.user_id
   };
 }
 
-async function listNotifications(req: AppRequest, res: Response): Promise<void> {
+async function listNotifications(
+  req: AppRequest,
+  res: Response
+): Promise<void> {
   const actor = identity(req);
   if (!actor) {
     sendApiError(res, ERROR_CODES.FORBIDDEN);
@@ -84,12 +87,14 @@ async function getUnreadCount(req: AppRequest, res: Response): Promise<void> {
   try {
     const unreadCount = await tenantNotificationService.getUnreadCount(actor);
 
-    res.status(200).json(
-      successResponse(
-        { unreadCount },
-        "Unread notification count retrieved successfully"
-      )
-    );
+    res
+      .status(200)
+      .json(
+        successResponse(
+          { unreadCount },
+          "Unread notification count retrieved successfully"
+        )
+      );
   } catch (error) {
     console.error("[TenantNotifications] Failed to get unread count", error);
     sendApiError(res, ERROR_CODES.INTERNAL_SERVER_ERROR);
@@ -124,9 +129,14 @@ async function markRead(req: AppRequest, res: Response): Promise<void> {
       return;
     }
 
-    res.status(200).json(successResponse(result, "Notification marked as read"));
+    res
+      .status(200)
+      .json(successResponse(result, "Notification marked as read"));
   } catch (error) {
-    console.error("[TenantNotifications] Failed to mark notification read", error);
+    console.error(
+      "[TenantNotifications] Failed to mark notification read",
+      error
+    );
     sendApiError(res, ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 }
@@ -163,7 +173,10 @@ async function archive(req: AppRequest, res: Response): Promise<void> {
       .status(200)
       .json(successResponse(result, "Notification archived successfully"));
   } catch (error) {
-    console.error("[TenantNotifications] Failed to archive notification", error);
+    console.error(
+      "[TenantNotifications] Failed to archive notification",
+      error
+    );
     sendApiError(res, ERROR_CODES.INTERNAL_SERVER_ERROR);
   }
 }
@@ -178,12 +191,14 @@ async function markAllRead(req: AppRequest, res: Response): Promise<void> {
   try {
     const updatedCount = await tenantNotificationService.markAllRead(actor);
 
-    res.status(200).json(
-      successResponse(
-        { updatedCount },
-        "Notifications marked as read successfully"
-      )
-    );
+    res
+      .status(200)
+      .json(
+        successResponse(
+          { updatedCount },
+          "Notifications marked as read successfully"
+        )
+      );
   } catch (error) {
     console.error("[TenantNotifications] Failed to mark all read", error);
     sendApiError(res, ERROR_CODES.INTERNAL_SERVER_ERROR);
