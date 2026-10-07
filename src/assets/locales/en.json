@@ -1119,6 +1119,11 @@
     },
     "verifyEmail": {
       "title": "Check your inbox",
+      "confirmTitle": "Confirm your email",
+      "confirmDescription": "Select the button below to verify your email and create your account.",
+      "confirmButton": "Confirm email",
+      "confirming": "Confirming your email",
+      "confirmingDescription": "Your email is verified. We are opening your account setup.",
       "subtitleLine1": "We've sent a verification link to your email.",
       "subtitleWithEmail": "We've sent a verification link to {{email}}.",
       "subtitlePrefix": "We've sent a verification link to",
@@ -1190,6 +1195,7 @@
       "invalidCode": "The verification code is incorrect.",
       "expiredCode": "This verification code has expired.",
       "resendFailed": "We couldn't resend the code. Please try again.",
+      "verificationFailed": "This verification session expired. Please sign in or request a new verification email.",
       "emailInUse": "An account with this email already exists.",
       "invitationUnavailable": "We couldn't load this invitation. Please try again."
     },
@@ -1593,9 +1599,22 @@
       "usageLabels": {
         "products": "Products",
         "competitors": "Competitors",
-        "ragQueries": "RAG Questions",
+        "ragQueries": "RAG Tokens",
         "reports": "Reports",
-        "storageGb": "Storage"
+        "storageGb": "Storage",
+        "dashboard_analytics": "Dashboard Analytics",
+        "market_intelligence": "Market Intelligence",
+        "demand_prediction": "Demand Prediction",
+        "product_management": "Product Management",
+        "data_integration": "Data Integration",
+        "competitor_management": "Competitor Management",
+        "rag_assistant": "RAG Tokens",
+        "document_extraction": "Document Extraction",
+        "document_storage_mb": "Document Storage",
+        "tracked_products": "Products",
+        "connected_data_sources": "Connected Data Sources",
+        "tracked_competitors": "Tracked Competitors",
+        "sentiment_analysis": "Sentiment Analysis"
       },
       "usageState": {
         "unlimited": "Unlimited",
@@ -1613,21 +1632,21 @@
         "approachingDescription": "You've used {{used}} of the {{limit}} available {{metric}} on your current plan."
       },
       "context": {
-        "products": {
+        "tracked_products": {
           "title": "Product limit reached",
           "description": "You've reached the product limit for your current plan ({{used}} of {{limit}})."
         },
-        "competitors": {
+        "tracked_competitors": {
           "title": "Competitor limit reached",
           "description": "You've reached the competitor tracking limit for your current plan ({{used}} of {{limit}})."
         },
-        "ragQueries": {
-          "title": "RAG limit reached",
-          "description": "You've reached the RAG question limit for your current plan ({{used}} of {{limit}})."
+        "rag_assistant": {
+          "title": "RAG token limit reached",
+          "description": "You've reached the RAG token limit for your current plan ({{used}} of {{limit}})."
         },
-        "storageGb": {
+        "document_storage_mb": {
           "title": "Storage limit reached",
-          "description": "You've reached the storage limit for your current plan ({{used}} of {{limit}})."
+          "description": "You've reached the document storage limit for your current plan ({{used}} of {{limit}})."
         }
       },
       "comparePlansAction": "Compare Plans",
@@ -1639,7 +1658,7 @@
       "historicalPeriodUnavailable": "See your latest invoice for the billing period",
       "compareSubtitle": "Review the configured limits and billing options available to your company.",
       "reviewUpgrade": "Review Upgrade",
-      "reviewSubscription": "Review Pro Subscription",
+      "reviewSubscription": "Review Subscription",
       "contactSales": "Contact Sales",
       "contactUnavailable": "The Custom plan contact flow is not connected yet. No request was submitted.",
       "notAvailable": "Not available",
@@ -1647,7 +1666,9 @@
       "comparison": {
         "title": "Detailed Plan Comparison",
         "subtitle": "A focused comparison of the usage limits defined by the current plan configuration.",
-        "limit": "Usage limit"
+        "limit": "Usage limit",
+        "show": "Compare all features",
+        "hide": "Hide comparison"
       },
       "errorTitle": "Subscription unavailable",
       "errorDescription": "We could not load plan and subscription information.",
@@ -1655,7 +1676,10 @@
       "missingTitle": "No subscription information",
       "missingDescription": "A current subscription could not be identified for this company.",
       "loadError": "Failed to load subscription plans.",
-      "unavailablePlanName": "Current subscription plan"
+      "unavailablePlanName": "Current subscription plan",
+      "configured": "Configured",
+      "configurable": "Configurable",
+      "optional": "Optional"
     },
     "checkoutInApp": {
       "trialUpgradeDescription": "Your new plan will be available immediately. You will not be charged today. Your existing free trial will keep its original end date, and the full price of the new plan will be charged when the trial ends.",
@@ -1699,12 +1723,12 @@
     },
     "choose": {
       "title": "Choose the plan that fits you",
-      "subtitle": "All plans include the same AI models and features. The only difference is your usage limits."
+      "subtitle": "Compare capabilities, limits, and billing options to choose the right plan for your business."
     },
     "trial": {
-      "title": "Start with a {{days}}-day Pro trial",
-      "description": "Get full access to Pro features and limits.",
-      "badge": "{{days}} days free"
+      "title": "Free trials are available on eligible plans",
+      "description": "Each eligible plan shows its trial length before checkout.",
+      "badge": "Try before you pay"
     },
     "periods": {
       "label": "Billing period",
@@ -1722,38 +1746,50 @@
     "plans": {
       "mostPopular": "Most Popular",
       "customPricing": "Custom pricing",
-      "standard": {
-        "name": "Standard",
-        "description": "Perfect for small businesses",
-        "action": "Choose Standard"
+      "trialAction": "Start {{days}}-Day {{plan}} Trial",
+      "starter": {
+        "name": "Starter",
+        "description": "Core analytics, basic ingestion, and a practical AI allowance.",
+        "action": "Choose Starter"
       },
-      "pro": {
-        "name": "Pro",
-        "description": "For growing businesses",
-        "action": "Start {{days}}-Day Free Trial"
+      "growth": {
+        "name": "Growth",
+        "description": "Forecasting, competitor intelligence, and expanded AI capacity.",
+        "action": "Choose Growth"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "description": "Higher workloads, advanced integrations, and faster monitoring.",
+        "action": "Choose Enterprise"
       },
       "custom": {
         "name": "Custom",
-        "description": "Tailored for your business",
-        "action": "Build Your Plan"
-      }
+        "description": "Tailored features and limits for your business.",
+        "action": "Build Your Plan",
+        "calloutEyebrow": "Flexible option",
+        "calloutTitle": "Need something different?",
+        "calloutDescription": "Build a Custom Plan with the features, limits, and monitoring cadence that fit your business."
+      },
+      "highlights": "Plan highlights",
+      "includesPrevious": "Everything in {{plan}}, plus:",
+      "higherCapacity": "Includes the previous tier with higher capacity and plan limits."
     },
     "recommendation": {
-      "title": "Try Pro before choosing Standard",
-      "description": "You can try Pro free for {{days}} days.",
-      "tryPro": "Try Pro for {{days}} Days",
-      "continueStandard": "Continue with Standard"
+      "title": "Try {{recommendedPlan}} before choosing {{currentPlan}}",
+      "description": "You can try {{recommendedPlan}} free for {{days}} days before continuing with {{currentPlan}}.",
+      "tryRecommended": "Try {{recommendedPlan}} for {{days}} Days",
+      "continueCurrent": "Continue with {{currentPlan}}"
     },
     "features": {
       "products": "{{value}} products you can add",
       "competitors": "{{value}} competitors tracked",
-      "ragQueries": "{{value}} AI queries per month",
+      "ragQueries": "{{value}} RAG tokens per billing period",
       "reports": "{{value}} reports per month",
       "storage": "{{value}} storage",
-      "everythingPro": "Everything in Pro",
       "customLimits": "Custom limits based on your needs",
       "support": "Dedicated support",
-      "largeTeams": "Flexible for large teams"
+      "largeTeams": "Flexible for large teams",
+      "everythingGrowth": "Everything in Growth"
     },
     "custom": {
       "title": "Build Your Custom Plan",
@@ -1950,7 +1986,6 @@
       "subtotal": "Subtotal",
       "discount": "Discount ({{percent}}%)",
       "trial": "{{days}}-day free trial",
-      "proTrial": "Pro trial",
       "monthlyPrice": "Monthly price",
       "afterTrial": "After the {{days}}-day trial",
       "previewTotal": "Subscription total",
@@ -1958,7 +1993,8 @@
       "secureHostedCheckout": "Secure Stripe checkout",
       "providerNotice": "You will be redirected to Stripe to complete payment securely.",
       "redirecting": "Redirecting to Stripe...",
-      "error": "Checkout could not be started. Please try again."
+      "error": "Checkout could not be started. Please try again.",
+      "planTrial": "{{plan}} trial"
     },
     "result": {
       "success": {

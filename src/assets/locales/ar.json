@@ -1119,6 +1119,11 @@
     },
     "verifyEmail": {
       "title": "تحقق من بريدك الوارد",
+      "confirmTitle": "تأكيد بريدك الإلكتروني",
+      "confirmDescription": "اضغط على الزر أدناه للتحقق من بريدك الإلكتروني وإنشاء حسابك.",
+      "confirmButton": "تأكيد البريد الإلكتروني",
+      "confirming": "جارٍ تأكيد بريدك الإلكتروني",
+      "confirmingDescription": "تم تأكيد بريدك الإلكتروني. جارٍ فتح إعداد الحساب.",
       "subtitleLine1": "أرسلنا رابط تحقق إلى بريدك الإلكتروني.",
       "subtitleWithEmail": "أرسلنا رابط تحقق إلى {{email}}.",
       "subtitlePrefix": "أرسلنا رابط تحقق إلى",
@@ -1190,6 +1195,7 @@
       "invalidCode": "رمز التحقق غير صحيح.",
       "expiredCode": "انتهت صلاحية رمز التحقق هذا.",
       "resendFailed": "تعذر إعادة إرسال الرمز. يرجى المحاولة مجدداً.",
+      "verificationFailed": "انتهت صلاحية جلسة التحقق. سجّل الدخول أو اطلب رسالة تحقق جديدة.",
       "emailInUse": "يوجد حساب مسجل بهذا البريد الإلكتروني.",
       "invitationUnavailable": "تعذر تحميل هذه الدعوة. يرجى المحاولة مجدداً."
     },
@@ -1593,9 +1599,22 @@
       "usageLabels": {
         "products": "المنتجات",
         "competitors": "المنافسون",
-        "ragQueries": "أسئلة RAG",
+        "ragQueries": "رموز RAG",
         "reports": "التقارير",
-        "storageGb": "التخزين"
+        "storageGb": "التخزين",
+        "dashboard_analytics": "تحليلات لوحة التحكم",
+        "market_intelligence": "ذكاء السوق",
+        "demand_prediction": "التنبؤ بالطلب",
+        "product_management": "إدارة المنتجات",
+        "data_integration": "تكامل البيانات",
+        "competitor_management": "إدارة المنافسين",
+        "rag_assistant": "رموز RAG",
+        "document_extraction": "استخراج بيانات المستندات",
+        "document_storage_mb": "تخزين المستندات",
+        "tracked_products": "المنتجات",
+        "connected_data_sources": "مصادر البيانات المتصلة",
+        "tracked_competitors": "المنافسون المتابعون",
+        "sentiment_analysis": "تحليل المشاعر"
       },
       "usageState": {
         "unlimited": "غير محدود",
@@ -1613,21 +1632,21 @@
         "approachingDescription": "استخدمت {{used}} من أصل {{limit}} من {{metric}} المتاحة في خطتك الحالية."
       },
       "context": {
-        "products": {
+        "tracked_products": {
           "title": "تم بلوغ حد المنتجات",
           "description": "لقد بلغت حد المنتجات في خطتك الحالية ({{used}} من {{limit}})."
         },
-        "competitors": {
+        "tracked_competitors": {
           "title": "تم بلوغ حد المنافسين",
           "description": "لقد بلغت حد متابعة المنافسين في خطتك الحالية ({{used}} من {{limit}})."
         },
-        "ragQueries": {
-          "title": "تم بلوغ حد RAG",
-          "description": "لقد بلغت حد أسئلة RAG في خطتك الحالية ({{used}} من {{limit}})."
+        "rag_assistant": {
+          "title": "تم بلوغ حد رموز RAG",
+          "description": "لقد بلغت حد رموز RAG في خطتك الحالية ({{used}} من {{limit}})."
         },
-        "storageGb": {
+        "document_storage_mb": {
           "title": "تم بلوغ حد التخزين",
-          "description": "لقد بلغت حد التخزين في خطتك الحالية ({{used}} من {{limit}})."
+          "description": "لقد بلغت حد تخزين المستندات في خطتك الحالية ({{used}} من {{limit}})."
         }
       },
       "comparePlansAction": "مقارنة الخطط",
@@ -1639,7 +1658,7 @@
       "historicalPeriodUnavailable": "راجع أحدث فاتورة لمعرفة فترة الفوترة",
       "compareSubtitle": "راجع الحدود وخيارات الفوترة المهيأة والمتاحة لشركتك.",
       "reviewUpgrade": "مراجعة الترقية",
-      "reviewSubscription": "مراجعة اشتراك Pro",
+      "reviewSubscription": "مراجعة الاشتراك",
       "contactSales": "التواصل مع المبيعات",
       "contactUnavailable": "مسار التواصل بشأن الخطة المخصصة غير متصل بعد. لم يتم إرسال أي طلب.",
       "notAvailable": "غير متاح",
@@ -1647,7 +1666,9 @@
       "comparison": {
         "title": "مقارنة تفصيلية للخطط",
         "subtitle": "مقارنة مركزة لحدود الاستخدام المعرفة في إعدادات الخطط الحالية.",
-        "limit": "حد الاستخدام"
+        "limit": "حد الاستخدام",
+        "show": "مقارنة جميع المزايا",
+        "hide": "إخفاء المقارنة"
       },
       "errorTitle": "الاشتراك غير متاح",
       "errorDescription": "تعذر تحميل معلومات الخطط والاشتراك.",
@@ -1656,7 +1677,10 @@
       "missingDescription": "تعذر تحديد اشتراك حالي لهذه الشركة.",
       "loadError": "تعذر تحميل خطط الاشتراك.",
       "unavailablePlanName": "خطة الاشتراك الحالية",
-      "cancelConfirmTitle": "إلغاء الاشتراك؟"
+      "cancelConfirmTitle": "إلغاء الاشتراك؟",
+      "configured": "مهيأ",
+      "configurable": "قابل للتخصيص",
+      "optional": "اختياري"
     },
     "checkoutInApp": {
       "trialUpgradeDescription": "ستصبح خطتك الجديدة متاحة فوراً دون أي رسوم اليوم. ستستمر فترة التجربة المجانية الحالية حتى تاريخ انتهائها الأصلي، وسيتم تحصيل السعر الكامل للخطة الجديدة عند انتهاء فترة التجربة.",
@@ -1700,12 +1724,12 @@
     },
     "choose": {
       "title": "اختر الخطة المناسبة لك",
-      "subtitle": "تشمل جميع الخطط نماذج وميزات الذكاء الاصطناعي نفسها، والاختلاف في حدود الاستخدام."
+      "subtitle": "قارن الإمكانات والحدود وخيارات الفوترة لاختيار الخطة الأنسب لأعمالك."
     },
     "trial": {
-      "title": "ابدأ تجربة Pro لمدة {{days}} يوماً",
-      "description": "احصل على ميزات وحدود Pro كاملة.",
-      "badge": "{{days}} يوماً مجاناً"
+      "title": "تتوفر فترات تجريبية مجانية للخطط المؤهلة",
+      "description": "توضح كل خطة مؤهلة مدة التجربة قبل الانتقال إلى الدفع.",
+      "badge": "جرّب قبل الدفع"
     },
     "periods": {
       "label": "مدة الفوترة",
@@ -1723,38 +1747,50 @@
     "plans": {
       "mostPopular": "الأكثر شيوعاً",
       "customPricing": "سعر مخصص",
-      "standard": {
-        "name": "Standard",
-        "description": "مناسبة للمنشآت الصغيرة",
-        "action": "اختر Standard"
+      "trialAction": "ابدأ تجربة {{plan}} لمدة {{days}} يوماً",
+      "starter": {
+        "name": "البداية",
+        "description": "تحليلات أساسية وتكامل بيانات أساسي وحصة عملية من الذكاء الاصطناعي.",
+        "action": "اختر البداية"
       },
-      "pro": {
-        "name": "Pro",
-        "description": "للمنشآت النامية",
-        "action": "ابدأ تجربة {{days}} يوماً"
+      "growth": {
+        "name": "النمو",
+        "description": "تنبؤ بالطلب وذكاء المنافسين وسعة موسعة للذكاء الاصطناعي.",
+        "action": "اختر النمو"
+      },
+      "enterprise": {
+        "name": "المؤسسات",
+        "description": "أحمال عمل أعلى وتكاملات متقدمة ومراقبة أسرع.",
+        "action": "اختر المؤسسات"
       },
       "custom": {
         "name": "مخصصة",
-        "description": "مصممة لمنشأتك",
-        "action": "ابنِ خطتك"
-      }
+        "description": "ميزات وحدود مصممة حسب احتياجات أعمالك.",
+        "action": "ابنِ خطتك",
+        "calloutEyebrow": "خيار مرن",
+        "calloutTitle": "هل تحتاج إلى شيء مختلف؟",
+        "calloutDescription": "أنشئ خطة مخصصة بالمزايا والحدود ووتيرة المراقبة المناسبة لأعمالك."
+      },
+      "highlights": "أبرز ما تتضمنه الخطة",
+      "includesPrevious": "كل ما في {{plan}}، بالإضافة إلى:",
+      "higherCapacity": "تتضمن مزايا الخطة السابقة مع سعة وحدود أعلى."
     },
     "recommendation": {
-      "title": "جرّب Pro قبل اختيار Standard",
-      "description": "يمكنك تجربة Pro مجاناً لمدة {{days}} يوماً.",
-      "tryPro": "جرّب Pro لمدة {{days}} يوماً",
-      "continueStandard": "المتابعة مع Standard"
+      "title": "جرّب {{recommendedPlan}} قبل اختيار {{currentPlan}}",
+      "description": "يمكنك تجربة {{recommendedPlan}} مجاناً لمدة {{days}} يوماً قبل المتابعة مع {{currentPlan}}.",
+      "tryRecommended": "جرّب {{recommendedPlan}} لمدة {{days}} يوماً",
+      "continueCurrent": "المتابعة مع {{currentPlan}}"
     },
     "features": {
       "products": "إضافة {{value}} منتج",
       "competitors": "متابعة {{value}} منافسين",
-      "ragQueries": "{{value}} استعلام ذكاء اصطناعي شهرياً",
+      "ragQueries": "{{value}} رمز RAG لكل دورة فوترة",
       "reports": "{{value}} تقريراً شهرياً",
       "storage": "مساحة تخزين {{value}}",
-      "everythingPro": "كل ما في Pro",
       "customLimits": "حدود مخصصة حسب احتياجك",
       "support": "دعم مخصص",
-      "largeTeams": "مرونة للفرق الكبيرة"
+      "largeTeams": "مرونة للفرق الكبيرة",
+      "everythingGrowth": "كل ما في خطة النمو"
     },
     "custom": {
       "title": "ابنِ خطتك المخصصة",
@@ -1951,7 +1987,6 @@
       "subtotal": "المجموع الفرعي",
       "discount": "الخصم ({{percent}}%)",
       "trial": "تجربة مجانية لمدة {{days}} يوماً",
-      "proTrial": "تجربة Pro",
       "monthlyPrice": "السعر الشهري",
       "afterTrial": "بعد تجربة {{days}} يوماً",
       "previewTotal": "إجمالي الاشتراك",
@@ -1959,7 +1994,8 @@
       "secureHostedCheckout": "دفع آمن عبر Stripe",
       "providerNotice": "سيتم تحويلك إلى Stripe لإتمام الدفع بأمان.",
       "redirecting": "جارٍ التحويل إلى Stripe...",
-      "error": "تعذر بدء عملية الدفع. حاول مرة أخرى."
+      "error": "تعذر بدء عملية الدفع. حاول مرة أخرى.",
+      "planTrial": "تجربة {{plan}}"
     },
     "result": {
       "success": {
