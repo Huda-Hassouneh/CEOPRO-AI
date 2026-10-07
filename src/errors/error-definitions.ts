@@ -109,7 +109,7 @@ export const ERROR_DEFINITIONS = {
 
   [ERROR_CODES.INFRASTRUCTURE_RATE_NOT_FOUND]: {
     statusCode: 404,
-    message: "Infrastrucuture rate not fOUND"
+    message: "Infrastructure rate not found"
   },
 
   [ERROR_CODES.USER_NOT_FOUND]: {
@@ -153,10 +153,6 @@ export const ERROR_DEFINITIONS = {
   [ERROR_CODES.USER_ALREADY_EXISTS]: {
     statusCode: 409,
     message: "User already exists"
-  },
-  [ERROR_CODES.ONBOARDING_INCOMPLETE]: {
-    statusCode: 409,
-    message: "Complete the previous onboarding steps first"
   },
   [ERROR_CODES.NO_SCHEDULED_PLAN_CHANGE]: {
     statusCode: 409,
