@@ -9,13 +9,18 @@ import { AuditLogsPage } from "./pages/AuditLogsPage.jsx";
 import { PlatformSettingsPage } from "./pages/SettingsPage.jsx";
 import { ProfilePage, SecurityPage } from "./pages/AccountPages.jsx";
 import { BillingManagementPage } from "./pages/BillingManagementPage.jsx";
+import { PlatformAdminAccessGuard } from "./components/PlatformAdminAccessGuard.jsx";
 
 const guarded = (permission, element) => (
   <Permission permission={permission}>{element}</Permission>
 );
 export const platformAdminRoute = {
   path: "/admin",
-  element: <PlatformAdminLayout />,
+  element: (
+    <PlatformAdminAccessGuard>
+      <PlatformAdminLayout />
+    </PlatformAdminAccessGuard>
+  ),
   children: [
     {
       index: true,

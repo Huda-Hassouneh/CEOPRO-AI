@@ -15,6 +15,20 @@ export const INVITABLE_PLATFORM_ROLES = Object.freeze([
   "accountant",
   "staff"
 ]);
+
+export const getSessionBusinessType = (session) =>
+  String(
+    session?.user?.company?.business_type ??
+      session?.user?.company?.businessType ??
+      session?.businessType ??
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+export const isPlatformTenantSession = (session) =>
+  getSessionBusinessType(session) === "platform";
+
 const asPermissions = (principal) => {
   const permissions = principal?.permissions;
   return permissions &&
@@ -22,6 +36,21 @@ const asPermissions = (principal) => {
     !Array.isArray(permissions)
     ? permissions
     : {};
+};
+
+export const isPlatformPrincipal = (principal) => {
+  if (!principal || principal.status !== "active") return false;
+
+  const roleKey = String(principal.roleKey ?? principal.role ?? "")
+    .trim()
+    .toLowerCase();
+  const permissions = asPermissions(principal);
+
+  return (
+    PLATFORM_ROLES.includes(roleKey) &&
+    (permissions.all === true ||
+      permissions["platform.overview.read"] === true)
+  );
 };
 
 export const can = (principal, permission) => {

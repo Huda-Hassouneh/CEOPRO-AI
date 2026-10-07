@@ -1,6 +1,7 @@
 import httpClient from "../../../shared/lib/httpClient.js";
 
 export const ADMIN_PREVIEW = false;
+export { PLATFORM_ADMIN_ME_QUERY_KEY, getPlatformAdminMeQueryKey } from "./platformAdminQueryKeys.js";
 
 const base = "/platform-admin";
 const unwrap = (request) => request.then((response) => response.data);

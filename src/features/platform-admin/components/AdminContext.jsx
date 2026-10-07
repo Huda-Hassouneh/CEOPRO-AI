@@ -9,12 +9,14 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 import { useAuthStore } from "../../auth/store/authStore.js";
+import { platformAdminApi as api, ADMIN_PREVIEW } from "../api/platformAdminApi.js";
 import {
-  platformAdminApi as api,
-  ADMIN_PREVIEW
-} from "../api/platformAdminApi.js";
+  PLATFORM_ADMIN_ME_QUERY_KEY,
+  getPlatformAdminMeQueryKey
+} from "../api/platformAdminQueryKeys.js";
 import {
   can,
+  isPlatformPrincipal,
   requirePermission,
   PLATFORM_ROLES
 } from "../permissions/platformPermissions.js";
@@ -49,22 +51,25 @@ export function AdminProvider({ children }) {
     location = useLocation(),
     client = useQueryClient();
 
+
   const [previewRole, setRole] = useState(""),
     [notice, setNotice] = useState(null),
     [selecting, setSelecting] = useState(false);
 
   const query = useQuery({
-    queryKey: [
-      "platform-admin",
-      "me",
-      auth.user?.id || auth.user?.user_id || "anonymous",
-      previewRole
-    ],
+    queryKey: ADMIN_PREVIEW
+      ? [...PLATFORM_ADMIN_ME_QUERY_KEY, previewRole || "preview"]
+      : getPlatformAdminMeQueryKey({
+          tenantId: auth.tenantId,
+          userId: auth.user?.id,
+          roleKey: auth.roleKey
+        }),
     queryFn: api.me,
     enabled:
-      auth.isHydrated && (ADMIN_PREVIEW || auth.status === "authenticated"),
+      auth.isHydrated &&
+      (ADMIN_PREVIEW || auth.status === "authenticated"),
     retry: false,
-    staleTime: 0
+    staleTime: 30_000
   });
 
   const notify = useCallback(
@@ -132,7 +137,7 @@ export function AdminProvider({ children }) {
     );
   }
 
-  if (!can(query.data)) {
+  if (!isPlatformPrincipal(query.data)) {
     return (
       <div className="pa-gate">
         <ShieldCheck size={42} />
