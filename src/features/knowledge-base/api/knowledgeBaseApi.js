@@ -121,7 +121,7 @@ export const knowledgeBaseApi = {
       formData.append("file", file); // Must be "file"[cite: 4]
 
       const response = await httpClient.post(
-        "/features/extraction/upload",
+        "features/rag/documents",
         formData,
         {
           headers: {
