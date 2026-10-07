@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { routePaths } from '../../../app/router/routePaths.js';
@@ -8,7 +9,7 @@ import { SettingsSection } from './SettingsSection.jsx';
 export function CompanySettings({ query, permissions, t }) {
   const navigate = useNavigate();
   if (query.isPending) return <Skeleton height="310px" variant="rectangular" />;
-  if (query.isError) return <SettingsSection title={t('settings.company.title')}><p className="settings-inline-error">{t('settings.company.loadError')}</p></SettingsSection>;
+  if (query.isError) return <SettingsSection title={t('settings.company.title')}><p className="settings-inline-error">{getApiErrorMessage(query.error, t)}</p></SettingsSection>;
   const company = query.data.company;
   const fields = ['name', 'industry', 'businessSize', 'country', 'currency'];
   return <SettingsSection title={t('settings.company.title')} subtitle={t('settings.company.subtitle')} actions={permissions.canEditCompany && <Button size="sm" variant="outline" leadingIcon={<CreditCard size={14} />} onClick={() => navigate(routePaths.billing)}>{t('settings.company.manageSubscription')}</Button>}>

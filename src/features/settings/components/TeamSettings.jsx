@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { useMemo, useState } from 'react';
 import { UserPlus, Users } from 'lucide-react';
 import Button from '../../../shared/components/ui/Button.jsx';
@@ -16,7 +17,7 @@ export function TeamSettings({ query, permissions, companyId, locale, t, onNotic
   const teamCapacityAvailable = teamEntitlement.included && (teamEntitlement.isUnlimited || !teamEntitlement.isExceeded);
   const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
   if (query.isPending) return <Skeleton height="360px" variant="rectangular" />;
-  if (query.isError) return <SettingsSection title={t('settings.team.title')}><p className="settings-inline-error">{t('settings.team.loadError')}</p></SettingsSection>;
+  if (query.isError) return <SettingsSection title={t('settings.team.title')}><p className="settings-inline-error">{getApiErrorMessage(query.error, t)}</p></SettingsSection>;
   const { members = [], invitations = [], capabilities = {} } = query.data;
   const counts = { total: members.length, admin: members.filter((member) => member.role === 'admin').length, editor: members.filter((member) => member.role === 'editor').length, viewer: members.filter((member) => member.role === 'viewer').length, pending: invitations.length };
   const inviteButton = permissions.canInviteMembers ? <Button size="sm" leadingIcon={<UserPlus size={14} />} disabled={entitlementsLoading || !teamCapacityAvailable} onClick={() => setInviteOpen(true)}>{t('settings.team.invite.action')}</Button> : null;

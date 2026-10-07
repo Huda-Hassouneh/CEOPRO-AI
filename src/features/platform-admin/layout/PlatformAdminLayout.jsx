@@ -25,6 +25,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import Modal from "../../../shared/components/ui/Modal.jsx";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { useAuthStore } from "../../auth/store/authStore.js";
 import { authApi } from "../../auth/api/authApi.js";
 import { platformAdminApi } from "../api/platformAdminApi.js";
@@ -245,8 +246,8 @@ function Shell() {
       await platformAdminApi.notifications.markRead(notificationId);
 
       await refreshNotifications();
-    } catch {
-      admin.notify(uiText("failed", "Action failed"), "error");
+    } catch (error) {
+      admin.notify(getApiErrorMessage(error, translate), "error");
     } finally {
       setNotificationActionId(null);
     }
@@ -259,8 +260,8 @@ function Shell() {
       await platformAdminApi.notifications.archive(notificationId);
 
       await refreshNotifications();
-    } catch {
-      admin.notify(uiText("failed", "Action failed"), "error");
+    } catch (error) {
+      admin.notify(getApiErrorMessage(error, translate), "error");
     } finally {
       setNotificationActionId(null);
     }
@@ -275,8 +276,8 @@ function Shell() {
       await platformAdminApi.notifications.readAll();
 
       await refreshNotifications();
-    } catch {
-      admin.notify(uiText("failed", "Action failed"), "error");
+    } catch (error) {
+      admin.notify(getApiErrorMessage(error, translate), "error");
     } finally {
       setMarkingAllRead(false);
     }
@@ -469,7 +470,7 @@ function Shell() {
                   {notifications.isPending ? (
                     <p>{t("loading")}</p>
                   ) : notifications.isError ? (
-                    <p>{uiText("failed", "Failed to load notifications")}</p>
+                    <p>{getApiErrorMessage(notifications.error || unreadNotifications.error, translate)}</p>
                   ) : notificationItems.length ? (
                     notificationItems.map((notification) => (
                       <div

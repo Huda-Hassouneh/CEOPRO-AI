@@ -8,6 +8,7 @@ import {
 import { Navigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { useAuthStore } from "../../auth/store/authStore.js";
 import { platformAdminApi as api, ADMIN_PREVIEW } from "../api/platformAdminApi.js";
 import {
@@ -47,6 +48,7 @@ export const roleDescriptions = {
 
 export function AdminProvider({ children }) {
   const { t } = useAdminText(),
+    { t: commonT } = useI18n(),
     auth = useAuthStore(),
     location = useLocation(),
     client = useQueryClient();
@@ -124,13 +126,7 @@ export function AdminProvider({ children }) {
       <div className="pa-gate">
         <ShieldCheck size={36} />
         <h1>{t("forbiddenTitle")}</h1>
-        <p>
-          {t(
-            query.error?.response?.status === 403
-              ? "forbidden"
-              : "missingContract"
-          )}
-        </p>
+        <p>{getApiErrorMessage(query.error, commonT)}</p>
         <Button onClick={() => query.refetch()}>{t("retry")}</Button>
         <a href="/dashboard">{t("customerApp")}</a>
       </div>
@@ -224,22 +220,6 @@ export function useAdminMutation(permission) {
       client.invalidateQueries({ queryKey: ["plans"] });
       notify(t(preview ? "previewSaved" : "saved"));
     },
-    onError: (error) =>
-      notify(
-        t(
-          [
-            "invalid",
-            "duplicate",
-            "conflict",
-            "lastAdmin",
-            "forbidden",
-            "notFound",
-            "accountRequired"
-          ].includes(error.response?.data?.error?.code || error.code)
-            ? error.response?.data?.error?.code || error.code
-            : "failed"
-        ),
-        "error"
-      )
+    onError: (error) => notify(getApiErrorMessage(error, commonT), "error")
   });
 }

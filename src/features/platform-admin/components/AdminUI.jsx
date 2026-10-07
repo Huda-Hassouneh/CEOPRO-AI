@@ -2,6 +2,8 @@ import { cloneElement, isValidElement, useEffect, useId } from "react";
 import { Link, useBlocker } from "react-router-dom";
 import { AlertCircle, Search, ShieldCheck } from "lucide-react";
 import Button from "../../../shared/components/ui/Button.jsx";
+import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import Modal from "../../../shared/components/ui/Modal.jsx";
 import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
 import { useAdmin, useAdminText } from "./AdminContext.jsx";
@@ -115,6 +117,7 @@ export function Empty({ message = "empty" }) {
 }
 export function QueryState({ query, children }) {
   const { t } = useAdminText();
+  const { t: commonT } = useI18n();
   if (query.isPending)
     return (
       <div role="status" aria-label={t("loading")} className="pa-loading">
@@ -126,7 +129,7 @@ export function QueryState({ query, children }) {
     return (
       <div className="pa-empty" role="alert">
         <AlertCircle size={30} />
-        <h2>{t(query.error?.code === "notFound" ? "notFound" : "error")}</h2>
+        <h2>{getApiErrorMessage(query.error, commonT)}</h2>
         <Button onClick={() => query.refetch()}>{t("retry")}</Button>
       </div>
     );

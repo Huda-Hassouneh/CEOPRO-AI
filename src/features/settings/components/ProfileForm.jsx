@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 import { useEffect, useMemo, useState } from 'react';
 import Avatar from '../../../shared/components/ui/Avatar.jsx';
 import Button from '../../../shared/components/ui/Button.jsx';
@@ -15,7 +16,7 @@ export default function ProfileForm({ query, t, onNotice }) {
   const initials = useMemo(() => values.fullName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase(), [values.fullName]);
 
   if (query.isPending) return <Skeleton height="320px" variant="rectangular" />;
-  if (query.isError) return <SettingsSection title={t('settings.profile.title')}><p className="settings-inline-error">{t('settings.profile.loadError')}</p></SettingsSection>;
+  if (query.isError) return <SettingsSection title={t('settings.profile.title')}><p className="settings-inline-error">{getApiErrorMessage(query.error, t)}</p></SettingsSection>;
 
   const save = async (event) => {
     event.preventDefault();
@@ -23,8 +24,8 @@ export default function ProfileForm({ query, t, onNotice }) {
     try {
       const result = await mutation.mutateAsync(values);
       onNotice(result.persisted ? 'success' : 'info', t(result.persisted ? 'settings.profile.saved' : 'settings.profile.unavailable'));
-    } catch {
-      onNotice('error', t('settings.profile.saveError'));
+    } catch (error) {
+      onNotice('error', getApiErrorMessage(error, t));
     }
   };
   return <SettingsSection title={t('settings.profile.title')} subtitle={t('settings.profile.subtitle')}><form className="settings-form" onSubmit={save}>
