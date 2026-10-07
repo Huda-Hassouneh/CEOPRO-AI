@@ -22,10 +22,7 @@ async function main() {
 
   const language = process.env.OWNER_LANGUAGE ?? "en";
 
-  // ---------------------------------------------------------
   // Validate env
-  // ---------------------------------------------------------
-
   if (!ownerEmail) {
     throw new Error("OWNER_EMAIL environment variable is required.");
   }
@@ -34,10 +31,7 @@ async function main() {
     throw new Error("OWNER_PASSWORD environment variable is required.");
   }
 
-  // ---------------------------------------------------------
   // Ensure owner role exists
-  // ---------------------------------------------------------
-
   const ownerRole = await prisma.systemRole.findUnique({
     where: {
       roleKey: "owner"
@@ -48,15 +42,9 @@ async function main() {
     throw new Error('System role "owner" does not exist in the database.');
   }
 
-  // ---------------------------------------------------------
   // Bootstrap owner atomically
-  // ---------------------------------------------------------
-
   const result = await prisma.$transaction(async (tx) => {
-    // -------------------------------------------------------
     // User
-    // -------------------------------------------------------
-
     let ownerUser = await tx.user.findFirst({
       where: {
         email: ownerEmail
@@ -80,10 +68,7 @@ async function main() {
       console.log(`Owner user already exists: ${ownerEmail}`);
     }
 
-    // -------------------------------------------------------
     // Existing owner membership
-    // -------------------------------------------------------
-
     const existingOwnerMembership = await tx.tenantUser.findFirst({
       where: {
         userId: ownerUser.userId,
@@ -108,10 +93,7 @@ async function main() {
       };
     }
 
-    // -------------------------------------------------------
     // Platform company
-    // -------------------------------------------------------
-
     let company = await tx.company.findFirst({
       where: {
         businessName: companyName,
@@ -139,10 +121,7 @@ async function main() {
       console.log(`Platform company already exists: ${company.businessName}`);
     }
 
-    // -------------------------------------------------------
     // TenantUser
-    // -------------------------------------------------------
-
     const tenantUser = await tx.tenantUser.upsert({
       where: {
         tenantId_userId: {
@@ -170,20 +149,17 @@ async function main() {
     };
   });
 
-  // ---------------------------------------------------------
   // Generate owner access token
-  // ---------------------------------------------------------
-
   const accessToken = generateAccessToken({
-    id: result.user.userId,
+    user_id: result.user.userId,
     tenant_id: result.company.id,
+    id: result.user.userId,
+
     email: result.user.email,
     roleKey: result.tenantUser.roleKey
   });
 
-  // ---------------------------------------------------------
   // Output
-  // ---------------------------------------------------------
 
   console.log("");
   console.log("========================================");

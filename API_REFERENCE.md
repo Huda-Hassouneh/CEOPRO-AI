@@ -37,19 +37,37 @@ http://localhost:5000
 
 ## Important route notes
 
-### The auth source module is not live
+### Authentication
 
-`src/modules/auth` contains handlers for:
+The auth router is mounted at `/auth`.
 
-```text
-POST /login
-GET  /session
-POST /logout
-GET  /invitations/:token
-POST /invitations/:token/accept
-```
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/auth/register` | Public | Create a pending signup and send an email verification link (no account/session yet) |
+| `GET` | `/auth/verify-email?token=...` | Public | Optional backend-hosted confirmation page; email links open the frontend page |
+| `POST` | `/auth/verify-email/confirm` | Public | Confirm after explicit user action, create the customer account, then redirect to the frontend verification handoff |
+| `POST` | `/auth/verification/exchange` | Public, one-time code | Exchange the short-lived confirmation code for a login session |
+| `POST` | `/auth/verification/resend` | Public | Request another verification email without disclosing account existence |
+| `POST` | `/auth/login` | Public | Authenticate and create a login session |
+| `GET` | `/auth/me` | Authenticated tenant member | Return the current user and active memberships |
+| `GET` | `/auth/session` | Authenticated tenant member | Return the active user/tenant/role |
+| `POST` | `/auth/change-password` | Authenticated tenant member | Change the password and revoke other sessions |
+| `POST` | `/auth/logout` | Authenticated tenant member | Revoke the current login session |
+| `GET` | `/auth/invitations/:token` | Public | Read invitation details |
+| `POST` | `/auth/invitations/:token/accept` | Authenticated tenant member | Accept an invitation |
 
-but `src/app.ts` does **not** currently mount the auth router. I therefore do not include those handlers in the live route table below.
+### Tenant onboarding
+
+Every onboarding route requires an authenticated active tenant membership. State is saved per tenant and reads/writes establish tenant and user context for row-level security.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/onboarding/state` | Get or initialize the tenant's onboarding state |
+| `PATCH` | `/onboarding/regional-preferences` | Save country, city, and language preferences |
+| `PATCH` | `/onboarding/profile` | Save business profile details |
+| `PATCH` | `/onboarding/goals` | Save strategic objectives |
+| `PATCH` | `/onboarding/plan` | Save selected plan and billing preferences |
+| `POST` | `/onboarding/complete` | Save source setup and finish the wizard |
 
 ### Platform-admin owner routes are live through nesting
 
@@ -66,6 +84,10 @@ are live even though `owner-portal` is not mounted directly in `app.ts`.
 ### Stripe webhook is mounted before JSON parsing
 
 `POST /stripe/webhooks` is intentionally mounted before `express.json()` so the raw body is available for signature verification.
+
+### Email verification configuration
+
+Email delivery is selected with `EMAIL_DELIVERY_PROVIDER` and defaults to `gmail_smtp` for testing. Configure `GMAIL_SMTP_USER` with the Gmail address used as the sender and `GMAIL_SMTP_APP_PASSWORD` with that account's Google App Password; Gmail SMTP uses implicit TLS on port 465. The Google account needs 2-Step Verification enabled to create an App Password. Keep these credentials in the backend environment only. To switch to Resend, set `EMAIL_DELIVERY_PROVIDER=resend` and configure `EMAIL_SERVICE_PROVIDER_API_KEY` and `EMAIL_SERVICE_PROVIDER_FROM_EMAIL`. Set `FRONTEND_URL` to the frontend origin: verification emails link to `/verify-email?token=...`, and after the user confirms there, the backend redirects back with a one-time code. The frontend's `VITE_API_BASE_URL` must point to the backend. Resend's development sender has account restrictions; use an address on a verified domain for production.
 
 ---
 
@@ -149,7 +171,6 @@ are live even though `owner-portal` is not mounted directly in `app.ts`.
 
 | Method  | Path                                                   | Access                              | Purpose                                                   |
 | ------- | ------------------------------------------------------ | ----------------------------------- | --------------------------------------------------------- |
-| `POST`  | `/subscription`                                        | Tenant + `all`                      | Initialize the shared subscription/Stripe onboarding flow |
 | `GET`   | `/subscription/plans`                                  | Public                              | List plans                                                |
 | `POST`  | `/subscription/plans`                                  | Platform + `billing.manage`         | Create a plan                                             |
 | `PATCH` | `/subscription/plans/:id`                              | Platform + `billing.manage`         | Update a plan                                             |
@@ -204,7 +225,7 @@ are live even though `owner-portal` is not mounted directly in `app.ts`.
 | `GET`    | `/features/rag/chunks/:chunk_id`       | Tenant + `rag_assistant` access            | Read one tenant-scoped RAG chunk                      |
 | `POST`   | `/features/rag/query`                  | Tenant + `rag_assistant` entitlement       | Query the RAG assistant                               |
 | `POST`   | `/features/extraction/upload`          | Tenant + `document_extraction` entitlement | Upload a document for extraction                      |
-| `POST`   | `/features/extraction/process-pending` | Tenant + `document_extraction` access      | Ask the AI service to process pending extraction work |
+| `POST`   | `/features/extraction/process-pending` | Tenant + `document_extraction` access      | Legacy route; returns HTTP 501 because the current extraction API is synchronous |
 
 ## Data, analytics, competitors and forecasting
 
@@ -213,6 +234,7 @@ are live even though `owner-portal` is not mounted directly in `app.ts`.
 | `GET`  | `/companies/:companyId/dashboard` | Tenant                                     | Read aggregated dashboard metrics (`periodDays` supported) |
 | `GET`  | `/forecasting/demand`             | Tenant + `demand_prediction` access        | Read demand-forecast overview                              |
 | `GET`  | `/forecasting/demand/:productId`  | Tenant + `demand_prediction` access        | Read one product forecast detail                           |
+| `POST` | `/forecasting/demand/:productId/generate` | Tenant + `demand_prediction` access | Generate and persist a product demand forecast (`horizon_days`: 1–60) |
 | `POST` | `/data-connection/sources`        | Tenant + `data_integration` entitlement    | Create a persistent data-source record                     |
 | `GET`  | `/data-connection`                | Tenant                                     | Read data-connection overview/recent imports               |
 | `POST` | `/data-connection`                | Tenant + `document_extraction` entitlement | Upload a business-data file for ingestion                  |

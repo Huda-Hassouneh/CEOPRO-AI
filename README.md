@@ -134,7 +134,7 @@ Install:
 - Docker Desktop or another Docker runtime, if you want to use the included PostgreSQL container.
 - PostgreSQL directly, if you do not use Docker.
 - Stripe test credentials for billing flows.
-- The CEOPRO AI service, or local AI mocks where supported.
+- A configured CEOPRO Hugging Face Gradio Space for live AI calls; unit tests inject mock transports.
 
 ---
 
@@ -196,6 +196,7 @@ PORT=5000
 
 POSTGRES_PASSWORD=...
 DATABASE_URL=postgresql://postgres:...@127.0.0.1:5433/CEOPROTEST3
+INGESTION_WORKER_DATABASE_URL=postgresql://ceopro_ingestion_worker:...@127.0.0.1:5433/CEOPROTEST3?schema=public
 
 JWT_SECRET=...
 JWT_REFRESH_SECRET=...
@@ -203,6 +204,13 @@ JWT_ACCESS_EXPIRES_IN=1h
 JWT_REFRESH_EXPIRES_IN=7d
 
 CORS_ORIGINS=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
+EMAIL_DELIVERY_PROVIDER=gmail_smtp
+GMAIL_SMTP_USER=your-test-account@gmail.com
+GMAIL_SMTP_APP_PASSWORD=your-16-character-app-password
+# Optional; keep these to switch back to Resend later.
+EMAIL_SERVICE_PROVIDER_API_KEY=re_...
+EMAIL_SERVICE_PROVIDER_FROM_EMAIL="CEO PRO <no-reply@your-verified-domain.com>"
 JSON_BODY_LIMIT=1mb
 MAX_UPLOAD_BYTES=10485760
 
@@ -212,9 +220,15 @@ SUCCESS_SUBSCRIPTION_URL=http://localhost:5173
 FAILED_SUBSCRIPTION_URL=http://localhost:5173
 PROMO_FIXED_AMOUNT_CURRENCY=USD
 
-AI_SERVICE_URL=http://localhost:8000
-AI_SERVICE_USE_MOCKS=true
+HUGGINGFACE_ACCESS_TOKEN=hf_...
+AI_MODELS_SPACE=hhuuddaa/ceopro-ai-models
+AI_MODELS_SPACE_URL=https://hhuuddaa-ceopro-ai-models.hf.space
+AI_ANALYTICS_SPACE=hhuuddaa/ceopro-ai-analytics
+AI_ANALYTICS_SPACE_URL=https://hhuuddaa-ceopro-ai-analytics.hf.space
+AI_SERVICE_TIMEOUT_MS=180000
 ```
+
+After applying migrations, provision a password for `ceopro_ingestion_worker` through your local/deployment secret process and use it only in `INGESTION_WORKER_DATABASE_URL`. Do not reuse `DATABASE_URL` or the notification worker credentials. Start the consumer separately with `npm run worker:data-ingestion`.
 
 Other environment values are used by bootstrap/test utilities:
 
@@ -303,6 +317,8 @@ npm run bootstrap:features
 
 This command is intentionally guarded in production because it rebuilds the canonical feature catalog and restores related links.
 
+All production bootstrap executables now live under `prisma/bootstrap/`. See `prisma/bootstrap/README.md` for the first-production sequence, safety gates, and expected results.
+
 ### Stripe product bootstrap
 
 ```bash
@@ -366,6 +382,10 @@ npm start
 | `npm run bootstrap:admin`    | Bootstrap an admin membership                              |
 | `npm run bootstrap:features` | Rebuild the canonical feature catalog                      |
 | `npm run bootstrap:stripe`   | Initialize the shared Stripe product                       |
+| `npm run bootstrap:plans`    | Reconcile the production standard-plan catalog             |
+| `npm run bootstrap:production` | Reconcile Stripe product -> production plans                |
+| `npm run bootstrap:production:init` | First setup: features -> Stripe -> production plans |
+| `npm run bootstrap:production:verify` | Verify the production plan catalog                |
 | `npm run dev:token`          | Generate the developer mock token configured by the script |
 
 Before merging or deploying backend changes, my preferred local check is:
@@ -410,15 +430,9 @@ The backend is the authority here. The frontend can hide/show UI, but it must no
 
 Do not move it behind the JSON body parser. Stripe signature verification requires the untouched request body.
 
-### AI mocks are development behavior
+### AI calls use the Hugging Face Gradio Spaces
 
-Some AI clients support:
-
-```env
-AI_SERVICE_USE_MOCKS=true
-```
-
-Production should use the real AI service and should not silently fall back to fake data.
+Configure `HUGGINGFACE_ACCESS_TOKEN` and the Space IDs/URLs above. The shared transport obtains and caches the ZeroGPU token, and there is no automatic mock fallback. Tests inject mock transports; production rejects `AI_SERVICE_USE_MOCKS=true`.
 
 ### Missing analytical data is not zero
 

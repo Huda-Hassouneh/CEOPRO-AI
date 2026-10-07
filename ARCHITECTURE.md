@@ -130,18 +130,18 @@ Owns domain contracts:
 | Domain | What it owns | Persistence | External integration |
 |---|---|---:|---|
 | `subscription` | Plans, subscriptions, checkout, invoices, promo codes, custom plans, quotes, rates, billing policy | Yes | Stripe |
-| `features` | Feature catalog, plan features, entitlements, usage, RAG/extraction frontend endpoints | Yes | CEOPRO AI |
+| `features` | Feature catalog, plan features, entitlements, usage, legacy extraction routes | Yes | Delegates to owning AI domains |
 | `platform-admin` | Platform HTTP facade for owner/billing management | Delegates | None directly |
 | `owner-portal` | Companies, users, admin team, audit logs, settings, profile/session operations | Yes | None |
 | `dashboard` | Tenant dashboard aggregation | Yes | None |
 | `competitors` | Tracked competitors and competitor profiles | Yes | None |
 | `opportunities` | Competitor opportunity/leaderboard view | Yes | None |
 | `dataconnection` | Data sources and business-data ingestion | Yes | CEOPRO AI extraction |
-| `forecasting` | Demand forecast overview/detail from persisted forecasts | Yes | No direct Node AI client |
-| `market-intelligence` | Market-intelligence metrics from persisted data | Yes | No direct client |
+| `forecasting` | Demand forecast reads and generation | Yes | Analytics Gradio `forecast` |
+| `market-intelligence` | Market-intelligence metrics with optional MPI enrichment | Yes | MPI domain / models Gradio |
 | `pricing` | Server-prepared AI pricing recommendation | Yes | CEOPRO AI pricing |
 | `sentiment` | Sentiment summary and pending analysis | Usage only / delegated | CEOPRO AI sentiment |
-| `mpi` | Market Perception Index summary | No direct repo | CEOPRO AI MPI |
+| `mpi` | Market Perception Index summary and local evidence | Yes | Models Gradio `market_intelligence` |
 | `auth` | Login/session/logout/invitation handlers in source | Direct Prisma + owner portal service | None |
 
 The `auth` source module is currently **not mounted by `src/app.ts`**, so it is not an active public API surface yet.
@@ -440,55 +440,23 @@ The webhook route is intentionally mounted before JSON parsing.
 
 ### CEOPRO AI
 
-AI transport belongs in the client of the domain that owns the feature:
+The shared transport lives in:
 
 ```text
-features/client/
-dataconnection/client/
-pricing/client/
-sentiment/client/
-mpi/client/
+src/integrations/ai/
 ```
 
-The backend owns:
+Domain clients keep their request/response schemas and positional Gradio inputs. The shared client obtains a Hugging Face ZeroGPU token, caches it in process memory, submits `/gradio_api/call/<api_name>`, and parses the completion SSE. The analytics Space handles `extract_file`, `recommend`, and `forecast`; the models Space handles `sentiment`, `market_intelligence`, and `rag_answer`.
 
-- auth;
-- tenant isolation;
-- feature checks;
-- usage accounting;
-- authoritative source data;
-- persistence;
-- frontend-facing API contracts.
+CEOPRO owns authentication, tenant isolation, entitlements, usage accounting, authoritative source data, persistence, and public route contracts. It does not forward user Authorization headers or persist AI provider IDs as CEOPRO records. RAG source files are stored in CEOPRO because each query supplies documents to the stateless Gradio RAG endpoint.
 
-The AI service owns:
-
-- extraction;
-- RAG model work;
-- pricing recommendation model output;
-- sentiment inference;
-- MPI computation.
-
-See [`INTEGRATIONS.md`](INTEGRATIONS.md).
+`HUGGINGFACE_ACCESS_TOKEN` is required at runtime. Tests inject transport fakes; there is no automatic runtime mock fallback. See [`INTEGRATIONS.md`](INTEGRATIONS.md) for configuration and input contracts.
 
 ---
 
 ## 11. Background/triggered AI work
 
-Operations such as:
-
-```text
-POST /features/extraction/process-pending
-POST /features/sentiment/analyze-pending
-```
-
-should not depend on a frontend user guessing when new scraped/ingested data is ready.
-
-The production trigger should come from one of these controlled backend patterns:
-
-- a completion signal/event after a successful scraping/ingestion cycle; or
-- a backend worker/scheduler that periodically processes pending rows.
-
-The frontend is not the workflow coordinator for background processing.
+The legacy extraction processing route remains mounted for compatibility but returns HTTP 501 because the current synchronous `extract_file` API has no pending-batch operation. Sentiment analysis runs against CEOPRO's pending tenant review rows when its authenticated route is called. Neither flow relies on frontend polling of a scraper.
 
 ---
 

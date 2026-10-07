@@ -199,41 +199,36 @@ A matching email address alone is not enough to establish that a Stripe customer
 ## Configuration
 
 ```env
-AI_SERVICE_URL=http://localhost:8000
-AI_SERVICE_USE_MOCKS=true
+HUGGINGFACE_ACCESS_TOKEN=hf_...
+AI_MODELS_SPACE=hhuuddaa/ceopro-ai-models
+AI_MODELS_SPACE_URL=https://hhuuddaa-ceopro-ai-models.hf.space
+AI_ANALYTICS_SPACE=hhuuddaa/ceopro-ai-analytics
+AI_ANALYTICS_SPACE_URL=https://hhuuddaa-ceopro-ai-analytics.hf.space
+AI_SERVICE_TIMEOUT_MS=180000
 ```
 
-`AI_SERVICE_URL` selects the upstream service.
+The AI client uses two Hugging Face Spaces: the models Space for `sentiment`, `market_intelligence`, and `rag_answer`; and the analytics Space for `extract_file`, `recommend`, and `forecast`. Space IDs and URLs default to the values above and can be overridden per environment. Production requires HTTPS.
 
-Where a module supports it, `AI_SERVICE_USE_MOCKS=true` enables deterministic development behavior.
+`HUGGINGFACE_ACCESS_TOKEN` is a server secret. The shared client uses it to request an encrypted ZeroGPU token from Hugging Face, caches that token in process memory, and sends it as `X-ZeroGPU-Token` on both Gradio calls. CEOPRO does not forward the end user's Authorization header to Hugging Face. Errors and logs must not expose either token.
 
-Production should use the real service and disable mocks.
-
----
-
-## Authorization forwarding
-
-The Node backend forwards the incoming Bearer token for the AI endpoints that expect CEOPRO user/tenant context.
-
-The Node backend still performs its own route-level authentication/tenant checks before delegating.
+The runtime has no automatic mock fallback. Unit tests inject a fake Gradio transport. `AI_SERVICE_USE_MOCKS=true` is rejected in production as a configuration error.
 
 ---
 
 ## AI endpoint map
 
-| CEOPRO backend feature | Upstream AI endpoint | Backend client |
-|---|---|---|
-| RAG query | `POST /rag/query` | `rag/client/rag.client.ts` |
-| RAG document upload | `POST /rag/documents` | `rag/client/rag.client.ts` |
-| Document extraction upload | `POST /extraction/upload` | `features/client/features-ai.client.ts` |
-| Business-data ingestion upload | `POST /extraction/upload` | `dataconnection/client/ingestion.client.ts` |
-| Pending extraction processing | `POST /extraction/process-pending` | feature/data-ingestion client flow |
-| Pricing recommendation | `POST /pricing/recommend` | `pricing/client/pricing.client.ts` |
-| Sentiment summary | `GET /sentiment/summary` | `sentiment/client/sentiment.client.ts` |
-| Pending sentiment analysis | `POST /sentiment/analyze-pending` | `sentiment/client/sentiment.client.ts` |
-| MPI summary | `GET /mpi/summary` | `mpi/client/mpi.client.ts` |
+All model calls use `POST /gradio_api/call/<api_name>` with positional JSON inputs, then `GET /gradio_api/call/<api_name>/<event_id>` and parse the Gradio SSE completion. The active API names are `extract_file`, `recommend`, `sentiment`, `market_intelligence`, `forecast`, and `rag_answer`.
 
-Forecasting and market-intelligence endpoints in this Node service are currently database-backed; they do not own a direct forecasting/market-intelligence AI HTTP client in the active code.
+| CEOPRO feature | Space | Gradio API | Source of authoritative data |
+|---|---|---|---|
+| Extraction upload | Analytics | `extract_file` | Uploaded file bytes and country/currency supplied by CEOPRO |
+| Pricing recommendation | Analytics | `recommend` | Tenant product, cost, tracked competitor prices, and exchange rates from CEOPRO |
+| Sentiment classification | Models | `sentiment` | Pending tenant reviews from CEOPRO |
+| Market perception index | Models | `market_intelligence` | Tenant review samples from CEOPRO |
+| Demand forecast generation | Analytics | `forecast` | Tenant product, inventory, and transaction history from CEOPRO |
+| RAG answer | Models | `rag_answer` | Up to ten tenant documents loaded from CEOPRO storage |
+
+The models Space currently receives requests without a CEOPRO country or tenant filter for the sentiment batch API; CEOPRO scopes and persists the results locally. Country-filtered sentiment summaries are unsupported because `reviews` has no country column.
 
 ---
 
@@ -254,13 +249,15 @@ authenticate
 → resolve tenant
 → validate query
 → check rag_assistant entitlement
-→ call AI /rag/query
+→ load up to ten tenant documents from CEOPRO storage
+→ call Gradio `rag_answer`
 → validate response
+→ map citations to CEOPRO document/chunk IDs
 → return answer/sources
 → charge actual usage when supplied
 ```
 
-The AI service performs the RAG/model work.
+CEOPRO retains uploaded source bytes because the Gradio RAG API processes documents supplied on each query and does not keep an external document store. Each upload is limited to 2 MB. Plain text and Markdown are sent as text; PDF, DOCX, and XLSX are sent as Base64. RAG queries submit the latest ten documents, so older documents remain stored but are not included in each request.
 
 CEOPRO owns the entitlement and usage decision.
 
@@ -276,7 +273,7 @@ POST /features/rag/documents
 GET  /features/rag/chunks/:chunk_id
 ```
 
-`POST /features/rag/documents` forwards multipart field `file` to the AI service at `POST /rag/documents`. Supported upload extensions are `.txt`, `.md`, `.pdf`, `.docx`, and `.xlsx`. The AI response contract is `document_id`, `file_name`, and `processed_status`. These routes remain subject to the relevant feature access rules.
+`POST /features/rag/documents` accepts multipart field `file` and stores the file and metadata in CEOPRO. Upload does not call the AI service. Supported extensions are `.txt`, `.md`, `.pdf`, `.docx`, and `.xlsx`; each file is limited to 2 MB. Query-time citations are mapped to CEOPRO document and chunk records.
 
 ---
 
@@ -298,7 +295,7 @@ The backend checks:
 - storage/capacity rules owned by CEOPRO;
 - AI response shape.
 
-The AI upload response must include the fields the backend needs to persist metadata, including the object key used by the current document metadata flow.
+The backend sends the upload as Base64 in positional input `[file_name, file_base64, country_code, currency]` to analytics `extract_file`. CEOPRO creates and owns the job and import staging rows; the AI response does not contain a MinIO object key or CEOPRO IDs.
 
 The backend then persists the application-side document/usage state.
 
@@ -310,7 +307,7 @@ I keep these as separate product flows:
 
 ### Knowledge/RAG
 
-Used to make documents searchable/answerable by the assistant. Knowledge Base uploads use `POST /features/rag/documents`, which delegates to AI `POST /rag/documents`.
+Used to make documents searchable/answerable by the assistant. Knowledge Base uploads use `POST /features/rag/documents`; CEOPRO retains source bytes and supplies the documents to Gradio `rag_answer` during a query.
 
 ### Data Connection ingestion
 
@@ -330,7 +327,7 @@ POST /data-connection
 POST /data-connection/sources
 ```
 
-The upload path calls the extraction service through:
+The upload path calls analytics `extract_file` through:
 
 ```text
 src/modules/dataconnection/client/ingestion.client.ts
@@ -345,6 +342,8 @@ The backend owns:
 - frontend-facing status;
 - safe metadata handling.
 
+After extraction, accepted rows are persisted as pending staging rows. A separate process (`npm run worker:data-ingestion`) polls queued jobs every 10 seconds, validates each staged sales payload, creates or reuses a tenant product, inserts a `transactions` row, and updates the staging row with its committed transaction ID. Invalid staged rows are quarantined as `INVALID`. The worker uses `INGESTION_WORKER_DATABASE_URL` and the restricted `ceopro_ingestion_worker` database role; it is separate from the notification worker. Upload still waits for synchronous AI extraction, while the business-table import runs asynchronously.
+
 I do not store passwords, API keys, access tokens, or connection strings in generic `data_sources.metadata`.
 
 Secrets need a proper secret/configuration mechanism.
@@ -353,29 +352,15 @@ Secrets need a proper secret/configuration mechanism.
 
 # Pending extraction processing
 
-The integration client supports:
+The legacy CEOPRO routes remain mounted:
 
 ```text
-POST /extraction/process-pending
+POST /features/extraction/process-pending
 ```
 
-The important question is **when to trigger it**.
+The current Gradio `extract_file` API processes an uploaded file synchronously and has no `process-pending` equivalent. The mounted legacy feature route returns HTTP 501 with `NOT_IMPLEMENTED`; clients should submit each file to the upload endpoint.
 
-I do not want the frontend to poll the scraper and guess that a spider finished.
-
-Production options:
-
-### Option A — completion signal
-
-After a successful scraping/ingestion cycle, the component that knows the cycle is complete sends a trusted completion event/callback. A backend worker then processes pending extraction rows.
-
-### Option B — scheduled worker
-
-A backend worker runs on a controlled schedule, finds pending rows, and calls the processing endpoint in bounded batches.
-
-Both are valid patterns.
-
-The key rule is that background workflow coordination belongs to backend/worker infrastructure, not the frontend.
+The separate `worker:data-ingestion` process does not call that legacy endpoint. It consumes CEOPRO's already-extracted `import_staging_rows` and commits valid sales rows into CEOPRO's own business tables.
 
 ---
 
@@ -387,13 +372,13 @@ Frontend/API route:
 POST /features/pricing/recommend?product_id=<uuid>
 ```
 
-Upstream AI route:
+Gradio API:
 
 ```text
-POST /pricing/recommend
+analytics Space: recommend
 ```
 
-The backend prepares authoritative pricing inputs from CEOPRO data.
+Inputs are `[product, competitor_prices, exchange_rates]`. The backend loads product, cost, competitor-price, and rate data from CEOPRO before calling the model, then creates CEOPRO evidence and outcome IDs locally.
 
 The AI service recommends; it does not choose what tenant/product data is authoritative.
 
@@ -420,11 +405,10 @@ POST /features/sentiment/analyze-pending
 GET  /features/sentiment/summary
 ```
 
-Upstream routes:
+Gradio API:
 
 ```text
-POST /sentiment/analyze-pending
-GET  /sentiment/summary
+models Space: sentiment
 ```
 
 ### Summary
@@ -443,24 +427,15 @@ Unknown/low-sample states stay explicit.
 
 ### Pending analysis
 
-`analyze-pending` is a metered operation and is capped by the tenant's remaining `sentiment_analysis` usage.
+`analyze-pending` reads pending tenant reviews from CEOPRO, sends texts to the `sentiment` API in batches of at most 64, persists validated predictions locally, and meters actual processed reviews against the tenant's remaining `sentiment_analysis` usage.
 
-The AI service returns how many rows were actually analyzed; usage should reflect actual processed work.
+The summary route aggregates CEOPRO's stored results; it is not a separate upstream request. Country filtering is unsupported because the review schema has no country field.
 
 ---
 
 # When to run sentiment analyze-pending
 
-The same background-trigger principle applies here.
-
-I should run sentiment processing when new review data becomes available.
-
-The clean production choices are:
-
-- trigger it after a scraper/monitoring cycle reports successful completion; or
-- run a backend worker periodically against pending review rows.
-
-The frontend should not be responsible for knowing when a spider has closed.
+The authenticated endpoint processes pending reviews synchronously. A future scraper or scheduled worker may call the CEOPRO endpoint after new reviews land; the model itself does not own or discover pending tenant records.
 
 ---
 
@@ -472,13 +447,13 @@ Backend route:
 GET /features/mpi/summary
 ```
 
-Upstream route:
+Gradio API:
 
 ```text
-GET /mpi/summary
+models Space: market_intelligence
 ```
 
-The upstream contract supports:
+The backend selects tenant reviews and sends `[reviews, subject_type, subject_id, country_code, as_of]`. It persists evidence locally and maps the model result to the existing CEOPRO summary response. The Gradio output supports:
 
 - `OK` with a 0-100 MPI and supporting metrics; or
 - `UNKNOWN` when there is not enough usable evidence.
@@ -554,16 +529,15 @@ The rest of the backend should not continue as though an invalid provider respon
 
 Before I consider external integrations production-ready, I verify:
 
-- [ ] `AI_SERVICE_USE_MOCKS=false` in production.
-- [ ] `AI_SERVICE_URL` points to the real deployed service.
-- [ ] AI authentication/tenant forwarding works end to end.
+- [ ] `HUGGINGFACE_ACCESS_TOKEN` is configured in the secret store.
+- [ ] Model and analytics Space IDs/URLs point to the intended deployments.
+- [ ] Hugging Face ZeroGPU token acquisition and refresh work end to end.
 - [ ] Every AI response is validated against the expected contract.
 - [ ] No provider secrets are logged.
 - [ ] `STRIPE_SECRET_KEY` and webhook secret are production-safe values.
 - [ ] Stripe webhook signature verification works through the real ingress/proxy.
 - [ ] Webhook retries are idempotent.
-- [ ] Worker/trigger ownership for pending extraction is defined.
-- [ ] Worker/trigger ownership for pending sentiment is defined.
+- [ ] Clients understand that legacy extraction `process-pending` returns 501.
 - [ ] AI mock fallbacks cannot silently mask a production outage.
 - [ ] Timeouts/retries are appropriate for the deployed environment.
 - [ ] Feature/usage gates match the commercial product configuration.

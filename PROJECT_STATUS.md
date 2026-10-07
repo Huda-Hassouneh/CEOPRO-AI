@@ -125,38 +125,13 @@ I do not want to weaken these checks; I want to update them so they verify the c
 
 ## 2. Production AI workflow ownership
 
-**Status:** 🟡 In progress
+**Status:** Updated for the Gradio contract on 2026-10-05
 
-I need the final production trigger for:
+The current Gradio extraction API is synchronous and has no pending-batch operation. The legacy route remains mounted and returns HTTP 501; clients upload each file directly. Sentiment analysis reads and processes pending tenant reviews when its CEOPRO route is called.
 
-```text
-POST /features/extraction/process-pending
-POST /features/sentiment/analyze-pending
-```
+The frontend should not infer that a scraper has completed. A future worker or trusted completion event may call the existing sentiment route after source data lands; extraction uses one synchronous upload request per file.
 
-My intended model is:
-
-```text
-scraping/ingestion completion
-        ↓
-trusted event or scheduled worker
-        ↓
-process pending work
-        ↓
-persist results
-        ↓
-frontend reads normal backend endpoints
-```
-
-The frontend should not detect spider completion itself.
-
-### Next actions
-
-- [ ] Decide which completion events the AI/scraping side can emit.
-- [ ] Decide whether I also want a periodic backend worker as a fallback.
-- [ ] Define retry/idempotency behavior.
-- [ ] Define batch sizes and operational limits.
-- [ ] Add monitoring/logging for failed background runs.
+See [`INTEGRATIONS.md`](INTEGRATIONS.md#pending-extraction-processing) for the active route behavior.
 
 ---
 
