@@ -32,7 +32,7 @@ close()) exactly as before.
 
 import os
 from typing import Optional
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 from minio import Minio
 
@@ -49,11 +49,25 @@ def _admin_database_url() -> str:
 
 
 def _app_database_url() -> str:
+    """
+    APP_DATABASE_URL, when set, is used exactly as given - the hosted
+    (Render) database hands each team its own user and a complete connection
+    string, so there is no admin URL to derive it from. Otherwise (local
+    docker-compose) the ceopro_app credentials are swapped into DATABASE_URL
+    as before; the port and query string (e.g. sslmode=require) are kept.
+    """
+    explicit = os.getenv("APP_DATABASE_URL")
+    if explicit:
+        return explicit
     app_password = os.getenv("APP_DB_PASSWORD")
     if not app_password:
-        raise RuntimeError("APP_DB_PASSWORD environment variable is not set.")
+        raise RuntimeError("Set APP_DATABASE_URL, or APP_DB_PASSWORD together with DATABASE_URL.")
     parsed = urlparse(_admin_database_url())
-    netloc = f"ceopro_app:{app_password}@{parsed.hostname}:{parsed.port}"
+    user = os.getenv("APP_DB_USER", "ceopro_app")
+    host = f"[{parsed.hostname}]" if parsed.hostname and ":" in parsed.hostname else parsed.hostname
+    netloc = f"{quote(user, safe='')}:{quote(app_password, safe='')}@{host}"
+    if parsed.port:
+        netloc += f":{parsed.port}"
     return urlunparse(parsed._replace(netloc=netloc))
 
 
