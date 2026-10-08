@@ -39,6 +39,8 @@ MIGRATIONS_DIR = SCHEMA_DIR / "migrations"
 # A table only Final_schema.sql creates - its presence means the base schema
 # already ran.
 BASE_SCHEMA_MARKER_TABLE = "companies"
+# Present when the web backend (Prisma, `backend` branch) owns the schema.
+PRISMA_MIGRATIONS_TABLE = "_prisma_migrations"
 
 
 def _database_url() -> str:
@@ -116,6 +118,17 @@ def run(conn=None) -> list:
     applied_this_run = []
 
     try:
+        if _table_exists(conn, PRISMA_MIGRATIONS_TABLE) and not _table_exists(conn, "schema_migrations"):
+            # The web backend's `prisma migrate deploy` built this database
+            # (the hosted Render one is set up that way). Its history
+            # already contains most of migrations/, under different names,
+            # so replaying them here would re-run non-idempotent DDL against
+            # a live schema. Schema changes there go through Prisma.
+            raise RuntimeError(
+                "This database is managed by Prisma migrations (_prisma_migrations exists, "
+                "schema_migrations does not) - not applying migrations/ to it. "
+                "See DATABASE_SETUP.md."
+            )
         if _table_exists(conn, BASE_SCHEMA_MARKER_TABLE):
             logger.info(f"Base schema already present (table '{BASE_SCHEMA_MARKER_TABLE}' exists) - skipping Final_schema.sql.")
         else:
