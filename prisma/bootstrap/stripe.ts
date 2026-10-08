@@ -76,8 +76,7 @@ main()
   .catch((error) => {
     console.error("");
     console.error("Stripe bootstrap failed:");
-    console.error(error);
-
+    console.dir(error, { depth: null });
     process.exitCode = 1;
   })
   .finally(async () => {

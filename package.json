@@ -18,9 +18,6 @@
     "bootstrap:admin": "tsx prisma/bootstrap/admin.ts",
     "bootstrap:features": "tsx prisma/bootstrap/features.ts",
     "bootstrap:stripe": "tsx prisma/bootstrap/stripe.ts",
-    "bootstrap:plans": "tsx prisma/bootstrap/plans-production.ts",
-    "bootstrap:plans:dry-run": "tsx prisma/bootstrap/plans-production.ts --dry-run",
-    "verify:plans:production": "tsx prisma/bootstrap/plans-production.ts --verify-only",
     "bootstrap:production": "npm run bootstrap:stripe && npm run bootstrap:plans",
     "bootstrap:production:init": "npm run bootstrap:features && npm run bootstrap:production",
     "bootstrap:production:verify": "npm run verify:plans:production",
@@ -46,7 +43,10 @@
     "worker:notifications": "tsx src/workers/platform-notification.worker.ts",
     "worker:platform-notifications": "tsx src/workers/platform-notification.worker.ts",
     "worker:tenant-notifications": "tsx src/workers/tenant-notification.worker.ts",
-    "worker:data-ingestion": "tsx src/workers/data-ingestion.worker.ts"
+    "worker:data-ingestion": "tsx src/workers/data-ingestion.worker.ts",
+    "bootstrap:plans": "tsx prisma/bootstrap/production-plans.ts",
+    "bootstrap:plans:dry-run": "tsx prisma/bootstrap/production-plans.ts --dry-run",
+    "verify:plans:production": "tsx prisma/bootstrap/production-plans.ts --verify-only"
   },
   "keywords": [],
   "author": "",
