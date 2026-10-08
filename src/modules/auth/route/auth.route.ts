@@ -244,7 +244,7 @@ router.post(
         },
         data: { revokedAt: new Date() }
       });
-    res.json({ loggedOut: true });
+    return res.json({ loggedOut: true });
   }
 );
 
