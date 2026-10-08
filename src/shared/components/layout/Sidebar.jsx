@@ -66,12 +66,14 @@ export default function Sidebar({ open = false, onClose }) {
         aria-current={active ? "page" : undefined}
         onClick={() => goTo(item)}
       >
-        <span>
-          {item.key === "logout" && isLoggingOut
-            ? t("common.loggingOut")
-            : t(item.labelKey)}
-        </span>
-
+        {" "}
+        <Icon size={18} aria-hidden="true" />
+        {item.key === "logout" && isLoggingOut ? (
+          t("common.loggingOut")
+        ) : (
+          <span>{t(item.labelKey)}</span>
+        )}
+        <span></span>
         {locked && (
           <LockKeyhole
             className="business-sidebar__lock"
