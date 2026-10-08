@@ -67,6 +67,10 @@ def one(cur, sql, args=()):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--env-var", default="APP_DATABASE_URL", help="environment variable holding the connection string")
+    parser.add_argument("--expect-database", help="fail unless current_database() is this")
+    parser.add_argument("--expect-user", help="fail unless current_user is this")
+    parser.add_argument("--tenant-id", help="with --user-id: read every accessible table under this tenant context")
+    parser.add_argument("--user-id", help="with --tenant-id: the tenant member the context is set for")
     args = parser.parse_args()
     url = os.getenv(args.env_var)
     if not url:
@@ -82,11 +86,15 @@ def main() -> int:
         return 2
 
     conn.set_session(readonly=True, autocommit=False)
-    missing = []
+    missing, readable, unreadable = [], [], []
     with conn.cursor() as cur:
         version, user, db = one(cur, "SELECT current_setting('server_version'), current_user, current_database()")
         ssl = one(cur, "SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()")
         print(f"Connected: Postgres {version}, user={user}, database={db}, ssl={'yes' if ssl and ssl[0] else 'no'}")
+        for label, expected, actual in (("database", args.expect_database, db), ("user", args.expect_user, user)):
+            if expected and expected != actual:
+                print(f"  MISMATCH: expected {label} {expected}, connected as {actual}")
+                missing.append(f"expected {label}")
         superuser, bypassrls, createrole, createdb = one(
             cur, "SELECT rolsuper, rolbypassrls, rolcreaterole, rolcreatedb FROM pg_roles WHERE rolname = current_user")
         print(f"Role: superuser={superuser} bypassrls={bypassrls} createrole={createrole} createdb={createdb}")
@@ -130,6 +138,23 @@ def main() -> int:
             privs = "".join(flag if ok else "-" for flag, ok in zip("SIUD", (s, i, u, d)))
             note = " (owned by this user: RLS skipped unless forced)" if owner and rls and not forced else ""
             print(f"  ok       {name:<38} {privs} | rls={'forced' if forced else 'on' if rls else 'off'} | ~{rows}{note}")
+            if s:
+                readable.append(name)
+            else:
+                unreadable.append(name)
+        if unreadable:
+            print(f"\n{len(unreadable)} table(s) this user cannot read - any code path that reads one fails with "
+                  f"'permission denied' (see DATABASE_SETUP.md for which features need which): {', '.join(unreadable)}")
+
+        cur.execute("""
+            SELECT c.relname, has_sequence_privilege(c.oid, 'USAGE')
+            FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relkind = 'S' ORDER BY 1""")
+        sequences = cur.fetchall()
+        if sequences:
+            print("\nSequences (INSERT into a serial column needs USAGE):")
+            for name, usage in sequences:
+                print(f"  {'ok     ' if usage else 'no use '}  {name}")
 
         print("\nAI-only migration objects:")
         for table, column in AI_ONLY_COLUMNS:
@@ -147,6 +172,20 @@ def main() -> int:
         for idx in AI_ONLY_INDEXES:
             present = one(cur, "SELECT to_regclass('public.' || %s) IS NOT NULL", (idx,))[0]
             print(f"  {'ok     ' if present else 'missing'}  index {idx}")  # an index missing is slower, not broken
+
+        if args.tenant_id and args.user_id:
+            conn.rollback()
+            print(f"\nRow counts under tenant context (RLS applied, read-only):")
+            for name in readable:
+                cur.execute("SELECT set_config('app.current_tenant_id', %s, true), set_config('app.current_user_id', %s, true)",
+                            (args.tenant_id, args.user_id))
+                try:
+                    count = one(cur, f'SELECT count(*) FROM public."{name}"')[0]
+                    print(f"  ok       {name:<38} {count}")
+                except psycopg2.Error as exc:
+                    print(f"  ERROR    {name:<38} {exc.pgcode}: {str(exc).strip().splitlines()[0]}")
+                    missing.append(f"read {name} under tenant context")
+                conn.rollback()
 
     conn.rollback()
     conn.close()
