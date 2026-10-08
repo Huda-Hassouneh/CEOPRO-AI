@@ -1,7 +1,11 @@
 import jwt from "jsonwebtoken";
 import { createHash, randomBytes } from "node:crypto";
 import { ERROR_CODES } from "../../../errors/error-codes.js";
-import type { Company, TenantUser, User } from "../../../generated/prisma/client.js";
+import type {
+  Company,
+  TenantUser,
+  User
+} from "../../../generated/prisma/client.js";
 import type { ServiceResult } from "../../../types/service.js";
 import {
   generateAccessToken,
@@ -92,7 +96,8 @@ function verificationAccepted(email: string) {
   return {
     success: true as const,
     data: { email, verificationRequired: true },
-    message: "If the address can be registered, a verification email has been sent."
+    message:
+      "If the address can be registered, a verification email has been sent."
   };
 }
 
@@ -212,8 +217,22 @@ export async function confirmEmail(token: string) {
     exchangeExpiresAt: new Date(Date.now() + VERIFICATION_GRANT_TTL_MS)
   });
 
-  if (result.kind !== "created") {
-    return { success: false as const, code: ERROR_CODES.EMAIL_VERIFICATION_INVALID };
+  if (result.kind === "invalid") {
+    return {
+      success: false as const,
+      code: ERROR_CODES.EMAIL_VERIFICATION_INVALID
+    };
+  }
+
+  if (result.kind === "already_registered") {
+    // The token may be valid, but this email already belongs to an account.
+    // Do not mislabel that case as an expired or invalid verification link.
+    return {
+      success: false as const,
+      code: "EMAIL_ALREADY_REGISTERED" as const,
+      message:
+        "An account already exists with this email. Sign in or reset your password."
+    };
   }
 
   return { success: true as const, data: { code: exchangeCode } };
@@ -222,11 +241,18 @@ export async function confirmEmail(token: string) {
 export async function exchangeVerificationCode(code: string) {
   const verified = await repo.consumeEmailVerificationGrant(tokenHash(code));
   if (!verified) {
-    return { success: false as const, code: ERROR_CODES.EMAIL_VERIFICATION_INVALID };
+    return {
+      success: false as const,
+      code: ERROR_CODES.EMAIL_VERIFICATION_INVALID
+    };
   }
   return {
     success: true as const,
-    data: await issueSession(verified.user, verified.membership, "Email verification")
+    data: await issueSession(
+      verified.user,
+      verified.membership,
+      "Email verification"
+    )
   };
 }
 

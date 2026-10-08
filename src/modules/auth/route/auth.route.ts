@@ -16,6 +16,7 @@ import {
   acceptInvite
 } from "../../owner-portal/service/owner-write.service.js";
 import { selectLoginMembership } from "../service/login-membership.js";
+import * as authRepo from "../repo/auth.repo.js";
 import {
   changePasswordSchema,
   emailOnlySchema,
@@ -91,25 +92,30 @@ router.post("/login", async (req: AppRequest, res) => {
     return;
   }
   try {
-    const user = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
-      include: {
-        tenantUsers: {
-          where: {
-            removedAt: null,
-            platformStatus: "active",
-            tenant: { deletedAt: null, platformStatus: "active" }
-          },
-          include: { tenant: true },
-          orderBy: { joinedAt: "asc" }
-        }
-      }
-    });
-    if (
-      !user ||
-      !user.tenantUsers.length ||
-      !(await verifyPassword(password, user.passwordHash))
-    ) {
+    const user = await authRepo.findUserByEmail(email);
+    console.info("[login] user found:", Boolean(user));
+
+    const passwordValid = user
+      ? await verifyPassword(password, user.passwordHash)
+      : false;
+    console.info("[login] password valid:", passwordValid);
+
+    // const memberships = await authRepo.findLoginMemberships(user.userId, email);
+    // console.info("[login] active memberships:", memberships.length);
+
+    if (!user || !passwordValid) {
+      failures.set(key, {
+        count: failed && failed.expires > now ? failed.count + 1 : 1,
+        expires:
+          failed && failed.expires > now ? failed.expires : now + 15 * 60_000
+      });
+      sendApiError(res, ERROR_CODES.INVALID_CREDENTIALS);
+      return;
+    }
+
+    // Do not query workspace membership until the password has been verified.
+    const memberships = await authRepo.findLoginMemberships(user.userId, email);
+    if (!memberships.length) {
       failures.set(key, {
         count: failed && failed.expires > now ? failed.count + 1 : 1,
         expires:
@@ -119,7 +125,7 @@ router.post("/login", async (req: AppRequest, res) => {
       return;
     }
     failures.delete(key);
-    const membership = selectLoginMembership(user.tenantUsers);
+    const membership = selectLoginMembership(memberships);
     const session = await prisma.authSession.create({
       data: {
         userId: user.userId,

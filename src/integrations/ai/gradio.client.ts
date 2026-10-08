@@ -50,10 +50,7 @@ async function fetchWithTimeout(
         "timeout"
       );
     }
-    throw createAiIntegrationError(
-      `${serviceName} request failed.`,
-      "network"
-    );
+    throw createAiIntegrationError(`${serviceName} request failed.`, "network");
   } finally {
     clearTimeout(timeout);
   }
@@ -111,7 +108,7 @@ export function createGradioClient(
 ): GradioClient {
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
-  const refreshSkewMs = options.refreshSkewMs ?? 60_000;
+  const refreshSkewMs = options.refreshSkewMs ?? 90_000;
   const getConfig = options.getConfig ?? getGradioRuntimeConfig;
   const cache = new Map<AiServiceName, CachedToken>();
   const pendingTokens = new Map<AiServiceName, Promise<CachedToken>>();
@@ -159,7 +156,10 @@ export function createGradioClient(
         throw responseError("Hugging Face ZeroGPU authentication", response);
       }
 
-      const payload = await readJson(response, "Hugging Face ZeroGPU authentication");
+      const payload = await readJson(
+        response,
+        "Hugging Face ZeroGPU authentication"
+      );
       const tokenValue = getEncryptedTokenHeaderValue(payload);
       if (!tokenValue) {
         throw createAiIntegrationError(

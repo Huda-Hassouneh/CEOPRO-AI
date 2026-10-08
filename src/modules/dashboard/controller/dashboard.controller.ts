@@ -1,6 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import * as dashboardService from "../service/dashboard.service.js";
-import { da } from "zod/v4/locales";
+
+type DashboardAuthContext = {
+  tenant_id?: string;
+  user_id?: string;
+  userId?: string;
+  user?: {
+    id?: string;
+    userId?: string;
+    user_id?: string;
+    sub?: string;
+  };
+};
 
 export const getAggregate = async (
   req: Request,
@@ -8,17 +19,31 @@ export const getAggregate = async (
   next: NextFunction
 ) => {
   try {
-    // Extract companyId from URL params (based on your frontend /companies/:companyId/dashboard route)
-    const tenantId = (req as Request & { tenant_id?: string }).tenant_id;
+    // Authentication middleware must attach these values from the verified token.
+    const auth = req as unknown as Request & DashboardAuthContext;
+    const tenantId = auth.tenant_id;
+    const userId =
+      auth.user_id ??
+      auth.userId ??
+      auth.user?.id ??
+      auth.user?.userId ??
+      auth.user?.user_id ??
+      auth.user?.sub;
 
-    // Extract and parse periodDays from query string, defaulting to 30
     const periodDays = Number(req.query.periodDays ?? 30);
+
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ status: "error", message: "Authenticated user ID is unavailable" });
+    }
 
     if (!tenantId || req.params.companyId !== tenantId) {
       return res
         .status(403)
         .json({ status: "error", message: "Tenant access denied" });
     }
+
     if (![7, 30, 90].includes(periodDays)) {
       return res
         .status(400)
@@ -27,15 +52,12 @@ export const getAggregate = async (
 
     const data = await dashboardService.getDashboardAggregate(
       tenantId,
+      userId,
       periodDays
     );
 
-    // Return standard success response shape expected by your frontend
-    return res.status(200).json({
-      status: "success",
-      data: data
-    });
+    return res.status(200).json({ status: "success", data });
   } catch (error) {
-    next(error); // Pass to your global errorHandler middleware
+    next(error);
   }
 };

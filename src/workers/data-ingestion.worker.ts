@@ -60,13 +60,18 @@ function databaseErrorDiagnostic(error: unknown): string {
   const nestedCause = asRecord(cause?.cause);
   const diagnostic: Record<string, string> = {};
 
-  const driverCode = stringField(cause, "code", "originalCode") ??
+  const driverCode =
+    stringField(cause, "code", "originalCode") ??
     stringField(nestedCause, "code", "originalCode");
-  const causeKind = stringField(cause, "kind") ?? stringField(nestedCause, "kind");
-  const constraint = stringField(cause, "constraint", "constraintName") ??
+  const causeKind =
+    stringField(cause, "kind") ?? stringField(nestedCause, "kind");
+  const constraint =
+    stringField(cause, "constraint", "constraintName") ??
     stringField(nestedCause, "constraint", "constraintName");
-  const table = stringField(cause, "table") ?? stringField(nestedCause, "table");
-  const column = stringField(cause, "column") ?? stringField(nestedCause, "column");
+  const table =
+    stringField(cause, "table") ?? stringField(nestedCause, "table");
+  const column =
+    stringField(cause, "column") ?? stringField(nestedCause, "column");
 
   if (driverCode) diagnostic.driverCode = driverCode;
   if (causeKind) diagnostic.causeKind = causeKind;
@@ -75,7 +80,8 @@ function databaseErrorDiagnostic(error: unknown): string {
   if (column) diagnostic.column = column;
 
   if (process.env.NODE_ENV !== "production") {
-    const message = stringField(cause, "message", "originalMessage") ??
+    const message =
+      stringField(cause, "message", "originalMessage") ??
       stringField(nestedCause, "message", "originalMessage") ??
       stringField(root, "message");
     if (message) diagnostic.message = sanitizeDiagnosticMessage(message);
@@ -97,19 +103,44 @@ async function processJob(job: ClaimedIngestionJob): Promise<void> {
     console.error(
       `[DataIngestionWorker] Job failed | job=${job.job_id} code=${code} diagnostic=${databaseErrorDiagnostic(error)}`
     );
+    const err = error as {
+      code?: string;
+      message?: string;
+      meta?: { code?: string; message?: string };
+    };
 
+    console.error("[DataIngestionWorker] Poll failed", {
+      prismaCode: err.code,
+      databaseCode: err.meta?.code,
+      databaseMessage: err.meta?.message,
+      message: err.message
+    });
     try {
       await ingestionWorkerRepo.scheduleRetryOrFail(job, error);
     } catch (retryError) {
       console.error(
         `[DataIngestionWorker] Could not schedule retry | job=${job.job_id} code=${databaseErrorCode(retryError)}`
       );
+      const err = retryError as {
+        code?: string;
+        message?: string;
+        meta?: { code?: string; message?: string };
+      };
+
+      console.error("[DataIngestionWorker] Poll failed", {
+        prismaCode: err.code,
+        databaseCode: err.meta?.code,
+        databaseMessage: err.meta?.message,
+        message: err.message
+      });
     }
   }
 }
 
 export async function runDataIngestionWorker(): Promise<void> {
-  console.info(`[DataIngestionWorker] Started | poll_interval_ms=${POLL_INTERVAL_MS}`);
+  console.info(
+    `[DataIngestionWorker] Started | poll_interval_ms=${POLL_INTERVAL_MS}`
+  );
 
   try {
     while (running) {
@@ -117,19 +148,39 @@ export async function runDataIngestionWorker(): Promise<void> {
       try {
         const exhausted = await ingestionWorkerRepo.markExhaustedLeasesFailed();
         if (exhausted > 0) {
-          console.error(`[DataIngestionWorker] Exhausted jobs marked failed | count=${exhausted}`);
+          console.error(
+            `[DataIngestionWorker] Exhausted jobs marked failed | count=${exhausted}`
+          );
         }
 
-        const jobs = await ingestionWorkerRepo.claimPendingJobs(CLAIM_BATCH_SIZE);
+        const jobs =
+          await ingestionWorkerRepo.claimPendingJobs(CLAIM_BATCH_SIZE);
         for (const job of jobs) {
           if (!running) break;
           await processJob(job);
         }
       } catch (error) {
-        console.error(`[DataIngestionWorker] Poll failed | code=${databaseErrorCode(error)}`);
+        console.error(
+          `[DataIngestionWorker] Poll failed | code=${databaseErrorCode(error)}`
+        );
+        const err = error as {
+          code?: string;
+          message?: string;
+          meta?: { code?: string; message?: string };
+        };
+
+        console.error("[DataIngestionWorker] Poll failed", {
+          prismaCode: err.code,
+          databaseCode: err.meta?.code,
+          databaseMessage: err.meta?.message,
+          message: err.message
+        });
       }
 
-      const waitMs = Math.max(0, POLL_INTERVAL_MS - (Date.now() - cycleStartedAt));
+      const waitMs = Math.max(
+        0,
+        POLL_INTERVAL_MS - (Date.now() - cycleStartedAt)
+      );
       if (running && waitMs > 0) await sleep(waitMs);
     }
   } finally {
@@ -147,7 +198,9 @@ process.on("SIGINT", () => {
 });
 
 runDataIngestionWorker().catch(async (error) => {
-  console.error(`[DataIngestionWorker] Fatal error | code=${databaseErrorCode(error)}`);
+  console.error(
+    `[DataIngestionWorker] Fatal error | code=${databaseErrorCode(error)}`
+  );
   await ingestionWorkerPrisma.$disconnect();
   process.exit(1);
 });
