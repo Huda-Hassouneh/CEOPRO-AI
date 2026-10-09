@@ -106,7 +106,7 @@ export const router = createBrowserRouter([
     path: routePaths.login,
     element: (
       <GuestRoute>
-        <AuthLayout brand brandLabel="CEO PRO">
+        <AuthLayout brand brandLabel="KEEL">
           <LoginPage />
         </AuthLayout>
       </GuestRoute>
@@ -171,7 +171,7 @@ export const router = createBrowserRouter([
   {
     path: routePaths.invitation,
     element: (
-      <AuthLayout brand brandLabel="CEO PRO" wide>
+      <AuthLayout brand brandLabel="KEEL" wide>
         <InvitationPage />
       </AuthLayout>
     )

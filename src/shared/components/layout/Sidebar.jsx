@@ -1,3 +1,4 @@
+import KeelLogo from '../branding/KeelLogo.jsx';
 import { LockKeyhole } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -51,8 +52,7 @@ export default function Sidebar({ open = false, onClose }) {
   return (
     <aside className={`business-sidebar${open ? ' is-open' : ''}`} aria-label={t('businessShell.navigation.label')} dir={dir}>
       <div className="business-sidebar__brand">
-        <span className="business-sidebar__brand-mark" aria-hidden="true">C</span>
-        <span><strong>CEO PRO</strong><small>{t('businessShell.brandSubtitle')}</small></span>
+        <span><KeelLogo size={32} /><small>{t('businessShell.brandSubtitle')}</small></span>
       </div>
       <nav className="business-sidebar__nav" aria-label={t('businessShell.navigation.primary')}>
         {businessPrimaryNavigation.map(renderItem)}

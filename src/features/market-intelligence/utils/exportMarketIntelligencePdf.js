@@ -12,7 +12,7 @@ export async function exportMarketIntelligencePdf({ data, section, locale, perio
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `CEOPRO-Market-Intelligence-${section}-${generatedAt.toISOString().slice(0, 10)}.pdf`;
+  link.download = `KEEL-Market-Intelligence-${section}-${generatedAt.toISOString().slice(0, 10)}.pdf`;
 
   try {
     document.body.appendChild(link);

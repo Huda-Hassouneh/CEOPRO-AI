@@ -105,7 +105,7 @@ export function CustomPlanOfferPage() {
         <aside className="billing-payment-boundary billing-custom-offer-summary">
           <span><LockKeyhole size={24} /></span>
           <h2>{tr(t, 'billing.customOffer.summary', 'Your tailored offer')}</h2>
-          <p>{tr(t, 'billing.customOffer.privateNotice', 'Internal vendor costs and CEOPRO pricing formulas are never exposed in the customer offer.')}</p>
+          <p>{tr(t, 'billing.customOffer.privateNotice', 'Internal vendor costs and KEEL pricing formulas are never exposed in the customer offer.')}</p>
           <Select
             label={tr(t, 'billing.checkoutInApp.billingPeriod', 'Billing period')}
             value={selected.period}

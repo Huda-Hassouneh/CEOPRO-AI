@@ -6,8 +6,8 @@
     "comingSoon": "Coming Soon",
     "comingSoonDescription": "We are building something extraordinary. Advanced analytics and deeper market insights are currently in development to elevate your strategy",
     "custom": "custom",
-    "brand": "CEOPRO AI",
-    "brandShort": "CEO PRO",
+    "brand": "KEEL",
+    "brandShort": "KEEL",
     "loading": "Loading...",
     "languageSwitch": "Change language",
     "englishShort": "EN",
@@ -689,7 +689,7 @@
       "competitionLevel": "Competition Level",
       "competitorActivity": "Competitor Activity",
       "recommendedActions": "Recommended Actions",
-      "leaderboardSubtitle": "Compare competitors based on CEOPRO's composite scoring model.",
+      "leaderboardSubtitle": "Compare competitors based on KEEL's composite scoring model.",
       "totalCompetitors": "Total Competitors",
       "averageScore": "Average Composite Score",
       "highestPrice": "Highest Price Competitiveness",
@@ -1049,18 +1049,18 @@
       "orContinueWithEmail": "OR CONTINUE WITH EMAIL"
     },
     "welcome": {
-      "title": "Welcome to CEOPRO",
+      "title": "Welcome to KEEL",
       "tagline": "Stop using. Start knowing.",
       "descriptionLine1": "Your AI-powered business intelligence platform",
       "descriptionLine2": "for smarter decisions and real growth.",
       "login": "Log In →",
       "signup": "Sign Up →",
-      "newTo": "New to CEOPRO?",
+      "newTo": "New to KEEL?",
       "imageAlt": "Business growth illustration"
     },
     "login": {
       "title": "Welcome Back",
-      "subtitle": "Log in to CEO PRO to access your intelligence dashboard.",
+      "subtitle": "Log in to KEEL to access your intelligence dashboard.",
       "emailPlaceholder": "name@company.com",
       "passwordPlaceholder": "Enter your password",
       "forgotPassword": "Forgot password?",
@@ -1137,7 +1137,7 @@
       "title": "You're invited!",
       "subtitle": "You've been invited to join",
       "detailsLabel": "Invitation details",
-      "joinTeam": "Join the team and start collaborating on CEOPRO.",
+      "joinTeam": "Join the team and start collaborating on KEEL.",
       "invitedBy": "Invited by",
       "expiresIn": "Invitation expires in",
       "days": "{{count}} days",
@@ -1266,8 +1266,8 @@
       "cityHint": "Select your city",
       "cityPlaceholder": "Select a city",
       "languageLabel": "Language",
-      "languageHint": "Choose the language for your CEOPRO application",
-      "noteMarket": "Your country and city help CEOPRO show competitors relevant to your market.",
+      "languageHint": "Choose the language for your KEEL application",
+      "noteMarket": "Your country and city help KEEL show competitors relevant to your market.",
       "noteLanguage": "Your language preference applies across the application and can be changed later in Settings.",
       "countries": {
         "belgium": "Belgium",
@@ -1438,12 +1438,12 @@
       "directoryUnavailable": "The workspace directory is unavailable. Only your signed-in account is shown; team totals cannot be determined.",
       "invitationsUnavailable": "Invitation information is currently unavailable.",
       "title": "Team Members",
-      "subtitle": "Manage who has access to your CEOPRO workspace.",
+      "subtitle": "Manage who has access to your KEEL workspace.",
       "you": "You",
       "loadError": "Team information could not be loaded.",
       "emptyTitle": "No team members available",
       "emptyDescription": "No team member records were returned for this workspace.",
-      "firstTeam": "Invite your team to collaborate in CEOPRO.",
+      "firstTeam": "Invite your team to collaborate in KEEL.",
       "managementUnavailable": "Role changes and member removal are omitted because those backend actions are not available.",
       "readOnly": "Team membership is read-only for your role. Workspace administration requires Admin permission and backend authorization.",
       "pendingTitle": "Pending Invitations",
@@ -1490,7 +1490,7 @@
       },
       "editor": {
         "label": "Editor",
-        "description": "Can work with business data and CEOPRO features but cannot manage protected workspace administration."
+        "description": "Can work with business data and KEEL features but cannot manage protected workspace administration."
       },
       "viewer": {
         "label": "Viewer",
@@ -1499,20 +1499,20 @@
     },
     "notifications": {
       "title": "Notifications",
-      "subtitle": "Choose which CEOPRO updates you want to receive.",
+      "subtitle": "Choose which KEEL updates you want to receive.",
       "loadError": "Notification preferences could not be loaded.",
       "unavailableTitle": "Notification preferences are not connected",
       "unavailableDescription": "No configurable channels or categories are exposed by the current notification service, so no preference controls are shown."
     },
     "preferences": {
       "title": "Preferences",
-      "subtitle": "Customize your CEOPRO experience.",
+      "subtitle": "Customize your KEEL experience.",
       "language": "Language",
       "languages": {
         "en": "English interface with left-to-right layout",
         "ar": "Arabic interface with right-to-left layout"
       },
-      "languageDirection": "Text direction follows the selected language automatically. CEOPRO currently supports its established light appearance."
+      "languageDirection": "Text direction follows the selected language automatically. KEEL currently supports its established light appearance."
     },
     "security": {
       "title": "Change Password",
@@ -1694,7 +1694,7 @@
       "effectiveDate": "Effective date",
       "providerDetermined": "Determined by the billing provider",
       "securePayment": "Secure payment",
-      "securePaymentDescription": "Payment must be completed through the approved billing provider. CEOPRO does not store raw card details here.",
+      "securePaymentDescription": "Payment must be completed through the approved billing provider. KEEL does not store raw card details here.",
       "continue": "Continue to Payment",
       "preparing": "Preparing checkout...",
       "noPaymentStored": "No payment details are collected or persisted on this screen.",
@@ -1980,7 +1980,7 @@
       "continuePaypal": "Continue with PayPal",
       "continueStripe": "Continue with Stripe",
       "continueGooglePay": "Continue with Google Pay",
-      "previewNotice": "Payment is completed on Stripe hosted checkout. CEOPRO does not collect raw card details on this screen.",
+      "previewNotice": "Payment is completed on Stripe hosted checkout. KEEL does not collect raw card details on this screen.",
       "yourPlan": "Your Plan",
       "billingCycle": "Billing cycle",
       "subtotal": "Subtotal",
@@ -2452,7 +2452,7 @@
   "connectData": {
     "page": {
       "title": "Connect Data",
-      "subtitle": "Connect, upload, and manage the business data used by CEOPRO.",
+      "subtitle": "Connect, upload, and manage the business data used by KEEL.",
       "supporting": "Keep your sales, products, inventory, and market data up to date."
     },
     "actions": {
@@ -2500,7 +2500,7 @@
     },
     "add": {
       "title": "Add Data Source",
-      "subtitle": "Choose one of the data sources already supported by CEOPRO."
+      "subtitle": "Choose one of the data sources already supported by KEEL."
     },
     "empty": {
       "title": "No data sources connected yet",
@@ -2527,7 +2527,7 @@
   },
   "dataConnections": {
     "title": "Connect your data",
-    "subtitle": "Connect the tools and data sources you use to get the most out of CEOPRO. You may also complete setup now and connect them later.",
+    "subtitle": "Connect the tools and data sources you use to get the most out of KEEL. You may also complete setup now and connect them later.",
     "statuses": {
       "not-connected": "Not connected",
       "connecting": "Connecting",
@@ -2996,7 +2996,7 @@
     },
     "chat": {
       "regionLabel": "Document assistant conversation",
-      "assistant": "CEOPRO Assistant",
+      "assistant": "KEEL Assistant",
       "you": "You",
       "generating": "Generating answer...",
       "unavailable": "The RAG service is not connected. Your question was kept in this session, but no answer was generated."
@@ -3060,7 +3060,7 @@
     },
     "upload": {
       "title": "Upload documents for RAG",
-      "description": "Select supported company documents. Files are validated using the existing CEOPRO upload flow and are only marked uploaded after the ingestion service confirms success.",
+      "description": "Select supported company documents. Files are validated using the existing KEEL upload flow and are only marked uploaded after the ingestion service confirms success.",
       "uploading": "Uploading..."
     },
     "actions": {
@@ -3078,7 +3078,7 @@
   "dataIngestion": {
     "back": "Back to Connect Data",
     "title": "Upload your data",
-    "subtitle": "Add relevant business files to help CEOPRO prepare better insights.",
+    "subtitle": "Add relevant business files to help KEEL prepare better insights.",
     "templateTitle": "Download required template",
     "templateDescription": "Download and complete a template before uploading your data.",
     "templates": {

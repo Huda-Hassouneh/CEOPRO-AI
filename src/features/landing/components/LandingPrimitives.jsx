@@ -1,3 +1,4 @@
+import KeelLogo from '../../../shared/components/branding/KeelLogo.jsx';
 import { ArrowRight, Check, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -19,7 +20,7 @@ export function useLanding() {
 }
 
 export function Brand() {
-  return <Link className="lp-brand" to={routePaths.landing} aria-label="CEOPRO AI"><span className="lp-brand-symbol" aria-hidden="true"><i /><i /><i /></span><span dir="ltr">CEO<span>PRO</span><small>AI</small></span></Link>;
+  return <Link className="lp-brand" to={routePaths.landing} aria-label="KEEL"><KeelLogo /></Link>;
 }
 
 export function SectionHeading({ section, centered = false, children }) {

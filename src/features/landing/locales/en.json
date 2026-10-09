@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "CEOPRO AI — Clarity for your next business decision",
-    "description": "Bring your business data and market signals together. Explore demand forecasting, competitor intelligence, pricing insights, sentiment analysis, and source-grounded AI with CEOPRO."
+    "title": "KEEL — Clarity for your next business decision",
+    "description": "Bring your business data and market signals together. Explore demand forecasting, competitor intelligence, pricing insights, sentiment analysis, and source-grounded AI with KEEL."
   },
   "nav": {
     "home": "Home",
@@ -37,7 +37,7 @@
     "badge": "AI-Powered Business Intelligence",
     "title": "Smarter Decisions.",
     "accent": "Stronger Business Growth.",
-    "description": "Your business data. Your market. One clear picture. Turn sales, competitor signals, and customer feedback into informed next steps with CEOPRO AI.",
+    "description": "Your business data. Your market. One clear picture. Turn sales, competitor signals, and customer feedback into informed next steps with KEEL.",
     "note": "Free trials available on eligible plans",
     "bilingual": "Built for English & Arabic",
     "eyebrow": "YOUR BUSINESS, IN FOCUS",
@@ -169,7 +169,7 @@
     "point1": "Grounded in the business information you provide",
     "point2": "Source documents and relevance, alongside the answer",
     "point3": "A conversation in English or Arabic",
-    "assistant": "CEOPRO Business Assistant",
+    "assistant": "KEEL Business Assistant",
     "question": "Which product has the strongest demand outlook?",
     "answer": "The Everyday blend shows the strongest outlook in this example. Its forecast exceeds current inventory, so review stock availability before your next replenishment.",
     "source1": "Sales_Report_Q3.pdf",
@@ -205,7 +205,7 @@
   "models": {
     "eyebrow": "PURPOSE-BUILT AI CAPABILITIES",
     "title": "More than a chatbot.\nAn intelligence toolkit.",
-    "description": "Different business questions need different kinds of analysis. CEOPRO brings specialized capabilities into one connected experience.",
+    "description": "Different business questions need different kinds of analysis. KEEL brings specialized capabilities into one connected experience.",
     "pricing": "Pricing engine",
     "pricingText": "Suggested price, action, confidence, and market position.",
     "sentiment": "Sentiment analysis",
@@ -220,7 +220,7 @@
     "ragText": "Document-grounded answers with relevant source references.",
     "extraction": "Data extraction",
     "extractionText": "Structured information and visible processing outcomes.",
-    "core": "CEOPRO AI",
+    "core": "KEEL",
     "coreText": "Business context in.\nActionable understanding out."
   },
   "workflow": {
@@ -252,9 +252,9 @@
     "evidenceText": "Review the underlying signals before taking action."
   },
   "about": {
-    "eyebrow": "WHY CEOPRO",
+    "eyebrow": "WHY KEEL",
     "title": "Your business on the inside.\nYour market on the outside.\nIntelligence that connects both.",
-    "description": "CEOPRO brings internal business information and external market signals into one decision-making experience. From a competitor's product to your own stock outlook, the details connect to the bigger picture.",
+    "description": "KEEL brings internal business information and external market signals into one decision-making experience. From a competitor's product to your own stock outlook, the details connect to the bigger picture.",
     "internal": "Internal business data",
     "internalText": "Sales · Inventory · Documents",
     "external": "External market signals",
@@ -283,7 +283,7 @@
   },
   "cta": {
     "eyebrow": "YOUR NEXT CHAPTER STARTS WITH CLARITY",
-    "title": "See more. Understand more.\nMove forward with CEOPRO.",
+    "title": "See more. Understand more.\nMove forward with KEEL.",
     "description": "Bring your business data and market into focus. Compare the live Starter, Growth, Enterprise, and Custom options to choose the right next step."
   },
   "footer": {
@@ -291,7 +291,7 @@
     "product": "Product",
     "company": "Company",
     "account": "Account",
-    "rights": "© {{year}} CEOPRO AI. All rights reserved.",
+    "rights": "© {{year}} KEEL. All rights reserved.",
     "note": "Purpose-built intelligence. Human-led decisions."
   }
 }

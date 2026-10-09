@@ -10,7 +10,7 @@ export function MarketIntelligencePdfHeader({ title, subtitle, product, period, 
 
   return (
     <View style={s.header}>
-      <Text style={s.brand}>CEOPRO-AI</Text>
+      <Text style={s.brand}>KEEL</Text>
       <Text style={[s.title, rtl && { textAlign: "right" }]}>{title}</Text>
       <Text style={[s.subtitle, rtl && { textAlign: "right" }]}>{subtitle}</Text>
       <View style={[s.metadata, rtl && { flexDirection: "row-reverse" }]}>

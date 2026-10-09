@@ -126,7 +126,7 @@ export function MarketIntelligencePdfDocument({ data, section, locale = "en", pe
   };
 
   return (
-    <Document title={`${t("marketMain.page.title")} — ${title}`} author="CEOPRO-AI">
+    <Document title={`${t("marketMain.page.title")} — ${title}`} author="KEEL">
       {pages.map((pageRows, pageIndex) => (
         <Page key={pageIndex} size="A4" orientation={section === "opportunities" ? "portrait" : "landscape"} style={s.page} wrap>
           <MarketIntelligencePdfHeader
@@ -141,7 +141,7 @@ export function MarketIntelligencePdfDocument({ data, section, locale = "en", pe
           <Text style={[s.sectionHeading, rtl && { textAlign: "right" }]}>{title}</Text>
           {renderContent(pageRows)}
           <View style={s.footer} fixed>
-            <Text>CEOPRO-AI · {t("marketMain.page.title")}</Text>
+            <Text>KEEL · {t("marketMain.page.title")}</Text>
             <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
           </View>
         </Page>

@@ -1,6 +1,6 @@
 // All platform interface copy lives here; names and emails are service data.
 export const en = {
-  brand: "CEO PRO",
+  brand: "KEEL",
   platform: "Platform Administration",
   overview: "Platform Overview",
   overviewNav: "Overview",
@@ -172,16 +172,16 @@ export const en = {
   activeSubscriptions: "Active subscriptions",
   activeTrials: "Active trials",
   overviewDescription:
-    "A clear view of the companies, people and subscriptions across CEOPRO.",
+    "A clear view of the companies, people and subscriptions across KEEL.",
   companiesDescription:
     "Manage company access and review each workspace in context.",
   usersDescription: "Administrative identities across company workspaces.",
   subscriptionsDescription: "Track plan adoption and subscription lifecycle.",
   plansDescription:
-    "One commercial catalog across the entire CEOPRO experience.",
+    "One commercial catalog across the entire KEEL experience.",
   featuresDescription:
     "Review product availability separately from capacity limits.",
-  adminTeamDescription: "Manage the people trusted to administer CEOPRO.",
+  adminTeamDescription: "Manage the people trusted to administer KEEL.",
   auditLogsDescription:
     "Read-only history of administrative changes and access decisions.",
   settingsDescription:
@@ -327,7 +327,7 @@ export const en = {
   noSensitive: "Only administrative changes are included."
 };
 export const ar = {
-  brand: "CEO PRO",
+  brand: "KEEL",
   platform: "إدارة المنصة",
   overview: "نظرة عامة على المنصة",
   overviewNav: "نظرة عامة",
@@ -493,13 +493,13 @@ export const ar = {
   totalUsers: "مستخدمو المنصة",
   activeSubscriptions: "الاشتراكات النشطة",
   activeTrials: "التجارب النشطة",
-  overviewDescription: "رؤية واضحة للشركات والأشخاص والاشتراكات عبر CEOPRO.",
+  overviewDescription: "رؤية واضحة للشركات والأشخاص والاشتراكات عبر KEEL.",
   companiesDescription: "إدارة وصول الشركات ومراجعة كل مساحة عمل ضمن سياقها.",
   usersDescription: "هويات إدارية عبر مساحات عمل الشركات.",
   subscriptionsDescription: "متابعة استخدام الخطط ودورة حياة الاشتراكات.",
-  plansDescription: "كتالوج تجاري واحد لجميع تجارب CEOPRO.",
+  plansDescription: "كتالوج تجاري واحد لجميع تجارب KEEL.",
   featuresDescription: "مراجعة إتاحة المنتجات بشكل منفصل عن حدود السعة.",
-  adminTeamDescription: "إدارة الأشخاص الموثوقين لإدارة CEOPRO.",
+  adminTeamDescription: "إدارة الأشخاص الموثوقين لإدارة KEEL.",
   auditLogsDescription: "سجل للقراءة فقط للتغييرات الإدارية وقرارات الوصول.",
   settingsDescription: "إدارة هوية المنصة وإعداداتها التشغيلية الافتراضية.",
   profileDescription: "هويتك الإدارية وتفضيلات اللغة.",

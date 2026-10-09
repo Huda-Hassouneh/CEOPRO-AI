@@ -1,3 +1,4 @@
+import KeelLogo from '../../shared/components/branding/KeelLogo.jsx';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useI18n } from '../providers/I18nProvider.jsx';
@@ -19,7 +20,7 @@ export function OnboardingLayout({ children }) {
     <div className="ceopro-setup" dir={dir}>
       <header className="ceopro-setup-header">
         <div className="ceopro-setup-header__identity">
-          <span className="ceopro-setup-header__brand">{t('common.brandShort')}</span>
+          <KeelLogo size={28} className="ceopro-setup-header__brand" />
           <span className="ceopro-setup-header__divider" aria-hidden="true" />
           <span className="ceopro-setup-header__label">{t('onboarding.common.setup')}</span>
         </div>

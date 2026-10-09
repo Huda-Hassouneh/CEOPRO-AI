@@ -46,12 +46,6 @@
 .ceopro-landing .lp-navbar { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--ceopro-border); background: color-mix(in srgb, var(--ceopro-surface) 94%, transparent); backdrop-filter: blur(16px); }
 .ceopro-landing .lp-navbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 25px; min-height: 80px; }
 .ceopro-landing .lp-brand { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; color: var(--ceopro-text-primary); font-size: 21px; font-weight: 800; letter-spacing: -.7px; }
-.ceopro-landing .lp-brand > span:last-child > span { color: var(--ceopro-primary); }
-.ceopro-landing .lp-brand small { display: inline-block; font-size: 10px; letter-spacing: .02em; margin-inline-start: 5px; color: var(--ceopro-primary); vertical-align: top; margin-top: 5px; }
-.ceopro-landing .lp-brand-symbol { display: flex; align-items: end; gap: 3px; height: 24px; transform: skewY(-12deg); }
-.ceopro-landing .lp-brand-symbol i { width: 5px; height: 12px; border-radius: 2px; background: var(--ceopro-primary); }
-.ceopro-landing .lp-brand-symbol i:nth-child(2) { height: 18px; opacity: .75; }
-.ceopro-landing .lp-brand-symbol i:nth-child(3) { height: 24px; opacity: .5; }
 .ceopro-landing .lp-nav-links, .ceopro-landing .lp-nav-actions { display: flex; align-items: center; gap: 22px; }
 .ceopro-landing .lp-nav-links a, .ceopro-landing .lp-nav-actions { font-size: 12px; font-weight: 500; white-space: nowrap; }
 .ceopro-landing .lp-nav-links a:hover, .ceopro-landing .lp-footer a:hover, .ceopro-landing .lp-desktop-account:not(.lp-nav-cta):hover { color: var(--ceopro-primary); }

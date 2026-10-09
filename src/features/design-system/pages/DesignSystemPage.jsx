@@ -64,9 +64,9 @@ export default function DesignSystemPage() {
 
       <section className="ceopro-design-system-hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--ceopro-space-8)' }}>
         <div>
-          <span className="ceopro-kicker" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--ceopro-primary)', textTransform: 'uppercase' }}>CEOPRO AI / Design System</span>
+          <span className="ceopro-kicker" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--ceopro-primary)', textTransform: 'uppercase' }}>KEEL / Design System</span>
           <h1 className="ceopro-page-title" style={{ margin: 'var(--ceopro-space-2) 0' }}>Design System Playground</h1>
-          <p className="ceopro-muted" style={{ color: 'var(--ceopro-text-secondary)', margin: 0 }}>Shared UI foundations for CEOPRO workflows.</p>
+          <p className="ceopro-muted" style={{ color: 'var(--ceopro-text-secondary)', margin: 0 }}>Shared UI foundations for KEEL workflows.</p>
         </div>
         <div className="ceopro-hero-actions" style={{ display: 'flex', gap: 'var(--ceopro-space-3)' }}>
           <Button variant="secondary" onClick={() => setToastMessage('Export triggered successfully!')}>Export</Button>
@@ -82,8 +82,8 @@ export default function DesignSystemPage() {
             <Badge variant="neutral">Brand palette</Badge>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ceopro-space-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><span style={{ width: '24px', height: '24px', borderRadius: '4px', background: 'var(--ceopro-primary)', display: 'inline-block' }} /> CEOPRO Primary</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><span style={{ width: '24px', height: '24px', borderRadius: '4px', background: 'var(--ceopro-primary-dark)', display: 'inline-block' }} /> CEOPRO Dark</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><span style={{ width: '24px', height: '24px', borderRadius: '4px', background: 'var(--ceopro-primary)', display: 'inline-block' }} /> KEEL Primary</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><span style={{ width: '24px', height: '24px', borderRadius: '4px', background: 'var(--ceopro-primary-dark)', display: 'inline-block' }} /> KEEL Dark</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><span style={{ width: '24px', height: '24px', borderRadius: '4px', background: 'var(--ceopro-surface-soft)', border: '1px solid var(--ceopro-border)', display: 'inline-block' }} /> Surface Soft</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><span style={{ width: '24px', height: '24px', borderRadius: '4px', background: '#10b981', display: 'inline-block' }} /> Success</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><span style={{ width: '24px', height: '24px', borderRadius: '4px', background: '#f59e0b', display: 'inline-block' }} /> Warning</div>
@@ -100,7 +100,7 @@ export default function DesignSystemPage() {
             <h1 style={{ fontSize: '22px', margin: 0, fontWeight: '700' }}>Executive Overview</h1>
             <h2 style={{ fontSize: '18px', margin: 0, fontWeight: '600' }}>Quarterly Demand</h2>
             <h3 style={{ fontSize: '15px', margin: 0, fontWeight: '600' }}>Product Trend</h3>
-            <p style={{ margin: 0, fontSize: '14px', color: 'var(--ceopro-text-primary)' }}>CEOPRO AI surfaces performance, demand, product, and competitive signals.</p>
+            <p style={{ margin: 0, fontSize: '14px', color: 'var(--ceopro-text-primary)' }}>KEEL surfaces performance, demand, product, and competitive signals.</p>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--ceopro-text-muted)' }}>Meta label / supporting copy</p>
             <p lang="ar" dir="rtl" style={{ margin: '8px 0 0', fontSize: '14px', color: 'var(--ceopro-text-primary)', fontFamily: 'var(--ceopro-font-family-ar)' }}>
               رؤية الطلب والتنبؤ المؤسسي للمنتجات واحتياجات السوق.
@@ -239,7 +239,7 @@ export default function DesignSystemPage() {
         }
       >
         <p style={{ color: 'var(--ceopro-text-secondary)', fontSize: '14px', lineHeight: '1.5' }}>
-          Configure scenario variables to run simulations and generate predictive market intelligence reports directly through the CEOPRO workspace engine.
+          Configure scenario variables to run simulations and generate predictive market intelligence reports directly through the KEEL workspace engine.
         </p>
         <Input label="Scenario Name" placeholder="e.g. Q4 European Expansion" />
       </Modal>

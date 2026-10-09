@@ -1,3 +1,4 @@
+import KeelLogo from '../../shared/components/branding/KeelLogo.jsx';
 import { useI18n } from "../providers/I18nProvider.jsx";
 import { AuthLanguageSwitch } from "../../features/auth/components/AuthLanguageSwitch.jsx";
 
@@ -32,7 +33,7 @@ export function AuthLayout({
       >
         {brand && (
           <div className="ceopro-auth-brand" aria-label={resolvedBrandLabel}>
-            {resolvedBrandLabel}
+            <KeelLogo size={32} />
           </div>
         )}
 

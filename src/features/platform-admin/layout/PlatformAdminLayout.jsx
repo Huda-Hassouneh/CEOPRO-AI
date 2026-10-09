@@ -1,3 +1,4 @@
+import KeelLogo from '../../../shared/components/branding/KeelLogo.jsx';
 import { useEffect, useState } from "react";
 import {
   Link,
@@ -11,7 +12,6 @@ import {
   Building2,
   Users,
   CreditCard,
-  Layers3,
   ShieldCheck,
   ScrollText,
   Settings2,
@@ -327,12 +327,8 @@ function Shell() {
   const nav = (
     <>
       <Link to="/admin" className="pa-brand" onClick={() => setDrawer(false)}>
-        <span className="pa-brand-mark">
-          <Layers3 size={25} />
-        </span>
-
         <span>
-          <b>{t("brand")}</b>
+          <KeelLogo size={40} />
           <small>{t("platform")}</small>
         </span>
       </Link>

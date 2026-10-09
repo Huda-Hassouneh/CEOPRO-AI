@@ -287,7 +287,7 @@ export function DemandPredictionPdfDocument({
         );
 
   return (
-    <Document title={title} author="CEOPRO-AI">
+    <Document title={title} author="KEEL">
       {tableSections.map((section, index) => (
         <Page
           key={index}
@@ -330,7 +330,7 @@ export function DemandPredictionPdfDocument({
           />
 
           <View style={s.footer} fixed>
-            <Text>CEOPRO-AI · {title}</Text>
+            <Text>KEEL · {title}</Text>
             <Text
               render={({ pageNumber, totalPages }) =>
                 `${pageNumber} / ${totalPages}`

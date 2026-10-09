@@ -33,7 +33,7 @@ export function TrendChart({ forecast = false, compact = false }) {
 export function HeroVisual() {
   const { t, n, money, percent } = useLanding();
   return <div className="lp-hero-art"><div className="lp-orbit lp-orbit-one" /><div className="lp-orbit lp-orbit-two" /><figure className="lp-browser">
-    <div className="lp-browser-bar"><span aria-hidden="true"><i /><i /><i /></span><small dir="ltr">CEOPRO AI</small><span className="lp-preview-label">{t('common.sample')}</span></div>
+    <div className="lp-browser-bar"><span aria-hidden="true"><i /><i /><i /></span><small dir="ltr">KEEL</small><span className="lp-preview-label">{t('common.sample')}</span></div>
     <div className="lp-browser-content"><VisualHeader title={t('hero.overview')} subtitle={t('hero.period')} /><div className="lp-hero-metrics">{[['revenue', money(demo.revenue)], ['sales', n(demo.sales)], ['growth', `+${percent(demo.growth)}`]].map(([key, value]) => <div key={key}><span>{t(`hero.${key}`)}</span><strong><bdi>{value}</bdi></strong></div>)}</div>
       <div className="lp-hero-chart"><span>{t('hero.legend')}</span><TrendChart compact /></div>
       <div className="lp-hero-bottom"><div><Boxes size={17} /><span>{t('hero.inventory')}</span><strong>{percent(demo.inventory)}</strong></div><div><MessageCircle size={17} /><span>{t('hero.sentiment')}</span><strong>{percent(demo.sentiment.positive)}</strong></div></div>
@@ -65,13 +65,13 @@ export function SentimentVisual() {
 
 export function RagVisual() {
   const { t, n } = useLanding();
-  return <figure className="lp-visual lp-rag-visual"><VisualHeader title={t('rag.assistant')} /><div className="lp-chat-question">{t('rag.question')}</div><div className="lp-chat-answer"><span className="lp-icon"><Sparkles size={19} /></span><div><strong dir="ltr">CEOPRO AI</strong><p>{t('rag.answer')}</p><small>{t('common.source')}</small><div className="lp-sources">{demo.sources.map((source) => <div key={source.key}><FileText size={16} aria-hidden="true" /><span>{t(`rag.${source.key}`)}<small>{t('common.relevance')} · {n(source.relevance)}</small></span></div>)}</div></div></div><div className="lp-chat-placeholder"><span>{t('rag.placeholder')}</span><MessageCircle size={17} /></div><DemoCaption text={t('rag.note')} /></figure>;
+  return <figure className="lp-visual lp-rag-visual"><VisualHeader title={t('rag.assistant')} /><div className="lp-chat-question">{t('rag.question')}</div><div className="lp-chat-answer"><span className="lp-icon"><Sparkles size={19} /></span><div><strong dir="ltr">KEEL</strong><p>{t('rag.answer')}</p><small>{t('common.source')}</small><div className="lp-sources">{demo.sources.map((source) => <div key={source.key}><FileText size={16} aria-hidden="true" /><span>{t(`rag.${source.key}`)}<small>{t('common.relevance')} · {n(source.relevance)}</small></span></div>)}</div></div></div><div className="lp-chat-placeholder"><span>{t('rag.placeholder')}</span><MessageCircle size={17} /></div><DemoCaption text={t('rag.note')} /></figure>;
 }
 
 export function ConnectionVisual() {
   const { t } = useLanding();
   const nodes = [{ key: 'analytics', Icon: BarChart3 }, { key: 'website', Icon: Globe2 }, { key: 'system', detail: 'systemDetail', Icon: Database }, { key: 'documents', detail: 'documentsDetail', Icon: FileSpreadsheet }];
-  return <figure className="lp-connections"><div className="lp-connection-nodes">{nodes.map(({ key, Icon, detail }) => <div key={key} className="lp-connection-node"><span className="lp-icon"><Icon size={24} aria-hidden="true" /></span><strong>{t(`data.${key}`)}</strong>{detail && <small>{t(`data.${detail}`)}</small>}</div>)}</div><div className="lp-connection-stem" aria-hidden="true" /><div className="lp-connection-core"><Sparkles size={25} /><strong dir="ltr">CEOPRO AI</strong><span>{t('data.center')}</span></div></figure>;
+  return <figure className="lp-connections"><div className="lp-connection-nodes">{nodes.map(({ key, Icon, detail }) => <div key={key} className="lp-connection-node"><span className="lp-icon"><Icon size={24} aria-hidden="true" /></span><strong>{t(`data.${key}`)}</strong>{detail && <small>{t(`data.${detail}`)}</small>}</div>)}</div><div className="lp-connection-stem" aria-hidden="true" /><div className="lp-connection-core"><Sparkles size={25} /><strong dir="ltr">KEEL</strong><span>{t('data.center')}</span></div></figure>;
 }
 
 export function IngestionVisual() {

@@ -1,3 +1,4 @@
+import KeelLogo from '../../../shared/components/branding/KeelLogo.jsx';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../shared/components/ui/Button.jsx';
@@ -17,7 +18,7 @@ export default function WelcomePage() {
       <AuthLanguageSwitch />
 
       <div className="ceopro-welcome-page__content">
-        <div className="ceopro-welcome-page__brand" aria-label={t('common.brand')}>{t('common.brand')}</div>
+        <div className="ceopro-welcome-page__brand"><KeelLogo size={40} /></div>
 
         <section className="ceopro-welcome-card" aria-labelledby="welcome-heading">
           <img
