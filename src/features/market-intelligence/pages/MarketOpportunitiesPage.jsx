@@ -1,3 +1,4 @@
+import { UI_TESTING_MODE } from "../../../shared/config/uiTestingMode.js";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -104,13 +105,13 @@ export function MarketOpportunitiesPage() {
         >
           <div
             style={{
+              display: UI_TESTING_MODE ? "none" : "flex",
               position: "absolute",
               inset: 0,
               zIndex: 50,
               backgroundColor: "rgba(255, 255, 255, 0.3)",
               backdropFilter: "blur(6px)",
               WebkitBackdropFilter: "blur(6px)",
-              display: "flex",
               alignItems: "flex-start",
               justifyContent: "center",
               paddingTop: "15vh",
@@ -143,10 +144,10 @@ export function MarketOpportunitiesPage() {
           {/* UN-CLICKABLE PREVIEW UI */}
           <div
             style={{
-              pointerEvents: "none",
-              userSelect: "none",
-              opacity: 0.6,
-              filter: "grayscale(30%)"
+              pointerEvents: UI_TESTING_MODE ? "auto" : "none",
+              userSelect: UI_TESTING_MODE ? "auto" : "none",
+              opacity: UI_TESTING_MODE ? 1 : 0.6,
+              filter: UI_TESTING_MODE ? "none" : "grayscale(30%)"
             }}
           >
             <section className="reference-kpi-grid">

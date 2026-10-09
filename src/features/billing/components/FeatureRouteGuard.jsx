@@ -1,10 +1,13 @@
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 import { useEntitlements } from '../hooks/useEntitlements.js';
 import { FeatureLock } from './FeatureLock.jsx';
+import { UI_TESTING_MODE } from '../../../shared/config/uiTestingMode.js';
 
 export function FeatureRouteGuard({ featureCodes, children }) {
   const { isLoading, isError, getFeatureState } = useEntitlements();
   const codes = Array.isArray(featureCodes) ? featureCodes : [featureCodes];
+
+  if (UI_TESTING_MODE) return children;
 
   if (isLoading) {
     return (

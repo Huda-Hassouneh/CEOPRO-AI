@@ -1,4 +1,6 @@
 import httpClient from "../../../shared/lib/httpClient.js";
+import { UI_TESTING_MODE } from "../../../shared/config/uiTestingMode.js";
+import { previewList, previewSubscription, previewUsage, testingFeatures, testingPlans, testingPlanFeatureLinks } from "./uiTestingBillingData.js";
 import { getApiError as parseApiError, getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 
 const endpoints = Object.freeze({
@@ -90,7 +92,7 @@ const unsupported = (capability) => {
 };
 
 export const billingApi = Object.freeze({
-  getPlans: () => unwrap(httpClient.get(endpoints.plans)),
+  getPlans: () => UI_TESTING_MODE ? previewList(testingPlans) : unwrap(httpClient.get(endpoints.plans)),
   cancelScheduledPlanChange: () =>
     unwrap(httpClient.delete(endpoints.scheduledPlanChange)),
   createPlan: (payload) => unwrap(httpClient.post(endpoints.plans, payload)),
@@ -102,10 +104,10 @@ export const billingApi = Object.freeze({
       )
     ),
 
-  getSubscription: () => unwrap(httpClient.get(endpoints.currentSubscription)),
+  getSubscription: () => UI_TESTING_MODE ? previewSubscription() : unwrap(httpClient.get(endpoints.currentSubscription)),
   createSubscriptionRecovery: () => unwrap(httpClient.post(endpoints.recovery)),
   getSubscriptionUsage: async () =>
-    normalizeUsage(await unwrap(httpClient.get(endpoints.usage))),
+    UI_TESTING_MODE ? previewUsage() : normalizeUsage(await unwrap(httpClient.get(endpoints.usage))),
   createCheckout: (payload) =>
     unwrap(httpClient.post(endpoints.checkout, payload)),
   changePlan: (payload) =>
@@ -113,11 +115,11 @@ export const billingApi = Object.freeze({
   cancelSubscription: () => unwrap(httpClient.patch(endpoints.cancel)),
   resumeSubscription: () => unwrap(httpClient.patch(endpoints.undoCancel)),
 
-  getInvoices: () => unwrap(httpClient.get(endpoints.invoices)),
+  getInvoices: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.invoices)),
 
   validateCoupon: (payload) =>
     unwrap(httpClient.post(`${endpoints.promoCodes}/validate`, payload)),
-  getPromoCodes: () => unwrap(httpClient.get(endpoints.promoCodes)),
+  getPromoCodes: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.promoCodes)),
   createPromoCode: (payload) =>
     unwrap(httpClient.post(endpoints.promoCodes, payload)),
   updatePromoCode: (promoCodeId, payload) =>
@@ -134,7 +136,7 @@ export const billingApi = Object.freeze({
       )
     ),
 
-  getFeatures: () => unwrap(httpClient.get(endpoints.features)),
+  getFeatures: () => UI_TESTING_MODE ? previewList(testingFeatures) : unwrap(httpClient.get(endpoints.features)),
   getFeature: (featureId) =>
     unwrap(
       httpClient.get(`${endpoints.features}/${encodeURIComponent(featureId)}`)
@@ -149,7 +151,7 @@ export const billingApi = Object.freeze({
       )
     ),
   getPlanFeatures: (planId) =>
-    unwrap(httpClient.get(`/plans/${encodeURIComponent(planId)}/features`)),
+    UI_TESTING_MODE ? previewList(testingPlanFeatureLinks(planId)) : unwrap(httpClient.get(`/plans/${encodeURIComponent(planId)}/features`)),
   linkFeatureToPlan: (planId, payload) =>
     unwrap(
       httpClient.post(`/plans/${encodeURIComponent(planId)}/features`, payload)
@@ -168,9 +170,12 @@ export const billingApi = Object.freeze({
       )
     ),
 
-  getCustomPlans: () => unwrap(httpClient.get(endpoints.customPlans)),
+  getCustomPlans: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.customPlans)),
   getCustomPlanConfigurator: () =>
-    unwrap(httpClient.get(endpoints.customPlanConfigurator)),
+    UI_TESTING_MODE ? Promise.resolve({
+      data: { features: testingFeatures.map(feature => ({ ...feature, type: "boolean" })), billingOptions: testingPlans[0].pricingOptions, preview: true },
+      preview: true,
+    }) : unwrap(httpClient.get(endpoints.customPlanConfigurator)),
   previewCustomPlan: (payload) =>
     unwrap(httpClient.post(endpoints.customPlanPreview, payload)),
   requestCustomPlanManualReview: (payload) =>
@@ -178,10 +183,10 @@ export const billingApi = Object.freeze({
   checkoutCustomPlan: (payload) =>
     unwrap(httpClient.post(endpoints.customPlanCheckout, payload)),
   getCustomPlanPricingPolicy: () =>
-    unwrap(httpClient.get(endpoints.customPlanPricingPolicy)),
+    UI_TESTING_MODE ? Promise.resolve({ data: { currency: "USD", featureLimits: {}, monitoringCadences: [] }, preview: true }) : unwrap(httpClient.get(endpoints.customPlanPricingPolicy)),
   updateCustomPlanPricingPolicy: (payload) =>
     unwrap(httpClient.patch(endpoints.customPlanPricingPolicy, payload)),
-  getCustomPlanQuotes: () => unwrap(httpClient.get(endpoints.customPlanQuotes)),
+  getCustomPlanQuotes: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.customPlanQuotes)),
   getCustomPlanQuote: (quoteId) =>
     unwrap(
       httpClient.get(
@@ -234,7 +239,7 @@ export const billingApi = Object.freeze({
         `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/accept`
       )
     ),
-  getVendorRates: () => unwrap(httpClient.get(endpoints.vendorRates)),
+  getVendorRates: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.vendorRates)),
   createVendorRate: (payload) =>
     unwrap(httpClient.post(endpoints.vendorRates, payload)),
   updateVendorRate: (rateId, payload) =>

@@ -1,4 +1,5 @@
 {
+  "uiTesting": { "sampleDescription": "Fictional sample recommendations for UI testing only. No live inventory or forecasting service was queried." },
   "common": {
     "no": "No",
     "yes": "Yes",
@@ -7,6 +8,7 @@
     "comingSoonDescription": "We are building something extraordinary. Advanced analytics and deeper market insights are currently in development to elevate your strategy",
     "custom": "custom",
     "brand": "KEEL",
+    "loggingOut": "Logging out ...",
     "brandShort": "KEEL",
     "loading": "Loading...",
     "languageSwitch": "Change language",

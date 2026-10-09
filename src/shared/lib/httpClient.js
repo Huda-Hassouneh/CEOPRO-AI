@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { UI_TESTING_MODE } from '../config/uiTestingMode.js';
+import { previewAxiosAdapter } from '../preview/uiPreviewApi.js';
 
 let resolveAccessToken = () => null;
 
@@ -14,8 +16,20 @@ const httpClient = axios.create({
 });
 
 httpClient.interceptors.request.use((config) => {
+  // The preview never uses the network, even for read requests. Isolate
+  // unauthenticated UI inspection from test/production databases completely.
+  if (UI_TESTING_MODE) {
+    config.adapter = previewAxiosAdapter;
+    delete config.headers.Authorization;
+  }
   const token = resolveAccessToken();
-  if (token) {
+  if (UI_TESTING_MODE && !["get", "head", "options"].includes(String(config.method || "get").toLowerCase())) {
+    // UI preview is read-only. Never submit payments, imports, or edits to the backend.
+    return Promise.reject(Object.assign(new Error("Actions are disabled in UI testing preview"), {
+      code: "UI_TESTING_READ_ONLY",
+    }));
+  }
+  if (token && !UI_TESTING_MODE) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

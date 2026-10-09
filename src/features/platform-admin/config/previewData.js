@@ -10,6 +10,6 @@ export function createPreviewData() {
     { id: 'admin-2', name: 'Sam Ellis', email: 'sam@example.test', role: 'admin', status: 'active', createdAt: '2026-05-02T09:00:00Z' },
     { id: 'admin-3', name: 'Robin Sage', email: 'robin@example.test', role: 'admin', status: 'active', createdAt: '2026-06-03T09:00:00Z' },
     { id: 'admin-4', name: '', email: 'avery@example.test', role: 'admin', status: 'pending', createdAt: '2026-09-12T09:00:00Z' },
-  ], 'audit-logs': [], settings: { name: 'CEO PRO', supportEmail: 'support@example.test', language: 'en', currency: 'USD' }, sessions: [{ id: 'preview-session', device: 'previewDevice', current: true, lastActive: '2026-09-15T09:00:00Z' }, { id: 'preview-other', device: 'previewDevice', current: false, lastActive: '2026-09-14T09:00:00Z' }] };
+  ], 'audit-logs': [], settings: { name: 'KEEL', supportEmail: 'support@example.test', language: 'en', currency: 'USD' }, sessions: [{ id: 'preview-session', device: 'previewDevice', current: true, lastActive: '2026-09-15T09:00:00Z' }, { id: 'preview-other', device: 'previewDevice', current: false, lastActive: '2026-09-14T09:00:00Z' }] };
 }
 

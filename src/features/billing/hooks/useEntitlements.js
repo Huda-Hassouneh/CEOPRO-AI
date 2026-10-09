@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { billingApi } from '../api/billingApi.js';
+import { UI_TESTING_MODE } from '../../../shared/config/uiTestingMode.js';
 
 const missingState = (featureCode) => ({
   featureCode,
@@ -20,6 +21,7 @@ export function useEntitlements() {
   const query = useQuery({
     queryKey: ['subscription', 'usage'],
     queryFn: billingApi.getSubscriptionUsage,
+    enabled: !UI_TESTING_MODE,
     retry: false,
     staleTime: 30_000,
   });
@@ -33,6 +35,7 @@ export function useEntitlements() {
   }, [query.data]);
 
   const getFeatureState = useCallback((featureCode) => {
+    if (UI_TESTING_MODE) return { featureCode, included: true, type: 'boolean', isUnlimited: true, isExceeded: false, currentUsage: 0, limit: null, remaining: null, preview: true, feature: {} };
     const entitlement = entitlementsByCode.get(featureCode);
     if (!entitlement) return missingState(featureCode);
     const feature = query.data?.features?.[featureCode] ?? {};
@@ -77,6 +80,8 @@ export function useEntitlements() {
 
   return {
     ...query,
+    isLoading: UI_TESTING_MODE ? false : query.isLoading,
+    isError: UI_TESTING_MODE ? false : query.isError,
     getFeatureState,
     hasFeature,
     canConsume,

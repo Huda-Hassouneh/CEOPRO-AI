@@ -101,7 +101,7 @@ export function AdminProvider({ children }) {
     setSelecting(false);
   };
 
-  if (!auth.isHydrated) {
+  if (!ADMIN_PREVIEW && !auth.isHydrated) {
     return (
       <div className="pa-gate" role="status">
         {t("loading")}

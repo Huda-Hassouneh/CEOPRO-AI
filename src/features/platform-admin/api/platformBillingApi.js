@@ -1,20 +1,22 @@
 import httpClient from "../../../shared/lib/httpClient.js";
+import { UI_TESTING_MODE } from "../../../shared/config/uiTestingMode.js";
+import { testingPlans, testingFeatures, previewList, testingPlanFeatureLinks } from "../../billing/api/uiTestingBillingData.js";
 
 const base = "/platform-admin/billing";
 const unwrap = (request) => request.then((response) => response.data);
 
 export const platformBillingApi = Object.freeze({
-  getTenants: () => unwrap(httpClient.get(`${base}/tenants`)),
-  getSubscriptions: () => unwrap(httpClient.get(`${base}/subscriptions`)),
+  getTenants: () => UI_TESTING_MODE ? previewList([]) : unwrap(httpClient.get(`${base}/tenants`)),
+  getSubscriptions: () => UI_TESTING_MODE ? previewList([]) : unwrap(httpClient.get(`${base}/subscriptions`)),
 
-  getPlans: () => unwrap(httpClient.get(`${base}/plans`)),
+  getPlans: () => UI_TESTING_MODE ? previewList(testingPlans) : unwrap(httpClient.get(`${base}/plans`)),
   createPlan: (payload) => unwrap(httpClient.post(`${base}/plans`, payload)),
   updatePlan: (planId, payload) =>
     unwrap(
       httpClient.patch(`${base}/plans/${encodeURIComponent(planId)}`, payload)
     ),
 
-  getCustomPlans: () => unwrap(httpClient.get(`${base}/custom-plans`)),
+  getCustomPlans: () => UI_TESTING_MODE ? previewList([]) : unwrap(httpClient.get(`${base}/custom-plans`)),
   setCustomPlanActive: (planId, isActive) =>
     unwrap(
       httpClient.patch(
@@ -23,7 +25,7 @@ export const platformBillingApi = Object.freeze({
       )
     ),
 
-  getCustomPlanQuotes: () => unwrap(httpClient.get(`${base}/custom-quotes`)),
+  getCustomPlanQuotes: () => UI_TESTING_MODE ? previewList([]) : unwrap(httpClient.get(`${base}/custom-quotes`)),
   getCustomPlanQuote: (quoteId) =>
     unwrap(
       httpClient.get(`${base}/custom-quotes/${encodeURIComponent(quoteId)}`)
@@ -64,10 +66,10 @@ export const platformBillingApi = Object.freeze({
     ),
 
   getCustomPlanPricingPolicy: () =>
-    unwrap(httpClient.get(`${base}/pricing-policy`)),
+    UI_TESTING_MODE ? Promise.resolve({ data: { currency: "USD", featureLimits: {}, monitoringCadences: [] }, preview: true }) : unwrap(httpClient.get(`${base}/pricing-policy`)),
   updateCustomPlanPricingPolicy: (payload) =>
     unwrap(httpClient.patch(`${base}/pricing-policy`, payload)),
-  getVendorRates: () => unwrap(httpClient.get(`${base}/vendor-rates`)),
+  getVendorRates: () => UI_TESTING_MODE ? previewList([]) : unwrap(httpClient.get(`${base}/vendor-rates`)),
   createVendorRate: (payload) =>
     unwrap(httpClient.post(`${base}/vendor-rates`, payload)),
   updateVendorRate: (rateId, payload) =>
@@ -77,8 +79,7 @@ export const platformBillingApi = Object.freeze({
         payload
       )
     ),
-  getInfrastructureRates: () =>
-    unwrap(httpClient.get(`${base}/infrastructure-rates`)),
+  getInfrastructureRates: () => UI_TESTING_MODE ? previewList([]) : unwrap(httpClient.get(`${base}/infrastructure-rates`)),
   createInfrastructureRate: (payload) =>
     unwrap(httpClient.post(`${base}/infrastructure-rates`, payload)),
   updateInfrastructureRate: (rateId, payload) =>
@@ -89,7 +90,7 @@ export const platformBillingApi = Object.freeze({
       )
     ),
 
-  getPromoCodes: () => unwrap(httpClient.get(`${base}/promo-codes`)),
+  getPromoCodes: () => UI_TESTING_MODE ? previewList([]) : unwrap(httpClient.get(`${base}/promo-codes`)),
   createPromoCode: (payload) =>
     unwrap(httpClient.post(`${base}/promo-codes`, payload)),
   updatePromoCode: (promoCodeId, payload) =>
@@ -106,7 +107,7 @@ export const platformBillingApi = Object.freeze({
       )
     ),
 
-  getFeatures: () => unwrap(httpClient.get(`${base}/features`)),
+  getFeatures: () => UI_TESTING_MODE ? previewList(testingFeatures) : unwrap(httpClient.get(`${base}/features`)),
   getFeature: (featureId) =>
     unwrap(httpClient.get(`${base}/features/${encodeURIComponent(featureId)}`)),
   createFeature: (payload) =>
@@ -123,7 +124,7 @@ export const platformBillingApi = Object.freeze({
       httpClient.delete(`${base}/features/${encodeURIComponent(featureId)}`)
     ),
   getPlanFeatures: (planId) =>
-    unwrap(
+    UI_TESTING_MODE ? previewList(testingPlanFeatureLinks(planId)) : unwrap(
       httpClient.get(`${base}/plans/${encodeURIComponent(planId)}/features`)
     ),
   linkFeatureToPlan: (planId, payload) =>

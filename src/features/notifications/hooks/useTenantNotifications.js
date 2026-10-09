@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../auth/store/authStore.js";
 import { notificationsApi } from "../api/notificationsApi.js";
+import { UI_TESTING_MODE } from "../../../shared/config/uiTestingMode.js";
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -27,7 +28,7 @@ export function useTenantNotifications({ limit = 5 } = {}) {
   const user = useAuthStore((state) => state.user);
   const recipientKey =
     user?.id ?? user?.userId ?? user?.user_id ?? user?.email ?? "unknown";
-  const enabled = Boolean(tenantId && recipientKey !== "unknown");
+  const enabled = !UI_TESTING_MODE && Boolean(tenantId && recipientKey !== "unknown");
 
   const listQuery = useQuery({
     queryKey: queryKeys.list(tenantId, recipientKey, limit),

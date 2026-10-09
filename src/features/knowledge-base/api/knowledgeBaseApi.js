@@ -1,4 +1,5 @@
 import httpClient from "../../../shared/lib/httpClient.js";
+import { UI_TESTING_MODE } from "../../../shared/config/uiTestingMode.js";
 
 const capabilities = Object.freeze({
   chat: true,
@@ -27,7 +28,18 @@ export const knowledgeBaseApi = {
       error.code = "BACKEND_CAPABILITY_UNAVAILABLE";
       throw error;
     }
-    console.log("yea");
+    if (UI_TESTING_MODE) {
+      return {
+        available: true,
+        preview: true,
+        message: {
+          messageId: createMessageId(), role: "assistant",
+          content: "DEMO RESPONSE — UI preview only. In real KEEL, the assistant grounds its response in your uploaded documents. No AI query was made.",
+          sources: [{ documentId: "preview-document-1", name: "Demo_Flower_Shop_Sales_2026.xlsx", score: 0.93 }],
+          createdAt: new Date().toISOString(),
+        },
+      };
+    }
 
     const response = await httpClient.post(
       "/features/rag/query",
