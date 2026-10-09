@@ -15,6 +15,7 @@ import { useAuthStore } from "../../../features/auth/store/authStore.js";
 import { useTenantNotifications } from "../../../features/notifications/hooks/useTenantNotifications.js";
 import { getAccountProfile } from "../../../features/onboarding/utils/accountProfile.js";
 import Avatar from "../ui/Avatar.jsx";
+import { UI_TESTING_MODE } from "../../config/uiTestingMode.js";
 
 function notificationTarget(notification) {
   if (notification.resourceType === "custom_plan_quote") {
@@ -47,8 +48,7 @@ export default function Topbar({ onMenuClick }) {
   const navigate = useNavigate();
   const profile = getAccountProfile(user, t);
   const displayProfile =
-    import.meta.env.DEV &&
-    import.meta.env.VITE_ENABLE_AUTH_PREVIEW === "true" &&
+    (UI_TESTING_MODE || (import.meta.env.DEV && import.meta.env.VITE_ENABLE_AUTH_PREVIEW === "true")) &&
     !user
       ? {
           ...profile,

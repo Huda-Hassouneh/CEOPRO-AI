@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { WebSocketClient } from '../../shared/lib/websocketClient.js';
 import { useAuthStore, selectIsAuthenticated } from '../../features/auth/store/authStore.js';
+import { UI_TESTING_MODE } from '../../shared/config/uiTestingMode.js';
 
 const WebSocketContext = createContext(null);
 
@@ -11,7 +12,7 @@ export function WebSocketProvider({ children }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
   useEffect(() => {
-    if (!isHydrated || !isAuthenticated) {
+    if (UI_TESTING_MODE || !isHydrated || !isAuthenticated) {
       client.disconnect();
       setConnected(false);
       return undefined;

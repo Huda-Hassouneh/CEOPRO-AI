@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useOnboardingStore } from '../../features/onboarding/store/onboardingStore.js';
 import { getOnboardingPathForStep } from '../../features/onboarding/config/onboardingSteps.js';
 import { routePaths } from './routePaths.js';
+import { UI_TESTING_MODE } from '../../shared/config/uiTestingMode.js';
 
 export function OnboardingGuard({ children, requiredStep = 1 }) {
   const location = useLocation();
@@ -10,7 +11,7 @@ export function OnboardingGuard({ children, requiredStep = 1 }) {
   const isComplete = useOnboardingStore((state) => state.isComplete);
 
   const onboardingPreviewEnabled = import.meta.env.DEV === true && import.meta.env.VITE_ENABLE_ONBOARDING_PREVIEW === 'true';
-  if (onboardingPreviewEnabled) return children;
+  if (UI_TESTING_MODE || onboardingPreviewEnabled) return children;
 
   if (isComplete) {
     return <Navigate to={routePaths.dashboard} replace />;

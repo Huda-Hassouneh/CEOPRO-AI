@@ -1,6 +1,7 @@
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 import { useEntitlements } from '../hooks/useEntitlements.js';
 import { FeatureLock } from './FeatureLock.jsx';
+import { UI_TESTING_MODE } from '../../../shared/config/uiTestingMode.js';
 
 export function FeatureGate({
   featureCode,
@@ -10,6 +11,20 @@ export function FeatureGate({
   fallback,
 }) {
   const { isLoading, isError, getFeatureState } = useEntitlements();
+
+  if (UI_TESTING_MODE) {
+    const previewState = {
+      featureCode,
+      included: true,
+      isUnlimited: true,
+      isExceeded: false,
+      currentUsage: 0,
+      limit: null,
+      remaining: null,
+      preview: true,
+    };
+    return typeof children === 'function' ? children(previewState) : children;
+  }
 
   if (isLoading) {
     return fallback ?? <div style={{ padding: 'var(--ceopro-space-4)' }}><Skeleton height="72px" /></div>;

@@ -4,6 +4,7 @@ import { AuthProvider } from './app/providers/AuthProvider.jsx';
 import { I18nProvider } from './app/providers/I18nProvider.jsx';
 import { QueryProvider } from './app/providers/QueryProvider.jsx';
 import { WebSocketProvider } from './app/providers/WebSocketProvider.jsx';
+import { UiTestingToolbar } from './shared/components/layout/UiTestingToolbar.jsx';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <AuthProvider>
           <WebSocketProvider>
             <RouterProvider router={router} />
+            <UiTestingToolbar />
           </WebSocketProvider>
         </AuthProvider>
       </I18nProvider>

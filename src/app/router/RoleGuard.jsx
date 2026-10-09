@@ -3,12 +3,15 @@ import { routePaths } from './routePaths.js';
 import { useAuthStore, selectIsAuthenticated } from '../../features/auth/store/authStore.js';
 import { RoutePending } from './RoutePending.jsx';
 import { hasAnyRole } from '../../features/auth/permissions/rolePermissions.js';
+import { UI_TESTING_MODE } from '../../shared/config/uiTestingMode.js';
 
 export function RoleGuard({ allowed = ['admin'], children }) {
   const location = useLocation();
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const roles = useAuthStore((state) => state.roles);
+
+  if (UI_TESTING_MODE) return children;
 
   if (!isHydrated) {
     return <RoutePending />;

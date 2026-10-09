@@ -8,6 +8,7 @@ import {
 } from "../../auth/store/authStore.js";
 import { ADMIN_PREVIEW, platformAdminApi } from "../api/platformAdminApi.js";
 import { getPlatformAdminMeQueryKey } from "../api/platformAdminQueryKeys.js";
+import { UI_TESTING_MODE } from "../../../shared/config/uiTestingMode.js";
 import {
   isPlatformPrincipal
 } from "../permissions/platformPermissions.js";
@@ -32,6 +33,8 @@ export function PlatformAdminAccessGuard({ children }) {
     retry: false,
     staleTime: 30_000
   });
+
+  if (UI_TESTING_MODE) return children;
 
   if (!isHydrated) {
     return <RoutePending />;

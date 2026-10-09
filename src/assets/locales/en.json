@@ -1,4 +1,5 @@
 {
+  "uiTesting": { "sampleDescription": "Fictional sample recommendations for UI testing only. No live inventory or forecasting service was queried." },
   "common": {
     "no": "No",
     "yes": "Yes",

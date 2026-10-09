@@ -9,6 +9,7 @@ import {
 } from "../../config/businessNavigation.js";
 import { authApi } from "../../../features/auth/api/authApi.js";
 import { useState } from "react";
+import { UI_TESTING_MODE } from "../../config/uiTestingMode.js";
 
 const isActivePath = (pathname, path) =>
   path && (pathname === path || pathname.startsWith(`${path}/`));
@@ -51,6 +52,7 @@ export default function Sidebar({ open = false, onClose }) {
     const Icon = item.icon;
     const active = isActivePath(pathname, item.path);
     const locked = Boolean(
+      !UI_TESTING_MODE &&
       item.featureCode &&
       !entitlementsLoading &&
       !getFeatureState(item.featureCode).included
@@ -66,7 +68,6 @@ export default function Sidebar({ open = false, onClose }) {
         aria-current={active ? "page" : undefined}
         onClick={() => goTo(item)}
       >
-        {" "}
         <Icon size={18} aria-hidden="true" />
         {item.key === "logout" && isLoggingOut ? (
           t("common.loggingOut")
