@@ -23,6 +23,11 @@ export function Brand() {
   return <Link className="lp-brand" to={routePaths.landing} aria-label="KEEL"><KeelLogo /></Link>;
 }
 
+export function CustomPlanLink() {
+  const { t } = useLanding();
+  return <Link className="lp-custom-plan-link" to={routePaths.billingCustomPlan}>{t('common.customPlan')}<ArrowRight className="lp-arrow" size={18} aria-hidden="true" /></Link>;
+}
+
 export function SectionHeading({ section, centered = false, children }) {
   const { t } = useLanding();
   return <div className={`lp-heading ${centered ? 'lp-heading--center' : ''}`}><p className="lp-eyebrow">{t(`${section}.eyebrow`)}</p><h2>{t(`${section}.title`)}</h2><p className="lp-description">{t(`${section}.description`)}</p>{children}</div>;
@@ -44,6 +49,10 @@ export function TrialButton({ children, className = '' }) {
 export function DemoCaption({ text }) {
   const { t } = useLanding();
   return <figcaption className="lp-demo-caption"><span aria-hidden="true" />{text || t('common.demo')}</figcaption>;
+}
+
+export function NumericPair({ first, second, separator = '/' }) {
+  return <bdi dir="ltr" className="lp-numeric-pair"><span>{first}</span><span>{separator}</span><span>{second}</span></bdi>;
 }
 
 export function VisualHeader({ title, subtitle }) {

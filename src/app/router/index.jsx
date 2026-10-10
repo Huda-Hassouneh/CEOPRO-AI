@@ -1,3 +1,6 @@
+import { lazy, Suspense } from "react";
+import { RoutePending } from "./RoutePending.jsx";
+
 import { createBrowserRouter, Navigate, useParams } from "react-router-dom";
 import { routePaths } from "./routePaths.js";
 import { ProtectedRoute } from "./ProtectedRoute.jsx";
@@ -35,33 +38,6 @@ import { OnboardingPaymentPage } from "../../features/onboarding/pages/Onboardin
 import { OnboardingSubscriptionSuccessPage } from "../../features/onboarding/pages/OnboardingSubscriptionSuccessPage.jsx";
 import { OnboardingSubscriptionFailedPage } from "../../features/onboarding/pages/OnboardingSubscriptionFailedPage.jsx";
 
-import { DashboardHomePage } from "../../features/dashboard/pages/DashboardHomePage.jsx";
-import { ProductDetailPage } from "../../features/products/pages/ProductDetailPage.jsx";
-import { MarketIntelligenceOverviewPage } from "../../features/market-intelligence/pages/MarketIntelligenceOverviewPage.jsx";
-import { CompetitorsPage } from "../../features/market-intelligence/pages/CompetitorsPage.jsx";
-import { AddCompetitorPage } from "../../features/market-intelligence/pages/AddCompetitorPage.jsx";
-import { IndustryMarketTrendsPage } from "../../features/market-intelligence/pages/IndustryMarketTrendsPage.jsx";
-import { MarketIntelligenceReportsPage } from "../../features/market-intelligence/pages/MarketIntelligenceReportsPage.jsx";
-import { CompetitorProfileDetailPage } from "../../features/market-intelligence/pages/CompetitorProfileDetailPage.jsx";
-import {
-  MarketOpportunitiesPage,
-  OpportunityDetailPage
-} from "../../features/market-intelligence/pages/MarketOpportunitiesPage.jsx";
-import { MarketLeaderboardPage } from "../../features/market-intelligence/pages/MarketLeaderboardPage.jsx";
-import { DemandPredictionOverviewPage } from "../../features/forecasting/pages/DemandPredictionOverviewPage.jsx";
-import { ForecastDeepDivePage } from "../../features/forecasting/pages/ForecastDeepDivePage.jsx";
-import { ProductForecastsListPage } from "../../features/forecasting/pages/ProductForecastsListPage.jsx";
-import { ProductForecastDetailPage } from "../../features/forecasting/pages/ProductForecastDetailPage.jsx";
-import { InventoryRecommendationsPage } from "../../features/forecasting/pages/InventoryRecommendationsPage.jsx";
-import { DemandPredictionEmptyPage } from "../../features/forecasting/pages/DemandPredictionEmptyPage.jsx";
-import { ModelAccuracyPage } from "../../features/forecasting/pages/ModelAccuracyPage.jsx";
-import { RagAssistantPage } from "../../features/knowledge-base/pages/RagAssistantPage.jsx";
-import MarketingStudioPage from "../../features/marketing/pages/MarketingStudioPage.jsx";
-import SettingsPage from "../../features/settings/pages/SettingsPage.jsx";
-import { ConnectDataPage } from "../../features/data-connections/pages/ConnectDataPage.jsx";
-import UnifiedReportsCenterPage from "../../features/reports/pages/UnifiedReportsCenterPage.jsx";
-import DesignSystemPage from "../../features/design-system/pages/DesignSystemPage.jsx";
-
 import { ChoosePlanPage } from "../../features/billing/pages/ChoosePlanPage.jsx";
 import { CheckoutPage } from "../../features/billing/pages/CheckoutPage.jsx";
 import { PaymentSuccessPage } from "../../features/billing/pages/PaymentSuccessPage.jsx";
@@ -71,6 +47,39 @@ import { BillingCheckoutPage } from "../../features/billing/pages/BillingCheckou
 import { BillingCustomPlanPage } from "../../features/billing/pages/BillingCustomPlanPage.jsx";
 import { CustomPlanOfferPage } from "../../features/billing/pages/CustomPlanOfferPage.jsx";
 import { FeatureRouteGuard } from "../../features/billing/components/FeatureRouteGuard.jsx";
+
+// Defer page code only. Existing route paths, layouts and guards are unchanged.
+function deferredPage(load, exportName) {
+  const Page = lazy(() => load().then((module) => ({ default: exportName ? module[exportName] : module.default })));
+  return function DeferredPage(props) {
+    return <Suspense fallback={<RoutePending />}><Page {...props} /></Suspense>;
+  };
+}
+
+const DashboardHomePage = deferredPage(() => import("../../features/dashboard/pages/DashboardHomePage.jsx"), "DashboardHomePage");
+const ProductDetailPage = deferredPage(() => import("../../features/products/pages/ProductDetailPage.jsx"), "ProductDetailPage");
+const MarketIntelligenceOverviewPage = deferredPage(() => import("../../features/market-intelligence/pages/MarketIntelligenceOverviewPage.jsx"), "MarketIntelligenceOverviewPage");
+const CompetitorsPage = deferredPage(() => import("../../features/market-intelligence/pages/CompetitorsPage.jsx"), "CompetitorsPage");
+const AddCompetitorPage = deferredPage(() => import("../../features/market-intelligence/pages/AddCompetitorPage.jsx"), "AddCompetitorPage");
+const IndustryMarketTrendsPage = deferredPage(() => import("../../features/market-intelligence/pages/IndustryMarketTrendsPage.jsx"), "IndustryMarketTrendsPage");
+const MarketIntelligenceReportsPage = deferredPage(() => import("../../features/market-intelligence/pages/MarketIntelligenceReportsPage.jsx"), "MarketIntelligenceReportsPage");
+const CompetitorProfileDetailPage = deferredPage(() => import("../../features/market-intelligence/pages/CompetitorProfileDetailPage.jsx"), "CompetitorProfileDetailPage");
+const MarketOpportunitiesPage = deferredPage(() => import("../../features/market-intelligence/pages/MarketOpportunitiesPage.jsx"), "MarketOpportunitiesPage");
+const OpportunityDetailPage = deferredPage(() => import("../../features/market-intelligence/pages/MarketOpportunitiesPage.jsx"), "OpportunityDetailPage");
+const MarketLeaderboardPage = deferredPage(() => import("../../features/market-intelligence/pages/MarketLeaderboardPage.jsx"), "MarketLeaderboardPage");
+const DemandPredictionOverviewPage = deferredPage(() => import("../../features/forecasting/pages/DemandPredictionOverviewPage.jsx"), "DemandPredictionOverviewPage");
+const ForecastDeepDivePage = deferredPage(() => import("../../features/forecasting/pages/ForecastDeepDivePage.jsx"), "ForecastDeepDivePage");
+const ProductForecastsListPage = deferredPage(() => import("../../features/forecasting/pages/ProductForecastsListPage.jsx"), "ProductForecastsListPage");
+const ProductForecastDetailPage = deferredPage(() => import("../../features/forecasting/pages/ProductForecastDetailPage.jsx"), "ProductForecastDetailPage");
+const InventoryRecommendationsPage = deferredPage(() => import("../../features/forecasting/pages/InventoryRecommendationsPage.jsx"), "InventoryRecommendationsPage");
+const DemandPredictionEmptyPage = deferredPage(() => import("../../features/forecasting/pages/DemandPredictionEmptyPage.jsx"), "DemandPredictionEmptyPage");
+const ModelAccuracyPage = deferredPage(() => import("../../features/forecasting/pages/ModelAccuracyPage.jsx"), "ModelAccuracyPage");
+const RagAssistantPage = deferredPage(() => import("../../features/knowledge-base/pages/RagAssistantPage.jsx"), "RagAssistantPage");
+const MarketingStudioPage = deferredPage(() => import("../../features/marketing/pages/MarketingStudioPage.jsx"), null);
+const SettingsPage = deferredPage(() => import("../../features/settings/pages/SettingsPage.jsx"), null);
+const ConnectDataPage = deferredPage(() => import("../../features/data-connections/pages/ConnectDataPage.jsx"), "ConnectDataPage");
+const UnifiedReportsCenterPage = deferredPage(() => import("../../features/reports/pages/UnifiedReportsCenterPage.jsx"), null);
+const DesignSystemPage = deferredPage(() => import("../../features/design-system/pages/DesignSystemPage.jsx"), null);
 
 const LegacyForecastProductRedirect = () => {
   const { productId } = useParams();

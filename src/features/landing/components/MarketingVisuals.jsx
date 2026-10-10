@@ -1,31 +1,33 @@
 import { useId } from 'react';
 import { ArrowUpRight, BarChart3, Boxes, Check, Database, FileCheck2, FileSpreadsheet, FileText, Globe2, MessageCircle, ShoppingBag, Sparkles, TrendingUp } from 'lucide-react';
 import { LANDING_DEMO as demo } from '../data/demoData.js';
-import { DemoCaption, useLanding, VisualHeader } from './LandingPrimitives.jsx';
+import { DemoCaption, NumericPair, useLanding, VisualHeader } from './LandingPrimitives.jsx';
 
 export function TrendChart({ forecast = false, compact = false }) {
   const { t, n } = useLanding();
   const gradient = useId();
-  const forecastY = 240 - demo.demand.expected / 4;
-  const upperY = 240 - demo.demand.high / 4;
-  const lowerY = 240 - demo.demand.low / 4;
+  const cumulative = (values) => values.reduce((points, value) => [...points, points.at(-1) + value], [0]);
+  const history = cumulative(demo.salesByFiveDays);
+  const future = cumulative(demo.demandByFiveDays);
+  const x = (index) => 56 + index * 48;
+  const y = (value) => 184 - value / 1400 * 160;
+  const line = (values) => values.map((value, index) => `${index ? 'L' : 'M'}${x(index)} ${y(value)}`).join(' ');
+  const upper = future.map((value) => value * demo.demand.high / demo.demand.expected);
+  const lower = future.map((value) => value * demo.demand.low / demo.demand.expected);
+  const band = line(upper) + lower.map((value, index) => ` L${x(6 - index)} ${y(lower[6 - index])}`).join('') + ' Z';
   return <div className={`lp-trend-chart ${compact ? 'lp-trend-chart--compact' : ''}`}>
-    <svg viewBox="0 0 540 220" role="img" aria-label={t(forecast ? 'demand.visualTitle' : 'hero.legend')}>
+    {forecast && <p className="lp-chart-period">{t('demand.chartPeriod')}</p>}
+    <div className="lp-chart-scroll">
+    <svg viewBox="0 0 360 220" role="img" aria-label={t(forecast ? 'demand.chartPeriod' : 'hero.legend')}>
       <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--ceopro-primary)" stopOpacity=".18" /><stop offset="100%" stopColor="var(--ceopro-primary)" stopOpacity="0" /></linearGradient></defs>
-      {[40, 90, 140, 190].map((y, i) => <g key={y}><line x1="38" y1={y} x2="526" y2={y} stroke="var(--ceopro-border)" strokeDasharray="3 5" /><text x="28" y={y + 4} textAnchor="end">{n(800 - i * 200)}</text></g>)}
-      {forecast ? <>
-        <path d={`M300 115 C370 104 430 88 526 ${upperY} L526 ${lowerY} C430 113 370 137 300 130Z`} fill="var(--ceopro-primary)" opacity=".12" />
-        <path d="M38 178 C80 170 90 130 125 140 S178 167 205 126 S260 132 300 122" fill="none" stroke="var(--ceopro-primary)" strokeWidth="3" />
-        <path d={`M300 122 C370 121 440 96 526 ${forecastY}`} fill="none" stroke="var(--ceopro-primary)" strokeWidth="3" strokeDasharray="7 5" />
-        <line x1="300" y1="20" x2="300" y2="190" stroke="var(--ceopro-border-soft)" strokeDasharray="4 5" />
-        <circle cx="526" cy={forecastY} r="5" fill="var(--ceopro-primary)" />
-      </> : <>
-        <path d="M38 169 C70 185 96 119 125 139 S170 155 200 114 S245 137 276 91 S310 105 350 76 S405 88 445 48 S485 59 526 23 L526 190 L38 190Z" fill={`url(#${gradient})`} />
-        <path d="M38 169 C70 185 96 119 125 139 S170 155 200 114 S245 137 276 91 S310 105 350 76 S405 88 445 48 S485 59 526 23" fill="none" stroke="var(--ceopro-primary)" strokeWidth="3" />
-        <circle cx="445" cy="48" r="5" fill="var(--ceopro-primary)" stroke="white" strokeWidth="3" />
-      </>}
-      {[1, 2, 3, 4, 5, 6].map((week, index) => <text key={week} x={40 + index * 96} y="215" textAnchor="middle">{t('demand.week', { n: n(week) })}</text>)}
-    </svg>
+      {[0, 700, 1400].map((value) => <g key={value}><line x1="56" y1={y(value)} x2="344" y2={y(value)} stroke="var(--ceopro-border)" strokeDasharray="3 5" /><text x="48" y={y(value) + 5} textAnchor="end">{n(value)}</text></g>)}
+      {!forecast && <path d={line(history) + ' L344 184 L56 184Z'} fill={`url(#${gradient})`} />}
+      {forecast && <path d={band} fill="var(--ceopro-primary)" opacity=".12" />}
+      <path d={line(history)} fill="none" stroke="var(--ceopro-primary)" strokeWidth="3" opacity={forecast ? '.5' : '1'} />
+      {forecast && <path d={line(future)} fill="none" stroke="var(--ceopro-primary)" strokeWidth="3" strokeDasharray="7 5" />}
+      <circle cx="344" cy={y(forecast ? demo.demand.expected : demo.sales)} r="4" fill="var(--ceopro-primary)" />
+      {[0, 15, 30].map((day) => <text key={day} x={x(day / 5)} y="213" textAnchor={day === 30 ? 'end' : day === 0 ? 'start' : 'middle'}>{t('demand.day', { n: n(day) })}</text>)}
+    </svg></div>
     {forecast && <div className="lp-chart-legend"><span><i />{t('demand.history')}</span><span><i className="lp-dashed" />{t('demand.forecast')}</span><span><i className="lp-band" />{t('demand.uncertainty')}</span></div>}
   </div>;
 }
@@ -44,18 +46,18 @@ export function HeroVisual() {
 
 export function MarketVisual() {
   const { t, money, n } = useLanding();
-  return <figure className="lp-visual lp-market-visual"><VisualHeader title={t('market.visualTitle')} subtitle={t('market.product')} /><div className="lp-table-wrap" tabIndex={0} role="region" aria-label={t('market.visualTitle')}><table><thead><tr>{['competitor', 'price', 'availability', 'sentiment'].map((key) => <th key={key} scope="col">{t(`market.${key}`)}</th>)}</tr></thead><tbody>{demo.competitors.map((row, index) => <tr key={row.key}><th scope="row"><span className={`lp-competitor-avatar lp-competitor-avatar--${index}`} aria-hidden="true">{n(index + 1)}</span>{t(`market.${row.key}`)}</th><td><bdi>{money(row.price)}</bdi></td><td><span className={row.availability === 'inStock' ? 'lp-status' : 'lp-status lp-status--neutral'}>{t(`market.${row.availability}`)}</span></td><td>{t(`market.${row.sentiment}`)}</td></tr>)}</tbody></table></div><div className="lp-market-summary"><span><Check size={14} />{t('market.matches')}</span><div><small>{t('market.score')}</small><strong><bdi>{n(8.4)} / {n(10)}</bdi></strong></div><div><small>{t('market.composite')}</small><strong><bdi>{n(82)} / {n(100)}</bdi></strong></div></div><DemoCaption /></figure>;
+  return <figure className="lp-visual lp-market-visual"><VisualHeader title={t('market.visualTitle')} subtitle={t('market.product')} /><div className="lp-table-wrap" tabIndex={0} role="region" aria-label={t('market.visualTitle')}><table><thead><tr>{['competitor', 'price', 'availability', 'sentiment'].map((key) => <th key={key} scope="col">{t(`market.${key}`)}</th>)}</tr></thead><tbody>{demo.competitors.map((row, index) => <tr key={row.key}><th scope="row"><span className={`lp-competitor-avatar lp-competitor-avatar--${index}`} aria-hidden="true">{n(index + 1)}</span>{t(`market.${row.key}`)}</th><td><bdi>{money(row.price)}</bdi></td><td><span className={row.availability === 'inStock' ? 'lp-status' : 'lp-status lp-status--neutral'}>{t(`market.${row.availability}`)}</span></td><td>{t(`market.${row.sentiment}`)}</td></tr>)}</tbody></table></div><div className="lp-market-summary"><span><Check size={14} />{t('market.matches')}</span><div><small>{t('market.score')}</small><strong><NumericPair first={n(8.4)} second={n(10)} /></strong></div><div><small>{t('market.composite')}</small><strong><NumericPair first={n(82)} second={n(100)} /></strong></div></div><DemoCaption /></figure>;
 }
 
 export function DemandVisual() {
   const { t, n } = useLanding();
-  return <figure className="lp-visual lp-demand-visual"><VisualHeader title={t('demand.visualTitle')} subtitle={t('demand.target')} /><div className="lp-demand-main"><div><span>{t('demand.expected')}</span><strong>{n(demo.demand.expected)} <small>{t('common.units')}</small></strong></div><div><span>{t('demand.range')}</span><b><bdi>{n(demo.demand.low)}–{n(demo.demand.high)}</bdi></b></div></div><TrendChart forecast /><div className="lp-three-stats">{['stock', 'reorder', 'safety'].map((key) => <div key={key}><span>{t(`demand.${key}`)}</span><strong>{n(demo.demand[key])}</strong></div>)}</div><DemoCaption /></figure>;
+  return <figure className="lp-visual lp-demand-visual"><VisualHeader title={t('demand.visualTitle')} subtitle={t('demand.target')} /><div className="lp-demand-main"><div><span>{t('demand.expected')}</span><strong>{n(demo.demand.expected)} <small>{t('common.units')}</small></strong></div><div><span>{t('demand.range')}</span><b><NumericPair first={n(demo.demand.low)} second={n(demo.demand.high)} separator="–" /></b></div></div><TrendChart forecast /><div className="lp-three-stats">{['stock', 'reorder', 'safety'].map((key) => <div key={key}><span>{t(`demand.${key}`)}</span><strong>{n(demo.demand[key])}</strong></div>)}</div><DemoCaption /></figure>;
 }
 
 export function PricingVisual() {
   const { t, money, n, percent } = useLanding();
   const pricing = demo.pricing;
-  return <figure className="lp-visual lp-pricing-visual"><VisualHeader title={t('pricingIntel.visualTitle')} /><div className="lp-price-comparison"><div><span>{t('pricingIntel.current')}</span><strong><bdi>{money(pricing.current)}</bdi></strong></div><span className="lp-price-arrow" aria-hidden="true">→</span><div className="lp-suggested"><span>{t('pricingIntel.suggested')}</span><strong><bdi>{money(pricing.suggested)}</bdi></strong></div></div><div className="lp-recommendation"><span className="is-active"><Check size={14} />{t('pricingIntel.lower')}</span><span>{t('pricingIntel.hold')}</span><span>{t('pricingIntel.raise')}</span></div><div className="lp-market-range"><i /><i /><i /></div><div className="lp-three-stats">{[['min', pricing.min], ['avg', pricing.average], ['max', pricing.max]].map(([key, value]) => <div key={key}><span>{t(`pricingIntel.${key}`)}</span><b><bdi>{money(value)}</bdi></b></div>)}</div><dl className="lp-detail-list"><div><dt>{t('pricingIntel.matched')}</dt><dd>{n(pricing.matched)}</dd></div><div><dt>{t('pricingIntel.confidence')}</dt><dd>{percent(pricing.confidence)}</dd></div><div><dt>{t('pricingIntel.competitiveness')}</dt><dd><bdi>{n(pricing.score)} / {n(10)}</bdi></dd></div></dl><DemoCaption /></figure>;
+  return <figure className="lp-visual lp-pricing-visual"><VisualHeader title={t('pricingIntel.visualTitle')} /><div className="lp-price-comparison"><div><span>{t('pricingIntel.current')}</span><strong><bdi>{money(pricing.current)}</bdi></strong></div><span className="lp-price-arrow" aria-hidden="true">→</span><div className="lp-suggested"><span>{t('pricingIntel.suggested')}</span><strong><bdi>{money(pricing.suggested)}</bdi></strong></div></div><div className="lp-recommendation"><span className="is-active"><Check size={14} />{t('pricingIntel.lower')}</span><span>{t('pricingIntel.hold')}</span><span>{t('pricingIntel.raise')}</span></div><div className="lp-market-range"><i /><i /><i /></div><div className="lp-three-stats">{[['min', pricing.min], ['avg', pricing.average], ['max', pricing.max]].map(([key, value]) => <div key={key}><span>{t(`pricingIntel.${key}`)}</span><b><bdi>{money(value)}</bdi></b></div>)}</div><dl className="lp-detail-list"><div><dt>{t('pricingIntel.matched')}</dt><dd>{n(pricing.matched)}</dd></div><div><dt>{t('pricingIntel.confidence')}</dt><dd>{percent(pricing.confidence)}</dd></div><div><dt>{t('pricingIntel.competitiveness')}</dt><dd><NumericPair first={n(pricing.score)} second={n(10)} /></dd></div></dl><DemoCaption /></figure>;
 }
 
 export function SentimentVisual() {
@@ -70,8 +72,8 @@ export function RagVisual() {
 
 export function ConnectionVisual() {
   const { t } = useLanding();
-  const nodes = [{ key: 'analytics', Icon: BarChart3 }, { key: 'website', Icon: Globe2 }, { key: 'system', detail: 'systemDetail', Icon: Database }, { key: 'documents', detail: 'documentsDetail', Icon: FileSpreadsheet }];
-  return <figure className="lp-connections"><div className="lp-connection-nodes">{nodes.map(({ key, Icon, detail }) => <div key={key} className="lp-connection-node"><span className="lp-icon"><Icon size={24} aria-hidden="true" /></span><strong>{t(`data.${key}`)}</strong>{detail && <small>{t(`data.${detail}`)}</small>}</div>)}</div><div className="lp-connection-stem" aria-hidden="true" /><div className="lp-connection-core"><Sparkles size={25} /><strong dir="ltr">KEEL</strong><span>{t('data.center')}</span></div></figure>;
+  const nodes = [{ key: 'analytics', Icon: BarChart3, later: true }, { key: 'website', Icon: Globe2 }, { key: 'system', detail: 'systemDetail', Icon: Database, later: true }, { key: 'documents', detail: 'documentsDetail', Icon: FileSpreadsheet }, { key: 'social', Icon: MessageCircle }];
+  return <figure className="lp-connections"><div className="lp-connection-nodes">{nodes.map(({ key, Icon, detail, later }) => <div key={key} className="lp-connection-node"><span className="lp-icon"><Icon size={24} aria-hidden="true" /></span><strong>{t(`data.${key}`)}</strong>{detail && <small>{t(`data.${detail}`)}</small>}{later && <span className="lp-later">{t('data.later')}</span>}</div>)}</div><div className="lp-connection-stem" aria-hidden="true" /><div className="lp-connection-core"><Sparkles size={25} /><strong dir="ltr">KEEL</strong><span>{t('data.center')}</span></div></figure>;
 }
 
 export function IngestionVisual() {

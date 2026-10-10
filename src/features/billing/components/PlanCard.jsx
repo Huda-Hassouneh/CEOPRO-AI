@@ -1,4 +1,5 @@
-import { Check, Crown, SlidersHorizontal, Sprout } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import { Check, ChevronDown, Crown, SlidersHorizontal, Sprout } from 'lucide-react';
 import Button from '../../../shared/components/ui/Button.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import {
@@ -123,6 +124,39 @@ const formatScaledLimit = (value, rawUnit, displayUnit, locale, numberFormatter)
   };
 };
 
+// Landing-only presentation of catalog values. Missing quotas never become zero
+// or an inferred allowance, and no other billing screen uses this formatter.
+const getLandingFeatures = (plan, locale, t) => {
+  const translated = (key) => {
+    const value = t(`landing.pricing.${key}`);
+    return value === `landing.pricing.${key}` ? '' : value;
+  };
+  const number = new Intl.NumberFormat(locale === 'ar' ? 'ar-JO' : 'en-US', {
+    maximumFractionDigits: 20,
+  });
+  return sortFeatureEntries(Object.entries(plan.features || {})).flatMap(([code, feature]) => {
+    if (!feature) return [];
+    const catalogLabel = feature.name?.replaceAll('_', ' ');
+    const isTechnicalLabel = catalogLabel?.trim().toLowerCase() === code.replaceAll('_', ' ');
+    const label = locale === 'ar'
+      ? feature.name_ar || translated(`featureLabels.${code}`) || catalogLabel || code.replaceAll('_', ' ')
+      : (isTechnicalLabel ? translated(`featureLabels.${code}`) || catalogLabel : catalogLabel) || translated(`featureLabels.${code}`);
+    if (!label) return [];
+    const description = locale === 'ar' ? feature.description_ar : feature.description;
+    if (feature.type !== 'limit') {
+      return ['boolean', 'configuration'].includes(feature.type) ? [{ code, label, description }] : [];
+    }
+    const raw = feature.limitValue;
+    if (!['number', 'string'].includes(typeof raw) || String(raw).trim() === '' ||
+        !Number.isFinite(Number(raw)) || Number(raw) < 0) return [];
+    const unit = locale === 'ar'
+      ? feature.unit_ar || translated(`units.${String(feature.unit || '').toLowerCase()}`) || feature.unit
+      : translated(`units.${String(feature.unit || '').toLowerCase()}`) || feature.unit;
+    const cycle = translated(`cycles.${feature.reset_cycle || ''}`);
+    return [{ code, label, description, value: number.format(Number(raw)), unit, cycle }];
+  });
+};
+
 export function PlanCard({
   plan = {},
   selected,
@@ -134,8 +168,12 @@ export function PlanCard({
   compactSummary = false,
   previousPlan = null,
   maxHighlights = 5,
+  landingPresentation = false,
 }) {
   const { locale, t } = useI18n();
+  const [featuresExpanded, setFeaturesExpanded] = useState(false);
+  const featureRegionId = useId();
+  const featureRegionRef = useRef(null);
   const planNameSafe = normalizePlanName(plan);
   const Icon = plan.isCustomBuilder ? SlidersHorizontal : (planIcons[planNameSafe] || Sprout);
   const hasTrial = Number(plan.trialPeriodValue) > 0;
@@ -166,10 +204,30 @@ export function PlanCard({
   });
 
   const finalPlanName = plan.displayName || plan.name || '';
-  const finalDescription = plan.displayDescription || plan.description || '';
+  const finalDescription = landingPresentation
+    ? plan.displayDescription ?? plan.description ?? ''
+    : plan.displayDescription || plan.description || '';
   const compactEntries = compactSummary
     ? getCompactFeatureEntries(plan, previousPlan, maxHighlights)
     : [];
+  const landingFeatures = landingPresentation ? getLandingFeatures(plan, locale, t) : [];
+  const landingLimits = landingFeatures.filter((feature) => feature.value !== undefined)
+    .sort((left, right) => {
+      const priority = ['document_storage_mb', 'team_members', 'rag_assistant', 'document_extraction'];
+      const rank = (code) => priority.includes(code) ? priority.indexOf(code) : priority.length;
+      return rank(left.code) - rank(right.code);
+    });
+  const landingIncluded = landingFeatures.filter((feature) => feature.value === undefined);
+  const highlightedLimits = landingLimits.slice(0, landingIncluded.length ? 3 : 5);
+  const highlightedIncluded = landingIncluded.slice(0, 5 - highlightedLimits.length);
+  const hasMoreFeatures = landingFeatures.length > highlightedLimits.length + highlightedIncluded.length ||
+    landingFeatures.some((feature) => feature.description);
+  const visibleLimits = featuresExpanded ? landingLimits : highlightedLimits;
+  const visibleIncluded = featuresExpanded ? landingIncluded : highlightedIncluded;
+  const toggleFeatures = () => {
+    setFeaturesExpanded((current) => !current);
+    featureRegionRef.current?.scrollTo({ top: 0 });
+  };
 
   const renderFeatureLine = (featureCode, feature) => {
     const featureName = getFeatureLabel(featureCode, feature, locale);
@@ -223,7 +281,7 @@ export function PlanCard({
               </span>
             )}
           </h2>
-          <p>{finalDescription}</p>
+          {(!landingPresentation || finalDescription) && <p>{finalDescription}</p>}
         </div>
       </header>
 
@@ -238,7 +296,7 @@ export function PlanCard({
           </>
         ) : (
           <>
-            <strong>{formatCurrency(finalTotal)}</strong>
+            <strong>{landingPresentation ? <bdi dir="ltr">{formatCurrency(finalTotal)}</bdi> : formatCurrency(finalTotal)}</strong>
             <span>
               / {intervalUnit === 'day'
                 ? describeBillingOption(selectedPricingOption, t)
@@ -259,7 +317,46 @@ export function PlanCard({
         )}
       </div>
 
-      {compactSummary ? (
+      {landingPresentation ? (
+        <>
+        <div
+          className="ceopro-plan-card__feature-summary lp-plan-content"
+          id={featureRegionId}
+          ref={featureRegionRef}
+          role="region"
+          aria-label={t('landing.pricing.featuresFor', { plan: finalPlanName })}
+          tabIndex={0}
+        >
+          {visibleLimits.length > 0 && (
+            <ul className="lp-plan-metrics">
+              {visibleLimits.map(({ code, label, description, value, unit, cycle }) => (
+                <li className="lp-plan-metric" key={code}>
+                  <span>{label}{cycle && <small>{cycle}</small>}{featuresExpanded && description && <small>{description}</small>}</span>
+                  <strong><bdi dir="ltr">{value}</bdi>{unit && <small>{unit}</small>}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+          {visibleIncluded.length > 0 && <ul className="lp-plan-included">
+            {visibleIncluded.map(({ code, label, description }) => (
+              <li key={code}><Check size={15} aria-hidden="true" /><span>{label}{featuresExpanded && description && <small>{description}</small>}</span></li>
+            ))}
+          </ul>}
+        </div>
+        <div className="lp-plan-disclosure">
+          {hasMoreFeatures && <button
+            type="button"
+            className="lp-plan-toggle"
+            aria-expanded={featuresExpanded}
+            aria-controls={featureRegionId}
+            onClick={toggleFeatures}
+          >
+            {t(featuresExpanded ? 'landing.pricing.less' : 'landing.pricing.more')}
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>}
+        </div>
+        </>
+      ) : compactSummary ? (
         <div className="ceopro-plan-card__feature-summary">
           <p className="ceopro-plan-card__feature-heading">
             {previousPlanName

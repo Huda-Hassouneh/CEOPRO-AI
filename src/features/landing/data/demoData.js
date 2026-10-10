@@ -1,6 +1,9 @@
 // Fictional, presentation-only examples. Never used by business pages or APIs.
 export const LANDING_DEMO = Object.freeze({
   revenue: 48250, sales: 1248, growth: 12.8, inventory: 86,
+  // Six five-day totals: historical sales sum to 1,248; forecast demand to 620.
+  salesByFiveDays: [148, 176, 193, 214, 246, 271],
+  demandByFiveDays: [86, 94, 100, 108, 114, 118],
   demand: { expected: 620, low: 580, high: 665, stock: 410, reorder: 480, safety: 80 },
   pricing: { current: 24, suggested: 22.5, min: 20, average: 22.5, max: 25, matched: 3, confidence: 87, score: 8.4 },
   competitors: [

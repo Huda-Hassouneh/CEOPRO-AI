@@ -12,7 +12,6 @@ import {
   AboutSection,
   FinalCtaSection,
   ModelsSection,
-  OutcomesSection,
   TrustSection,
   WorkflowSection,
 } from "../sections/ValueSections.jsx";
@@ -23,19 +22,34 @@ export default function LandingPage() {
   const { t, locale } = useLanding();
   useEffect(() => {
     const originalTitle = document.title;
-    const existingDescription = document.querySelector(
-      'meta[name="description"]',
-    );
-    const originalDescription = existingDescription?.content;
-    const description = existingDescription || document.createElement("meta");
-    description.name = "description";
-    description.content = t("meta.description");
-    if (!existingDescription) document.head.appendChild(description);
+    const tags = [
+      ['name', 'description', t('meta.description')],
+      ['property', 'og:title', t('meta.title')],
+      ['property', 'og:description', t('meta.description')],
+      ['property', 'og:type', 'website'],
+      ['property', 'og:site_name', 'KEEL'],
+      ['property', 'og:locale', locale === 'ar' ? 'ar_JO' : 'en_US'],
+      ['name', 'twitter:card', 'summary'],
+      ['name', 'twitter:title', t('meta.title')],
+      ['name', 'twitter:description', t('meta.description')],
+    ];
+    const restore = tags.map(([attribute, key, content]) => {
+      const existing = document.querySelector(`meta[${attribute}="${key}"]`);
+      const element = existing || document.createElement('meta');
+      const original = existing?.getAttribute('content');
+      element.setAttribute(attribute, key);
+      element.setAttribute('content', content);
+      if (!existing) document.head.appendChild(element);
+      return () => {
+        if (!existing) element.remove();
+        else if (original === null) element.removeAttribute('content');
+        else element.setAttribute('content', original);
+      };
+    });
     document.title = t("meta.title");
     return () => {
       document.title = originalTitle;
-      if (existingDescription) description.content = originalDescription;
-      else description.remove();
+      restore.forEach((restoreTag) => restoreTag());
     };
   }, [locale]); // The existing provider is the sole locale/direction owner.
 
@@ -78,7 +92,6 @@ export default function LandingPage() {
         <KnowledgeSections />
         <ModelsSection />
         <WorkflowSection />
-        <OutcomesSection />
         <AboutSection />
         <PricingSection />
         <TrustSection />

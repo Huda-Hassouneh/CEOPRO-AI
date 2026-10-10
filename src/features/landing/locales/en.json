@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "KEEL — Clarity for your next business decision",
-    "description": "Bring your business data and market signals together. Explore demand forecasting, competitor intelligence, pricing insights, sentiment analysis, and source-grounded AI with KEEL."
+    "title": "KEEL — Business analytics, market intelligence & AI",
+    "description": "Understand your sales, customers and competitors. KEEL connects business analytics, market intelligence and AI-assisted decisions for businesses that sell products."
   },
   "nav": {
     "home": "Home",
@@ -31,18 +31,20 @@
     "score": "Score",
     "relevance": "Relevance",
     "usd": "USD",
-    "more": "Explore how it works"
+    "more": "Explore how it works",
+    "customPlan": "Build Your Custom Plan",
+    "customSignIn": "Sign in to configure your Custom plan."
   },
   "hero": {
     "badge": "AI-Powered Business Intelligence",
     "title": "Smarter Decisions.",
     "accent": "Stronger Business Growth.",
-    "description": "Your business data. Your market. One clear picture. Turn sales, competitor signals, and customer feedback into informed next steps with KEEL.",
+    "description": "Connect your sales, customer feedback and competitor signals. Business analytics, market intelligence and AI—one clear view for your next decision.",
     "note": "Free trials available on eligible plans",
     "bilingual": "Built for English & Arabic",
     "eyebrow": "YOUR BUSINESS, IN FOCUS",
     "overview": "Business overview",
-    "period": "Quarterly snapshot",
+    "period": "Previous 30 days",
     "revenue": "Revenue",
     "sales": "Sales",
     "growth": "Growth",
@@ -53,7 +55,7 @@
     "insight": "See the signal. Make your move.",
     "insightText": "Demand is trending above current stock.",
     "action": "Review inventory outlook",
-    "legend": "Sales trend"
+    "legend": "Cumulative sales · previous 30 days"
   },
   "capabilities": {
     "market": "Market Intelligence",
@@ -114,11 +116,13 @@
     "stock": "Current stock",
     "reorder": "Reorder level",
     "safety": "Safety stock",
-    "history": "Historical demand",
-    "forecast": "Forecast",
+    "history": "Previous 30 days",
+    "forecast": "Next 30 days",
     "uncertainty": "Uncertainty range",
     "week": "W{{n}}",
-    "note": "Forecasts are estimates, not guarantees. Review the range and your business context before acting."
+    "note": "Forecasts are estimates, not guarantees. Review the range and your business context before acting.",
+    "day": "D{{n}}",
+    "chartPeriod": "Cumulative units · each 30-day period"
   },
   "pricingIntel": {
     "eyebrow": "03 / PRICING INTELLIGENCE",
@@ -188,7 +192,9 @@
     "systemDetail": "Database · POS · ERP",
     "documentsDetail": "Spreadsheets, reports & files",
     "note": "Connection options depend on available integrations. POS and ERP setup details will be defined separately.",
-    "center": "Your business context"
+    "center": "Your business context",
+    "social": "Social Media",
+    "later": "Later"
   },
   "ingestion": {
     "eyebrow": "FROM FILES TO USABLE INFORMATION",
@@ -269,7 +275,63 @@
     "eyebrow": "PRICING THAT GROWS WITH YOU",
     "title": "Choose your next step.",
     "description": "Start with Starter, unlock forecasting and competitor intelligence with Growth, choose Enterprise for higher workloads, or build a Custom plan.",
-    "note": "Prices and limits are loaded from the live plan catalog. Applicable taxes are calculated at checkout."
+    "note": "Prices and limits are loaded from the live plan catalog. Applicable taxes are calculated at checkout.",
+    "loading": "Loading available plans…",
+    "errorTitle": "Plans could not be loaded",
+    "error": "We couldn’t retrieve the plan catalog. Please try again.",
+    "retry": "Retry",
+    "emptyTitle": "No plans available",
+    "empty": "The plan catalog is currently empty. Please check again later.",
+    "included": "Included in this plan",
+    "more": "More",
+    "less": "Less",
+    "featuresFor": "{{plan}} features and limits",
+    "noFeatures": "No feature details supplied by the catalog.",
+    "customTitle": "Custom Plan",
+    "customHow": "Choose available features and limits to suit your business.",
+    "customDescription": "For businesses with tailored requirements.",
+    "customPrice": "Tailored pricing",
+    "customPriceNote": "Build a plan around your business needs.",
+    "customFeatures": "Shape your plan around",
+    "customBusiness": "Your business priorities",
+    "customBusinessNote": "Capabilities that support your goals.",
+    "customUsage": "Your expected usage",
+    "customUsageNote": "The volume of work your team handles.",
+    "customTeam": "Your team requirements",
+    "customTeamNote": "The people who need access.",
+    "customData": "Your data and storage needs",
+    "customDataNote": "The data you work with and retain.",
+    "customAction": "Build your custom plan",
+    "planNames": { "starter": "Starter", "growth": "Growth", "enterprise": "Enterprise" },
+    "featureLabels": {
+      "dashboard_analytics": "Business analytics",
+      "data_integration": "Data integration",
+      "product_management": "Product management",
+      "rag_assistant": "Business assistant",
+      "document_extraction": "Document extraction",
+      "document_storage_mb": "Document storage",
+      "connected_data_sources": "Connected sources",
+      "market_intelligence": "Market intelligence",
+      "demand_prediction": "Demand forecasting",
+      "competitor_management": "Competitor management",
+      "tracked_competitors": "Tracked competitors",
+      "sentiment_analysis": "Sentiment analysis",
+      "tracked_products": "Tracked products",
+      "team_members": "Team members",
+      "report_generation": "Report generation",
+      "inventory_intelligence": "Inventory insights",
+      "marketing_image_generation": "Marketing images"
+    },
+    "units": {
+      "kb": "KB", "mb": "MB", "gb": "GB", "tb": "TB",
+      "token": "tokens", "tokens": "tokens", "document": "documents", "documents": "documents",
+      "member": "members", "members": "members", "user": "users", "users": "users",
+      "source": "sources", "sources": "sources", "product": "products", "products": "products",
+      "competitor": "competitors", "competitors": "competitors", "request": "requests", "requests": "requests",
+      "query": "queries", "queries": "queries", "page": "pages", "pages": "pages",
+      "image": "images", "images": "images", "report": "reports", "reports": "reports"
+    },
+    "cycles": { "daily": "Per day", "weekly": "Per week", "monthly": "Per month", "yearly": "Per year", "billing_period": "Per billing period" }
   },
   "trust": {
     "eyebrow": "CLARITY BUILDS CONFIDENCE",
@@ -284,7 +346,7 @@
   "cta": {
     "eyebrow": "YOUR NEXT CHAPTER STARTS WITH CLARITY",
     "title": "See more. Understand more.\nMove forward with KEEL.",
-    "description": "Bring your business data and market into focus. Compare the live Starter, Growth, Enterprise, and Custom options to choose the right next step."
+    "description": "Bring your business data and market into focus. Compare available plans to choose your next step."
   },
   "footer": {
     "description": "Business intelligence for a clearer next move.",
@@ -292,6 +354,12 @@
     "company": "Company",
     "account": "Account",
     "rights": "© {{year}} KEEL. All rights reserved.",
-    "note": "Purpose-built intelligence. Human-led decisions."
+    "note": "Purpose-built intelligence. Human-led decisions.",
+    "resources": "Legal & Support",
+    "privacy": "Privacy Policy",
+    "terms": "Terms & Conditions",
+    "contact": "Contact Us",
+    "support": "Help & Support",
+    "upcoming": "Coming soon"
   }
 }

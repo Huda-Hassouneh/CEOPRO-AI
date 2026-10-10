@@ -22,7 +22,9 @@ export function PlanSelector({
   onPlanSelect,
   onPeriodChange,
   onBuildCustom,
-  showCustomPlan = true
+  showCustomPlan = true,
+  landingPresentation = false,
+  customPlanCard = null
 }) {
   const { t } = useI18n();
   const activePlans = [...plans]
@@ -92,14 +94,16 @@ export function PlanSelector({
             plan={isFeaturedPlan(plan) ? { ...plan, featured: true } : plan}
             previousPlan={index > 0 ? activePlans[index - 1] : null}
             compactSummary
+            landingPresentation={landingPresentation}
             billingPeriod={billingPeriod}
             selected={selectedPlan === plan.id}
             onSelect={() => onPlanSelect?.(plan.id)}
           />
         ))}
+        {customPlanCard}
       </div>
 
-      {showCustomPlan && (
+      {showCustomPlan && !customPlanCard && (
         <CustomPlanCallout
           actionLabel={t("billing.plans.custom.action") || "Build Your Plan"}
           onSelect={() =>
