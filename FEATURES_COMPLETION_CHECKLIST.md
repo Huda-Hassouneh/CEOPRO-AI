@@ -4,45 +4,42 @@
 
 Check each item only after verifying it end-to-end with real test data. Existing code is not proof that a background job runs successfully.
 
-## Team Status Board
+## Feature Status Board
 
-**Purpose:** This is the single authoritative place where teammates claim a feature and communicate whether it is **Not Started**, **Processing**, or **Solved**. The checkboxes in the sections below track individual verification tasks and remain separate from the feature-level status.
+**Purpose:** Track the overall state of each feature in one table. Individual verification tasks remain listed below; their checkboxes record the evidence-backed work required before a feature is marked **Solved**.
 
-|   # | Feature                                                   | Status         | Owner   | Last updated (YYYY-MM-DD) | Current focus / blocker                                                         |
-| --: | --------------------------------------------------------- | -------------- | ------- | ------------------------- | ------------------------------------------------------------------------------- |
-|   1 | **Dashboard Analytics** (`dashboard_analytics`)           | ⚪ Not Started | —       | —                         | —                                                                               |
-|   2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started | —       | —                         | —                                                                               |
-|   3 | **Market Perception** (`market_perception`)               | ⚪ Not Started | —       | —                         | —                                                                               |
-|   4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started | —       | —                         | —                                                                               |
-|   5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started | —       | —                         | —                                                                               |
-|   6 | **Product Management** (`product_management`)             | ⚪ Not Started | —       | —                         | —                                                                               |
-|   7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started | —       | —                         | —                                                                               |
-|   8 | **Data Integration** (`data_integration`)                 | 🟡 Processing  | Mahmoud | 2026-10-11                | Verify sales upload → AI extraction → ingestion worker → PostgreSQL persistence |
-|   9 | **Connected Data Sources** (`connected_data_sources`)     | ⚪ Not Started | —       | —                         | —                                                                               |
-|  10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started | —       | —                         | —                                                                               |
-|  11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started | —       | —                         | —                                                                               |
-|  12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started | —       | —                         | —                                                                               |
-|  13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started | —       | —                         | —                                                                               |
-|  14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started | —       | —                         | —                                                                               |
-|  15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started | —       | —                         | —                                                                               |
+|   # | Feature                                                   | Status         |
+| --: | --------------------------------------------------------- | -------------- |
+|   1 | **Dashboard Analytics** (`dashboard_analytics`)           | ⚪ Not Started |
+|   2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started |
+|   3 | **Market Perception** (`market_perception`)               | ⚪ Not Started |
+|   4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started |
+|   5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started |
+|   6 | **Product Management** (`product_management`)             | ⚪ Not Started |
+|   7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started |
+|   8 | **Data Integration** (`data_integration`)                 | 🟡 Processing  |
+|   9 | **Connected Data Sources** (`connected_data_sources`)     | ⚪ Not Started |
+|  10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started |
+|  11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started |
+|  12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started |
+|  13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started |
+|  14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started |
+|  15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started |
 
 **Status definitions**
 
-- **⚪ Not Started** — Nobody has claimed the feature for the current completion effort. It does **not** mean the existing implementation is absent.
-- **🟡 Processing** — A teammate has claimed the feature and is implementing, investigating, integrating, or testing it. If blocked, **keep Processing** and record the blocker in the last column.
-- **🟢 Solved** — All checklist items for that feature have been checked after real end-to-end verification, including applicable authorization, calculations, data persistence, and tests. Code existing by itself is insufficient.
+- **⚪ Not Started** — Work on the feature has not started in the current team completion effort; existing functionality may already be implemented.
+- **🟡 Processing** — Implementation, integration, investigation, or verification work is underway. Keep this status while blocked or paused pending resolution.
+- **🟢 Solved** — All applicable requirements and tasks are verified, with relevant UI/API/database/AI E2E evidence. Existing code alone is not proof of completion.
 
-**How the team should use this file**
+**How to update progress**
 
-1. **Before starting:** Find the feature row, set the status to **🟡 Processing**, enter your name in **Owner**, today's date in **Last updated**, and the immediate next task in **Current focus / blocker**. Save and share/commit the change before beginning work.
-2. **While working:** Check an item as `- [x]` only after verifying it. Update the row's date and current focus/blocker when meaningful progress is made. The owner coordinates any teammates contributing to the same feature.
-3. **When finished:** Confirm every required item under the feature is checked, review the actual UI/API/database/AI E2E evidence, then change its status to **🟢 Solved**, update the date, and briefly note where the evidence/report can be found.
-4. **If work is paused or a test fails:** Leave it **🟡 Processing**, identify the blocker and responsible teammate. If a solved feature regresses, move it back to **🟡 Processing**, reopen the affected checkbox, and record why.
-5. **To transfer ownership:** Update **Owner**, **Last updated**, and the next-step note together; never overwrite another teammate's claim without coordination.
+1. Set a feature to **🟡 Processing** when work begins. Commit or share the status change so the team sees it.
+2. Check detailed items (`- [x]`) only after verifying them against the intended implementation and tests.
+3. Set a feature to **🟢 Solved** only when all required checks have passed and the agreed completion criteria are met.
+4. If a solved feature regresses, change it back to **🟡 Processing** and reopen affected items.
 
-**Collaboration note:** Markdown does not provide automatic concurrent editing or status locking. Keep this file in a shared Git repository and use commits/PRs (or another shared document with edit history). Pull the latest changes before editing and resolve simultaneous edits instead of overwriting them.
-
-**Unclaimed features:** Rows without an assigned owner remain **⚪ Not Started / Unassigned**. This status reflects team coordination, **not** an assessment of existing CEOPRO functionality.
+**Collaboration:** Use a shared Git repository or document with edit history. Markdown statuses do not lock simultaneous edits; synchronize changes before updating the table.
 
 ---
 
