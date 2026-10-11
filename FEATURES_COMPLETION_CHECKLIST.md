@@ -8,23 +8,24 @@ Check each item only after verifying it end-to-end with real test data. Existing
 
 **Purpose:** Track the overall state of each feature in one table. Individual verification tasks remain listed below; their checkboxes record the evidence-backed work required before a feature is marked **Solved**.
 
-|   # | Feature                                                   | Status         |
-| --: | --------------------------------------------------------- | -------------- |
-|   1 | **Dashboard Analytics** (`dashboard_analytics`)           | ⚪ Not Started |
-|   2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started |
-|   3 | **Market Perception** (`market_perception`)               | ⚪ Not Started |
-|   4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started |
-|   5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started |
-|   6 | **Product Management** (`product_management`)             | ⚪ Not Started |
-|   7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started |
-|   8 | **Data Integration** (`data_integration`)                 | 🟡 Processing  |
-|   9 | **Connected Data Sources** (`connected_data_sources`)     | ⚪ Not Started |
-|  10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started |
-|  11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started |
-|  12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started |
-|  13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started |
-|  14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started |
-|  15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started |
+|          # | Feature                                                   | Status         |
+| ---------: | --------------------------------------------------------- | -------------- |
+|          1 | **Dashboard Analytics** (`dashboard_analytics`)           | 🟡             |
+| Processing |
+|          2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started |
+|          3 | **Market Perception** (`market_perception`)               | ⚪ Not Started |
+|          4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started |
+|          5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started |
+|          6 | **Product Management** (`product_management`)             | ⚪ Not Started |
+|          7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started |
+|          8 | **Data Integration** (`data_integration`)                 | 🟡 Processing  |
+|          9 | **Connected Data Sources** (`connected_data_sources`)     | 🟡 Processing  |
+|         10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started |
+|         11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started |
+|         12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started |
+|         13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started |
+|         14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started |
+|         15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started |
 
 **Status definitions**
 
@@ -131,30 +132,38 @@ Check each item only after verifying it end-to-end with real test data. Existing
 
 ## 8. Data Integration (`data_integration`)
 
-- [ ] Complete real provider authentication, connection verification, and recurring synchronization for supported external data sources.
-- [ ] Connect backend `data_sources` registration/configuration to the correct AI connector workers, credentials, and approved sync schedules.
-- [ ] Ensure synced connector records are validated, staged, and promoted into the correct business tables—not merely marked as processed.
-- [ ] Fix frontend preview/stub actions that report success without successful connection, sync, or persistence.
-- [ ] Show truthful source verification/sync statuses, persist source URLs/configuration correctly, and display freshness and failures.
-- [ ] Implement real job details, staging review, retries, reconnection, disconnect, and safe credential handling.
-- [ ] Enforce `data_integration`, `connected_data_sources` (Starter 1 / Growth 5 / Enterprise 20), and `document_extraction` limits server-side, including concurrency and custom plans.
-- [ ] Prevent duplicates and inconsistent business records across repeated uploads, retries, and connector syncs.
-- [ ] Complete Invoice and Inventory CSV/XLSX ingestion into their proper tables while preserving the existing sales ingestion flow.
-- [ ] Verify tenant isolation/RLS, source ownership, upload validation, translations, connection health, and downstream metric freshness.
-- [ ] Run full UI/API/database/worker E2E tests and separate opt-in real AI/provider connector tests; never count source registration as successful synchronization.
+**Implemented in the frontend/backend patch**
+
+- Website URLs/configuration persist; registration reports `configured`, not verified.
+- Node source listing, capacity checks, recent activity, job details, staging review, retries, and source lifecycle use backend APIs.
+- Upload validation, extraction usage reservation/release, and identical-file retry protection were added; the existing sales flow was preserved.
+- Focused contract tests passed.
+
+**Still open**
+
+- [ ] Complete provider authentication, connection verification, and recurring external-source synchronization.
+- [ ] Integrate credentials, approved schedules, and registered sources with deployed AI connector workers.
+- [ ] Promote connector staging rows into the correct business tables and report freshness after successful promotion.
+- [ ] Prevent semantic duplicates across changed uploads and repeated connector syncs.
+- [ ] Complete Invoice and Inventory imports into their proper tables.
+- [ ] Verify tenant isolation/RLS, source ownership, and downstream freshness with full UI/API/database/worker E2E tests; keep live provider tests opt-in.
 
 ## 9. Connected Data Sources (`connected_data_sources`)
 
-- [ ] Make active-source quota checks and source creation atomic to prevent concurrent registrations from exceeding limits.
-- [ ] Align Node backend and AI source-registration paths so all active sources follow the same quota and tenant rules.
-- [ ] Implement secure disable/reactivate (and disconnect where supported) actions, with correct slot release and historical-data preservation.
-- [ ] Distinguish registered, active, verified, synchronized, and failed sources; never label unverified connections as successful.
-- [ ] Fix frontend source-action success messages and show accurate used/remaining slots and connection states.
-- [ ] Standardize which source types count toward the limit; exclude inactive manual-upload document sources as intended.
-- [ ] Prevent unintended duplicate active registrations, including retries and simultaneous requests.
-- [ ] Handle subscription upgrades, downgrades, and custom-plan limits when existing active connections exceed capacity.
-- [ ] Verify Starter (1), Growth (5), Enterprise (20), disabled-feature, and tenant/RLS enforcement at both API and database levels.
-- [ ] Run UI/API/database concurrency and lifecycle E2E tests, plus opt-in AI connector tests; distinguish source registration from verified synchronization.
+**Implemented in the current frontend/backend snapshot; focused contract tests pass, database E2E remains pending**
+
+- Node registration/reactivation checks are serialized with tenant-scoped quota checks; a database trigger applies the same quota boundary to direct AI database writes.
+- A shared source-type policy counts persistent connectors and excludes manual document uploads; entitlements cover `data_integration`, finite limits, and unlimited custom plans.
+- Tenant-scoped listing, pause, reactivation, and disconnect are implemented. Disconnect clears stored credentials while retaining source/job/history records; disconnected sources must be registered again.
+- Statuses distinguish configured, processing, synced after promoted rows, failed, paused, and disconnected. The UI shows used/limit/remaining capacity and reports actions only after API success.
+- Active duplicate checks and website URL normalization are implemented; cleanup and source visibility remain available after downgrade. Manual uploads use `document_extraction` access.
+
+**Still open**
+
+- [ ] Apply the migration and verify it against a disposable PostgreSQL database, including RLS, concurrent API registrations, lifecycle transitions, and direct AI-writer inserts.
+- [ ] Run API/browser E2E against Starter (1), Growth (5), Enterprise (20), disabled-feature, downgrade, and custom/unlimited plan fixtures.
+- [ ] Complete full frontend build and browser E2E verification; confirm AI endpoint error translation without editing AI code.
+- [ ] Keep provider authentication, recurring synchronization, and real connector-worker sync tracked under Feature 8.
 
 ## 10. Document Extraction (`document_extraction`)
 
