@@ -8,23 +8,23 @@ Check each item only after verifying it end-to-end with real test data. Existing
 
 **Purpose:** This is the single authoritative place where teammates claim a feature and communicate whether it is **Not Started**, **Processing**, or **Solved**. The checkboxes in the sections below track individual verification tasks and remain separate from the feature-level status.
 
-|   # | Feature                                                   | Status         | Owner | Last updated (YYYY-MM-DD) | Current focus / blocker |
-| --: | --------------------------------------------------------- | -------------- | ----- | ------------------------- | ----------------------- |
-|   1 | **Dashboard Analytics** (`dashboard_analytics`)           | ⚪ Not Started | —     | —                         | —                       |
-|   2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started | —     | —                         | —                       |
-|   3 | **Market Perception** (`market_perception`)               | ⚪ Not Started | —     | —                         | —                       |
-|   4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started | —     | —                         | —                       |
-|   5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started | —     | —                         | —                       |
-|   6 | **Product Management** (`product_management`)             | ⚪ Not Started | —     | —                         | —                       |
-|   7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started | —     | —                         | —                       |
-|   8 | **Data Integration** (`data_integration`)                 | ⚪ Not Started | —     | —                         | —                       |
-|   9 | **Connected Data Sources** (`connected_data_sources`)     | ⚪ Not Started | —     | —                         | —                       |
-|  10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started | —     | —                         | —                       |
-|  11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started | —     | —                         | —                       |
-|  12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started | —     | —                         | —                       |
-|  13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started | —     | —                         | —                       |
-|  14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started | —     | —                         | —                       |
-|  15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started | —     | —                         | —                       |
+|   # | Feature                                                   | Status         | Owner   | Last updated (YYYY-MM-DD) | Current focus / blocker                                                         |
+| --: | --------------------------------------------------------- | -------------- | ------- | ------------------------- | ------------------------------------------------------------------------------- |
+|   1 | **Dashboard Analytics** (`dashboard_analytics`)           | ⚪ Not Started | —       | —                         | —                                                                               |
+|   2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started | —       | —                         | —                                                                               |
+|   3 | **Market Perception** (`market_perception`)               | ⚪ Not Started | —       | —                         | —                                                                               |
+|   4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started | —       | —                         | —                                                                               |
+|   5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started | —       | —                         | —                                                                               |
+|   6 | **Product Management** (`product_management`)             | ⚪ Not Started | —       | —                         | —                                                                               |
+|   7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started | —       | —                         | —                                                                               |
+|   8 | **Data Integration** (`data_integration`)                 | 🟡 Processing  | Mahmoud | 2026-10-11                | Verify sales upload → AI extraction → ingestion worker → PostgreSQL persistence |
+|   9 | **Connected Data Sources** (`connected_data_sources`)     | ⚪ Not Started | —       | —                         | —                                                                               |
+|  10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started | —       | —                         | —                                                                               |
+|  11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started | —       | —                         | —                                                                               |
+|  12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started | —       | —                         | —                                                                               |
+|  13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started | —       | —                         | —                                                                               |
+|  14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started | —       | —                         | —                                                                               |
+|  15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started | —       | —                         | —                                                                               |
 
 **Status definitions**
 
@@ -42,7 +42,7 @@ Check each item only after verifying it end-to-end with real test data. Existing
 
 **Collaboration note:** Markdown does not provide automatic concurrent editing or status locking. Keep this file in a shared Git repository and use commits/PRs (or another shared document with edit history). Pull the latest changes before editing and resolve simultaneous edits instead of overwriting them.
 
-**Initial setup:** All 15 statuses start as **⚪ Not Started / Unassigned** because no teammate claims were supplied. This is a coordination baseline, **not** an assessment that CEOPRO has no implemented functionality.
+**Unclaimed features:** Rows without an assigned owner remain **⚪ Not Started / Unassigned**. This status reflects team coordination, **not** an assessment of existing CEOPRO functionality.
 
 ---
 
