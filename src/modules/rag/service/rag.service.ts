@@ -155,7 +155,7 @@ export async function uploadRagDocument(input: RagUploadInput) {
   if (input.file.size > MAX_RAG_DOCUMENT_SIZE_BYTES) {
     throw createRagServiceError(
       "FILE_SIZE_LIMIT_EXCEEDED",
-      "RAG documents must not exceed 10 MB."
+      "RAG documents must not exceed 2 MB."
     );
   }
 

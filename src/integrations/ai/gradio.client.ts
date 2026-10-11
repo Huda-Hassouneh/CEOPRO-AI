@@ -17,11 +17,6 @@ type CachedToken = {
   expiresAt: number;
 };
 
-type EncryptedToken = {
-  encrypted: string;
-  keyId: string;
-};
-
 export type GradioClientOptions = {
   getConfig?: (service: AiServiceName) => GradioRuntimeConfig;
   fetchImpl?: FetchLike;
@@ -92,13 +87,8 @@ function getEncryptedTokenHeaderValue(payload: unknown): string | null {
     typeof token.keyId === "string" &&
     token.keyId.trim()
   ) {
-    // The Hub currently returns an envelope containing both the ciphertext
-    // and the key id. Preserve both when placing it in the ZeroGPU header.
-    const encryptedToken: EncryptedToken = {
-      encrypted: token.encrypted,
-      keyId: token.keyId
-    };
-    return JSON.stringify(encryptedToken);
+    // The Spaces API contract expects keyId:ciphertext in X-ZeroGPU-Token.
+    return `${token.keyId}:${token.encrypted}`;
   }
   return null;
 }
@@ -132,8 +122,8 @@ export function createGradioClient(
         config.huggingFaceApiUrl
       );
       url.searchParams.set(
-        "expiration",
-        new Date(now() + config.tokenExpiresInSeconds * 1000).toISOString()
+        "expires_in",
+        String(config.tokenExpiresInSeconds)
       );
       url.searchParams.set("billing_details", "true");
       url.searchParams.set("encrypted", "true");

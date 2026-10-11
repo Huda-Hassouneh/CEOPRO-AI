@@ -2,7 +2,43 @@ import { prisma } from "../../../config/database.js";
 import type { Prisma } from "../../../generated/prisma/client.js";
 
 export const ownerDb = prisma;
-export const visibleCompanyScope = () => ({ deletedAt: null });
+// Customer-facing platform lists must not include the platform's own tenant.
+// The companion RLS migration grants cross-tenant SELECT only while the
+// current database request belongs to an active platform owner/admin.
+export const visibleCompanyScope = () => ({
+  deletedAt: null,
+  businessType: { not: "platform" }
+});
+
+/**
+ * Platform overview counts are intentionally read through a narrowly scoped
+ * SECURITY DEFINER function. The normal tenant RLS policies correctly hide
+ * other tenants from ordinary queries, so a Prisma count on companies or
+ * tenant_users cannot calculate platform-wide totals.
+ */
+export async function platformOverviewCounts(
+  platformTenantId: string,
+  platformUserId: string,
+  from: Date | null = null,
+  to: Date | null = null
+) {
+  const rows = await prisma.$queryRaw<
+    { companies_count: bigint; users_count: bigint }[]
+  >`
+    SELECT * FROM public.get_platform_admin_overview_counts(
+      ${platformTenantId}::uuid,
+      ${platformUserId}::uuid,
+      ${from}::timestamptz,
+      ${to}::timestamptz
+    )
+  `;
+  const row = rows[0];
+  if (!row) throw new Error("Platform overview count function returned no row.");
+  return {
+    companies: Number(row.companies_count),
+    users: Number(row.users_count)
+  };
+}
 
 export async function companiesPage(
   where: object,
@@ -10,7 +46,11 @@ export async function companiesPage(
   skip: number,
   take: number
 ) {
-  const scope = { ...visibleCompanyScope(), ...where };
+  const scope = {
+    ...visibleCompanyScope(),
+    ...where,
+    businessType: { not: "platform" }
+  };
   const [items, total] = await prisma.$transaction([
     prisma.company.findMany({
       where: scope,

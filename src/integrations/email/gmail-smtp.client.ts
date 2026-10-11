@@ -1,11 +1,15 @@
 import { randomBytes } from "node:crypto";
-import tls, { type TLSSocket } from "node:tls";
+import tls, { type ConnectionOptions, type TLSSocket } from "node:tls";
 import { createVerificationEmailContent } from "./verification-email.content.js";
 import type { VerificationEmailInput } from "./email.types.js";
 
 const SMTP_HOST = "smtp.gmail.com";
 const SMTP_PORT = 465;
 const SMTP_TIMEOUT_MS = 15_000;
+
+export type GmailSmtpOptions = {
+  connect?: (options: ConnectionOptions) => TLSSocket;
+};
 
 type SmtpReply = { code: number; lines: string[] };
 type ReplyWaiter = {
@@ -151,10 +155,12 @@ function getCredentials() {
 }
 
 export async function sendVerificationEmailWithGmail(
-  input: VerificationEmailInput
+  input: VerificationEmailInput,
+  options: GmailSmtpOptions = {}
 ): Promise<void> {
   const { user, password } = getCredentials();
-  const socket = tls.connect({
+  const connect = options.connect ?? tls.connect;
+  const socket = connect({
     host: SMTP_HOST,
     port: SMTP_PORT,
     servername: SMTP_HOST,

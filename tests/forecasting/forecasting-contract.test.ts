@@ -6,8 +6,10 @@ process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
 const { prisma } = await import("../../src/config/database.js");
 const { getDemandOverview, getDemandDetail } =
   await import("../../src/modules/forecasting/service/forecasting.service.js");
-const { parseForecastQuery, getOverview, getDetail } =
+const { parseForecastQuery, getOverview, getDetail, generateDemand } =
   await import("../../src/modules/forecasting/controller/forecasting.controller.js");
+const { PRODUCTION_PLANS } =
+  await import("../../src/config/production-plans.js");
 const tenant = "11111111-1111-4111-8111-111111111111";
 const productId = "22222222-2222-4222-8222-222222222222";
 const userId = "33333333-3333-4333-8333-333333333333";
@@ -76,6 +78,9 @@ const originalTransaction = prisma.$transaction;
         );
         return forecasts;
       }
+    },
+    model_versions: {
+      findMany: async () => []
     }
   });
 test("strict query validation rejects invalid horizons, arrays and UUIDs", () => {
@@ -100,7 +105,7 @@ test("overview/detail share totals, stock aggregation and unknown accuracy; all 
   assert.equal(detail!.aiInsight, null);
   assert.equal(detail!.recommendation, null);
   assert.equal(
-    detail!.metrics.find((m) => m.id === "modelAccuracy")!.value,
+    detail!.metrics.find((m) => m.id === "modelPerformance")!.value,
     null
   );
   assert.equal(
@@ -145,7 +150,7 @@ test("controller responds with 400 for malformed inputs and 404 for absent produ
   };
   const request: any = {
     tenant_id: tenant,
-    user: { id: userId },
+    user: { id: userId, user_id: userId },
     query: { periodDays: "7garbage" },
     params: {}
   };
@@ -159,6 +164,26 @@ test("controller responds with 400 for malformed inputs and 404 for absent produ
   await getDetail(request, response, next);
   assert.equal(response.code, 404);
 });
+test("generation controller rejects malformed UUIDs and unsupported horizons before calling the service", async () => {
+  const response: any = {
+    code: 0,
+    status(n: number) { this.code = n; return this; },
+    json() { return this; }
+  };
+  const request: any = {
+    tenant_id: tenant,
+    user: { id: userId, user_id: userId },
+    params: { productId: "not-a-uuid" },
+    body: { horizon_days: 7 }
+  };
+  await generateDemand(request, response, (error?: unknown) => { if (error) throw error; });
+  assert.equal(response.code, 400);
+  request.params.productId = productId;
+  request.body = { horizon_days: 61 };
+  response.code = 0;
+  await generateDemand(request, response, (error?: unknown) => { if (error) throw error; });
+  assert.equal(response.code, 400);
+});
 test("every forecasting route is behind authentication, membership and boolean access", () => {
   const source = readFileSync(
     new URL(
@@ -167,10 +192,9 @@ test("every forecasting route is behind authentication, membership and boolean a
     ),
     "utf8"
   );
-  assert.ok(
-    source.includes(
-      'router.use(authenticateUser, requireTenant, requireFeatureAccess("demand_prediction"))'
-    )
+  assert.match(
+    source,
+    /router\.use\(\s*authenticateUser,\s*requireTenant,\s*requireFeatureAccess\("demand_prediction"\)\s*\)/
   );
   assert.ok(source.indexOf("router.use") < source.indexOf("router.get"));
 });
@@ -225,10 +249,31 @@ test("boolean entitlement middleware blocks missing subscription/feature and all
     prisma.subscription.findFirst = original;
   }
 });
+test("production catalog includes Demand Prediction in Growth and Enterprise only", () => {
+  const included = (planCode: string) =>
+    PRODUCTION_PLANS.find((plan: any) => plan.code === planCode)?.features.some(
+      (feature: any) => feature.code === "demand_prediction"
+    );
+  assert.equal(included("starter"), false);
+  assert.equal(included("growth"), true);
+  assert.equal(included("enterprise"), true);
+});
+test("advanced inventory recommendations keep the separate inventory_intelligence entitlement", () => {
+  const frontendRoutes = readFileSync(
+    new URL("../../../frontend/src/app/router/index.jsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(
+    frontendRoutes,
+    /path:\s*routePaths\.forecastInventory,[\s\S]{0,320}?featureCodes=\{\["demand_prediction",\s*"inventory_intelligence"\]\}/
+  );
+});
 test("persisted restock uses its own forecast, all warehouse safety stock, and clamps at zero", async () => {
   const first = forecasts[0]!;
   const recommendations = first.recommendation_outcomes as any[];
   const originalDemand = first.expected_demand;
+  const originalStart = first.forecast_start_date;
+  const originalEnd = first.forecast_end_date;
   recommendations.push({
     recommendation_id: "r",
     recommended_action: "restock",
@@ -236,14 +281,18 @@ test("persisted restock uses its own forecast, all warehouse safety stock, and c
   });
   try {
     first.expected_demand = 10;
+    first.forecast_start_date = start;
+    first.forecast_end_date = day(6);
     let detail = await getDemandDetail(tenant, productId, userId, 7);
-    assert.equal(detail!.recommendation!.suggestedQuantity, 6); // 10 + (1+2) - (3+4)
+    assert.equal(detail!.recommendation?.suggestedQuantity, 6); // 10 + (1+2) - (3+4)
     first.expected_demand = 0;
     detail = await getDemandDetail(tenant, productId, userId, 7);
-    assert.equal(detail!.recommendation!.suggestedQuantity, 0);
-    assert.equal(detail!.recommendation!.priority, null);
+    assert.equal(detail!.recommendation?.suggestedQuantity, 0);
+    assert.equal(detail!.recommendation?.priority, null);
   } finally {
     first.expected_demand = originalDemand;
+    first.forecast_start_date = originalStart;
+    first.forecast_end_date = originalEnd;
     recommendations.length = 0;
   }
 });

@@ -25,7 +25,7 @@ import {
 } from "./middleware/errorHandler.js";
 import { updateSubscriptionCancellation } from "./modules/subscription/External Services/Payment providers/stripe/stripeService.js";
 // import "../scripts/generate-mock-token.js";
-// updateSubscriptionCancellation("sub_1UMRxSDvEnSheKucIGd81uTd", false, true);
+// updateSubscriptionCancellation("sub_1UOIjzDvEnSheKucySYyoA2T", false, true);
 
 const app = express();
 app.disable("x-powered-by");

@@ -130,7 +130,9 @@ export const handle =
       next(error);
     }
   };
-export const readOverview = handle((req) => read.overview(req.tenant_id!));
+export const readOverview = handle((req) =>
+  read.overview(req.tenant_id!, req.user!.id)
+);
 export const readCompanies = handle((req) =>
   read.companies(req.tenant_id!, params(req))
 );

@@ -14,7 +14,11 @@ import { isAiServiceError } from "../client/ingestion.client.js";
 
 type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 
-function sendError(res: ExpressResponse, code: ErrorCode, detail?: unknown): void {
+function sendError(
+  res: ExpressResponse,
+  code: ErrorCode,
+  detail?: unknown
+): void {
   const errDef = ERROR_DEFINITIONS[code];
 
   res
@@ -113,7 +117,9 @@ export const dataConnectionController = {
 
       res
         .status(200)
-        .json(successResponse(result, "Document extracted and queued for import"));
+        .json(
+          successResponse(result, "Document extracted and queued for import")
+        );
     } catch (error) {
       handleError(res, error);
     }
@@ -141,8 +147,10 @@ export const dataConnectionController = {
         return;
       }
 
-      const data =
-        await dataConnectionService.getDataConnectionsOverview(tenantId);
+      const data = await dataConnectionService.getDataConnectionsOverview(
+        tenantId,
+        req.user?.user_id as string
+      );
 
       return res.status(200).json({
         status: "success",
@@ -167,6 +175,7 @@ export const dataConnectionController = {
 
       const source = await dataConnectionService.createDataSource({
         tenantId,
+        userId: req.user?.user_id as string,
         payload: req.body
       });
 

@@ -3,8 +3,20 @@ import bcrypt from "bcryptjs";
 import { generateAccessToken } from "../../src/utils/token.js";
 
 // CHANGE THIS IMPORT to match your generated Prisma client location.
-import { prisma } from "../../src/config/database.js";
+import { PrismaClient } from "../../src/generated/prisma/client.js";
+import { PrismaPg } from "@prisma/adapter-pg";
 
+const bootstrapUrl = process.env.BOOTSTRAP_DATABASE_URL;
+
+if (!bootstrapUrl) {
+  throw new Error("BOOTSTRAP_DATABASE_URL is required.");
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({
+    connectionString: bootstrapUrl
+  })
+});
 // CHANGE THIS PATH to your real auth utility path
 
 async function main() {

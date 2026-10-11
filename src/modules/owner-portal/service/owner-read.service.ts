@@ -8,7 +8,8 @@ import {
   teamMemberships,
   pendingInvitations,
   visibleCompanyScope,
-  companyIdsByCurrentSubscription
+  companyIdsByCurrentSubscription,
+  platformOverviewCounts
 } from "../repo/owner.repo.js";
 
 export type ListQuery = {
@@ -132,7 +133,7 @@ function auditRow(row: AuditRecord) {
   };
 }
 
-export async function overview(platformTenantId: string) {
+export async function overview(platformTenantId: string, platformUserId: string) {
   const today = new Date();
   const first = new Date(
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 5, 1)
@@ -148,8 +149,7 @@ export async function overview(platformTenantId: string) {
   });
   const companyWhere = visibleCompanyScope();
   const [
-    companies,
-    users,
+    totals,
     active,
     trials,
     distribution,
@@ -157,14 +157,7 @@ export async function overview(platformTenantId: string) {
     audit,
     growth
   ] = await Promise.all([
-    ownerDb.company.count({ where: companyWhere }),
-    ownerDb.tenantUser.count({
-      where: {
-        tenantId: { not: platformTenantId },
-        removedAt: null,
-        tenant: { deletedAt: null }
-      }
-    }),
+    platformOverviewCounts(platformTenantId, platformUserId),
     ownerDb.subscription.count({
       where: { tenant: companyWhere, status: "active" }
     }),
@@ -183,18 +176,13 @@ export async function overview(platformTenantId: string) {
     platformAudit(platformTenantId, {}, 0, 5),
     Promise.all(
       months.map(async ({ start, end, month }) => ({
-        month,
-        companies: await ownerDb.company.count({
-          where: { ...companyWhere, createdAt: { gte: start, lt: end } }
-        }),
-        users: await ownerDb.tenantUser.count({
-          where: {
-            tenantId: { not: platformTenantId },
-            removedAt: null,
-            tenant: { deletedAt: null },
-            joinedAt: { gte: start, lt: end }
-          }
-        })
+        ...(await platformOverviewCounts(
+          platformTenantId,
+          platformUserId,
+          start,
+          end
+        )),
+        month
       }))
     )
   ]);
@@ -203,8 +191,8 @@ export async function overview(platformTenantId: string) {
     select: { id: true, name: true }
   });
   return {
-    companies,
-    users,
+    companies: totals.companies,
+    users: totals.users,
     active,
     trials,
     growth,

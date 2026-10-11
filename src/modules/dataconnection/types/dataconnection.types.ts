@@ -20,7 +20,17 @@ export type ExtractionRowOutcome = {
   field_errors: unknown[] | Record<string, unknown>;
   error?: string | null;
 };
+export type ClaimedIngestionJob = {
+  tenant_id: string;
+  job_id: string;
+  processing_attempts: number;
+};
 
+export type ProcessedIngestionJob = {
+  jobId: string;
+  committed: number;
+  quarantined: number;
+};
 export type ExtractionResult = {
   job_id: string;
   job_id_source: "ceopro";
@@ -65,6 +75,7 @@ export type CreateDataSourcePayload = {
 
 export type CreateDataSourceInput = {
   tenantId: string;
+  userId: string;
   payload: CreateDataSourcePayload;
 };
 

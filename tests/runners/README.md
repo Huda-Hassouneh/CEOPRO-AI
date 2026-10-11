@@ -1,5 +1,7 @@
 # Test Suite Runners
 
+Feature 14 Smart Alerts: `./tests/runners/run-smart-alerts-tests.ps1` runs the source contract, deterministic calculations, guarded AI database suite, and Playwright diagnostics. See `../smart-alerts/README.md` and `../smart-alerts/RESULTS.md` for prerequisites and known gaps.
+
 Ordered runners for the larger numbered billing suites. They spawn Node's test runner with `tsx` and stop with a non-zero exit code when any group fails.
 
 | Runner | Runs | Safety behavior |
@@ -8,5 +10,6 @@ Ordered runners for the larger numbered billing suites. They spawn Node's test r
 | `run-custom-plan-stripe-tests.mjs` | Billing scenarios 12–19 | Requires disposable test DB and `STRIPE_SECRET_KEY=sk_test_...`; refuses live keys. |
 | `run-subscription-lifecycle-tests.mjs` | Billing scenarios 20–26 | Requires disposable test DB + Stripe test key; designed to drive webhook services directly. |
 | `run-production-plan-tests.mjs` | Billing scenarios 27–33 | Requires disposable test DB + Stripe test key; verifies standard plans and bootstrap safety. |
+| `run-connected-data-sources-tests.mjs` | Connected Data Sources contract + real API/UI/DB E2E | Runs both groups even when known-gap regression assertions fail; E2E mutations require a safe disposable RLS database and isolated fixtures. |
 
 All hard-coded test paths in these runners point to the reorganized `tests/billing/...` locations.

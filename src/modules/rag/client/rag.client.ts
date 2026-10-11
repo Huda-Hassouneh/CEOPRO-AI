@@ -59,8 +59,6 @@ export async function queryRagAi(
     top_k: input.topK,
     history: input.history
   });
-  console.log({ ai_query_parsed: parsedInput });
-
   if (!parsedInput.success) {
     throw createAiIntegrationError(
       "RAG request does not match the documented Gradio input schema.",

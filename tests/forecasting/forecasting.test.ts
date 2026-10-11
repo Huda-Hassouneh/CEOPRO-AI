@@ -31,10 +31,10 @@ test('period totals are not daily values and cannot be prorated', () => {
   const s = summarizeForecasts([monthly], start, 30, asOf);
   assert.equal(s.expectedDemand, 300); assert.deepEqual(s.confidenceRange, { lower: 250, upper: 350 }); assert.equal(s.trend, null);
 });
-test('overlapping horizons do not double count; marginal bounds are not summed', () => {
+test('an exact horizon takes precedence over daily rows without double counting; marginal bounds are not summed', () => {
   const weekly = row(0, 30, { forecast_start_date: start, forecast_end_date: addDays(start, 6) });
   const s = summarizeForecasts([...week(), weekly], start, 7, asOf);
-  assert.equal(s.status, 'overlapping'); assert.equal(s.expectedDemand, null);
+  assert.equal(s.status, 'complete'); assert.equal(s.expectedDemand, 30);
   const bounds = week().map(f => ({ ...f, confidence_range_lower: f.expected_demand, confidence_range_upper: f.expected_demand + 1 }));
   assert.deepEqual(summarizeForecasts(bounds, start, 7, asOf).confidenceRange, { lower: null, upper: null });
 });

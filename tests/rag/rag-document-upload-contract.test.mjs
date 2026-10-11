@@ -37,11 +37,11 @@ test("RAG upload accepts only the documented extensions", async () => {
   assert.ok(!types.includes('".xlsm"'));
 });
 
-test("RAG upload size limit matches the 10 MB API contract", async () => {
+test("RAG upload size limit matches the 2 MB-per-document Gradio API contract", async () => {
   const types = await read("../../src/modules/rag/types/rag.types.ts");
   const service = await read("../../src/modules/rag/service/rag.service.ts");
-  assert.match(types, /MAX_RAG_DOCUMENT_SIZE_BYTES\s*=\s*10\s*\*\s*1024\s*\*\s*1024/);
-  assert.match(service, /RAG documents must not exceed 10 MB/);
+  assert.match(types, /MAX_RAG_DOCUMENT_SIZE_BYTES\s*=\s*2\s*\*\s*1024\s*\*\s*1024/);
+  assert.match(service, /RAG documents must not exceed 2 MB/);
 });
 
 test("RAG source persistence executes the advisory lock without decoding void", async () => {

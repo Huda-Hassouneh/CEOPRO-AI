@@ -1,14 +1,13 @@
-# RAG Document Upload Contract Tests
+# RAG Assistant tests
 
-`rag-document-upload-contract.test.mjs` statically checks the backend contract for RAG document uploads.
+Read [RAG Assistant testing and diagnostics](RAG_ASSISTANT_TESTING.md) for the verified architecture, coverage matrix, known gaps, safe fixture requirements, commands, and report locations.
 
-It verifies:
+## Files
 
-- the RAG module is mounted under the existing `/features/rag` API prefix;
-- POST document upload uses authentication, the `rag_assistant` entitlement, and multipart field `file`;
-- the AI client calls `POST /rag/documents` and forwards `Authorization`;
-- RAG AI mock mode defaults to true;
-- only documented file extensions are accepted;
-- the shared features router no longer owns duplicate RAG HTTP routes.
+- `rag-document-upload-contract.test.mjs` — existing upload route, extension/size, Gradio adapter and route-mount source contracts.
+- `rag-assistant-contract.test.mjs` — Feature 12 architecture, plans, meters, token/citation contracts, tenant predicates, retrieval window and failing regressions.
+- `rag-assistant-client.test.ts` — deterministic tests of the real Node Gradio adapter using a controlled provider response.
+- `fixtures/` — fictional business policies and a machine-readable answerable/abstention/security/11-document evaluation set.
+- `../e2e/rag-assistant/` — shared-reporter Playwright diagnostics, plus independently gated live Gradio and AI-team FastAPI specs.
 
-This is a source-contract test; it reads backend files and does not need the AI service to be online.
+The Node Gradio contract is the active React web pathway. The AI Python indexed-RAG tests/spec are separate; passing them does not prove the hosted Gradio path. Live DB and provider tests require explicit safe local fixtures. Skipped scenarios are reported as BLOCKED.

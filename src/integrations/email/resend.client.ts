@@ -1,11 +1,16 @@
 import type { VerificationEmailInput } from "./email.types.js";
-import { createVerificationEmailContent, getVerificationEmailUrl } from "./verification-email.content.js";
+import {
+  createVerificationEmailContent,
+  getVerificationEmailUrl
+} from "./verification-email.content.js";
 
 const RESEND_EMAILS_URL = "https://api.resend.com/emails";
 
 export { getVerificationEmailUrl as getEmailVerificationUrl };
 
-export async function sendVerificationEmail(input: VerificationEmailInput): Promise<void> {
+export async function sendVerificationEmail(
+  input: VerificationEmailInput
+): Promise<void> {
   const apiKey = process.env.EMAIL_SERVICE_PROVIDER_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("EMAIL_SERVICE_PROVIDER_API_KEY is not configured");
@@ -34,6 +39,8 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
 
   if (!response.ok) {
     // Do not log API keys, full message bodies, or provider response bodies.
-    throw new Error(`Resend rejected the verification email (${response.status})`);
+    throw new Error(
+      `Resend rejected the verification email (${response.status})`
+    );
   }
 }

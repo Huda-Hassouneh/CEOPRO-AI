@@ -59,8 +59,11 @@ export function isDataConnectionServiceError(
 // export async function
 
 export const dataConnectionService = {
-  getDataConnectionsOverview: async (tenantId: string) => {
-    const data = await dataManagementRepo.getDataConnectionsOverview(tenantId);
+  getDataConnectionsOverview: async (tenantId: string, userId: string) => {
+    const data = await dataManagementRepo.getDataConnectionsOverview(
+      tenantId,
+      userId
+    );
 
     if (!data) throw new Error("Failed to load data connections overview");
     return data;
@@ -192,7 +195,8 @@ export const dataConnectionService = {
       }
     });
 
-    const extractionValidationError = validateExtractionResultForDataConnection(data);
+    const extractionValidationError =
+      validateExtractionResultForDataConnection(data);
     if (extractionValidationError) {
       throw createServiceError(
         "INVALID_FILE_UPLOAD",
@@ -296,7 +300,7 @@ export const dataConnectionService = {
 
     const source = await dataManagementRepo.createPersistentSource({
       tenantId: input.tenantId,
-
+      userId: input.userId,
       name: validation.data.name,
 
       sourceType: validation.data.sourceType,

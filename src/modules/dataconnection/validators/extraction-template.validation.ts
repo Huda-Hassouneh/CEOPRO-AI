@@ -1,4 +1,6 @@
 import * as xlsx from "xlsx";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * Mirrors the extraction service's deterministic header matcher.
@@ -19,38 +21,55 @@ export const REQUIRED_CANONICAL_TEMPLATE_FIELDS = [
   "transaction_date"
 ] as const;
 
-const CANONICAL_FIELDS = [
-  ...REQUIRED_CANONICAL_TEMPLATE_FIELDS,
-  "discount_pct",
-  "invoice_id",
-  "order_id",
-  "email",
-  "phone",
-  "competitor_name",
-  "amount_raw"
-] as const;
-
 const HEADER_SYNONYMS: Record<string, readonly string[]> = {
   amount_raw: [
-    "amount", "amount raw", "total", "grand total", "total_ttc", "net amount",
-    "total price", "المبلغ", "الإجمالي"
+    "amount",
+    "amount raw",
+    "total",
+    "grand total",
+    "total_ttc",
+    "net amount",
+    "total price",
+    "المبلغ",
+    "الإجمالي"
   ],
   unit_price: [
-    "unit price", "price", "unitprice", "prix_unitaire", "prix unitaire",
-    "سعر الوحدة", "السعر"
+    "unit price",
+    "price",
+    "unitprice",
+    "prix_unitaire",
+    "prix unitaire",
+    "سعر الوحدة",
+    "السعر"
   ],
   quantity: ["quantity", "qty", "qty.", "qte", "الكمية", "الكميه", "كمية"],
   discount_pct: ["discount", "discount %", "discount_pct", "خصم", "نسبة الخصم"],
   transaction_date: [
-    "date", "transaction date", "invoice date", "date time", "datetime",
-    "التاريخ", "تاريخ"
+    "date",
+    "transaction date",
+    "invoice date",
+    "date time",
+    "datetime",
+    "التاريخ",
+    "تاريخ"
   ],
   email: ["email", "e-mail", "email address", "البريد الإلكتروني"],
   phone: ["phone", "phone number", "mobile", "الهاتف", "رقم الهاتف"],
-  product_name: ["product", "product name", "item", "item name", "اسم المنتج", "المنتج"],
+  product_name: [
+    "product",
+    "product name",
+    "item",
+    "item name",
+    "اسم المنتج",
+    "المنتج"
+  ],
   competitor_name: ["competitor", "competitor name", "المنافس"],
   invoice_id: [
-    "invoice", "invoice id", "invoice number", "invoice no", "num_facture",
+    "invoice",
+    "invoice id",
+    "invoice number",
+    "invoice no",
+    "num_facture",
     "رقم الفاتورة"
   ],
   order_id: ["order", "order id", "order number", "order no", "رقم الطلب"]
@@ -58,7 +77,10 @@ const HEADER_SYNONYMS: Record<string, readonly string[]> = {
 
 const RECOGNIZED_MODE_MIN_COVERAGE = 0.5;
 
-export type ExtractionTemplateMode = "TEMPLATE_COMPLIANT" | "RECOGNIZED" | "FALLBACK";
+export type ExtractionTemplateMode =
+  | "TEMPLATE_COMPLIANT"
+  | "RECOGNIZED"
+  | "FALLBACK";
 
 export type HeaderAssessment = {
   mode: ExtractionTemplateMode;
@@ -76,7 +98,8 @@ function buildAliasLookup(): Map<string, string> {
   const lookup = new Map<string, string>();
 
   for (const [field, aliases] of Object.entries(HEADER_SYNONYMS)) {
-    for (const alias of aliases) lookup.set(normalizeExtractionHeader(alias), field);
+    for (const alias of aliases)
+      lookup.set(normalizeExtractionHeader(alias), field);
   }
 
   return lookup;
@@ -90,26 +113,32 @@ const HEADER_LOOKUP = buildAliasLookup();
  * do not count toward recognized coverage.
  */
 export function assessExtractionHeaders(headers: string[]): HeaderAssessment {
+  const canonicalFields = getCanonicalTemplateFields();
   const normalizedToSource = new Map<string, string>();
   for (const sourceHeader of headers) {
     const normalized = normalizeExtractionHeader(sourceHeader);
-    if (!normalizedToSource.has(normalized)) normalizedToSource.set(normalized, sourceHeader);
+    if (!normalizedToSource.has(normalized))
+      normalizedToSource.set(normalized, sourceHeader);
   }
 
   const canonicalMapping: Record<string, string> = {};
-  for (const field of CANONICAL_FIELDS) {
-    const sourceHeader = normalizedToSource.get(normalizeExtractionHeader(field));
+  for (const field of canonicalFields) {
+    const sourceHeader = normalizedToSource.get(
+      normalizeExtractionHeader(field)
+    );
     if (sourceHeader !== undefined) canonicalMapping[sourceHeader] = field;
   }
-  const hasCanonicalRequired = REQUIRED_CANONICAL_TEMPLATE_FIELDS.every((field) =>
-    Object.values(canonicalMapping).includes(field)
+  const hasCanonicalRequired = REQUIRED_CANONICAL_TEMPLATE_FIELDS.every(
+    (field) => Object.values(canonicalMapping).includes(field)
   );
 
   if (hasCanonicalRequired) {
     const mappedFields = new Set(Object.values(canonicalMapping));
     return {
       mode: "TEMPLATE_COMPLIANT",
-      coverageRatio: headers.length ? Object.keys(canonicalMapping).length / headers.length : 0,
+      coverageRatio: headers.length
+        ? Object.keys(canonicalMapping).length / headers.length
+        : 0,
       mappedFields,
       headerMapping: canonicalMapping,
       unmappedHeaders: headers.filter((header) => !(header in canonicalMapping))
@@ -118,13 +147,19 @@ export function assessExtractionHeaders(headers: string[]): HeaderAssessment {
 
   const mapping: Record<string, string> = {};
   for (const sourceHeader of headers) {
-    const canonicalField = HEADER_LOOKUP.get(normalizeExtractionHeader(sourceHeader));
+    const canonicalField = HEADER_LOOKUP.get(
+      normalizeExtractionHeader(sourceHeader)
+    );
     if (canonicalField) mapping[sourceHeader] = canonicalField;
   }
 
   const mappedFields = new Set(Object.values(mapping));
-  const coverageRatio = headers.length ? Object.keys(mapping).length / headers.length : 0;
-  const hasRecognizedCore = REQUIRED_RECOGNIZED_FIELDS.every((field) => mappedFields.has(field));
+  const coverageRatio = headers.length
+    ? Object.keys(mapping).length / headers.length
+    : 0;
+  const hasRecognizedCore = REQUIRED_RECOGNIZED_FIELDS.every((field) =>
+    mappedFields.has(field)
+  );
   const mode: ExtractionTemplateMode =
     hasRecognizedCore && coverageRatio >= RECOGNIZED_MODE_MIN_COVERAGE
       ? "RECOGNIZED"
@@ -140,9 +175,9 @@ export function assessExtractionHeaders(headers: string[]): HeaderAssessment {
 }
 
 function decodeCsv(buffer: Buffer): string | null {
-  const isOleCompoundFile = buffer.subarray(0, 8).equals(
-    Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
-  );
+  const isOleCompoundFile = buffer
+    .subarray(0, 8)
+    .equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]));
   if (
     buffer.includes(Buffer.from("%PDF-")) ||
     (buffer[0] === 0x50 && buffer[1] === 0x4b) ||
@@ -152,17 +187,20 @@ function decodeCsv(buffer: Buffer): string | null {
   }
 
   try {
-    const encoding = buffer[0] === 0xff && buffer[1] === 0xfe
-      ? "utf-16le"
-      : buffer[0] === 0xfe && buffer[1] === 0xff
-        ? "utf-16be"
-        : "utf-8";
+    const encoding =
+      buffer[0] === 0xff && buffer[1] === 0xfe
+        ? "utf-16le"
+        : buffer[0] === 0xfe && buffer[1] === 0xff
+          ? "utf-16be"
+          : "utf-8";
     const decoded = new TextDecoder(encoding, { fatal: true }).decode(buffer);
     const text = decoded.replace(/^\uFEFF/, "");
     return text.trim() ? text : null;
   } catch {
     try {
-      const text = new TextDecoder("windows-1252", { fatal: true }).decode(buffer);
+      const text = new TextDecoder("windows-1252", { fatal: true }).decode(
+        buffer
+      );
       return text.trim() ? text : null;
     } catch {
       return null;
@@ -210,6 +248,103 @@ function parseCsv(text: string): string[][] | null {
   return rows;
 }
 
+let cachedCanonicalTemplateFields: string[] | undefined;
+
+function readTemplateAsset(fileName: string): Buffer {
+  const locations = [
+    new URL("../templates/" + fileName, import.meta.url),
+    resolve(process.cwd(), "src/modules/dataconnection/templates", fileName),
+    resolve(process.cwd(), "dist/modules/dataconnection/templates", fileName)
+  ];
+
+  for (const location of locations) {
+    try {
+      return readFileSync(location);
+    } catch {
+      // Try the next supported source or built-asset location.
+    }
+  }
+
+  throw new Error(
+    "Required Data Connections template is missing: " +
+      fileName +
+      ". Keep dataconnection/templates in the runtime package."
+  );
+}
+
+function readCsvTemplateHeaders(): string[] {
+  const text = decodeCsv(
+    readTemplateAsset("ceopro_sales_transaction_import_v1.csv")
+  );
+  const rows = text === null ? null : parseCsv(text);
+  const headers = rows?.[0]?.map((header) => header.trim());
+
+  if (!headers?.length) {
+    throw new Error("The CEOPRO sales CSV template has no header row.");
+  }
+
+  return headers;
+}
+
+function readExcelTemplateHeaders(): string[] {
+  const workbook = xlsx.read(
+    readTemplateAsset("ceopro_sales_transaction_import_v1.xlsx"),
+    { type: "buffer", sheetRows: 1 }
+  );
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) {
+    throw new Error("The CEOPRO sales XLSX template has no worksheet.");
+  }
+
+  const rows = xlsx.utils.sheet_to_json<unknown[]>(
+    workbook.Sheets[firstSheetName]!,
+    { header: 1, defval: "", raw: true, blankrows: false }
+  );
+  const headers = rows[0]?.map((value) => String(value ?? "").trim());
+
+  if (!headers?.length) {
+    throw new Error("The CEOPRO sales XLSX template has no header row.");
+  }
+
+  return headers;
+}
+
+function getCanonicalTemplateFields(): string[] {
+  if (cachedCanonicalTemplateFields) return cachedCanonicalTemplateFields;
+
+  const csvHeaders = readCsvTemplateHeaders();
+  const excelHeaders = readExcelTemplateHeaders();
+  const normalizedCsvHeaders = csvHeaders.map(normalizeExtractionHeader);
+  const normalizedExcelHeaders = excelHeaders.map(normalizeExtractionHeader);
+
+  if (
+    normalizedCsvHeaders.length !== normalizedExcelHeaders.length ||
+    normalizedCsvHeaders.some(
+      (header, index) => header !== normalizedExcelHeaders[index]
+    )
+  ) {
+    throw new Error(
+      "The CEOPRO sales CSV and XLSX templates have different headers."
+    );
+  }
+
+  const missingRequiredHeaders = REQUIRED_CANONICAL_TEMPLATE_FIELDS.filter(
+    (requiredField) =>
+      !normalizedCsvHeaders.includes(normalizeExtractionHeader(requiredField))
+  );
+
+  if (missingRequiredHeaders.length > 0) {
+    throw new Error(
+      "The CEOPRO sales template is missing required headers: " +
+        missingRequiredHeaders.join(", ") +
+        "."
+    );
+  }
+
+  cachedCanonicalTemplateFields = csvHeaders;
+  return cachedCanonicalTemplateFields;
+}
+
 function assessTabularRows(rows: string[][]): boolean {
   if (rows.length < 2) return false;
   const headers = rows[0]!.map((value) => value.trim());
@@ -219,11 +354,14 @@ function assessTabularRows(rows: string[][]): boolean {
   // guarantee required values such as currency are mapped.
   if (assessment.mode !== "TEMPLATE_COMPLIANT") return false;
 
-  return rows.slice(1).some((row) => row.some((value) => String(value ?? "").trim() !== ""));
+  return rows
+    .slice(1)
+    .some((row) => row.some((value) => String(value ?? "").trim() !== ""));
 }
 
 function isExcelFile(buffer: Buffer, extension: string): boolean {
-  const hasZipSignature = buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+  const hasZipSignature =
+    buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4b;
   if (!hasZipSignature) return false;
 
   try {
@@ -234,14 +372,20 @@ function isExcelFile(buffer: Buffer, extension: string): boolean {
     });
     const firstSheetName = workbook.SheetNames[0];
     if (!firstSheetName) return false;
-    const rows = xlsx.utils.sheet_to_json<unknown[]>(workbook.Sheets[firstSheetName]!, {
-      header: 1,
-      defval: "",
-      raw: true,
-      blankrows: false
-    });
-    return assessTabularRows(rows.map((row) => row.map((value) => String(value ?? ""))));
-  } catch {
+    const rows = xlsx.utils.sheet_to_json<unknown[]>(
+      workbook.Sheets[firstSheetName]!,
+      {
+        header: 1,
+        defval: "",
+        raw: true,
+        blankrows: false
+      }
+    );
+    return assessTabularRows(
+      rows.map((row) => row.map((value) => String(value ?? "")))
+    );
+  } catch (error) {
+    console.error("[DataConnections] Excel template validation failed:", error);
     return false;
   }
 }
@@ -250,12 +394,14 @@ function isExcelFile(buffer: Buffer, extension: string): boolean {
  * Fast local preflight. PDFs are signature-checked here and their extracted
  * headers/rows are checked against the AI response before any database write.
  */
-export function validateExtractionFileContent(extension: string, buffer: Buffer):
-  | "CONTENT_EXTENSION_MISMATCH"
-  | "TEMPLATE_MISMATCH"
-  | null {
+export function validateExtractionFileContent(
+  extension: string,
+  buffer: Buffer
+): "CONTENT_EXTENSION_MISMATCH" | "TEMPLATE_MISMATCH" | null {
   if (extension === ".pdf") {
-    const hasPdfSignature = buffer.subarray(0, Math.min(buffer.length, 1024)).includes(Buffer.from("%PDF-"));
+    const hasPdfSignature = buffer
+      .subarray(0, Math.min(buffer.length, 1024))
+      .includes(Buffer.from("%PDF-"));
     return hasPdfSignature ? null : "CONTENT_EXTENSION_MISMATCH";
   }
 
@@ -267,7 +413,8 @@ export function validateExtractionFileContent(extension: string, buffer: Buffer)
   }
 
   if (extension === ".xlsx" || extension === ".xlsm") {
-    if (buffer[0] !== 0x50 || buffer[1] !== 0x4b) return "CONTENT_EXTENSION_MISMATCH";
+    if (buffer[0] !== 0x50 || buffer[1] !== 0x4b)
+      return "CONTENT_EXTENSION_MISMATCH";
     return isExcelFile(buffer, extension) ? null : "TEMPLATE_MISMATCH";
   }
 

@@ -7,8 +7,8 @@ export const RAG_DOCUMENT_EXTENSIONS = [
   ".docx",
   ".xlsx"
 ] as const;
-// Keep the Knowledge Base upload cap aligned with the FastAPI contract.
-export const MAX_RAG_DOCUMENT_SIZE_BYTES = 20 * 1024 * 1024;
+// The Gradio RAG API accepts documents up to 2 MB each.
+export const MAX_RAG_DOCUMENT_SIZE_BYTES = 2 * 1024 * 1024;
 
 export const ragDocumentsListQuerySchema = z.object({
   page: z.coerce

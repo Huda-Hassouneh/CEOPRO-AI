@@ -1,32 +1,177 @@
 # Data Connection Domain
 
-## Purpose
-Handles business-data file ingestion and persistent data-source management for a tenant.
+Data Connections accepts structured business files, validates them, stages extracted sales rows, and imports valid rows into the tenant's products and transactions. It also stores metadata for persistent external data sources.
 
-## Structure
-`index.ts -> route/ -> controller/ -> service/ -> repo/`, with a Gradio extraction client and `types/` for contracts/validation.
+## Start here
+
+| If you need to…                                    | Read…                                    |
+| -------------------------------------------------- | ---------------------------------------- |
+| Trace a request through the code                   | Request flow                             |
+| Upload a sales file                                | Scenario A: Import a business file       |
+| Register an external source                        | Scenario B: Register a persistent source |
+| Confirm validation against the published templates | Template validation                      |
+| Prepare the live AI integration test               | End-to-end verification checklist        |
+
+## Purpose and boundaries
+
+This domain has two related but distinct flows:
+
+1. **Business-file import:** an uploaded CSV, Excel, or PDF file is sent to the AI extraction service. CEOPRO validates the extraction, creates a local import job, stores staged rows, and a background worker writes valid sales into transactions and creates or reuses products.
+2. **Persistent source registration:** the tenant stores a supported source's name, type, sync frequency, and non-secret metadata. Creating the record does not by itself test credentials, connect to the source, or run a sync.
+
+Business-file uploads are separate from Knowledge Base/RAG document uploads. They use the extraction service to produce structured sales data.
 
 ## Request flow
-`HTTP -> dataconnection.route -> dataconnection.controller -> dataconnection.service -> repo/client`
 
-## Important decisions
-- Business-data ingestion stays separate from the Knowledge Base/RAG user experience even when both use extraction infrastructure.
-- Uploads require tenant authentication and the `document_extraction` entitlement.
-- Allowed upload formats remain `.csv`, `.xlsx`, `.xlsm`, and `.pdf`; the upload-size limit defaults to 10 MB and can be set with `MAX_UPLOAD_BYTES`.
-- Structured uploads must use the canonical required sales headers: `product_name`, `quantity`, `unit_price`, `currency`, and `transaction_date`. Alias-only headers may be recognized by the AI but are rejected for Data Connections. Unsupported headers are rejected before AI calls for CSV/Excel and before local persistence for PDFs.
-- CEOPRO validates the AI's mode and every row's required typed fields before creating data sources, ingestion jobs, staging rows, or charging extraction usage.
-- Persistent source metadata must not contain secrets such as passwords, API keys, tokens, or connection strings.
-- External AI details are isolated in `client/ingestion.client.ts` and use the shared transport in `src/integrations/ai/`.
-- Gradio returns extracted rows; CEOPRO creates local job/source/staging identifiers and does not trust provider-owned IDs or storage keys.
+HTTP → route → controller → service → repository or AI client
+↓
+ingestion worker → products + transactions
 
-## Primary data
-`data_sources`, `ingestion_jobs`, `import_staging_rows`, and related ingestion tables through the repository.
+- index.ts exports the router and applies the module mount path /data-connection.
+- route/dataconnection.route.ts applies authentication and tenant middleware, upload parsing, and feature-entitlement checks.
+- controller/dataconnection.controller.ts reads authenticated tenant/user context and formats HTTP success or error responses.
+- service/dataconnection.service.ts validates input, checks feature capacity/usage, calls extraction, validates the result, and coordinates persistence.
+- client/ingestion.client.ts calls the AI extraction contract through the shared integration transport.
+- repo/dataconnection.repo.ts reads overview data and writes local sources, jobs, and staged rows.
+- repo/ingestion-worker.repo.ts claims queued import jobs and commits staged sales in database transactions.
+- validators/ and types/ contain request, template, AI-response, and persisted-row validation.
+- templates/ contains the published CSV and XLSX sales import templates.
 
-Rows in `import_staging_rows` are staged with `validation_status = PENDING` after successful extraction. The dedicated `src/workers/data-ingestion.worker.ts` polls every 10 seconds, revalidates pending sales rows, creates or reuses tenant products, inserts transactions, and marks each staging row `COMMITTED`. Invalid staged values are marked `INVALID` with a row-level reason. Jobs are claimed with `FOR UPDATE SKIP LOCKED`, retried with bounded exponential backoff, and recovered after an expired lease.
+The route file defines GET /, POST / for file upload, and POST /sources. The module router adds /data-connection; the final URL can also depend on the parent router mount. The integration notes describe the current upload URL as POST /data-connection.
 
-Run it as a separate process with `npm run worker:data-ingestion` and configure `INGESTION_WORKER_DATABASE_URL` for the `ceopro_ingestion_worker` role. The role is created by the ingestion-worker migration and has narrow grants plus RLS policies. The migration intentionally does not set a password; provision it through the deployment's secret-management process. The upload still waits for the current synchronous AI extraction call; the worker handles the database import after extraction.
+## Scenario A: Tenant imports a business file
 
-For local setup, apply migrations with the normal privileged migration connection, set a password for `ceopro_ingestion_worker` using an administrative PostgreSQL session, then put that credential in `INGESTION_WORKER_DATABASE_URL`. Never put the password in a migration or commit it in `.env`.
+### 1. Upload and local preflight
 
-## AI integration
-See `DATA_INGESTION_AI_INTEGRATION.md`.
+**Request:** POST /data-connection with one multipart field named file.
+
+The user must be authenticated, have tenant context, and have the document_extraction entitlement. Multer accepts one in-memory file. Allowed extensions are .csv, .xlsx, .xlsm, and .pdf; the default maximum is 10 MB, configurable with MAX_UPLOAD_BYTES.
+
+The service checks the file buffer, extension, size, and template compatibility before calling AI. It also checks the tenant's remaining document_extraction usage and document_storage_mb capacity.
+
+### 2. AI extraction and response validation
+
+CEOPRO calls the analytics extract_file API with the sanitized filename, file bytes encoded as Base64, and country/currency defaults. The client validates the response shape. The service then requires template-compliant headers and rows, no partial or failed rows, and structured values for every required sales field.
+
+If validation fails, no CEOPRO source, job, or staging rows are created, and document-extraction usage is not incremented.
+
+### 3. Stage the import
+
+After the AI response passes validation, CEOPRO creates its own job ID. AI-provided IDs and storage keys are not trusted. In one database transaction, CEOPRO creates:
+
+- A data_sources row of type documents, marked inactive because a manual upload is not a persistent connector.
+- An ingestion_jobs row with status QUEUED.
+- import_staging_rows records with status PENDING.
+
+Document-extraction usage is incremented after these records are persisted. The API responds with the CEOPRO job ID and extraction summary. The AI extraction request itself is synchronous; the subsequent database import is asynchronous.
+
+### 4. Worker validates and imports
+
+Run the worker separately with npm run worker:data-ingestion. It polls for work every 10 seconds, claims jobs using FOR UPDATE SKIP LOCKED, and processes the staged sales rows.
+
+The worker validates required values again at the persistence boundary. It creates or reuses a tenant product, inserts a transaction, and marks the staging row COMMITTED with its transaction reference. Invalid rows are marked INVALID with a reason. Database failures roll back the job transaction and are retried with bounded exponential backoff; an expired processing lease can be recovered.
+
+The worker uses INGESTION_WORKER_DATABASE_URL and the least-privilege ceopro_ingestion_worker database role. Provision its password outside migrations and keep it in deployment secrets.
+
+## Scenario B: Tenant registers a persistent source
+
+**Request:** POST /data-connection/sources.
+
+The user must be authenticated, have tenant context, and have the data_integration entitlement. The service checks the tenant's connected_data_sources capacity.
+
+Supported sourceType values are shopify, postgresql, mysql, sqlserver, ga4, and website. The default syncFrequencyMinutes is 1440. Metadata must be a JSON object and is rejected if secret-like keys appear, including passwords, tokens, API keys, and connection strings.
+
+The source record is created active and consumes source capacity. This endpoint only registers configuration metadata: it does not prove that the external connection works or perform a sync.
+
+## Scenario C: Frontend loads the connections overview
+
+**Request:** GET /data-connection (subject to the outer router mount).
+
+The response includes:
+
+- connectedSources: persistent source records and their latest job-derived status/record count.
+- recentImports: recent ingestion jobs and their mapped statuses.
+- availableSourceTypes: the categories exposed by the current API.
+
+The repository reads tenant-scoped rows from data_sources and ingestion_jobs. It does not report a manual uploaded file as a persistent connected source.
+
+## Template validation
+
+The published templates are:
+
+- templates/ceopro_sales_transaction_import_v1.csv
+- templates/ceopro_sales_transaction_import_v1.xlsx
+
+The local validator reads the header row from both files, verifies that their normalized headers match, and checks that the required sales fields are present. The fields required by the current contract are product_name, quantity, unit_price, currency, and transaction_date. The template also includes optional fields: discount_pct, invoice_id, order_id, email, phone, competitor_name, and amount_raw.
+
+For CSV and Excel uploads, the first row must match the canonical template fields after trimming and normalizing case, spaces, and underscores, and the file must contain at least one non-empty data row. Extra columns are tolerated. AI-recognized alias-only headers (for example, qty or price) do not satisfy the Data Connections template contract.
+
+PDF preflight checks the PDF signature. After extraction, the returned headers and every extracted row are checked against the same required template contract before CEOPRO creates import records.
+
+**Keep the templates available at runtime.** The validator loads files relative to its module first, then checks the conventional source and dist template paths. A production build/deployment must include dataconnection/templates/ in one of those locations. If the CSV and XLSX headers differ, or a required template header is removed, validation fails with a configuration error rather than silently using an older hard-coded header list.
+
+When changing the template, update the AI team's matching extraction contract as well. The alias matcher and row parser also have their own field rules; keep these aligned with the shared AI contract.
+
+## Data ownership and downstream use
+
+### Records written by this domain
+
+- data_sources: manual upload metadata and persistent source configuration.
+- ingestion_jobs: CEOPRO-owned import and sync job state.
+- import_staging_rows: extracted row payloads, validation state, and commit references.
+- products: created or reused for imported product names.
+- transactions: imported sales, marked with sale_source = IMPORT.
+
+### Other systems and metrics
+
+This domain's concrete business-data output is imported product and transaction data. Other application systems may consume those tables, but this folder does not calculate dashboard metrics or send events directly.
+
+In particular, verify each dashboard metric's real source during integration testing. The dashboard implementation may read a different source table (for example, paid invoices rather than imported transactions), so a successful import does not by itself prove that a dashboard KPI changes.
+
+## End-to-end verification checklist
+
+Use this during the real end-to-end run with the AI team. All boxes are intentionally unchecked. Record a request/response sample, database query, job ID, or UI evidence after you verify an item.
+
+### Template and upload checks
+
+- [ ] Template/file case: ********\_\_\_\_******** Expected headers and row values: ********\_\_\_\_******** Result/evidence: ********\_\_\_\_********
+- [ ] Template/file case: ********\_\_\_\_******** Expected headers and row values: ********\_\_\_\_******** Result/evidence: ********\_\_\_\_********
+- [ ] Template/file case: ********\_\_\_\_******** Expected headers and row values: ********\_\_\_\_******** Result/evidence: ********\_\_\_\_********
+
+### Metrics and imported records
+
+- [ ] Metric/table: ********\_\_\_\_******** Expected source and calculation: ********\_\_\_\_******** Observed result/evidence: ********\_\_\_\_********
+- [ ] Metric/table: ********\_\_\_\_******** Expected source and calculation: ********\_\_\_\_******** Observed result/evidence: ********\_\_\_\_********
+- [ ] Metric/table: ********\_\_\_\_******** Expected source and calculation: ********\_\_\_\_******** Observed result/evidence: ********\_\_\_\_********
+
+### AI-team handoff
+
+- [ ] AI output/field: ********\_\_\_\_******** Expected typed value and mapping: ********\_\_\_\_******** Observed result/evidence: ********\_\_\_\_********
+- [ ] AI output/field: ********\_\_\_\_******** Expected typed value and mapping: ********\_\_\_\_******** Observed result/evidence: ********\_\_\_\_********
+- [ ] AI output/field: ********\_\_\_\_******** Expected typed value and mapping: ********\_\_\_\_******** Observed result/evidence: ********\_\_\_\_********
+
+### Other systems or consumers
+
+- [ ] Consumer/system: ********\_\_\_\_******** Data consumed: ********\_\_\_\_******** Verified result/evidence: ********\_\_\_\_********
+- [ ] Consumer/system: ********\_\_\_\_******** Data consumed: ********\_\_\_\_******** Verified result/evidence: ********\_\_\_\_********
+- [ ] Consumer/system: ********\_\_\_\_******** Data consumed: ********\_\_\_\_******** Verified result/evidence: ********\_\_\_\_********
+
+## Folder map
+
+    dataconnection/
+    ├── client/
+    ├── controller/
+    ├── repo/
+    ├── route/
+    ├── service/
+    ├── templates/
+    ├── types/
+    ├── validators/
+    ├── DATA_INGESTION_AI_INTEGRATION.md
+    ├── index.ts
+    └── README.md
+
+## Related documentation
+
+- AI integration contract: DATA_INGESTION_AI_INTEGRATION.md
+- Shared integration configuration: ../../../INTEGRATIONS.md, section data-connection-ingestion

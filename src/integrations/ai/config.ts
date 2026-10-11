@@ -62,7 +62,13 @@ export function getGradioRuntimeConfig(
   }
 
   const timeoutMs = Number(env.AI_SERVICE_TIMEOUT_MS ?? 180_000);
-  if (!Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 600_000) {
+  console.log({ timeoutMs });
+
+  if (
+    !Number.isInteger(timeoutMs) ||
+    timeoutMs < 1_000 ||
+    timeoutMs > 600_000
+  ) {
     throw createAiIntegrationError(
       "AI_SERVICE_TIMEOUT_MS must be an integer between 1000 and 600000.",
       "configuration"
@@ -83,7 +89,9 @@ export function getGradioRuntimeConfig(
   };
 }
 
-export function isAiMockModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isAiMockModeEnabled(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
   const enabled = env.AI_SERVICE_USE_MOCKS?.trim().toLowerCase() === "true";
   if (enabled && env.NODE_ENV === "production") {
     throw createAiIntegrationError(

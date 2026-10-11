@@ -117,8 +117,8 @@ test("shared client acquires one ZeroGPU token and sends it on both Gradio calls
   const gradioCalls = calls.filter((call) => !isTokenUrl(call.url));
   const tokenRequest = calls.find((call) => isTokenUrl(call.url));
   const tokenUrl = new URL(tokenRequest!.url);
-  assert.ok(tokenUrl.searchParams.has("expiration"));
-  assert.equal(tokenUrl.searchParams.has("expires_in"), false);
+  assert.equal(tokenUrl.searchParams.get("expires_in"), "3600");
+  assert.equal(tokenUrl.searchParams.has("expiration"), false);
   assert.equal(tokenUrl.searchParams.get("encrypted"), "true");
   assert.equal(gradioCalls.length, 4);
   const firstSubmission = gradioCalls.find((call) => call.init?.method === "POST");
@@ -128,7 +128,7 @@ test("shared client acquires one ZeroGPU token and sends it on both Gradio calls
   for (const call of gradioCalls) {
     assert.equal(
       new Headers(call.init?.headers).get("x-zerogpu-token"),
-      JSON.stringify({ encrypted: "zero-token-1", keyId: "hf-key-1" })
+      "hf-key-1:zero-token-1"
     );
   }
 });
