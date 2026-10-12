@@ -11,7 +11,7 @@ Check each item only after verifying it end-to-end with real test data. Existing
 |   # | Feature                                                   | Status         |
 | --: | --------------------------------------------------------- | -------------- |
 |   1 | **Dashboard Analytics** (`dashboard_analytics`)           | 🟡 Processing  |
-|   2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started |
+|   2 | **Market Intelligence** (`market_intelligence`)           | 🟡             |
 |   3 | **Market Perception** (`market_perception`)               | ⚪ Not Started |
 |   4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started |
 |   5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started |
