@@ -11,9 +11,9 @@ Check each item only after verifying it end-to-end with real test data. Existing
 |   # | Feature                                                   | Status         |
 | --: | --------------------------------------------------------- | -------------- |
 |   1 | **Dashboard Analytics** (`dashboard_analytics`)           | 🟡 Processing  |
-|   2 | **Market Intelligence** (`market_intelligence`)           | 🟡             |
-|   3 | **Market Perception** (`market_perception`)               | ⚪ Not Started |
-|   4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started |
+|   2 | **Market Intelligence** (`market_intelligence`)           | 🟡 Processing  |
+|   3 | **Market Perception** (`market_perception`)               | 🟡 Processing  |
+|   4 | **Demand Prediction** (`demand_prediction`)               | 🟡             |
 |   5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started |
 |   6 | **Product Management** (`product_management`)             | ⚪ Not Started |
 |   7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started |
@@ -63,6 +63,15 @@ Check each item only after verifying it end-to-end with real test data. Existing
 
 ## 2. Market Intelligence (`market_intelligence`)
 
+**Frontend/backend fixes implemented; focused checks pass, live AI/PostgreSQL E2E pending**
+
+- The overview enforces its entitlement and validates product/period queries; unavailable products return 404 rather than selecting another product.
+- Overview reads set tenant/user context inside a repeatable-read transaction. MPI enrichment is separately authorized; standalone MPI and AI Pricing guards are active.
+- Top Segment demand reuses the forecast coverage helper; overlapping, incomplete, or partly intersecting aggregate forecasts do not become period totals. All products in a segment need full coverage before its demand signal is used.
+- Segment pricing selects the latest eligible observation for each currency before choosing the product's currency. Positive same-currency prices are used consistently.
+- API/UI/PDF expose price/snapshot dates, optional configured freshness, and all-row section status. Optional-feature content and AI actions are permission-aware; pricing errors are translated.
+- Live discovery, scraping, scoring, sentiment, forecasting, RLS and browser/PDF verification remain open. Leave the checkboxes below unchecked until the real test flow is verified.
+
 - [ ] Verify AI competitor discovery, product mappings, scraping, and price updates run successfully.
 - [ ] Verify competitor score snapshots and market observations are populated and current.
 - [ ] Verify review/sentiment and sales/forecast inputs used by market insights.
@@ -73,6 +82,16 @@ Check each item only after verifying it end-to-end with real test data. Existing
 - [ ] Run Market Intelligence UI/API/database/AI E2E tests and verify PDF export.
 
 ## 3. Market Perception (`market_perception`)
+
+**Frontend/backend fixes implemented; focused checks pass, live review-collection/AI/PostgreSQL E2E pending**
+
+- Business queries select only BUSINESS reviews. Product/competitor queries require a UUID and verify active product or tracked-competitor ownership before reading reviews; review/evidence operations set tenant/user RLS context.
+- SAFE/ALLOWED collection policies remain enforced. Blank, future-dated, invalid-date, unsupported-method and duplicate-ID rows are excluded from the latest eligible review sample.
+- The existing five-review floor is enforced before AI calls. Numeric/structured provider sample metadata, processed counts, label totals, input-text correspondence and scores/confidence are validated; low/unknown samples do not become authoritative scores.
+- API/evidence includes subject context, counts, dates, submitted review IDs, model metadata and supporting confidence. Missing-data reasons remain distinct from service errors.
+- The existing Market Intelligence page has on-demand business/selected-product summaries and a numeric competitor perception result with evidence details and localized unavailable states; authorized competitor PDF exports include perception score/sample dates.
+- Standard plan assignments/pricing are unchanged. The market_perception entitlement is checked in the standalone API and service; live collection and commercial assignment decisions remain open.
+- Keep the verification checkboxes below open until the real review/AI/database/browser flow is verified.
 
 - [ ] Confirm the AI team's plan and implementation for collecting **business-level** reviews.
 - [ ] Confirm the AI team's plan and implementation for collecting **product-level** reviews.
