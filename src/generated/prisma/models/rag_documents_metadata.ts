@@ -590,10 +590,6 @@ export type rag_documents_metadataUpdateOneRequiredWithoutRag_document_chunksNes
   update?: Prisma.XOR<Prisma.XOR<Prisma.rag_documents_metadataUpdateToOneWithWhereWithoutRag_document_chunksInput, Prisma.rag_documents_metadataUpdateWithoutRag_document_chunksInput>, Prisma.rag_documents_metadataUncheckedUpdateWithoutRag_document_chunksInput>
 }
 
-export type NullableBytesFieldUpdateOperationsInput = {
-  set?: runtime.Bytes | null
-}
-
 export type rag_documents_metadataCreateWithoutCompaniesInput = {
   document_id?: string
   file_name: string

@@ -91,6 +91,7 @@ export const ModelName = {
   invoices: 'invoices',
   product_price_history: 'product_price_history',
   products: 'products',
+  business_import_drafts: 'business_import_drafts',
   rag_document_chunks: 'rag_document_chunks',
   rag_documents_metadata: 'rag_documents_metadata',
   recommendation_outcomes: 'recommendation_outcomes',
@@ -817,6 +818,7 @@ export const ProductsScalarFieldEnum = {
   product_id: 'product_id',
   tenant_id: 'tenant_id',
   product_name: 'product_name',
+  sku: 'sku',
   brand: 'brand',
   category: 'category',
   description: 'description',
@@ -833,6 +835,23 @@ export const ProductsScalarFieldEnum = {
 } as const
 
 export type ProductsScalarFieldEnum = (typeof ProductsScalarFieldEnum)[keyof typeof ProductsScalarFieldEnum]
+
+
+export const Business_import_draftsScalarFieldEnum = {
+  draft_id: 'draft_id',
+  tenant_id: 'tenant_id',
+  user_id: 'user_id',
+  kind: 'kind',
+  file_name: 'file_name',
+  file_bytes: 'file_bytes',
+  sha256: 'sha256',
+  status: 'status',
+  result: 'result',
+  created_at: 'created_at',
+  expires_at: 'expires_at'
+} as const
+
+export type Business_import_draftsScalarFieldEnum = (typeof Business_import_draftsScalarFieldEnum)[keyof typeof Business_import_draftsScalarFieldEnum]
 
 
 export const Rag_document_chunksScalarFieldEnum = {

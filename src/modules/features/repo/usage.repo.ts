@@ -1,4 +1,6 @@
 import { prisma } from "../../../config/database.js";
+import type { Prisma } from "../../../generated/prisma/client.js";
+import { COUNTED_CONNECTED_SOURCE_TYPES } from "../../../constants/data-source-types.js";
 
 import { ACCESS_GRANTING_STATUSES } from "../../../constants/subscription.js";
 
@@ -224,6 +226,8 @@ export async function getFeatureAccessInfo(
 
     },
 
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+
     include: {
 
       plan: {
@@ -256,98 +260,279 @@ export async function getFeatureAccessInfo(
 
 }
 
-export const incrementUsage = async (
+export class FeatureUsageUnavailableError extends Error {
+  constructor() {
+    super("The requested usage feature is not included in the active plan.");
+    this.name = "FeatureUsageUnavailableError";
+  }
+}
 
+export class FeatureUsageCapacityError extends Error {
+  constructor(
+    readonly capacity: {
+      featureCode: string;
+      currentUsage: number;
+      limit: number | null;
+      remaining: number | null;
+      requested: number;
+    }
+  ) {
+    super("The usage limit has been reached.");
+    this.name = "FeatureUsageCapacityError";
+  }
+}
+
+/**
+ * Add metered usage under a tenant/feature advisory lock. Use this for both
+ * durable charges and temporary reservations that are released on failure.
+ */
+export async function reserveFeatureUsageInTransaction(
+  tx: Prisma.TransactionClient,
   tenantId: string,
-
   featureCode: string,
-
-  amount = 1
-
-) => {
-
+  amount: number,
+  enforceLimit = true
+) {
   if (!Number.isInteger(amount) || amount <= 0) {
-
     throw new Error("Usage amount must be a positive integer.");
-
   }
 
-  const { subscription, planFeature } = await getFeatureAccessInfo(
-
-    tenantId,
-
-    featureCode
-
+  const lockKey = `metered-usage:${tenantId}:${featureCode}`;
+  // pg_advisory_xact_lock returns PostgreSQL `void`; execute it without
+  // asking Prisma's pg adapter to decode a result column.
+  await tx.$executeRawUnsafe(
+    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+    lockKey
   );
 
-  if (!subscription || !planFeature) return null;
+  const { subscription, planFeature } = await getFeatureAccessInfo(
+    tenantId,
+    featureCode,
+    tx
+  );
+  if (!subscription || !planFeature) throw new FeatureUsageUnavailableError();
 
-  if (
-
-    planFeature.feature.type !== "limit" ||
-
-    planFeature.feature.aggregationType !== "sum"
-
-  ) {
-
+  const feature = planFeature.feature;
+  if (feature.type !== "limit" || feature.aggregationType !== "sum") {
     throw new Error(
-
-      `Feature '${featureCode}' does not use cumulative SUM usage and cannot be incremented.`
-
+      `Feature '${featureCode}' does not use cumulative SUM usage.`
     );
-
   }
 
-  await ensureUsageAllocationsForSubscription({
-
-    subscriptionId: subscription.id,
-
-    planId: subscription.planId,
-
-    periodStart: subscription.currentPeriodStart,
-
-    periodEnd: subscription.currentPeriodEnd
-
-  });
-
-  const usageRecord =
-
-    planFeature.feature.resetCycle === "lifetime"
-
-      ? await prisma.subscriptionUsage.findFirst({
-
+  let usageRecord =
+    feature.resetCycle === "lifetime"
+      ? await tx.subscriptionUsage.findFirst({
           where: {
-
             subscription_id: subscription.id,
-
             feature_id: planFeature.feature_id
-
           }
-
         })
-
-      : await prisma.subscriptionUsage.findUnique({
-
+      : await tx.subscriptionUsage.findUnique({
           where: {
-
             subscription_id_feature_id_period_start: {
-
               subscription_id: subscription.id,
-
               feature_id: planFeature.feature_id,
-
               period_start: subscription.currentPeriodStart
-
             }
-
           }
-
         });
 
-  if (!usageRecord) return null;
+  if (!usageRecord) {
+    usageRecord = await tx.subscriptionUsage.upsert({
+      where: {
+        subscription_id_feature_id_period_start: {
+          subscription_id: subscription.id,
+          feature_id: planFeature.feature_id,
+          period_start: subscription.currentPeriodStart
+        }
+      },
+      update: { period_end: subscription.currentPeriodEnd },
+      create: {
+        subscription_id: subscription.id,
+        feature_id: planFeature.feature_id,
+        current_usage: 0,
+        period_start: subscription.currentPeriodStart,
+        period_end: subscription.currentPeriodEnd
+      }
+    });
+  }
 
-  return usageRepository.increment(usageRecord.id, amount);
+  const limit = planFeature.limit_value;
+  const remaining =
+    limit === null
+      ? null
+      : Math.max(0, limit - usageRecord.current_usage);
+  if (
+    enforceLimit &&
+    limit !== null &&
+    usageRecord.current_usage + amount > limit
+  ) {
+    throw new FeatureUsageCapacityError({
+      featureCode,
+      currentUsage: usageRecord.current_usage,
+      limit,
+      remaining,
+      requested: amount
+    });
+  }
 
+  await tx.subscriptionUsage.update({
+    where: { id: usageRecord.id },
+    data: { current_usage: { increment: amount } }
+  });
+
+  return {
+    usageRecordId: usageRecord.id,
+    currentUsage: usageRecord.current_usage + amount,
+    limit,
+    remaining: limit === null ? null : Math.max(0, limit - usageRecord.current_usage - amount)
+  };
+}
+
+export async function releaseFeatureUsageInTransaction(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  featureCode: string,
+  amount: number,
+  usageRecordId?: string
+) {
+  if (!Number.isInteger(amount) || amount <= 0) return;
+
+  const lockKey = `metered-usage:${tenantId}:${featureCode}`;
+  // pg_advisory_xact_lock returns PostgreSQL `void`; execute it without
+  // asking Prisma's pg adapter to decode a result column.
+  await tx.$executeRawUnsafe(
+    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+    lockKey
+  );
+
+  const { subscription, planFeature } = await getFeatureAccessInfo(
+    tenantId,
+    featureCode,
+    tx
+  );
+  if (!subscription || !planFeature) return;
+
+  const usageRecord = usageRecordId
+    ? await tx.subscriptionUsage.findFirst({
+        where: {
+          id: usageRecordId,
+          subscription_id: subscription.id,
+          feature_id: planFeature.feature_id
+        }
+      })
+    : planFeature.feature.resetCycle === "lifetime"
+      ? await tx.subscriptionUsage.findFirst({
+          where: {
+            subscription_id: subscription.id,
+            feature_id: planFeature.feature_id
+          }
+        })
+      : await tx.subscriptionUsage.findUnique({
+          where: {
+            subscription_id_feature_id_period_start: {
+              subscription_id: subscription.id,
+              feature_id: planFeature.feature_id,
+              period_start: subscription.currentPeriodStart
+            }
+          }
+        });
+  if (!usageRecord) return;
+
+  await tx.subscriptionUsage.updateMany({
+    where: { id: usageRecord.id, current_usage: { gte: amount } },
+    data: { current_usage: { decrement: amount } }
+  });
+}
+
+/**
+ * Resolve connector capacity inside the same transaction that creates or
+ * reactivates a source. The caller must hold the tenant's source-capacity
+ * advisory lock so two simultaneous requests cannot claim the last slot.
+ */
+export async function getConnectedDataSourceCapacityInTransaction(
+  tx: Prisma.TransactionClient,
+  tenantId: string
+) {
+  const currentUsage = await tx.data_sources.count({
+    where: {
+      tenant_id: tenantId,
+      is_active: true,
+      source_type: { in: [...COUNTED_CONNECTED_SOURCE_TYPES] }
+    }
+  });
+  const [sourceAccess, integrationAccess] = await Promise.all([
+    getFeatureAccessInfo(tenantId, "connected_data_sources", tx),
+    getFeatureAccessInfo(tenantId, "data_integration", tx)
+  ]);
+  const { subscription, planFeature } = sourceAccess;
+  const integrationEnabled = Boolean(
+    subscription &&
+      integrationAccess.subscription?.id === subscription.id &&
+      integrationAccess.planFeature?.feature.type === "boolean"
+  );
+
+  if (!subscription || !planFeature || !integrationEnabled) {
+    const limit = planFeature?.limit_value ?? 0;
+    return {
+      included: false as const,
+      currentUsage,
+      limit,
+      remaining: 0,
+      isUnlimited: false,
+      isOverLimit: currentUsage > limit
+    };
+  }
+
+  if (
+    planFeature.feature.type !== "limit" ||
+    planFeature.feature.aggregationType !== "max"
+  ) {
+    throw new Error(
+      "connected_data_sources must use a MAX capacity entitlement."
+    );
+  }
+
+  const isUnlimited = planFeature.limit_value === null;
+  const limit = planFeature.limit_value;
+
+  return {
+    included: true as const,
+    currentUsage,
+    limit,
+    remaining: isUnlimited
+      ? null
+      : Math.max(0, (limit ?? 0) - currentUsage),
+    isUnlimited,
+    isOverLimit: limit !== null && currentUsage > limit
+  };
+}
+
+export const incrementUsage = async (
+  tenantId: string,
+  featureCode: string,
+  amount = 1
+) => {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error("Usage amount must be a positive integer.");
+  }
+  return prisma.$transaction(async (tx) => {
+    try {
+      const reservation = await reserveFeatureUsageInTransaction(
+        tx,
+        tenantId,
+        featureCode,
+        amount,
+        featureCode === "document_extraction"
+      );
+      return tx.subscriptionUsage.findUnique({
+        where: { id: reservation.usageRecordId }
+      });
+    } catch (error) {
+      if (error instanceof FeatureUsageUnavailableError) return null;
+      throw error;
+    }
+  });
 };
 
 export const getRemainingUsage = async (

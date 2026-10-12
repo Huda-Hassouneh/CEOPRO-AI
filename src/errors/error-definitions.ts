@@ -149,6 +149,10 @@ export const ERROR_DEFINITIONS = {
     statusCode: 409,
     message: "Resource already exists"
   },
+  [ERROR_CODES.DATA_SOURCE_RECONNECT_REQUIRED]: {
+    statusCode: 409,
+    message: "Reconnect this data source before reactivating it."
+  },
 
   [ERROR_CODES.USER_ALREADY_EXISTS]: {
     statusCode: 409,

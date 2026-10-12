@@ -19,6 +19,19 @@ This domain has two related but distinct flows:
 1. **Business-file import:** an uploaded CSV, Excel, or PDF file is sent to the AI extraction service. CEOPRO validates the extraction, creates a local import job, stores staged rows, and a background worker writes valid sales into transactions and creates or reuses products.
 2. **Persistent source registration:** the tenant stores a supported source's name, type, sync frequency, and non-secret metadata. Creating the record does not by itself test credentials, connect to the source, or run a sync.
 
+Invoice and inventory imports are a third, deterministic Node flow. They do not call the AI service. Their routes are `POST /data-connection/imports/:kind/preview`, `POST /data-connection/imports/:kind/previews/:draftId/review`, and `POST /data-connection/imports/:kind/previews/:draftId/confirm`, where `kind` is `invoices` or `inventory`. The legacy immediate `POST /data-connection/imports/:kind` remains available for existing integrations. The sales upload routes are unchanged.
+
+### Scenario: a customer has no products yet
+
+1. Download the invoice or inventory CSV/XLSX template. Use `product_name`, with optional `sku`; internal product UUIDs are unnecessary. A catalog reference download lists names and SKUs without UUIDs.
+2. Upload one file and inspect the preview. A preview saves an expiring draft only; it does not create business records or charge document extraction usage.
+3. Choose an existing tenant product for missing or ambiguous rows, or explicitly create a new product with a price and supported currency when Product Management is included. Name matches are exact after Unicode/space/case normalization; SKU matches are case insensitive. A conflicting ID/name/SKU requires a corrected file. Existing UUID files remain valid.
+4. Review the proposed invoice/item counts and stock balances, including which existing quantity will be replaced. Confirm only after the review. The backend locks the draft, rechecks catalog and stock, reserves the extraction quota, writes products/invoices/items or inventory and a completed job in one transaction, and clears the saved file bytes. Repeated confirmation returns the original result without another charge. A changed balance requires a fresh review.
+
+Apply `prisma/migrations/20261012020000_reviewable_business_imports` and regenerate Prisma Client before starting the updated backend. Drafts expire after one hour. Expired drafts and old completed results are pruned when that user previews another file. No external connector or AI code is changed.
+
+Run `node --import tsx tests/dashboard/dashboard-analytics-import.test.ts` and `node --import tsx tests/dashboard/business-product-matching.test.ts` for the parser and matching cases. For a real test tenant with the migration applied, frontend/API servers running, a valid token, document extraction allowance, and Product Management access, set `STRUCTURED_IMPORT_TEST=1`, `DASHBOARD_TEST_ACCESS_TOKEN`, `DASHBOARD_TEST_TENANT_ID`, `DASHBOARD_TEST_USER_ID`, and `DASHBOARD_TEST_DATABASE_URL`, then run `npm run test:dashboard:structured-import`. The opt-in test writes uniquely named test products, stock and invoices in that tenant, confirms twice, and reads the records back through RLS. It skips unless explicitly enabled. Sales still has its separate AI/worker E2E test.
+
 Business-file uploads are separate from Knowledge Base/RAG document uploads. They use the extraction service to produce structured sales data.
 
 ## Request flow

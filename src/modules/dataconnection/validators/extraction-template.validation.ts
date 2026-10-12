@@ -348,7 +348,13 @@ function getCanonicalTemplateFields(): string[] {
 function assessTabularRows(rows: string[][]): boolean {
   if (rows.length < 2) return false;
   const headers = rows[0]!.map((value) => value.trim());
+  const normalizedHeaders = headers.map(normalizeExtractionHeader);
+  if (new Set(normalizedHeaders).size !== normalizedHeaders.length) return false;
+
   const assessment = assessExtractionHeaders(headers);
+  const mappedFields = Object.values(assessment.headerMapping);
+  if (new Set(mappedFields).size !== mappedFields.length) return false;
+
   // Data Connections require the published template's required columns.
   // RECOGNIZED is useful to the AI's best-effort parser, but it does not
   // guarantee required values such as currency are mapped.

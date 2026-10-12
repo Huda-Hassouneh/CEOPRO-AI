@@ -48,7 +48,8 @@ test("storage capacity is a lifetime max and sums persisted RAG metadata in bina
 });
 
 test("business document ingestion calls the separate Gradio flow; it does not retain uploaded originals", () => {
-  assert.match(dataconnectionService, /document_storage_mb/);
+  assert.doesNotMatch(dataconnectionService, /document_storage_mb/);
+  assert.match(dataconnectionService, /reserveBusinessFileImport/);
   assert.match(dataconnectionService, /fileSizeBytes/);
   assert.doesNotMatch(dataconnectionService, /source_file_content|put_object\(/);
 });
@@ -81,8 +82,8 @@ test("regression: backend upload quota check must reserve capacity atomically", 
   assert.match(upload, /await assertUploadEntitlements\(/);
   assert.match(upload, /await saveUploadedRagDocument\(/);
   assert.match(upload, /await assertUploadEntitlements\([\s\S]*?await saveUploadedRagDocument\(/);
-  assert.match(upload, /\$transaction|FOR UPDATE|advisory_xact_lock|SERIALIZABLE/,
-    "STORAGE_QUOTA_RACE: check-then-insert has no atomic reservation, so concurrent uploads can exceed quota.");
+  assert.match(ragRepo, /saveUploadedRagDocument\([\s\S]*?reserveFeatureUsageInTransaction[\s\S]*?rag_documents_metadata\.create/,
+    "EXTRACTION_QUOTA_RACE: extraction usage and RAG document storage must commit in one transaction.");
 });
 
 test("regression: retained RAG documents need an authenticated delete path to reclaim lifetime capacity", () => {

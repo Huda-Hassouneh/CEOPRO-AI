@@ -232,6 +232,12 @@ export type product_price_history = Prisma.product_price_historyModel
  */
 export type products = Prisma.productsModel
 /**
+ * Model business_import_drafts
+ * Temporary, tenant- and user-bound file previews. A committed draft retains
+ * only its result for idempotent confirmations; the uploaded bytes are removed.
+ */
+export type business_import_drafts = Prisma.business_import_draftsModel
+/**
  * Model rag_document_chunks
  * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
  * This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.

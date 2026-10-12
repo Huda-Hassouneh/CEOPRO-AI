@@ -1,4 +1,5 @@
 import { prisma } from "../../../config/database.js";
+import { COUNTED_CONNECTED_SOURCE_TYPES } from "../../../constants/data-source-types.js";
 
 export const MAX_CAPACITY_FEATURE_CODES = Object.freeze([
   "tracked_competitors",
@@ -36,7 +37,11 @@ export async function getCurrentCapacityUsage(
 
     case "connected_data_sources":
       return prisma.data_sources.count({
-        where: { tenant_id: tenantId, is_active: true }
+        where: {
+          tenant_id: tenantId,
+          is_active: true,
+          source_type: { in: [...COUNTED_CONNECTED_SOURCE_TYPES] }
+        }
       });
 
     case "team_members":

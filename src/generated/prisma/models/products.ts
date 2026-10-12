@@ -40,6 +40,7 @@ export type ProductsSumAggregateOutputType = {
 export type ProductsMinAggregateOutputType = {
   product_id: string | null
   tenant_id: string | null
+  sku: string | null
   current_price: runtime.Decimal | null
   cost_price: runtime.Decimal | null
   currency: string | null
@@ -54,6 +55,7 @@ export type ProductsMinAggregateOutputType = {
 export type ProductsMaxAggregateOutputType = {
   product_id: string | null
   tenant_id: string | null
+  sku: string | null
   current_price: runtime.Decimal | null
   cost_price: runtime.Decimal | null
   currency: string | null
@@ -69,6 +71,7 @@ export type ProductsCountAggregateOutputType = {
   product_id: number
   tenant_id: number
   product_name: number
+  sku: number
   brand: number
   category: number
   description: number
@@ -99,6 +102,7 @@ export type ProductsSumAggregateInputType = {
 export type ProductsMinAggregateInputType = {
   product_id?: true
   tenant_id?: true
+  sku?: true
   current_price?: true
   cost_price?: true
   currency?: true
@@ -113,6 +117,7 @@ export type ProductsMinAggregateInputType = {
 export type ProductsMaxAggregateInputType = {
   product_id?: true
   tenant_id?: true
+  sku?: true
   current_price?: true
   cost_price?: true
   currency?: true
@@ -128,6 +133,7 @@ export type ProductsCountAggregateInputType = {
   product_id?: true
   tenant_id?: true
   product_name?: true
+  sku?: true
   brand?: true
   category?: true
   description?: true
@@ -234,6 +240,7 @@ export type ProductsGroupByOutputType = {
   product_id: string
   tenant_id: string
   product_name: runtime.JsonValue
+  sku: string | null
   brand: runtime.JsonValue | null
   category: runtime.JsonValue | null
   description: runtime.JsonValue | null
@@ -276,6 +283,7 @@ export type productsWhereInput = {
   product_id?: Prisma.UuidFilter<"products"> | string
   tenant_id?: Prisma.UuidFilter<"products"> | string
   product_name?: Prisma.JsonFilter<"products">
+  sku?: Prisma.StringNullableFilter<"products"> | string | null
   brand?: Prisma.JsonNullableFilter<"products">
   category?: Prisma.JsonNullableFilter<"products">
   description?: Prisma.JsonNullableFilter<"products">
@@ -306,6 +314,7 @@ export type productsOrderByWithRelationInput = {
   product_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
   product_name?: Prisma.SortOrder
+  sku?: Prisma.SortOrderInput | Prisma.SortOrder
   brand?: Prisma.SortOrderInput | Prisma.SortOrder
   category?: Prisma.SortOrderInput | Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -340,6 +349,7 @@ export type productsWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.productsWhereInput | Prisma.productsWhereInput[]
   tenant_id?: Prisma.UuidFilter<"products"> | string
   product_name?: Prisma.JsonFilter<"products">
+  sku?: Prisma.StringNullableFilter<"products"> | string | null
   brand?: Prisma.JsonNullableFilter<"products">
   category?: Prisma.JsonNullableFilter<"products">
   description?: Prisma.JsonNullableFilter<"products">
@@ -370,6 +380,7 @@ export type productsOrderByWithAggregationInput = {
   product_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
   product_name?: Prisma.SortOrder
+  sku?: Prisma.SortOrderInput | Prisma.SortOrder
   brand?: Prisma.SortOrderInput | Prisma.SortOrder
   category?: Prisma.SortOrderInput | Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -397,6 +408,7 @@ export type productsScalarWhereWithAggregatesInput = {
   product_id?: Prisma.UuidWithAggregatesFilter<"products"> | string
   tenant_id?: Prisma.UuidWithAggregatesFilter<"products"> | string
   product_name?: Prisma.JsonWithAggregatesFilter<"products">
+  sku?: Prisma.StringNullableWithAggregatesFilter<"products"> | string | null
   brand?: Prisma.JsonNullableWithAggregatesFilter<"products">
   category?: Prisma.JsonNullableWithAggregatesFilter<"products">
   description?: Prisma.JsonNullableWithAggregatesFilter<"products">
@@ -415,6 +427,7 @@ export type productsScalarWhereWithAggregatesInput = {
 export type productsCreateInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -443,6 +456,7 @@ export type productsUncheckedCreateInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -469,6 +483,7 @@ export type productsUncheckedCreateInput = {
 export type productsUpdateInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -497,6 +512,7 @@ export type productsUncheckedUpdateInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -524,6 +540,7 @@ export type productsCreateManyInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -542,6 +559,7 @@ export type productsCreateManyInput = {
 export type productsUpdateManyMutationInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -559,6 +577,7 @@ export type productsUncheckedUpdateManyInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -598,6 +617,7 @@ export type productsCountOrderByAggregateInput = {
   product_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
   product_name?: Prisma.SortOrder
+  sku?: Prisma.SortOrder
   brand?: Prisma.SortOrder
   category?: Prisma.SortOrder
   description?: Prisma.SortOrder
@@ -621,6 +641,7 @@ export type productsAvgOrderByAggregateInput = {
 export type productsMaxOrderByAggregateInput = {
   product_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
+  sku?: Prisma.SortOrder
   current_price?: Prisma.SortOrder
   cost_price?: Prisma.SortOrder
   currency?: Prisma.SortOrder
@@ -635,6 +656,7 @@ export type productsMaxOrderByAggregateInput = {
 export type productsMinOrderByAggregateInput = {
   product_id?: Prisma.SortOrder
   tenant_id?: Prisma.SortOrder
+  sku?: Prisma.SortOrder
   current_price?: Prisma.SortOrder
   cost_price?: Prisma.SortOrder
   currency?: Prisma.SortOrder
@@ -901,6 +923,7 @@ export type productsUpdateOneRequiredWithoutTransactionsNestedInput = {
 export type productsCreateWithoutCompaniesInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -927,6 +950,7 @@ export type productsCreateWithoutCompaniesInput = {
 export type productsUncheckedCreateWithoutCompaniesInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -983,6 +1007,7 @@ export type productsScalarWhereInput = {
   product_id?: Prisma.UuidFilter<"products"> | string
   tenant_id?: Prisma.UuidFilter<"products"> | string
   product_name?: Prisma.JsonFilter<"products">
+  sku?: Prisma.StringNullableFilter<"products"> | string | null
   brand?: Prisma.JsonNullableFilter<"products">
   category?: Prisma.JsonNullableFilter<"products">
   description?: Prisma.JsonNullableFilter<"products">
@@ -1001,6 +1026,7 @@ export type productsScalarWhereInput = {
 export type productsCreateWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1027,6 +1053,7 @@ export type productsCreateWithoutTenant_users_products_tenant_id_created_by_user
 export type productsUncheckedCreateWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1062,6 +1089,7 @@ export type productsCreateManyTenant_users_products_tenant_id_created_by_user_id
 export type productsCreateWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1088,6 +1116,7 @@ export type productsCreateWithoutTenant_users_products_tenant_id_updated_by_user
 export type productsUncheckedCreateWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1155,6 +1184,7 @@ export type productsUpdateManyWithWhereWithoutTenant_users_products_tenant_id_up
 export type productsCreateWithoutCompetitor_product_mappingsInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1182,6 +1212,7 @@ export type productsUncheckedCreateWithoutCompetitor_product_mappingsInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1223,6 +1254,7 @@ export type productsUpdateToOneWithWhereWithoutCompetitor_product_mappingsInput 
 export type productsUpdateWithoutCompetitor_product_mappingsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1250,6 +1282,7 @@ export type productsUncheckedUpdateWithoutCompetitor_product_mappingsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1275,6 +1308,7 @@ export type productsUncheckedUpdateWithoutCompetitor_product_mappingsInput = {
 export type productsCreateWithoutDemand_forecastsInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1302,6 +1336,7 @@ export type productsUncheckedCreateWithoutDemand_forecastsInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1343,6 +1378,7 @@ export type productsUpdateToOneWithWhereWithoutDemand_forecastsInput = {
 export type productsUpdateWithoutDemand_forecastsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1370,6 +1406,7 @@ export type productsUncheckedUpdateWithoutDemand_forecastsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1395,6 +1432,7 @@ export type productsUncheckedUpdateWithoutDemand_forecastsInput = {
 export type productsCreateWithoutInventoryInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1422,6 +1460,7 @@ export type productsUncheckedCreateWithoutInventoryInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1463,6 +1502,7 @@ export type productsUpdateToOneWithWhereWithoutInventoryInput = {
 export type productsUpdateWithoutInventoryInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1490,6 +1530,7 @@ export type productsUncheckedUpdateWithoutInventoryInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1515,6 +1556,7 @@ export type productsUncheckedUpdateWithoutInventoryInput = {
 export type productsCreateWithoutInvoice_itemsInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1542,6 +1584,7 @@ export type productsUncheckedCreateWithoutInvoice_itemsInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1583,6 +1626,7 @@ export type productsUpdateToOneWithWhereWithoutInvoice_itemsInput = {
 export type productsUpdateWithoutInvoice_itemsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1610,6 +1654,7 @@ export type productsUncheckedUpdateWithoutInvoice_itemsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1635,6 +1680,7 @@ export type productsUncheckedUpdateWithoutInvoice_itemsInput = {
 export type productsCreateWithoutProduct_price_historyInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1662,6 +1708,7 @@ export type productsUncheckedCreateWithoutProduct_price_historyInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1703,6 +1750,7 @@ export type productsUpdateToOneWithWhereWithoutProduct_price_historyInput = {
 export type productsUpdateWithoutProduct_price_historyInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1730,6 +1778,7 @@ export type productsUncheckedUpdateWithoutProduct_price_historyInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1755,6 +1804,7 @@ export type productsUncheckedUpdateWithoutProduct_price_historyInput = {
 export type productsCreateWithoutReviewsInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1782,6 +1832,7 @@ export type productsUncheckedCreateWithoutReviewsInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1823,6 +1874,7 @@ export type productsUpdateToOneWithWhereWithoutReviewsInput = {
 export type productsUpdateWithoutReviewsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1850,6 +1902,7 @@ export type productsUncheckedUpdateWithoutReviewsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1875,6 +1928,7 @@ export type productsUncheckedUpdateWithoutReviewsInput = {
 export type productsCreateWithoutCampaignsInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1902,6 +1956,7 @@ export type productsUncheckedCreateWithoutCampaignsInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1943,6 +1998,7 @@ export type productsUpdateToOneWithWhereWithoutCampaignsInput = {
 export type productsUpdateWithoutCampaignsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1970,6 +2026,7 @@ export type productsUncheckedUpdateWithoutCampaignsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1995,6 +2052,7 @@ export type productsUncheckedUpdateWithoutCampaignsInput = {
 export type productsCreateWithoutTransactionsInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2022,6 +2080,7 @@ export type productsUncheckedCreateWithoutTransactionsInput = {
   product_id?: string
   tenant_id: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2063,6 +2122,7 @@ export type productsUpdateToOneWithWhereWithoutTransactionsInput = {
 export type productsUpdateWithoutTransactionsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2090,6 +2150,7 @@ export type productsUncheckedUpdateWithoutTransactionsInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   tenant_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2115,6 +2176,7 @@ export type productsUncheckedUpdateWithoutTransactionsInput = {
 export type productsCreateManyCompaniesInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2133,6 +2195,7 @@ export type productsCreateManyCompaniesInput = {
 export type productsUpdateWithoutCompaniesInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2159,6 +2222,7 @@ export type productsUpdateWithoutCompaniesInput = {
 export type productsUncheckedUpdateWithoutCompaniesInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2185,6 +2249,7 @@ export type productsUncheckedUpdateWithoutCompaniesInput = {
 export type productsUncheckedUpdateManyWithoutCompaniesInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2203,6 +2268,7 @@ export type productsUncheckedUpdateManyWithoutCompaniesInput = {
 export type productsCreateManyTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2220,6 +2286,7 @@ export type productsCreateManyTenant_users_products_tenant_id_created_by_user_id
 export type productsCreateManyTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
   product_id?: string
   product_name: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2237,6 +2304,7 @@ export type productsCreateManyTenant_users_products_tenant_id_updated_by_user_id
 export type productsUpdateWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2263,6 +2331,7 @@ export type productsUpdateWithoutTenant_users_products_tenant_id_created_by_user
 export type productsUncheckedUpdateWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2288,6 +2357,7 @@ export type productsUncheckedUpdateWithoutTenant_users_products_tenant_id_create
 export type productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_created_by_user_idTotenant_usersInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2305,6 +2375,7 @@ export type productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_cr
 export type productsUpdateWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2331,6 +2402,7 @@ export type productsUpdateWithoutTenant_users_products_tenant_id_updated_by_user
 export type productsUncheckedUpdateWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2356,6 +2428,7 @@ export type productsUncheckedUpdateWithoutTenant_users_products_tenant_id_update
 export type productsUncheckedUpdateManyWithoutTenant_users_products_tenant_id_updated_by_user_idTotenant_usersInput = {
   product_id?: Prisma.StringFieldUpdateOperationsInput | string
   product_name?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sku?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   brand?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   category?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   description?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2468,6 +2541,7 @@ export type productsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   product_id?: boolean
   tenant_id?: boolean
   product_name?: boolean
+  sku?: boolean
   brand?: boolean
   category?: boolean
   description?: boolean
@@ -2499,6 +2573,7 @@ export type productsSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   product_id?: boolean
   tenant_id?: boolean
   product_name?: boolean
+  sku?: boolean
   brand?: boolean
   category?: boolean
   description?: boolean
@@ -2521,6 +2596,7 @@ export type productsSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   product_id?: boolean
   tenant_id?: boolean
   product_name?: boolean
+  sku?: boolean
   brand?: boolean
   category?: boolean
   description?: boolean
@@ -2543,6 +2619,7 @@ export type productsSelectScalar = {
   product_id?: boolean
   tenant_id?: boolean
   product_name?: boolean
+  sku?: boolean
   brand?: boolean
   category?: boolean
   description?: boolean
@@ -2558,7 +2635,7 @@ export type productsSelectScalar = {
   deleted_at?: boolean
 }
 
-export type productsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"product_id" | "tenant_id" | "product_name" | "brand" | "category" | "description" | "current_price" | "cost_price" | "currency" | "source" | "metadata" | "created_by_user_id" | "updated_by_user_id" | "created_at" | "updated_at" | "deleted_at", ExtArgs["result"]["products"]>
+export type productsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"product_id" | "tenant_id" | "product_name" | "sku" | "brand" | "category" | "description" | "current_price" | "cost_price" | "currency" | "source" | "metadata" | "created_by_user_id" | "updated_by_user_id" | "created_at" | "updated_at" | "deleted_at", ExtArgs["result"]["products"]>
 export type productsInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   campaigns?: boolean | Prisma.products$campaignsArgs<ExtArgs>
   competitor_product_mappings?: boolean | Prisma.products$competitor_product_mappingsArgs<ExtArgs>
@@ -2603,6 +2680,7 @@ export type $productsPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     product_id: string
     tenant_id: string
     product_name: runtime.JsonValue
+    sku: string | null
     brand: runtime.JsonValue | null
     category: runtime.JsonValue | null
     description: runtime.JsonValue | null
@@ -3053,6 +3131,7 @@ export interface productsFieldRefs {
   readonly product_id: Prisma.FieldRef<"products", 'String'>
   readonly tenant_id: Prisma.FieldRef<"products", 'String'>
   readonly product_name: Prisma.FieldRef<"products", 'Json'>
+  readonly sku: Prisma.FieldRef<"products", 'String'>
   readonly brand: Prisma.FieldRef<"products", 'Json'>
   readonly category: Prisma.FieldRef<"products", 'Json'>
   readonly description: Prisma.FieldRef<"products", 'Json'>

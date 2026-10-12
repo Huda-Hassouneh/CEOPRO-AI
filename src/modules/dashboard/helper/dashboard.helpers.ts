@@ -48,7 +48,7 @@ export function toLocalizedText(value: unknown): LocalizedText {
 }
 
 export type InvoiceForSalesChart = {
-  created_at: Date | null;
+  issue_date: Date;
   total_amount: unknown;
 };
 
@@ -70,9 +70,7 @@ export function buildSalesOverview(
     const amount = Number(invoice.total_amount || 0);
     revenue += amount;
 
-    if (!invoice.created_at) continue;
-
-    const dateKey = invoice.created_at.toISOString().slice(0, 10);
+    const dateKey = invoice.issue_date.toISOString().slice(0, 10);
     const dailyTotal = pointsByDate.get(dateKey);
 
     if (dailyTotal !== undefined) pointsByDate.set(dateKey, dailyTotal + amount);
@@ -95,6 +93,7 @@ export function calculateRevenueGrowth(
 
 type InventoryRecord = {
   inventory_id: string;
+  product_id: string;
   stock_quantity: number;
   reorder_level: number;
   products: { product_name: unknown } | null;
@@ -105,17 +104,24 @@ export function summarizeInventory<T extends InventoryRecord>(records: T[]) {
   let lowStock = 0;
   let outOfStock = 0;
 
-  const items = records.map((record) => {
-    if (record.stock_quantity === 0) outOfStock += 1;
-    else if (record.stock_quantity <= record.reorder_level) lowStock += 1;
-    else inStock += 1;
-
-    return {
-      id: record.inventory_id,
+  const byProduct = new Map<string, { id: string; product: LocalizedText; quantity: number; reorderLevel: number }>();
+  for (const record of records) {
+    const current = byProduct.get(record.product_id) ?? {
+      id: record.product_id,
       product: toLocalizedText(record.products?.product_name),
-      quantity: record.stock_quantity
+      quantity: 0,
+      reorderLevel: 0
     };
-  });
+    current.quantity += record.stock_quantity;
+    current.reorderLevel += record.reorder_level;
+    byProduct.set(record.product_id, current);
+  }
+  const items = [...byProduct.values()].map(({ id, product, quantity, reorderLevel }) => {
+    if (quantity === 0) outOfStock += 1;
+    else if (quantity <= reorderLevel) lowStock += 1;
+    else inStock += 1;
+    return { id, product, quantity };
+  }).sort((left, right) => left.quantity - right.quantity);
 
   const totalItems = inStock + lowStock + outOfStock;
   const healthPercent =

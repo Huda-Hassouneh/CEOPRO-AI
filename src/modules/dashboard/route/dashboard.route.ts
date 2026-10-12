@@ -4,6 +4,7 @@ import {
   authenticateUser,
   requireTenant
 } from "../../../middleware/validators/validateUser.js";
+import { requireFeatureAccess } from "../../../middleware/validators/validateFeatures.js";
 
 // Import your existing auth middlewares here
 // import { authenticateUser, requireTenantAccess } from '../../middleware/auth';
@@ -19,6 +20,7 @@ router.get(
   "/",
   authenticateUser,
   requireTenant,
+  requireFeatureAccess("dashboard_analytics"),
   dashboardController.getAggregate
 );
 

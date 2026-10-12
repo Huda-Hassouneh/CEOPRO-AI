@@ -2,38 +2,39 @@
 
 This suite checks tenant-managed persistent connectors and their active-slot quota. It is separate from the Data Integration file-import tests in `tests/dataconnection/`.
 
-## Verified quota contract
+## Quota and lifecycle contract
 
 `data_integration` is the boolean permission to access persistent integrations. `connected_data_sources` is a separate lifetime `MAX` capacity. The current catalog sets Starter/Growth/Enterprise to 1/5/20.
 
-The backend capacity resolver currently calculates:
+One shared source-type allow-list is used by Node usage, transactional source capacity, and source listing. Active `shopify`, `postgresql`, `mysql`, `sqlserver`, `ga4`, `website`, and AI `OWN_SYSTEM_CONNECTOR` rows consume slots. Inactive rows, manual-upload types, and unrelated collection types such as `WEB_SCRAPE` do not.
+
+Node registration and reactivation acquire a tenant-scoped advisory lock and check quota in the same RLS-enabled transaction as the write. A database trigger takes the same lock and verifies both `data_integration` and `connected_data_sources` for all direct active-source inserts/reactivations, including AI service writes. A `NULL` custom-plan limit remains unlimited.
+
+The resolver calculates:
 
 ```text
-usage = COUNT(data_sources WHERE tenant_id = authenticated tenant AND is_active = true)
+usage = COUNT(counted source types WHERE tenant_id = authenticated tenant AND is_active = true)
 remaining = MAX(0, configured limit - usage)
 ```
 
-The resolver counts every active `data_sources` row, regardless of `source_type`. Node's `countActivePersistentSources` helper filters to the six Node types. The AI service has a separate `OWN_SYSTEM_CONNECTOR` registration API, and competitor discovery also creates `WEB_SCRAPE` rows. The global resolver currently includes all of them, even though those are different source uses. Node's manual upload path writes `documents` as inactive; the AI extraction source helper inserts upload-source rows without setting `is_active`, so PostgreSQL's `true` default makes those active and quota-counted.
-
-Source registration checks capacity in the service and then calls the repository to insert in a separate operation. The check and insert do not share a transaction, lock, or reservation. Concurrent registrations can race. Do not interpret a passing sequential quota test as proof of concurrency safety.
+At an over-limit downgrade, existing sources remain intact. New registrations and reactivation are blocked; users can pause or disconnect sources to restore capacity. Disconnect clears the vaulted credential field, marks the source disconnected, and retains its registration, jobs, staging, and business data.
 
 ## Coverage map
 
 | Area | Test file | What is covered |
 |---|---|---|
-| Catalog and pure capacity boundaries | `connected-data-sources-contract.test.mjs` | Boolean vs numeric features, lifetime reset, standard limits, 0/1/4/5/19/20 boundaries and unlimited policy |
-| Source accounting and security contracts | `connected-data-sources-contract.test.mjs` | Tenant and active-row filtering, manual Node uploads, authenticated route, RLS policy, source validation architecture |
-| Regression checks for known gaps | `connected-data-sources-contract.test.mjs` | Non-atomic Node quota/write, all-source-type counting, AI upload slots and AI capacity bypass, AI/Node source-type mismatch, unverified `verified` status, missing `updated_at`, missing quota UI, false-success actions, dropped website URL |
-| Real API, browser, and database checks | `../e2e/connected-data-sources/connected-data-sources.spec.ts` | Plan-boundary registrations, SQL count vs API/UI, body tenant spoofing, Growth last-slot concurrency, and explicitly opted-in AI onboarding registration |
-| Lifecycle and duplicate policy | Contract + Playwright blocked diagnostic | Current source routes have no activate/deactivate/delete API; source identity policy has no unique key or defined dedupe contract |
+| Catalog and quota boundaries | `connected-data-sources-contract.test.mjs` | Boolean vs numeric features, lifetime reset, 1/5/20 plan limits, finite/unlimited behavior, tenant-scoped active usage, and shared source-type accounting |
+| URL and identity validation | `source-url-normalization.test.mjs` | Website URL normalization and rejection of unsupported protocols, credentials, local hosts, and IP literals |
+| Lifecycle and UI contracts | Backend contract plus frontend `connected-data-sources-feature.test.mjs` | Pause/reactivate/disconnect, credential clearing, historical-data retention, capacity display, entitlement gates, and English/Arabic copy |
+| Real API, browser, and database checks | `../e2e/connected-data-sources/connected-data-sources.spec.ts` | Plan boundaries, usage display, tenant spoofing, last-slot concurrency, lifecycle, duplicate URL, direct DB trigger, and opt-in AI registration |
 
-The regression checks intentionally fail while the named defect exists. Keep these failures visible; do not change application logic or mark them as skips to make the suite green.
+The frontend and deterministic contract tests run without a database. The Playwright tests require an isolated disposable database, real tenant fixtures, and a running API; direct AI tests are separately opt-in. Tests skipped because those prerequisites are absent are BLOCKED, not passing evidence.
 
 ## Tables and ownership
 
 The quota source of truth is `data_sources`; registration is tenant-owned through `tenant_id`. The table has forced RLS in the baseline migration, guarded by `get_current_tenant()`. Source capacity itself is read from the effective subscription feature configuration through the existing feature usage repository. `ingestion_jobs` provides sync/import context, but a failed or absent job does not change `is_active` and must not release a slot.
 
-Manual uploads are recorded as inactive `documents` rows by Node and should not consume persistent slots. The AI upload helper is a separate writer and is covered by a regression check. The AI team source writer and worker are not altered by this test package.
+Manual upload and AI upload bookkeeping source types are outside the connected-source allow-list. The database trigger protects the AI source writer without changing the AI repository.
 
 ## Safe opt-in integration setup
 
@@ -83,20 +84,14 @@ Reports reuse the existing Playwright configuration:
 - Structured diagnostics: `tests/reports/e2e/diagnostics.json`
 - Failure screenshots, traces, and video: `tests/reports/e2e/artifacts/`
 
-## Current implementation gaps
+## Remaining verification and integration work
 
-- Capacity check and insert are not atomic; concurrent last-slot requests may exceed the limit.
-- The Node quota resolver counts all active `data_sources` rows, including AI-created `OWN_SYSTEM_CONNECTOR` and competitor discovery `WEB_SCRAPE` rows.
-- AI file-upload bookkeeping creates active source rows and does not enforce `connected_data_sources`.
-- AI database/API onboarding registration creates active `OWN_SYSTEM_CONNECTOR` rows without checking either catalog feature; the AI type is also absent from Node's six-type validator/list helper.
-- The overview returns `dataStatus: "verified"` on source registration without verifying external connectivity.
-- The Data Connections page has no visible numeric source limit/remaining-capacity value.
-- Sync/reconnect preview methods resolve `{ ok: false }`, but the page displays a success notice after awaiting them.
-- The frontend sends website `url`; the backend registration path does not persist or validate it.
-- No persistent source activation/deactivation/delete endpoints or source identity/deduplication policy exist.
-- `data_sources` has no `updated_at`; it cannot directly show the last lifecycle configuration change.
-- Plan downgrade behavior and custom/unlimited capacity need a real subscription fixture; no lifecycle policy should be inferred by these tests.
-- Live AI connector creation and provider sync need the AI worker and authorized fixture endpoints; no live connectors are called in ordinary tests.
+- Run the opt-in API/PostgreSQL E2E suite after applying the migration to a disposable database; verify RLS, direct-writer checks, concurrent last-slot registration, lifecycle, and downgrade fixtures.
+- Verify deployment of the shared database trigger before relying on it to protect AI direct-registration writes.
+- Keep AI application behavior unchanged. The database rejects over-quota or feature-disabled direct writes, but the AI endpoint's user-facing error mapping remains owned by the AI team.
+- Node website registration is still configuration metadata only; provider authentication and recurring sync remain Feature 8 work.
+- Node registration does not yet populate the AI worker's collector key, approved policy, or encrypted credentials; the quota trigger does not make a source runnable by the AI worker.
+- Schema has no `updated_at` for source lifecycle configuration changes; use job and creation timestamps only where their meaning is accurate.
 
 ## Existing-feature regression coverage
 

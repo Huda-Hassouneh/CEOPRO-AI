@@ -437,6 +437,7 @@ export const ModelName = {
   invoices: 'invoices',
   product_price_history: 'product_price_history',
   products: 'products',
+  business_import_drafts: 'business_import_drafts',
   rag_document_chunks: 'rag_document_chunks',
   rag_documents_metadata: 'rag_documents_metadata',
   recommendation_outcomes: 'recommendation_outcomes',
@@ -479,7 +480,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "appConfig" | "company" | "onboarding" | "pendingSignup" | "emailVerificationGrant" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache" | "platformNotification" | "platformNotificationReceipt" | "platformNotificationOutbox" | "tenantNotification" | "tenantNotificationReceipt" | "tenantNotificationOutbox"
+    modelProps: "appConfig" | "company" | "onboarding" | "pendingSignup" | "emailVerificationGrant" | "plan" | "planPriceVersion" | "promoCode" | "promoCodePlan" | "subscription" | "paymentTransaction" | "promoCodeRedemption" | "payment_providerWebhookEvent" | "feature" | "planFeature" | "subscriptionUsage" | "vendorRate" | "infrastructureRate" | "customPlanQuote" | "customPlanQuoteFeature" | "user" | "systemRole" | "tenantUser" | "platformInvitation" | "authSession" | "audit_logs" | "competitor_prices" | "competitor_product_mappings" | "currency_rates" | "data_sources" | "demand_forecasts" | "evidence_records" | "global_competitors" | "import_staging_rows" | "ingestion_jobs" | "inventory" | "invoice_items" | "invoices" | "product_price_history" | "products" | "business_import_drafts" | "rag_document_chunks" | "rag_documents_metadata" | "recommendation_outcomes" | "reviews" | "sentiment_results" | "system_alerts" | "tenant_competitors" | "campaigns" | "competitor_score_snapshots" | "extracted_entity" | "market_alert_events" | "market_alert_rules" | "market_events" | "market_observation_staging" | "market_observations" | "model_versions" | "news_record" | "search_quota_usage" | "social_mention" | "transactions" | "web_search_cache" | "platformNotification" | "platformNotificationReceipt" | "platformNotificationOutbox" | "tenantNotification" | "tenantNotificationReceipt" | "tenantNotificationOutbox"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3443,6 +3444,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    business_import_drafts: {
+      payload: Prisma.$business_import_draftsPayload<ExtArgs>
+      fields: Prisma.business_import_draftsFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.business_import_draftsFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.business_import_draftsFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>
+        }
+        findFirst: {
+          args: Prisma.business_import_draftsFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.business_import_draftsFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>
+        }
+        findMany: {
+          args: Prisma.business_import_draftsFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>[]
+        }
+        create: {
+          args: Prisma.business_import_draftsCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>
+        }
+        createMany: {
+          args: Prisma.business_import_draftsCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.business_import_draftsCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>[]
+        }
+        delete: {
+          args: Prisma.business_import_draftsDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>
+        }
+        update: {
+          args: Prisma.business_import_draftsUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>
+        }
+        deleteMany: {
+          args: Prisma.business_import_draftsDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.business_import_draftsUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.business_import_draftsUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>[]
+        }
+        upsert: {
+          args: Prisma.business_import_draftsUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$business_import_draftsPayload>
+        }
+        aggregate: {
+          args: Prisma.Business_import_draftsAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBusiness_import_drafts>
+        }
+        groupBy: {
+          args: Prisma.business_import_draftsGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.Business_import_draftsGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.business_import_draftsCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.Business_import_draftsCountAggregateOutputType> | number
+        }
+      }
+    }
     rag_document_chunks: {
       payload: Prisma.$rag_document_chunksPayload<ExtArgs>
       fields: Prisma.rag_document_chunksFieldRefs
@@ -6161,6 +6236,7 @@ export const ProductsScalarFieldEnum = {
   product_id: 'product_id',
   tenant_id: 'tenant_id',
   product_name: 'product_name',
+  sku: 'sku',
   brand: 'brand',
   category: 'category',
   description: 'description',
@@ -6177,6 +6253,23 @@ export const ProductsScalarFieldEnum = {
 } as const
 
 export type ProductsScalarFieldEnum = (typeof ProductsScalarFieldEnum)[keyof typeof ProductsScalarFieldEnum]
+
+
+export const Business_import_draftsScalarFieldEnum = {
+  draft_id: 'draft_id',
+  tenant_id: 'tenant_id',
+  user_id: 'user_id',
+  kind: 'kind',
+  file_name: 'file_name',
+  file_bytes: 'file_bytes',
+  sha256: 'sha256',
+  status: 'status',
+  result: 'result',
+  created_at: 'created_at',
+  expires_at: 'expires_at'
+} as const
+
+export type Business_import_draftsScalarFieldEnum = (typeof Business_import_draftsScalarFieldEnum)[keyof typeof Business_import_draftsScalarFieldEnum]
 
 
 export const Rag_document_chunksScalarFieldEnum = {
@@ -7090,6 +7183,7 @@ export type GlobalOmitConfig = {
   invoices?: Prisma.invoicesOmit
   product_price_history?: Prisma.product_price_historyOmit
   products?: Prisma.productsOmit
+  business_import_drafts?: Prisma.business_import_draftsOmit
   rag_document_chunks?: Prisma.rag_document_chunksOmit
   rag_documents_metadata?: Prisma.rag_documents_metadataOmit
   recommendation_outcomes?: Prisma.recommendation_outcomesOmit

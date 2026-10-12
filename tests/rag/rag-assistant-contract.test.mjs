@@ -40,7 +40,9 @@ test("document extraction, retained storage, and RAG token usage are distinct me
   assert.match(route, /\/documents[\s\S]*?requireEntitlement\("document_extraction"\)/);
   assert.match(route, /\/query[\s\S]*?requireEntitlement\("rag_assistant"\)/);
   assert.match(service, /featureCode:\s*"document_storage_mb"/);
-  assert.match(service, /incrementUsage\(input\.tenantId, "document_extraction"/);
+  assert.match(repo, /reserveFeatureUsageInTransaction\([\s\S]*?"document_extraction"/);
+  assert.match(service, /extractionUsageKb: kbUsed/);
+  assert.doesNotMatch(service, /incrementUsage\(input\.tenantId, "document_extraction"/);
   assert.match(service, /incrementUsage\(input\.tenantId, "rag_assistant"/);
   assert.match(catalog, /code: "rag_assistant"[\s\S]*?unit: "tokens"[\s\S]*?aggregationType: AggregationType\.sum[\s\S]*?resetCycle: ResetCycle\.billing_period/);
   assert.match(catalog, /code: "document_extraction"[\s\S]*?unit: "KB"[\s\S]*?resetCycle: ResetCycle\.billing_period/);
@@ -222,8 +224,9 @@ test("regression: retained RAG files need a tenant-authorized deletion and reind
 
 test("regression: upload persistence and extraction usage charging need one failure-safe transaction", () => {
   const upload = service.match(/export async function uploadRagDocument\([\s\S]*?(?=\n\nexport async function getRagDocuments)/)?.[0] ?? "";
-  assert.match(upload, /\$transaction|reservation|rollback/,
-    "RAG_DOCUMENT_UPLOAD_FAILURE: the document row is committed before extraction usage is incremented; a failed charge leaves retained data unmetered.");
+  assert.match(upload, /extractionUsageKb: kbUsed/);
+  assert.match(repo, /saveUploadedRagDocument\([\s\S]*?prisma\.\$transaction[\s\S]*?reserveFeatureUsageInTransaction[\s\S]*?rag_documents_metadata\.create/,
+    "RAG_DOCUMENT_UPLOAD_FAILURE: retained document and extraction usage must commit in one transaction.");
 });
 
 test("regression: answer generation, citation persistence, and token charging need reconciled failure policy", () => {

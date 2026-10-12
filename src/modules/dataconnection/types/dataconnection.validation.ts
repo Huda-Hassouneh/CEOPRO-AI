@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import { validateExtractionFileContent } from "../validators/extraction-template.validation.js";
+import { normalizeSourceUrl } from "./source-url.js";
 import {
   CreateDataSourcePayload,
   JsonObject,
@@ -72,8 +73,13 @@ const FORBIDDEN_SECRET_KEYS = new Set([
   "password",
   "passwd",
   "secret",
+  "token",
+  "credential",
+  "credentials",
   "client_secret",
   "clientsecret",
+  "client_credentials",
+  "clientcredentials",
   "api_key",
   "apikey",
   "access_token",
@@ -234,6 +240,15 @@ export function validateCreateDataSource(value: unknown): ValidationResult {
     };
   }
 
+  const sourceUrlResult = normalizeSourceUrl(value.sourceUrl ?? value.url);
+  if (!sourceUrlResult.success) return sourceUrlResult;
+  if (sourceType === "website" && !sourceUrlResult.data) {
+    return {
+      success: false,
+      message: "sourceUrl is required for website sources."
+    };
+  }
+
   let syncFrequencyMinutes = DEFAULT_SYNC_FREQUENCY_MINUTES;
 
   if (value.syncFrequencyMinutes !== undefined) {
@@ -275,6 +290,7 @@ export function validateCreateDataSource(value: unknown): ValidationResult {
     data: {
       name,
       sourceType,
+      sourceUrl: sourceUrlResult.data,
       syncFrequencyMinutes,
       metadata: metadataResult.data
     }

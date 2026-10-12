@@ -378,19 +378,22 @@ async function readFacts(client: PoolClient, tenantId: string, periodDays: numbe
             (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - (2 * $1::int - 1) * interval '1 day' AS previous_start`, [periodDays]);
   const range = ranges.rows[0]!;
   const inv = await client.query<{ paid_invoice_count: string; revenue: string; previous_revenue: string; excluded_currency_count: string }>(
-    `SELECT count(*) FILTER (WHERE payment_status = 'PAID' AND currency = $2 AND created_at >= $3 AND created_at < $4) AS paid_invoice_count,
-            coalesce(sum(total_amount) FILTER (WHERE payment_status = 'PAID' AND currency = $2 AND created_at >= $3 AND created_at < $4), 0) AS revenue,
-            coalesce(sum(total_amount) FILTER (WHERE payment_status = 'PAID' AND currency = $2 AND created_at >= $5 AND created_at < $3), 0) AS previous_revenue,
-            count(*) FILTER (WHERE payment_status = 'PAID' AND currency <> $2 AND created_at >= $3 AND created_at < $4) AS excluded_currency_count
+    `SELECT count(*) FILTER (WHERE payment_status = 'PAID' AND currency = $2 AND issue_date >= $3 AND issue_date < $4) AS paid_invoice_count,
+            coalesce(sum(total_amount) FILTER (WHERE payment_status = 'PAID' AND currency = $2 AND issue_date >= $3 AND issue_date < $4), 0) AS revenue,
+            coalesce(sum(total_amount) FILTER (WHERE payment_status = 'PAID' AND currency = $2 AND issue_date >= $5 AND issue_date < $3), 0) AS previous_revenue,
+            count(*) FILTER (WHERE payment_status = 'PAID' AND currency <> $2 AND issue_date >= $3 AND issue_date < $4) AS excluded_currency_count
        FROM invoices WHERE tenant_id = $1`, [tenantId, currency, range.start_date, range.end_exclusive, range.previous_start]);
   const products = await client.query<{ count: string }>("SELECT count(*) FROM products WHERE tenant_id = $1 AND deleted_at IS NULL", [tenantId]);
   const inventory = await client.query<{ in_stock: string; low_stock: string; out_of_stock: string; total: string }>(
-    `SELECT count(*) FILTER (WHERE i.stock_quantity <> 0 AND NOT (i.stock_quantity > 0 AND i.stock_quantity <= i.reorder_level)) AS in_stock,
-            count(*) FILTER (WHERE i.stock_quantity > 0 AND i.stock_quantity <= i.reorder_level) AS low_stock,
-            count(*) FILTER (WHERE i.stock_quantity = 0) AS out_of_stock,
+    `SELECT count(*) FILTER (WHERE stock > reorder AND stock > 0) AS in_stock,
+            count(*) FILTER (WHERE stock > 0 AND stock <= reorder) AS low_stock,
+            count(*) FILTER (WHERE stock = 0) AS out_of_stock,
             count(*) AS total
-       FROM inventory i JOIN products p ON p.tenant_id = i.tenant_id AND p.product_id = i.product_id
-      WHERE i.tenant_id = $1 AND p.deleted_at IS NULL`, [tenantId]);
+       FROM (
+         SELECT i.product_id, sum(i.stock_quantity) AS stock, sum(i.reorder_level) AS reorder
+           FROM inventory i JOIN products p ON p.tenant_id = i.tenant_id AND p.product_id = i.product_id
+          WHERE i.tenant_id = $1 AND p.deleted_at IS NULL GROUP BY i.product_id
+       ) balances`, [tenantId]);
   const competitors = await client.query<{ count: string }>("SELECT count(*) FROM tenant_competitors WHERE tenant_id = $1 AND is_tracked = true", [tenantId]);
   const sentiment = await client.query<{ average: string | null; count: string }>(
     `SELECT avg(sr.sentiment_score) AS average, count(*) AS count

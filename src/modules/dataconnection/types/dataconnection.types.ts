@@ -1,3 +1,8 @@
+import {
+  PERSISTENT_DATA_SOURCE_TYPES,
+  type PersistentDataSourceType
+} from "../../../constants/data-source-types.js";
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 export type JsonObject = { [key: string]: JsonValue };
@@ -49,18 +54,11 @@ export type ExtractionResult = {
   row_outcomes: ExtractionRowOutcome[];
   promotion: null;
   currency_resolution: null;
+  duplicate?: boolean;
+  job_status?: string;
 };
-export const PERSISTENT_DATA_SOURCE_TYPES = [
-  "shopify",
-  "postgresql",
-  "mysql",
-  "sqlserver",
-  "ga4",
-  "website"
-] as const;
-
-export type PersistentDataSourceType =
-  (typeof PERSISTENT_DATA_SOURCE_TYPES)[number];
+export { PERSISTENT_DATA_SOURCE_TYPES };
+export type { PersistentDataSourceType };
 
 export type jsonObject = {
   [key: string]: JsonValue;
@@ -70,6 +68,7 @@ export type CreateDataSourcePayload = {
   name: string;
   sourceType: PersistentDataSourceType;
   syncFrequencyMinutes?: number;
+  sourceUrl?: string;
   metadata?: JsonObject;
 };
 
@@ -91,6 +90,8 @@ export type DataSourceResponse = {
   id: string;
   name: string;
   sourceType: string;
+  sourceUrl: string | null;
+  connectionStatus: "configured" | "disconnected";
   isActive: boolean;
   syncFrequencyMinutes: number | null;
   lastSyncedAt: string | null;

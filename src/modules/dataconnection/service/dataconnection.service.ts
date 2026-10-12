@@ -1,11 +1,12 @@
 // import { dataManagementRepo } from "../repo/dataconnection.repo.js";
 
 import {
-  assertFeatureCapacity,
-  getRemainingUsage,
-  incrementUsage
+  FeatureUsageCapacityError,
+  FeatureUsageUnavailableError,
+  getRemainingUsage
 } from "../../features/repo/usage.repo.js";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { extname } from "node:path";
 import { uploadExtractionFile } from "../client/ingestion.client.js";
 import { validateExtractionResultForDataConnection } from "../validators/extraction-result.validation.js";
 
@@ -22,7 +23,30 @@ import type {
   ExtractionUploadInput,
   JsonObject
 } from "../types/dataconnection.types.js";
-import { dataManagementRepo } from "../repo/dataconnection.repo.js";
+import {
+  ConnectedSourceCapacityError,
+  BUSINESS_FILE_EXTRACTION_LEASE_MS,
+  DataSourceNotFoundError,
+  DataSourceReconnectRequiredError,
+  DuplicateDataSourceError,
+  IngestionJobNotFoundError,
+  IngestionJobNotRetryableError,
+  dataManagementRepo
+} from "../repo/dataconnection.repo.js";
+import {
+  confirmBusinessImport,
+  createBusinessImportPreview,
+  DuplicateStructuredImportError,
+  persistStructuredBusinessImport,
+  reviewBusinessImport,
+  type Choice
+} from "../repo/structured-business-import.repo.js";
+import {
+  StructuredImportError,
+  parseStructuredBusinessFile,
+  type StructuredImportKind
+} from "./structured-business-import.js";
+import { MAX_UPLOAD_SIZE_BYTES } from "../types/dataconnection.validation.js";
 
 export type DataConnectionServiceError = Error & {
   name: "DataConnectionServiceError";
@@ -32,7 +56,10 @@ export type DataConnectionServiceError = Error & {
     | "FEATURE_NOT_INCLUDED"
     | "USAGE_EXCEEDED"
     | "INVALID_PARAMETER"
-    | "STORAGE_EXCEEDED";
+    | "DUPLICATE_RESOURCE"
+    | "SOURCE_RECONNECT_REQUIRED"
+    | "RESOURCE_NOT_FOUND"
+    | "JOB_NOT_RETRYABLE";
   detail?: unknown;
 };
 
@@ -56,9 +83,180 @@ export function isDataConnectionServiceError(
   return error instanceof Error && error.name === "DataConnectionServiceError";
 }
 
+function logSalesUploadFailure(stage: string, error: unknown): void {
+  const record = (input: unknown): Record<string, unknown> =>
+    input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const value = record(error);
+  const driverCause = record(record(record(value.meta).driverAdapterError).cause);
+  const code = typeof value.code === "string" && /^[A-Za-z0-9_]{1,16}$/.test(value.code)
+    ? value.code
+    : undefined;
+  const kind = typeof value.kind === "string" && /^[a-z_]{1,32}$/.test(value.kind)
+    ? value.kind
+    : undefined;
+  const driverCode = typeof driverCause.originalCode === "string" && /^[A-Za-z0-9_]{1,16}$/.test(driverCause.originalCode)
+    ? driverCause.originalCode
+    : undefined;
+  const driverKind = typeof driverCause.kind === "string" && /^[A-Za-z0-9_]{1,48}$/.test(driverCause.kind)
+    ? driverCause.kind
+    : undefined;
+  // Never log the file, extracted rows, SQL, URL, tenant ID, or exception
+  // metadata: Prisma and provider messages can contain business data.
+  console.error("[DataConnectionService] Sales upload failed", {
+    stage,
+    name: error instanceof Error ? error.name : "UnknownError",
+    ...(code ? { code } : {}),
+    ...(kind ? { kind } : {}),
+    ...(driverCode ? { driverCode } : {}),
+    ...(driverKind ? { driverKind } : {})
+  });
+}
+
+function containsCredentialField(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsCredentialField);
+  if (typeof value !== "object" || value === null) return false;
+  return Object.entries(value).some(([key, nested]) => {
+    const normalized = key.toLowerCase().replace(/[\s-]+/g, "_");
+    return (
+      /^(password|passwd|secret|token|credential|credentials|client_secret|clientsecret|client_credentials|clientcredentials|api_key|apikey|access_token|accesstoken|refresh_token|refreshtoken|authorization|private_key|privatekey|connection_string|connectionstring)$/.test(
+        normalized
+      ) || containsCredentialField(nested)
+    );
+  });
+}
+
+function getConnectionStatus(
+  value: unknown
+): DataSourceResponse["connectionStatus"] {
+  return value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    (value as Record<string, unknown>).ceopro_connection_status ===
+      "disconnected"
+    ? "disconnected"
+    : "configured";
+}
+
 // export async function
 
+function validateImportChoices(input: { kind: string; draftId: string; choices: unknown }): Record<string, Choice> {
+  if ((input.kind !== "invoices" && input.kind !== "inventory") ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.draftId) ||
+    !input.choices || typeof input.choices !== "object" || Array.isArray(input.choices) ||
+    Object.keys(input.choices).length > 1000) {
+    throw createServiceError("INVALID_PARAMETER", "Invalid import review or confirmation.");
+  }
+  const choices = input.choices as Record<string, Record<string, unknown>>;
+  for (const [key, choice] of Object.entries(choices)) {
+    if (!/^(?:Inventory|Invoice Items|[^:]{1,40}):\d{1,5}$/.test(key) ||
+      !choice || typeof choice !== "object" || Array.isArray(choice) ||
+      (choice.action === "select" && (typeof choice.productId !== "string" || Object.keys(choice).some((field) => !["action", "productId"].includes(field)))) ||
+      (choice.action === "create" && (typeof choice.price !== "string" || typeof choice.currency !== "string" ||
+        (choice.sku !== undefined && typeof choice.sku !== "string") ||
+        Object.keys(choice).some((field) => !["action", "price", "currency", "sku"].includes(field)))) ||
+      !["select", "create"].includes(String(choice.action))) {
+      throw createServiceError("INVALID_PARAMETER", "Invalid product selection or creation details.");
+    }
+  }
+  return choices as Record<string, Choice>;
+}
+
 export const dataConnectionService = {
+  reviewStructuredBusinessFile: async (input: {
+    tenantId: string; userId: string; kind: string; draftId: string; choices: unknown;
+  }) => {
+    const choices = validateImportChoices(input);
+    try {
+      return await reviewBusinessImport({ ...input, kind: input.kind as StructuredImportKind, choices });
+    } catch (error) {
+      if (error instanceof StructuredImportError) throw createServiceError("INVALID_FILE_UPLOAD", error.message, { message: error.message, issues: error.issues });
+      if (error instanceof FeatureUsageUnavailableError) throw createServiceError("FEATURE_NOT_INCLUDED", "Product creation is unavailable for this subscription.");
+      throw error;
+    }
+  },
+  previewStructuredBusinessFile: async (input: ExtractionUploadInput, kind: string) => {
+    if (kind !== "invoices" && kind !== "inventory") {
+      throw createServiceError("INVALID_PARAMETER", "Choose invoices or inventory.");
+    }
+    let parsed;
+    try {
+      parsed = parseStructuredBusinessFile(kind, input.file);
+    } catch (error) {
+      if (error instanceof StructuredImportError) {
+        throw createServiceError("INVALID_FILE_UPLOAD", error.message, { message: error.message, issues: error.issues });
+      }
+      throw error;
+    }
+    return createBusinessImportPreview({
+      tenantId: input.tenantId, userId: input.userId,
+      fileName: input.file.originalname, fileBuffer: input.file.buffer, parsed
+    });
+  },
+  confirmStructuredBusinessFile: async (input: {
+    tenantId: string; userId: string; kind: string; draftId: string; choices: unknown; reviewHash: unknown;
+  }) => {
+    const choices = validateImportChoices(input);
+    if (typeof input.reviewHash !== "string" || !/^[0-9a-f]{64}$/.test(input.reviewHash)) {
+      throw createServiceError("INVALID_PARAMETER", "Review the changes before confirming.");
+    }
+    try {
+      return await confirmBusinessImport({ ...input, kind: input.kind as StructuredImportKind, choices, reviewHash: input.reviewHash });
+    } catch (error) {
+      if (error instanceof StructuredImportError) {
+        throw createServiceError("INVALID_FILE_UPLOAD", error.message, { message: error.message, issues: error.issues });
+      }
+      if (error instanceof DuplicateStructuredImportError) throw createServiceError("DUPLICATE_RESOURCE", error.message);
+      if (error instanceof FeatureUsageUnavailableError) throw createServiceError("FEATURE_NOT_INCLUDED", "Document extraction is unavailable for this subscription.");
+      if (error instanceof FeatureUsageCapacityError) throw createServiceError("USAGE_EXCEEDED", "The file exceeds the remaining document extraction allowance.", error.capacity);
+      throw error;
+    }
+  },
+  importStructuredBusinessFile: async (
+    input: ExtractionUploadInput,
+    kind: string
+  ) => {
+    if (kind !== "invoices" && kind !== "inventory") {
+      throw createServiceError("INVALID_PARAMETER", "Import kind must be invoices or inventory.");
+    }
+    if (input.file.size > MAX_UPLOAD_SIZE_BYTES) {
+      throw createServiceError("FILE_SIZE_LIMIT_EXCEEDED", "The file exceeds the configured upload size limit.");
+    }
+    if (![".csv", ".xlsx"].includes(extname(input.file.originalname).toLowerCase())) {
+      throw createServiceError("INVALID_FILE_UPLOAD", "Use the published CSV or XLSX import template.");
+    }
+    let parsed;
+    try {
+      parsed = parseStructuredBusinessFile(kind as StructuredImportKind, input.file);
+    } catch (error) {
+      if (error instanceof StructuredImportError) {
+        throw createServiceError("INVALID_FILE_UPLOAD", error.message, { message: error.message, issues: error.issues });
+      }
+      throw error;
+    }
+    try {
+      return await persistStructuredBusinessImport({
+        tenantId: input.tenantId,
+        userId: input.userId,
+        fileName: input.file.originalname,
+        fileBuffer: input.file.buffer,
+        parsed
+      });
+    } catch (error) {
+      if (error instanceof StructuredImportError) {
+        throw createServiceError("INVALID_FILE_UPLOAD", error.message, { message: error.message, issues: error.issues });
+      }
+      if (error instanceof DuplicateStructuredImportError) {
+        throw createServiceError("DUPLICATE_RESOURCE", error.message);
+      }
+      if (error instanceof FeatureUsageUnavailableError) {
+        throw createServiceError("FEATURE_NOT_INCLUDED", "Document extraction is unavailable for this subscription.");
+      }
+      if (error instanceof FeatureUsageCapacityError) {
+        throw createServiceError("USAGE_EXCEEDED", "The file exceeds the remaining document extraction allowance.", error.capacity);
+      }
+      throw error;
+    }
+  },
   getDataConnectionsOverview: async (tenantId: string, userId: string) => {
     const data = await dataManagementRepo.getDataConnectionsOverview(
       tenantId,
@@ -67,6 +265,106 @@ export const dataConnectionService = {
 
     if (!data) throw new Error("Failed to load data connections overview");
     return data;
+  },
+  listIngestionJobs: async (tenantId: string, userId: string) =>
+    dataManagementRepo.listIngestionJobs(tenantId, userId),
+  getIngestionJob: async (tenantId: string, userId: string, jobId: string) => {
+    try {
+      return await dataManagementRepo.getIngestionJob(tenantId, userId, jobId);
+    } catch (error) {
+      if (error instanceof IngestionJobNotFoundError) {
+        throw createServiceError("RESOURCE_NOT_FOUND", error.message);
+      }
+      throw error;
+    }
+  },
+  getIngestionStagingRows: async (
+    tenantId: string,
+    userId: string,
+    jobId: string,
+    page: number,
+    pageSize: number
+  ) => {
+    try {
+      return await dataManagementRepo.getIngestionStagingRows(
+        tenantId,
+        userId,
+        jobId,
+        page,
+        pageSize
+      );
+    } catch (error) {
+      if (error instanceof IngestionJobNotFoundError) {
+        throw createServiceError("RESOURCE_NOT_FOUND", error.message);
+      }
+      throw error;
+    }
+  },
+  updateIngestionStagingRow: async (input: {
+    tenantId: string;
+    userId: string;
+    jobId: string;
+    rowId: string;
+    payload: unknown;
+  }) => {
+    if (
+      typeof input.payload !== "object" ||
+      input.payload === null ||
+      Array.isArray(input.payload)
+    ) {
+      throw createServiceError(
+        "INVALID_PARAMETER",
+        "A corrected staging row must be a JSON object."
+      );
+    }
+    const serialized = JSON.stringify(input.payload);
+    if (!serialized || serialized.length > 100_000) {
+      throw createServiceError(
+        "INVALID_PARAMETER",
+        "Corrected staging row data must be smaller than 100 KB."
+      );
+    }
+    if (containsCredentialField(input.payload)) {
+      throw createServiceError(
+        "INVALID_PARAMETER",
+        "Credentials and secrets cannot be stored in imported business rows."
+      );
+    }
+    try {
+      return await dataManagementRepo.updateIngestionStagingRow({
+        ...input,
+        payload: input.payload as Record<string, unknown>
+      });
+    } catch (error) {
+      if (error instanceof IngestionJobNotFoundError) {
+        throw createServiceError("RESOURCE_NOT_FOUND", error.message);
+      }
+      if (error instanceof IngestionJobNotRetryableError) {
+        throw createServiceError("JOB_NOT_RETRYABLE", error.message);
+      }
+      throw error;
+    }
+  },
+  retryIngestionJob: async (
+    tenantId: string,
+    userId: string,
+    jobId: string
+  ) => {
+    try {
+      return await dataManagementRepo.retryIngestionJob(
+        tenantId,
+        userId,
+        jobId
+      );
+    } catch (error) {
+      if (error instanceof IngestionJobNotFoundError) {
+        throw createServiceError("RESOURCE_NOT_FOUND", error.message);
+      }
+      if (error instanceof IngestionJobNotRetryableError) {
+        throw createServiceError("JOB_NOT_RETRYABLE", error.message);
+      }
+      throw error;
+    }
   },
   uploadExtraction: async (
     input: ExtractionUploadInput
@@ -116,11 +414,71 @@ export const dataConnectionService = {
     }
 
     const kbUsed = Math.max(1, Math.ceil(input.file.size / 1024));
+    const fileName = safeUploadName(input.file.originalname);
+    const contentSha256 = createHash("sha256")
+      .update(input.file.buffer)
+      .digest("hex");
+    let existingImport: Awaited<ReturnType<typeof dataManagementRepo.findBusinessFileImportByHash>>;
+    try {
+      existingImport = await dataManagementRepo.findBusinessFileImportByHash(
+        input.tenantId,
+        input.userId,
+        contentSha256
+      );
+    } catch (error) {
+      logSalesUploadFailure("duplicate_lookup", error);
+      throw error;
+    }
+    const duplicateResult = (existing: {
+      jobId: string;
+      status: string;
+      rowsProcessed: number;
+      rowsFailed: number;
+      rowsPartial: number;
+      stagedRowCount: number;
+    }): ExtractionResult => ({
+      job_id: existing.jobId,
+      job_id_source: "ceopro",
+      file_name: fileName,
+      detected_type: "existing_import",
+      headers: [],
+      rows_processed: existing.rowsProcessed,
+      rows_partial: existing.rowsPartial,
+      rows_failed: existing.rowsFailed,
+      rows_truncated_to_limit: false,
+      staged_row_count: existing.stagedRowCount,
+      template_mode: "DUPLICATE_UPLOAD",
+      is_template_compliant: null,
+      data_loss_pct: null,
+      header_coverage_ratio: 0,
+      row_outcomes: [],
+      promotion: null,
+      currency_resolution: null,
+      duplicate: true,
+      job_status: existing.status
+    });
+    const isExtractionRetry =
+      existingImport?.status === "failed" &&
+      existingImport.config.last_failure_phase === "extraction";
+    const staleExtractionReservation =
+      existingImport?.status === "extracting" &&
+      (!existingImport.extractionLeaseAt ||
+        Date.now() - existingImport.extractionLeaseAt.getTime() >
+          BUSINESS_FILE_EXTRACTION_LEASE_MS);
+    if (existingImport && !isExtractionRetry && !staleExtractionReservation) {
+      return duplicateResult(existingImport);
+    }
 
-    const usage = await getRemainingUsage(
-      input.tenantId,
-      "document_extraction"
-    );
+    let usage: Awaited<ReturnType<typeof getRemainingUsage>>;
+    try {
+      usage = await getRemainingUsage(
+        input.tenantId,
+        "document_extraction"
+      );
+    } catch (error) {
+      logSalesUploadFailure("quota_check", error);
+      throw error;
+    }
 
     if (!usage) {
       throw createServiceError(
@@ -156,84 +514,105 @@ export const dataConnectionService = {
       );
     }
 
-    const storageMb = input.file.size / 1024 ** 2;
-
-    const storage = await assertFeatureCapacity({
-      tenantId: input.tenantId,
-      featureCode: "document_storage_mb",
-      additionalAmount: storageMb
-    });
-
-    if (!storage.allowed) {
-      if (storage.reason === "FEATURE_NOT_INCLUDED") {
+    let reserved: Awaited<
+      ReturnType<typeof dataManagementRepo.reserveBusinessFileImport>
+    >;
+    try {
+      reserved = await dataManagementRepo.reserveBusinessFileImport({
+        tenantId: input.tenantId,
+        userId: input.userId,
+        jobId: randomUUID(),
+        contentSha256,
+        fileName,
+        mimeType: input.file.mimetype,
+        fileSizeBytes: input.file.size,
+        extractionUsageKb: kbUsed
+      });
+    } catch (error) {
+      if (error instanceof FeatureUsageUnavailableError) {
         throw createServiceError(
           "FEATURE_NOT_INCLUDED",
-          "Document storage is not available for this subscription."
+          "Document extraction is not available for this subscription."
+        );
+      }
+      if (error instanceof FeatureUsageCapacityError) {
+        throw createServiceError(
+          "USAGE_EXCEEDED",
+          "Document extraction quota has been reached.",
+          {
+            feature_code: error.capacity.featureCode,
+            current_usage: error.capacity.currentUsage,
+            limit: error.capacity.limit,
+            remaining: error.capacity.remaining,
+            requested: error.capacity.requested,
+            unit: "KB"
+          }
+        );
+      }
+      logSalesUploadFailure("reserve_import", error);
+      throw error;
+    }
+    if (reserved.duplicate) return duplicateResult(reserved);
+
+    let data: Awaited<ReturnType<typeof uploadExtractionFile>>;
+    let persisted: Awaited<
+      ReturnType<typeof dataManagementRepo.recordBusinessFileIngestion>
+    >;
+    let stage = "ai_extraction";
+    try {
+      data = await uploadExtractionFile({
+        file: {
+          originalname: fileName,
+          buffer: input.file.buffer
+        }
+      });
+
+      stage = "extraction_validation";
+      const extractionValidationError =
+        validateExtractionResultForDataConnection(data);
+      if (extractionValidationError) {
+        throw createServiceError(
+          "INVALID_FILE_UPLOAD",
+          extractionValidationError
         );
       }
 
-      throw createServiceError(
-        "STORAGE_EXCEEDED",
-        "This upload exceeds the available document storage capacity.",
-        {
-          feature_code: "document_storage_mb",
-          reason: "CAPACITY_REACHED",
-          current_usage: storage.entitlement.currentUsage,
-          limit: storage.entitlement.limit,
-          requested: storageMb,
-          remaining: storage.entitlement.remaining,
-          unit: "MB"
-        }
-      );
-    }
-
-    const fileName = safeUploadName(input.file.originalname);
-    const data = await uploadExtractionFile({
-      file: {
-        originalname: fileName,
-        buffer: input.file.buffer
+      // The Gradio contract returns extracted rows, not a CEOPRO job ID or a
+      // storage key. CEOPRO creates and owns its local ingestion job.
+      stage = "stage_sales_rows";
+      persisted = await dataManagementRepo.recordBusinessFileIngestion({
+        tenantId: input.tenantId,
+        userId: input.userId,
+        sourceId: reserved.sourceId,
+        jobId: reserved.jobId,
+        contentSha256,
+        fileName,
+        mimeType: input.file.mimetype,
+        fileSizeBytes: input.file.size,
+        detectedType: data.detected_type,
+        headerCoverageRatio: data.summary.header_coverage_ratio,
+        rowsTruncatedToLimit: data.rows_truncated_to_limit,
+        rowOutcomes: data.summary.row_outcomes
+      });
+    } catch (error) {
+      logSalesUploadFailure(stage, error);
+      try {
+        await dataManagementRepo.markBusinessFileExtractionFailed({
+          tenantId: input.tenantId,
+          userId: input.userId,
+          sourceId: reserved.sourceId,
+          jobId: reserved.jobId
+        });
+      } catch {
+        console.error(
+          "[DataConnections] Failed to release a document extraction reservation."
+        );
       }
-    });
-
-    const extractionValidationError =
-      validateExtractionResultForDataConnection(data);
-    if (extractionValidationError) {
-      throw createServiceError(
-        "INVALID_FILE_UPLOAD",
-        extractionValidationError
-      );
+      throw error;
     }
-
-    // The Gradio contract returns extracted rows, not a CEOPRO job ID or a
-    // storage key. CEOPRO creates and owns its local ingestion job.
-    const jobId = randomUUID();
-
-    /*
-     * Sales/business-file uploads belong to the Data Connection
-     * ingestion domain, not the RAG knowledge-document domain.
-     *
-     * Persist the AI ingestion result through data_sources +
-     * ingestion_jobs so GET /data-connection can expose it through
-     * recentImports.
-     */
-    const persisted = await dataManagementRepo.recordBusinessFileIngestion({
-      tenantId: input.tenantId,
-      userId: input.userId,
-      jobId,
-
-      fileName,
-      mimeType: input.file.mimetype,
-      fileSizeBytes: input.file.size,
-      detectedType: data.detected_type,
-      headerCoverageRatio: data.summary.header_coverage_ratio,
-      rowsTruncatedToLimit: data.rows_truncated_to_limit,
-      rowOutcomes: data.summary.row_outcomes
-    });
-
-    await incrementUsage(input.tenantId, "document_extraction", kbUsed);
 
     return {
-      job_id: jobId,
+      job_id: reserved.jobId,
       job_id_source: "ceopro",
       file_name: fileName,
       detected_type: data.detected_type,
@@ -249,7 +628,9 @@ export const dataConnectionService = {
       header_coverage_ratio: data.summary.header_coverage_ratio,
       row_outcomes: data.summary.row_outcomes,
       promotion: null,
-      currency_resolution: null
+      currency_resolution: null,
+      duplicate: false,
+      job_status: "queued"
     };
   },
   createDataSource: async (
@@ -261,54 +642,46 @@ export const dataConnectionService = {
       throw createServiceError("INVALID_PARAMETER", validation.message);
     }
 
-    /*
-     * data_integration is the BOOLEAN capability.
-     *
-     * This should already be enforced at the route
-     * using requireEntitlement("data_integration").
-     *
-     * connected_data_sources is the numeric capacity
-     * and therefore belongs here.
-     */
-    const capacity = await assertFeatureCapacity({
-      tenantId: input.tenantId,
-      featureCode: "connected_data_sources",
-      additionalAmount: 1
-    });
-
-    if (!capacity.allowed) {
-      if (capacity.reason === "FEATURE_NOT_INCLUDED") {
+    let source: Awaited<
+      ReturnType<typeof dataManagementRepo.createPersistentSource>
+    >;
+    try {
+      source = await dataManagementRepo.createPersistentSource({
+        tenantId: input.tenantId,
+        userId: input.userId,
+        name: validation.data.name,
+        sourceType: validation.data.sourceType,
+        syncFrequencyMinutes: validation.data.syncFrequencyMinutes ?? 1440,
+        sourceUrl: validation.data.sourceUrl,
+        metadata: validation.data.metadata ?? {}
+      });
+    } catch (error) {
+      if (error instanceof ConnectedSourceCapacityError) {
+        if (!error.featureIncluded) {
+          throw createServiceError(
+            "FEATURE_NOT_INCLUDED",
+            error.message
+          );
+        }
         throw createServiceError(
-          "FEATURE_NOT_INCLUDED",
-          "Connected data sources are not available for this subscription."
+          "USAGE_EXCEEDED",
+          error.message,
+          {
+            feature_code: "connected_data_sources",
+            ...error.capacity,
+            requested: 1,
+            unit: "sources"
+          }
         );
       }
-
-      throw createServiceError(
-        "USAGE_EXCEEDED",
-        "The connected data source limit has been reached.",
-        {
-          feature_code: "connected_data_sources",
-          current_usage: capacity.entitlement.currentUsage,
-          limit: capacity.entitlement.limit,
-          remaining: capacity.entitlement.remaining,
-          requested: 1,
-          unit: "sources"
-        }
-      );
+      if (error instanceof DuplicateDataSourceError) {
+        throw createServiceError(
+          "DUPLICATE_RESOURCE",
+          error.message
+        );
+      }
+      throw error;
     }
-
-    const source = await dataManagementRepo.createPersistentSource({
-      tenantId: input.tenantId,
-      userId: input.userId,
-      name: validation.data.name,
-
-      sourceType: validation.data.sourceType,
-
-      syncFrequencyMinutes: validation.data.syncFrequencyMinutes ?? 1440,
-
-      metadata: validation.data.metadata ?? {}
-    });
 
     return {
       id: source.source_id,
@@ -316,6 +689,8 @@ export const dataConnectionService = {
       name: source.source_name,
 
       sourceType: source.source_type,
+      sourceUrl: source.source_url,
+      connectionStatus: getConnectionStatus(source.collector_config),
 
       isActive: source.is_active,
 
@@ -332,6 +707,95 @@ export const dataConnectionService = {
       !Array.isArray(source.collector_config)
         ? source.collector_config
         : {}) as JsonObject
+    };
+  },
+
+  setPersistentSourceActive: async (input: {
+    tenantId: string;
+    userId: string;
+    sourceId: string;
+    isActive: boolean;
+  }): Promise<DataSourceResponse> => {
+    let source: Awaited<
+      ReturnType<typeof dataManagementRepo.setPersistentSourceActive>
+    >;
+    try {
+      source = await dataManagementRepo.setPersistentSourceActive(input);
+    } catch (error) {
+      if (error instanceof DataSourceNotFoundError) {
+        throw createServiceError("RESOURCE_NOT_FOUND", error.message);
+      }
+      if (error instanceof DataSourceReconnectRequiredError) {
+        throw createServiceError("SOURCE_RECONNECT_REQUIRED", error.message);
+      }
+      if (error instanceof ConnectedSourceCapacityError) {
+        if (!error.featureIncluded) {
+          throw createServiceError("FEATURE_NOT_INCLUDED", error.message);
+        }
+        throw createServiceError("USAGE_EXCEEDED", error.message, {
+          feature_code: "connected_data_sources",
+          ...error.capacity,
+          requested: 1,
+          unit: "sources"
+        });
+      }
+      throw error;
+    }
+
+    return {
+      id: source.source_id,
+      name: source.source_name,
+      sourceType: source.source_type,
+      sourceUrl: source.source_url,
+      connectionStatus: getConnectionStatus(source.collector_config),
+      isActive: source.is_active,
+      syncFrequencyMinutes: source.sync_frequency_minutes,
+      lastSyncedAt: source.last_synced_at?.toISOString() ?? null,
+      createdAt: source.created_at?.toISOString() ?? null,
+      metadata: (
+        source.collector_config &&
+        typeof source.collector_config === "object" &&
+        !Array.isArray(source.collector_config)
+          ? source.collector_config
+          : {}
+      ) as JsonObject
+    };
+  },
+
+  disconnectPersistentSource: async (input: {
+    tenantId: string;
+    userId: string;
+    sourceId: string;
+  }): Promise<DataSourceResponse> => {
+    let source: Awaited<
+      ReturnType<typeof dataManagementRepo.disconnectPersistentSource>
+    >;
+    try {
+      source = await dataManagementRepo.disconnectPersistentSource(input);
+    } catch (error) {
+      if (error instanceof DataSourceNotFoundError) {
+        throw createServiceError("RESOURCE_NOT_FOUND", error.message);
+      }
+      throw error;
+    }
+
+    return {
+      id: source.source_id,
+      name: source.source_name,
+      sourceType: source.source_type,
+      sourceUrl: source.source_url,
+      connectionStatus: "disconnected",
+      isActive: source.is_active,
+      syncFrequencyMinutes: source.sync_frequency_minutes,
+      lastSyncedAt: source.last_synced_at?.toISOString() ?? null,
+      createdAt: source.created_at?.toISOString() ?? null,
+      metadata: (
+        source.collector_config &&
+        typeof source.collector_config === "object" &&
+        !Array.isArray(source.collector_config)
+          ? source.collector_config
+          : {}
+      ) as JsonObject
     };
   }
 };

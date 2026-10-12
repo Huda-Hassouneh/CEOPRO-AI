@@ -46,12 +46,12 @@ export const getMainDashboardKPIs = async (
         tenant_id,
         payment_status: "PAID",
         currency,
-        created_at: {
+        issue_date: {
           gte: dateRange.startDate,
           lt: dateRange.endExclusive
         }
       },
-      select: { created_at: true, total_amount: true }
+      select: { issue_date: true, created_at: true, total_amount: true }
     });
     const salesOverview = buildSalesOverview(
       currentInvoices,
@@ -65,7 +65,7 @@ export const getMainDashboardKPIs = async (
         tenant_id,
         payment_status: "PAID",
         currency,
-        created_at: {
+        issue_date: {
           gte: dateRange.previousPeriodStartDate,
           lt: dateRange.startDate
         }
@@ -76,6 +76,18 @@ export const getMainDashboardKPIs = async (
       salesOverview.revenue,
       previousRevenue
     );
+    const excludedCurrencyCount = await tx.invoices.count({
+      where: {
+        tenant_id,
+        payment_status: "PAID",
+        currency: { not: currency },
+        issue_date: { gte: dateRange.startDate, lt: dateRange.endExclusive }
+      }
+    });
+    const lastInvoiceImportAt = currentInvoices.reduce<Date | null>((latest, invoice) =>
+      invoice.created_at && (!latest || invoice.created_at > latest) ? invoice.created_at : latest,
+      null
+    );
 
     const totalProducts = await tx.products.count({
       where: { tenant_id, deleted_at: null }
@@ -84,19 +96,26 @@ export const getMainDashboardKPIs = async (
       where: { tenant_id, products: { deleted_at: null } },
       select: {
         inventory_id: true,
+        product_id: true,
         stock_quantity: true,
         reorder_level: true,
+        updated_at: true,
         products: { select: { product_name: true } }
       },
       orderBy: { stock_quantity: "asc" }
     });
     const inventory = summarizeInventory(inventoryData);
+    const lastInventoryUpdateAt = inventoryData.reduce<Date | null>((latest, balance) =>
+      balance.updated_at && (!latest || balance.updated_at > latest) ? balance.updated_at : latest,
+      null
+    );
 
     const trackedCompetitorsCount = await tx.tenant_competitors.count({
       where: { tenant_id, is_tracked: true }
     });
 
-    const sentimentAggregate = await tx.sentiment_results.aggregate({
+    const sentimentAccess = await getFeatureAccessInfo(tenant_id, "sentiment_analysis", tx);
+    const sentimentAggregate = sentimentAccess.planFeature ? await tx.sentiment_results.aggregate({
       _avg: { sentiment_score: true },
       where: {
         tenant_id,
@@ -109,9 +128,9 @@ export const getMainDashboardKPIs = async (
           safety_status: "SAFE"
         }
       }
-    });
+    }) : null;
     const sentimentScore =
-      sentimentAggregate._avg?.sentiment_score == null
+      sentimentAggregate?._avg?.sentiment_score == null
         ? null
         : Number(sentimentAggregate._avg.sentiment_score);
     const sentimentLabel = getSentimentLabel(sentimentScore);
@@ -160,7 +179,8 @@ export const getMainDashboardKPIs = async (
       summarizeForecasts
     );
 
-    const tenantProducts = await tx.products.findMany({
+    const marketAccess = await getFeatureAccessInfo(tenant_id, "market_intelligence", tx);
+    const tenantProducts = marketAccess.planFeature ? await tx.products.findMany({
       where: { tenant_id, deleted_at: null },
       select: {
         product_id: true,
@@ -195,7 +215,7 @@ export const getMainDashboardKPIs = async (
           }
         }
       }
-    });
+    }) : [];
     const competitorComparisonRows = buildCompetitorComparisonRows(
       tenantProducts,
       currency
@@ -267,7 +287,8 @@ export const getMainDashboardKPIs = async (
           icon: "inventory",
           tone: "orange",
           dataStatus:
-            inventory.healthPercent === null ? "unavailable" : "derived"
+            inventory.healthPercent === null ? "unavailable" :
+              inventory.totalItems < totalProducts ? "partial" : "derived"
         },
         {
           id: "marketSentiment",
@@ -289,31 +310,39 @@ export const getMainDashboardKPIs = async (
         }
       ],
       salesOverview: {
-        dataStatus: "verified",
+        dataStatus: excludedCurrencyCount > 0 ? "partial" : "verified",
         currency,
-        updatedAt: dateRange.endDate.toISOString(),
+        updatedAt: lastInvoiceImportAt?.toISOString() ?? null,
+        excludedCurrencyCount,
         points: salesOverview.points
       },
       inventoryStatus:
         inventory.totalItems > 0
           ? {
-              dataStatus: "verified",
+              dataStatus: inventory.totalItems < totalProducts ? "partial" : "verified",
               totals: {
                 inStock: inventory.inStock,
                 lowStock: inventory.lowStock,
                 outOfStock: inventory.outOfStock,
                 totalItems: inventory.totalItems
               },
+              coveragePercent: totalProducts > 0
+                ? Math.round((inventory.totalItems / totalProducts) * 100)
+                : null,
+              trackedProducts: totalProducts,
+              updatedAt: lastInventoryUpdateAt?.toISOString() ?? null,
               items: inventory.items
             }
           : null,
       demandForecast: {
-        dataStatus: "estimated",
-        source: "forecast-model",
+        dataStatus: forecastAccess.planFeature && demandForecastRows.length > 0 ? "estimated" : "unavailable",
+        accessible: Boolean(forecastAccess.planFeature),
+        source: demandForecastRows.length > 0 ? "forecast-model" : null,
         rows: demandForecastRows
       },
       competitorComparison: {
-        dataStatus: "derived",
+        dataStatus: marketAccess.planFeature && competitorComparisonRows.length > 0 ? "derived" : "unavailable",
+        accessible: Boolean(marketAccess.planFeature),
         currency,
         rows: competitorComparisonRows
       },

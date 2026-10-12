@@ -254,6 +254,7 @@ export type CompanyWhereInput = {
   campaigns?: Prisma.CampaignsListRelationFilter
   customPlanQuotes?: Prisma.CustomPlanQuoteListRelationFilter
   data_sources?: Prisma.Data_sourcesListRelationFilter
+  business_import_drafts?: Prisma.Business_import_draftsListRelationFilter
   demand_forecasts?: Prisma.Demand_forecastsListRelationFilter
   extracted_entity?: Prisma.Extracted_entityListRelationFilter
   global_competitors?: Prisma.Global_competitorsListRelationFilter
@@ -303,6 +304,7 @@ export type CompanyOrderByWithRelationInput = {
   campaigns?: Prisma.campaignsOrderByRelationAggregateInput
   customPlanQuotes?: Prisma.CustomPlanQuoteOrderByRelationAggregateInput
   data_sources?: Prisma.data_sourcesOrderByRelationAggregateInput
+  business_import_drafts?: Prisma.business_import_draftsOrderByRelationAggregateInput
   demand_forecasts?: Prisma.demand_forecastsOrderByRelationAggregateInput
   extracted_entity?: Prisma.extracted_entityOrderByRelationAggregateInput
   global_competitors?: Prisma.global_competitorsOrderByRelationAggregateInput
@@ -355,6 +357,7 @@ export type CompanyWhereUniqueInput = Prisma.AtLeast<{
   campaigns?: Prisma.CampaignsListRelationFilter
   customPlanQuotes?: Prisma.CustomPlanQuoteListRelationFilter
   data_sources?: Prisma.Data_sourcesListRelationFilter
+  business_import_drafts?: Prisma.Business_import_draftsListRelationFilter
   demand_forecasts?: Prisma.Demand_forecastsListRelationFilter
   extracted_entity?: Prisma.Extracted_entityListRelationFilter
   global_competitors?: Prisma.Global_competitorsListRelationFilter
@@ -446,6 +449,7 @@ export type CompanyCreateInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -495,6 +499,7 @@ export type CompanyUncheckedCreateInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -544,6 +549,7 @@ export type CompanyUpdateInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -593,6 +599,7 @@ export type CompanyUncheckedUpdateInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -977,6 +984,20 @@ export type CompanyUpdateOneRequiredWithoutProductsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutProductsInput, Prisma.CompanyUpdateWithoutProductsInput>, Prisma.CompanyUncheckedUpdateWithoutProductsInput>
 }
 
+export type CompanyCreateNestedOneWithoutBusiness_import_draftsInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutBusiness_import_draftsInput, Prisma.CompanyUncheckedCreateWithoutBusiness_import_draftsInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutBusiness_import_draftsInput
+  connect?: Prisma.CompanyWhereUniqueInput
+}
+
+export type CompanyUpdateOneRequiredWithoutBusiness_import_draftsNestedInput = {
+  create?: Prisma.XOR<Prisma.CompanyCreateWithoutBusiness_import_draftsInput, Prisma.CompanyUncheckedCreateWithoutBusiness_import_draftsInput>
+  connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutBusiness_import_draftsInput
+  upsert?: Prisma.CompanyUpsertWithoutBusiness_import_draftsInput
+  connect?: Prisma.CompanyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CompanyUpdateToOneWithWhereWithoutBusiness_import_draftsInput, Prisma.CompanyUpdateWithoutBusiness_import_draftsInput>, Prisma.CompanyUncheckedUpdateWithoutBusiness_import_draftsInput>
+}
+
 export type CompanyCreateNestedOneWithoutRag_documents_metadataInput = {
   create?: Prisma.XOR<Prisma.CompanyCreateWithoutRag_documents_metadataInput, Prisma.CompanyUncheckedCreateWithoutRag_documents_metadataInput>
   connectOrCreate?: Prisma.CompanyCreateOrConnectWithoutRag_documents_metadataInput
@@ -1237,6 +1258,7 @@ export type CompanyCreateWithoutOnboardingInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -1285,6 +1307,7 @@ export type CompanyUncheckedCreateWithoutOnboardingInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -1349,6 +1372,7 @@ export type CompanyUpdateWithoutOnboardingInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -1397,6 +1421,7 @@ export type CompanyUncheckedUpdateWithoutOnboardingInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -1445,6 +1470,7 @@ export type CompanyCreateWithoutEmailVerificationGrantsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -1493,6 +1519,7 @@ export type CompanyUncheckedCreateWithoutEmailVerificationGrantsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -1557,6 +1584,7 @@ export type CompanyUpdateWithoutEmailVerificationGrantsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -1605,6 +1633,7 @@ export type CompanyUncheckedUpdateWithoutEmailVerificationGrantsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -1653,6 +1682,7 @@ export type CompanyCreateWithoutCustomPlansInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -1701,6 +1731,7 @@ export type CompanyUncheckedCreateWithoutCustomPlansInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -1765,6 +1796,7 @@ export type CompanyUpdateWithoutCustomPlansInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -1813,6 +1845,7 @@ export type CompanyUncheckedUpdateWithoutCustomPlansInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -1861,6 +1894,7 @@ export type CompanyCreateWithoutSubscriptionsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -1909,6 +1943,7 @@ export type CompanyUncheckedCreateWithoutSubscriptionsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -1973,6 +2008,7 @@ export type CompanyUpdateWithoutSubscriptionsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -2021,6 +2057,7 @@ export type CompanyUncheckedUpdateWithoutSubscriptionsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -2068,6 +2105,7 @@ export type CompanyCreateWithoutCustomPlanQuotesInput = {
   authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -2116,6 +2154,7 @@ export type CompanyUncheckedCreateWithoutCustomPlanQuotesInput = {
   authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -2180,6 +2219,7 @@ export type CompanyUpdateWithoutCustomPlanQuotesInput = {
   authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -2228,6 +2268,7 @@ export type CompanyUncheckedUpdateWithoutCustomPlanQuotesInput = {
   authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -2277,6 +2318,7 @@ export type CompanyCreateWithoutTenantUsersInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -2325,6 +2367,7 @@ export type CompanyUncheckedCreateWithoutTenantUsersInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -2389,6 +2432,7 @@ export type CompanyUpdateWithoutTenantUsersInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -2437,6 +2481,7 @@ export type CompanyUncheckedUpdateWithoutTenantUsersInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -2485,6 +2530,7 @@ export type CompanyCreateWithoutPlatformInvitationsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -2533,6 +2579,7 @@ export type CompanyUncheckedCreateWithoutPlatformInvitationsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -2597,6 +2644,7 @@ export type CompanyUpdateWithoutPlatformInvitationsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -2645,6 +2693,7 @@ export type CompanyUncheckedUpdateWithoutPlatformInvitationsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -2692,6 +2741,7 @@ export type CompanyCreateWithoutAuthSessionsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -2740,6 +2790,7 @@ export type CompanyUncheckedCreateWithoutAuthSessionsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -2804,6 +2855,7 @@ export type CompanyUpdateWithoutAuthSessionsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -2852,6 +2904,7 @@ export type CompanyUncheckedUpdateWithoutAuthSessionsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -2900,6 +2953,7 @@ export type CompanyCreateWithoutData_sourcesInput = {
   authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -2948,6 +3002,7 @@ export type CompanyUncheckedCreateWithoutData_sourcesInput = {
   authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -3012,6 +3067,7 @@ export type CompanyUpdateWithoutData_sourcesInput = {
   authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -3060,6 +3116,7 @@ export type CompanyUncheckedUpdateWithoutData_sourcesInput = {
   authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -3109,6 +3166,7 @@ export type CompanyCreateWithoutDemand_forecastsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
@@ -3157,6 +3215,7 @@ export type CompanyUncheckedCreateWithoutDemand_forecastsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
@@ -3221,6 +3280,7 @@ export type CompanyUpdateWithoutDemand_forecastsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
@@ -3269,6 +3329,7 @@ export type CompanyUncheckedUpdateWithoutDemand_forecastsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -3317,6 +3378,7 @@ export type CompanyCreateWithoutGlobal_competitorsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
@@ -3365,6 +3427,7 @@ export type CompanyUncheckedCreateWithoutGlobal_competitorsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
@@ -3429,6 +3492,7 @@ export type CompanyUpdateWithoutGlobal_competitorsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
@@ -3477,6 +3541,7 @@ export type CompanyUncheckedUpdateWithoutGlobal_competitorsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -3525,6 +3590,7 @@ export type CompanyCreateWithoutInventoryInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -3573,6 +3639,7 @@ export type CompanyUncheckedCreateWithoutInventoryInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -3637,6 +3704,7 @@ export type CompanyUpdateWithoutInventoryInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -3685,6 +3753,7 @@ export type CompanyUncheckedUpdateWithoutInventoryInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -3733,6 +3802,7 @@ export type CompanyCreateWithoutInvoicesInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -3781,6 +3851,7 @@ export type CompanyUncheckedCreateWithoutInvoicesInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -3845,6 +3916,7 @@ export type CompanyUpdateWithoutInvoicesInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -3893,6 +3965,7 @@ export type CompanyUncheckedUpdateWithoutInvoicesInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -3941,6 +4014,7 @@ export type CompanyCreateWithoutProductsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -3989,6 +4063,7 @@ export type CompanyUncheckedCreateWithoutProductsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -4053,6 +4128,7 @@ export type CompanyUpdateWithoutProductsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -4101,6 +4177,7 @@ export type CompanyUncheckedUpdateWithoutProductsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -4111,6 +4188,218 @@ export type CompanyUncheckedUpdateWithoutProductsInput = {
   news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
   platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUncheckedUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUncheckedUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUncheckedUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUncheckedUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyCreateWithoutBusiness_import_draftsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyUncheckedCreateWithoutBusiness_import_draftsInput = {
+  id?: string
+  businessName: string
+  businessType?: string | null
+  countryCode: string
+  operatingCountries?: Prisma.CompanyCreateoperatingCountriesInput | string[]
+  primaryCurrency: string
+  supportedCurrencies?: Prisma.CompanyCreatesupportedCurrenciesInput | string[]
+  timezone?: string
+  preferredLanguage?: string
+  supportedLanguages?: Prisma.CompanyCreatesupportedLanguagesInput | string[]
+  createdAt?: Date | string | null
+  updatedAt?: Date | string | null
+  deletedAt?: Date | string | null
+  platformStatus?: string
+  platformNotes?: string | null
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
+  campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
+  data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
+  extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
+  global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
+  invoices?: Prisma.invoicesUncheckedCreateNestedManyWithoutCompaniesInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  market_events?: Prisma.market_eventsUncheckedCreateNestedManyWithoutCompaniesInput
+  news_record?: Prisma.news_recordUncheckedCreateNestedManyWithoutCompaniesInput
+  customPlans?: Prisma.PlanUncheckedCreateNestedManyWithoutTenantInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedCreateNestedManyWithoutTenantInput
+  products?: Prisma.productsUncheckedCreateNestedManyWithoutCompaniesInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedCreateNestedManyWithoutCompaniesInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedCreateNestedManyWithoutCompaniesInput
+  reviews?: Prisma.reviewsUncheckedCreateNestedManyWithoutCompaniesInput
+  social_mention?: Prisma.social_mentionUncheckedCreateNestedManyWithoutCompaniesInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutTenantInput
+  system_alerts?: Prisma.system_alertsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenant_competitors?: Prisma.tenant_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
+  tenantUsers?: Prisma.TenantUserUncheckedCreateNestedManyWithoutTenantInput
+  transactions?: Prisma.transactionsUncheckedCreateNestedManyWithoutCompaniesInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutPlatformTenantInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUncheckedCreateNestedManyWithoutSourceTenantInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotifications?: Prisma.TenantNotificationUncheckedCreateNestedManyWithoutTenantInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUncheckedCreateNestedManyWithoutTenantInput
+  onboarding?: Prisma.OnboardingUncheckedCreateNestedOneWithoutTenantInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUncheckedCreateNestedManyWithoutTenantInput
+}
+
+export type CompanyCreateOrConnectWithoutBusiness_import_draftsInput = {
+  where: Prisma.CompanyWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutBusiness_import_draftsInput, Prisma.CompanyUncheckedCreateWithoutBusiness_import_draftsInput>
+}
+
+export type CompanyUpsertWithoutBusiness_import_draftsInput = {
+  update: Prisma.XOR<Prisma.CompanyUpdateWithoutBusiness_import_draftsInput, Prisma.CompanyUncheckedUpdateWithoutBusiness_import_draftsInput>
+  create: Prisma.XOR<Prisma.CompanyCreateWithoutBusiness_import_draftsInput, Prisma.CompanyUncheckedCreateWithoutBusiness_import_draftsInput>
+  where?: Prisma.CompanyWhereInput
+}
+
+export type CompanyUpdateToOneWithWhereWithoutBusiness_import_draftsInput = {
+  where?: Prisma.CompanyWhereInput
+  data: Prisma.XOR<Prisma.CompanyUpdateWithoutBusiness_import_draftsInput, Prisma.CompanyUncheckedUpdateWithoutBusiness_import_draftsInput>
+}
+
+export type CompanyUpdateWithoutBusiness_import_draftsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUpdateManyWithoutCompaniesNestedInput
+  rag_documents_metadata?: Prisma.rag_documents_metadataUpdateManyWithoutCompaniesNestedInput
+  recommendation_outcomes?: Prisma.recommendation_outcomesUpdateManyWithoutCompaniesNestedInput
+  reviews?: Prisma.reviewsUpdateManyWithoutCompaniesNestedInput
+  social_mention?: Prisma.social_mentionUpdateManyWithoutCompaniesNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutTenantNestedInput
+  system_alerts?: Prisma.system_alertsUpdateManyWithoutCompaniesNestedInput
+  tenant_competitors?: Prisma.tenant_competitorsUpdateManyWithoutCompaniesNestedInput
+  tenantUsers?: Prisma.TenantUserUpdateManyWithoutTenantNestedInput
+  transactions?: Prisma.transactionsUpdateManyWithoutCompaniesNestedInput
+  platformNotificationsReceived?: Prisma.PlatformNotificationUpdateManyWithoutPlatformTenantNestedInput
+  platformNotificationsSourced?: Prisma.PlatformNotificationUpdateManyWithoutSourceTenantNestedInput
+  platformNotificationOutbox?: Prisma.PlatformNotificationOutboxUpdateManyWithoutTenantNestedInput
+  tenantNotifications?: Prisma.TenantNotificationUpdateManyWithoutTenantNestedInput
+  tenantNotificationOutbox?: Prisma.TenantNotificationOutboxUpdateManyWithoutTenantNestedInput
+  onboarding?: Prisma.OnboardingUpdateOneWithoutTenantNestedInput
+  emailVerificationGrants?: Prisma.EmailVerificationGrantUpdateManyWithoutTenantNestedInput
+}
+
+export type CompanyUncheckedUpdateWithoutBusiness_import_draftsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  businessName?: Prisma.StringFieldUpdateOperationsInput | string
+  businessType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  countryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  operatingCountries?: Prisma.CompanyUpdateoperatingCountriesInput | string[]
+  primaryCurrency?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedCurrencies?: Prisma.CompanyUpdatesupportedCurrenciesInput | string[]
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredLanguage?: Prisma.StringFieldUpdateOperationsInput | string
+  supportedLanguages?: Prisma.CompanyUpdatesupportedLanguagesInput | string[]
+  createdAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  platformStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  platformNotes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
+  campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
+  data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
+  extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
+  global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
+  inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
+  invoices?: Prisma.invoicesUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_alert_events?: Prisma.market_alert_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  market_events?: Prisma.market_eventsUncheckedUpdateManyWithoutCompaniesNestedInput
+  news_record?: Prisma.news_recordUncheckedUpdateManyWithoutCompaniesNestedInput
+  customPlans?: Prisma.PlanUncheckedUpdateManyWithoutTenantNestedInput
+  platformInvitations?: Prisma.PlatformInvitationUncheckedUpdateManyWithoutTenantNestedInput
+  products?: Prisma.productsUncheckedUpdateManyWithoutCompaniesNestedInput
   rag_documents_metadata?: Prisma.rag_documents_metadataUncheckedUpdateManyWithoutCompaniesNestedInput
   recommendation_outcomes?: Prisma.recommendation_outcomesUncheckedUpdateManyWithoutCompaniesNestedInput
   reviews?: Prisma.reviewsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -4149,6 +4438,7 @@ export type CompanyCreateWithoutRag_documents_metadataInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -4197,6 +4487,7 @@ export type CompanyUncheckedCreateWithoutRag_documents_metadataInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -4261,6 +4552,7 @@ export type CompanyUpdateWithoutRag_documents_metadataInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -4309,6 +4601,7 @@ export type CompanyUncheckedUpdateWithoutRag_documents_metadataInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -4357,6 +4650,7 @@ export type CompanyCreateWithoutRecommendation_outcomesInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -4405,6 +4699,7 @@ export type CompanyUncheckedCreateWithoutRecommendation_outcomesInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -4469,6 +4764,7 @@ export type CompanyUpdateWithoutRecommendation_outcomesInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -4517,6 +4813,7 @@ export type CompanyUncheckedUpdateWithoutRecommendation_outcomesInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -4565,6 +4862,7 @@ export type CompanyCreateWithoutReviewsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -4613,6 +4911,7 @@ export type CompanyUncheckedCreateWithoutReviewsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -4677,6 +4976,7 @@ export type CompanyUpdateWithoutReviewsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -4725,6 +5025,7 @@ export type CompanyUncheckedUpdateWithoutReviewsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -4773,6 +5074,7 @@ export type CompanyCreateWithoutSystem_alertsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -4821,6 +5123,7 @@ export type CompanyUncheckedCreateWithoutSystem_alertsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -4885,6 +5188,7 @@ export type CompanyUpdateWithoutSystem_alertsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -4933,6 +5237,7 @@ export type CompanyUncheckedUpdateWithoutSystem_alertsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -4981,6 +5286,7 @@ export type CompanyCreateWithoutTenant_competitorsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -5029,6 +5335,7 @@ export type CompanyUncheckedCreateWithoutTenant_competitorsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -5093,6 +5400,7 @@ export type CompanyUpdateWithoutTenant_competitorsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -5141,6 +5449,7 @@ export type CompanyUncheckedUpdateWithoutTenant_competitorsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -5188,6 +5497,7 @@ export type CompanyCreateWithoutCampaignsInput = {
   authSessions?: Prisma.AuthSessionCreateNestedManyWithoutTenantInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -5236,6 +5546,7 @@ export type CompanyUncheckedCreateWithoutCampaignsInput = {
   authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutTenantInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -5300,6 +5611,7 @@ export type CompanyUpdateWithoutCampaignsInput = {
   authSessions?: Prisma.AuthSessionUpdateManyWithoutTenantNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -5348,6 +5660,7 @@ export type CompanyUncheckedUpdateWithoutCampaignsInput = {
   authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutTenantNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -5397,6 +5710,7 @@ export type CompanyCreateWithoutExtracted_entityInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
   inventory?: Prisma.inventoryCreateNestedManyWithoutCompaniesInput
@@ -5445,6 +5759,7 @@ export type CompanyUncheckedCreateWithoutExtracted_entityInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
   inventory?: Prisma.inventoryUncheckedCreateNestedManyWithoutCompaniesInput
@@ -5509,6 +5824,7 @@ export type CompanyUpdateWithoutExtracted_entityInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
   inventory?: Prisma.inventoryUpdateManyWithoutCompaniesNestedInput
@@ -5557,6 +5873,7 @@ export type CompanyUncheckedUpdateWithoutExtracted_entityInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
   inventory?: Prisma.inventoryUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -5605,6 +5922,7 @@ export type CompanyCreateWithoutMarket_alert_eventsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -5653,6 +5971,7 @@ export type CompanyUncheckedCreateWithoutMarket_alert_eventsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -5717,6 +6036,7 @@ export type CompanyUpdateWithoutMarket_alert_eventsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -5765,6 +6085,7 @@ export type CompanyUncheckedUpdateWithoutMarket_alert_eventsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -5813,6 +6134,7 @@ export type CompanyCreateWithoutMarket_eventsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -5861,6 +6183,7 @@ export type CompanyUncheckedCreateWithoutMarket_eventsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -5925,6 +6248,7 @@ export type CompanyUpdateWithoutMarket_eventsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -5973,6 +6297,7 @@ export type CompanyUncheckedUpdateWithoutMarket_eventsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -6021,6 +6346,7 @@ export type CompanyCreateWithoutNews_recordInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -6069,6 +6395,7 @@ export type CompanyUncheckedCreateWithoutNews_recordInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -6133,6 +6460,7 @@ export type CompanyUpdateWithoutNews_recordInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -6181,6 +6509,7 @@ export type CompanyUncheckedUpdateWithoutNews_recordInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -6229,6 +6558,7 @@ export type CompanyCreateWithoutSocial_mentionInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -6277,6 +6607,7 @@ export type CompanyUncheckedCreateWithoutSocial_mentionInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -6341,6 +6672,7 @@ export type CompanyUpdateWithoutSocial_mentionInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -6389,6 +6721,7 @@ export type CompanyUncheckedUpdateWithoutSocial_mentionInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -6437,6 +6770,7 @@ export type CompanyCreateWithoutTransactionsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -6485,6 +6819,7 @@ export type CompanyUncheckedCreateWithoutTransactionsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -6549,6 +6884,7 @@ export type CompanyUpdateWithoutTransactionsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -6597,6 +6933,7 @@ export type CompanyUncheckedUpdateWithoutTransactionsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -6645,6 +6982,7 @@ export type CompanyCreateWithoutPlatformNotificationsReceivedInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -6693,6 +7031,7 @@ export type CompanyUncheckedCreateWithoutPlatformNotificationsReceivedInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -6746,6 +7085,7 @@ export type CompanyCreateWithoutPlatformNotificationsSourcedInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -6794,6 +7134,7 @@ export type CompanyUncheckedCreateWithoutPlatformNotificationsSourcedInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -6858,6 +7199,7 @@ export type CompanyUpdateWithoutPlatformNotificationsReceivedInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -6906,6 +7248,7 @@ export type CompanyUncheckedUpdateWithoutPlatformNotificationsReceivedInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -6965,6 +7308,7 @@ export type CompanyUpdateWithoutPlatformNotificationsSourcedInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -7013,6 +7357,7 @@ export type CompanyUncheckedUpdateWithoutPlatformNotificationsSourcedInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -7061,6 +7406,7 @@ export type CompanyCreateWithoutPlatformNotificationOutboxInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -7109,6 +7455,7 @@ export type CompanyUncheckedCreateWithoutPlatformNotificationOutboxInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -7173,6 +7520,7 @@ export type CompanyUpdateWithoutPlatformNotificationOutboxInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -7221,6 +7569,7 @@ export type CompanyUncheckedUpdateWithoutPlatformNotificationOutboxInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -7269,6 +7618,7 @@ export type CompanyCreateWithoutTenantNotificationsInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -7317,6 +7667,7 @@ export type CompanyUncheckedCreateWithoutTenantNotificationsInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -7381,6 +7732,7 @@ export type CompanyUpdateWithoutTenantNotificationsInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -7429,6 +7781,7 @@ export type CompanyUncheckedUpdateWithoutTenantNotificationsInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -7477,6 +7830,7 @@ export type CompanyCreateWithoutTenantNotificationOutboxInput = {
   campaigns?: Prisma.campaignsCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsCreateNestedManyWithoutCompaniesInput
@@ -7525,6 +7879,7 @@ export type CompanyUncheckedCreateWithoutTenantNotificationOutboxInput = {
   campaigns?: Prisma.campaignsUncheckedCreateNestedManyWithoutCompaniesInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedCreateNestedManyWithoutTenantInput
   data_sources?: Prisma.data_sourcesUncheckedCreateNestedManyWithoutCompaniesInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedCreateNestedManyWithoutCompaniesInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedCreateNestedManyWithoutCompaniesInput
   extracted_entity?: Prisma.extracted_entityUncheckedCreateNestedManyWithoutCompaniesInput
   global_competitors?: Prisma.global_competitorsUncheckedCreateNestedManyWithoutCompaniesInput
@@ -7589,6 +7944,7 @@ export type CompanyUpdateWithoutTenantNotificationOutboxInput = {
   campaigns?: Prisma.campaignsUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUpdateManyWithoutCompaniesNestedInput
@@ -7637,6 +7993,7 @@ export type CompanyUncheckedUpdateWithoutTenantNotificationOutboxInput = {
   campaigns?: Prisma.campaignsUncheckedUpdateManyWithoutCompaniesNestedInput
   customPlanQuotes?: Prisma.CustomPlanQuoteUncheckedUpdateManyWithoutTenantNestedInput
   data_sources?: Prisma.data_sourcesUncheckedUpdateManyWithoutCompaniesNestedInput
+  business_import_drafts?: Prisma.business_import_draftsUncheckedUpdateManyWithoutCompaniesNestedInput
   demand_forecasts?: Prisma.demand_forecastsUncheckedUpdateManyWithoutCompaniesNestedInput
   extracted_entity?: Prisma.extracted_entityUncheckedUpdateManyWithoutCompaniesNestedInput
   global_competitors?: Prisma.global_competitorsUncheckedUpdateManyWithoutCompaniesNestedInput
@@ -7675,6 +8032,7 @@ export type CompanyCountOutputType = {
   campaigns: number
   customPlanQuotes: number
   data_sources: number
+  business_import_drafts: number
   demand_forecasts: number
   extracted_entity: number
   global_competitors: number
@@ -7708,6 +8066,7 @@ export type CompanyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   campaigns?: boolean | CompanyCountOutputTypeCountCampaignsArgs
   customPlanQuotes?: boolean | CompanyCountOutputTypeCountCustomPlanQuotesArgs
   data_sources?: boolean | CompanyCountOutputTypeCountData_sourcesArgs
+  business_import_drafts?: boolean | CompanyCountOutputTypeCountBusiness_import_draftsArgs
   demand_forecasts?: boolean | CompanyCountOutputTypeCountDemand_forecastsArgs
   extracted_entity?: boolean | CompanyCountOutputTypeCountExtracted_entityArgs
   global_competitors?: boolean | CompanyCountOutputTypeCountGlobal_competitorsArgs
@@ -7772,6 +8131,13 @@ export type CompanyCountOutputTypeCountCustomPlanQuotesArgs<ExtArgs extends runt
  */
 export type CompanyCountOutputTypeCountData_sourcesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.data_sourcesWhereInput
+}
+
+/**
+ * CompanyCountOutputType without action
+ */
+export type CompanyCountOutputTypeCountBusiness_import_draftsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.business_import_draftsWhereInput
 }
 
 /**
@@ -7977,6 +8343,7 @@ export type CompanySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   campaigns?: boolean | Prisma.Company$campaignsArgs<ExtArgs>
   customPlanQuotes?: boolean | Prisma.Company$customPlanQuotesArgs<ExtArgs>
   data_sources?: boolean | Prisma.Company$data_sourcesArgs<ExtArgs>
+  business_import_drafts?: boolean | Prisma.Company$business_import_draftsArgs<ExtArgs>
   demand_forecasts?: boolean | Prisma.Company$demand_forecastsArgs<ExtArgs>
   extracted_entity?: boolean | Prisma.Company$extracted_entityArgs<ExtArgs>
   global_competitors?: boolean | Prisma.Company$global_competitorsArgs<ExtArgs>
@@ -8067,6 +8434,7 @@ export type CompanyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   campaigns?: boolean | Prisma.Company$campaignsArgs<ExtArgs>
   customPlanQuotes?: boolean | Prisma.Company$customPlanQuotesArgs<ExtArgs>
   data_sources?: boolean | Prisma.Company$data_sourcesArgs<ExtArgs>
+  business_import_drafts?: boolean | Prisma.Company$business_import_draftsArgs<ExtArgs>
   demand_forecasts?: boolean | Prisma.Company$demand_forecastsArgs<ExtArgs>
   extracted_entity?: boolean | Prisma.Company$extracted_entityArgs<ExtArgs>
   global_competitors?: boolean | Prisma.Company$global_competitorsArgs<ExtArgs>
@@ -8106,6 +8474,7 @@ export type $CompanyPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     campaigns: Prisma.$campaignsPayload<ExtArgs>[]
     customPlanQuotes: Prisma.$CustomPlanQuotePayload<ExtArgs>[]
     data_sources: Prisma.$data_sourcesPayload<ExtArgs>[]
+    business_import_drafts: Prisma.$business_import_draftsPayload<ExtArgs>[]
     demand_forecasts: Prisma.$demand_forecastsPayload<ExtArgs>[]
     extracted_entity: Prisma.$extracted_entityPayload<ExtArgs>[]
     global_competitors: Prisma.$global_competitorsPayload<ExtArgs>[]
@@ -8548,6 +8917,7 @@ export interface Prisma__CompanyClient<T, Null = never, ExtArgs extends runtime.
   campaigns<T extends Prisma.Company$campaignsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$campaignsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$campaignsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   customPlanQuotes<T extends Prisma.Company$customPlanQuotesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$customPlanQuotesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CustomPlanQuotePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   data_sources<T extends Prisma.Company$data_sourcesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$data_sourcesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$data_sourcesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  business_import_drafts<T extends Prisma.Company$business_import_draftsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$business_import_draftsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$business_import_draftsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   demand_forecasts<T extends Prisma.Company$demand_forecastsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$demand_forecastsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$demand_forecastsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   extracted_entity<T extends Prisma.Company$extracted_entityArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$extracted_entityArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$extracted_entityPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   global_competitors<T extends Prisma.Company$global_competitorsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Company$global_competitorsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$global_competitorsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -9105,6 +9475,30 @@ export type Company$data_sourcesArgs<ExtArgs extends runtime.Types.Extensions.In
   take?: number
   skip?: number
   distinct?: Prisma.Data_sourcesScalarFieldEnum | Prisma.Data_sourcesScalarFieldEnum[]
+}
+
+/**
+ * Company.business_import_drafts
+ */
+export type Company$business_import_draftsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the business_import_drafts
+   */
+  select?: Prisma.business_import_draftsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the business_import_drafts
+   */
+  omit?: Prisma.business_import_draftsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.business_import_draftsInclude<ExtArgs> | null
+  where?: Prisma.business_import_draftsWhereInput
+  orderBy?: Prisma.business_import_draftsOrderByWithRelationInput | Prisma.business_import_draftsOrderByWithRelationInput[]
+  cursor?: Prisma.business_import_draftsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.Business_import_draftsScalarFieldEnum | Prisma.Business_import_draftsScalarFieldEnum[]
 }
 
 /**

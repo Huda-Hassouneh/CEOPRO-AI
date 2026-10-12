@@ -14,6 +14,7 @@ const capacity = read("src/modules/features/service/capacity.service.ts");
 const catalog = read("src/modules/features/catalog.ts");
 const plans = read("src/config/production-plans.ts");
 const workerMigration = read("prisma/migrations/20261006120000_business_data_ingestion_worker/migration.sql");
+const extractionStatusMigration = read("prisma/migrations/20261012010000_allow_extraction_job_status/migration.sql");
 const schema = read("prisma/schema.prisma");
 const templateConfig = read("../frontend/src/features/data-ingestion/config/dataTemplateOptions.js");
 const dropzone = read("../frontend/src/features/data-ingestion/components/FileUploadDropzone.jsx");
@@ -53,25 +54,31 @@ test("document extraction byte rounding charges one KB minimum and rounds partia
   }
 });
 
-test("usage is charged only after AI extraction validates and tenant staging persistence succeeds", () => {
+test("extraction quota is reserved before AI and committed or released with tenant job state", () => {
   assert.ok(service.indexOf("validateExtractionUpload(input.file)") < service.indexOf("uploadExtractionFile({"));
-  assert.ok(service.indexOf("uploadExtractionFile({") < service.indexOf("validateExtractionResultForDataConnection(data)"));
-  assert.ok(service.indexOf("validateExtractionResultForDataConnection(data)") < service.indexOf("recordBusinessFileIngestion({"));
-  assert.ok(service.indexOf("recordBusinessFileIngestion({") < service.indexOf("incrementUsage(input.tenantId, \"document_extraction\""));
+  assert.ok(service.indexOf("reserveBusinessFileImport({") < service.indexOf("uploadExtractionFile({"));
+  assert.match(repo, /reserveBusinessFileImport:[\s\S]*?reserveFeatureUsageInTransaction/);
+  assert.match(repo, /markBusinessFileExtractionFailed:[\s\S]*?releaseFeatureUsageInTransaction/);
+  assert.match(repo, /recordBusinessFileIngestion:[\s\S]*?extraction_usage_reservation_status: "committed"[\s\S]*?import_staging_rows\.createMany/);
+  assert.match(usage, /pg_advisory_xact_lock/);
+  assert.match(usage, /usageRecord\.current_usage \+ amount > limit/);
   assert.match(service, /Math\.ceil\(input\.file\.size \/ 1024\)/);
 });
 
-test("Gradio is separate from the AI FastAPI extraction-upload endpoint", () => {
+test("the database accepts the EXTRACTING reservation state used before the AI call", () => {
+  assert.match(extractionStatusMigration, /DROP CONSTRAINT IF EXISTS chk_job_status/);
+  assert.match(extractionStatusMigration, /EXTRACTING.*QUEUED.*PROCESSING.*COMPLETED.*FAILED/);
+});
+
+test("sales upload uses the Gradio extraction endpoint", () => {
   const client = read("src/modules/dataconnection/client/ingestion.client.ts");
-  const aiMain = read("../ai/src/ai/main.py");
   assert.match(client, /service: "analytics"[\s\S]*apiName: "extract_file"/);
   assert.match(client, /file\.buffer\.toString\("base64"\)/);
-  assert.match(aiMain, /@app\.post\("\/extraction\/upload"\)/);
   assert.doesNotMatch(service, /fetch\([^\n]*\/extraction\/upload/);
 });
 
 test("CEOPRO owns source/job/staging IDs and stages rows under its authenticated tenant", () => {
-  assert.match(service, /const jobId = randomUUID\(\)/);
+  assert.match(service, /jobId:\s*randomUUID\(\)/);
   assert.match(repo, /recordBusinessFileIngestion: async/);
   assert.match(repo, /set_config\('app\.current_tenant_id'/);
   assert.match(repo, /source_type: "documents"/);
@@ -111,17 +118,26 @@ test("worker RLS policies are tenant-correlated and scoped to its least-privileg
   assert.match(schema, /model transactions \{[\s\S]*?tenant_id/);
 });
 
-test("regression: extraction quota check and usage increment must be atomic", () => {
-  const check = service.indexOf("getRemainingUsage(");
-  const increment = service.indexOf("incrementUsage(input.tenantId, \"document_extraction\"");
-  const sharedTransaction = /\$transaction|FOR UPDATE|advisory_xact_lock|SERIALIZABLE/i.test(service.slice(check, increment));
-  assert.ok(sharedTransaction,
-    "EXTRACTION_QUOTA_RACE_CONDITION: remaining quota is read before extraction and charged later with no reservation/atomic transaction.");
+test("regression: manual extraction quota reservation is concurrency-safe and idempotent across retries", () => {
+  assert.match(repo, /manual-business-file:[\s\S]*?pg_advisory_xact_lock/);
+  assert.match(repo, /\$executeRawUnsafe\([\s\S]*?pg_advisory_xact_lock/);
+  assert.doesNotMatch(repo, /\$queryRawUnsafe\([\s\S]*?pg_advisory_xact_lock/);
+  assert.match(repo, /reserveFeatureUsageInTransaction/);
+  assert.match(repo, /extraction_usage_reservation_status/);
+  assert.match(repo, /reservationAlreadyActive/);
+  assert.match(usage, /metered-usage:\$\{tenantId\}:\$\{featureCode\}/);
+  assert.match(usage, /\$executeRawUnsafe\([\s\S]*?pg_advisory_xact_lock/);
+  assert.doesNotMatch(usage, /\$queryRawUnsafe\([\s\S]*?pg_advisory_xact_lock/);
+  assert.match(usage, /FeatureUsageCapacityError/);
 });
 
 test("regression: Data Connections download templates must use the canonical backend sales templates", () => {
-  assert.match(templateConfig, /\/assets\/templates\/ceopro_sales_transaction_import_v1/,
+  assert.match(templateConfig, /filename: 'ceopro_sales_transaction_import_v1/,
     "TEMPLATE_HEADER_MISMATCH: frontend downloads ceopro-data-template assets, not the backend's canonical versioned sales templates.");
+  assert.match(ingestionApi, /getDataTemplateOption\(templateId\)/);
+  assert.match(ingestionApi, /template\.kind \|\| 'sales'/);
+  assert.match(ingestionApi, /`\/data-connection\/templates\/\$\{kind\}\/\$\{format\}`/);
+  assert.doesNotMatch(templateConfig, /url:/);
 });
 
 test("regression: upload UI size and supported-format claims must match backend limits", () => {

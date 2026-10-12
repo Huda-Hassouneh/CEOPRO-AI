@@ -38,7 +38,7 @@ storage_request_mb = file_size_bytes / (1024 * 1024)
 
 **Example:** Files containing 1,536,000, 2,560,000, and 4,096,000 bytes charge 1,500 + 2,500 + 4,000 = 8,000 KB. A new billing period should use the new subscription-period usage allocation. A one-file limit is separate: `MAX_UPLOAD_BYTES` defaults to **10 MiB (10,485,760 bytes)**.
 
-**Observed storage accounting problem:** `getCurrentCapacityUsage('document_storage_mb')` only sums `rag_documents_metadata.file_size_bytes`. Data Connections writes business-file size into inactive `data_sources.collector_config.file_size_bytes`, not `rag_documents_metadata`. Consequently, the storage pre-check for business uploads does not by itself ensure their retained file bytes count toward storage usage. The current flow also does not establish durable object storage for the original business file. Define a canonical storage policy and meter only bytes actually retained, with a reliable deletion/release lifecycle.
+**Business upload storage policy:** Data Connections does not retain the original upload after extraction. Its persisted file size and hash are bookkeeping metadata, so this path does not consume `document_storage_mb`; that limit remains for retained Knowledge Base files.
 
 ## 4. Supported files and templates
 
@@ -59,24 +59,24 @@ The upload is constrained by extension, file signature/content shape, file size,
 
 Extra columns are tolerated. Header comparison trims and normalizes case/spaces/underscores, but alias-only columns such as `qty` are _not_ enough for a CEOPRO template-compliant import. The backend reads and checks its included CSV/XLSX template assets at runtime.
 
-**High-priority UI mismatch:** `frontend/src/features/data-ingestion/utils/fileValidation.js` currently permits up to **50 MiB** and advertises formats including `.doc`, `.docx`, `.txt`, `.png`, `.jpeg` and `.xls`, while the backend supports only the four types above and 10 MiB by default. Additionally, the frontend downloadable `public/assets/templates/ceopro-data-template.csv` contains headers `Field,Value,Date,Notes`, which do **not** satisfy the backend's required sales template. Replace frontend download assets with the canonical backend-compatible sales templates (or generate them from one shared contract); make frontend validation mirror the backend.
+The Connect Data file picker now has a dedicated validator that matches the backend's four accepted types and the default **10 MiB** per-file limit. It downloads the backend's versioned sales CSV/XLSX templates. Chat attachments retain their separate validation rules.
 
 The separately prepared **Invoice** and **Inventory** CSV/XLSX templates are planned domain imports. Their existence does not mean the current extraction endpoint supports those distinct schemas or persists `invoices` / `inventory`.
 
 ## 5. Actual request and processing lifecycle
 
-1. **Authorize:** `POST /data-connection` with authenticated user, tenant membership and `requireEntitlement('document_extraction')`. The compatibility route `POST /features/extraction/upload` delegates to the same controller, if mounted.
+1. **Authorize:** `POST /data-connection` requires an authenticated user, tenant membership, `data_integration`, and `document_extraction`.
 2. **Validate file:** multer uses in-memory storage for one file, subject to `MAX_UPLOAD_BYTES`; local extension/content/header checks run before invoking AI.
-3. **Preflight allowance:** retrieve `document_extraction` remaining KB; check `document_storage_mb` capacity.
+3. **Check and reserve allowance:** check `document_extraction` remaining KB, then atomically reserve the rounded KB charge with an inactive source row and an `EXTRACTING` job. A tenant/feature advisory lock serializes the reservation with other metered usage updates. Exact file-hash retries reuse the active reservation.
 4. **Call hosted AI:** backend `client/ingestion.client.ts` invokes analytics Gradio `extract_file` with `[sanitized_file_name, base64_file_bytes, country_code, currency]`; current defaults are `JO`, `JOD`.
-5. **Validate AI output:** enforce response schema, canonical template mode, at least one processed row, required typed fields, and **no partial/failed rows** at the extraction acceptance boundary.
-6. **Stage:** backend creates its own UUID job ID; in an RLS-scoped transaction inserts inactive `data_sources`, `ingestion_jobs` with `QUEUED`, and `import_staging_rows` with `PENDING`.
-7. **Charge allowance:** `incrementUsage(tenantId, 'document_extraction', charge_kb)` is called **after** the staging transaction completes.
-8. **Return upload result:** controller returns **HTTP 200** with “Document extracted and queued for import” and the local job ID. This does not mean that downstream product/sales rows are committed.
-9. **Process asynchronously:** `npm run worker:data-ingestion` polls, claims jobs with leases, validates staged sales, creates/reuses `products`, inserts `transactions`, commits/invalidates rows, and updates job status.
+5. **Validate AI output:** enforce response schema, canonical template mode, at least one processed row, and required typed fields before persistence.
+6. **Stage:** in an RLS-scoped transaction, update the job to `QUEUED`, insert `import_staging_rows` with `PENDING` or review statuses, and mark the usage reservation committed.
+7. **Release failures:** an AI, validation, or staging failure marks the extraction job failed and releases the reservation in a transaction. A stale in-progress retry reuses its active reservation, avoiding a second charge.
+8. **Return upload result:** controller returns **HTTP 200** only after staging succeeds, with “Document extracted and queued for import” and the local job ID. This does not mean that downstream product/sales rows are committed.
+9. **Process asynchronously:** `npm run worker:data-ingestion` polls, claims jobs with leases, validates staged sales, creates/reuses `products`, inserts `transactions`, commits/rejects rows, and updates job status.
 10. **Consume downstream:** other features query their own authoritative tables. Dashboard revenue currently uses paid `invoices`, not these imported `transactions`; the two are not interchangeable.
 
-**Current status fields:** `QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED` at the job level; finer staging validation and persistence states exist. Use the actual enum and backend mapping when presenting them. Frontend job listing and staged-row review API functions are still preview stubs in the reviewed snapshot.
+**Current status fields:** `EXTRACTING`, `QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED` at the job level; finer staging validation and persistence states exist. The Connect Data page reads real job details and staging rows, supports correction and retry, and describes source registration as configured until a successful promoted sync is visible.
 
 ## 6. Database ownership and data producers
 
@@ -105,26 +105,21 @@ The AI-team archive includes its own FastAPI `/extraction/upload` logic and Pyth
 | Tenant-scoped source/job/staging persistence      | Implemented                                                                  |
 | Asynchronous ingestion worker with retry/progress | Implemented; runtime success depends on worker and database role             |
 | Product/transaction promotion                     | Implemented for staged sales; real e2e must be verified                      |
-| Subscription KB usage                             | Implemented with separate preflight and increment operations                 |
-| Storage usage for manual business uploads         | Not counted in current storage capacity resolver                             |
-| UI-supported file types and size                  | **Incorrect relative to backend**                                            |
-| Frontend downloadable sales CSV                   | **Incompatible with backend template**                                       |
-| Frontend real job/staging review                  | Preview stub                                                                 |
+| Subscription KB usage                             | Atomically reserved with source/job state; released on extraction/staging failure |
+| Storage usage for manual business uploads         | Not charged because the original upload is transient                         |
+| UI-supported file types and size                  | Matches backend formats and 10 MiB default                                   |
+| Frontend downloadable sales CSV/XLSX              | Served from canonical backend templates                                      |
+| Frontend real job/staging review                  | Uses tenant-scoped Node job and staging endpoints                            |
 | Invoice and Inventory schema imports              | Not implemented through this endpoint                                        |
-| Idempotent same-sale reimports                    | Must be tested; product reuse alone does not prove transaction deduplication |
+| Exact repeated-file uploads                        | Reuses the existing source/job by SHA-256; changed files with repeated sales may still duplicate transactions |
 
 ## 8. Key implementation gaps and decisions
 
-1. **Fix advertised formats and file-size limits** so users cannot select files that the backend predictably rejects.
-2. **Fix downloadable templates** and ensure frontend sales import templates exactly match the backend canonical headers and AI contract.
-3. **Make extraction quota reservation/commit concurrency-safe.** Current `getRemainingUsage()` and `incrementUsage()` run separately. Two simultaneous uploads can both pass the preflight. Choose an atomic reserve/charge model and test retries, errors, and limits without double-charging.
-4. **Define partial-failure accounting.** Staging and usage increment happen in separate operations, so an error charging usage after job creation may leave a queued job without a corresponding charge. Make this recoverable and idempotent.
-5. **Define business-file storage semantics.** Retain and count actual original files if that is a product requirement, or stop charging against storage for bytes not stored; align storage size and deletion/release records with `document_storage_mb`.
-6. **Build real job status and staged-row review APIs/UI,** showing extracted versus imported versus rejected rows and avoiding false “completed” messages.
-7. **Verify sales import duplicate policy.** A repeated file must not silently inflate transaction-based analytics or forecast history.
-8. **Do not treat product/sales imports as paid invoices.** Create separate supported Invoice and Inventory processing flows with explicit contracts if those datasets are required.
-9. **Verify AI contract and error handling** with the hosted Gradio service; independently validate malformed responses, timeouts, and row outcomes.
-10. **Enforce tenant ownership and least-privilege RLS** in uploads, jobs, workers, and all review endpoints.
+1. **Define transaction-level duplicate identity** for changed files that contain previously imported sales; exact-file dedupe alone cannot identify semantically repeated transactions.
+2. **Add Invoice and Inventory CSV/XLSX flows** with approved templates, validation rules, mapping rules, and safe promotion into `invoices`/`invoice_items` and `inventory`. The current sales contract is not a substitute.
+3. **Verify the hosted AI contract and provider connectivity** against the deployed service, including malformed responses, timeouts, and row outcomes.
+4. **Run UI/API/database/worker E2E tests** with an approved test database and fixtures; run real AI/provider tests separately and opt in explicitly.
+5. **Keep tenant ownership and least-privilege RLS** enforced across upload, job, worker, and review paths.
 
 ## 9. Example customer scenarios
 

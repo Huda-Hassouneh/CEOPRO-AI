@@ -3,9 +3,11 @@ import { extname } from "node:path";
 import { z } from "zod";
 import { safeUploadName } from "../../dataconnection/types/dataconnection.validation.js";
 import {
+  FeatureUsageCapacityError,
+  FeatureUsageUnavailableError,
   assertFeatureCapacity,
-  getRemainingUsage,
-  incrementUsage
+  incrementUsage,
+  getRemainingUsage
 } from "../../features/repo/usage.repo.js";
 import { queryRagAi, type RagAiDocument } from "../client/rag.client.js";
 import {
@@ -166,17 +168,41 @@ export async function uploadRagDocument(input: RagUploadInput) {
   const documentId = randomUUID();
   const fileName = safeUploadName(input.file.originalname);
 
-  await saveUploadedRagDocument({
-    tenantId: input.tenantId,
-    userId: input.userId,
-    documentId,
-    fileName,
-    fileSizeBytes: input.file.size,
-    contentType: input.file.mimetype || "application/octet-stream",
-    sourceFileContent: input.file.buffer,
-    processedStatus: "Processed"
-  });
-  await incrementUsage(input.tenantId, "document_extraction", kbUsed);
+  try {
+    await saveUploadedRagDocument({
+      tenantId: input.tenantId,
+      userId: input.userId,
+      documentId,
+      fileName,
+      fileSizeBytes: input.file.size,
+      contentType: input.file.mimetype || "application/octet-stream",
+      sourceFileContent: input.file.buffer,
+      processedStatus: "Processed",
+      extractionUsageKb: kbUsed
+    });
+  } catch (error) {
+    if (error instanceof FeatureUsageCapacityError) {
+      throw createRagServiceError(
+        "USAGE_EXCEEDED",
+        "Document extraction quota has been reached.",
+        {
+          feature_code: error.capacity.featureCode,
+          current_usage: error.capacity.currentUsage,
+          limit: error.capacity.limit,
+          remaining: error.capacity.remaining,
+          requested: error.capacity.requested,
+          unit: "KB"
+        }
+      );
+    }
+    if (error instanceof FeatureUsageUnavailableError) {
+      throw createRagServiceError(
+        "FEATURE_NOT_INCLUDED",
+        "Document extraction is not available for this subscription."
+      );
+    }
+    throw error;
+  }
 
   return {
     document_id: documentId,

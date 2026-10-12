@@ -72,7 +72,7 @@ async function activeCount(fixture: Fixture): Promise<number> {
   const client = await pool.connect();
   try {
     await withTenantContext(client, fixture);
-    const result = await client.query<{ count: string }>("SELECT count(*)::text AS count FROM data_sources WHERE tenant_id = $1::uuid AND is_active = TRUE", [fixture.tenantId]);
+    const result = await client.query<{ count: string }>("SELECT count(*)::text AS count FROM data_sources WHERE tenant_id = $1::uuid AND is_active = TRUE AND source_type IN ('shopify','postgresql','mysql','sqlserver','ga4','website','OWN_SYSTEM_CONNECTOR')", [fixture.tenantId]);
     await client.query("COMMIT");
     return Number(result.rows[0]?.count ?? 0);
   } catch (error) {
@@ -98,19 +98,59 @@ async function cleanup(fixture: Fixture, names: string[]) {
   }
 }
 
-async function register(fixture: Fixture, name: string, bodyTenantId?: string) {
+async function register(fixture: Fixture, name: string, bodyTenantId?: string, sourceUrl = `https://${name.toLowerCase()}.example.com`) {
   const response = await fetch(`${apiBaseUrl}/data-connection/sources`, {
     method: "POST",
     headers: { Authorization: `Bearer ${fixture.accessToken}`, Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({
       name,
       sourceType: "website",
+      sourceUrl,
       syncFrequencyMinutes: 1440,
       ...(bodyTenantId ? { tenant_id: bodyTenantId, tenantId: bodyTenantId } : {})
     })
   });
   const body = await response.json().catch(() => null);
   return { status: response.status, body };
+}
+
+async function fillToCapacity(fixture: Fixture, namePrefix: string): Promise<string[]> {
+  if (fixture.expectedLimit === null) return [];
+
+  const initial = await activeCount(fixture);
+  if (initial > fixture.expectedLimit) {
+    throw new Error(`Fixture already exceeds its declared source limit (${initial}/${fixture.expectedLimit}).`);
+  }
+
+  const names: string[] = [];
+  let current = initial;
+  while (current < fixture.expectedLimit) {
+    const name = `${namePrefix}-${names.length}`;
+    const result = await register(fixture, name);
+    if (result.status !== 201) {
+      await cleanup(fixture, names);
+      throw new Error(`Could not prepare the capacity fixture; registration returned HTTP ${result.status}.`);
+    }
+    names.push(name);
+    current = await activeCount(fixture);
+    if (current !== initial + names.length) {
+      await cleanup(fixture, names);
+      throw new Error("Fixture active-source count changed unexpectedly while preparing capacity.");
+    }
+  }
+  return names;
+}
+
+function directOwnConnectorInsert(client: PoolClient, fixture: Fixture, sourceName: string) {
+  return client.query(
+    `INSERT INTO data_sources
+      (tenant_id, source_name, source_type, collector_key, collector_config,
+       policy_status, is_active, approval_reference, approved_by, approved_at, privacy_reviewed_at)
+     VALUES ($1::uuid, $2, 'OWN_SYSTEM_CONNECTOR', 'api_connector',
+       jsonb_build_object('base_url', $3, 'field_mapping', '{}'::jsonb),
+       'ALLOWED', TRUE, 'self-service test fixture', $4::uuid, NOW(), NOW())`,
+    [fixture.tenantId, sourceName, `https://${sourceName.toLowerCase()}.example.com`, fixture.userId]
+  );
 }
 
 test.describe("Connected Data Sources: real API + RLS database tests", () => {
@@ -131,7 +171,7 @@ test.describe("Connected Data Sources: real API + RLS database tests", () => {
       const response = await apiResponse;
       expect(response.status()).toBe(200);
       const body = await response.json();
-      expect(body?.data?.connectedSources).toHaveLength(expectedCount);
+      expect(body?.data?.sourceCapacity?.currentUsage).toBe(expectedCount);
       await expect(page.locator(".connect-data-section__header span").first()).toContainText(String(expectedCount));
 
       await page.evaluate(() => localStorage.setItem("ceopro_locale", "ar"));
@@ -225,6 +265,36 @@ test.describe("Connected Data Sources: real API + RLS database tests", () => {
       expect(result.status).toBe(403);
       expect(after).toBe(before);
     });
+
+    test(`${fixture.plan} database trigger also blocks a direct insert when data_integration is disabled`, async ({}, testInfo) => {
+      annotate(testInfo, fixture, "connected-data-sources-database-entitlement", "ENTITLEMENT_BYPASS", "A direct PostgreSQL source writer receives CONNECTED_SOURCE_DATA_INTEGRATION_DISABLED and adds no row.");
+      test.skip(!configured(fixture), "BLOCKED: configure a disabled-entitlement tenant and safe disposable RLS database.");
+      const before = await activeCount(fixture);
+      test.skip(fixture.expectedLimit !== null && before >= fixture.expectedLimit, "BLOCKED: the disabled-feature fixture must have free connector capacity so the test isolates the boolean entitlement.");
+      const client = await pool!.connect();
+      try {
+        await withTenantContext(client, fixture, false);
+        const error = await directOwnConnectorInsert(client, fixture, `cs-disabled-db-${randomUUID()}`).then(
+          () => null,
+          (caught) => caught as { code?: string; message?: string }
+        );
+        expect(error?.code).toBe("23514");
+        expect(error?.message).toContain("CONNECTED_SOURCE_DATA_INTEGRATION_DISABLED");
+        await client.query("ROLLBACK");
+        await withTenantContext(client, fixture);
+        const after = await client.query<{ count: string }>(
+          "SELECT count(*)::text AS count FROM data_sources WHERE tenant_id = $1::uuid AND is_active = TRUE AND source_type IN ('shopify','postgresql','mysql','sqlserver','ga4','website','OWN_SYSTEM_CONNECTOR')",
+          [fixture.tenantId]
+        );
+        await client.query("COMMIT");
+        expect(Number(after.rows[0]?.count)).toBe(before);
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => undefined);
+        throw error;
+      } finally {
+        client.release();
+      }
+    });
   }
 
   test("Growth concurrent registrations preserve the last available slot", async ({}, testInfo) => {
@@ -257,12 +327,14 @@ test.describe("Connected Data Sources: real API + RLS database tests", () => {
     const empty: Fixture = fixture ?? { plan: "Growth", tenantId: "not-configured", userId: "not-configured", accessToken: "", expectedLimit: 5 };
     annotate(testInfo, empty, "connected-data-sources-opt-in-ai-integration", "AI_SOURCE_LIMIT_BYPASS", "An AI-side database-connector registration at capacity creates no active source row.");
     const enabled = Boolean(fixture && configured(fixture) && fixture.expectedLimit === 5 && aiBaseUrl && aiServiceIsLocal && aiOptIn);
-    test.skip(!enabled, "BLOCKED: requires an explicitly confirmed disposable AI database, local AI service URL, Growth token, and tenant already at five active sources.");
+    test.skip(!enabled, "BLOCKED: requires an explicitly confirmed disposable AI database, local AI service URL, and Growth test fixture.");
     const initial = await activeCount(fixture!);
     testInfo.annotations.push({ type: "active-count-before", description: String(initial) });
-    test.skip(initial !== 5, "BLOCKED: AI capacity test requires exactly five active Growth sources before the call.");
+    test.skip(initial > 5, "BLOCKED: AI capacity test cannot use a Growth fixture already over its five-source limit.");
+    const fillNames = await fillToCapacity(fixture!, `cs-ai-fill-${randomUUID()}`);
     const sourceName = `cs-ai-capacity-${randomUUID()}`;
     try {
+      expect(await activeCount(fixture!)).toBe(5);
       const response = await fetch(`${aiBaseUrl}/onboarding/connect/database`, {
         method: "POST",
         headers: { Authorization: `Bearer ${fixture!.accessToken}`, Accept: "application/json", "Content-Type": "application/json" },
@@ -280,17 +352,136 @@ test.describe("Connected Data Sources: real API + RLS database tests", () => {
       testInfo.annotations.push({ type: "ai-registration-response", description: String(response.status) });
       const after = await activeCount(fixture!);
       testInfo.annotations.push({ type: "active-count-after", description: String(after) });
-      expect([402, 403], "AI registration must reject at capacity").toContain(response.status);
+      expect(response.ok(), "AI registration must not succeed at capacity").toBe(false);
       expect(after).toBe(5);
     } finally {
-      await cleanup(fixture!, [sourceName]);
+      await cleanup(fixture!, [...fillNames, sourceName]);
     }
   });
 
-  test("deactivation, reactivation, downgrade, and duplicate lifecycle scenarios are documented blockers", async ({}, testInfo) => {
-    testInfo.annotations.push({ type: "mode", description: "connected-data-sources-blocker-diagnostic" });
-    testInfo.annotations.push({ type: "failure-category", description: "LIFECYCLE_OR_AI_PREREQUISITE_MISSING" });
-    testInfo.annotations.push({ type: "actual", description: "No source activate/deactivate/delete routes exist, no source-identity uniqueness policy is defined, and the response to a plan downgrade below existing active usage is unspecified." });
-    test.skip(true, "BLOCKED: requires source lifecycle APIs and an explicit duplicate identity policy. The suite does not fabricate these behaviors.");
+  for (const fixture of fixtures) {
+    test(`${fixture.plan} pause, reactivation, and disconnect release slots without deleting source history`, async ({}, testInfo) => {
+      annotate(testInfo, fixture, "connected-data-sources-lifecycle", "SOURCE_LIFECYCLE_FAILURE", "Pause/reactivation preserve the registration and consume/release one slot; disconnect additionally clears vaulted credentials and retains source/job history.");
+      test.skip(!configured(fixture), "BLOCKED: configure a safe database, API, and isolated tenant fixture.");
+      const initial = await activeCount(fixture);
+      test.skip(fixture.expectedLimit !== null && initial >= fixture.expectedLimit, "BLOCKED: lifecycle fixture needs one free source slot.");
+      const run = randomUUID();
+      const name = `cs-lifecycle-${run}`;
+      const sourceUrl = `https://${run}.example.com`;
+      try {
+        const registered = await register(fixture, name, undefined, sourceUrl);
+        expect(registered.status, JSON.stringify(registered.body)).toBe(201);
+        const sourceId = registered.body?.data?.id;
+        expect(sourceId).toBeTruthy();
+        expect(await activeCount(fixture)).toBe(initial + 1);
+
+        const paused = await fetch(`${apiBaseUrl}/data-connection/sources/${sourceId}`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${fixture.accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: false })
+        });
+        expect(paused.status).toBe(200);
+        expect(await activeCount(fixture)).toBe(initial);
+
+        const reactivated = await fetch(`${apiBaseUrl}/data-connection/sources/${sourceId}`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${fixture.accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: true })
+        });
+        expect(reactivated.status).toBe(200);
+        expect(await activeCount(fixture)).toBe(initial + 1);
+
+        const disconnected = await fetch(`${apiBaseUrl}/data-connection/sources/${sourceId}/connection`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${fixture.accessToken}`, Accept: "application/json" }
+        });
+        const disconnectedBody = await disconnected.json().catch(() => null);
+        expect(disconnected.status).toBe(200);
+        expect(disconnectedBody?.data?.connectionStatus).toBe("disconnected");
+        expect(disconnectedBody?.data?.isActive).toBe(false);
+        expect(disconnectedBody?.data).not.toHaveProperty("connection_credentials_vault");
+        expect(await activeCount(fixture)).toBe(initial);
+
+        const client = await pool!.connect();
+        try {
+          await withTenantContext(client, fixture);
+          const persisted = await client.query<{ is_active: boolean; source_url: string; connection_credentials_vault: string | null }>(
+            "SELECT is_active, source_url, connection_credentials_vault FROM data_sources WHERE tenant_id = $1::uuid AND source_id = $2::uuid",
+            [fixture.tenantId, sourceId]
+          );
+          await client.query("COMMIT");
+          expect(persisted.rows[0]).toMatchObject({ is_active: false, source_url: sourceUrl, connection_credentials_vault: null });
+        } catch (error) {
+          await client.query("ROLLBACK").catch(() => undefined);
+          throw error;
+        } finally {
+          client.release();
+        }
+
+        const reactivationAfterDisconnect = await fetch(`${apiBaseUrl}/data-connection/sources/${sourceId}`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${fixture.accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: true })
+        });
+        expect(reactivationAfterDisconnect.status).toBe(409);
+      } finally {
+        await cleanup(fixture, [name]);
+      }
+    });
+
+    test(`${fixture.plan} duplicate website registration is rejected without consuming another slot`, async ({}, testInfo) => {
+      annotate(testInfo, fixture, "connected-data-sources-idempotency", "DUPLICATE_SOURCE_REGISTRATION", "Repeated registration of a normalized provider URL returns HTTP 409 and leaves the active-source count unchanged.");
+      test.skip(!configured(fixture), "BLOCKED: configure a safe database, API, and isolated tenant fixture.");
+      const initial = await activeCount(fixture);
+      test.skip(fixture.expectedLimit !== null && initial >= fixture.expectedLimit, "BLOCKED: duplicate test needs one free source slot.");
+      const run = randomUUID();
+      const name = `cs-duplicate-${run}`;
+      const sourceUrl = `https://${run}.example.com/`;
+      try {
+        const first = await register(fixture, name, undefined, sourceUrl);
+        expect(first.status, JSON.stringify(first.body)).toBe(201);
+        const duplicate = await register(fixture, name, undefined, `https://${run.toUpperCase()}.example.com`);
+        expect(duplicate.status).toBe(409);
+        expect(await activeCount(fixture)).toBe(initial + 1);
+      } finally {
+        await cleanup(fixture, [name]);
+      }
+    });
+  }
+
+  test("database trigger rejects a direct active source insert when a tenant is at capacity", async ({}, testInfo) => {
+    const fixture = growth;
+    const empty: Fixture = fixture ?? { plan: "Growth", tenantId: "not-configured", userId: "not-configured", accessToken: "", expectedLimit: 5 };
+    annotate(testInfo, empty, "connected-data-sources-database-boundary", "SOURCE_LIMIT_BYPASS", "A direct PostgreSQL writer receives a constraint error at the quota and creates no active source row.");
+    test.skip(!fixture || !configured(fixture), "BLOCKED: configure a Growth fixture and safe disposable RLS database.");
+    const before = await activeCount(fixture!);
+    test.skip(before > 5, "BLOCKED: direct-writer test cannot use a Growth fixture already over its five-source limit.");
+    const fillNames = await fillToCapacity(fixture!, `cs-direct-fill-${randomUUID()}`);
+    const client = await pool!.connect();
+    try {
+      expect(await activeCount(fixture!)).toBe(5);
+      await withTenantContext(client, fixture!, false);
+      const error = await directOwnConnectorInsert(
+        client,
+        fixture!,
+        `cs-direct-${randomUUID()}`
+      ).then(() => null, (caught) => caught as { code?: string; message?: string });
+      expect(error?.code).toBe("23514");
+      expect(error?.message).toContain("CONNECTED_SOURCE_CAPACITY_EXCEEDED");
+      await client.query("ROLLBACK");
+      await withTenantContext(client, fixture!);
+      const after = await client.query<{ count: string }>(
+        "SELECT count(*)::text AS count FROM data_sources WHERE tenant_id = $1::uuid AND is_active = TRUE AND source_type IN ('shopify','postgresql','mysql','sqlserver','ga4','website','OWN_SYSTEM_CONNECTOR')",
+        [fixture!.tenantId]
+      );
+      await client.query("COMMIT");
+      expect(Number(after.rows[0]?.count)).toBe(5);
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+      await cleanup(fixture!, fillNames);
+    }
   });
 });

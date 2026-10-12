@@ -1,5 +1,6 @@
 import { prisma } from "../../../config/database.js";
 import type { Prisma } from "../../../generated/prisma/client.js";
+import { reserveFeatureUsageInTransaction } from "../../features/repo/usage.repo.js";
 import type { RagDocumentStatus } from "../types/rag.types.js";
 
 async function setTenantContext(
@@ -110,9 +111,16 @@ export async function saveUploadedRagDocument(input: {
   contentType: string;
   sourceFileContent: Buffer;
   processedStatus: RagDocumentStatus;
+  extractionUsageKb: number;
 }) {
   return prisma.$transaction(async (tx) => {
     await setTenantContext(tx, input.tenantId, input.userId);
+    await reserveFeatureUsageInTransaction(
+      tx,
+      input.tenantId,
+      "document_extraction",
+      input.extractionUsageKb
+    );
     return tx.rag_documents_metadata.create({
       data: {
         document_id: input.documentId,

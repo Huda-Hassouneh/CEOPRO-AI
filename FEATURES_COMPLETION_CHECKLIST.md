@@ -8,24 +8,23 @@ Check each item only after verifying it end-to-end with real test data. Existing
 
 **Purpose:** Track the overall state of each feature in one table. Individual verification tasks remain listed below; their checkboxes record the evidence-backed work required before a feature is marked **Solved**.
 
-|          # | Feature                                                   | Status         |
-| ---------: | --------------------------------------------------------- | -------------- |
-|          1 | **Dashboard Analytics** (`dashboard_analytics`)           | 🟡             |
-| Processing |
-|          2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started |
-|          3 | **Market Perception** (`market_perception`)               | ⚪ Not Started |
-|          4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started |
-|          5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started |
-|          6 | **Product Management** (`product_management`)             | ⚪ Not Started |
-|          7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started |
-|          8 | **Data Integration** (`data_integration`)                 | 🟡 Processing  |
-|          9 | **Connected Data Sources** (`connected_data_sources`)     | 🟡 Processing  |
-|         10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started |
-|         11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started |
-|         12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started |
-|         13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started |
-|         14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started |
-|         15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started |
+|   # | Feature                                                   | Status         |
+| --: | --------------------------------------------------------- | -------------- |
+|   1 | **Dashboard Analytics** (`dashboard_analytics`)           | 🟡 Processing  |
+|   2 | **Market Intelligence** (`market_intelligence`)           | ⚪ Not Started |
+|   3 | **Market Perception** (`market_perception`)               | ⚪ Not Started |
+|   4 | **Demand Prediction** (`demand_prediction`)               | ⚪ Not Started |
+|   5 | **Inventory Intelligence** (`inventory_intelligence`)     | ⚪ Not Started |
+|   6 | **Product Management** (`product_management`)             | ⚪ Not Started |
+|   7 | **Competitor Management** (`competitor_management`)       | ⚪ Not Started |
+|   8 | **Data Integration** (`data_integration`)                 | 🟡 Processing  |
+|   9 | **Connected Data Sources** (`connected_data_sources`)     | 🟡 Processing  |
+|  10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started |
+|  11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started |
+|  12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started |
+|  13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started |
+|  14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started |
+|  15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started |
 
 **Status definitions**
 
@@ -46,6 +45,12 @@ Check each item only after verifying it end-to-end with real test data. Existing
 
 ## 1. Dashboard Analytics (`dashboard_analytics`)
 
+**Implemented in the current frontend/backend patch; focused tests pass, database E2E pending**
+
+- Invoice and inventory CSV/XLSX templates now use product names or SKUs; legacy UUID files remain supported. The customer flow previews, resolves products, reviews stock changes, and confirms before the atomic import.
+- Missing products can be explicitly created during review when Product Management is included; the catalog download no longer exposes UUIDs in the customer flow.
+- Dashboard revenue uses paid invoice issue dates and primary currency, inventory health groups warehouses by product, and feature access is enforced.
+
 - [ ] Implement Invoice CSV/XLSX import into `invoices` (and `invoice_items` when item details are supplied).
 - [ ] Implement Inventory CSV/XLSX import into `inventory`.
 - [ ] Confirm existing sales extraction reliably populates `products` and `transactions`.
@@ -54,6 +59,7 @@ Check each item only after verifying it end-to-end with real test data. Existing
 - [ ] Verify demand-forecast data appears only with the correct entitlement.
 - [ ] Enforce `dashboard_analytics` access and tenant isolation in the backend.
 - [ ] Run full dashboard UI/API/database E2E tests, including empty and partial data states.
+- [ ] Apply the reviewable-import migration and verify preview → review → confirm, RLS, invoice items, inventory overwrite, quota, retries, and downstream freshness against PostgreSQL.
 
 ## 2. Market Intelligence (`market_intelligence`)
 
@@ -138,6 +144,7 @@ Check each item only after verifying it end-to-end with real test data. Existing
 - Node source listing, capacity checks, recent activity, job details, staging review, retries, and source lifecycle use backend APIs.
 - Upload validation, extraction usage reservation/release, and identical-file retry protection were added; the existing sales flow was preserved.
 - Focused contract tests passed.
+- Invoice/inventory previews persist tenant/user-bound file drafts; confirmation revalidates matches and stock, reserves usage and commits business records atomically. PostgreSQL E2E verification remains pending.
 
 **Still open**
 
@@ -145,7 +152,7 @@ Check each item only after verifying it end-to-end with real test data. Existing
 - [ ] Integrate credentials, approved schedules, and registered sources with deployed AI connector workers.
 - [ ] Promote connector staging rows into the correct business tables and report freshness after successful promotion.
 - [ ] Prevent semantic duplicates across changed uploads and repeated connector syncs.
-- [ ] Complete Invoice and Inventory imports into their proper tables.
+- [ ] Verify Invoice and Inventory imports into their proper tables with database E2E tests.
 - [ ] Verify tenant isolation/RLS, source ownership, and downstream freshness with full UI/API/database/worker E2E tests; keep live provider tests opt-in.
 
 ## 9. Connected Data Sources (`connected_data_sources`)

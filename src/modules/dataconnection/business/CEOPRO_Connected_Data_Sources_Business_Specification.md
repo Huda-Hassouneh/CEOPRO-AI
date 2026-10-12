@@ -32,24 +32,28 @@ The saved `src/config/production-plans.ts` defines:
 
 Catalog definition: `type = limit`, `aggregationType = max`, `resetCycle = lifetime`, `unit = sources`.
 
-**Actual current code formula** (`src/modules/features/service/capacity.service.ts`):
+**Current capacity formula** (`src/constants/data-source-types.ts`, `src/modules/features/service/capacity.service.ts`, and `src/modules/features/repo/usage.repo.ts`):
 
 ```sql
 SELECT COUNT(*)
 FROM data_sources
 WHERE tenant_id = :tenant_id
-  AND is_active = TRUE;
+  AND is_active = TRUE
+  AND source_type IN (
+    'shopify', 'postgresql', 'mysql', 'sqlserver', 'ga4', 'website',
+    'OWN_SYSTEM_CONNECTOR'
+  );
 ```
 
 ```text
-current_usage = count(all tenant-owned active data_sources)
+current_usage = count(active tenant-owned persistent connector source types)
 remaining = max(0, plan_limit - current_usage)
 creation_allowed = current_usage + 1 <= plan_limit
 ```
 
 For an unlimited entitlement (`limit_value = NULL`), the capacity helper allows additional sources and reports no numeric remaining value. At the exact finite limit, `is_exceeded` becomes true in the current usage response; this indicates **at capacity**, not necessarily already over capacity.
 
-**Caveat:** The general capacity resolver counts every active source, regardless of `source_type`. The dedicated repository function `countActivePersistentSources` counts only six persistent types (`shopify`, `postgresql`, `mysql`, `sqlserver`, `ga4`, `website`), but **the entitlement capacity calculation does not use that filtered function**. AI-created `OWN_SYSTEM_CONNECTOR` sources or any other active source also count under the current implementation. Align both contracts intentionally; do not blindly replace the count until the intended treatment of AI and other internal sources is decided.
+The Node capacity resolver, transactional registration path, source list, and database trigger use the same allow-list. AI `OWN_SYSTEM_CONNECTOR` sources count; manual upload and unrelated source types such as `documents`, `<EXT>_UPLOAD`, and `WEB_SCRAPE` do not. `NULL` remains the explicit unlimited custom-plan value.
 
 ## 4. Source lifecycle: active is not connected
 
@@ -62,27 +66,27 @@ For an unlimited entitlement (`limit_value = NULL`), the capacity helper allows 
 | Active source with completed eligible sync | `true`                                | Yes                     | Depends on actual job/promotion evidence |
 | Disabled/inactive source                   | `false`                               | No                      | Historical data may remain               |
 | One-time manual business file              | `false` when Node creates it          | No                      | Import job tracked separately            |
-| AI self-service source                     | `true` in AI registration path        | Yes under general count | Depends on AI connector execution        |
+| AI self-service source                     | `true` in AI registration path        | Yes under shared allow-list | Depends on AI connector execution     |
 
-**Recommended lifecycle:** Registered/Pending Setup → Verified → Syncing → Synced/Healthy, with Error, Paused/Inactive, and Disconnected branches. These are **business statuses to design**, not claims that matching database enum values or routes already exist. Keep `is_active` for capacity and eligibility, and derive truthful connection health from credentials verification, job state, last successful sync, and record promotion. Explicitly define whether pending/unverified registrations occupy slots (the current behavior says **yes**).
+The Connect Data overview derives `configured`, `processing`, `synced`, `needsAttention`, `paused`, and `disconnected` states. A configured source is not provider-verified. `synced` requires a completed job with promoted staging rows; registration alone never establishes a successful connection. Pending/unverified active registrations occupy slots.
 
-Disabling/untracking a source should release its slot only after a successful persisted transition to inactive. Historical `ingestion_jobs`, provenance, and downstream business records should remain according to retention rules. Reactivating must re-check quota transactionally. No complete disable/reactivate/disconnect Node routes were found in the reviewed snapshot.
+Authenticated pause and reactivation routes persist `is_active`; reactivation re-checks the current boolean and numeric entitlements under the tenant capacity lock. Disconnect also sets the source inactive and clears `connection_credentials_vault`, while retaining the source row, jobs, staging, and imported business data. Existing sources are not silently disabled on plan downgrade; new registration and reactivation are blocked until the tenant is eligible and has capacity. Pause and disconnect remain available so the tenant can reduce usage.
 
 ## 5. Reviewed Node backend path and source types
 
 **Route and service**:
 
 1. `POST /data-connection/sources` (subject to actual router mount) runs authentication, tenant verification, and `requireEntitlement('data_integration')`.
-2. `src/modules/dataconnection/service/dataconnection.service.ts` validates the payload, then invokes `assertFeatureCapacity({ featureCode: 'connected_data_sources', additionalAmount: 1 })`.
-3. `src/modules/features/repo/usage.repo.ts` resolves current entitlement and usage; `src/modules/features/service/capacity.service.ts` counts active sources.
-4. `src/modules/dataconnection/repo/dataconnection.repo.ts` writes the new `data_sources` row under transaction-scoped RLS context.
+2. `src/modules/dataconnection/service/dataconnection.service.ts` validates the payload and calls the repository.
+3. `src/modules/dataconnection/repo/dataconnection.repo.ts` takes a tenant-scoped PostgreSQL advisory transaction lock, checks identity and capacity, then writes under transaction-scoped RLS context.
+4. The database trigger in `prisma/migrations/20261012000000_enforce_connected_source_capacity/migration.sql` repeats the boolean/limit/duplicate checks for direct writers using the same lock. The migration has not yet been exercised against PostgreSQL in this workspace.
 5. New rows default to `is_active: true`, `connection_credentials_vault: null`, and a desired `sync_frequency_minutes` (default 1,440). This is **metadata registration, not a successful connection**.
 
 Accepted `sourceType` values: `shopify`, `postgresql`, `mysql`, `sqlserver`, `ga4`, `website`. The frontend's `analytics`, `website`, `businessSystem`, and `documents` are UI categories, not necessarily backend connector types.
 
-**Read path:** `GET /data-connection` lists tenant-owned active source rows and derives a display status from the most recent `ingestion_jobs` entry. It also lists recent imports, including inactive one-time document sources. The current response assigns `dataStatus: 'verified'` unconditionally—**not evidence of connection verification**.
+**Read path:** `GET /data-connection` lists tenant-owned persistent sources, including paused/disconnected rows, derives state from latest jobs and promotion records, and returns current/remaining capacity. It also lists recent imports, including inactive one-time document sources. Read and cleanup operations remain available after `data_integration` is removed so downgraded tenants can review and release source slots.
 
-**Frontend:** `src/features/data-connections/pages/ConnectDataPage.jsx`, `api/dataConnectionsApi.js`, and `components/ConnectedSourceCard.jsx`. Website creation calls source registration, but provides `url` as a top-level field while the backend expects permitted data in `metadata` and does not persist `source_url` in this create path. Some other connect/reconnect/sync methods are preview/error fallbacks, while the page can display a success toast without checking `ok`.
+**Frontend:** `src/features/data-connections/pages/ConnectDataPage.jsx`, `api/dataConnectionsApi.js`, and `components/ConnectedSourceCard.jsx`. Website creation validates and persists a normalized `sourceUrl`. Persistent registrations are gated by both entitlements; manual file upload uses document extraction and sits outside the connector-slot gate. The page shows used/remaining slots, plan-overage state, and confirmed pause/reactivate/disconnect outcomes.
 
 ## 6. Database data ownership
 
@@ -113,22 +117,22 @@ The reviewed AI repository includes:
 
 The AI worker only selects eligible sources when `is_active=TRUE`, `policy_status='ALLOWED'`, the relevant `collector_key` is present, and synchronization is due by `last_synced_at` and `sync_frequency_minutes`.
 
-**Contract gap:** The Node `POST /data-connection/sources` writes an allowed `source_type` such as `postgresql`, but does not populate `collector_key`, approved source policy, or encrypted connection credentials. The AI worker cannot simply treat such a source as a ready-to-sync AI connector. Conversely, the AI-side registration path may create active sources without routing through the Node `connected_data_sources` quota. Neither path should be mistaken for an integrated customer lifecycle.
+**Contract gap:** The Node `POST /data-connection/sources` writes an allowed `source_type` such as `postgresql`, but does not populate `collector_key`, approved source policy, or encrypted connection credentials. The AI worker cannot simply treat such a source as a ready-to-sync AI connector. A new database trigger now protects the AI direct-registration path against missing `data_integration`, source-capacity overflow, and active duplicate identities without changing AI code. The AI endpoint's error translation and live database behavior still require the opt-in integration test.
 
 The AI connector implementations stage records through `process_records`; confirmation of final promotion into canonical business tables is still needed. Source count validation is independent from that ingestion correctness.
 
 ## 8. Gaps and release risks (priority ordered)
 
-1. **High — Race-safe quota enforcement:** `assertFeatureCapacity` is run before a separate repository insert. Concurrent requests near the limit can both pass unless serialized by a tenant-scoped lock/transaction or equivalent safe mechanism. Also test RLS behavior of the capacity resolver's standalone Prisma query using the actual runtime DB role.
-2. **High — Cross-writer quota consistency:** AI self-service registration and other source writers must participate in one authoritative quota check, or be distinctly excluded by a verified policy; prevent accidental bypass.
-3. **High — Truthful status:** `is_active` and hard-coded `dataStatus: 'verified'` misrepresent setup and verification. Show registered, verified, synced and failed separately based on real evidence.
-4. **High — Complete lifecycle:** Add authenticated source listing/details, disable/pause/reactivate/remove controls, and server-side quota checks when reactivating. Define retention and historical-data policy.
-5. **High — Source-contract alignment:** Node source types, collector keys, credentials vault, policy approval, URL/config and AI scheduler requirements do not currently meet one end-to-end contract.
-6. **High — Frontend false positives:** Fix connect, sync and reconnect handlers that report success for preview or failed results; persist website URL in the actual backend schema.
-7. **Medium — Quota semantics:** Decide which active source kinds count, and ensure the usage dashboard, create handler, AI registration, source list and billing all use the same rule.
-8. **Medium — Subscription transitions:** Define what happens when a plan downgrades below existing active usage; block new additions/reactivation while over limit and apply an explicit policy to existing sources.
-9. **Medium — De-duplication:** Prevent multiple active registrations for the same provider/account/URL, including normalization and concurrent requests; do not globally merge tenant-private credentials.
-10. **Medium — Operational visibility:** Report latest completed sync, failure reason, data age, job state, and actual record promotion instead of treating registration as a health check.
+1. **Implemented; database evidence pending — Race-safe quota enforcement:** Node registration/reactivation and the shared database trigger use a tenant advisory lock. Run the disposable-database concurrency/RLS tests before release.
+2. **Implemented; AI response handling pending — Cross-writer quota consistency:** The trigger guards AI direct source writes. The AI endpoint is not changed and may map database rejections to a generic server error.
+3. **Implemented for local status evidence — Truthful status:** Registration is configured, not verified; successful sync requires job/promotion evidence. Provider-specific connection verification remains Data Integration work.
+4. **Implemented in Node — Source lifecycle:** Authenticated source list, pause, capacity-checked reactivation, and credential-clearing disconnect are available; real API/database and retention E2E evidence remains pending.
+5. **Open — Source-contract alignment:** Node source types still lack the AI worker collector key, approved policy, credential-vault setup, and provider-specific configuration needed for an end-to-end AI sync.
+6. **Implemented in current UI — Frontend actions:** Success is shown only after successful API results; unsupported sync/reconnect actions are not exposed; website URLs persist and slot usage is visible.
+7. **Implemented in code; live verification pending — Quota semantics:** Node usage, AI connector writes, and source listing use the agreed seven-type allow-list.
+8. **Implemented policy — Subscription transitions:** Existing sources remain intact after downgrade; additions/reactivation are blocked and cleanup remains available. Exercise custom-plan and downgrade fixtures before release.
+9. **Implemented in Node and trigger — Active duplicate prevention:** Normalized website identity and connector endpoint/name identity are checked under the tenant lock.
+10. **Partially implemented — Operational visibility:** Overview reports latest job state, last successful promotion time, and promoted-row count; live connector freshness and provider failure detail remain dependent on Feature 8 integration.
 
 ## 9. Subscription and policy scenarios
 
@@ -140,7 +144,7 @@ The AI connector implementations stage records through `process_records`; confir
 - **Failed synchronization:** keep slot occupied while active; do not mark verified.
 - **Inactive source:** consumes 0 in current count; retains history subject to policy.
 - **Reactivate:** must re-check quota, authorization, and source state in one safe operation.
-- **Plan downgrade:** determine and document treatment of preexisting excess registrations; no silent deletion.
+- **Plan downgrade:** keep existing registrations and history; report excess usage, block additions/reactivation, and allow pause/disconnect to release slots.
 - **Concurrent registration:** two requests for the last slot must not both succeed.
 - **Cross-tenant:** all counts, source reads and operations must be tenant-isolated; authorize source IDs server-side.
 
