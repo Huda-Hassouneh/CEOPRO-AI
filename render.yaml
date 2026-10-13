@@ -1,0 +1,299 @@
+# KEEL - Render Blueprint (staging).
+#
+# Docker-based deliberately (dockerContext/dockerfilePath point at the
+# same Dockerfiles every other environment builds from) so this isn't a
+# Render-specific deployment shape - the same images run unmodified on any
+# other Docker host later.
+#
+# Services: the API (`keel-ai-staging`), the background workers
+# (`keel-workers-staging`: competitor price collection, analysis,
+# discovery after uploads, connector sync and data retention, all run by
+# one supervisor process), the frontend and Redis. Render's free plan has
+# no background-worker service type, so the workers need a paid plan -
+# see STAGING_DEPLOYMENT.md.
+#
+# Postgres and Redis are NOT defined as Render-managed resources here -
+# see STAGING_DEPLOYMENT.md for why (Render's free Postgres expires in
+# 30 days; Neon's free tier is real, non-expiring Postgres instead) and
+# the exact account-setup steps. Every envVar below marked `sync: false`
+# is a real secret Render will prompt for in its dashboard on first
+# deploy - never stored in this file or in git.
+services:
+  - type: web
+    name: keel-ai-staging
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile.ai
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # --- Database (Neon) - see STAGING_DEPLOYMENT.md ---
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_DB_PASSWORD
+        sync: false
+      - key: APP_DB_POOL_MIN_SIZE
+        value: "1"
+      - key: APP_DB_POOL_MAX_SIZE
+        value: "5"
+
+      # --- Auth ---
+      # generateValue: true - Render generates a real random 256-bit
+      # secret at provision time itself, no manual value needed (safe for
+      # this one specifically: it's only ever used as an HMAC signing key,
+      # never embedded in a URL/connection string the way APP_DB_PASSWORD
+      # or CREDENTIAL_VAULT_MASTER_KEY are, so there's no format/character
+      # constraint an auto-generated value could violate).
+      - key: JWT_SECRET
+        generateValue: true
+      # Token lifetime = idle timeout; the app renews it while in use, up to
+      # SESSION_MAX_HOURS after sign-in.
+      - key: JWT_EXPIRE_MINUTES
+        value: "120"
+      - key: SESSION_MAX_HOURS
+        value: "168"
+      - key: PASSWORD_RESET_CODE_EXPIRE_MINUTES
+        value: "30"
+      - key: EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES
+        value: "60"
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: auto
+      - key: API_TRUST_FORWARDED_FOR
+        value: "true"
+      - key: TEAM_INVITATION_EXPIRE_MINUTES
+        value: "20160"
+
+      # --- CORS / frontend origin - pre-filled with the frontend static
+      # site's own deterministic Render URL (its `name` below), since
+      # Render always serves a Blueprint static site at
+      # https://<name>.onrender.com. Update if you rename that service
+      # or add a custom domain. ---
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://keel-frontend-staging.onrender.com"
+      - key: FRONTEND_BASE_URL
+        value: "https://keel-frontend-staging.onrender.com"
+
+      # --- Outbound email (optional - degrades to logging the real
+      # code/link when unset, never fails signup/reset) ---
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+
+      # --- Redis - fully auto-provisioned, nothing to paste in. The
+      # `keel-redis-staging` Key Value resource below is created by
+      # this same Blueprint, and its connection string is wired straight
+      # into REDIS_URL via fromService - core/redis_client.py reads that
+      # in preference to REDIS_HOST/REDIS_PORT when it's set. ---
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: keel-redis-staging
+          property: connectionString
+      - key: DISCOVERY_STREAM_KEY
+        value: "market.discovery.requested"
+
+      # --- Object storage (Cloudflare R2, S3-compatible - see
+      # STAGING_DEPLOYMENT.md) ---
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_ROOT_USER
+        sync: false
+      - key: MINIO_ROOT_PASSWORD
+        sync: false
+
+      # --- Error tracking (optional): a Sentry DSN turns it on ---
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: "staging"
+
+      # --- RAG chat LLM (Groq free tier) ---
+      - key: GROQ_API_KEY
+        sync: false
+      # Payments: set in the Render dashboard (never in this file).
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: GROQ_MODEL
+        value: "openai/gpt-oss-20b"
+      - key: GROQ_MAX_TOKENS
+        value: "1500"
+
+      # --- Automated Marketing: AI image generation (optional, unset by
+      # default - see backend/MARKETING_AI_CAPABILITIES.md). Leaving
+      # MARKETING_IMAGE_PROVIDER unset keeps image generation honestly
+      # reported as "not configured" on this staging deployment; set it in
+      # Render's dashboard (not here) to turn it on. ---
+      - key: MARKETING_IMAGE_PROVIDER
+        sync: false
+      - key: HUGGINGFACE_API_TOKEN
+        sync: false
+
+      # MARKETING_BACKGROUND_REMOVAL_PROVIDER is deliberately NOT declared
+      # here at all (not even as an unset sync:false slot) - setting it to
+      # "rembg" on this `free` plan risks the whole service being OOM-
+      # killed (measured ~520-540MB peak RSS for rembg alone against this
+      # plan's 512MB total budget - see MARKETING_AI_CAPABILITIES.md
+      # section 1a). Do not add it here without first moving this service
+      # to a plan with real RAM headroom.
+
+      # --- Optional discovery/search integrations - each degrades
+      # honestly (returns [] / nothing) when unset, never required ---
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: GOOGLE_CUSTOM_SEARCH_API_KEY
+        sync: false
+      - key: GOOGLE_CUSTOM_SEARCH_CX
+        sync: false
+      - key: SEARXNG_INSTANCE_URL
+        sync: false
+      # Google Custom Search closes on 2027-01-01; set one of these instead
+      # (order via WEB_SEARCH_PROVIDERS, see market_scraper/web_search.py).
+      - key: BRAVE_SEARCH_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: RAG_WEB_FALLBACK_DAILY_LIMIT
+        value: "50"
+
+      # --- Credential vault (only needed for POS/ERP connector
+      # credential storage - onboarding.py's data_sources flows) ---
+      - key: CREDENTIAL_VAULT_MASTER_KEY
+        sync: false
+
+      # --- Subscription Floor Price (src/market_scraper/
+      # subscription_pricing.py) - a configurable placeholder per
+      # finance's own direction, until a real Total Monthly Hosting
+      # Invoice / Total Active Subscriptions figure replaces it ---
+      - key: SERVER_ALLOCATION_USD
+        sync: false
+
+  # Background workers - all five market workers in one container, run by
+  # src/market_scraper/supervisor.py, which restarts any that exit.
+  # Needs a paid plan: Render has no free background workers, and the
+  # analysis worker's sentiment models plus the headless browser need
+  # about 1.5 GB of memory (standard = 2 GB). KEEL_WORKERS=name,name runs
+  # a subset instead (prices, analysis, discovery, connectors,
+  # maintenance) if you split them across services later.
+  - type: worker
+    name: keel-workers-staging
+    runtime: docker
+    dockerfilePath: ./backend/src/infrastructure/Dockerfile.market-workers
+    dockerContext: ./backend
+    plan: standard
+    envVars:
+      # Restricted ceopro_app connection string (never the admin one) -
+      # same database as DATABASE_URL on the API service.
+      - key: SCRAPER_DATABASE_URL
+        sync: false
+      # The database's built-in service identity for background work.
+      - key: SCRAPER_ACTOR_USER_ID
+        value: "00000000-0000-0000-0000-000000000000"
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: "staging"
+      - key: SCRAPER_DB_POOL_MIN_SIZE
+        value: "1"
+      - key: SCRAPER_DB_POOL_MAX_SIZE
+        value: "5"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: keel-redis-staging
+          property: connectionString
+      - key: DISCOVERY_STREAM_KEY
+        value: "market.discovery.requested"
+      - key: SCRAPER_USER_AGENT
+        value: "KEEL-MarketResearchBot/1.0"
+      - key: CONNECTOR_WORKER_POLL_INTERVAL_SECONDS
+        value: "300"
+      - key: SCRAPER_MAINTENANCE_INTERVAL_SECONDS
+        value: "300"
+      # Same value as on the API service: the connector worker decrypts the
+      # credentials the API stored for a company's own database or API.
+      - key: CREDENTIAL_VAULT_MASTER_KEY
+        sync: false
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: GOOGLE_CUSTOM_SEARCH_API_KEY
+        sync: false
+      - key: GOOGLE_CUSTOM_SEARCH_CX
+        sync: false
+      - key: SEARXNG_INSTANCE_URL
+        sync: false
+      # Google Custom Search closes on 2027-01-01; set one of these instead
+      # (order via WEB_SEARCH_PROVIDERS, see market_scraper/web_search.py).
+      - key: BRAVE_SEARCH_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+
+  # The frontend - Render's free tier static sites are genuinely free
+  # (unlimited, no card required, no 15-minute spin-down the web service
+  # above has), so this is the one piece of "the same environment users
+  # will eventually use" that costs nothing to run continuously.
+  - type: web
+    runtime: static
+    name: keel-frontend-staging
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      # Pre-filled with the ai service's own deterministic Render URL
+      # (its `name` above) - update if you rename that service.
+      - key: VITE_API_BASE_URL
+        value: "https://keel-ai-staging.onrender.com"
+      # Error tracking (optional): a Sentry browser DSN turns it on.
+      - key: VITE_SENTRY_DSN
+        sync: false
+    # Security headers for every page. connect-src must list the API
+    # origin (VITE_API_BASE_URL above) - update both together. The optional
+    # Spline 3D hero (VITE_SPLINE_HERO_SCENE) is not allowed here; add its
+    # hosts to script-src/connect-src if you ever turn it on.
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://keel-ai-staging.onrender.com https://*.sentry.io; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+      - path: /*
+        name: Strict-Transport-Security
+        value: "max-age=63072000; includeSubDomains"
+      - path: /*
+        name: Referrer-Policy
+        value: "strict-origin-when-cross-origin"
+      - path: /*
+        name: Permissions-Policy
+        value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), interest-cohort=()"
+      - path: /*
+        name: X-Content-Type-Options
+        value: "nosniff"
+      - path: /*
+        name: X-Frame-Options
+        value: "DENY"
+    routes:
+      # Client-side routed (react-router-dom) - every path must still
+      # serve index.html so the router can take over, or a direct link/
+      # refresh to any non-root route 404s.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # Redis - a genuinely free Render-managed resource (unlike Postgres,
+  # whose free tier expires in 30 days - see STAGING_DEPLOYMENT.md for
+  # why Neon is used instead). ipAllowList: [] means no external network
+  # access at all - only other services in this same Render account can
+  # reach it, over Render's private network, which is all the `ai`
+  # service above needs.
+  - type: keyvalue
+    name: keel-redis-staging
+    plan: free
+    ipAllowList: []
