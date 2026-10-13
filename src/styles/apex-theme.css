@@ -1,0 +1,451 @@
+/*
+ * KEEL - Liquid Glass design system.
+ *
+ * Two themes, one visual language. LIGHT is the default: a clear, neutral
+ * studio lit from the top left. DARK is opt-in (html[data-theme="dark"]):
+ * a graphite studio. In both, colour comes only from the glass itself - each
+ * surface carries its own faint pastel tint (see keel-glass.css). Effects stay restrained so text, numbers and actions read
+ * first (body text >= 4.5:1, large text >= 3:1 in both themes).
+ *
+ * The --apex-* tokens are the source of truth; stylesheets use tokens, not
+ * colour literals, so both themes come from these two blocks. The older
+ * --ceopro-* tokens are remapped to them.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Canvas */
+  --apex-bg: #e4e6ea;
+  --apex-bg-raised: #f4f4f6;
+  --apex-canvas:
+    radial-gradient(90% 70% at 0% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 60%),
+    radial-gradient(80% 70% at 100% 100%, rgba(150, 154, 164, 0.32) 0%, rgba(150, 154, 164, 0) 60%),
+    linear-gradient(160deg, #f1f2f5 0%, #e4e6ea 55%, #d4d7dd 100%);
+  --apex-ambient-cyan: transparent;
+  --apex-ambient-blue: transparent;
+  --apex-ambient-violet: transparent;
+
+  /* Glass */
+  --apex-tint: rgba(255, 255, 255, 0.16);
+  --apex-glass: rgba(255, 255, 255, 0.55);
+  --apex-glass-strong: rgba(255, 255, 255, 0.72);
+  --apex-glass-hover: rgba(255, 255, 255, 0.86);
+  --apex-glass-solid: rgba(250, 250, 252, 0.94);
+  --apex-surface-top: #ffffff;
+  --apex-field: rgba(255, 255, 255, 0.36);
+  --apex-glass-border: rgba(255, 255, 255, 0.88);
+  --apex-glass-border-strong: rgba(36, 40, 52, 0.14);
+  --apex-highlight-line: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --apex-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.4), inset 0 -18px 30px -24px rgba(165, 180, 252, 0.35);
+  --apex-blur: blur(24px) saturate(180%);
+  --apex-shadow: 4px 8px 14px -10px rgba(36, 40, 52, 0.18), 18px 28px 44px -24px rgba(36, 40, 52, 0.22);
+  --apex-shadow-hover: 6px 12px 20px -12px rgba(36, 40, 52, 0.2), 24px 36px 54px -24px rgba(36, 40, 52, 0.28);
+  --apex-shadow-glow: 10px 16px 26px -12px rgba(91, 99, 236, 0.55);
+  --apex-scrim: rgba(24, 26, 32, 0.22);
+
+  /* Text */
+  --apex-text: #14161c;
+  --apex-text-2: #3a3f4c;
+  --apex-text-3: #565c6b;
+  --apex-text-inverse: #ffffff;
+
+  /* Accent */
+  --apex-cyan: #0e9fb4;
+  --apex-blue: #5b63ec;
+  --apex-violet: #8b5cf6;
+  --apex-violet-text: #6d28d9;
+  --apex-accent: #5b63ec;
+  --apex-accent-strong: #3f45c4;
+  --apex-accent-tint: rgba(91, 99, 236, 0.1);
+  --apex-accent-border: rgba(91, 99, 236, 0.38);
+  --apex-on-accent: #ffffff;
+  --apex-gradient: linear-gradient(180deg, #7e86f8 0%, #5b63ec 100%);
+  /* KEEL logo (shared/components/brand/KeelMark.jsx), blue & purple. The
+     tile is the app-icon square; plain sits on the page background. */
+  --keel-logo-tile-bg: linear-gradient(160deg, #4a6ee0, #4b2fa3);
+  --keel-logo-tile-hull-top: #e3ecff; --keel-logo-tile-hull-bottom: #8fb0ff;
+  --keel-logo-tile-keel-top: #ffffff; --keel-logo-tile-keel-bottom: #d6cbff;
+  --keel-logo-tile-bulb-light: #ffffff; --keel-logo-tile-bulb-dark: #b9a8ff;
+  --keel-logo-tile-rim: rgba(255, 255, 255, 0.85);
+  --keel-logo-plain-hull-top: #9cc0ff; --keel-logo-plain-hull-bottom: #3d6fd9;
+  --keel-logo-plain-keel-top: #8a6cf0; --keel-logo-plain-keel-bottom: #3e2590;
+  --keel-logo-plain-bulb-light: #b8a6ff; --keel-logo-plain-bulb-dark: #5a3fd0;
+  --keel-logo-plain-rim: rgba(255, 255, 255, 0.9);
+  --apex-gradient-mint: linear-gradient(180deg, #a0ead8 0%, #68d2ba 100%);
+  --apex-iridescent: linear-gradient(120deg, rgba(249, 168, 212, 0.9), rgba(196, 181, 253, 0.9) 35%, rgba(147, 197, 253, 0.85) 65%, rgba(110, 231, 210, 0.9));
+  --apex-gradient-soft: linear-gradient(120deg, rgba(178, 160, 246, 0.18), rgba(128, 186, 246, 0.14) 50%, rgba(104, 210, 186, 0.16));
+  --apex-focus: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 0 4px rgba(91, 99, 236, 0.6);
+
+  /* Status */
+  --apex-success: #13795a;
+  --apex-success-bg: rgba(104, 210, 186, 0.28);
+  --apex-warning: #985016;
+  --apex-warning-bg: rgba(248, 192, 150, 0.32);
+  --apex-danger: #b4304f;
+  --apex-danger-bg: rgba(244, 168, 196, 0.32);
+  --apex-info: #3f45c4;
+  --apex-info-bg: rgba(128, 186, 246, 0.24);
+
+  /* Charts (validated with the dataviz palette checker per theme) */
+  --apex-chart-actual: #0d9488;
+  --apex-chart-forecast: #5b63ec;
+  --apex-chart-grid: rgba(36, 40, 52, 0.08);
+
+  --apex-radius-sm: 12px;
+  --apex-radius: 22px;
+  --apex-radius-lg: 28px;
+  --apex-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --apex-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --apex-font: "Inter", "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif;
+  --apex-font-display: "Sora", "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  /* The KEEL wordmark's typeface (approved with the logo). */
+  --keel-font-wordmark: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+
+  /* Legacy tokens -> KEEL */
+  --ceopro-primary: var(--apex-accent);
+  --ceopro-primary-dark: var(--apex-accent-strong);
+  --ceopro-primary-light: var(--apex-accent-tint);
+  --ceopro-primary-soft: var(--apex-tint);
+  --ceopro-surface: var(--apex-glass);
+  --ceopro-surface-soft: transparent;
+  --ceopro-surface-subtle: var(--apex-tint);
+  --ceopro-text-primary: var(--apex-text);
+  --ceopro-text-secondary: var(--apex-text-2);
+  --ceopro-text-muted: var(--apex-text-3);
+  --ceopro-border: var(--apex-glass-border);
+  --ceopro-border-soft: var(--apex-glass-border-strong);
+  --ceopro-success: var(--apex-success);
+  --ceopro-warning: var(--apex-warning);
+  --ceopro-error: var(--apex-danger);
+  --ceopro-info: var(--apex-info);
+  --ceopro-disabled: rgba(150, 156, 190, 0.35);
+  --ceopro-shadow-sm: 0 1px 2px rgba(30, 34, 70, 0.08);
+  --ceopro-shadow: var(--apex-shadow);
+  --ceopro-shadow-lg: var(--apex-shadow);
+  --ceopro-radius-sm: var(--apex-radius-sm);
+  --ceopro-radius-md: 14px;
+  --ceopro-radius-lg: var(--apex-radius);
+  --ceopro-auth-bg: transparent;
+  --ceopro-auth-focus-ring: rgba(99, 102, 241, 0.3);
+  --ceopro-font-family-en: var(--apex-font);
+}
+
+/* Dark: graphite studio, same glass. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --apex-bg: #1b1d22;
+  --apex-bg-raised: #24262c;
+  --apex-canvas: 
+    radial-gradient(90% 70% at 0% 0%, rgba(120, 126, 142, 0.35) 0%, rgba(120, 126, 142, 0) 60%),
+    radial-gradient(80% 70% at 100% 100%, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 60%),
+    linear-gradient(160deg, #262930 0%, #1b1d22 55%, #121317 100%);
+  --apex-ambient-cyan: transparent;
+  --apex-ambient-blue: transparent;
+  --apex-ambient-violet: transparent;
+
+  --apex-tint: rgba(255, 255, 255, 0.05);
+  --apex-glass: rgba(255, 255, 255, 0.075);
+  --apex-glass-strong: rgba(255, 255, 255, 0.11);
+  --apex-glass-hover: rgba(255, 255, 255, 0.15);
+  --apex-glass-solid: rgba(36, 38, 45, 0.95);
+  --apex-surface-top: rgba(255, 255, 255, 0.18);
+  --apex-field: rgba(255, 255, 255, 0.07);
+  --apex-glass-border: rgba(255, 255, 255, 0.14);
+  --apex-glass-border-strong: rgba(255, 255, 255, 0.16);
+  --apex-highlight-line: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --apex-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.04), inset 0 -20px 34px -26px rgba(99, 102, 241, 0.45);
+  --apex-shadow: 4px 8px 14px -10px rgba(0, 0, 0, 0.6), 18px 28px 44px -24px rgba(0, 0, 0, 0.55);
+  --apex-shadow-hover: 6px 12px 20px -12px rgba(0, 0, 0, 0.65), 24px 36px 54px -24px rgba(0, 0, 0, 0.6);
+  --apex-shadow-glow: 10px 16px 26px -12px rgba(91, 99, 236, 0.6);
+  --apex-scrim: rgba(0, 0, 0, 0.55);
+
+  --apex-text: #f2f3f7;
+  --apex-text-2: #c8ccd6;
+  --apex-text-3: #a1a7b5;
+  --apex-text-inverse: #14161c;
+
+  --apex-cyan: #67e8f9;
+  --apex-blue: #8f95ff;
+  --apex-violet: #a78bfa;
+  --apex-violet-text: #c4b5fd;
+  --apex-accent: #9aa0ff;
+  --apex-accent-strong: #c3c6ff;
+  --apex-accent-tint: rgba(143, 149, 255, 0.16);
+  --apex-accent-border: rgba(154, 160, 255, 0.42);
+  --apex-gradient: linear-gradient(180deg, #7e86f8 0%, #5b63ec 100%);
+  --keel-logo-plain-hull-top: #c3d6ff; --keel-logo-plain-hull-bottom: #5c86f0;
+  --keel-logo-plain-keel-top: #efe9ff; --keel-logo-plain-keel-bottom: #a58cff;
+  --keel-logo-plain-bulb-light: #d9ceff; --keel-logo-plain-bulb-dark: #7a5cf0;
+  --keel-logo-plain-rim: rgba(255, 255, 255, 0.75);
+  --apex-gradient-soft: linear-gradient(120deg, rgba(178, 160, 246, 0.14), rgba(128, 186, 246, 0.1) 50%, rgba(104, 210, 186, 0.12));
+  --apex-iridescent: linear-gradient(120deg, rgba(103, 232, 249, 0.75), rgba(129, 140, 248, 0.8) 40%, rgba(192, 132, 252, 0.8) 70%, rgba(244, 114, 182, 0.6));
+  --apex-focus: 0 0 0 2px rgba(20, 22, 28, 0.9), 0 0 0 4px rgba(154, 160, 255, 0.7);
+
+  --apex-success: #5fd3a8;
+  --apex-success-bg: rgba(104, 210, 186, 0.16);
+  --apex-warning: #f0b57d;
+  --apex-warning-bg: rgba(248, 192, 150, 0.16);
+  --apex-danger: #ff8fab;
+  --apex-danger-bg: rgba(244, 168, 196, 0.16);
+  --apex-info: #a9c8ff;
+  --apex-info-bg: rgba(128, 186, 246, 0.16);
+
+  --apex-chart-actual: #12a594;
+  --apex-chart-forecast: #8f95ff;
+  --apex-chart-grid: rgba(255, 255, 255, 0.07);
+
+  --ceopro-disabled: rgba(190, 200, 255, 0.2);
+  --ceopro-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --ceopro-auth-focus-ring: rgba(125, 211, 252, 0.35);
+}
+
+html {
+  background: var(--apex-canvas);
+  background-color: var(--apex-bg);
+  background-attachment: fixed;
+  color: var(--apex-text);
+}
+
+/* Theme switches cross-fade instead of snapping. */
+html.apex-theme-switching,
+html.apex-theme-switching *,
+html.apex-theme-switching *::before,
+html.apex-theme-switching *::after {
+  transition: background-color 420ms var(--apex-ease), border-color 420ms var(--apex-ease), color 300ms var(--apex-ease), box-shadow 420ms var(--apex-ease) !important;
+}
+
+/* Transparent so the ambient light (below) shows through. */
+html body {
+  background: transparent;
+  color: var(--apex-text);
+}
+
+body {
+  font-family: var(--apex-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ambient light: fixed, slow, behind everything. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(90px);
+}
+
+body::before {
+  width: 62vw;
+  height: 62vw;
+  top: -24vw;
+  inset-inline-start: -14vw;
+  background: radial-gradient(circle at 40% 40%, var(--apex-ambient-blue), transparent 62%),
+    radial-gradient(circle at 70% 70%, var(--apex-ambient-cyan), transparent 58%);
+  animation: apex-drift 34s ease-in-out infinite alternate;
+}
+
+body::after {
+  width: 56vw;
+  height: 56vw;
+  bottom: -26vw;
+  inset-inline-end: -16vw;
+  background: radial-gradient(circle at 50% 50%, var(--apex-ambient-violet), transparent 62%);
+  animation: apex-drift 42s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes apex-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(3vw, 4vw, 0) scale(1.06); }
+  100% { transform: translate3d(6vw, 1vw, 0) scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after { animation: none; }
+}
+
+::selection { background: rgba(99, 102, 241, 0.28); color: inherit; }
+
+html * { scrollbar-width: thin; scrollbar-color: var(--apex-glass-border-strong) transparent; }
+
+/* ------------------------------------------------------------------ */
+/* Reusable glass primitives                                          */
+/* ------------------------------------------------------------------ */
+
+.apex-glass {
+  background: var(--apex-glass);
+  border: 1px solid var(--apex-glass-border);
+  border-radius: var(--apex-radius);
+  box-shadow: var(--apex-glass-highlight), var(--apex-shadow);
+  backdrop-filter: var(--apex-blur);
+  -webkit-backdrop-filter: var(--apex-blur);
+}
+
+.apex-glass--strong { background: var(--apex-glass-strong); }
+
+.apex-gradient-text {
+  background: var(--apex-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.apex-eyebrow {
+  margin: 0;
+  color: var(--apex-accent);
+  font: 600 11px/1.2 var(--apex-font);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+[dir="rtl"] .apex-eyebrow { letter-spacing: 0; }
+
+/* ------------------------------------------------------------------ */
+/* Shared components (higher specificity than feature stylesheets)   */
+/* ------------------------------------------------------------------ */
+
+html .ceopro-card,
+html .business-card,
+html .dashboard-card {
+  background: var(--apex-glass);
+  border: 1px solid var(--apex-glass-border);
+  border-radius: var(--apex-radius);
+  box-shadow: var(--apex-glass-highlight), var(--apex-shadow);
+  backdrop-filter: var(--apex-blur);
+  -webkit-backdrop-filter: var(--apex-blur);
+  color: var(--apex-text);
+}
+
+html .ceopro-button {
+  border-radius: 12px;
+  transition: transform 140ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+html .ceopro-button--primary {
+  border: 0;
+  background: var(--apex-gradient);
+  color: #fff;
+  box-shadow: 0 14px 28px -12px rgba(91, 97, 240, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+html .ceopro-button--primary:hover:not(:disabled) {
+  background: var(--apex-gradient);
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+html .ceopro-button--secondary,
+html .ceopro-button--outline {
+  background: var(--apex-glass-strong);
+  border: 1px solid var(--apex-glass-border-strong);
+  color: var(--apex-text);
+}
+
+html .ceopro-button--secondary:hover:not(:disabled),
+html .ceopro-button--outline:hover:not(:disabled) {
+  background: var(--apex-glass-hover);
+  border-color: var(--apex-accent-border);
+  color: var(--apex-text);
+}
+
+html .ceopro-button--ghost { background: transparent; color: var(--apex-text-2); }
+html .ceopro-button--ghost:hover:not(:disabled) { background: var(--apex-glass); color: var(--apex-text); }
+
+html .ceopro-button:focus-visible,
+html .ceopro-input:focus-visible,
+html .ceopro-input-shell:focus-within,
+html button:focus-visible,
+html a:focus-visible,
+html select:focus-visible,
+html textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--apex-focus);
+}
+
+html .ceopro-button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+html .ceopro-input,
+html .ceopro-input-shell,
+html .ceopro-select-wrapper select,
+html .ceopro-textarea,
+html input[type="text"],
+html input[type="search"],
+html input[type="email"],
+html input[type="number"],
+html input[type="url"],
+html input[type="date"],
+html input[type="password"],
+html select,
+html textarea {
+  background-color: var(--apex-field);
+  border-color: var(--apex-glass-border-strong);
+  color: var(--apex-text);
+}
+
+html .ceopro-input-shell .ceopro-input { background: transparent; }
+html input::placeholder,
+html textarea::placeholder { color: var(--apex-text-3); opacity: 1; }
+html select option { background: var(--apex-bg-raised); color: var(--apex-text); }
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.85); }
+
+html .ceopro-modal,
+html .ceopro-dropdown-menu,
+html [role="dialog"] .ceopro-modal__panel {
+  background: var(--apex-glass-solid);
+  border: 1px solid var(--apex-glass-border-strong);
+  color: var(--apex-text);
+  backdrop-filter: var(--apex-blur);
+  -webkit-backdrop-filter: var(--apex-blur);
+}
+
+html .ceopro-table,
+html table { color: var(--apex-text); border-color: var(--apex-glass-border); }
+html .ceopro-table th,
+html table th { color: var(--apex-text-3); background: var(--apex-tint); border-color: var(--apex-glass-border); }
+html .ceopro-table td,
+html table td { border-color: var(--apex-glass-border); }
+html .ceopro-table tbody tr:hover,
+html table tbody tr:hover { background: var(--apex-tint); }
+
+/* Recharts on glass */
+html .recharts-cartesian-grid line { stroke: var(--apex-chart-grid); }
+html .recharts-text,
+html .recharts-cartesian-axis-tick-value { fill: var(--apex-text-3); }
+html .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--apex-glass-solid) !important;
+  border: 1px solid var(--apex-glass-border-strong) !important;
+  border-radius: 12px;
+  color: var(--apex-text);
+  box-shadow: var(--apex-shadow);
+}
+html .recharts-legend-item-text { color: var(--apex-text-2) !important; }
+
+/* Page header */
+html .business-page-header { margin-bottom: 24px; align-items: flex-end; }
+html .business-page-header__copy h1 {
+  font: 650 30px/1.2 var(--apex-font-display);
+  letter-spacing: -0.02em;
+  color: var(--apex-text);
+}
+[dir="rtl"] .business-page-header__copy h1 { letter-spacing: 0; font-family: var(--apex-font); }
+html .business-page-header__copy p { margin-top: 6px; color: var(--apex-text-2); font-size: 14px; }
+@media (max-width: 560px) { html .business-page-header__copy h1 { font-size: 23px; } }
+
+/* Generic helpers used by the redesigned screens */
+.apex-muted { color: var(--apex-text-3); }
+.apex-num { font-variant-numeric: tabular-nums; }
+.apex-up { color: var(--apex-success); }
+.apex-down { color: var(--apex-danger); }
+.apex-flat { color: var(--apex-text-3); }
+
+
+/* Sign-in / sign-up brand */
+html .ceopro-auth-brand { display: inline-flex; align-items: center; justify-content: center; gap: 10px; color: var(--apex-text); font: 600 25px/1 var(--keel-font-wordmark); letter-spacing: 0.14em; }
+html .ceopro-auth-brand__mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 60%), var(--keel-logo-tile-bg); color: #fff; box-shadow: 0 10px 28px -10px rgba(91,97,240,.6); }
+html .ceopro-auth-shell { background: var(--apex-glass); border: 1px solid var(--apex-glass-border); border-radius: var(--apex-radius-lg); box-shadow: var(--apex-glass-highlight), var(--apex-shadow); backdrop-filter: var(--apex-blur); -webkit-backdrop-filter: var(--apex-blur); }
