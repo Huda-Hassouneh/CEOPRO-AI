@@ -1,0 +1,274 @@
+"""Competitor discovery API: run discovery, follow a run, browse what was
+found (with sources), and choose which competitors to track."""
+import logging
+import threading
+from typing import Literal, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+
+from src.ai import db
+from src.ai.market_inputs import public_sources
+from src.ai.core import tenant_cache, usage
+from src.ai.core.security import TenantContext, get_tenant_context
+from src.ai.market_inputs import competitor_analysis, competitor_intel, discovered_competitors, market_news, market_structure
+from src.infrastructure.request_language import get_request_language
+from src.market_scraper.market_discovery import industries, pipeline
+
+logger = logging.getLogger("APEX_MARKET_DISCOVERY")
+router = APIRouter(prefix="/discovery", tags=["discovery"])
+
+
+def _run_in_background(tenant_id: str, user_id: str, run_id: str, radius_km: Optional[float]) -> None:
+    conn = db.dedicated_tenant_connection(tenant_id, user_id)
+    try:
+        pipeline.execute_run(conn, tenant_id, run_id, radius_km)
+    except Exception:  # noqa: BLE001 - recorded on the run row
+        pass
+    finally:
+        conn.close()
+        tenant_cache.bump(tenant_id)  # new competitors show on the next screen
+
+
+@router.get("/industries")
+def list_industries() -> dict:
+    return {"industries": industries.choices()}
+
+
+@router.get("/status")
+def discovery_status(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """What discovery will search for, which sources are connected, and the last run."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        profile = pipeline.load_profile(conn, ctx.tenant_id)
+        query = pipeline.build_query(ctx.tenant_id, profile)
+        industry, how = industries.resolve(profile.get("industry_key"), profile.get("business_type"), profile.get("product_names") or [])
+        return {
+            "industry": {"key": industry.key, "label": {"en": industry.label_en, "ar": industry.label_ar}, "decided_by": how},
+            "location": {"city": profile.get("city"), "country_code": profile.get("country_code"),
+                         "latitude": profile.get("latitude"), "longitude": profile.get("longitude"),
+                         "has_location": query.has_location or bool(profile.get("city"))},
+            "radius_km": query.radius_km,
+            "keywords": query.keywords,
+            # Kinds of source, never provider names (market_inputs/public_sources.py).
+            "providers": public_sources.provider_status(pipeline.provider_status()),
+            "last_run": public_sources.public_run(pipeline.get_run(conn, ctx.tenant_id)),
+        }
+    finally:
+        conn.close()
+
+
+class DiscoverRequest(BaseModel):
+    radius_km: Optional[float] = Field(default=None, ge=0.5, le=30)
+
+
+@router.post("/runs", status_code=202)
+def start_discovery(body: DiscoverRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        run_id = pipeline.start_run(conn, ctx.tenant_id, ctx.user_id, body.radius_km)
+        conn.commit()
+    except pipeline.DiscoveryBusy as busy:
+        conn.rollback()
+        return {"run_id": busy.run_id, "status": "running", "already_running": True}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    threading.Thread(target=_run_in_background, args=(ctx.tenant_id, ctx.user_id, run_id, body.radius_km),
+                     name=f"discovery-{run_id}", daemon=True).start()
+    return {"run_id": run_id, "status": "queued", "already_running": False}
+
+
+@router.get("/runs/{run_id}")
+def get_discovery_run(run_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            run = pipeline.get_run(conn, ctx.tenant_id, run_id)
+        except Exception:  # noqa: BLE001 - malformed id
+            conn.rollback()
+            run = None
+        if run is None:
+            raise HTTPException(status_code=404, detail="Discovery run not found")
+        return public_sources.public_run(run)
+    finally:
+        conn.close()
+
+
+@router.get("/news")
+def list_market_news(limit: int = Query(default=30, ge=1, le=100), competitor_id: Optional[str] = None,
+                     ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Recent industry and competitor news found by discovery, newest first,
+    each linking to the article."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            return {"articles": market_news.latest(conn, ctx.tenant_id, limit, competitor_id)}
+        except Exception as exc:  # noqa: BLE001 - malformed competitor id
+            conn.rollback()
+            if "invalid input syntax" in str(exc):
+                return {"articles": []}
+            raise
+    finally:
+        conn.close()
+
+
+@router.get("/competitors")
+def list_discovered(
+    status: Literal["all", "tracked", "suggested"] = "all",
+    sort: Literal["relevance", "distance", "rating", "reviews", "name", "recent"] = "relevance",
+    q: Optional[str] = Query(default=None, max_length=100),
+    origin: Optional[Literal["manual", "map", "web"]] = None,
+    min_confidence: Optional[float] = Query(default=None, ge=0, le=1),
+    limit: int = Query(default=200, ge=1, le=500), offset: int = Query(default=0, ge=0),
+    relationship: Optional[Literal["DIRECT", "INDIRECT", "RELATED", "UNVERIFIED", "with_prices"]] = None,
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = discovered_competitors.list_competitors(conn, ctx.tenant_id, status, sort, q, origin, min_confidence, limit,
+                                                         offset, relationship)
+        feature = usage.get_plan(conn, ctx.tenant_id)["features"].get(usage.TRACKED_COMPETITORS)
+        result["plan_limit"] = feature["limit"] if feature else None
+        return result
+    finally:
+        conn.close()
+
+
+@router.get("/competitors/{competitor_id}")
+def get_discovered(competitor_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            result = discovered_competitors.get_competitor(conn, ctx.tenant_id, competitor_id)
+        except Exception:  # noqa: BLE001 - malformed id
+            conn.rollback()
+            result = None
+        if result is None:
+            raise HTTPException(status_code=404, detail="Competitor not found")
+        result["intel"] = competitor_intel.get_intel(conn, ctx.tenant_id, competitor_id)
+        return result
+    finally:
+        conn.close()
+
+
+@router.post("/competitors/{competitor_id}/refresh")
+def refresh_competitor_intel(competitor_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Reads the competitor's website again now (also the retry after a
+    failed read). Same rules as during discovery: robots.txt, public sites
+    only, a few pages."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            outcome = competitor_intel.refresh_competitor(conn, ctx.tenant_id, competitor_id)
+        except (LookupError, ValueError):
+            conn.rollback()
+            raise HTTPException(status_code=404, detail="Competitor not found")
+        except Exception as exc:  # noqa: BLE001 - malformed id
+            conn.rollback()
+            if "invalid input syntax" in str(exc):
+                raise HTTPException(status_code=404, detail="Competitor not found")
+            raise
+        conn.commit()
+        tenant_cache.bump(ctx.tenant_id)
+        return {**outcome, "intel": competitor_intel.get_intel(conn, ctx.tenant_id, competitor_id)}
+    finally:
+        conn.close()
+
+
+def _analysis_error(err: "competitor_analysis.AnalysisUnavailable") -> HTTPException:
+    if err.reason == "not_configured":
+        return HTTPException(status_code=503, detail="Analysis isn't set up on this server yet.",
+                             headers={"X-Assistant-Reason": "not_configured"})
+    if err.reason == "busy":
+        return HTTPException(status_code=503, detail="The analyst is busy right now. Try again in a minute.",
+                             headers={"Retry-After": "30"})
+    return HTTPException(status_code=502, detail="The analysis couldn't be written this time. Try again.")
+
+
+@router.post("/competitors/{competitor_id}/analysis")
+def analyse_competitor(competitor_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """AI analysis of one competitor from the facts collected about it;
+    every point cites them. Uses the plan's AI token allowance."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            return competitor_analysis.analyse_competitor(conn, ctx.tenant_id, competitor_id, get_request_language())
+        except LookupError:
+            conn.rollback()
+            raise HTTPException(status_code=404, detail="Competitor not found")
+        except competitor_analysis.AnalysisUnavailable as err:
+            raise _analysis_error(err) from err
+        except Exception as exc:
+            conn.rollback()
+            if "invalid input syntax" in str(exc):
+                raise HTTPException(status_code=404, detail="Competitor not found")
+            raise
+    finally:
+        conn.close()
+
+
+@router.get("/market/structure")
+def market_structure_view(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Counts and price ranges over the stored competitors (no AI, no guess)."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        return market_structure.build(conn, ctx.tenant_id)
+    finally:
+        conn.close()
+
+
+@router.get("/market/analysis")
+def market_analysis(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        return {"analysis": competitor_analysis.latest_market_summary(conn, ctx.tenant_id)}
+    finally:
+        conn.close()
+
+
+@router.post("/market/analysis")
+def refresh_market_analysis(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """AI summary of market trends from stored news and competitor facts,
+    every point citing them. Uses the plan's AI token allowance."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            return {"analysis": competitor_analysis.analyse_market(conn, ctx.tenant_id, get_request_language())}
+        except competitor_analysis.AnalysisUnavailable as err:
+            raise _analysis_error(err) from err
+    finally:
+        conn.close()
+
+
+def _set_tracked(competitor_id: str, tracked: bool, ctx: TenantContext) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            changed = discovered_competitors.set_tracked(conn, ctx.tenant_id, competitor_id, tracked)
+        except Exception:  # noqa: BLE001 - malformed id
+            conn.rollback()
+            changed = False
+        if not changed:
+            raise HTTPException(status_code=404, detail="Competitor not found")
+        if tracked:
+            usage.ensure_capacity(conn, ctx.tenant_id, usage.TRACKED_COMPETITORS, 0)
+        conn.commit()
+        return {"competitor_id": competitor_id, "is_tracked": tracked}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/competitors/{competitor_id}/track")
+def track_competitor(competitor_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    return _set_tracked(competitor_id, True, ctx)
+
+
+@router.delete("/competitors/{competitor_id}/track")
+def untrack_competitor(competitor_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    return _set_tracked(competitor_id, False, ctx)

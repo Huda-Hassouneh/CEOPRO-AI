@@ -1,0 +1,107 @@
+name: Live LLM Verification (manual)
+
+# Manual-only (workflow_dispatch), because it makes real, rate-limited
+# calls to the Groq API and is not something every PR/push should spend.
+# This exists specifically because the interactive sandbox this repo is
+# usually developed from has an outbound network policy that rejects
+# connections to groq.com/onrender.com entirely (confirmed: "gateway
+# answered 403 to CONNECT (policy denial)") - a real, live Groq call can
+# only be verified from an environment with real internet egress, and a
+# GitHub-hosted runner is exactly that, at $0 (public-repo Actions
+# minutes are free).
+#
+# Needs one repository secret you add yourself, never pasted into this
+# repo or any chat: Settings -> Secrets and variables -> Actions ->
+# "New repository secret" -> name GROQ_API_KEY. This workflow never
+# echoes, logs, or writes that value anywhere - it's read once by
+# scripts/live_llm_verification.py through the environment.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  live-llm-verification:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: ceopro_admin
+          POSTGRES_PASSWORD: live_verify_admin_password
+          POSTGRES_DB: ceopro_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ceopro_admin:live_verify_admin_password@localhost:5432/ceopro_platform
+      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:live_verify_admin_password@localhost:5432/ceopro_platform
+      APP_DB_PASSWORD: live_verify_app_password
+      JWT_SECRET: live-verify-jwt-secret-never-used-outside-this-job
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail fast with a clear message if the secret isn't set
+        run: |
+          if [ -z "$GROQ_API_KEY" ]; then
+            echo "::error::GROQ_API_KEY repository secret is not set. Add it under Settings > Secrets and variables > Actions, then re-run this workflow."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Same fix pr-checks.yml already needed for this identical
+      # requirements.txt: torch's default Linux wheel bundles a full
+      # CUDA/nvidia-* stack (~4.6GB) this CPU-only job never uses, and
+      # this workflow's requirements now also include PR #6's rembg
+      # (opencv/onnxruntime/scikit-image - more disk on top) - without
+      # this, "Install backend dependencies" fails with "No space left
+      # on device" on a stock GitHub-hosted runner's ~14GB free disk.
+      - name: Free disk space (unused preinstalled toolchains this job never touches)
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+          sudo docker image prune -a -f
+          df -h /
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --no-cache-dir -r src/ai/requirements.txt
+
+      - name: Apply database migrations
+        working-directory: backend
+        run: python scripts/apply_migrations.py
+
+      - name: Offline eval harness (gate-selection check - no LLM, no network)
+        working-directory: backend
+        run: python -m src.ai.rag.eval.run_eval
+
+      - name: Eval harness live-DB + live-LLM modes (bounded to 6 cases)
+        working-directory: backend
+        run: python -m src.ai.rag.eval.run_eval --live-db --live-llm
+
+      # Real, observed failure mode across two separate runs (2026-09-26):
+      # the eval harness step above already spends a meaningful slice of
+      # Groq's free-tier 8000 TPM budget (one run reported usage up to
+      # 7553/8000 tokens in the rolling window right before this step). A
+      # first fix (sleep 30) was NOT enough - a second run still hit real
+      # 429s on 5/7 hand-picked calls afterward ("Please try again in"
+      # 157ms-18.63s), because 30s only partially refills an 8000-token
+      # rolling-minute window that started almost full. This job's two
+      # live-LLM steps don't just need to clear the worst single wait time,
+      # they need the window to have rolled forward past most of the
+      # eval-harness step's own token usage before the next several calls
+      # start spending it again - so the cooldown needs to approach a full
+      # minute, not just beat the largest observed retry-after.
+      - name: Cooldown before the next round of real Groq calls (TPM budget recovery)
+        run: sleep 90
+
+      - name: Hand-picked real end-to-end verification (financial/app/market/history/injection)
+        working-directory: backend
+        run: python scripts/live_llm_verification.py

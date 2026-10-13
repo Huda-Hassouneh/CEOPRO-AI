@@ -1,0 +1,41 @@
+{
+  "test_file": "mocks/Electronics_For_Test.xlsx",
+  "run_at_utc": "2026-08-31T07:44:58Z",
+  "tenant_id": "2b85ae16-f2d4-4f0b-8f7c-5cd1ea8d94a3",
+  "job_id": "67573c09-dd4f-4035-8475-f7edd8e70f75",
+  "source_name": "Electronics_For_Test.xlsx",
+  "template_mode": "FALLBACK",
+  "header_coverage_ratio": 0.375,
+  "headers": [
+    "Sale_ID",
+    "Date_Time",
+    "Product_ID",
+    "Product_Name",
+    "Quantity",
+    "Unit_Price",
+    "Total_Price",
+    "Shift"
+  ],
+  "total_rows_in_file": 51947,
+  "rows_processed": 51947,
+  "rows_partial": 0,
+  "rows_failed": 0,
+  "total_fields_expected": 0,
+  "total_fields_extracted": 0,
+  "data_loss_pct": 0.0,
+  "is_template_compliant": false,
+  "mode_counts": {
+    "FALLBACK": 51947
+  },
+  "field_error_counts": {},
+  "fallback_entity_type_counts": {
+    "DATE": 51947,
+    "PHONE": 498
+  },
+  "timing": {
+    "file_read_seconds": 5.24,
+    "pipeline_process_seconds": 30648.42,
+    "rows_per_second": 1.69
+  },
+  "minio_persistence": "skipped (minio_client=None) - not required for the requested metrics"
+}

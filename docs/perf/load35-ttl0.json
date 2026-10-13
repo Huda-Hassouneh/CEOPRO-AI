@@ -1,0 +1,163 @@
+{
+ "started_at": "2026-10-09T13:59:24.871825+00:00",
+ "api": "http://127.0.0.1:8000",
+ "accounts": 5,
+ "cpu_count": 4,
+ "phases": {
+  "load_35": {
+   "result": {
+    "users": 35,
+    "seconds": 61,
+    "requests": 3448,
+    "rps": 56.5,
+    "rate_limited": 0,
+    "n": 3448,
+    "errors": 0,
+    "p50_ms": 75,
+    "p95_ms": 319,
+    "max_ms": 1371,
+    "per_endpoint": {
+     "/alerts": {
+      "n": 331,
+      "errors": 0,
+      "p50_ms": 167,
+      "p95_ms": 486,
+      "max_ms": 784
+     },
+     "/competitors": {
+      "n": 345,
+      "errors": 0,
+      "p50_ms": 51,
+      "p95_ms": 200,
+      "max_ms": 466
+     },
+     "/dashboard/command-center": {
+      "n": 359,
+      "errors": 0,
+      "p50_ms": 168,
+      "p95_ms": 939,
+      "max_ms": 1371
+     },
+     "/dashboard/metrics": {
+      "n": 349,
+      "errors": 0,
+      "p50_ms": 64,
+      "p95_ms": 193,
+      "max_ms": 480
+     },
+     "/discovery/competitors": {
+      "n": 333,
+      "errors": 0,
+      "p50_ms": 49,
+      "p95_ms": 145,
+      "max_ms": 387
+     },
+     "/forecasting/overview": {
+      "n": 339,
+      "errors": 0,
+      "p50_ms": 110,
+      "p95_ms": 328,
+      "max_ms": 664
+     },
+     "/products": {
+      "n": 358,
+      "errors": 0,
+      "p50_ms": 44,
+      "p95_ms": 148,
+      "max_ms": 307
+     },
+     "/reports/financial-summary": {
+      "n": 352,
+      "errors": 0,
+      "p50_ms": 64,
+      "p95_ms": 154,
+      "max_ms": 435
+     },
+     "/reports/sales": {
+      "n": 356,
+      "errors": 0,
+      "p50_ms": 74,
+      "p95_ms": 191,
+      "max_ms": 456
+     },
+     "/settings/company": {
+      "n": 326,
+      "errors": 0,
+      "p50_ms": 41,
+      "p95_ms": 142,
+      "max_ms": 391
+     }
+    }
+   },
+   "process": {
+    "rss_mb_peak": 281,
+    "rss_mb_end": 281,
+    "cpu_pct_mean": 55,
+    "cpu_pct_peak": 87,
+    "processes_peak": 1,
+    "db_connections_peak": 28
+   },
+   "wall_seconds": 61.1,
+   "top_queries": [
+    {
+     "calls": 1029,
+     "total_ms": 26136.3,
+     "mean_ms": 25.4,
+     "query": "WITH sales AS ( SELECT ii.product_id, COALESCE(SUM(ii.quantity) FILTER (WHERE i.issue_date >= $1::date), $2) AS recent, "
+    },
+    {
+     "calls": 690,
+     "total_ms": 14267.2,
+     "mean_ms": 20.68,
+     "query": "SELECT ii.product_id, localized_text(p.product_name), COALESCE(SUM(ii.total_price) FILTER (WHERE i.issue_date >= $1::date), $2) AS revenue, "
+    },
+    {
+     "calls": 1039,
+     "total_ms": 13161.5,
+     "mean_ms": 12.67,
+     "query": "SELECT COALESCE(SUM(CASE WHEN i.issue_date >= $1::date THEN ii.quantity ELSE $2 END), $3) AS recent_units, COALESCE(SUM(CASE WHE"
+    },
+    {
+     "calls": 339,
+     "total_ms": 8518.5,
+     "mean_ms": 25.13,
+     "query": "WITH sold AS ( SELECT ii.product_id, MAX(i.created_at) AS last_recorded FROM invoice_items ii JOIN invoices i ON"
+    },
+    {
+     "calls": 188,
+     "total_ms": 8185.9,
+     "mean_ms": 43.54,
+     "query": "SELECT i.issue_date::date, SUM(ii.quantity) FROM invoice_items ii JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id"
+    },
+    {
+     "calls": 1039,
+     "total_ms": 8096.2,
+     "mean_ms": 7.79,
+     "query": "SELECT COALESCE(SUM(CASE WHEN issue_date >= $1::date THEN total_amount ELSE $2 END), $3) AS recent_revenue, COALESCE(SUM(CASE WH"
+    },
+    {
+     "calls": 690,
+     "total_ms": 7616.3,
+     "mean_ms": 11.04,
+     "query": "SELECT i.issue_date::date AS day, SUM(ii.quantity) AS units FROM invoice_items ii JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.in"
+    },
+    {
+     "calls": 352,
+     "total_ms": 6588.4,
+     "mean_ms": 18.72,
+     "query": "SELECT COALESCE(SUM(CASE WHEN i.issue_date >= $1::date THEN ii.total_price ELSE $2 END), $3) AS recent_revenue, "
+    }
+   ],
+   "recovery": {
+    "command_center_after_10s": {
+     "n": 10,
+     "errors": 0,
+     "p50_ms": 240,
+     "p95_ms": 286,
+     "max_ms": 286
+    },
+    "rss_mb": 281
+   }
+  }
+ }
+}
