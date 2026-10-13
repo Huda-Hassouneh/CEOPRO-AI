@@ -1,0 +1,32 @@
+-- CEOPRO AI - Fix DELETE /products/{id} always failing with
+-- "new row violates row-level security policy for table products".
+--
+-- Root cause (reproduced directly against Postgres, not guessed):
+-- select_products_isolated's USING clause is
+-- `tenant_id = get_current_tenant() AND deleted_at IS NULL`. Postgres
+-- requires an UPDATE's resulting NEW row to still satisfy the table's
+-- SELECT policy - independent of the UPDATE policy's own USING/WITH
+-- CHECK (confirmed empirically: even a fully permissive UPDATE policy,
+-- USING (true) WITH CHECK (true), still hit this error). products.py's
+-- delete_product() soft-deletes via `UPDATE products SET deleted_at =
+-- NOW() ...` - the new row's deleted_at is no longer NULL, so it fails
+-- select_products_isolated's own visibility check the instant the row
+-- is soft-deleted, and Postgres rejects the UPDATE outright. This
+-- affects every tenant, every time, 100% reproducible - DELETE
+-- /products/{id} could never have succeeded since this policy was
+-- created.
+--
+-- Fix: select_products_isolated's real security boundary is tenant
+-- isolation (tenant_id = get_current_tenant()) - deleted_at IS NULL was
+-- never a security concern, just a soft-delete convenience filter, and
+-- routers/products.py's own docstring already documents that every read
+-- path re-applies `deleted_at IS NULL` explicitly in application code as
+-- defense in depth ("deliberately redundant with RLS"). Dropping it from
+-- the RLS policy and relying on that already-existing explicit
+-- application-level filter (verified: list_products/get_product both
+-- already filter deleted_at IS NULL themselves) keeps soft-deleted rows
+-- correctly hidden from every real read path, while letting UPDATE move
+-- a row from not-deleted to deleted without Postgres treating that as
+-- the row becoming invisible to itself mid-statement.
+DROP POLICY IF EXISTS select_products_isolated ON products;
+CREATE POLICY select_products_isolated ON products FOR SELECT USING (tenant_id = get_current_tenant());

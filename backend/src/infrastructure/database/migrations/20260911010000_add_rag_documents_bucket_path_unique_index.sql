@@ -1,0 +1,22 @@
+-- CEOPRO AI - Unique index closing the rag_documents_metadata race
+-- condition found in the production-hardening audit.
+--
+-- structured_summaries.py::_upsert_summary_document() writes one stable
+-- "slot" document per tenant per summary type (one MinIO object at
+-- _generated/<slot>.txt, one rag_documents_metadata row) and was doing a
+-- check-then-act SELECT-then-INSERT/UPDATE with no unique constraint to
+-- back it. analysis_worker.py::analyze_tenant() calls it on every real
+-- market.analysis.requested event - two scrapes finishing close together
+-- for the SAME tenant publish two events two different worker processes
+-- can pop concurrently (Redis consumer groups only guarantee exclusivity
+-- PER MESSAGE, not per tenant), and both can race through the SELECT
+-- seeing no existing row, then both INSERT - two rows pointing at the
+-- same MinIO object key, which ingest_pending_documents() then chunks/
+-- embeds twice, silently duplicating retrieval context for every RAG
+-- chatbot answer that draws on it.
+--
+-- A plain unique index is sufficient for Postgres's ON CONFLICT to
+-- target (it doesn't require a named CONSTRAINT), and IF NOT EXISTS
+-- keeps this idempotent like every other migration in this repo.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_rag_documents_tenant_bucket_path
+    ON rag_documents_metadata (tenant_id, storage_bucket_path);

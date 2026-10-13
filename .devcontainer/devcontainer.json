@@ -1,0 +1,108 @@
+{
+  // KEEL development Codespace. Reuses the repo's own real infra
+  // (backend/docker-compose.yml, Dockerfile.ai's actual dependency set,
+  // backend/scripts/apply_migrations.py) - this is not a parallel/stripped
+  // "demo" environment, it is the same stack Render staging runs, minus
+  // Render's 512MB ceiling. See CODESPACES_DEVELOPMENT.md for the full
+  // walkthrough, the $0-safety steps, and honest limitations.
+  "name": "KEEL Development",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+
+  "features": {
+    // Docker-in-Docker, not docker-outside-of-docker: confirmed live in a
+    // real Codespace (2026-09-28) that docker-outside-of-docker's reused
+    // host daemon does NOT reliably see this devcontainer's own bind
+    // mounts - `docker run -v "$(pwd)/backend:/app" alpine ls /app` came
+    // back empty/partial (missing backend/scripts/ entirely) even though
+    // the same path was confirmed present and correct from the
+    // devcontainer's own shell. That daemon runs outside this
+    // devcontainer's mount namespace, so a host-path bind mount it
+    // resolves is not guaranteed to be the same filesystem view this
+    // devcontainer's shell sees - not a repo bug, a real boundary between
+    // "which daemon" and "which filesystem". Docker-in-Docker runs its
+    // own daemon INSIDE this devcontainer's own mount namespace instead,
+    // so a bind mount of `/workspaces/360-Radar/...` is
+    // guaranteed to be this devcontainer's own live filesystem - the same
+    // one `docker compose -f backend/docker-compose.yml run --rm migrate`
+    // needs to see backend/scripts/apply_migrations.py in.
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {
+      "installDockerComposeSwitch": true
+    },
+    // Backend (src/ai/requirements.txt: torch/faiss-cpu/transformers etc.)
+    // needs 3.11 specifically - matches Dockerfile.ai's own base image.
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    // Frontend's package.json has no engines pin; 20 LTS is Vite 5's
+    // supported baseline and what CI (if added later) should also use.
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+
+  // 5173 = Vite dev server (frontend), 8000 = uvicorn (backend API).
+  // Neither is auto-opened: the setup flow ends with migrations, not a
+  // running frontend/backend - see CODESPACES_DEVELOPMENT.md's "Start
+  // services" step for why those are left as an explicit manual command
+  // rather than a background devcontainer process (fast Ctrl+C/restart
+  // during real development, visible logs in your own terminal).
+  "forwardPorts": [5173, 8000],
+  "portsAttributes": {
+    "5173": {
+      "label": "KEEL Frontend",
+      "onAutoForward": "notify"
+    },
+    "8000": {
+      "label": "KEEL Backend API",
+      "onAutoForward": "notify"
+    },
+    // Only forwarded if you opt into MinIO/object-storage testing -
+    // see CODESPACES_DEVELOPMENT.md. Not started by default.
+    "9000": {
+      "label": "MinIO API (optional)",
+      "onAutoForward": "silent"
+    },
+    "9001": {
+      "label": "MinIO Console (optional)",
+      "onAutoForward": "silent"
+    }
+  },
+
+  // Runs once, when the Codespace is first created: installs dependencies
+  // and creates .env files from the repo's own .env.example templates.
+  // Does NOT start any service and does NOT touch Render/Neon - purely
+  // local setup. See .devcontainer/setup.sh for exactly what it does and
+  // why each step is there.
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  // Runs every time the Codespace (re)starts (not just on first create) -
+  // starts the minimal infra subset (Postgres+pgvector, Redis, migrate)
+  // via the repo's own backend/docker-compose.yml and rewrites the
+  // Codespaces-specific URLs into .env/frontend/.env, since a Codespace's
+  // forwarded URL is only known once port forwarding is actually live.
+  // Idempotent - safe to re-run (e.g. after `docker compose down`).
+  "postStartCommand": "bash .devcontainer/start-services.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+
+  // 4-core/16GB is the recommended target (see CODESPACES_DEVELOPMENT.md
+  // for why - the same torch/transformers/faiss import that risks OOM on
+  // Render's 512MB free tier needs real headroom). Intentionally NOT
+  // hardcoded here as a required minimum: Codespaces lets you pick a
+  // smaller machine at creation time, and a reduced-scope setup (skip
+  // MinIO/optional services) is usable on 2-core/8GB - see the doc's
+  // "Smaller machines" section. hostRequirements below is a suggestion
+  // GitHub's UI surfaces, not a hard gate.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb"
+  }
+}

@@ -1,0 +1,3116 @@
+{
+  "common": {
+    "brand": "KEEL",
+    "loading": "Loading...",
+    "languageSwitch": "Change language",
+    "englishShort": "EN",
+    "arabicShort": "AR",
+    "arabic": "العربية",
+    "close": "Close",
+    "notAvailable": "Not available",
+    "cancel": "Cancel",
+    "scrollableTable": "Table (scrolls sideways)"
+  },
+  "businessShell": {
+    "navigation": {
+      "label": "Business navigation",
+      "primary": "Primary navigation",
+      "secondary": "Account navigation",
+      "dashboard": "Dashboard",
+      "products": "Products",
+      "pricing": "Pricing",
+      "market": "Competitors",
+      "forecasts": "Demand",
+      "rag": "Assistant",
+      "connectData": "Data & Documents",
+      "marketing": "Marketing",
+      "reports": "Reports",
+      "settings": "Settings",
+      "billing": "Billing",
+      "logout": "Logout",
+      "groups": {
+        "overview": "Overview",
+        "business": "Business",
+        "market": "Market",
+        "intelligence": "Intelligence"
+      }
+    },
+    "search": {
+      "label": "Global search",
+      "placeholder": "Search products and competitors...",
+      "products": "Products",
+      "competitors": "Competitors",
+      "noResults": "No matches",
+      "failed": "Search is unavailable right now",
+      "open": "Search KEEL",
+      "pages": "Pages",
+      "hint": "Search your products, competitors and KEEL pages."
+    },
+    "profile": {
+      "label": "Account profile"
+    },
+    "mobile": {
+      "openMenu": "Open navigation",
+      "closeMenu": "Close navigation"
+    },
+    "theme": {
+      "switchToDark": "Switch to dark mode",
+      "switchToLight": "Switch to light mode"
+    }
+  },
+  "dataStatus": {
+    "verified": {
+      "label": "Verified",
+      "description": "Based on connected or uploaded business data."
+    },
+    "derived": {
+      "label": "Derived",
+      "description": "Calculated from available business data."
+    },
+    "estimated": {
+      "label": "Estimated",
+      "description": "Estimated using available data or AI models."
+    }
+  },
+  "products": {
+    "page": {
+      "title": "Products"
+    },
+    "list": {
+      "addProduct": "Add Product",
+      "searchPlaceholder": "Search by name, brand, or category",
+      "columns": {
+        "name": "Product",
+        "price": "Price",
+        "stock": "Stock",
+        "actions": "Actions"
+      },
+      "emptyTitle": "No products yet",
+      "emptyDescription": "Add your first product to start tracking inventory and sales.",
+      "noResultsTitle": "No matching products",
+      "noResultsDescription": "Try a different search term.",
+      "loadError": "Could not load products",
+      "retry": "Retry",
+      "deleted": "{{name}} was deleted",
+      "deleteFailed": "Could not delete this product",
+      "added": "Product added"
+    },
+    "common": {
+      "notAvailable": "Not available",
+      "edit": "Edit",
+      "delete": "Delete",
+      "saving": "Saving...",
+      "cancel": "Cancel"
+    },
+    "form": {
+      "name": "Product name",
+      "brand": "Brand",
+      "category": "Category",
+      "currency": "Currency",
+      "currencyHint": "3-letter code, e.g. JOD, USD",
+      "currentPrice": "Current price",
+      "costPrice": "Cost price",
+      "costPriceHint": "Optional - used for margin calculations",
+      "initialStock": "Initial stock quantity",
+      "initialStockHint": "Leave blank if you don't track stock for this item (e.g. a service)",
+      "create": "Create product",
+      "save": "Save changes",
+      "errors": {
+        "nameRequired": "Product name is required",
+        "priceInvalid": "Enter a valid, non-negative price",
+        "currencyInvalid": "Enter a valid 3-letter currency code"
+      },
+      "notFound": "Product not found",
+      "back": "Back to Products",
+      "editTitle": "Edit Product",
+      "createTitle": "Add Product",
+      "saveError": "Could not save this product"
+    },
+    "quickSale": {
+      "title": "Record a Quick Sale",
+      "quantity": "Quantity",
+      "unitPrice": "Unit price (optional)",
+      "unitPriceHint": "Leave blank to use the product's current price",
+      "record": "Record sale",
+      "recorded": "Sale recorded ({{invoice}})",
+      "failed": "Could not record this sale"
+    },
+    "deleteConfirm": {
+      "title": "Delete product",
+      "message": "Delete {{name}}? This can't be undone from here.",
+      "confirm": "Delete"
+    }
+  },
+  "sales": {
+    "record": {
+      "productPlaceholder": "Search products by name...",
+      "insufficientStock": "Not enough stock for this quantity."
+    }
+  },
+  "pricing": {
+    "page": {
+      "title": "Pricing & Margins",
+      "subtitle": "Compare your prices and costs against real market data, product by product."
+    },
+    "list": {
+      "searchPlaceholder": "Search by name or brand",
+      "getRecommendation": "Get Recommendation",
+      "loadError": "Could not load products",
+      "retry": "Retry",
+      "emptyTitle": "No products yet",
+      "emptyDescription": "Add a product to start comparing its price and cost.",
+      "noResultsTitle": "No matching products",
+      "noResultsDescription": "Try a different search term."
+    },
+    "table": {
+      "product": "Product",
+      "currentPrice": "Current Price",
+      "cost": "Cost",
+      "markup": "Markup Over Cost",
+      "actions": "Actions"
+    },
+    "modal": {
+      "title": "Price Recommendation — {{name}}",
+      "errorTitle": "Could not get a recommendation",
+      "errorDescription": "Something went wrong. Please try again.",
+      "retry": "Retry",
+      "unknownTitle": "Not enough market data yet",
+      "unknownDescription": "No competitor prices for this product were recorded in the last {{days}} days. Record a competitor price under Competitors to get a recommendation.",
+      "basis": "Compared with {{count}} competitor price(s) recorded in the last {{days}} days.",
+      "matchedCompetitors": "Matched Competitors",
+      "confidence": "Confidence",
+      "guardrailApplied": "A pricing guardrail adjusted this recommendation to protect your margin or limit how much the price can change at once."
+    },
+    "actions": {
+      "raise": "Raise Price",
+      "lower": "Lower Price",
+      "hold": "Hold Price"
+    },
+    "reason": {
+      "market": {
+        "lower": "Your price {{price}} is more than 5% above the average of {{count}} competitor price(s), {{average}} (range {{min}}–{{max}}).",
+        "raise": "Your price {{price}} is more than 5% below the average of {{count}} competitor price(s), {{average}} (range {{min}}–{{max}}).",
+        "hold": "Your price {{price}} is within 5% of the average of {{count}} competitor price(s), {{average}} (range {{min}}–{{max}})."
+      },
+      "hold": {
+        "stock_short": "The market would suggest a lower price, but your stock ({{stock}}) covers only about {{days}} days of the {{forecast}} units forecast for the next 30 days. A lower price would sell out sooner and give away margin on units that would sell anyway — restock first.",
+        "demand_rising": "The market would suggest a lower price, but sales are up {{pct}}% on the previous 30 days at your current price ({{recent}} vs {{previous}} units). Demand does not need a price cut.",
+        "demand_falling": "The market would allow a higher price, but sales fell {{pct}}% on the previous 30 days ({{recent}} vs {{previous}} units). Raising the price now risks losing more volume."
+      }
+    }
+  },
+  "marketScoped": {
+    "common": {
+      "actions": "Actions",
+      "viewDetails": "View Details"
+    },
+    "leaderboard": {
+      "sort": "Sort by",
+      "search": "Search competitors...",
+      "competitor": "Competitor",
+      "priceScore": "Price Score",
+      "activityScore": "Market Activity",
+      "compositeScore": "Composite Score"
+    }
+  },
+  "marketMain": {
+    "actions": {
+      "retry": "Try again"
+    },
+    "overviewCards": {
+      "priceTrend": "Price Trend",
+      "directionUp": "Up",
+      "directionDown": "Down",
+      "directionStable": "Stable",
+      "increases": "increases",
+      "decreases": "decreases",
+      "sentiment": "Market Sentiment",
+      "sentimentBullish": "Bullish",
+      "sentimentNeutral": "Neutral",
+      "sentimentBearish": "Bearish",
+      "positive": "positive",
+      "competitorsTracked": "competitors with sentiment data",
+      "categoryActivity": "Category Activity",
+      "notEnoughData": "Not enough data yet",
+      "categoryColumn": "Category",
+      "levelColumn": "Activity Level",
+      "categoryTableTitle": "Category Activity Breakdown",
+      "categoryTableSubtitle": "Highest detected competitor activity level per product category.",
+      "categoryEmptyTitle": "No category activity yet",
+      "categoryEmptyDescription": "Category activity will appear once competitors are matched to your product categories."
+    }
+  },
+  "market": {
+    "traits": {
+      "PRICE_COMPETITIVE": "Priced competitively against the market",
+      "PRICE_UNCOMPETITIVE": "Priced less competitively than the market",
+      "SENTIMENT_POSITIVE": "Positive customer sentiment",
+      "SENTIMENT_NEGATIVE": "Negative customer sentiment"
+    },
+    "recordPrice": {
+      "title": "Record a competitor price",
+      "subtitle": "Saw their price in store, on a flyer or online? Record it here - it is used in price comparisons and pricing recommendations.",
+      "chooseProduct": "Choose one of your products",
+      "product": "Your product",
+      "price": "Their price",
+      "observedOn": "Date seen",
+      "observedOnHint": "Leave blank for today",
+      "url": "Link (optional)",
+      "save": "Save price",
+      "saving": "Saving...",
+      "saved": "Competitor price saved.",
+      "failed": "The price could not be saved. Please try again.",
+      "notFound": "This competitor or product is no longer available.",
+      "noProducts": "Add your products first to compare their prices."
+    },
+    "reference": {
+      "backToCompetitor": "Back to Competitor",
+      "trackProduct": "Track Product",
+      "demandSignal": "Demand Signal",
+      "currentPrice": "Current Price",
+      "customerSentiment": "Customer Sentiment",
+      "demandTrend": "Demand Trend",
+      "keyInsights": "Key Insights",
+      "packageDetails": "Package Details",
+      "downloadSpeed": "Download Speed",
+      "uploadSpeed": "Upload Speed",
+      "contractPeriod": "Contract Period",
+      "availability": "Availability",
+      "relatedProducts": "Related Products",
+      "allProducts": "View All Products",
+      "opportunitiesSubtitle": "AI-identified product opportunities based on market analysis.",
+      "exportReport": "Export Report",
+      "totalOpportunities": "Total Opportunities",
+      "estimatedMarketSize": "Estimated Market Size",
+      "averageDemandGrowth": "Avg. Demand Growth",
+      "topOpportunities": "Top Opportunities",
+      "allOpportunities": "All Opportunities",
+      "marketTrends": "Market Trends Supporting Opportunities",
+      "opportunityType": "Opportunity Type",
+      "timePeriod": "Time Period",
+      "next12Months": "Next 12 Months",
+      "competition": "Competition",
+      "opportunityDetails": "Opportunity Details",
+      "opportunityDetailsSubtitle": "Explore the insights behind this opportunity and how to take advantage of it.",
+      "competitionLevel": "Competition Level",
+      "competitorActivity": "Competitor Activity",
+      "recommendedActions": "Recommended Actions",
+      "leaderboardSubtitle": "Compare competitors side by side.",
+      "totalCompetitors": "Total Competitors",
+      "averageScore": "Average Composite Score",
+      "highestPrice": "Highest Price Competitiveness",
+      "topSentiment": "Top Sentiment Score",
+      "view": "View",
+      "top10": "Top 10",
+      "priceScore": "Price Score",
+      "sentimentScore": "Sentiment Score",
+      "activityScore": "Market Activity",
+      "compositeScore": "Composite Score",
+      "trend": "Trend",
+      "scoreBreakdown": "Score Breakdown (Top 5 Competitors)",
+      "methodology": "Scoring Methodology",
+      "methodologyText": "The composite score is calculated from preview market indicators.",
+      "keyInsightsTitle": "Key Insights",
+      "topMovers": "Top Movers",
+      "biggestImprovers": "Biggest Improvers",
+      "biggestDecliners": "Biggest Decliners",
+      "notFoundCompetitor": "Competitor Not Found"
+    },
+    "final": {
+      "productNotFound": "Product Not Found",
+      "opportunityNotFound": "Opportunity Not Found",
+      "productsTitle": "Product Details",
+      "back": "Back",
+      "provider": "Provider",
+      "category": "Category",
+      "type": "Type",
+      "status": "Status",
+      "active": "Active",
+      "price": "Current Price",
+      "website": "Website",
+      "summary": "Product Summary",
+      "positioning": "Market Positioning",
+      "activity": "Recent Activity",
+      "opportunitiesTitle": "Market Opportunities",
+      "opportunitiesSubtitle": "Identify high-potential opportunities in your market.",
+      "search": "Search opportunities...",
+      "all": "All",
+      "potential": "Potential",
+      "track": "Track Opportunity",
+      "tracked": "Tracked",
+      "viewDetails": "View Details",
+      "leaderboardTitle": "Competitor Leaderboard",
+      "leaderboardSubtitle": "Compare competitors across key market signals.",
+      "rank": "Rank",
+      "competitor": "Competitor",
+      "score": "Composite Score",
+      "movement": "Change",
+      "empty": "No opportunities found.",
+      "description": "Preview product and market intelligence data for your business."
+    },
+    "tabs": {
+      "label": "Competitors navigation",
+      "overview": "Overview",
+      "trends": "Industry Trends",
+      "competitors": "Competitors",
+      "opportunities": "Opportunities",
+      "leaderboard": "Competitor Leaderboard"
+    },
+    "controls": {
+      "dateRange": "Date range",
+      "last30": "Last 30 days",
+      "last90": "Last 90 days",
+      "industry": "Industry",
+      "homeInternet": "Home Internet",
+      "timePeriod": "Time period",
+      "last12": "Last 12 Months",
+      "addCompetitor": "Add Competitor",
+      "export": "Export Report",
+      "viewAll": "View All",
+      "searchScope": "Search Scope",
+      "pendingSources": "Pending Sources"
+    },
+    "scope": {
+      "save": "Save Scope",
+      "back": "Back to Competitors",
+      "loadError": "We could not load your current search scope."
+    },
+    "sources": {
+      "title": "Discovered Source Review",
+      "subtitle": "Automated discovery finds and classifies real competitors, but every discovered website needs a real review of its own Terms of Service before we collect from it - approve or reject each one below.",
+      "back": "Back to Competitors",
+      "filterLabel": "Filter by status",
+      "emptyTitle": "No sources here",
+      "emptyDescription": {
+        "RESTRICTED": "Nothing is waiting for review right now.",
+        "ALLOWED": "No sources have been approved yet.",
+        "BLOCKED": "No sources have been rejected."
+      },
+      "errorTitle": "We could not load your discovered sources",
+      "errorDescription": "Please try again in a moment.",
+      "status": {
+        "ALLOWED": "Allowed",
+        "RESTRICTED": "Needs review",
+        "BLOCKED": "Blocked"
+      },
+      "finalized": {
+        "ALLOWED": "Already collecting",
+        "BLOCKED": "Rejected"
+      },
+      "table": {
+        "competitor": "Competitor",
+        "url": "Source URL",
+        "status": "Status",
+        "products": "Mapped products",
+        "discovered": "Discovered",
+        "actions": "Actions",
+        "review": "Review"
+      },
+      "review": {
+        "title": "Review this source",
+        "subtitle": "Confirm whether this website's own Terms of Service permit automated collection. This decision is recorded and cannot be made automatically.",
+        "termsQuestion": "Do this source's Terms of Service permit automated collection?",
+        "termsYes": "Yes, terms permit collection",
+        "termsNo": "No, terms prohibit collection",
+        "referenceLabel": "What did you check?",
+        "referencePlaceholder": "e.g. Checked /terms on 2026-09-29 - public catalog, no clause against automated reading.",
+        "referenceHelp": "Required - a real note of what you reviewed, kept as this decision's audit trail.",
+        "cancel": "Cancel",
+        "submit": "Submit review",
+        "submitting": "Submitting...",
+        "error": "We could not save this review. Please try again.",
+        "result": {
+          "ALLOWED": "Source approved - collection has been scheduled.",
+          "BLOCKED": "Source rejected - it will not be collected."
+        }
+      }
+    },
+    "overview": {
+      "title": "Competitors overview",
+      "subtitle": "Track your market, competitors and opportunities in one place.",
+      "summaryTitle": "Market Summary",
+      "summarySubtitle": "A quick snapshot of your market landscape.",
+      "trendTitle": "Market Trend Overview",
+      "trendSubtitle": "Overall market demand trend in your industry.",
+      "trendChartLabel": "Current and previous market demand trend",
+      "driversTitle": "Key Market Drivers",
+      "driversSubtitle": "Main factors currently influencing your industry.",
+      "competitorsTitle": "Your Competitors",
+      "competitorsSubtitle": "A list of tracked competitors in your market.",
+      "activityTitle": "Recent Competitor Activity",
+      "activitySubtitle": "Latest changes detected across your tracked competitors.",
+      "activityEmptyTitle": "No recent competitor activity",
+      "activityEmptyDescription": "Detected competitor price changes will appear here.",
+      "opportunitiesTitle": "Market Opportunities",
+      "opportunitiesSubtitle": "AI-identified product opportunities based on market analysis."
+    },
+    "metrics": {
+      "competitors": "Competitors Tracked",
+      "sentiment": "Market Sentiment",
+      "price": "Price Competitiveness",
+      "growth": "Market Growth"
+    },
+    "common": {
+      "thisMonth": "this month",
+      "vsLastMonth": "vs last month",
+      "vsLastYear": "vs last year",
+      "vsLastQuarter": "vs last quarter",
+      "vsPreviousPeriod": "vs previous period",
+      "previewNote": "Insights are based on available preview market data.",
+      "twoHours": "2h ago",
+      "fiveHours": "5h ago",
+      "oneDay": "1d ago",
+      "twoDays": "2d ago",
+      "threeDays": "3d ago",
+      "fourDays": "4d ago",
+      "notAvailable": "Not available"
+    },
+    "status": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "highPotential": "High Potential",
+      "mediumPotential": "Medium",
+      "highImpact": "High Impact",
+      "mediumImpact": "Medium"
+    },
+    "insight": {
+      "title": "AI Market Insight",
+      "description": "Home internet demand in Amman is increasing by 20% next month, mainly driven by seasonal student enrollment and new fiber package launches from competitors.",
+      "action": "View Full Analysis"
+    },
+    "drivers": {
+      "positive": "Positive Drivers",
+      "negative": "Negative Drivers",
+      "remoteWork": "Increasing remote work and online education",
+      "fiberInfrastructure": "Expansion of fiber infrastructure in major cities",
+      "highSpeeds": "Growing demand for higher internet speeds",
+      "digitalServices": "New digital services and smart home adoption",
+      "priceSensitivity": "Price sensitivity in rural areas",
+      "competition": "High competition and frequent promotions",
+      "economicUncertainty": "Economic uncertainty",
+      "regulatoryPressure": "Regulatory pressure in the telecom sector",
+      "sentimentDescription": "Overall sentiment in the home internet sector remains positive, with a 72/100 sentiment score."
+    },
+    "competitors": {
+      "name": "Competitor",
+      "sentiment": "Market Sentiment",
+      "price": "Price Competitiveness",
+      "activity": "Recent Activity",
+      "updated": "Last Updated",
+      "actions": "Actions",
+      "viewDetails": "View Details",
+      "newPackage": "New package launched",
+      "priceDrop": "Price drop (-10%)",
+      "newCampaign": "New campaign",
+      "bundlePricing": "Updated bundle pricing",
+      "newProduct": "New product detected",
+      "launchedFiber": "Launched new fiber package 'Ultra Speed'",
+      "activityPriceIncreased": "Raised the price of {{product}}",
+      "activityPriceDecreased": "Lowered the price of {{product}}",
+      "activityIncreaseBadge": "Price increase",
+      "activityDecreaseBadge": "Price decrease"
+    },
+    "badges": {
+      "newProduct": "New Product",
+      "priceChange": "Price Change",
+      "marketing": "Marketing",
+      "pricing": "Pricing"
+    },
+    "opportunities": {
+      "highSpeed": "Higher Speed Packages",
+      "highSpeedDescription": "Growing demand for 500 Mbps+ packages with low competitor presence.",
+      "smartHome": "Smart Home Bundles",
+      "smartHomeDescription": "Increasing interest in smart home solutions and IoT devices.",
+      "mobileInternet": "Mobile + Internet Bundles",
+      "mobileInternetDescription": "Rising search volume for combined mobile and internet packages.",
+      "view": "View Opportunity",
+      "unavailableTitle": "Opportunity analysis isn't available yet",
+      "unavailableDescription": "This platform doesn't yet collect the market-size, demand-growth, or competition data needed to identify real expansion opportunities. This page will show real results once that data is available."
+    },
+    "industry": {
+      "title": "Industry Trends",
+      "subtitle": "Real, tenant-wide price trend, sentiment and category activity signals.",
+      "errorTitle": "Industry trends unavailable",
+      "errorDescription": "We could not load this market view. Please try again.",
+      "metrics": {
+        "providers": "Providers Detected",
+        "monthlyPrice": "Avg. Monthly Price",
+        "activity": "Market Activity"
+      },
+      "high": "High",
+      "priceTitle": "Global Price Trend Direction",
+      "priceSubtitle": "Weighted average price index vs. benchmark",
+      "priceChartLabel": "Current and previous global price trend",
+      "bullish": "Bullish",
+      "positiveIndicators": "Positive Indicators",
+      "keyDrivers": "Key Drivers",
+      "seasonalTitle": "Seasonal Growth Patterns",
+      "seasonalSubtitle": "Historical quarterly adoption rates vs. current year",
+      "historical": "Historical Avg.",
+      "currentYear": "Current Year",
+      "seasonalChartLabel": "Historical average compared with current year by quarter",
+      "categoryTitle": "Product & Category Activity",
+      "categorySubtitle": "Activity distribution across major product categories",
+      "emergingTitle": "Top Emerging Trends",
+      "signalsTitle": "Market Signals",
+      "signalsSubtitle": "Key indicators derived from market data and analysis."
+    },
+    "categories": {
+      "homeInternet": "Home Internet",
+      "mobileBundles": "Mobile Bundles",
+      "fixedWireless": "Fixed Wireless (5G)",
+      "tv": "TV & Entertainment",
+      "smartHome": "Smart Home Services",
+      "other": "Other"
+    },
+    "emerging": {
+      "bundled": "Bundled Services Growth",
+      "bundledDescription": "Increasing adoption of internet + mobile bundles.",
+      "fiveG": "5G Fixed Wireless",
+      "fiveGDescription": "Growing alternative in non-urban areas.",
+      "smartHome": "Smart Home Integration",
+      "smartHomeDescription": "Rising demand for IoT-ready packages.",
+      "sustainability": "Sustainability Initiatives",
+      "sustainabilityDescription": "More providers offering green energy options."
+    },
+    "competitorsPage": {
+      "title": "Competitors",
+      "subtitle": "Track and monitor the competitors you are following.",
+      "search": "Search competitors...",
+      "industry": "Industry",
+      "allIndustries": "All Industries",
+      "status": "Status",
+      "allStatus": "All",
+      "sort": "Sort by",
+      "lastUpdated": "Last Updated",
+      "name": "Name",
+      "filter": "Filter",
+      "showing": "Showing {{start}} to {{end}} of {{total}} competitors",
+      "previous": "Previous page",
+      "next": "Next page",
+      "errorTitle": "Competitors unavailable",
+      "errorDescription": "We could not load your competitors. Please try again.",
+      "retry": "Try again",
+      "emptyTitle": "No competitors tracked yet",
+      "emptyDescription": "Add a competitor to start tracking their pricing, sentiment, and activity.",
+      "tier": "Tier",
+      "allTiers": "All Tiers",
+      "tierStrategic": "Strategic",
+      "tierRelevant": "Relevant",
+      "summaryStrategic": "Strategic competitor — {{pct}}% product overlap with your catalog.",
+      "summaryRelevant": "Relevant competitor — {{count}} of your products matched for price comparison."
+    },
+    "modal": {
+      "title": "Add Competitor",
+      "subtitle": "Track a new competitor to enrich your market intelligence dashboard.",
+      "name": "Competitor Name",
+      "website": "Website URL",
+      "marketplace": "Marketplace Links",
+      "social": "Social Media Handles",
+      "optional": "Optional",
+      "submit": "Add Competitor",
+      "submitting": "Adding...",
+      "cancel": "Cancel",
+      "required": "This field is required.",
+      "invalidUrl": "Enter a valid website URL.",
+      "submitError": "We could not add this competitor. Please try again."
+    },
+    "detail": {
+      "back": "Back to Competitors",
+      "tracked": "Tracked",
+      "lastUpdated": "Last updated:",
+      "monitor": "Monitor Competitor",
+      "orangeDescription": "Leading telecom operator in Jordan, offering mobile, internet, and digital services.",
+      "sentiment": "Market Sentiment",
+      "activity": "Market Activity",
+      "relevance": "Relevance Score",
+      "presenceTitle": "Market Presence Over Time",
+      "presenceSubtitle": "Estimated market share and online presence",
+      "presenceChartLabel": "Competitor market presence compared with industry average",
+      "summary": "Competitor Summary",
+      "summaryText": "Orange is the largest telecom operator in Jordan, with a strong presence in mobile, home internet, and digital services. The company focuses on high-speed internet packages, bundled offers, and expanding its fiber infrastructure.",
+      "headquarters": "Headquarters",
+      "marketPosition": "Market Position",
+      "primaryFocus": "Primary Focus",
+      "website": "Website",
+      "strengths": "Strengths",
+      "weaknesses": "Weaknesses",
+      "strongRecognition": "Strong brand recognition",
+      "wideCoverage": "Wide coverage and fiber infrastructure",
+      "bundledPackages": "Competitive bundled packages",
+      "activePresence": "Active marketing and digital presence",
+      "higherPrices": "Higher prices in some rural areas",
+      "customerComplaints": "Customer complaints about service stability",
+      "limitedFlexibility": "Limited flexibility in custom plans",
+      "slowerNicheResponse": "Slower response to niche market segments",
+      "strategicMoves": "Recent Strategic Moves",
+      "startedFiveG": "Started 5G expansion in main cities",
+      "selfServiceApp": "New digital self-service app features",
+      "providerPartnership": "Partnership with smart home providers",
+      "productsTitle": "Products & Services",
+      "productsSubtitle": "List of key products and packages offered by Orange.",
+      "allCategories": "All Categories",
+      "searchProducts": "Search products...",
+      "productName": "Product Name",
+      "category": "Category",
+      "type": "Type",
+      "currentPrice": "Current Price (JOD)",
+      "priceComparison": "Price Comparison",
+      "priceComparisonSubtitle": "Average price comparison for similar packages",
+      "yourPrice": "Your Price",
+      "theirPrice": "Their Price",
+      "recentActivity": "Recent Activity",
+      "newProductLaunched": "New product launched",
+      "priceChanged": "Price change",
+      "campaignDetected": "Marketing campaign detected",
+      "bundleUpdated": "Updated bundle pricing",
+      "serviceDetected": "New service detected"
+    },
+    "empty": {
+      "strengths": "No clear strengths detected yet - not enough real price or sentiment data for this competitor.",
+      "weaknesses": "No clear weaknesses detected yet - not enough real price or sentiment data for this competitor.",
+      "noTrend": "",
+      "detailErrorTitle": "Competitor unavailable",
+      "detailErrorDescription": "We could not load this competitor's profile. Please try again.",
+      "detailNotFoundTitle": "Competitor not found",
+      "detailNotFoundDescription": "This competitor is not tracked, or no longer exists.",
+      "strategicOverlap": "{{pct}}% product overlap with your catalog - a per-product price comparison isn't shown for Strategic-tier competitors.",
+      "priceComparisonTitle": "No price comparisons yet",
+      "priceComparisonDescription": "This competitor has no products matched to yours with a recently recorded price yet."
+    },
+    "signals": {
+      "indicator": "Indicator",
+      "current": "Current Trend",
+      "change": "Change (vs Previous)",
+      "trend": "Trend (12M)",
+      "insights": "Insights",
+      "priceTrend": "Price Trend",
+      "activity": "Market Activity",
+      "sentiment": "Sentiment Trend",
+      "product": "Product Activity",
+      "competitor": "Competitor Activity",
+      "increasing": "Increasing",
+      "high": "High",
+      "positive": "Positive",
+      "priceInsight": "Average prices increased across most providers.",
+      "activityInsight": "More product launches and competitive moves.",
+      "sentimentInsight": "Positive sentiment in customer discussions.",
+      "productInsight": "New packages and features detected.",
+      "competitorInsight": "Increased marketing campaigns and price changes."
+    }
+  },
+  "auth": {
+    "common": {
+      "email": "Email",
+      "emailAddress": "Email Address",
+      "password": "Password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "confirmNewPassword": "Confirm New Password",
+      "fullName": "Full Name",
+      "businessName": "Business Name",
+      "country": "Country",
+      "currency": "Currency",
+      "backToLogin": "Back to Login"
+    },
+    "welcome": {
+      "title": "Welcome to KEEL",
+      "tagline": "Stop using. Start knowing.",
+      "descriptionLine1": "Your AI-powered business intelligence platform",
+      "descriptionLine2": "for smarter decisions and real growth.",
+      "login": "Log In →",
+      "signup": "Sign Up →",
+      "newTo": "New to KEEL?",
+      "imageAlt": "Business growth illustration"
+    },
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Log in to KEEL to access your intelligence dashboard.",
+      "emailPlaceholder": "name@company.com",
+      "passwordPlaceholder": "Enter your password",
+      "forgotPassword": "Forgot password?",
+      "submit": "Log In",
+      "noAccount": "Don't have an account?",
+      "signup": "Sign up"
+    },
+    "signup": {
+      "title": "Create an account",
+      "subtitle": "Start your 14-day free trial.",
+      "namePlaceholder": "Jane Doe",
+      "businessPlaceholder": "Acme Corp",
+      "emailPlaceholder": "jane@example.com",
+      "passwordPlaceholder": "Create a password",
+      "confirmPasswordPlaceholder": "Confirm your password",
+      "countryPlaceholder": "Select your country",
+      "currencyPlaceholder": "Choose a currency",
+      "currencyHint": "Filled in from your country. Change it if you sell in another currency.",
+      "agreementPrefix": "I agree to the",
+      "terms": "Terms of Service",
+      "and": "and",
+      "privacy": "Privacy Policy",
+      "submit": "Create Account",
+      "hasAccount": "Already have an account?",
+      "loginInstead": "Log in instead"
+    },
+    "forgotPassword": {
+      "title": "Reset Password",
+      "subtitle": "Enter your email address and we'll send you a link to reset your password.",
+      "emailPlaceholder": "name@company.com",
+      "submit": "Send Verify Code"
+    },
+    "verificationCode": {
+      "title": "Enter Verification Code",
+      "subtitlePrefix": "We've sent a 6-digit verification code to",
+      "subtitleGeneric": "We've sent a 6-digit verification code to your email.",
+      "notReceived": "Didn't receive the code?",
+      "resend": "Resend Code",
+      "resendIn": "Resend in {{seconds}}s",
+      "submit": "Verify Code",
+      "inputLabel": "Verification code"
+    },
+    "resetPassword": {
+      "title": "Reset Password",
+      "subtitle": "Please enter your new password below.",
+      "newPlaceholder": "Enter a new password",
+      "confirmPlaceholder": "Confirm your new password",
+      "strength": "Password strength",
+      "strengthWeak": "Weak",
+      "strengthFair": "Fair",
+      "strengthGood": "Good",
+      "strengthStrong": "Strong",
+      "hint": "Must be at least 8 characters.",
+      "submit": "Reset Password"
+    },
+    "verifyEmail": {
+      "title": "Confirm your email",
+      "subtitlePrefix": "We sent a 6-digit code to",
+      "subtitleGeneric": "We sent a 6-digit code to your email address.",
+      "required": "Enter it to start using KEEL.",
+      "inputLabel": "Confirmation code",
+      "submit": "Confirm email",
+      "notReceived": "Didn't get the code?",
+      "resend": "Send a new code",
+      "resendIn": "Send a new code in {{seconds}}s",
+      "later": "I'll do this later",
+      "signOut": "Sign out",
+      "backToLogin": "Back to sign in"
+    },
+    "invitation": {
+      "imageAlt": "Team invitation",
+      "title": "You're invited!",
+      "subtitle": "You've been invited to join",
+      "detailsLabel": "Invitation details",
+      "joinTeam": "Join the team and start collaborating on KEEL.",
+      "invitedBy": "Invited by",
+      "expiresIn": "Invitation expires in",
+      "days": "{{count}} days",
+      "accept": "Accept Invitation",
+      "anotherAccount": "Sign in to another account",
+      "wrongAccount": "Not the right account?",
+      "differentEmail": "Use a different email",
+      "expiredTitle": "This invitation has expired",
+      "expiredBody": "The invitation link is no longer valid. Please contact your team administrator for a new invitation.",
+      "invalidTitle": "This invitation link isn't valid",
+      "invalidBody": "We couldn't find an invitation for this link. Please contact your team administrator for a new invitation."
+    },
+    "validation": {
+      "required": "This field is required.",
+      "emailRequired": "Email is required.",
+      "passwordRequired": "Password is required.",
+      "fullNameRequired": "Full name is required.",
+      "businessNameRequired": "Business name is required.",
+      "confirmPasswordRequired": "Confirm password is required.",
+      "countryRequired": "Please select your country.",
+      "currencyRequired": "Currency is required.",
+      "currency": "Enter a valid 3-letter currency code.",
+      "termsRequired": "You must agree to the Terms of Service and Privacy Policy.",
+      "email": "Please enter a valid email address.",
+      "passwordLength": "Password must be at least {{min}} characters.",
+      "passwordUppercase": "Password must include an uppercase letter.",
+      "passwordLowercase": "Password must include a lowercase letter.",
+      "passwordNumber": "Password must include a number.",
+      "passwordSpecial": "Password must include a special character.",
+      "passwordMismatch": "Passwords do not match.",
+      "verificationCode": "Please enter the complete {{length}}-digit code."
+    },
+    "passwordRequirements": {
+      "title": "Password must include:",
+      "minLength": "At least {{min}} characters",
+      "uppercase": "At least one uppercase letter",
+      "lowercase": "At least one lowercase letter",
+      "number": "At least one number",
+      "special": "At least one special character",
+      "met": "Requirement met",
+      "unmet": "Requirement not met"
+    },
+    "loading": {
+      "login": "Logging in...",
+      "signup": "Creating account...",
+      "sendingCode": "Sending code...",
+      "verifying": "Verifying...",
+      "resetting": "Resetting password...",
+      "resending": "Resending...",
+      "acceptingInvitation": "Accepting invitation..."
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "network": "Unable to connect. Check your connection and try again.",
+      "serverUnavailable": "The service is temporarily unavailable. Please try again later.",
+      "tooManyAttempts": "Too many attempts. Please wait and try again.",
+      "authenticationUnavailable": "Authentication is ready for backend connection but is not active yet.",
+      "invalidCredentials": "Incorrect email or password.",
+      "invalidCode": "The verification code is incorrect.",
+      "expiredCode": "This verification code has expired.",
+      "resendFailed": "We couldn't resend the code. Please try again.",
+      "emailInUse": "An account with this email already exists.",
+      "invitationUnavailable": "We couldn't load this invitation. Please try again."
+    },
+    "success": {
+      "codeResent": "A new verification code has been sent.",
+      "invitationAccepted": "Invitation accepted.",
+      "passwordReset": "Your password has been reset. You can now log in.",
+      "companyDeleted": "The company and all its data were deleted.",
+      "emailVerified": "Your email is confirmed. You can sign in now."
+    },
+    "workspaces": {
+      "title": "Choose a company",
+      "subtitle": "Your login belongs to more than one company. Which one do you want to open?",
+      "back": "Use a different account"
+    }
+  },
+  "settings": {
+    "page": {
+      "title": "Settings",
+      "subtitle": "Manage your account, company, team, preferences, and security."
+    },
+    "tabs": {
+      "label": "Settings sections",
+      "profile": "Profile",
+      "company": "Company",
+      "team": "Team Members",
+      "notifications": "Notifications",
+      "preferences": "Preferences",
+      "security": "Security"
+    },
+    "common": {
+      "notAvailable": "Not available",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "cancel": "Cancel"
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Manage your personal information.",
+      "avatar": "Profile avatar",
+      "fullName": "Full Name",
+      "email": "Email",
+      "jobTitle": "Job Title / Position",
+      "emailReadOnly": "Email changes require a verified account flow and are not currently supported.",
+      "avatarUnavailable": "Profile photo changes are not currently connected.",
+      "loadError": "Your profile could not be loaded.",
+      "unavailable": "Profile updates are not connected. Your changes were not saved.",
+      "saved": "Profile changes saved.",
+      "saveError": "Your profile changes could not be saved."
+    },
+    "company": {
+      "title": "Company",
+      "subtitle": "Manage your company information and workspace settings.",
+      "manageSubscription": "Manage Subscription",
+      "fields": {
+        "name": "Company Name",
+        "industry": "Industry",
+        "country": "Country / Region",
+        "currency": "Currency",
+        "industryKey": "Industry",
+        "website": "Website",
+        "description": "What you sell"
+      },
+      "countryPlaceholder": "Select a country",
+      "industryPlaceholder": "e.g. Retail, Electronics",
+      "currencyPlaceholder": "JOD",
+      "editUnavailable": "Company editing is not connected. Values shown here remain read-only until the company service supports updates.",
+      "readOnly": "Company administration is read-only for your role.",
+      "loadError": "Company information could not be loaded.",
+      "saved": "Company details saved.",
+      "saveError": "Your company changes could not be saved.",
+      "industryKeyHint": "Decides which businesses the market scan treats as competitors.",
+      "industryKeyPlaceholder": "Choose your industry",
+      "descriptionPlaceholder": "e.g. Specialty olive oil, spices and dates, 2 stores + delivery"
+    },
+    "targetMarkets": {
+      "title": "Target Markets",
+      "subtitle": "The countries or regions you explicitly want to compete in - separate from your company's own country, operating countries, and competitor search radius. Nothing here is guessed from your data; add exactly the markets you choose.",
+      "empty": "No target markets declared yet. Add one below.",
+      "placeholder": "e.g. AE",
+      "regionPlaceholder": "e.g. Middle East",
+      "inputLabel": "Country code",
+      "regionInputLabel": "Region name",
+      "typeLabel": "Market type",
+      "type": {
+        "country": "Country",
+        "region": "Region",
+        "global": "Global"
+      },
+      "add": "Add",
+      "saving": "Saving...",
+      "remove": "Remove {{code}}",
+      "invalidCode": "Enter a valid 2-letter country code (e.g. AE, SA, EG).",
+      "invalidRegion": "Enter a region name.",
+      "clearGlobalFirst": "Remove the Global market before adding a specific country or region.",
+      "globalReplacesAll": "Adding Global will replace all other declared target markets.",
+      "loadError": "Target markets could not be loaded.",
+      "saveError": "This target market could not be saved. Please try again."
+    },
+    "team": {
+      "directoryUnavailable": "The workspace directory is unavailable. Only your signed-in account is shown; team totals cannot be determined.",
+      "invitationsUnavailable": "Invitation information is currently unavailable.",
+      "title": "Team Members",
+      "subtitle": "Manage who has access to your KEEL workspace.",
+      "you": "You",
+      "loadError": "Team information could not be loaded.",
+      "emptyTitle": "No team members available",
+      "emptyDescription": "No team member records were returned for this workspace.",
+      "firstTeam": "Invite your team to collaborate in KEEL.",
+      "managementUnavailable": "Role changes and member removal are omitted because those backend actions are not available.",
+      "readOnly": "Team membership is read-only for your role. Workspace administration requires Admin permission and backend authorization.",
+      "pendingTitle": "Pending Invitations",
+      "noPending": "There are no pending invitations.",
+      "pendingCount": "{{count}} pending invitations",
+      "summary": {
+        "total": "Total Members",
+        "admin": "Admins",
+        "editor": "Editors",
+        "viewer": "Viewers",
+        "pending": "Pending Invitations",
+        "other": "Other Members"
+      },
+      "columns": {
+        "member": "Member",
+        "email": "Email",
+        "role": "Role",
+        "status": "Status",
+        "joined": "Joined",
+        "actions": "Actions"
+      },
+      "manage": {
+        "remove": "Remove",
+        "confirmRemove": "Remove {{name}} from this workspace? They will lose access immediately.",
+        "removed": "{{name}} was removed from the workspace.",
+        "roleChanged": "{{name}}'s role was updated.",
+        "roleFor": "Role for {{name}}",
+        "failed": "The change could not be saved. Please try again."
+      },
+      "status": {
+        "active": "Active",
+        "pending": "Pending",
+        "invited": "Invited",
+        "disabled": "Disabled"
+      },
+      "invite": {
+        "action": "Invite Member",
+        "title": "Invite Team Member",
+        "email": "Email Address",
+        "role": "Role",
+        "send": "Send Invitation",
+        "sending": "Sending...",
+        "existing": "This email already belongs to a workspace member.",
+        "pending": "An invitation is already pending for this email.",
+        "unavailable": "Invitation delivery is not connected. No invitation was sent.",
+        "sent": "Invitation sent.",
+        "failed": "The invitation could not be sent."
+      }
+    },
+    "roles": {
+      "owner": {
+        "label": "Owner",
+        "description": "Full workspace administration and team management."
+      },
+      "admin": {
+        "label": "Admin",
+        "description": "Full workspace administration and team management."
+      },
+      "manager": {
+        "label": "Manager",
+        "description": "Can work with business data and KEEL features but cannot manage protected workspace administration."
+      },
+      "accountant": {
+        "label": "Accountant",
+        "description": "Access to financial and pricing data for reporting purposes."
+      },
+      "staff": {
+        "label": "Staff",
+        "description": "Read-only access to permitted business information and insights."
+      },
+      "editor": {
+        "label": "Editor",
+        "description": "Can work with business data and KEEL features but cannot manage protected workspace administration."
+      },
+      "viewer": {
+        "label": "Viewer",
+        "description": "Read-only access to permitted business information and insights."
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Choose which alerts you see in KEEL and which go into an email summary.",
+      "loadError": "Notification preferences could not be loaded.",
+      "saveFailed": "Your change could not be saved. Please try again.",
+      "frequency": {
+        "label": "Email summary",
+        "off": "Off",
+        "offHint": "No summary emails",
+        "daily": "Daily",
+        "dailyHint": "Every morning at 7:00, when there is something new",
+        "weekly": "Weekly",
+        "weeklyHint": "Monday mornings at 7:00, when there is something new"
+      },
+      "columns": {
+        "group": "Alerts",
+        "inApp": "In the app",
+        "email": "Email summary"
+      },
+      "groups": {
+        "stock": {
+          "title": "Stock",
+          "description": "Products that will run out soon"
+        },
+        "pricing": {
+          "title": "Pricing",
+          "description": "Competitor price changes and gaps with the market"
+        },
+        "market": {
+          "title": "Market",
+          "description": "New competitors found by the market scan"
+        },
+        "data": {
+          "title": "Data",
+          "description": "Imports that failed"
+        },
+        "billing": {
+          "title": "Billing",
+          "description": "Failed payments and trial ending"
+        }
+      },
+      "emailUnverified": "Verify your email address to receive summaries. Until then, none are sent.",
+      "emailUnavailable": "Email isn't set up on this server yet, so summaries can't be sent for now. Your choices are saved.",
+      "emailOffNote": "Choose Daily or Weekly above to pick which alerts go into the email summary."
+    },
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "Customize your KEEL experience.",
+      "language": "Language",
+      "languages": {
+        "en": "English interface with left-to-right layout",
+        "ar": "Arabic interface with right-to-left layout"
+      },
+      "languageDirection": "Text direction follows the selected language automatically. KEEL uses its dark glass appearance."
+    },
+    "security": {
+      "title": "Change Password",
+      "subtitle": "Manage your personal account password.",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "currentRequired": "Current password is required.",
+      "changePassword": "Change Password",
+      "changing": "Changing password...",
+      "passwordUnavailable": "Password change is not connected. Your password was not changed.",
+      "passwordChanged": "Password changed successfully.",
+      "passwordFailed": "Your password could not be changed.",
+      "sessionsTitle": "Devices & Sessions",
+      "sessionsSubtitle": "Review sessions returned by the authentication service.",
+      "sessionsError": "Session information could not be loaded.",
+      "sessionsUnavailableTitle": "Session management is not available",
+      "sessionsUnavailableDescription": "The authentication service does not currently expose device or session metadata.",
+      "noSessionsTitle": "No additional sessions",
+      "noSessionsDescription": "No other sessions were returned.",
+      "currentSession": "Current Session"
+    },
+    "data": {
+      "title": "Your data",
+      "subtitle": "Download everything your company has stored, or delete the company permanently.",
+      "exportTitle": "Download company data",
+      "exportText": "A zip file with every product, sale, competitor, document record, campaign and setting, plus your team list. Passwords and stored credentials are never included.",
+      "exportButton": "Download data",
+      "exportFailed": "The export couldn't be prepared. Try again.",
+      "deleteTitle": "Delete this company",
+      "deleteText": "Permanently deletes the company and all its data, files and team access. This can't be undone. Cancel any paid subscription in Billing first.",
+      "confirmLabel": "Type {{name}} to confirm",
+      "deleteButton": "Delete company",
+      "subscriptionActive": "This company still has a paid subscription. Cancel it in Billing, then delete the company.",
+      "deleteFailed": "The company couldn't be deleted. Try again."
+    }
+  },
+  "billing": {
+    "management": {
+      "title": "Plans & Subscription",
+      "subtitle": "Manage your plan, usage, and subscription.",
+      "currentPlanTitle": "Your Current Plan",
+      "currentPlan": "Current Plan",
+      "planTrial": "{{plan}} Trial",
+      "billingCycle": "Billing cycle",
+      "planPrice": "Configured plan price",
+      "nextBillingDate": "Next billing date",
+      "trialEndDate": "Trial end date",
+      "daysRemaining": "{{count}} days remaining",
+      "status": {
+        "trial": "Trial",
+        "active": "Active",
+        "failed": "Failed",
+        "expired": "Ended"
+      },
+      "usageTitle": "Usage & Limits",
+      "usageSubtitle": "Current company usage against the limits configured for your plan.",
+      "usageUnavailable": "Usage data is not available for this subscription.",
+      "gb": " GB",
+      "usageLabels": {
+        "products": "Products",
+        "competitors": "Competitors",
+        "reports": "Reports",
+        "storageGb": "Storage",
+        "webSearches": "Web searches",
+        "imageGenerations": "AI marketing images",
+        "aiTokens": "AI assistant tokens",
+        "documentProcessingMb": "Documents processed (MB)",
+        "dataSources": "Connected data sources",
+        "sentimentRecords": "Reviews analysed"
+      },
+      "usageState": {
+        "unlimited": "Unlimited",
+        "normal": "Within limit",
+        "approaching": "Approaching limit",
+        "reached": "Limit reached",
+        "unknown": "Unavailable",
+        "notIncluded": "Not included"
+      },
+      "recommendation": {
+        "trialTitle": "Continue after your trial",
+        "trialDescription": "Compare the configured paid options before your current trial ends.",
+        "reachedTitle": "More capacity may help",
+        "reachedDescription": "You've used {{used}} of the {{limit}} available {{metric}} on your current plan.",
+        "approachingTitle": "You're approaching a plan limit",
+        "approachingDescription": "You've used {{used}} of the {{limit}} available {{metric}} on your current plan."
+      },
+      "context": {
+        "products": {
+          "title": "Product limit reached",
+          "description": "You've reached the product limit for your current plan ({{used}} of {{limit}})."
+        },
+        "competitors": {
+          "title": "Competitor limit reached",
+          "description": "You've reached the competitor tracking limit for your current plan ({{used}} of {{limit}})."
+        },
+        "ragQueries": {
+          "title": "Assistant question limit reached",
+          "description": "You've used all {{limit}} assistant questions in your plan this month ({{used}} used)."
+        },
+        "storageGb": {
+          "title": "Storage limit reached",
+          "description": "You've reached the storage limit for your current plan ({{used}} of {{limit}})."
+        }
+      },
+      "comparePlansAction": "Compare Plans",
+      "compareTitle": "Compare Plans",
+      "compareSubtitle": "Review the configured limits and billing options available to your company.",
+      "contactSales": "Contact Sales",
+      "notAvailable": "Not available",
+      "customLimit": "Custom",
+      "comparison": {
+        "title": "Detailed Plan Comparison",
+        "subtitle": "A focused comparison of the usage limits defined by the current plan configuration.",
+        "limit": "Usage limit"
+      },
+      "errorTitle": "Subscription unavailable",
+      "errorDescription": "We could not load plan and subscription information.",
+      "retry": "Try again",
+      "accessEnds": "Access ends",
+      "contactTeam": "Ask your KEEL contact to set up a Custom plan.",
+      "askOwner": "Ask your company owner",
+      "paymentsUnavailable": "Online payment not available",
+      "paymentsUnavailableHint": "Online payment isn’t switched on for this KEEL server yet. Your plan and usage below are real; to change plan, contact the KEEL team.",
+      "switchPlan": "Switch to this plan",
+      "subscribe": "Subscribe",
+      "subscribeKeepTrial": "Subscribe (keeps your trial days)",
+      "manageBilling": "Payment method & receipts",
+      "resume": "Keep my subscription",
+      "cancel": "Cancel subscription",
+      "resumed": "Your subscription will continue.",
+      "cancelled": "Your subscription will end on the date shown. You keep full access until then.",
+      "changed": "Plan change accepted. {{date}}",
+      "scheduledChange": "Your plan changes to {{plan}} on {{date}}.",
+      "keepCurrentPlan": "Keep my current plan",
+      "scheduledCancelled": "The scheduled change was cancelled.",
+      "statusHelp": {
+        "failed": "Your last payment didn’t go through, so AI and other plan features are paused. Update your payment method to restore them — your data is safe.",
+        "expired": "Your plan has ended, so AI and other plan features are paused. Choose a plan below to continue — your data is safe."
+      },
+      "cancelTitle": "Cancel your subscription?",
+      "cancelBody": "You keep full access until {{date}}. After that, plan features stop until you subscribe again. Your data stays.",
+      "switchTitle": "Change plan",
+      "switchBody": "Switch to {{plan}} ({{price}})? An upgrade starts now and the difference is charged right away; a downgrade starts at the end of the period you have paid for.",
+      "back": "Go back",
+      "confirmCancel": "Cancel at period end",
+      "confirmSwitch": "Confirm change"
+    },
+    "trial": {
+      "title": "Start with a {{days}}-day Pro trial",
+      "description": "Get full access to Pro features and limits.",
+      "badge": "{{days}} days free"
+    },
+    "periods": {
+      "label": "Billing period",
+      "monthly": "Monthly",
+      "monthCountLabel": "{{months}} Months",
+      "savePercent": "Save {{percent}}%",
+      "month": "month",
+      "monthCount": "{{months}} months",
+      "monthlyEquivalent": "{{price}} equivalent per month"
+    },
+    "plans": {
+      "mostPopular": "Most Popular",
+      "customPricing": "Custom pricing",
+      "custom": {
+        "name": "Custom",
+        "description": "Tailored for your business",
+        "action": "Talk to us"
+      },
+      "trialIncluded": "{{days}}-day free trial for new companies",
+      "startWith": "Start with {{plan}}",
+      "starter": {
+        "name": "Starter",
+        "description": "Market intelligence, demand forecasting, competitor tracking, review sentiment and AI insights, sized for small businesses getting started with KEEL.",
+        "action": "Choose Starter"
+      },
+      "growth": {
+        "name": "Growth",
+        "description": "Advanced analytics for growing businesses, including demand forecasting, market and competitor intelligence, larger AI capacity, and broader data connectivity.",
+        "action": "Start {{days}}-Day Free Trial"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "description": "High-capacity KEEL access for data-heavy businesses, with advanced integrations, significantly larger AI and document workloads, and faster competitor monitoring.",
+        "action": "Choose Enterprise"
+      }
+    },
+    "features": {
+      "products": "{{value}} products you can add",
+      "competitors": "{{value}} competitors tracked",
+      "reports": "{{value}} reports per month",
+      "storage": "{{value}} storage",
+      "customLimits": "Custom limits based on your needs",
+      "support": "Dedicated support",
+      "largeTeams": "Flexible for large teams",
+      "imageGenerations": "{{value}} AI marketing images per month",
+      "aiTokens": "{{value}} AI assistant tokens per month",
+      "documentProcessingMb": "{{value}} MB of documents processed per month",
+      "dataSources": "Connected data sources: {{value}}",
+      "sentimentRecords": "{{value}} reviews analysed per month",
+      "everythingEnterprise": "Everything in Enterprise"
+    },
+    "checkout": {
+      "success": "Payment received. Your plan updates here in a few seconds.",
+      "cancelled": "Checkout was cancelled — nothing was charged."
+    },
+    "errors": {
+      "generic": "That didn’t work. Please try again in a moment.",
+      "payments_not_configured": "Online payment isn’t switched on for this server yet.",
+      "price_not_synced": "This plan can’t be bought online yet. Please contact us.",
+      "subscription_exists": "Your company already has a subscription — switch plan instead.",
+      "plan_not_available": "This plan or billing period isn’t available.",
+      "contact_sales": "This plan is arranged with our team.",
+      "no_billing_account": "There’s no billing account yet — subscribe to a plan first.",
+      "no_subscription": "Your company doesn’t have a paid subscription yet.",
+      "payment_required": "Settle the outstanding payment before changing plan.",
+      "cancellation_pending": "Keep your subscription before changing plan.",
+      "already_on_plan": "This is already your plan.",
+      "downgrade_scheduled": "A change is already scheduled.",
+      "already_scheduled": "This change is already scheduled.",
+      "already_cancelling": "Your subscription is already set to end.",
+      "not_cancelling": "Your subscription isn’t set to end.",
+      "provider_error": "The payment provider didn’t respond. Please try again in a moment."
+    },
+    "invoices": {
+      "title": "Payments",
+      "empty": "No payments yet.",
+      "date": "Date",
+      "amount": "Amount",
+      "status": "Status",
+      "document": "Receipt",
+      "succeeded": "Paid",
+      "failed": "Failed",
+      "view": "View"
+    },
+    "modules": {
+      "market_intelligence": "Market intelligence",
+      "demand_prediction": "Demand forecasting",
+      "competitor_management": "Competitor tracking",
+      "notIncluded": "not included"
+    },
+    "gate": {
+      "title": "{{feature}} isn't included in your plan",
+      "body": "Your current plan doesn't include this part of KEEL. Growth and Enterprise include market intelligence, demand forecasting and competitor tracking.",
+      "action": "See plans",
+      "inactiveTitle": "Your plan isn't active",
+      "inactiveBody": "Choose a plan in Billing to keep using this part of KEEL."
+    }
+  },
+  "connectData": {
+    "reviews": {
+      "title": "Customer Reviews",
+      "subtitle": "Import reviews from Google Maps, Facebook, booking sites or your own feedback forms (CSV or Excel). Each review is analysed for sentiment automatically.",
+      "template": "Reviews template",
+      "import": "Import reviews",
+      "importing": "Importing...",
+      "summary": "{{imported}} reviews imported ({{linked}} linked to your products) · {{duplicates}} already imported · {{skipped}} skipped (no text)",
+      "failed": "The reviews file could not be imported. Please try again.",
+      "date": "Date",
+      "review": "Review",
+      "product": "About",
+      "rating": "Rating",
+      "sentiment": "Sentiment",
+      "wholeBusiness": "Your business",
+      "emptyTitle": "No customer reviews yet",
+      "emptyDescription": "Import a file with at least a review/comment column; date, rating, product and platform columns are used when present.",
+      "sentiments": {
+        "positive": "Positive",
+        "neutral": "Neutral",
+        "negative": "Negative",
+        "pending": "Analysing..."
+      }
+    },
+    "page": {
+      "title": "Connect Data",
+      "subtitle": "Connect, upload, and manage the business data used by KEEL.",
+      "supporting": "Keep your sales, products, inventory, and market data up to date."
+    },
+    "actions": {
+      "addSource": "Add Data Source",
+      "retry": "Try again",
+      "prepareImport": "Prepare Import",
+      "preparingImport": "Importing..."
+    },
+    "statuses": {
+      "connected": "Connected",
+      "completed": "Completed",
+      "processing": "Processing",
+      "needsAttention": "Needs Attention",
+      "failed": "Failed"
+    },
+    "connected": {
+      "title": "Connected Data Sources",
+      "subtitle": "Sources currently linked to your company workspace.",
+      "count": "{{count}} sources"
+    },
+    "upload": {
+      "title": "Upload Files",
+      "subtitle": "Add a new version or import additional business data.",
+      "templates": "Download Template",
+      "files": "Select Files"
+    },
+    "activity": {
+      "title": "Recent Data Activity",
+      "subtitle": "Recent imports and connection updates.",
+      "date": "Date",
+      "source": "Source",
+      "name": "File / Connection",
+      "type": "Type",
+      "status": "Status",
+      "emptyTitle": "No recent data activity",
+      "emptyDescription": "Imports and connection updates will appear here."
+    },
+    "add": {
+      "title": "Add Data Source",
+      "subtitle": "Choose one of the data sources already supported by KEEL."
+    },
+    "empty": {
+      "title": "No data sources connected yet",
+      "description": "Connect a supported source or upload business files to begin."
+    },
+    "error": {
+      "title": "Data sources unavailable",
+      "description": "We could not load your connected sources. Please try again."
+    },
+    "importSummary": {
+      "imported": "{{count}} sales rows imported",
+      "duplicates": "{{count}} already imported (skipped)",
+      "failed": "{{count}} could not be imported",
+      "overProductLimit": "{{count}} not imported: your plan's product limit is reached",
+      "fileFailed": "{{name}}: {{error}}"
+    },
+    "feedback": {
+      "uploadFailed": "The file upload failed. Please try again."
+    },
+    "fileTypes": {
+      "pdf": "PDF",
+      "xlsx": "Excel",
+      "csv": "CSV",
+      "connection": "Connection"
+    },
+    "options": {
+      "documents": {
+        "title": "Upload files",
+        "description": "Sales exports, product lists and price sheets (CSV, Excel) or business documents (PDF)."
+      },
+      "api": {
+        "title": "Connect your POS or ERP",
+        "description": "Pull sales automatically from your point-of-sale, ERP or online store's API."
+      },
+      "database": {
+        "title": "Connect a database",
+        "description": "Read sales from your own PostgreSQL database with a read-only user."
+      }
+    },
+    "system": {
+      "apiTitle": "Connect your POS or ERP",
+      "databaseTitle": "Connect a database",
+      "apiIntro": "Use the API details from your POS, ERP or store's developer settings. KEEL only reads data; it never changes anything in your system.",
+      "databaseIntro": "Create a read-only database user for KEEL. Only the query below is run, on the schedule you choose.",
+      "name": "Connection name",
+      "namePlaceholder": "e.g. Main store POS",
+      "baseUrl": "API address for sales records",
+      "recordsPath": "Path to the records (optional)",
+      "pageParam": "Page parameter",
+      "authHeader": "Sign-in header",
+      "authScheme": "Prefix",
+      "token": "API key or token",
+      "host": "Host",
+      "port": "Port",
+      "dbname": "Database name",
+      "user": "Read-only user",
+      "password": "Password",
+      "query": "Query that returns sales rows",
+      "readOnly": "The connection is opened read-only. Credentials are encrypted and can be removed at any time by disconnecting.",
+      "mapping": "Match your fields",
+      "mappingHint": "Type the name your system uses for each item. Fields marked * are required.",
+      "fields": {
+        "product_name": "Product name",
+        "quantity": "Quantity",
+        "unit_price": "Unit price",
+        "currency": "Currency",
+        "transaction_date": "Sale date",
+        "invoice_id": "Invoice number",
+        "discount_pct": "Discount %"
+      },
+      "frequency": "Sync",
+      "every": {
+        "15": "Every 15 minutes",
+        "60": "Every hour",
+        "360": "Every 6 hours",
+        "1440": "Once a day"
+      },
+      "connect": "Connect",
+      "connected": "Connected. The first sync runs within a few minutes.",
+      "failed": "The connection couldn't be saved. Check the details and try again.",
+      "adminOnly": "Only an owner or admin can manage connections.",
+      "actionFailed": "That didn't work. Try again.",
+      "syncNow": "Sync now",
+      "syncQueued": "Sync queued. It runs within a few minutes.",
+      "disconnect": "Disconnect",
+      "disconnected": "Disconnected. Imported data stays; the stored credentials were erased.",
+      "kind": {
+        "api": "POS / ERP API",
+        "database": "Database"
+      },
+      "lastSynced": "Last synced {{date}}",
+      "notSyncedYet": "Waiting for the first sync",
+      "lastRun": "{{rows}} records in the last run",
+      "status": {
+        "COMPLETED": "Synced",
+        "FAILED": "Last sync failed",
+        "RUNNING": "Syncing",
+        "PENDING": "Queued",
+        "PARTIAL": "Partly synced"
+      }
+    }
+  },
+  "demand": {
+    "tabs": {
+      "label": "Demand prediction sections",
+      "overview": "Overview",
+      "products": "Product Forecasts",
+      "inventory": "Inventory Recommendations"
+    },
+    "common": {
+      "units": "units",
+      "sku": "SKU",
+      "dateRange": "Date range",
+      "last30Days": "Last 30 days",
+      "next30Days": "Next 30 days",
+      "viewAll": "View All",
+      "viewDetails": "View Details",
+      "viewMore": "View More",
+      "fullAnalysis": "View Full Analysis",
+      "more": "More actions"
+    },
+    "overview": {
+      "title": "Demand Prediction Overview",
+      "subtitle": "Turn your data into smarter inventory decisions.",
+      "addData": "Add Data",
+      "snapshot": "Forecast Snapshot",
+      "snapshotSubtitle": "Key indicators from your demand forecasts.",
+      "nextWeek": "Next Week Forecast",
+      "next30Days": "Next 30 Days Forecast",
+      "productsForecasted": "Products Forecasted",
+      "spikesDetected": "Demand Spikes Detected",
+      "spikesDetail": "Products with significant demand increase",
+      "trendTitle": "Demand Trend Overview",
+      "trendSubtitle": "Total demand trend across all products.",
+      "aiInsight": "AI Demand Insight",
+      "aiInsightText": "Demand for home internet packages is expected to increase next month, mainly driven by new student enrollment and seasonal promotions.",
+      "aiHighlight": "predicted demand increase",
+      "topIncrease": "Top Products by Predicted Demand Increase",
+      "topIncreaseSubtitle": "Products with the highest expected demand growth.",
+      "topDecrease": "Top Products by Predicted Demand Decrease",
+      "topDecreaseSubtitle": "Products with the highest expected demand decline.",
+      "inventoryActions": "Priority Inventory Actions",
+      "inventorySubtitle": "AI-recommended actions based on predicted demand.",
+      "opportunities": "Forecast Opportunities",
+      "opportunitiesSubtitle": "AI-identified opportunities based on demand predictions."
+    },
+    "products": {
+      "title": "Product Forecasts",
+      "subtitle": "Explore AI-powered demand forecasts for your products.",
+      "addProduct": "Add Product",
+      "totalProducts": "Total Products",
+      "totalProductsDetail": "Out of 500 products",
+      "expectedIncrease": "Products with Expected Increase",
+      "expectedIncreaseDetail": "58% of forecasted products",
+      "expectedDecrease": "Products with Expected Decrease",
+      "expectedDecreaseDetail": "26% of forecasted products",
+      "stableDemand": "Stable Demand",
+      "stableDemandDetail": "16% of forecasted products",
+      "empty": "No product forecasts match these filters.",
+      "showing": "Showing {{count}} of {{total}} products"
+    },
+    "inventory": {
+      "comingSoon": "Inventory Recommendations will be completed in Part 2."
+    },
+    "detail": {
+      "back": "Back to Product Forecasts",
+      "notFound": "Product forecast not found",
+      "watchlist": "Add to Watchlist",
+      "watching": "In Watchlist",
+      "currentStock": "Current Stock",
+      "forecast30": "Forecast Next 30 Days",
+      "modelAccuracy": "Model Accuracy",
+      "highReliability": "High reliability",
+      "dailyDemand": "Average Daily Demand",
+      "revenueOpportunity": "Estimated Revenue Opportunity",
+      "forecastTitle": "Demand Forecast",
+      "forecastSubtitle": "Historical data, predicted demand and confidence interval.",
+      "granularity": "Forecast granularity",
+      "dateRange": "Jan 2025 - Dec 2026",
+      "aiInsight": "AI Insight",
+      "highConfidence": "High Confidence",
+      "insightText": "Demand for {{product}} is expected to increase by 42% in the next three months, driven by back-to-school season, competitor price increases, and growing interest in portable audio devices.",
+      "insights": {
+        "signal": "Strong upward trend expected",
+        "season": "Seasonal peak from August to September",
+        "stock": "Low risk of stockout if ordered now"
+      },
+      "forecastTable": "Forecast Table",
+      "seasonality": "Seasonality & Trends",
+      "weeklyView": "Day of Week",
+      "seasonalityLabel": "Monthly demand intensity heatmap",
+      "lowerDemand": "Lower Demand",
+      "higherDemand": "Higher Demand",
+      "trendAnalysis": "Trend Analysis",
+      "analysis": {
+        "overall": "Overall Trend",
+        "seasonality": "Seasonality",
+        "volatility": "Volatility",
+        "growth": "Growth Rate",
+        "increasing": "Increasing",
+        "high": "High",
+        "moderate": "Moderate"
+      },
+      "actions": "Actions",
+      "adjustInventory": "Adjust Inventory",
+      "export": "Export Forecast"
+    },
+    "filters": {
+      "searchProducts": "Search products...",
+      "category": "Category",
+      "allCategories": "All Categories",
+      "trend": "Forecast Trend",
+      "allTrends": "All Forecast Trends",
+      "status": "Status",
+      "allStatuses": "All Statuses",
+      "clear": "Clear Filters"
+    },
+    "table": {
+      "product": "Product",
+      "category": "Category",
+      "stock": "Stock",
+      "currentStock": "Current Stock",
+      "forecast30": "Forecast (30D)",
+      "predicted": "Predicted Demand",
+      "change": "Change",
+      "demandTrend": "Demand Trend",
+      "accuracy": "Model Accuracy",
+      "status": "Status",
+      "action": "Action",
+      "recommendedAction": "Recommended Action",
+      "suggestedQty": "Suggested Qty",
+      "reason": "Reason",
+      "month": "Month",
+      "historical": "Historical Demand",
+      "lower": "Lower Bound",
+      "upper": "Upper Bound"
+    },
+    "status": {
+      "increasing": "Increasing",
+      "decreasing": "Decreasing",
+      "stable": "Stable"
+    },
+    "actions": {
+      "restock": "Restock Now",
+      "reduce": "Reduce Order",
+      "monitor": "Monitor"
+    },
+    "reasons": {
+      "highIncrease": "High predicted demand (+100%)",
+      "trending": "Demand trending up (+80%)",
+      "lowerDemand": "Lower demand expected (-49%)",
+      "seasonalDecline": "Seasonal decline (-48%)",
+      "review": "Keep under review"
+    },
+    "opportunities": {
+      "bundle": "Bundle Home Internet + TV",
+      "bundleText": "Increasing demand for internet packages with entertainment bundles.",
+      "seasonal": "Seasonal Campaign",
+      "seasonalText": "Prepare promotions for the back-to-school season.",
+      "mobile": "Mobile Plan Upgrade",
+      "mobileText": "Growing demand for higher data plans among young professionals.",
+      "view": "View Opportunity"
+    },
+    "potential": {
+      "high": "High Potential",
+      "medium": "Medium"
+    },
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "period": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "charts": {
+      "demandLabel": "Historical and predicted demand chart",
+      "today": "Today",
+      "thisYear": "This Year",
+      "historical": "Historical Demand",
+      "predicted": "Predicted Demand",
+      "previous": "Last Year",
+      "confidence": "Confidence Interval"
+    },
+    "categories": {
+      "electronics": "Electronics",
+      "beauty": "Beauty",
+      "office": "Office",
+      "food": "Food & Beverages",
+      "apparel": "Apparel",
+      "outdoor": "Outdoor",
+      "toys": "Toys & Games"
+    },
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "periods": {
+      "jul2026": "Jul 2026",
+      "aug2026": "Aug 2026",
+      "sep2026": "Sep 2026",
+      "oct2026": "Oct 2026",
+      "nov2026": "Nov 2026",
+      "dec2026": "Dec 2026"
+    }
+  },
+  "ragAssistant": {
+    "page": {
+      "title": "Assistant",
+      "subtitle": "Ask questions about your business documents and get AI-powered answers."
+    },
+    "chat": {
+      "regionLabel": "Document assistant conversation",
+      "assistant": "KEEL Assistant",
+      "you": "You",
+      "generating": "Generating answer...",
+      "unavailable": "The assistant could not answer that question right now. Your question was kept in this session - please try again.",
+      "evidenceNote": "Shown without an AI summary — this is the information KEEL found for your question."
+    },
+    "composer": {
+      "placeholder": "Ask a question about your documents...",
+      "send": "Send question",
+      "helper": "Ask about information contained in your company's available knowledge base documents."
+    },
+    "empty": {
+      "title": "Ask a question about your business documents.",
+      "description": "Answers use your uploaded documents and your live business data, and say where each answer comes from.",
+      "restoring": "Restoring your previous conversation...",
+      "prompts": {
+        "summary": "Summarize this month's product report.",
+        "pricing": "What does our pricing document say about Product X?",
+        "compare": "Compare information across my uploaded documents."
+      }
+    },
+    "sources": {
+      "title": "Sources",
+      "page": "Page {{value}}",
+      "pages": "Pages {{value}}",
+      "knowledgeBase": "Knowledge Base",
+      "chatAttachment": "Chat attachment",
+      "web": "External web source"
+    },
+    "attachments": {
+      "remove": "Remove {{name}}",
+      "imagePreview": "Selected image preview"
+    },
+    "knowledge": {
+      "title": "Knowledge Base",
+      "subtitle": "Manage the documents used by the assistant.",
+      "upload": "Upload Document",
+      "search": "Search documents...",
+      "type": "Document Type",
+      "allTypes": "All types",
+      "sort": "Sort by",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "collapse": "Hide Knowledge Base",
+      "open": "Open Knowledge Base"
+    },
+    "documents": {
+      "emptyTitle": "No documents available",
+      "emptyDescription": "Upload PDF documents (policies, catalogues, price lists, contracts) so the assistant can answer questions from them.",
+      "noMatchesTitle": "No matching documents",
+      "noMatchesDescription": "Try a different search or document type.",
+      "errorTitle": "Knowledge Base unavailable",
+      "errorDescription": "We could not load the company's documents.",
+      "showing": "Showing {{start}}–{{end}} of {{total}} documents",
+      "status": {
+        "ready": "Ready",
+        "processing": "Processing",
+        "failed": "Failed"
+      },
+      "retry": "Process {{name}} again",
+      "retryFailed": "Couldn't process this document. Try again later."
+    },
+    "upload": {
+      "title": "Upload documents for the assistant",
+      "description": "PDF documents become searchable by the assistant. CSV and Excel files are imported as sales data, which the assistant also uses.",
+      "uploading": "Uploading..."
+    },
+    "actions": {
+      "retry": "Try again",
+      "cancel": "Cancel"
+    },
+    "history": {
+      "title": "History",
+      "newChat": "New chat",
+      "empty": "No previous conversations yet.",
+      "untitled": "Untitled conversation",
+      "unavailable": "Could not load your conversation history.",
+      "loadFailed": "Could not open that conversation. Please try again."
+    },
+    "feedback": {
+      "reasons": {
+        "notConfigured": "The assistant's AI service isn't set up on this server yet, so no answer could be generated. Your administrator needs to configure it. Your question was kept in this conversation.",
+        "providerUnavailable": "The AI service the assistant relies on isn't responding right now, so no answer was generated. Your question was kept — please try again in a few minutes.",
+        "internalError": "Something went wrong while preparing the answer, so none was generated. Your question was kept — please try again.",
+        "offline": "Couldn't reach KEEL. Check your internet connection and try again. Your question was kept."
+      },
+      "planLimit": "You've used all assistant questions included in your plan for this billing period. They renew after {{date}} — or upgrade your plan in Billing.",
+      "busy": "The assistant is answering many questions right now. Please ask again in about {{seconds}} seconds.",
+      "uploadFailed": "The document upload failed. Please try again.",
+      "uploadSummary": "{{added}} document(s) added to the assistant · {{data}} spreadsheet(s) imported as business data · {{failed}} could not be processed"
+    }
+  },
+  "dataIngestion": {
+    "templates": {
+      "excel": "Excel (.xlsx)",
+      "csv": "CSV (.csv)",
+      "download": "Download",
+      "downloaded": "Downloaded"
+    },
+    "dropTitle": "Drag & drop files here",
+    "or": "or",
+    "browse": "Browse files",
+    "supported": "Supported: PDF, CSV, Excel (.xlsx, .xlsm)",
+    "maxSize": "Maximum file size: 10 MB per file",
+    "invalidFile": "{{name}} is not a supported file or exceeds 10 MB.",
+    "uploadedFiles": "Uploaded files ({{count}})",
+    "removeAll": "Remove all",
+    "removeFile": "Remove {{name}}",
+    "ready": "Ready"
+  },
+  "reports": {
+    "page": {
+      "title": "Reports",
+      "subtitle": "Real sales and financial data for your business, exportable as CSV or JSON."
+    },
+    "common": {
+      "unknown": "Unknown",
+      "exportCsv": "Export CSV",
+      "exportJson": "Export JSON",
+      "exportPdf": "Download PDF"
+    },
+    "financial": {
+      "title": "Financial Summary",
+      "windowLabel": "Period",
+      "windowOptions": {
+        "7": "Last 7 days",
+        "30": "Last 30 days",
+        "90": "Last 90 days"
+      },
+      "revenue": "Revenue",
+      "grossProfit": "Gross Profit",
+      "grossMargin": "Gross Margin",
+      "costCoverage": "Cost Data Coverage",
+      "grossProfitNote": "Gross profit only (revenue minus cost of goods sold). This does not include fixed operating expenses, marketing spend, discounts, returns, or taxes - it is not your net profit.",
+      "unavailable": "Could not load the financial summary."
+    },
+    "sales": {
+      "title": "Sales Report",
+      "startDate": "From",
+      "endDate": "To",
+      "empty": "No sales recorded in this period.",
+      "unavailable": "Could not load the sales report.",
+      "noCostData": "No cost data",
+      "columns": {
+        "issueDate": "Date",
+        "invoiceNumber": "Invoice",
+        "product": "Product",
+        "quantity": "Qty",
+        "unitPrice": "Unit Price",
+        "total": "Total",
+        "grossProfit": "Gross Profit"
+      },
+      "pageOf": "Rows {{from}}–{{to}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next",
+      "pagination": "Sales report pages",
+      "exporting": "Preparing…",
+      "exportFailed": "The export could not be downloaded. Please try again."
+    }
+  },
+  "marketing": {
+    "results": {
+      "packageTitle": "Campaign package",
+      "audienceTitle": "Likely audience",
+      "audienceNote": "AI suggestion based on your product - not measured customer data.",
+      "positioningTitle": "Market positioning",
+      "positioningUnavailable": "Not available - no matched competitor pricing data for this product yet.",
+      "creativeDirectionTitle": "Creative direction",
+      "creativeDirectionNote": "A written brief for your designer or for AI image generation - no image has been made from it yet.",
+      "uploadImageLabel": "Upload a product image (optional)",
+      "uploadImageButton": "Upload",
+      "uploadImageError": "Could not upload this image. Please try again.",
+      "referenceEditorTitle": "Product reference image",
+      "referenceEditorHint": "Upload a real photo of your product, optionally remove its background, and choose which version to use as the reference for AI image generation below.",
+      "referencePreviewToggle": "Preview",
+      "referenceOriginal": "Original",
+      "previewProcessed": "Background removed",
+      "removeBackground": "Remove background",
+      "restoreOriginal": "Restore original",
+      "useAsReference": "Use as reference",
+      "referenceCurrentlySet": "Currently used as reference: {{choice}}",
+      "backgroundRemovalNotConfigured": "Background removal is not configured for this environment yet.",
+      "backgroundRemovalError": "Could not remove the background right now. Please try again later.",
+      "referenceNotUsedGeneric": "A product reference was selected, but the configured image provider does not support using it - this image was generated from the text brief only.",
+      "referenceWasUsed": "This image was generated using your selected product reference photo.",
+      "imageTitle": "AI generated image",
+      "generateImage": "Generate AI image",
+      "regenerateImage": "Regenerate image",
+      "downloadImage": "Download image",
+      "generatedImageAlt": "AI-generated campaign creative",
+      "imageNotConfigured": "AI image generation is not configured for this environment yet.",
+      "imageProviderError": "Could not generate an image right now. Please try again later.",
+      "imageLoadError": "Could not load the generated image.",
+      "contentTitle": "Generated content",
+      "headlineLabel": "Headline",
+      "captionLabel": "Caption",
+      "descriptionLabel": "Description",
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "history": {
+      "title": "Recent campaigns",
+      "empty": "No campaigns yet"
+    }
+  },
+  "demandApex": {
+    "title": "Demand",
+    "subtitle": "What your customers are likely to buy over the next 30 days, forecast from your own sales history.",
+    "filters": {
+      "product": "Product",
+      "allProducts": "All products",
+      "label": "Filter products",
+      "all": "All",
+      "increasing": "Rising",
+      "decreasing": "Falling",
+      "restock": "Needs restock"
+    },
+    "actions": {
+      "refresh": "Refresh forecasts",
+      "retry": "Try again",
+      "addProduct": "Add a product",
+      "importSales": "Import sales",
+      "recordSale": "Record a sale"
+    },
+    "error": {
+      "title": "Demand forecasts couldn't be loaded",
+      "description": "Your data is safe. Check your connection and try again."
+    },
+    "empty": {
+      "noProductsTitle": "Add products to see demand forecasts",
+      "noProductsDescription": "Forecasts are built per product from its sales history.",
+      "noSalesTitle": "Forecasts need sales history",
+      "noSalesDescription": "None of your products has recorded sales yet. Import a sales file or record sales, and KEEL forecasts each product automatically."
+    },
+    "refresh": {
+      "running": "Updating forecasts with your latest sales — {{done}} of {{total}} products done.",
+      "failed": "Forecasts couldn't be updated right now. The figures below are from the last successful update.",
+      "label": "Forecast update progress"
+    },
+    "stats": {
+      "forecast": "Forecast demand · next 30 days",
+      "vsLast30": "vs last 30 days",
+      "calculating": "Calculating…",
+      "revenue": "Expected revenue",
+      "revenueHint": "Forecast units × current prices",
+      "rising": "Rising demand",
+      "falling": "Falling demand",
+      "ofForecasted": "of {{count}} forecast products",
+      "stable": "{{count}} stable",
+      "restock": "Need restock",
+      "restockHint": "Stock won't cover the next 30 days"
+    },
+    "chart": {
+      "eyebrow": "Demand curve",
+      "titleAll": "Units per day — all products",
+      "titleOne": "Units per day — {{name}}",
+      "subtitle": "Actual sales for the last 90 days, then the forecast for the next 30.",
+      "actual": "Actual sales",
+      "forecast": "Forecast",
+      "today": "Today",
+      "emptyTitle": "No sales in the last 90 days",
+      "emptyDescription": "The chart appears once there are recent sales to compare with."
+    },
+    "table": {
+      "eyebrow": "By product",
+      "title": "Product forecasts",
+      "subtitle": "Trend compares the forecast with the last 30 days' sales (±{{band}}% counts as stable).",
+      "product": "Product",
+      "sold": "Sold · last 30 d",
+      "forecast": "Forecast · next 30 d",
+      "trend": "Trend",
+      "stock": "In stock",
+      "cover": "Stock lasts",
+      "advice": "Stock advice",
+      "noMatch": "No products match this filter.",
+      "calculating": "Calculating…",
+      "noForecast": "No forecast",
+      "notTracked": "Not tracked",
+      "days": "{{count}} days"
+    },
+    "trend": {
+      "increasing": "Rising",
+      "decreasing": "Falling",
+      "stable": "Stable",
+      "not_forecast": "Pending",
+      "no_sales": "No sales"
+    },
+    "action": {
+      "restock": "Restock",
+      "reduce": "Overstocked",
+      "monitor": "Covered",
+      "none": "—",
+      "restockQty": "Order about {{qty}}",
+      "reduceQty": "About {{qty}} more than 90 days need"
+    },
+    "method": "Forecasts use a machine-learning model when it beats simple baselines on your own history, otherwise the most accurate baseline. They update automatically after new sales."
+  },
+  "productHub": {
+    "back": "All products",
+    "notFound": "This product doesn't exist or was deleted.",
+    "loadError": "This product couldn't be loaded.",
+    "uncategorised": "Product",
+    "margin": "{{pct}}% margin",
+    "stockNotTracked": "Stock not tracked",
+    "inStock": "{{qty}} in stock",
+    "actions": {
+      "recordSale": "Record sale",
+      "priceAdvice": "Price advice",
+      "promote": "Promote",
+      "edit": "Edit"
+    },
+    "signals": {
+      "title": "What needs attention",
+      "restock": "Restock: stock lasts about {{days}} days at the forecast pace — order about {{qty}}.",
+      "restockNoCover": "Restock: stock is at or below the reorder level — order about {{qty}}.",
+      "overstock": "Overstocked: about {{days}} days of stock — consider ordering less.",
+      "sales_down": "Sales are down {{pct}}% vs the previous 30 days.",
+      "sales_up": "Sales are up {{pct}}% vs the previous 30 days.",
+      "no_recent_sales": "No sales in the last 30 days (last sale {{since}}).",
+      "priced_above": "Priced {{pct}}% above the competitor average — {{cheaper_count}} of {{count}} competitors are cheaper.",
+      "priced_below": "Priced {{pct}}% below the competitor average — there may be room to raise it.",
+      "no_competitor_prices": "No competitor prices recorded for this product yet.",
+      "competitor_price_change": "{{name}} changed their price for this product by {{pct}}%.",
+      "negative_reviews": "{{share}}% of {{count}} analysed reviews are negative."
+    },
+    "stats": {
+      "units": "Units sold · 30 days",
+      "revenue": "Revenue · 30 days",
+      "forecast": "Forecast · next 30 days",
+      "cover": "Stock lasts",
+      "vsPrev": "vs previous 30 days",
+      "vsLast30": "vs last 30 days",
+      "forecastPending": "Calculating…",
+      "forecastNeedsSales": "Needs sales history"
+    },
+    "demand": {
+      "eyebrow": "Demand",
+      "title": "Sales and forecast",
+      "emptyTitle": "No sales for this product yet",
+      "emptyDescription": "Record or import sales and the forecast appears here automatically."
+    },
+    "competition": {
+      "eyebrow": "Competition",
+      "title": "Competitor prices for this product",
+      "subtitle": "Each competitor's latest recorded price for this exact product.",
+      "manage": "Competitors",
+      "lowest": "Lowest",
+      "average": "Average",
+      "highest": "Highest",
+      "yours": "Yours",
+      "position": "Your price within the competitor range",
+      "noneTitle": "No competitor prices for this product yet",
+      "noneDescription": "You track {{count}} other competitors in your market. Record what they charge for this product to compare prices.",
+      "recordPrice": "Record a competitor price",
+      "competitor": "Competitor",
+      "price": "Their price",
+      "vsYou": "vs you",
+      "recorded": "Recorded",
+      "cheaper": "{{pct}}% cheaper",
+      "pricier": "{{pct}}% higher",
+      "same": "Same price",
+      "openListing": "Open {{name}}'s listing",
+      "industryTitle": "Other competitors in your market",
+      "industryHint": "They compete with your business overall; no price for this product has been recorded from them yet.",
+      "sourceManual": "Entered manually",
+      "sourceProductPage": "From their product page",
+      "sourceDataSource": "From {{name}}",
+      "levelProduct": "Competes on this product",
+      "levelMarket": "Market-wide competitor"
+    },
+    "reviews": {
+      "eyebrow": "Customers",
+      "title": "Reviews of this product",
+      "emptyTitle": "No reviews for this product",
+      "emptyDescription": "Import customer reviews to see ratings and sentiment here.",
+      "import": "Import reviews",
+      "count": "{{count}} reviews",
+      "sentiment": "{{positive}} positive · {{negative}} negative of {{analysed}} analysed",
+      "positiveShare": "Share of positive reviews",
+      "notAnalysed": "Sentiment hasn't been analysed for these reviews yet.",
+      "basisRatings": "Sentiment read from customers’ star ratings.",
+      "basisMixed": "Sentiment read from review text, and from star ratings where the text model was unavailable."
+    },
+    "sales": {
+      "eyebrow": "Sales",
+      "title": "Recent sales",
+      "subtitle": "{{units}} units · {{revenue}} since {{since}}",
+      "allSales": "All sales",
+      "date": "Date",
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "total": "Total",
+      "emptyTitle": "No sales recorded",
+      "emptyDescription": "Sales you record or import for this product appear here."
+    },
+    "sources": "Sources: your sales, stock and product records; competitor prices from KEEL competitor tracking; forecasts calculated by KEEL."
+  },
+  "productsApex": {
+    "subtitle": "Every product with its sales, demand and stock at a glance. Open one to see everything about it.",
+    "recordSale": "Record sale",
+    "importSales": "Import sales",
+    "importProducts": "Import products",
+    "count": "{{count}} products",
+    "sold30": "Sold · 30 d",
+    "demand": "Forecast trend",
+    "advice": "Stock advice",
+    "noSales": "No sales yet",
+    "sell": "Sell",
+    "sellFor": "Record a sale of {{name}}",
+    "moreFor": "More actions for {{name}}",
+    "open": "Open product",
+    "pageOf": "{{from}}–{{to}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next",
+    "pickTitle": "Record a sale — choose the product"
+  },
+  "commandCenter": {
+    "greeting": {
+      "morning": "Good morning, {{name}}",
+      "afternoon": "Good afternoon, {{name}}",
+      "evening": "Good evening, {{name}}"
+    },
+    "summary": "You made {{revenue}} in the last {{days}} days. {{attention}} things need your attention today.",
+    "today": {
+      "label": "Today so far",
+      "orders": "{{count}} orders"
+    },
+    "window": {
+      "label": "Period",
+      "days": "{{count}} days"
+    },
+    "askAssistant": "Ask the assistant",
+    "error": {
+      "title": "The Command Center couldn't load",
+      "description": "Your data is safe. Check your connection and try again."
+    },
+    "kpi": {
+      "revenue": "Revenue · {{days}} days",
+      "units": "Units sold · {{days}} days",
+      "forecast": "Forecast · next 30 days",
+      "restock": "Products to restock",
+      "restockHint": "Stock won't cover forecast demand",
+      "competitors": "Competitors tracked",
+      "vsPrev": "vs previous period",
+      "noPrev": "Not enough history to compare",
+      "newCompetitors": "{{count}} new this period"
+    },
+    "trend": {
+      "eyebrow": "Sales",
+      "title": "Daily revenue · last {{days}} days",
+      "revenue": "Revenue",
+      "reports": "Reports",
+      "empty": "No sales in this period"
+    },
+    "next": {
+      "eyebrow": "Next best actions",
+      "title": "What to do next",
+      "allClear": "Nothing urgent right now",
+      "allClearHint": "Stock covers demand and no product is falling sharply.",
+      "open": "Open {{name}}",
+      "view": "View",
+      "promote": "Promote"
+    },
+    "actions": {
+      "restock": "Restock {{name}} — stock lasts about {{days}} days. Order about {{qty}}.",
+      "declining": "{{name}} sales are down {{pct}}% vs the previous period.",
+      "priced_above": "{{name}} is {{pct}}% above the competitor average; {{competitor}} is cheapest.",
+      "promote_rising": "Demand for {{name}} is rising ({{pct}}%) and stock is healthy — a good product to promote.",
+      "promote_overstock": "{{name}} has about {{days}} days of stock — a promotion could clear it.",
+      "promote_growing": "{{name}} sales grew {{pct}}% — consider promoting it."
+    },
+    "lists": {
+      "top": "Top products",
+      "declining": "Falling sales",
+      "restock": "Restock soon",
+      "empty": "No sales in this period",
+      "noneDeclining": "No product's sales fell sharply",
+      "noneRestock": "Stock covers forecast demand",
+      "units": "{{now}} vs {{before}} units",
+      "order": "order {{qty}}",
+      "allRestock": "All {{count}} products to restock"
+    },
+    "market": {
+      "eyebrow": "Market",
+      "movesTitle": "Recent competitor price changes",
+      "all": "Competitors",
+      "noMoves": "No competitor price changes recorded in the last 30 days",
+      "noMovesHint": "Changes appear here when a competitor's recorded price moves.",
+      "moveLine": "{{product}}: {{from}} → {{to}}",
+      "priceTitle": "Price opportunities",
+      "noGaps": "Your prices are in line with competitors",
+      "noGapsHint": "Products priced more than 5% above or below the competitor average appear here.",
+      "above": "Yours {{yours}} · competitor average {{average}} — {{competitor}} is cheapest",
+      "below": "Yours {{yours}} · competitor average {{average}} — there may be room to raise it"
+    },
+    "setup": {
+      "subtitle": "Let's set up your business intelligence. Each step unlocks more of KEEL.",
+      "products": {
+        "title": "Add your products",
+        "description": "Add them one by one or import a product list.",
+        "action": "Add products"
+      },
+      "sales": {
+        "title": "Import your sales",
+        "description": "Upload a sales export (CSV or Excel). Forecasts, trends and restock advice start from it.",
+        "action": "Import sales"
+      },
+      "competitors": {
+        "title": "Track your competitors",
+        "description": "Add the businesses you compete with and the prices they charge.",
+        "action": "Add competitors"
+      },
+      "documents": {
+        "title": "Teach the assistant your documents",
+        "description": "Upload policies, price lists or research so the assistant can answer from them.",
+        "action": "Upload documents"
+      }
+    },
+    "sources": "From your sales, stock and product records, KEEL forecasts and KEEL competitor tracking."
+  },
+  "competitorsApex": {
+    "title": "Competitors",
+    "subtitle": "Who you compete with — across your whole market and on specific products — and how your prices compare.",
+    "searchArea": "Search area",
+    "sources": "Sources to review",
+    "error": "Competitor data couldn't be loaded.",
+    "stats": {
+      "tracked": "Competitors tracked",
+      "ofPlan": "of {{limit}} in your plan",
+      "unlimited": "Unlimited in your plan",
+      "levels": "Market-wide · Product-level",
+      "levelsHint": "How your competitors compete",
+      "coverage": "Products with competitor prices",
+      "coverageHint": "Products where at least one competitor's price is known",
+      "above": "Priced above competitors",
+      "changes": "{{count}} competitor price changes in 30 days",
+      "planUsage": "{{used}} of {{limit}} competitors in your plan"
+    },
+    "level": {
+      "MARKET": {
+        "short": "Market-wide",
+        "title": "Competes with my whole business",
+        "example": "Another shop or brand in my market — e.g. a supermarket or deli for a grocery store."
+      },
+      "PRODUCT": {
+        "short": "Product-level",
+        "title": "Competes on specific products",
+        "example": "A specialist for some of my products — e.g. a coffee roaster against my Arabic coffee."
+      }
+    },
+    "coverage": {
+      "eyebrow": "By product",
+      "title": "Competition for each product",
+      "subtitle": "Products without competitor prices are blind spots: add who competes on them.",
+      "filter": "Filter products",
+      "filters": {
+        "all": "All products",
+        "none": "No competitors yet",
+        "above": "Priced above market"
+      },
+      "product": "Product",
+      "yours": "Your price",
+      "competitors": "Competitors",
+      "cheapest": "Cheapest competitor",
+      "average": "Competitor average",
+      "position": "You vs average",
+      "addFor": "Add a competitor"
+    },
+    "add": {
+      "button": "Add competitor",
+      "subtitle": "Tell KEEL who they are and how they compete with you.",
+      "who": "Who are they?",
+      "how": "How do they compete with you?",
+      "howHint": "Market-wide competitors compete for the same customers overall; product-level competitors only on certain products.",
+      "whichProducts": "Which of your products? ({{count}} selected)",
+      "pickProducts": "Choose at least one product they compete on.",
+      "planLimit": "Your plan includes {{limit}} tracked competitors and they're all in use. Upgrade or remove one to add another.",
+      "seePlans": "See plans",
+      "moreProducts": "{{count}} more match - search to narrow the list."
+    },
+    "sourcesNote": "Prices come from what you or KEEL's competitor tracking recorded, with the date they were seen."
+  },
+  "marketingApex": {
+    "title": "Marketing",
+    "subtitle": "Create a campaign in a few simple steps. KEEL writes the posts and ads; you choose the direction.",
+    "progress": "Campaign steps",
+    "stepOf": "Step {{n}} of {{total}}",
+    "back": "Back",
+    "next": "Continue",
+    "generate": "Create my campaign",
+    "generating": "Writing your campaign…",
+    "steps": {
+      "what": {
+        "title": "Product",
+        "question": "What are you marketing?",
+        "hint": "Pick one of your products, paste a link to it, or describe it in a sentence."
+      },
+      "goal": {
+        "title": "Goal",
+        "question": "What do you want to create?",
+        "hint": "This decides how the posts are written."
+      },
+      "audience": {
+        "title": "Audience",
+        "question": "Who is it for?",
+        "hint": "Pick any that fit, or describe your customers in your own words."
+      },
+      "style": {
+        "title": "Look",
+        "question": "What style should it have?",
+        "hint": "Choose the look that feels right — or let KEEL choose from your product and pricing."
+      },
+      "direction": {
+        "title": "Direction",
+        "question": "Anything specific in mind?",
+        "hint": "Describe the feel in your own words. This is simply your creative instruction."
+      },
+      "season": {
+        "title": "Timing",
+        "question": "Make it timely?",
+        "hint": "Ideas from the calendar and from how this product actually sold before."
+      },
+      "generate": {
+        "title": "Create",
+        "question": "Ready to create your campaign",
+        "hint": "Check your choices, then create."
+      }
+    },
+    "what": {
+      "source": "How to describe it",
+      "product": "My product",
+      "link": "A link",
+      "describe": "Describe it",
+      "linkLabel": "Link to the product page",
+      "linkHint": "KEEL reads the page to understand the product.",
+      "describeLabel": "Describe the product",
+      "describePlaceholder": "e.g. Cold-pressed extra virgin olive oil from northern Jordan, 1 litre bottle.",
+      "photoTitle": "Product photo (optional)",
+      "photoHint": "Used as the reference for AI images when they're enabled.",
+      "addPhoto": "Add photo",
+      "removePhoto": "Remove photo"
+    },
+    "goals": {
+      "social_ad": {
+        "title": "Social media ad",
+        "description": "Posts for Instagram, Facebook and TikTok, plus a search ad."
+      },
+      "promotion": {
+        "title": "Product promotion",
+        "description": "Show off a product and why it's worth buying."
+      },
+      "seasonal": {
+        "title": "Seasonal campaign",
+        "description": "Tie the product to a holiday or season."
+      },
+      "awareness": {
+        "title": "Brand awareness",
+        "description": "Make people remember your brand, not a hard sell."
+      },
+      "sale": {
+        "title": "Sales campaign",
+        "description": "A limited-time offer with a clear reason to buy now."
+      }
+    },
+    "audience": {
+      "options": {
+        "families": "Families",
+        "young_adults": "Young adults",
+        "professionals": "Busy professionals",
+        "gift_buyers": "Gift buyers",
+        "health": "Health-conscious",
+        "local": "Local neighbourhood"
+      },
+      "otherLabel": "In your own words (optional)",
+      "otherPlaceholder": "e.g. Mothers preparing Ramadan iftar",
+      "optional": "Skip this if you're not sure — the campaign still works."
+    },
+    "style": {
+      "auto": "Let KEEL choose",
+      "autoHint": "Picked from your product, category and price position.",
+      "names": {
+        "LUXURY_PREMIUM": "Premium",
+        "MINIMAL_CLEAN": "Clean & simple",
+        "MODERN_TECH": "Modern",
+        "SOCIAL_TRENDY": "Fun & trendy",
+        "BOLD_PROMOTIONAL": "Bold offer",
+        "LIFESTYLE": "Warm lifestyle",
+        "SEASONAL": "Festive & seasonal"
+      },
+      "describe": {
+        "LUXURY_PREMIUM": "Elegant and high-end; quality over price.",
+        "MINIMAL_CLEAN": "Calm, uncluttered, confident.",
+        "MODERN_TECH": "Sleek and precise.",
+        "SOCIAL_TRENDY": "Energetic, made for social feeds.",
+        "BOLD_PROMOTIONAL": "Big, loud, all about the offer.",
+        "LIFESTYLE": "Real moments and everyday life.",
+        "SEASONAL": "Celebrates the occasion."
+      },
+      "sample": {
+        "LUXURY_PREMIUM": "Crafted for the few.",
+        "MINIMAL_CLEAN": "Simply good.",
+        "MODERN_TECH": "Made better.",
+        "SOCIAL_TRENDY": "Everyone's talking!",
+        "BOLD_PROMOTIONAL": "20% off — today only",
+        "LIFESTYLE": "Sunday mornings, together.",
+        "SEASONAL": "Ramadan Kareem"
+      }
+    },
+    "direction": {
+      "label": "Your creative instruction (optional)",
+      "placeholder": "e.g. Make it feel like a premium Ramadan campaign.",
+      "examples": "Examples:",
+      "example": {
+        "premiumRamadan": "Make it feel like a premium Ramadan campaign.",
+        "instagramModern": "Make it modern and suitable for Instagram.",
+        "familyWarm": "Warm and family-focused, like a home kitchen.",
+        "urgentOffer": "Short and urgent — the offer ends this weekend."
+      }
+    },
+    "season": {
+      "error": "Ideas couldn't be loaded.",
+      "highlight": "This product sold {{lift}}× its normal pace during {{occasion}} last time. Next: {{next}}.",
+      "upcoming": "Coming up",
+      "none": "No occasion",
+      "noneHint": "A timeless campaign.",
+      "now": "Happening now",
+      "inDays": "In {{days}} days · {{date}}",
+      "mayShift": "date may shift by a day",
+      "lift": "Sold {{lift}}× usual last time",
+      "signals": {
+        "rising_demand": "Demand for this product is rising ({{pct}}% above recent sales) — a good moment to promote it.",
+        "overstock": "You have about {{days}} days of stock — a promotion could help clear it.",
+        "low_stock": "Stock lasts only about {{days}} days — restock before promoting it heavily.",
+        "falling_demand": "Demand is expected to fall {{pct}}% — a campaign could help reverse it.",
+        "priced_below_market": "You're {{pct}}% cheaper than competitors — a strong point to promote.",
+        "priced_above_market": "You're {{pct}}% above competitors — emphasise quality rather than price."
+      },
+      "honesty": "Ideas come from the calendar for your country and your own sales history. Live social-media and search trends aren't connected, so none are shown."
+    },
+    "occasions": {
+      "ramadan": "Ramadan",
+      "eid_fitr": "Eid al-Fitr",
+      "eid_adha": "Eid al-Adha",
+      "national_day": "National Day",
+      "mothers_day": "Mother's Day",
+      "black_friday": "Black Friday / White Friday",
+      "back_to_school": "Back to school",
+      "summer": "Summer",
+      "winter": "Winter",
+      "olive_harvest": "Olive harvest season",
+      "new_year": "New Year",
+      "valentines": "Valentine's Day"
+    },
+    "prompt": {
+      "audience": "Target audience",
+      "occasion": "Occasion"
+    },
+    "review": {
+      "withPhoto": "with photo",
+      "anyAudience": "Everyone",
+      "whatYouGet": "You'll get an audience summary, a creative direction, and ready-to-copy posts for Instagram, Facebook, TikTok and a Google search ad."
+    },
+    "errors": {
+      "notConfigured": "Campaign writing isn't set up on this server yet, so the campaign couldn't be written. Your administrator needs to configure the AI service.",
+      "busy": "The campaign writer is busy right now. Please try again in a minute.",
+      "badLink": "That link couldn't be read. Check it, or describe the product instead.",
+      "failed": "The campaign couldn't be written this time. Please try again.",
+      "offline": "Couldn't reach KEEL. Check your connection and try again.",
+      "busyFor": "KEEL's AI is busy right now. Please try again in about {{seconds}} seconds.",
+      "planTokens": "Your plan's AI allowance for this period is used up.",
+      "planImages": "You've used all of this period's AI images on your plan.",
+      "planStorage": "Your plan's storage is full. Delete files you no longer need or upgrade your plan.",
+      "planUploads": "You've used this period's upload allowance on your plan.",
+      "planOther": "Your plan's limit for this has been reached.",
+      "planInactive": "Your subscription isn't active.",
+      "renewsOn": "It renews on {{date}}.",
+      "openBilling": "See plans in Billing",
+      "imageFailed": "Could not generate an image right now. Please try again later.",
+      "uploadFailed": "Could not upload this photo. Please try again.",
+      "photoFailed": "That didn't work this time. Please try again.",
+      "photoTooLarge": "This photo is larger than 8 MB. Choose a smaller one.",
+      "photoWrongType": "Use a JPG, PNG or WebP photo."
+    },
+    "result": {
+      "eyebrow": "Your campaign",
+      "photoFailed": "The campaign was created, but the photo couldn't be saved. You can add it again below.",
+      "failedCampaign": "This campaign couldn't be written"
+    },
+    "history": {
+      "eyebrow": "Recent",
+      "status": {
+        "COMPLETED": "Ready",
+        "FAILED": "Failed",
+        "PENDING": "Writing…"
+      }
+    },
+    "positioning": {
+      "PREMIUM": "Premium",
+      "MID_RANGE": "Mid-range",
+      "BUDGET": "Value"
+    }
+  },
+  "appError": {
+    "unexpected": {
+      "title": "Something went wrong on this screen",
+      "description": "Your data is safe. Reload the page to try again; if it keeps happening, go back to the Command Center."
+    },
+    "updated": {
+      "title": "KEEL was just updated",
+      "description": "A newer version is available. Reload the page to continue."
+    },
+    "notFound": {
+      "title": "This page doesn’t exist",
+      "description": "The link may be old or mistyped."
+    },
+    "reload": "Reload page",
+    "home": "Go to the Command Center"
+  },
+  "legal": {
+    "updated": "Last updated {{date}}",
+    "contact": "Questions? Contact us at",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+  "discovery": {
+    "eyebrow": "Market scan",
+    "title": "Find competitors around you",
+    "subtitle": "Looking for {{industry}} businesses in {{place}}, within {{radius}} km.",
+    "noPlace": "your area",
+    "pinnedLocation": "your pinned location",
+    "changeArea": "Change area",
+    "scan": "Find competitors",
+    "rescan": "Refresh scan",
+    "running": "Scanning public sources… this usually takes under a minute.",
+    "result": "Last scan found {{found}} businesses: {{added}} new, {{tracked}} added to your tracked list.",
+    "partial": "some sources didn't answer",
+    "failed": {
+      "noLocation": "The scan needs your business location. Set your city or pin your location, then scan again.",
+      "noSources": "Competitor search isn't set up for your account yet. Please contact KEEL support.",
+      "generic": "The scan couldn't finish. Try again in a few minutes.",
+      "locationNotFound": "We couldn't place your city on the map. Use \"Change area\" to pin your exact location, then scan again.",
+      "unreachable": "The competitor sources couldn't be reached just now. Try again in a few minutes."
+    },
+    "startFailed": "The scan couldn't start. Try again.",
+    "needLocation": "Add your city or map location so the scan can find businesses near you.",
+    "setLocation": "Set location",
+    "provenance": "Competitors come only from public business listings, web search results and the businesses’ own websites, read only where they allow it. Nothing is guessed; every competitor links to where it was found.",
+    "error": "Competitor data couldn't be loaded.",
+    "providers": {
+      "map_listing": "Map listings",
+      "web_search": "Web search",
+      "company_database": "Company database"
+    },
+    "providerState": {
+      "ready": "ready",
+      "notConnected": "not connected",
+      "found": "{{count}} found",
+      "unreachable": "unreachable",
+      "noLocation": "needs location",
+      "optional": "optional - needs a free search key"
+    },
+    "sources": {
+      "map_listing": "Public business listing",
+      "web_search": "Web search result",
+      "business_website": "Business website",
+      "added_by_you": "Added by you",
+      "demo": "Demo data",
+      "company_database": "Public company database",
+      "news": "News article"
+    },
+    "status": {
+      "tracked": "Tracked",
+      "suggested": "Suggested",
+      "all": "All"
+    },
+    "sort": {
+      "relevance": "Most relevant",
+      "distance": "Nearest",
+      "rating": "Highest rated",
+      "reviews": "Most reviewed",
+      "name": "Name",
+      "recent": "Recently found"
+    },
+    "origin": {
+      "any": "Any source",
+      "map": "Map listings",
+      "web": "Web & social",
+      "manual": "Added by you"
+    },
+    "confidence": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    },
+    "list": {
+      "eyebrow": "Competitors",
+      "title": "Your competitive landscape",
+      "subtitle": "Tracked competitors feed pricing, alerts, reports and the assistant. Suggestions come from the market scan.",
+      "status": "Show",
+      "search": "Search competitors",
+      "sort": "Sort by",
+      "origin": "Source",
+      "km": "{{km}} km",
+      "branches": "{{count}} branches",
+      "relevance": "Relevance",
+      "priced": "{{count}} prices compared",
+      "track": "Track",
+      "untrack": "Stop tracking",
+      "demo": "Demo data",
+      "limitReached": "You've reached your plan's tracked-competitor limit. Stop tracking one or upgrade your plan.",
+      "trackFailed": "That change couldn't be saved. Try again.",
+      "empty": {
+        "tracked": "You're not tracking any competitors yet",
+        "suggested": "No suggestions yet",
+        "all": "No competitors yet"
+      },
+      "emptyHint": "Run a market scan to find businesses like yours nearby, or add a competitor you already know.",
+      "showing": "Showing {{shown}} of {{total}}",
+      "showMore": "Show more"
+    },
+    "reasons": {
+      "same_industry": "Same kind of business as yours",
+      "related_industry": "A closely related kind of business",
+      "keyword": "Found searching for businesses like yours",
+      "other_industry": "A different kind of business",
+      "distance": "{{km}} km from you",
+      "branches": "{{count}} branches in your area",
+      "reviews": "Rated {{rating}} from {{count}} public reviews",
+      "sources": "Confirmed by {{count}} source(s)"
+    },
+    "detail": {
+      "subtitle": "Competitor",
+      "distance": "Distance",
+      "rating": "Public rating",
+      "reviews": "{{count}} reviews",
+      "noReviews": "No public reviews found",
+      "branches": "Locations",
+      "profileEyebrow": "Profile",
+      "profile": "Business details",
+      "address": "Address",
+      "phone": "Phone",
+      "categories": "Categories",
+      "firstSeen": "First found",
+      "lastSeen": "Last confirmed",
+      "why": "Why it's listed",
+      "sourcesEyebrow": "Provenance",
+      "sources": "Where this comes from",
+      "sourcesHint": "Each public record this competitor was matched to.",
+      "seen": "Last seen {{date}}",
+      "open": "Open",
+      "addedByYou": "Added by you - no public record linked yet.",
+      "pricesEyebrow": "Prices",
+      "profiles": "Social profiles"
+    },
+    "sourcesChecked": "Checked {{checked}} searches and pages; {{answered}} answered.",
+    "relationship": {
+      "label": "How closely they compete",
+      "DIRECT": "Direct competitor",
+      "INDIRECT": "Indirect competitor",
+      "RELATED": "Related business",
+      "UNVERIFIED": "Unverified",
+      "filter": {
+        "any": "Any relationship",
+        "DIRECT": "Direct competitors",
+        "INDIRECT": "Indirect competitors",
+        "RELATED": "Related businesses",
+        "UNVERIFIED": "Unverified",
+        "with_prices": "Publishes prices"
+      }
+    },
+    "reason": {
+      "same_products": "Sells {{count}} of your products (prices on their website)",
+      "same_specialty": "Same specialty: “{{term}}” in its {{where}}",
+      "same_trade": "Its listing names your line of business",
+      "same_industry": "Same industry, no sign of your specialty",
+      "related_industry": "A neighbouring kind of business",
+      "name_matches_industry": "Its name says it is in your industry",
+      "not_confirmed": "Not confirmed by any listing category",
+      "where": {
+        "name": "name",
+        "category": "listing category"
+      }
+    },
+    "website": {
+      "notYet": "Website not read yet",
+      "items": "{{count}} products/menu items on their site",
+      "prices": "{{count}} with prices",
+      "matched": "{{count}} matched to your products"
+    },
+    "coverage": {
+      "title": "What the last scan produced",
+      "listings": "Listings found",
+      "listingsValue": "{{found}} ({{merged}} duplicates merged)",
+      "relevant": "Saved, by how closely they compete",
+      "websites": "Websites read",
+      "websitesValue": "{{read}} of {{tried}} tried · {{pages}} pages",
+      "extracted": "Read from websites",
+      "extractedValue": "{{products}} products · {{prices}} prices · {{offers}} offers",
+      "matched": "Matched to your products",
+      "matchedValue": "{{products}} of your products priced · {{prices}} prices from {{competitors}} competitors"
+    }
+  },
+  "workspaces": {
+    "label": "Your companies",
+    "new": "New company",
+    "switchFailed": "That company couldn't be opened. Try again.",
+    "create": {
+      "title": "Add a company",
+      "subtitle": "Run another business with the same login. Each company has its own products, sales, competitors, plan and team.",
+      "back": "Back",
+      "name": "Business name",
+      "namePlaceholder": "e.g. Shifa Pharmacy",
+      "country": "Country",
+      "countryPlaceholder": "Choose a country",
+      "currency": "Currency",
+      "currencyPlaceholder": "Choose a currency",
+      "note": "Nothing is copied from your current company. You'll set it up in the next step.",
+      "submit": "Create company",
+      "failed": "The company couldn't be created. Check the details and try again.",
+      "tooMany": "You've reached the maximum number of companies for one login."
+    }
+  },
+  "setup": {
+    "eyebrow": "Company setup",
+    "title": "Let's set up {{name}}",
+    "subtitle": "Four short steps so KEEL can find your competitors and read your market. You can change everything later in Settings.",
+    "progress": "Setup progress",
+    "steps": {
+      "business": "Business",
+      "location": "Location",
+      "products": "Products",
+      "finish": "Scan"
+    },
+    "loadError": "Your company profile couldn't be loaded.",
+    "saveError": "That couldn't be saved. Try again.",
+    "notSet": "Not set",
+    "back": "Back",
+    "next": "Continue",
+    "skip": "Skip for now",
+    "business": {
+      "title": "What kind of business is it?",
+      "subtitle": "This decides which businesses count as your competitors.",
+      "search": "Search industries",
+      "industry": "Industry",
+      "description": "What you sell (optional)",
+      "website": "Your website (optional)"
+    },
+    "location": {
+      "title": "Where do your customers find you?",
+      "subtitle": "Your business is registered in {{country}}. Tell us the city, or pin your exact location for the most accurate competitor map.",
+      "city": "City",
+      "cityPlaceholder": "e.g. Amman",
+      "useMine": "Use my current location",
+      "pinned": "Pinned at {{lat}}, {{lon}}",
+      "radius": "Competitors within",
+      "radiusHint": "Restaurants and cafés compete within a few kilometres; hotels and electronics stores across the city.",
+      "unsupported": "This browser can't share its location. Type your city instead.",
+      "denied": "Location wasn't shared. Type your city instead."
+    },
+    "products": {
+      "title": "Add a few products or services",
+      "subtitle": "Optional - a handful helps pricing and competitor matching. You can import your full catalogue and sales file later.",
+      "subtitleHas": "You already have {{count}} products. Add more here or import later.",
+      "name": "Product or service name",
+      "price": "Price ({{currency}})",
+      "remove": "Remove",
+      "add": "Add another",
+      "save": "Save {{count}} and continue",
+      "importHint": "To import a full catalogue and sales history, use Data & Documents after setup."
+    },
+    "finish": {
+      "title": "Ready to scan your market",
+      "subtitle": "KEEL will search public map listings and the web for businesses like yours in this area. Every competitor it finds links to where it was found.",
+      "scan": "Finish and scan my market",
+      "later": "Finish without scanning"
+    }
+  },
+  "scopeArea": {
+    "title": "Market area",
+    "subtitle": "Where your business is and how far your competition reaches. The market scan searches this area.",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "pinHint": "A pinned location gives the most accurate competitor distances. Leave it empty to use the city centre.",
+    "pinInvalid": "Enter both latitude and longitude as numbers, or leave both empty.",
+    "saved": "Market area saved. Refresh the scan on the Competitors page to use it.",
+    "saveError": "The market area couldn't be saved. Try again."
+  },
+  "alerts": {
+    "label": "Alerts",
+    "labelUnread": "Alerts, {{count}} unread",
+    "title": "Alerts",
+    "count": "{{count}} items",
+    "error": "Alerts couldn't be loaded.",
+    "empty": "Nothing needs your attention right now.",
+    "competitor_price": {
+      "down": "{{competitor}} cut {{product}} by {{pct}}% to {{price}}",
+      "up": "{{competitor}} raised {{product}} by {{pct}}% to {{price}}"
+    },
+    "restock": "{{product}} runs out in about {{days}} days - reorder about {{quantity}}",
+    "price_gap": {
+      "above": "{{product}} is {{pct}}% above the market (cheapest: {{competitor}})",
+      "below": "{{product}} is {{pct}}% below the market - room to raise it"
+    },
+    "new_competitors": "The market scan found {{count}} new competitors ({{tracked}} now tracked)",
+    "import_failed": "An import failed: {{name}}",
+    "trial_ending": "Your trial ends in {{days}} days - choose a plan to keep access",
+    "payment_failed": "Your last payment failed - update your payment method in Billing"
+  },
+  "intel": {
+    "citation": "Source {{n}}: {{text}}",
+    "openSource": "Open the source on {{host}}",
+    "eyebrow": "From their website",
+    "title": "What they publish",
+    "checkedAt": "Read from their website on {{date}}",
+    "neverChecked": "Their website hasn't been read yet.",
+    "refresh": "Read again",
+    "read": "Read their website",
+    "refreshFailed": "Their website couldn't be read just now. Try again in a few minutes.",
+    "status": {
+      "not_allowed": "Their website asks automated readers not to read these pages, so KEEL didn't.",
+      "unreachable": "Their website didn't answer the last time KEEL tried.",
+      "not_public": "Their website isn't on the public internet.",
+      "empty": "Their website was read, but it doesn't publish products, prices or offers KEEL can read.",
+      "no_website": "No website is known for this competitor.",
+      "failed": "Their website couldn't be read the last time.",
+      "prices_found": "Products and prices were read from their website.",
+      "no_price_published": "Their website lists products or a menu but publishes no prices KEEL could read.",
+      "no_relevant_page": "Their website was read, but no products, menu, prices or offers page was found.",
+      "blocked_by_robots": "Their website asks automated readers not to read these pages, so KEEL didn't.",
+      "http_error": "Their website answered with an error page.",
+      "needs_javascript": "Their pages only show content after running JavaScript, which couldn't be done for this read.",
+      "extraction_failed": "Their website was read, but its pages couldn't be processed.",
+      "not_own_site": "The link listed for them is a social profile, directory or platform page, not their own website, so it wasn't read.",
+      "other_business_site": "The website listed for them in public data belongs to a different business, so its prices weren't used."
+    },
+    "noWebsite": "No website known",
+    "noWebsiteHint": "KEEL reads products, prices and offers from a competitor's own website. None was found for this one in public listings.",
+    "nothingYet": "Nothing read from their website yet",
+    "nothingYetHint": "Choose “Read their website” to collect the products, prices and offers it publishes.",
+    "products": "Products and published prices",
+    "conflicts": "Some products are listed at more than one price on their site. Both prices are shown.",
+    "product": "Product",
+    "price": "Price",
+    "confidence": "Confidence",
+    "source": "Source",
+    "confidenceLevels": {
+      "high": "From the site's product data",
+      "medium": "Read from the page text",
+      "low": "Low"
+    },
+    "promotions": "Offers and promotions",
+    "messages": "How they describe themselves",
+    "provenance": "Read only from the competitor's own public website, where its robots.txt allows. Each fact links to the page it came from.",
+    "analysisEyebrow": "AI analysis",
+    "analysisTitle": "Analysis",
+    "analysisAt": "Written on {{date}}",
+    "analysisHint": "An AI analysis of the facts KEEL collected about this competitor.",
+    "aiLabel": "AI analysis of the sources below - not verified fact. Each point links to the evidence it is based on.",
+    "analyse": "Analyse",
+    "reanalyse": "Analyse again",
+    "summarise": "Summarise trends",
+    "insufficient": "There isn't enough collected information to analyse yet. Read their website or run a new scan first.",
+    "noAnalysis": "No analysis yet",
+    "noAnalysisHint": "KEEL writes it only from collected facts, citing each one.",
+    "analysis": {
+      "positioning": "Positioning",
+      "target_audience": "Likely audience",
+      "strengths": "Strengths",
+      "weaknesses": "Weaknesses",
+      "differentiators": "What sets them apart",
+      "opportunities": "Opportunities for you"
+    },
+    "analysisErrors": {
+      "offline": "Couldn't reach KEEL. Check your connection and try again.",
+      "planLimit": "Your plan's AI allowance for this period is used up.",
+      "notConfigured": "AI analysis isn't set up on this server yet.",
+      "busy": "KEEL's AI is busy right now. Try again in a minute.",
+      "failed": "The analysis couldn't be written this time. Try again."
+    },
+    "newsEyebrow": "News",
+    "competitorNews": "In the news",
+    "marketEyebrow": "Market",
+    "trendsTitle": "Market trends",
+    "trendsHint": "An AI summary of recent industry news and competitor offers, citing each source.",
+    "trends": "Trends",
+    "watch": "Worth watching",
+    "noTrends": "No clear trend in the news collected so far.",
+    "marketNews": "Industry and competitor news",
+    "newsSource": "Recent articles from news sites in your country, found by the last scan.",
+    "noNewsYet": "No news collected yet",
+    "noNewsHint": "Each competitor scan also looks for recent news about your industry and your tracked competitors.",
+    "otherLanguage": "This analysis was written in another language. Choose “Analyse again” for this one.",
+    "statusShort": {
+      "prices_found": "prices found",
+      "no_price_published": "no prices published",
+      "no_relevant_page": "no product page",
+      "blocked_by_robots": "not allowed",
+      "http_error": "error page",
+      "needs_javascript": "needs JavaScript",
+      "extraction_failed": "couldn't process",
+      "unreachable": "unreachable",
+      "not_public": "not public",
+      "ok": "read",
+      "empty": "nothing to read",
+      "not_own_site": "not their own site",
+      "other_business_site": "another business's site"
+    }
+  },
+  "dashboardActivity": {
+    "open": "Open",
+    "loadError": "This couldn't be loaded.",
+    "campaigns": {
+      "eyebrow": "Marketing",
+      "title": "Campaigns",
+      "total": "{{count}} campaigns saved",
+      "empty": "No campaigns yet",
+      "emptyHint": "Pick a product and KEEL writes a complete campaign for it.",
+      "create": "Create a campaign"
+    },
+    "market": {
+      "eyebrow": "Competitors",
+      "title": "Competitor intelligence",
+      "never": "No competitor scan yet",
+      "neverHint": "Find the businesses competing with you, what they sell and what they charge.",
+      "scan": "Find competitors",
+      "failed": "The last scan couldn't reach its sources.",
+      "result": "Last scan: {{found}} competitors found, {{added}} new."
+    },
+    "updates": {
+      "eyebrow": "Updates",
+      "title": "Recent updates"
+    }
+  },
+  "studio": {
+    "subtitle": "Pick what to promote and KEEL creates one marketing image with its matching caption. Preview, edit, regenerate and save.",
+    "steps": {
+      "what": "What and why",
+      "create": "Create",
+      "review": "Review and save"
+    },
+    "step1Eyebrow": "Step 1",
+    "step1Title": "What are we marketing?",
+    "step1Hint": "Choose one of your products (KEEL already knows its name, price and category), a product link, or describe it.",
+    "noProducts": "No products yet. Add products, or use a link or a description instead.",
+    "productKnown": "KEEL uses the product's details you already saved - nothing to type again.",
+    "goalLabel": "What should the campaign do?",
+    "goals": {
+      "sell": {
+        "title": "Sell more",
+        "description": "Benefits and a clear reason to buy now."
+      },
+      "offer": {
+        "title": "Announce an offer",
+        "description": "A discount or limited-time deal, honestly framed."
+      },
+      "awareness": {
+        "title": "Get known",
+        "description": "Make the brand memorable."
+      },
+      "seasonal": {
+        "title": "Season or occasion",
+        "description": "Ramadan, Eid, holidays and other moments."
+      }
+    },
+    "language": "Campaign language",
+    "languages": {
+      "en": "English",
+      "ar": "Arabic"
+    },
+    "options": "More options (optional)",
+    "audienceLabel": "Who is it for?",
+    "audiencePlaceholder": "e.g. families in Amman, office workers, gift buyers",
+    "lookLabel": "Look and feel",
+    "notesLabel": "Anything else to include?",
+    "photoHint": "Kept with the campaign for your reference. It is never sent to the image service.",
+    "step2Eyebrow": "Step 2",
+    "step2Title": "Create the campaign",
+    "step2Hint": "One click writes the caption and creates the image that goes with it.",
+    "step2HintNoImage": "One click writes the caption. Image creation is turned off on this server.",
+    "summary": "{{what}} · {{goal}} · {{language}}",
+    "yourDescription": "your description",
+    "chooseFirst": "Choose a product, link or description first.",
+    "generate": "Create campaign",
+    "writing": "Writing your campaign…",
+    "creatingImage": "Creating the image…",
+    "elapsed": "{{seconds}} s",
+    "keepOpen": "keep this page open",
+    "imagePrivacy": "The image is created by an outside free AI service from the campaign's text (product name and description). Your photos are never sent.",
+    "reviewEyebrow": "Step 3 · Review and save",
+    "titleLabel": "Campaign title",
+    "savedAt": "Saved {{date}}",
+    "save": "Save changes",
+    "saved": "Saved",
+    "savedNote": "Your changes are saved.",
+    "rewrite": "Write new copy",
+    "delete": "Delete",
+    "confirmDelete": "Delete for good",
+    "cancel": "Cancel",
+    "deleteNamed": "Delete {{title}}",
+    "imageAlt": "Campaign image for {{title}}",
+    "imageOff": "Image creation is turned off on this server.",
+    "imageFailed": "The image couldn't be created this time - the free image services didn't answer. Try again in a minute.",
+    "imageBlocked": "No image was created: your plan's images for this period are used up.",
+    "noImageYet": "No image yet.",
+    "regenerateImage": "New image",
+    "createImage": "Create image",
+    "platforms": "Platforms",
+    "option": "Option {{n}}",
+    "post": "Caption",
+    "copyPost": "Copy post",
+    "copied": "Copied",
+    "headline": "Headline",
+    "caption": "Caption",
+    "description": "Description",
+    "hashtags": "Hashtags",
+    "cta": "Call to action",
+    "charsLeft": "{{count}} characters left",
+    "aiSuggestion": "AI suggestion",
+    "more": "Creative brief and product photo",
+    "historyTitle": "Your campaigns",
+    "historyCount": "{{count}} saved",
+    "searchHistory": "Search campaigns",
+    "noMatch": "No campaign matches that search.",
+    "edited": "edited",
+    "openFailed": "This campaign couldn't be opened.",
+    "emptyTitle": "No campaign open",
+    "emptyHint": "Create one above or open one from your campaigns."
+  },
+  "structure": {
+    "eyebrow": "Market structure",
+    "title": "Your market at a glance",
+    "subtitle": "{{count}} businesses found by your scans, from public listings and their own websites.",
+    "empty": "No scan results yet",
+    "emptyHint": "Run a market scan on the Overview tab to see the shape of your market.",
+    "howClose": "How closely they compete",
+    "chains": "{{count}} of them have more than one branch.",
+    "kinds": "Most common kinds",
+    "distance": "Distance from you",
+    "bands": {
+      "under_1km": "< 1 km",
+      "1_3km": "1–3 km",
+      "3_5km": "3–5 km",
+      "5_10km": "5–10 km",
+      "over_10km": "> 10 km"
+    },
+    "websites": "Websites",
+    "websitesValue": "{{known}} have a website · {{read}} read · {{priced}} publish prices KEEL could read",
+    "prices": "Your products against published competitor prices",
+    "noPrices": "No competitor price matching your products has been found on their websites yet. KEEL only compares prices it found published for the same product.",
+    "product": "Product",
+    "yours": "Your price",
+    "range": "Competitor range",
+    "median": "Median",
+    "seenAt": "Where it was published",
+    "competitors": "{{count}} competitors",
+    "position": {
+      "above": "above all",
+      "below": "below all",
+      "within": "within range"
+    },
+    "provenance": "Counts and prices come only from stored scan results; each price links to the page it was published on."
+  }
+}
