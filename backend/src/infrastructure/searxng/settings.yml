@@ -1,0 +1,29 @@
+# KEEL - Local SearXNG override.
+#
+# `use_default_settings: true` loads everything else (engines, UI, rate
+# limits, etc.) straight from the official searxng/searxng image's own
+# baked-in settings.yml - this file only patches the two things KEEL's
+# own src/market_scraper/searxng_discovery.py actually needs, the real,
+# documented SearXNG customization pattern (not a full settings.yml
+# hand-copied and left to drift from upstream).
+use_default_settings: true
+
+general:
+  instance_name: "KEEL local SearXNG"
+
+server:
+  # Session/CSRF signing secret for this instance - not a provider API
+  # key or account credential, just a random local value this self-hosted
+  # instance signs its own requests with. Generated once for local/
+  # Codespace use (python -c "import secrets; print(secrets.token_hex(32))");
+  # rotate freely, nothing external depends on this specific value.
+  secret_key: "0c661bf316a9238bff1e77cf4e3790be42b997c7183e54d33ac9b5a34b408ac1"
+
+search:
+  # Disabled by default upstream (JSON is a scraping vector for a public
+  # instance) - explicitly enabled here because this instance is private,
+  # single-tenant, and Codespace-local, and searxng_discovery.py's own
+  # module docstring requires format=json to parse results at all.
+  formats:
+    - html
+    - json

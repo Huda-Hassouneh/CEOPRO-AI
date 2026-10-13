@@ -1,0 +1,25 @@
+E2E Pipeline Run 20260901T181822Z - overall status: PARTIAL
+tenant_id=68bf13ff-1782-4814-a7fa-1d370ae1c223 user_id=8cd536f2-a9f9-464d-98b0-69a27852e978
+
+[1_extraction] OK (29.529s)
+    {"job_id": "93dae071-bb3a-49e5-a148-61585b53ba1a", "row_count": 51947, "file_read_seconds": 6.713, "process_records_seconds": 22.75, "rows_per_second": 2283.4, "template_mode": "RECOGNIZED", "is_template_compliant": false, "rows_processed": 51947, "rows_partial": 0, "rows_failed": 0, "data_loss_pct": 0.0}
+
+[2_promotion] OK (23.204s)
+    {"default_currency_used": "JOD", "rows_promoted": 51947, "rows_skipped_incomplete": 0, "rows_failed": 0, "products_created": 109, "promotion_error_count": 0, "promotion_errors_sample": [], "promoted_products": [{"product_id": "01c333a4-b15f-47ca-99fd-1b461f66514f", "product_name": "Solder Sucker Desoldering Pump"}, {"product_id": "060f16ab-47ea-4711-ac5a-4b6ff1022f3d", "product_name": "Wire Stripper & Cutter"}, {"product_id": "079c972e-a63a-4610-bdc9-0702f7eb59f1", "product_name": "74HC595 8-Bit Shift Register"}, {"product_id": "0b2af1f7-b8a2-47c9-b17a-f359da94427c", "product_name": "NEO-6M GPS Module with Antenna"}, {"product_id": "0e3dfb95-dfb0-4025-8975-6977b746e77f", "product_name": "DC Power Jack Male Connector"}, {"product_id": "0e99cc8a-ed27-4a9b-9fae-07e751ff8baa", "product_name": "40-Pin Female Header Strip (5pcs)"}, {"product_id": "0f3f0c23-ad1e-4d16-b2c0-9f39b36f3a07", "product_name": "L293D Quad Motor Driver IC"}, {"product_id": "11037f77-1a09-4a2e-a5de-f76005b850b2", "prod
+
+[3_competitor_scraping] OK (14.479s)
+    {"detected_vertical": {"vertical": "electronics_hobbyist", "confidence": 1.0, "matched_keywords": ["arduino", "raspberry", "sensor", "resistor", "capacitor", "led", "module", "breadboard", "diode", "transistor", "solder", "battery", "motor", "wire", "pcb", "usb", "relay", "stepper", "servo"]}, "geo_scope": {"value": "JO", "source": "companies.country_code", "note": "Applies to build_retail_search_query() for any new discovery call. The candidates below were gathered before this run (see _DISCOVERED_CANDIDATES' docstring on the live-search-API gap) and are not retroactively re-scoped by this value."}, "discoveries": [{"product_name": "Digital Multimeter DT830B", "url": "https://www.impactbattery.com/yellow-digital-multimeter-dt830b.html", "title": "Yellow Digital MultiMeter DT830B", "is_manufacturer_or_wholesale": false, "policy_status": "ALLOWED", "terms_evidence": "Explicitly approved by operator for this run via --live-approve-hosts (host: www.impactbattery.com)", "scraped": true, "s
+
+[4_forecasting] OK (49.428s)
+    {"per_product": {"079c972e-a63a-4610-bdc9-0702f7eb59f1": {"status": "OK", "source": "baseline", "forecast_id": "95b63ba3-036c-49bf-b09f-96ef8586742f", "evidence_id": "d209fa83-f762-4e9d-8cbb-b5434c411564", "expected_demand": 1.1428571428571428, "forecast_target_date": "2026-01-06", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 364, "minimum_required": 30, "confidence_status": "OK"}}, "01c333a4-b15f-47ca-99fd-1b461f66514f": {"status": "OK", "source": "baseline", "forecast_id": "685f43ce-d294-4e9e-957a-76c4a7ee58cf", "evidence_id": "0bed1321-4ab8-47a1-9301-3ec9024fb387", "expected_demand": 2.5714285714285716, "forecast_target_date": "2026-01-06", "confidence_score": 0.4, "data_sufficiency": {"sufficient": true, "available_days": 364, "minimum_required": 30, "confidence_status": "OK"}}, "060f16ab-47ea-4711-ac5a-4b6ff1022f3d": {"status": "OK", "source": "baseline", "forecast_id": "23da7d07-faa1-4f62-a124-eae8f90b19dc", "evidence_id": "6c3066e6-3ec2-4d7
+
+[5_pricing] OK (1.973s)
+    {"per_product": {"079c972e-a63a-4610-bdc9-0702f7eb59f1": {"status": "UNKNOWN", "evidence_id": "1ec8f680-34ef-4f12-8a9b-70f90c73872d"}, "01c333a4-b15f-47ca-99fd-1b461f66514f": {"status": "UNKNOWN", "evidence_id": "85743cac-cb1f-43dd-a4f5-847360c9cb29"}, "060f16ab-47ea-4711-ac5a-4b6ff1022f3d": {"status": "UNKNOWN", "evidence_id": "77caf360-0b83-4f99-8835-2b03f86611ba"}, "0e3dfb95-dfb0-4025-8975-6977b746e77f": {"status": "UNKNOWN", "evidence_id": "0287edd3-204f-4690-93fd-bb8cfcc92fd2"}, "0b2af1f7-b8a2-47c9-b17a-f359da94427c": {"status": "UNKNOWN", "evidence_id": "d637b69e-f5b2-4feb-a50b-15cb525441a7"}, "0e99cc8a-ed27-4a9b-9fae-07e751ff8baa": {"status": "UNKNOWN", "evidence_id": "759d8a6a-bb29-42eb-8c40-396e1ac871f6"}, "0f3f0c23-ad1e-4d16-b2c0-9f39b36f3a07": {"status": "UNKNOWN", "evidence_id": "340fb09d-214b-46a8-ab80-d97f1cceba0b"}, "11037f77-1a09-4a2e-a5de-f76005b850b2": {"status": "UNKNOWN", "evidence_id": "5cd91f87-8234-41f3-8502-e5a87b7e35bf"}, "1bb25adf-53a9-444c-b4e1-3480501069dc":
+
+[6_rag_grounding] OK (13.127s)
+    {"object_key": "68bf13ff-1782-4814-a7fa-1d370ae1c223/e2e-pipeline-summary-cae6d250-8a34-49fc-abcf-f3be90e07213.txt", "documents_ingested": 1}
+
+[7_rag_chat_verification] PARTIAL (11.875s)
+    ! Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): GROQ_API_KEY is not set - cannot call the LLM provider.
+    {}
+

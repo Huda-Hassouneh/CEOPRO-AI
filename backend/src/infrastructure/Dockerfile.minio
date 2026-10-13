@@ -1,0 +1,43 @@
+# ==========================================
+# STAGE 1: BUILD MINIO FROM SOURCE
+# ==========================================
+# Real, permanent upstream change (verified 2026-09-27 against MinIO's own
+# GitHub repo): MinIO archived minio/minio (the community/open-source
+# edition) and removed its prebuilt images from Docker Hub (~Sep 2026) and
+# then from quay.io/minio/minio too (~Sep 24 2026, "the token endpoint
+# still issues a token, but it carries no pull scope") - "pull access
+# denied"/"unauthorized" from either registry is Docker Hub's and Quay's
+# real, permanent response now, not a transient outage or something
+# specific to any one environment (confirmed failing the same way from a
+# real GitHub Codespace, not just this repo's own sandbox). The archived
+# repo's own README now states plainly: "The MinIO community edition is
+# now distributed as source code only." Building from source via `go
+# install` is the project-supported path MinIO itself documents for the
+# free community edition - not a workaround, and not a different storage
+# engine or architecture, just a different way of obtaining the exact
+# same open-source MinIO server this repo has always run. Pinned to the
+# exact pseudo-version `@latest` resolved to on 2026-09-27
+# (v0.0.0-20260212201848-7aac2a2c5b7c) for a reproducible build - the
+# upstream repo is now read-only/archived, so this pin will never drift.
+FROM golang:1.24-alpine AS minio-builder
+# ca-certificates only - `go install` fetches this already-indexed module
+# straight from the public Go module proxy over HTTPS (verified: a plain
+# `go install github.com/minio/minio@<this pin>` on an unmodified host
+# resolved and built successfully without git ever being invoked); git is
+# only needed as a go-tool fallback for modules NOT served by the proxy,
+# which doesn't apply here.
+RUN apk add --no-cache ca-certificates
+RUN go install github.com/minio/minio@v0.0.0-20260212201848-7aac2a2c5b7c
+
+# ==========================================
+# STAGE 2: RUNTIME
+# ==========================================
+FROM alpine:3.20 AS minio-runtime
+RUN apk add --no-cache curl ca-certificates
+COPY --from=minio-builder /go/bin/minio /usr/bin/minio
+VOLUME /data
+EXPOSE 9000 9001
+HEALTHCHECK --interval=5s --timeout=5s --retries=5 \
+    CMD curl -f http://localhost:9000/minio/health/live || exit 1
+ENTRYPOINT ["minio"]
+CMD ["server", "/data", "--console-address", ":9001"]
