@@ -1,0 +1,24 @@
+.pricing-page { width: 100%; min-width: 0; display: grid; gap: 18px; }
+.pricing-filters { max-width: 360px; }
+.pricing-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; border: 1px solid var(--ceopro-border); border-radius: 9px; }
+.pricing-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; }
+.pricing-table th, .pricing-table td { padding: 12px 14px; border-bottom: 1px solid var(--ceopro-border-soft); text-align: start; }
+.pricing-table th { background: var(--apex-glass); color: var(--ceopro-text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.pricing-table tbody tr:last-child td { border-bottom: 0; }
+.pricing-table-sub { display: block; margin-top: 2px; color: var(--ceopro-text-muted); font-size: 11px; }
+.pricing-link-action { display: inline-flex; align-items: center; gap: 5px; border: none; background: none; padding: 0; color: var(--ceopro-primary); font-size: 12px; font-weight: 600; cursor: pointer; }
+.pricing-link-action:hover { text-decoration: underline; }
+
+.pricing-recommendation-headline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.pricing-recommendation-prices { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.pricing-recommendation-prices strong { font-size: 18px; color: var(--ceopro-primary); }
+.pricing-recommendation-prices span:first-child { color: var(--ceopro-text-muted); text-decoration: line-through; }
+.pricing-recommendation-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; padding: 12px; border: 1px solid var(--ceopro-border-soft); border-radius: 8px; background: var(--apex-glass); }
+.pricing-recommendation-meta dt { color: var(--ceopro-text-muted); font-size: 11px; }
+.pricing-recommendation-meta dd { margin: 2px 0 0; font-size: 14px; font-weight: 700; color: var(--ceopro-text-primary); }
+.pricing-recommendation-guardrail-note { margin: 0 0 10px; padding: 8px 10px; border-radius: 6px; background: var(--apex-glass); color: var(--apex-warning); font-size: 12px; }
+.pricing-recommendation-explanation { margin: 0; color: var(--ceopro-text-secondary); font-size: 13px; line-height: 1.55; }
+
+@media (max-width: 760px) {
+  .pricing-filters { max-width: none; }
+}

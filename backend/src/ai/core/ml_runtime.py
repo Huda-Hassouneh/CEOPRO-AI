@@ -1,0 +1,75 @@
+"""
+One process-wide lock for importing ML libraries and loading models.
+
+Found in first-customer acceptance testing: importing a review file starts
+sentiment analysis in a background thread (transformers) while a PDF upload
+in a request thread loads the RAG embedder (sentence_transformers, which
+imports transformers too). Two threads importing the same large package at
+once can see it half-initialised - the upload failed with "cannot import
+name 'is_torch_npu_available' from 'transformers'" and that document never
+reached the assistant. Serialising first-time imports/loads also stops two
+requests from loading the same ~1 GB model twice.
+"""
+import threading
+
+ML_LOAD_LOCK = threading.RLock()
+
+
+_UNOBTAINABLE_UNTIL = {}  # model name -> monotonic time before which it isn't re-probed
+UNOBTAINABLE_RETRY_SECONDS = 600
+
+
+def model_obtainable(model_name: str, probe_timeout: float = 3.0) -> bool:
+    """Cached wrapper: a model found unavailable isn't probed again for
+    UNOBTAINABLE_RETRY_SECONDS, so a blocked host costs one probe per ten
+    minutes instead of one per request."""
+    import time
+
+    if _UNOBTAINABLE_UNTIL.get(model_name, 0) > time.monotonic():
+        return False
+    ok = _model_obtainable(model_name, probe_timeout)
+    if not ok:
+        _UNOBTAINABLE_UNTIL[model_name] = time.monotonic() + UNOBTAINABLE_RETRY_SECONDS
+    return ok
+
+
+def _model_obtainable(model_name: str, probe_timeout: float = 3.0) -> bool:
+    """True when a Hugging Face model can be loaded: its files are already in
+    the local cache, it is a local path, or the hub answers within
+    `probe_timeout` seconds. Lets callers fail in seconds instead of sitting
+    through the hub client's own retries (~100 s) when the host is blocked."""
+    import os
+
+    if not model_name or os.path.isdir(model_name):
+        return True
+    try:
+        from huggingface_hub import try_to_load_from_cache
+
+        # The weights, not just config.json - an interrupted download leaves
+        # the small files cached and the weights as *.incomplete.
+        for weights in ("model.safetensors", "pytorch_model.bin"):
+            if isinstance(try_to_load_from_cache(model_name, weights), str):
+                return True
+    except Exception:  # noqa: BLE001 - library missing or odd cache: fall through to the probe
+        pass
+    if os.getenv("HF_HUB_OFFLINE") == "1":
+        return False  # offline and the weights aren't cached: loading can only fail
+    import urllib.error
+    import urllib.request
+
+    endpoint = os.getenv("HF_ENDPOINT", "https://huggingface.co").rstrip("/")
+    # Probe the weights download itself (it redirects to a separate file
+    # host), not just the hub API - the API can be reachable while the file
+    # host is blocked, which is exactly the slow-failure case.
+    for weights in ("model.safetensors", "pytorch_model.bin"):
+        request = urllib.request.Request(f"{endpoint}/{model_name}/resolve/main/{weights}", method="HEAD")
+        try:
+            urllib.request.urlopen(request, timeout=probe_timeout)
+            return True
+        except urllib.error.HTTPError as err:
+            if err.code == 404:
+                continue  # this repo ships the other weights format
+            return False
+        except Exception:  # noqa: BLE001 - unreachable, refused, blocked
+            return False
+    return False

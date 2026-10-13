@@ -1,0 +1,45 @@
+name: Check competitor source links
+
+# Opens the source links KEEL saved for competitors (business pages,
+# venues, websites) from a machine with normal internet access and reports
+# each one's HTTP status, so a link shown on the Competitors page can be
+# checked from outside the environment that found it. Read-only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: Links to open, separated by spaces
+        required: true
+  push:
+    branches: [claude/dreamy-allen-huyq8o]
+    paths: [.github/source-links-to-check.txt]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open each link
+        env:
+          URLS: ${{ inputs.urls }}
+        run: |
+          if [ -z "$URLS" ]; then URLS=$(cat .github/source-links-to-check.txt); fi
+          ok=0; total=0
+          echo "| Status | Final address | Link |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for url in $URLS; do
+            case "$url" in http://*|https://*) ;; *) continue ;; esac
+            total=$((total + 1))
+            result=$(curl -s -L -o /dev/null -m 25 --max-redirs 8 \
+              -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36" \
+              -w '%{http_code} %{url_effective}' "$url" || echo "000 -")
+            code=${result%% *}; final=${result#* }
+            case "$code" in 2*|3*) ok=$((ok + 1)) ;; esac
+            echo "$code $url -> $final"
+            echo "| $code | $final | $url |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "$ok of $total links opened (2xx/3xx)"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**$ok of $total links opened (2xx/3xx).**" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,139 @@
+xgboost>=2.0,<3.0
+pandas>=2.0,<3.0
+numpy>=2.3,<3.0  # rembg >=2.0.75 (security fix) needs numpy 2.3+
+# Never import sklearn directly - this is here because xgboost.XGBRegressor
+# (model.py) hard-requires it internally and raises ImportError without it,
+# confirmed by testing in a venv with xgboost but no scikit-learn installed.
+scikit-learn>=1.3,<2.0
+psycopg2-binary>=2.9,<3.0
+redis>=5.0,<6.0
+# src/market_scraper/credential_vault.py's Fernet envelope encryption -
+# imported transitively via src/market_scraper/data_access.py, which
+# routers/competitors.py -> discovery.py pulls in. Same version pin as
+# src/market_scraper/requirements.txt for consistency.
+cryptography>=42.0,<51.0
+rank-bm25>=0.2,<0.3
+minio>=7.2,<8.0
+sentence-transformers>=5.6,<6.0
+faiss-cpu>=1.8,<2.0
+# XLM-RoBERTa-based sentiment classifier (spec S16) - transformers is already
+# a transitive dependency of sentence-transformers, pinned here explicitly
+# since src/ai/sentiment/model.py imports it directly. sentencepiece and
+# protobuf are XLM-RoBERTa's slow-tokenizer requirements - without them,
+# AutoTokenizer.from_pretrained fails on this model. torch is likewise
+# already pulled in transitively by transformers/sentence-transformers, but
+# sentiment/model.py imports it directly too (torch.no_grad(), torch.softmax())
+# - same reasoning as transformers above, pinned explicitly rather than
+# relying on an indirect dependency staying compatible by chance. CPU-only
+# per the confirmed Orange deployment target (PENDING_ACTIONS.md #13) - no
+# GPU-specific extras needed.
+transformers>=5.10,<6.0
+sentencepiece>=0.2,<0.3
+protobuf>=4.25,<8.0
+torch>=2.0,<3.0
+pytest>=9.0.3,<10.0
+# extraction/adapters' pdf_adapter.py and xlsx_adapter.py import these directly -
+# both were used in code already landed on main without being added here, so
+# every extraction of a PDF/XLSX source failed with ModuleNotFoundError.
+pdfplumber>=0.11,<0.12
+openpyxl>=3.1,<4.0
+# rag/data_access.py::fetch_document_text() - Word document ingestion
+# (2026-09-01 review). pdfplumber above already covers PDF; python-docx is
+# the lightweight, pure-Python equivalent for .docx, no heavy transitive
+# dependencies of its own.
+python-docx>=1.1,<2.0
+# transformers.Trainer/TrainingArguments (sentiment/finetune.py) hard-require
+# this - confirmed directly: without it, Trainer() raises ImportError at
+# construction time ("Using the Trainer with PyTorch requires accelerate>=1.1.0").
+# Not needed by model.py's classify() (plain inference, no Trainer involved).
+accelerate>=1.1.0,<2.0
+# main.py/Dockerfile.ai (PENDING_ACTIONS.md #2/#25's RLS-enforcement gap) -
+# the service that finally connects as the restricted ceopro_app role instead
+# of the superuser ceopro_admin. Nothing in the repo declared fastapi
+# anywhere before this despite src/infrastructure/security.py already
+# importing it with no requirements file installing it - closed here as a
+# side effect, not otherwise touched (that file is infra-owned).
+fastapi>=0.110,<1.0
+uvicorn>=0.29,<1.0
+PyJWT>=2.8,<3.0
+# core/security.py::hash_password()/verify_password() - POST /auth/login
+# (production-hardening pass, closing the "no JWT-issuing service exists"
+# gap main.py's own original docstring flagged). bcrypt directly, not
+# passlib - passlib's own bcrypt backend just wraps this same package,
+# and passlib's last release predates this package's current major
+# version, so using it directly avoids a real compatibility footgun for
+# no loss of functionality this endpoint actually needs.
+bcrypt>=4.1,<5.0
+# main.py's /extraction/upload endpoint takes a multipart file upload
+# (fastapi.UploadFile/File) - FastAPI requires this separately, it isn't
+# bundled with fastapi itself; confirmed by testing (ModuleNotFoundError
+# without it).
+python-multipart>=0.0.9,<0.1
+# fastapi.testclient.TestClient (tests/test_main.py) requires httpx as of
+# FastAPI 0.110+ - test-only, but declared here since there's no separate
+# test-requirements file in this repo.
+httpx>=0.27,<1.0
+# Overture Maps places (competitor discovery): reads its GeoParquet files
+pyarrow==17.0.0
+# extraction/adapters/csv_adapter.py's legacy-encoding fallback (Windows-1256/
+# 1252/UTF-16 CSV exports) - already installed via requests, pinned explicitly.
+charset-normalizer>=3.0,<4.0
+# core/calendar.py's country -> default timezone at signup (already installed
+# via pandas), pinned explicitly.
+pytz>=2023.3
+# market_inputs/customer_reviews.py's review-date parsing (already installed
+# via pandas), pinned explicitly.
+python-dateutil>=2.8
+# scripts/run_e2e_pipeline.py's per-stage memory reporting (process RSS) -
+# stdlib `resource` doesn't exist on Windows, psutil is cross-platform.
+psutil>=5.9,<8.0
+# src/ai/marketing/url_extractor.py's "Product URL" input mode - same
+# schema.org JSON-LD/microdata/OpenGraph parser src/market_scraper's own
+# JS-widget fallback (spiders/market_source.py) already depends on, same
+# version pin as src/market_scraper/requirements.txt for consistency. Pulls
+# in lxml transitively (also used here directly for the plain-<title>
+# fallback when a page has no structured markup at all).
+extruct>=0.18,<1.0
+# src/market_scraper/collectors.py imports every spider in spiders/*.py at
+# module level, and every one of them does `import scrapy` - reached from
+# this app's own routers/competitors.py (-> enqueue.py -> collectors.py),
+# not just the standalone scraper worker. Was only declared in
+# src/market_scraper/requirements.txt, a file nothing here (this app's own
+# Dockerfile.ai, or CI) ever installs from - a real, confirmed gap: every
+# fresh install of *this* requirements.txt left routers/competitors.py
+# (and everything that transitively imports it) unable to import at all.
+# Same version pin as src/market_scraper/requirements.txt for consistency.
+Scrapy>=2.11,<3.0
+# src/market_scraper/worker.py/maintenance.py/metrics.py all import this at
+# module level - same class of gap as Scrapy above (declared only in
+# src/market_scraper/requirements.txt), caught once `pytest src/` actually
+# collects src/market_scraper/tests/test_worker.py (pr-checks.yml's own
+# recent fix - it never ran that file before). Same version pin as
+# src/market_scraper/requirements.txt for consistency.
+prometheus-client>=0.20,<1.0
+# src/ai/marketing/background_removal.py's "rembg" provider - free,
+# open-source (MIT), no API key, no external network call at inference
+# time (only a one-time ~4.7MB model download from GitHub on first use,
+# cached to disk after). Imported lazily inside that module, never at
+# import time, specifically so installing this dependency costs nothing in
+# memory unless MARKETING_BACKGROUND_REMOVAL_PROVIDER=rembg is both set
+# AND actually invoked - see that module's own docstring for why:
+# measured in this repo's own dev sandbox, `import rembg` alone costs
+# ~220MB RSS, and one real background-removal inference (smallest
+# available model, u2netp) peaks at ~520-540MB RSS in an otherwise-bare
+# process - already at or over Render's free-tier 512MB total, before this
+# service's own baseline (torch/transformers/sentence-transformers/faiss,
+# all already resident for RAG/sentiment) is added on top. NOT safe to
+# enable on the current $0 Render staging plan - kept off by default,
+# documented in MARKETING_AI_CAPABILITIES.md.
+rembg>=2.0.75,<3.0
+onnxruntime>=1.30,<2.0
+# billing/ - Stripe Checkout, customer portal and signed webhooks.
+stripe==15.6.1
+# Error tracking (src/infrastructure/monitoring/error_tracking.py); inactive without SENTRY_DSN.
+sentry-sdk[fastapi]>=2.20,<3.0
+# Printable sales report (dashboard/sales_pdf.py): the PDF library, plus
+# Arabic letter shaping and right-to-left ordering for the Arabic version.
+reportlab>=4.2,<5.0
+arabic-reshaper>=3.0,<4.0
+python-bidi>=0.6,<1.0
