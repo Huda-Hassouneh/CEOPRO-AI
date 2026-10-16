@@ -71,7 +71,9 @@ _LEAVES: Dict[str, Tuple[CategoryPath, List[str], List[str]]] = {
                ["cake", "cakes", "pastry", "patisserie", "dessert", "desserts", "sweets", "chocolate", "knafeh", "kunafa",
                 "حلويات", "كنافة", "كيك"],
                ["dessert_shop", "dessert_restaurant", "confectionery", "chocolate_shop"]),
-    "bakery": (("food", "bakery", "bread"),
+    # A bakery sells bread AND pastry/sweets/cakes, and sweets shops sell baked
+    # goods - they compete, so they share a segment with the desserts leaves.
+    "bakery": (("food", "desserts", "bakery"),
                ["bakery", "bread", "manakish", "مخبز", "فرن"],
                ["bakery"]),
     "coffee": (("food", "beverages", "coffee"),
@@ -156,7 +158,7 @@ _SEARCH_LABELS: Dict[CategoryPath, str] = {
     ("food", "desserts", "donuts"): "donut shop",
     ("food", "desserts", "ice_cream"): "ice cream shop",
     ("food", "desserts", "sweets"): "dessert shop",
-    ("food", "bakery", "bread"): "bakery",
+    ("food", "desserts", "bakery"): "bakery",
     ("food", "beverages", "coffee"): "coffee shop",
     ("food", "beverages", "juice"): "juice bar",
     ("grocery", "supermarket"): "supermarket",

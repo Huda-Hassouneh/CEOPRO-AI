@@ -126,6 +126,16 @@ class ClassificationResult:
     evidence_id: Optional[str] = None
 
 
+def load_tenant_category_paths(conn, tenant_id: str) -> list:
+    """The tenant's category paths, loaded once. A batch re-score computes
+    this a single time and passes it to every classify_competitor() call
+    instead of re-reading the whole product catalog per competitor."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT business_type FROM companies WHERE tenant_id = %s;", (tenant_id,))
+        row = cursor.fetchone()
+        return _tenant_category_paths(cursor, tenant_id, row[0] if row else None)
+
+
 def _tenant_category_paths(cursor, tenant_id: str, business_type: Optional[str]) -> list:
     """The category paths this tenant operates in, from its own product
     names (every language variant of the JSONB name) plus business_type."""
@@ -330,6 +340,8 @@ def classify_competitor(
     conn, tenant_id: str, global_competitor_id: str,
     threshold: float = DEFAULT_MATCH_RATE_THRESHOLD,
     broad_domain_threshold: float = DEFAULT_BROAD_DOMAIN_THRESHOLD,
+    apply_tracking: bool = True,
+    tenant_category_paths: Optional[list] = None,
 ) -> ClassificationResult:
     """
     Computes and persists the classification for one tenant_competitors
@@ -349,6 +361,14 @@ def classify_competitor(
     at query time (see data_access.py::list_tenant_competitors_by_proximity),
     not something baked into is_confirmed_competitor here.
     """
+    # apply_tracking=True (a competitor being registered): the classification
+    # decides whether it is tracked, within the plan cap. apply_tracking=False
+    # (RE-SCORING one that already exists, e.g. after every discovery pass):
+    # scores, category and evidence are refreshed, but a competitor that is
+    # not tracked is never promoted to tracked, and its tier is left alone -
+    # the owner (or the discovery pipeline's own auto-track thresholds)
+    # decides that, not a re-score. Either way an owner's explicit choice
+    # (tenant_competitors.tracking_decision) is final.
     if not 0.0 <= threshold <= 1.0:
         raise ValueError("threshold must be between 0.0 and 1.0")
     if not 0.0 <= broad_domain_threshold <= 1.0:
@@ -380,7 +400,8 @@ def classify_competitor(
             tenant_country, tenant_operating_countries, tenant_lat, tenant_lon, tenant_business_type,
             search_scope_level, search_radius_km,
         ) = company_row
-        tenant_category_paths = _tenant_category_paths(cursor, tenant_id, tenant_business_type)
+        if tenant_category_paths is None:
+            tenant_category_paths = _tenant_category_paths(cursor, tenant_id, tenant_business_type)
 
         cursor.execute(
             "SELECT discovery_method FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
@@ -393,11 +414,11 @@ def classify_competitor(
 
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT tier, confidence_score, evidence_id FROM tenant_competitors "
+            "SELECT tier, confidence_score, evidence_id, is_tracked, tracking_decision FROM tenant_competitors "
             "WHERE tenant_id = %s AND global_competitor_id = %s;",
             (tenant_id, global_competitor_id),
         )
-        previous_tier, previous_score, previous_evidence_id = cursor.fetchone()
+        previous_tier, previous_score, previous_evidence_id, currently_tracked, tracking_decision = cursor.fetchone()
 
     matched_product_count, total_products = _matched_and_total_product_counts(
         conn, tenant_id, global_competitor_id
@@ -463,6 +484,7 @@ def classify_competitor(
         category_similarity is not None
         and category_similarity < MIN_COMPETING_SIMILARITY
         and discovery_method is not None
+        and tracking_decision != "USER_TRACKED"
         and match_rate < threshold
     )
 
@@ -553,6 +575,22 @@ def classify_competitor(
     room = usage.capacity_left(conn, tenant_id, usage.TRACKED_COMPETITORS) if confirmed else 0
     may_track = room is None or room > 0
 
+    if tracking_decision == "USER_UNTRACKED":
+        new_tracked, new_tier = False, previous_tier
+    elif tracking_decision == "USER_TRACKED":
+        # The owner chose this competitor: never dropped by a rule, and kept
+        # visible (a CANDIDATE tier would hide it from the directory).
+        new_tracked, new_tier = True, (tier if confirmed else TIER_RELEVANT)
+    elif not confirmed:
+        new_tracked, new_tier = False, tier  # excluded, whatever it was before
+    elif currently_tracked:
+        new_tracked, new_tier = True, tier
+    elif apply_tracking:
+        new_tracked, new_tier = may_track, tier
+    else:
+        new_tracked, new_tier = False, previous_tier  # re-score: not tracked stays not tracked
+    tier = new_tier if new_tier is not None else tier
+
     # Spec S22: confidence is not implemented independently - the assessment
     # is recorded in the shared evidence_records trail. UNKNOWN when there is
     # no category evidence and no product overlap to judge by; otherwise a
@@ -590,7 +628,7 @@ def classify_competitor(
             """
             UPDATE tenant_competitors
             SET product_match_rate = %s, is_confirmed_competitor = %s,
-                is_tracked = CASE WHEN NOT %s THEN FALSE WHEN tenant_competitors.is_tracked THEN TRUE ELSE %s END,
+                is_tracked = %s,
                 classified_at = %s, tier = %s,
                 competitor_scope = %s, distance_km = %s,
                 category_similarity = %s, confidence_score = %s, confidence_label = %s,
@@ -599,7 +637,7 @@ def classify_competitor(
             WHERE tenant_id = %s AND global_competitor_id = %s;
             """,
             (
-                match_rate, confirmed, confirmed, may_track, datetime.now(timezone.utc), tier,
+                match_rate, confirmed or tracking_decision == "USER_TRACKED", new_tracked, datetime.now(timezone.utc), tier,
                 scope, distance_km, category_similarity, confidence.score, confidence.label,
                 json.dumps(confidence.reasons), reason, json.dumps(confidence.breakdown), evidence_id,
                 tenant_id, global_competitor_id,
@@ -634,7 +672,9 @@ def reclassify_all_for_tenant(conn, tenant_id: str, threshold: float = DEFAULT_M
     including ones previously tracked - the way rows classified before the
     category rules existed (a donut shop under a burger restaurant) get
     re-scored, demoted to CANDIDATE, and given a confidence score. Safe to
-    re-run. Returns a count per resulting tier plus how many were demoted."""
+    re-run. Never starts tracking a competitor that is not tracked and never
+    overturns an owner's explicit choice. Returns a count per resulting tier
+    plus how many were demoted."""
     with conn.cursor() as cursor:
         cursor.execute(
             "SELECT global_competitor_id, tier FROM tenant_competitors WHERE tenant_id = %s;", (tenant_id,),
@@ -643,9 +683,12 @@ def reclassify_all_for_tenant(conn, tenant_id: str, threshold: float = DEFAULT_M
 
     counts = {TIER_STRATEGIC: 0, TIER_RELEVANT: 0, TIER_CANDIDATE: 0}
     demoted = 0
+    tenant_paths = load_tenant_category_paths(conn, tenant_id)  # once, not once per competitor
     for competitor_id, old_tier in rows:
-        result = classify_competitor(conn, tenant_id, competitor_id, threshold=threshold)
-        counts[result.tier] += 1
+        result = classify_competitor(
+            conn, tenant_id, competitor_id, threshold=threshold, apply_tracking=False, tenant_category_paths=tenant_paths,
+        )
+        counts[result.tier] = counts.get(result.tier, 0) + 1
         if result.tier == TIER_CANDIDATE and old_tier in (TIER_STRATEGIC, TIER_RELEVANT):
             demoted += 1
     return {"reclassified": len(rows), "by_tier": counts, "demoted_to_candidate": demoted}
