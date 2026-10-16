@@ -110,7 +110,7 @@ def _map_product_with_price(conn, tenant_id, product_id, competitor_id, your_pri
 def test_returns_empty_groups_for_a_tenant_with_no_competitors(conn):
     tenant_id = _insert_company(conn)
     conn.commit()
-    assert get_competitor_directory(conn, tenant_id) == {"strategic": [], "relevant": []}
+    assert get_competitor_directory(conn, tenant_id) == {"strategic": [], "relevant": [], "possible": []}
 
 
 def test_strategic_competitor_shows_name_tier_website_and_exact_overlap_pct(conn):
@@ -166,7 +166,7 @@ def test_omits_untracked_candidate_tier_competitors_entirely(conn):
     conn.commit()
 
     directory = get_competitor_directory(conn, tenant_id)
-    assert directory == {"strategic": [], "relevant": []}
+    assert directory == {"strategic": [], "relevant": [], "possible": []}
 
 
 def test_groups_are_sorted_alphabetically_by_name(conn):
@@ -352,9 +352,12 @@ def test_directory_is_ordered_by_confidence_best_first_and_carries_details(conn)
             (["food", "snacks", "pizza"], high),
         )
 
-    relevant = get_competitor_directory(conn, tenant_id)["relevant"]
+    directory = get_competitor_directory(conn, tenant_id)
+    relevant = directory["relevant"]
 
-    assert [c["name"] for c in relevant] == ["Zebra High", "Mid Co", "Aardvark Low"]
+    # the Low-confidence row with nothing in common is a weak lead, kept apart
+    assert [c["name"] for c in relevant] == ["Zebra High", "Mid Co"]
+    assert [c["name"] for c in directory["possible"]] == ["Aardvark Low"]
     top = relevant[0]
     assert top["confidence_label"] == "High" and top["confidence_score"] == 88.0
     assert top["category"] == "food > snacks > pizza"
@@ -365,3 +368,26 @@ def test_directory_is_ordered_by_confidence_best_first_and_carries_details(conn)
     assert top["confidence_reasons"] == ["Closely related category"]
     assert top["found_via"] == "MANUAL"
     assert top["summary_line"].startswith("High confidence relevant competitor")
+
+
+def test_weak_low_confidence_leads_are_listed_apart_from_relevant(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    weak = _insert_tracked_competitor(conn, tenant_id, "Weak Lead", TIER_RELEVANT, 0.0)
+    solid = _insert_tracked_competitor(conn, tenant_id, "Solid Co", TIER_RELEVANT, 0.3)
+    unscored = _insert_tracked_competitor(conn, tenant_id, "Unscored Co", TIER_RELEVANT, 0.1)
+    low_but_sells_your_product = _insert_tracked_competitor(conn, tenant_id, "Overlap Co", TIER_RELEVANT, 0.3)
+    conn.commit()
+    _map_product_with_price(conn, tenant_id, product_id, low_but_sells_your_product, your_price=10.0, their_price=9.0)
+    with conn.cursor() as cursor:
+        for cid, label, score in ((weak, "Low", 20.0), (solid, "Medium", 55.0), (low_but_sells_your_product, "Low", 30.0)):
+            cursor.execute(
+                "UPDATE tenant_competitors SET confidence_label = %s, confidence_score = %s "
+                "WHERE tenant_id = %s AND global_competitor_id = %s;", (label, score, tenant_id, cid),
+            )
+    conn.commit()
+
+    directory = get_competitor_directory(conn, tenant_id)
+
+    assert [c["name"] for c in directory["possible"]] == ["Weak Lead"]
+    assert {c["name"] for c in directory["relevant"]} == {"Solid Co", "Unscored Co", "Overlap Co"}

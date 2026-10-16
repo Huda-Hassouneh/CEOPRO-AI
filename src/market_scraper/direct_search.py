@@ -72,12 +72,14 @@ check, as the record above shows (10 of 12 tested here) - that's the
 mechanism working as intended, not a shortfall to route around.
 """
 import json
+import os
 import re
 import urllib.request
 from typing import List, Optional
 from urllib.parse import quote, urljoin
 
 from src.market_scraper.discovery import CandidateSource, _fetch_robots_allows
+from src.market_scraper.retailer_geo import known_origin_country
 
 _USER_AGENT = "CEOPRO-MarketResearchBot/1.0"
 _FETCH_TIMEOUT = 15
@@ -94,6 +96,17 @@ _FETCH_TIMEOUT = 15
 RETAILER_DOMAINS_BY_VERTICAL = {
     "electronics_hobbyist": ["www.sparkfun.com", "www.impactbattery.com", "www.makershed.com", "www.dfrobot.com"],
 }
+
+def retailer_domains_for(vertical: str, tenant_country: Optional[str], operating_countries=()) -> List[str]:
+    """RETAILER_DOMAINS_BY_VERTICAL[vertical] filtered to retailers that
+    actually serve the tenant's market (see RETAILER_DOMAIN_ORIGIN)."""
+    markets = {c for c in [tenant_country, *(operating_countries or [])] if c}
+    kept = []
+    for domain in RETAILER_DOMAINS_BY_VERTICAL.get(vertical, []):
+        origin = known_origin_country(domain)
+        if origin is None or not markets or origin in markets:
+            kept.append(domain)
+    return kept
 
 
 def _fetch(url: str) -> Optional[str]:

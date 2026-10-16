@@ -199,9 +199,10 @@ def _summary_line(
 
 
 def get_competitor_directory(conn, tenant_id: str) -> dict:
-    """Returns {"strategic": [...], "relevant": [...]} - the exact two
-    groups and fields the frontend needs (see this module's own
-    docstring). Each group is ordered by confidence_score, best first (ties
+    """Returns {"strategic": [...], "relevant": [...], "possible": [...]} -
+    the two main groups and fields the frontend needs (see this module's own
+    docstring) plus "possible": weak leads (Low confidence, no shared
+    products) kept out of the main lists. Each group is ordered by confidence_score, best first (ties
     and unscored rows fall back to alphabetical)."""
     with conn.cursor() as cursor:
         cursor.execute(
@@ -225,6 +226,7 @@ def get_competitor_directory(conn, tenant_id: str) -> dict:
 
     strategic = []
     relevant = []
+    possible = []
     for (global_competitor_id, name, website_url, tier, match_rate, classified_at,
          confidence_score, confidence_label, confidence_reasons,
          distance_km, competitor_scope, discovery_method, category_similarity,
@@ -287,6 +289,16 @@ def get_competitor_directory(conn, tenant_id: str) -> dict:
         if tier == TIER_STRATEGIC:
             strategic.append({**common_fields, "overlap_pct": overlap_pct})
         else:
-            relevant.append({**common_fields, "price_comparisons": price_pairs})
+            entry = {**common_fields, "price_comparisons": price_pairs}
+            # A scored LOW-confidence competitor with no product in common is
+            # a weak lead (category unknown or only broadly related, nothing
+            # sold in common), not a competitor to act on - listed apart so
+            # the main Relevant list stays trustworthy. Unscored rows
+            # (confidence_label None) stay in Relevant: absence of a score is
+            # not evidence of weakness.
+            if confidence_label == "Low" and not price_pairs:
+                possible.append(entry)
+            else:
+                relevant.append(entry)
 
-    return {"strategic": strategic, "relevant": relevant}
+    return {"strategic": strategic, "relevant": relevant, "possible": possible}

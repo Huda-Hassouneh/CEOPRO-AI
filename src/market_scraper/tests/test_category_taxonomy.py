@@ -92,3 +92,38 @@ def test_catalog_with_no_signal_is_empty_and_similarity_unknown():
 
 def test_business_type_counts_toward_the_tenant_category():
     assert categorize_catalog(["Item 1"], business_type="Burger restaurant") == [BURGER]
+
+
+# --- extended coverage + discovery search keywords ---
+
+from src.market_scraper.category_taxonomy import search_keyword_for_path
+
+
+def test_additional_business_types_are_recognised():
+    assert categorize("Glow Hair Salon").path == ("beauty", "salon")
+    assert categorize("Iron Gym").path == ("fitness", "gym")
+    assert categorize("Al Noor Bookstore").path == ("retail", "books_stationery")
+    assert categorize("Quick Fix Garage").path == ("auto", "repair")
+    assert categorize("X", ["pet_store"]).path == ("retail", "pets")
+    assert categorize("X", ["jewelry_store"]).path == ("retail", "jewelry")
+
+
+def test_a_salon_and_a_gym_do_not_compete():
+    assert category_similarity(categorize("Glow Salon").path, categorize("Iron Gym").path) == 0.0
+
+
+def test_search_keyword_targets_the_segment_not_the_vertical():
+    assert search_keyword_for_path(BURGER) == "burger restaurant"
+    assert search_keyword_for_path(DONUTS) == "donut shop"
+
+
+def test_search_keyword_falls_back_to_a_broader_category():
+    assert search_keyword_for_path(("food", "bakery", "something_new")) == "restaurant"
+    assert search_keyword_for_path(None) is None
+    assert search_keyword_for_path(("unknown",)) is None
+
+
+def test_every_known_leaf_has_a_search_keyword():
+    import src.market_scraper.category_taxonomy as taxonomy
+    for name, (path, _, _) in taxonomy._LEAVES.items():
+        assert search_keyword_for_path(path), name

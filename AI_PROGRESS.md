@@ -1673,6 +1673,44 @@ regressions elsewhere from anything in PR #32. Full offline suite re-confirmed c
 0 failed. No code changes in this pass - this is a testing-only follow-up closing the verification
 gap PR #32 itself flagged.
 
+## 2026-10-16 — Competitor relevance: category-aware tiers, confidence ranking, real details
+
+**Problem (reported):** the competitor list showed irrelevant "medium" competitors (a donut shop for a
+burger restaurant), wasn't ordered by confidence, and list items were nearly empty.
+
+**Root cause:** `RELEVANT` meant only "in-region and not a manufacturer" - there was no category check
+anywhere; Places-nearby finds were promoted straight to `STRATEGIC`; `sector_detection.py`'s verticals
+are too coarse (burger and donuts are both `food_beverage`); the directory sorted alphabetically; and
+Places lookups only fetched website/geometry/address.
+
+**Built:**
+- `market_scraper/category_taxonomy.py` - hierarchical category paths (`food > snacks > burger`), from
+  Google Places types then name keywords (EN + AR); `category_similarity()` (burger/pizza 0.67 compete,
+  burger/donuts 0.33 don't, generic restaurant 0.5 related-but-never-strong); search labels so discovery
+  looks for the tenant's segment.
+- `classify_competitor()` - different segment -> `CANDIDATE`; same segment -> `STRATEGIC`; related or
+  unverifiable -> `RELEVANT`. Manual adds and >= 60% product overlap are never excluded by category.
+- `ai/pricing/competitor_confidence.py` - 0-100 score (category/products/proximity/evidence) with reasons;
+  directory ordered best-first; weak leads under a separate `possible` key.
+- Details: address, phone, rating, rating count, place types, distance, category, category match %,
+  found-via, richer summary line. Migration `20261016000000`.
+- `discovery.refresh_tenant_competitors()` (name repair + re-score) runs after every discovery pass and
+  via `POST /competitors/reclassify`.
+- `retailer_geo.py` - seeded retailers only used for tenants in their origin country (operator override
+  `RETAILER_INTERNATIONAL_DOMAINS`).
+
+**Real bugs found along the way:** product-page titles were stored as competitor names (the
+"Yellow Digital MultiMeter DT830B" competitor in the 2026-09-05 e2e run); a generic "restaurant" keyword
+produced a catalog-wide `food` category that would have let every food business through (generic paths
+are now dropped when a specific one exists); two live-DB tests were silently making real network calls
+to US retailers (fixed as a side effect of geo-scoping).
+
+**Verified** against a real Postgres (pgvector, all 31 migrations from empty): burger tenant -> burger
+and pizza STRATEGIC, generic restaurant RELEVANT, donut/ice-cream excluded; a donut shop tracked under
+the old rules was demoted on re-score. 3 live-DB tests that failed on untouched `main` before (2 network,
+1 machine-timezone) - the two network ones now pass; the timezone one is unchanged. 34 test files
+(ML-dependency imports) could not be collected in this environment.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

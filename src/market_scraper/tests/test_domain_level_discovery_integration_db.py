@@ -454,3 +454,81 @@ def test_a_manually_added_competitor_is_never_excluded_by_category(conn):
     result = register_manual_competitor(conn, tenant_id, "Krispy Donuts", "https://krispy-donuts.example")
     assert result["tier"] != TIER_CANDIDATE
     assert result["is_confirmed_competitor"] is True
+
+
+# --- discovery targets the tenant's segment; refresh keeps the list honest ---
+
+def test_places_search_uses_the_tenants_segment_not_the_whole_vertical(conn):
+    tenant_id = _burger_tenant(conn)
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE companies SET latitude = 31.95, longitude = 35.91 WHERE tenant_id = %s;", (tenant_id,))
+    with patch("src.market_scraper.tenant_discovery.discover_nearby_places", return_value=[]) as places, \
+         patch("src.market_scraper.tenant_discovery.discover_industry_candidates", return_value=[]) as industry:
+        discover_domain_level_competitors_for_tenant(conn, tenant_id, str(uuid.uuid4()), google_places_api_key="k")
+
+    assert places.call_args.args[2] == "burger restaurant"
+    assert industry.call_args.kwargs["industry_label"] == "burger restaurant"
+
+
+def test_places_search_falls_back_to_the_vertical_label_without_a_segment(conn):
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "Item One")
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE companies SET latitude = 31.95, longitude = 35.91 WHERE tenant_id = %s;", (tenant_id,))
+    with patch("src.market_scraper.tenant_discovery.discover_nearby_places", return_value=[]) as places, \
+         patch("src.market_scraper.tenant_discovery.discover_industry_candidates", return_value=[]) as industry:
+        discover_domain_level_competitors_for_tenant(conn, tenant_id, str(uuid.uuid4()), google_places_api_key="k")
+
+    assert places.call_args.args[2] == "retail store"
+    assert industry.call_args.kwargs["industry_label"] is None
+
+
+def test_refresh_demotes_a_stale_competitor_when_the_catalog_changes(conn):
+    from src.market_scraper.discovery import refresh_tenant_competitors
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "Glazed Donut")
+    donut = _register(conn, tenant_id, "Krispy Donuts", "https://krispy-donuts.example")
+    assert donut["tier"] == TIER_STRATEGIC
+
+    # the business pivots to burgers - the donut shop no longer competes
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE products SET deleted_at = NOW() WHERE tenant_id = %s;", (tenant_id,))
+    for name in ("Cheeseburger", "Beef Burger"):
+        _insert_product(conn, tenant_id, name)
+
+    summary = refresh_tenant_competitors(conn, tenant_id)
+    assert summary["demoted_to_candidate"] == 1
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT tier, is_tracked FROM tenant_competitors WHERE tenant_id = %s;", (tenant_id,))
+        assert cursor.fetchone() == (TIER_CANDIDATE, False)
+
+
+def test_refresh_repairs_a_product_title_stored_as_a_competitor_name(conn):
+    from src.market_scraper.discovery import refresh_tenant_competitors
+    tenant_id = _insert_company(conn)
+    competitor_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (global_competitor_id, competitor_name, website_url, website_identity_key, "
+            "visibility, added_by_tenant_id) VALUES (%s, 'Yellow Digital MultiMeter DT830B', 'https://www.shop-one.example', "
+            "'shop-one.example', 'PRIVATE', %s);", (competitor_id, tenant_id),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, discovery_method) VALUES (%s, %s, 'PRODUCT_SEARCH');",
+            (tenant_id, competitor_id),
+        )
+    summary = refresh_tenant_competitors(conn, tenant_id)
+    assert summary["names_repaired"] == 1
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT competitor_name FROM global_competitors WHERE global_competitor_id = %s;", (competitor_id,))
+        assert cursor.fetchone()[0] == "shop-one.example"
+
+
+def test_name_repair_leaves_social_profiles_and_domain_level_finds_alone(conn):
+    from src.market_scraper.discovery import repair_product_level_competitor_names
+    tenant_id = _burger_tenant(conn)
+    _register(conn, tenant_id, "Napoli Pizza", "https://napoli-pizza.example")  # PLACES_NEARBY: name is the business
+    assert repair_product_level_competitor_names(conn, tenant_id) == 0
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT competitor_name FROM global_competitors WHERE added_by_tenant_id = %s;", (tenant_id,))
+        assert cursor.fetchone()[0] == "Napoli Pizza"
