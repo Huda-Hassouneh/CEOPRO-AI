@@ -127,3 +127,10 @@ def test_every_known_leaf_has_a_search_keyword():
     import src.market_scraper.category_taxonomy as taxonomy
     for name, (path, _, _) in taxonomy._LEAVES.items():
         assert search_keyword_for_path(path), name
+
+
+def test_a_bakery_and_a_sweets_shop_compete_but_neither_competes_with_a_burger_place():
+    bakery, sweets = categorize("Al Reem Bakery").path, categorize("Habibah Sweets").path
+    assert category_similarity(bakery, sweets) >= MIN_COMPETING_SIMILARITY
+    assert category_similarity(bakery, categorize("Smash Burger House").path) < MIN_COMPETING_SIMILARITY
+    assert category_similarity(bakery, categorize("Krispy Donuts").path) >= MIN_COMPETING_SIMILARITY  # baked goods
