@@ -85,7 +85,8 @@ def test_discovers_and_registers_candidates_for_a_non_electronics_vertical(conn)
     result = results[0]
     assert result["product_url"] == "https://example-roastery.test/espresso-machine"
     assert result["policy_status"] in ("BLOCKED", "RESTRICTED")  # never auto-approved - see module docstring
-    assert result["competitor_name"] == "Example Roastery"
+    # a product-page title is not the seller's name - named by hostname
+    assert result["competitor_name"] == "example-roastery.test"
 
     with conn.cursor() as cursor:
         cursor.execute(

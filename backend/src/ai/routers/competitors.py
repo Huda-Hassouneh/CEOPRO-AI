@@ -50,8 +50,8 @@ def list_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) 
     for the real query/scoring logic rather than duplicating it - this
     endpoint only reshapes its output (both groups concatenated, each row
     keeping its own "tier" field so the page can still show/filter by
-    STRATEGIC vs RELEVANT), sorted alphabetically by name to match that
-    function's own per-group ordering.
+    STRATEGIC vs RELEVANT), sorted alphabetically by name (a stable order for the table; the
+    tier-grouped directory itself is ordered by confidence).
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
@@ -59,6 +59,27 @@ def list_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) 
         conn.commit()
         competitors = sorted(directory["strategic"] + directory["relevant"], key=lambda row: row["name"])
         return {"competitors": competitors}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/competitors/reclassify")
+def reclassify_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    Re-scores every competitor this tenant already has against the current
+    classification rules (category relevance + confidence score) - the
+    one-time cleanup for competitors discovered before category checks
+    existed, and repairs old product-title names. Idempotent; see
+    discovery.py::refresh_tenant_competitors().
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = market_scraper_discovery.refresh_tenant_competitors(conn, ctx.tenant_id)
+        conn.commit()
+        return result
     except Exception:
         conn.rollback()
         raise
