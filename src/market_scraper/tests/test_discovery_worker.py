@@ -21,13 +21,33 @@ def test_discover_for_tenant_runs_both_discovery_passes_and_closes_the_connectio
     fake_conn = MagicMock()
     with patch("src.market_scraper.discovery_worker.data_access.get_tenant_connection", return_value=fake_conn), \
          patch("src.market_scraper.discovery_worker.discover_competitors_for_tenant", return_value=[]) as mock_product, \
-         patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]) as mock_domain:
+         patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]) as mock_domain, \
+         patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", return_value={"reclassified": 0}) as mock_refresh:
         result = discovery_worker.discover_for_tenant("tenant-1")
 
     mock_product.assert_called_once_with(fake_conn, "tenant-1", "actor-1")
     mock_domain.assert_called_once_with(fake_conn, "tenant-1", "actor-1")
+    mock_refresh.assert_called_once_with(fake_conn, "tenant-1")  # list is re-scored after every discovery pass
     fake_conn.close.assert_called_once()
-    assert result == {"product_level_candidates": 0, "domain_level_candidates": 0, "enqueued_source_ids": []}
+    assert result == {
+        "product_level_candidates": 0, "domain_level_candidates": 0, "enqueued_source_ids": [],
+        "competitor_refresh": {"reclassified": 0},
+    }
+
+
+def test_a_failed_competitor_refresh_does_not_discard_a_successful_discovery(monkeypatch):
+    monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", "actor-1")
+    fake_conn = MagicMock()
+    with patch("src.market_scraper.discovery_worker.data_access.get_tenant_connection", return_value=fake_conn), \
+         patch("src.market_scraper.discovery_worker.discover_competitors_for_tenant", return_value=[{"x": 1}]), \
+         patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]), \
+         patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", side_effect=RuntimeError("db down")):
+        result = discovery_worker.discover_for_tenant("tenant-1")
+
+    assert result["product_level_candidates"] == 1
+    assert result["competitor_refresh"] == {"error": "refresh_failed"}
+    fake_conn.rollback.assert_called()
+    fake_conn.close.assert_called_once()
 
 
 def test_discover_for_tenant_only_auto_enqueues_already_allowed_sources(monkeypatch):

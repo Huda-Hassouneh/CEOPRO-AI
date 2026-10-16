@@ -45,12 +45,15 @@ Runs CPU-only by design — no GPU dependency anywhere in this module.
 
 ### `pricing/` — Phase 5, Price Intelligence (spec §9, §19, §23, §24)
 
-Implements competitor price comparison against the existing `products` / `competitors` /
+Implements competitor price comparison against the existing `products` / `global_competitors` + `tenant_competitors` /
 `competitor_prices` / `currency_rates` / `evidence_records` / `recommendation_outcomes` tables — no
 schema changes required.
 
-- `matching.py` — name-similarity matching (`difflib`) between our `products.product_name` and
-  `competitor_prices.product_name_captured` (free text, no FK between them).
+- `competitor_classification.py` / `competitor_confidence.py` — which businesses count as competitors
+  (category-aware tiers) and how confident we are (0-100 score + reasons); see
+  `src/market_scraper/README.md` → "Competitor relevance".
+- `matching.py` — legacy name-similarity matching; superseded by `competitor_product_mappings`
+  (competitor prices now join to a product by FK, not fuzzy text).
 - `data_access.py` — reads own product price/currency, same-currency competitor prices (the
   recommendation-driving set), and separately, cross-currency competitor prices (reference only —
   see `pipeline.py` below). All filtered to `ALLOWED`-source, exact, fresh (default 30-day window),
@@ -261,8 +264,9 @@ import valid rows, preserve invalid ones):**
 
 - No real transaction volume yet (`mocks/sales_transactions_mock.csv` has 3 rows) — `forecasting/`'s
   cold-start path is exercised by default until real data lands.
-- No real competitor price data or scraper running — `competitor_prices` exists but is empty, so
-  `pricing/`'s `UNKNOWN`-evidence path is what actually executes today.
+- No approved real competitor sources are configured yet (`PENDING_ACTIONS.md` #5) — the scraper
+  (`src/market_scraper/`) is built, but `competitor_prices` stays empty until a human approves sources
+  and creates mappings, so `pricing/`'s `UNKNOWN`-evidence path is what executes until then.
 - No real review data yet — `reviews` exists but is empty (same "table landed, no producer feeding it
   yet" situation as `competitor_prices`), so `sentiment/`'s `UNKNOWN`-evidence path is what actually
   executes today until a review-collection service starts writing to it.

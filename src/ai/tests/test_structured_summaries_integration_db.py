@@ -616,3 +616,22 @@ def test_regenerate_all_structured_summaries_ingests_real_chunks(conn, minio_cli
     with conn.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM rag_document_chunks WHERE tenant_id = %s;", (tenant_id,))
         assert cursor.fetchone()[0] > 0  # real chunks, actually embedded and persisted
+
+
+def test_competitor_landscape_summary_ranks_by_confidence_and_states_category(conn):
+    from src.ai.rag.structured_summaries import generate_competitor_landscape_summary
+    tenant_id = _insert_company(conn)
+    near_weak = _insert_competitor(conn, tenant_id, "Near Weak", distance_km=1.0)
+    far_strong = _insert_competitor(conn, tenant_id, "Far Strong", distance_km=20.0)
+    with conn.cursor() as cursor:
+        for cid, label, score in ((near_weak, "Low", 15.0), (far_strong, "High", 95.0)):
+            cursor.execute(
+                "UPDATE tenant_competitors SET confidence_label = %s, confidence_score = %s "
+                "WHERE tenant_id = %s AND global_competitor_id = %s;", (label, score, tenant_id, cid),
+            )
+        cursor.execute("UPDATE global_competitors SET category_path = %s WHERE global_competitor_id = %s;", (["food", "snacks", "burger"], far_strong))
+
+    text = generate_competitor_landscape_summary(conn, tenant_id)
+
+    assert text.index("Far Strong") < text.index("Near Weak")  # confidence outranks proximity
+    assert "High confidence" in text and "category food > snacks > burger" in text
