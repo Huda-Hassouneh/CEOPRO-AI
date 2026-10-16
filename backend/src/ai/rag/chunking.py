@@ -6,6 +6,7 @@ without a language-specific tokenizer. Pure function - no I/O.
 """
 
 import os
+import re
 from typing import List, Optional
 
 DEFAULT_CHUNK_SIZE_WORDS = int(os.getenv("RAG_CHUNK_SIZE_WORDS", "200"))
@@ -26,7 +27,10 @@ def chunk_text(text: str, chunk_size_words: int = None, overlap_words: int = Non
     if overlap_words < 0 or overlap_words >= chunk_size_words:
         raise ValueError("overlap_words must be non-negative and smaller than chunk_size_words")
 
-    words = text.split()
+    # Window by word, but slice the ORIGINAL text between word spans so line
+    # breaks/tabs survive - " ".join(split()) flattened spreadsheet rows and
+    # paragraph breaks into one run-on line, blurring row boundaries.
+    words = [m.span() for m in re.finditer(r"\S+", text)]
     if not words:
         return []
 
@@ -36,7 +40,7 @@ def chunk_text(text: str, chunk_size_words: int = None, overlap_words: int = Non
         window = words[start:start + chunk_size_words]
         if not window:
             break
-        chunks.append(" ".join(window))
+        chunks.append(text[window[0][0]:window[-1][1]])
         if start + chunk_size_words >= len(words):
             break
 

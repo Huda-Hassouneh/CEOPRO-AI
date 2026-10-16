@@ -134,12 +134,16 @@ def ingest_pending_documents(conn, minio_client, tenant_id: str, bucket: str = D
                 pages=chunk_pages(text, len(chunks)),
             )
             data_access.mark_document_status(conn, doc["document_id"], "Processed")
+            conn.commit()  # per document: one bad file must not roll back or poison the rest
             processed_count += 1
         except Exception as err:
             logger.error(f"Failed to ingest document={doc['document_id']} file={doc['file_name']}: {err}")
+            # A DB error mid-insert leaves the transaction aborted, which would make
+            # the status update below (and every later document) fail too.
+            conn.rollback()
             data_access.mark_document_status(conn, doc["document_id"], "Failed")
+            conn.commit()
 
-    conn.commit()
     backfilled = backfill_missing_embeddings(conn, tenant_id)
     if processed_count > 0 or backfilled:
         invalidate_tenant_index_cache(tenant_id)
@@ -197,6 +201,17 @@ def build_hybrid_index(conn, tenant_id: str, use_cache: bool = True) -> TenantIn
     # that have vectors (all of them, unless some were stored while the
     # embedding model was unavailable).
     embedded = [(chunk_id, text, embedding) for chunk_id, text, embedding in rows if embedding is not None]
+    # A different dimension (embedding model swapped, old rows not yet re-embedded)
+    # would crash np.stack and take down every query for the tenant.
+    if embedded:
+        dim = embedded[0][2].shape[0]
+        mismatched = [row for row in embedded if row[2].shape[0] != dim]
+        if mismatched:
+            logger.warning(
+                f"tenant={tenant_id}: {len(mismatched)} chunks have an embedding dimension != {dim}; "
+                f"semantic search skips them - re-embed to fix"
+            )
+            embedded = [row for row in embedded if row[2].shape[0] == dim]
     embeddings = (
         np.stack([embedding for _, _, embedding in embedded]).astype(np.float32)
         if embedded else np.empty((0, 0), dtype=np.float32)

@@ -32,6 +32,11 @@ from src.ai.core.ml_runtime import ML_LOAD_LOCK
 DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 MODEL_NAME = os.getenv("RAG_EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 
+# paraphrase-multilingual-MiniLM-L12-v2 defaults to 128 tokens, but chunks are ~200
+# words (more tokens in Arabic), so the tail of every chunk was silently never
+# embedded. The model's positions support up to 512. 0 = keep the model default.
+MAX_SEQ_LENGTH = int(os.getenv("RAG_EMBEDDING_MAX_SEQ_LENGTH", "256"))
+
 _model_cache = {}
 
 logger = logging.getLogger("CEOPRO_AI_RAG_EMBEDDINGS")
@@ -73,7 +78,10 @@ def get_model(model_name: str = None) -> "SentenceTransformer":
                 try:
                     from sentence_transformers import SentenceTransformer
 
-                    _model_cache[model_name] = SentenceTransformer(model_name)
+                    model = SentenceTransformer(model_name)
+                    if MAX_SEQ_LENGTH > 0:
+                        model.max_seq_length = MAX_SEQ_LENGTH
+                    _model_cache[model_name] = model
                 except Exception as err:
                     with _unavailable_lock:
                         _unavailable_until = time.monotonic() + _RETRY_AFTER_SECONDS
