@@ -1,8 +1,9 @@
 import httpClient from '../../../shared/lib/httpClient.js';
+import { mapAnswer } from '../utils/references.js';
 
 // The real backend endpoint - backend/src/ai/routers/rag.py's POST /rag/query
-// (hybrid BM25+FAISS retrieval, cross-encoder rerank, Groq LLM answer,
-// confidence-gated web-search fallback, competitor-activity links). Chat
+// (the evidence-based advisor: company records, documents, public research
+// and calculations, answered claim by claim with numbered references). Chat
 // itself is real; the capabilities below reflect exactly what this backend
 // can and cannot do today - never claimed true if there's no real endpoint
 // behind it. conversationHistory/documentPreview etc. below now also
@@ -21,36 +22,6 @@ const capabilities = Object.freeze({
 });
 
 const createMessageId = () => globalThis.crypto?.randomUUID?.() || `message-${Date.now()}`;
-
-// Maps /rag/query's real sources array ({source_index, chunk_id, score} for
-// a retrieved document chunk, or {url, title} when the confidence-gated web
-// fallback was used - see rag/web_fallback.py) into SourceCitationList.jsx's
-// expected shape. A `url` key is exactly how the backend already
-// distinguishes a web-fallback source from a chunk citation (see answer_
-// query()'s own docstring) - reused here for the same purpose.
-function mapSources(sources) {
-  if (!Array.isArray(sources)) return [];
-  return sources.map((source, index) => (
-    source.url
-      // Business Copilot Phase 2 (B8/B10/B14): a web-fallback source must
-      // never be visually indistinguishable from the tenant's own ingested
-      // documents - sourceType: 'web' (previously also 'knowledge-base',
-      // a real bug this fixes) is what SourceCitationList.jsx now uses to
-      // render a distinct "External web source" badge, so a citation never
-      // looks like it came from the tenant's own KEEL data when it didn't.
-      ? {
-        citationId: `web-${index}`,
-        name: source.title || source.url,
-        uri: source.url,
-        sourceType: 'web',
-      }
-      : {
-        citationId: source.chunk_id || `chunk-${index}`,
-        name: `Source ${source.source_index ?? index + 1}`,
-        sourceType: 'knowledge-base',
-      }
-  ));
-}
 
 export function mapDocuments(response) {
   return (response?.documents || []).map((document) => ({
@@ -91,8 +62,7 @@ export const knowledgeBaseApi = {
       const messages = (response.data?.messages ?? []).map((message) => ({
         messageId: message.message_id,
         role: message.role,
-        content: message.content,
-        sources: mapSources(message.sources),
+        ...(message.role === 'assistant' ? mapAnswer(message) : { content: message.content }),
         createdAt: message.created_at,
       }));
       return { available: true, messages };
@@ -119,17 +89,13 @@ export const knowledgeBaseApi = {
         },
         signal,
       });
-      const { answer, sources, session_id: newSessionId, answer_mode: answerMode, evidence } = response.data;
       return {
         available: true,
-        sessionId: newSessionId,
+        sessionId: response.data.session_id,
         message: {
           messageId: createMessageId(),
           role: 'assistant',
-          content: answer,
-          sources: mapSources(sources),
-          answerMode: answerMode || 'ai',
-          evidenceReason: evidence?.reason || null,
+          ...mapAnswer(response.data),
           createdAt: new Date().toISOString(),
         },
       };

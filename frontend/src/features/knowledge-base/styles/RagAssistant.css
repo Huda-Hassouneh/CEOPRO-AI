@@ -128,3 +128,72 @@
 .rag-answer-copy li { margin: 2px 0; }
 .rag-answer-copy h4 { margin: 10px 0 6px; font-size: 13px; }
 .rag-evidence-note { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px; padding: 4px 10px; border-radius: 999px; font-size: 11px; color: var(--ceopro-text-secondary); background: var(--apex-glass); border: 1px solid var(--ceopro-border-soft); }
+
+/* Claim-level references (rag/advisor.py): markers beside claims, the
+   numbered reference list and the reference panel. Logical properties keep
+   every part correct in right-to-left layouts. */
+.rag-claim { overflow-wrap: anywhere; }
+.rag-claim__kind, .rag-claim__unverified { display: inline-block; margin-inline-start: 5px; padding: 0 5px; border-radius: 4px; font-size: 9px; font-weight: 700; line-height: 15px; vertical-align: 1px; background: var(--ceopro-primary-light); color: var(--ceopro-primary); }
+.rag-claim__unverified { background: var(--apex-glass); color: var(--apex-warning); border: 1px solid currentColor; }
+.rag-claim.is-unverified { text-decoration: underline dotted var(--apex-warning); text-underline-offset: 3px; }
+.rag-cite { margin-inline-start: 2px; font-size: 9px; line-height: 0; white-space: nowrap; }
+.rag-cite button { min-width: 16px; height: 16px; padding: 0 3px; border: 1px solid var(--ceopro-border); border-radius: 8px; background: var(--ceopro-primary-light); color: var(--ceopro-primary); cursor: pointer; font: 700 9px var(--ceopro-font-family); line-height: 14px; vertical-align: super; }
+.rag-cite button:hover, .rag-cite button:focus-visible, .rag-cite button.is-active { border-color: var(--ceopro-primary); background: var(--ceopro-primary); color: #fff; outline: none; }
+.rag-cite button:focus-visible { box-shadow: 0 0 0 2px var(--ceopro-primary-light); }
+.rag-cite__sep { margin-inline: 1px; color: var(--ceopro-text-muted); }
+.rag-table-refs { margin: 4px 8px; text-align: end; }
+.rag-sources__list { display: grid; gap: 6px; margin: 9px 0 0; padding: 0; list-style: none; }
+.rag-sources__list li > button { width: 100%; display: flex; align-items: flex-start; gap: 8px; padding: 8px; border: 1px solid var(--ceopro-border); border-radius: 7px; background: var(--apex-glass); color: inherit; cursor: pointer; font: inherit; text-align: start; }
+.rag-sources__list li > button:hover, .rag-sources__list li > button:focus-visible, .rag-sources__list li > button[aria-expanded='true'] { border-color: var(--ceopro-primary); outline: none; }
+.rag-sources__list li span { min-width: 0; display: grid; gap: 2px; }
+.rag-sources__list li strong { overflow-wrap: anywhere; font-size: 10px; }
+.rag-sources__list li small { color: var(--ceopro-text-muted); font-size: 9px; }
+.rag-sources__list li svg { flex: 0 0 auto; color: var(--ceopro-primary); }
+.rag-sources__number { flex: 0 0 auto; min-width: 18px; height: 18px; display: grid; place-items: center; border-radius: 9px; background: var(--ceopro-primary); color: #fff; font-size: 9px; font-weight: 700; }
+.rag-status-notes { display: grid; gap: 4px; margin: 10px 0 0; padding: 0; list-style: none; }
+.rag-status-notes li { display: flex; align-items: flex-start; gap: 6px; color: var(--ceopro-text-secondary); font-size: 10px; line-height: 1.5; }
+.rag-status-notes svg { flex: 0 0 auto; margin-top: 2px; }
+.rag-follow-ups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.rag-follow-ups button { padding: 6px 10px; border: 1px solid var(--ceopro-border); border-radius: 999px; background: var(--apex-glass); color: var(--ceopro-text-secondary); cursor: pointer; font: 500 10px var(--ceopro-font-family); text-align: start; }
+.rag-follow-ups button:hover, .rag-follow-ups button:focus-visible { border-color: var(--ceopro-primary); color: var(--ceopro-primary); outline: none; }
+.rag-reference-panel { position: fixed; z-index: 60; inset-block: 76px 16px; inset-inline-end: 16px; width: min(420px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; border: 1px solid var(--ceopro-border); border-radius: 12px; background: var(--apex-bg-raised); box-shadow: 0 18px 48px rgba(0, 0, 0, .22); color: var(--ceopro-text-primary); font-size: 11px; line-height: 1.6; }
+.rag-reference-panel > header { display: flex; align-items: flex-start; gap: 9px; }
+.rag-reference-panel h3 { flex: 1; min-width: 0; margin: 0; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.rag-reference-panel h3:focus { outline: none; }
+.rag-reference-panel__number { flex: 0 0 auto; min-width: 22px; height: 22px; display: grid; place-items: center; border-radius: 11px; background: var(--ceopro-primary); color: #fff; font-size: 11px; font-weight: 700; }
+.rag-reference-panel__close { flex: 0 0 auto; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--ceopro-border); border-radius: 7px; background: transparent; color: inherit; cursor: pointer; }
+.rag-reference-panel__close:focus-visible { outline: 2px solid var(--ceopro-primary); outline-offset: 1px; }
+.rag-reference-panel__badges { display: flex; flex-wrap: wrap; gap: 5px; }
+.rag-reference-panel__badges span { padding: 2px 7px; border-radius: 4px; background: var(--ceopro-primary-light); color: var(--ceopro-primary); font-size: 9px; font-weight: 700; }
+.rag-reference-panel__badges span.is-official { background: var(--apex-success-light, var(--ceopro-primary-light)); color: var(--apex-success, var(--ceopro-primary)); }
+.rag-reference-panel__badges span.is-secondary, .rag-reference-panel__badges span.is-use { background: var(--apex-glass); color: var(--ceopro-text-secondary); border: 1px solid var(--ceopro-border-soft); }
+.rag-reference-panel__facts { display: grid; gap: 4px; margin: 0; }
+.rag-reference-panel__facts > div { display: grid; grid-template-columns: minmax(90px, auto) 1fr; gap: 8px; }
+.rag-reference-panel__facts dt { color: var(--ceopro-text-muted); }
+.rag-reference-panel__facts dd { margin: 0; overflow-wrap: anywhere; }
+.rag-reference-panel__excerpt { margin: 0; }
+.rag-reference-panel__excerpt figcaption { margin-bottom: 4px; color: var(--ceopro-text-muted); font-weight: 700; }
+.rag-reference-panel__excerpt blockquote { margin: 0; padding: 9px 11px; border-inline-start: 3px solid var(--ceopro-primary); border-radius: 6px; background: var(--apex-surface-top); white-space: pre-wrap; overflow-wrap: anywhere; }
+.rag-reference-panel__limits { padding: 8px 10px; border: 1px solid var(--ceopro-border-soft); border-radius: 7px; color: var(--ceopro-text-secondary); }
+.rag-reference-panel__limits ul, .rag-calc ul { margin: 4px 0 0; padding-inline-start: 18px; }
+.rag-reference-panel footer a { display: inline-flex; align-items: center; gap: 6px; color: var(--ceopro-primary); font-weight: 700; text-decoration: none; }
+.rag-reference-panel footer a:hover, .rag-reference-panel footer a:focus-visible { text-decoration: underline; }
+.rag-calc { display: grid; gap: 8px; }
+.rag-calc__formula span, .rag-calc__sources { color: var(--ceopro-text-muted); }
+.rag-calc__inputs { display: grid; gap: 4px; margin: 0; }
+.rag-calc__inputs > div { display: grid; grid-template-columns: minmax(110px, auto) 1fr; gap: 8px; }
+.rag-calc__inputs dd { margin: 0; display: grid; }
+.rag-calc__inputs small { color: var(--ceopro-text-muted); font-size: 9px; }
+.rag-calc__missing { padding: 8px 10px; border: 1px solid var(--apex-warning); border-radius: 7px; }
+.rag-calc .rag-answer-table-wrap { margin: 0; }
+.rag-calc caption { padding: 6px 10px; text-align: start; font-weight: 700; }
+@media (max-width: 560px) { .rag-reference-panel { inset-block: auto 0; inset-inline: 0; width: 100%; max-height: 75vh; border-radius: 14px 14px 0 0; } }
+.rag-calc-card { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--ceopro-border); border-radius: 9px; background: var(--apex-glass); font-size: 11px; }
+.rag-calc-card > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-weight: 700; }
+.rag-calc-card > header span { display: inline-flex; align-items: center; gap: 6px; }
+.rag-calc-card dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; margin: 0; }
+.rag-calc-card dt { color: var(--ceopro-text-muted); font-size: 10px; }
+.rag-calc-card dd { margin: 0; font-weight: 700; }
+.rag-calc-card dd.is-saving { color: var(--apex-success, var(--ceopro-primary)); }
+.rag-calc-card dd.is-cost { color: var(--apex-danger, var(--apex-warning)); }
+.rag-calc-card p { margin: 6px 0 0; color: var(--ceopro-text-secondary); }
