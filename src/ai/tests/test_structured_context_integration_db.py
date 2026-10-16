@@ -221,3 +221,26 @@ def test_includes_real_business_sentiment_score(conn):
     block = build_structured_facts_block(conn, tenant_id)
     assert "Current overall sentiment score" in block
     assert "0.70" in block  # positive_probability(0.8) - negative_probability(0.1)
+
+
+def test_chatbot_lists_competitors_best_confidence_first_with_category(conn):
+    """Same facts, same order as the dashboard directory - the chatbot and the
+    competitor list must never disagree about who matters most."""
+    tenant_id = _insert_company(conn)
+    weak = _insert_competitor(conn, tenant_id, "Aardvark Weak")
+    strong = _insert_competitor(conn, tenant_id, "Zebra Strong")
+    with conn.cursor() as cursor:
+        for competitor_id, label, score in ((weak, "Low", 20.0), (strong, "High", 90.0)):
+            cursor.execute(
+                "UPDATE tenant_competitors SET confidence_label = %s, confidence_score = %s "
+                "WHERE tenant_id = %s AND global_competitor_id = %s;", (label, score, tenant_id, competitor_id),
+            )
+        cursor.execute(
+            "UPDATE global_competitors SET category_path = %s WHERE global_competitor_id = %s;",
+            (["food", "snacks", "pizza"], strong),
+        )
+
+    block = build_structured_facts_block(conn, tenant_id)
+
+    assert block.index("Zebra Strong") < block.index("Aardvark Weak")
+    assert "High confidence" in block and "category food > snacks > pizza" in block

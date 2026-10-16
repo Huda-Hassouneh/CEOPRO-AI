@@ -1705,6 +1705,15 @@ produced a catalog-wide `food` category that would have let every food business 
 are now dropped when a specific one exists); two live-DB tests were silently making real network calls
 to US retailers (fixed as a side effect of geo-scoping).
 
+**Contract review (same day, before PR):** audited against the spec and changelogs and fixed what it
+found - confidence now recorded in shared `evidence_records` (S22); weights configurable + per-row
+breakdown (S20); `/dashboard/competitors` kept backward compatible (original `summary_line` wording
+restored, weak-lead split opt-in, optional filters/pagination); chatbot context and RAG summary use
+the same confidence order as the dashboard; everything re-verified as the restricted `ceopro_app`
+role (RLS), not just superuser. Logged in `CONTRACT_CHANGELOG.md` and `AI_PLAN_AND_CONTRACT_UPDATES.md`.
+Known limitation: the narrative RAG summary document is regenerated on the next scrape/forecast run,
+not by `POST /competitors/reclassify` (the always-on chatbot context block is live).
+
 **Verified** against a real Postgres (pgvector, all 31 migrations from empty): burger tenant -> burger
 and pizza STRATEGIC, generic restaurant RELEVANT, donut/ice-cream excluded; a donut shop tracked under
 the old rules was demoted on re-score. 3 live-DB tests that failed on untouched `main` before (2 network,

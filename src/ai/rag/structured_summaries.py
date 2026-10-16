@@ -209,11 +209,11 @@ def generate_competitor_landscape_summary(conn, tenant_id: str) -> str:
         cursor.execute(
             """
             SELECT gc.competitor_name, tc.tier, tc.competitor_scope, tc.product_match_rate,
-                   tc.distance_km, gc.city
+                   tc.distance_km, gc.city, tc.confidence_label, gc.category_path
             FROM tenant_competitors tc
             JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
             WHERE tc.tenant_id = %s AND tc.is_tracked = TRUE
-            ORDER BY (tc.distance_km IS NULL), tc.distance_km ASC, gc.competitor_name ASC
+            ORDER BY tc.confidence_score DESC NULLS LAST, (tc.distance_km IS NULL), tc.distance_km ASC, gc.competitor_name ASC
             LIMIT 20;
             """,
             (tenant_id,),
@@ -225,12 +225,14 @@ def generate_competitor_landscape_summary(conn, tenant_id: str) -> str:
 
     tier_counts: dict = {}
     lines = ["Confirmed, tracked competitors (source: tenant_competitors joined to global_competitors):"]
-    for name, tier, scope, match_rate, distance_km, city in rows:
+    for name, tier, scope, match_rate, distance_km, city, confidence_label, category_path in rows:
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
         distance_text = f", {float(distance_km):.1f}km away" if distance_km is not None else ""
         city_text = f" ({city})" if city else ""
         match_text = f"{float(match_rate):.0%} of your catalog overlaps with theirs" if match_rate is not None else "overlap not yet computed"
-        lines.append(f"- {name}{city_text}: {tier} tier, {scope}, {match_text}{distance_text}.")
+        confidence_text = f", {confidence_label} confidence" if confidence_label else ""
+        category_text = f", category {' > '.join(p.replace('_', ' ') for p in category_path)}" if category_path else ""
+        lines.append(f"- {name}{city_text}: {tier} tier, {scope}, {match_text}{distance_text}{confidence_text}{category_text}.")
 
     summary_line = ", ".join(f"{count} {tier}" for tier, count in sorted(tier_counts.items()))
     lines.insert(1, f"Tier breakdown (source: tenant_competitors.tier): {summary_line}.")

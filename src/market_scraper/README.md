@@ -511,9 +511,14 @@ shops. The pipeline now decides relevance in four places:
    product overlap are never excluded by category.
 4. **Score + rank** - `ai/pricing/competitor_confidence.py` gives each
    competitor a 0-100 confidence (category 45 / products 30 / proximity 15 /
-   evidence 10, renormalized over known signals) with plain-language reasons.
-   `GET /dashboard/competitors` orders best-first and returns weak leads (Low
-   confidence, nothing in common) under a separate `possible` key.
+   evidence 10, renormalized over known signals) with plain-language reasons
+   and a per-signal breakdown. Weights are configurable
+   (`COMPETITOR_CONFIDENCE_WEIGHTS`, spec S20). Each outcome is recorded in the
+   shared `evidence_records` trail (spec S22), only when tier/score changes.
+   `GET /dashboard/competitors` orders best-first; weak leads (Low confidence,
+   nothing in common) are split into `possible` only when the client passes
+   `separate_weak_leads=true`, so the original response contract is unchanged
+   by default. Optional `min_confidence`, `max_distance_km`, `limit`, `offset`.
 
 **Freshness:** `discovery.refresh_tenant_competitors()` repairs old
 product-title names and re-scores every competitor. It runs automatically at

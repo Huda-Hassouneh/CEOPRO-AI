@@ -22,7 +22,14 @@ ALTER TABLE tenant_competitors ADD COLUMN IF NOT EXISTS confidence_score DOUBLE 
 ALTER TABLE tenant_competitors ADD COLUMN IF NOT EXISTS confidence_label TEXT
     CHECK (confidence_label IS NULL OR confidence_label IN ('High', 'Medium', 'Low'));
 ALTER TABLE tenant_competitors ADD COLUMN IF NOT EXISTS confidence_reasons JSONB;
+ALTER TABLE tenant_competitors ADD COLUMN IF NOT EXISTS confidence_breakdown JSONB;
 ALTER TABLE tenant_competitors ADD COLUMN IF NOT EXISTS classification_reason TEXT;
+-- Spec S22: every important AI output references a shared EVIDENCE_RECORD.
+-- The latest evidence row for this tenant/competitor assessment; a new one is
+-- written only when the tier or score actually changes (see
+-- competitor_classification.py), so re-scoring does not bloat the audit trail.
+ALTER TABLE tenant_competitors ADD COLUMN IF NOT EXISTS evidence_id UUID
+    REFERENCES evidence_records(evidence_id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_tenant_competitors_confidence
     ON tenant_competitors (tenant_id, confidence_score DESC);
