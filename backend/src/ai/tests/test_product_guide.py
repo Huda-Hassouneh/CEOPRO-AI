@@ -93,6 +93,18 @@ def test_the_guide_becomes_evidence_in_the_assistant_prompt(monkeypatch):
     assert user_prompt.index("Evidence:") < user_prompt.index("Question:")
     assert "product guide" in llm_client.SYSTEM_PROMPT
     assert result["references"][0]["kind"] == "product_guide"
+    assert result["references"][0]["route"] == "/products", "the reference opens the screen the steps start from"
+
+
+def test_every_section_starts_from_a_real_screen():
+    import re
+
+    routes = Path(__file__).resolve().parents[4] / "frontend" / "src" / "app" / "router" / "routePaths.js"
+    real = set(re.findall(r":\s*'(/[^']*)'", routes.read_text(encoding="utf-8")))
+    assert set(product_guide.SCREENS) == {key for key, _keywords, _text in product_guide.SECTIONS}
+    assert set(product_guide.SCREENS.values()) <= real
+    assert product_guide.guide_screens("How do I invite a colleague to my team?") == ["/settings/team"]
+    assert product_guide.guide_screens("How were my sales?") == []
 
 
 def test_a_how_to_question_never_triggers_research_or_the_old_registry_steps(monkeypatch):
