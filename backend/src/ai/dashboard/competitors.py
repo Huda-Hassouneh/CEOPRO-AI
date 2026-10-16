@@ -50,6 +50,7 @@ from typing import Optional
 from src.ai.dashboard.competitor_activity import LEVEL_HIGH, LEVEL_LOW, LEVEL_MEDIUM, get_market_activity_levels
 from src.ai.pricing.competitor_classification import TIER_RELEVANT, TIER_STRATEGIC
 from src.ai.sentiment.data_access import load_aggregate_sentiment_by_competitor
+from src.market_scraper.geo import maps_url
 from src.market_scraper.scoring import composite_score, price_competitiveness
 
 # A deliberately coarse numeric stand-in for market_activity's own High/
@@ -238,7 +239,8 @@ def get_competitor_directory(
                    tc.tier, tc.product_match_rate, tc.classified_at,
                    tc.confidence_score, tc.confidence_label, tc.confidence_reasons, tc.confidence_breakdown,
                    tc.distance_km, tc.competitor_scope, tc.discovery_method, tc.category_similarity,
-                   gc.category_path, gc.address, gc.city, gc.phone, gc.rating, gc.rating_count
+                   gc.category_path, gc.address, gc.city, gc.phone, gc.rating, gc.rating_count,
+                   gc.latitude, gc.longitude, tc.tracking_decision
             FROM tenant_competitors tc
             JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
             WHERE tc.tenant_id = %s AND tc.is_tracked = TRUE AND tc.tier IN (%s, %s)
@@ -257,7 +259,7 @@ def get_competitor_directory(
     for (global_competitor_id, name, website_url, tier, match_rate, classified_at,
          confidence_score, confidence_label, confidence_reasons, confidence_breakdown,
          distance_km, competitor_scope, discovery_method, category_similarity,
-         category_path, address, city, phone, rating, rating_count) in rows:
+         category_path, address, city, phone, rating, rating_count, latitude, longitude, tracking_decision) in rows:
         if min_confidence is not None and (confidence_score is None or confidence_score < min_confidence):
             continue
         if max_distance_km is not None and (distance_km is None or distance_km > max_distance_km):
@@ -304,6 +306,8 @@ def get_competitor_directory(
             "rating": float(rating) if rating is not None else None,
             "rating_count": rating_count,
             "distance_km": round(distance_km, 1) if distance_km is not None else None,
+            "maps_url": maps_url(latitude, longitude),
+            "tracking_decision": tracking_decision,
             "competitor_scope": competitor_scope,
             "found_via": discovery_method or "MANUAL",
             "matched_product_count": matched_count,
