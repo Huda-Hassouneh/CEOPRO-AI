@@ -145,11 +145,10 @@ tier); the LLM itself runs on Groq's infrastructure, not wherever this service i
   `AssembledContext` (source-labeled context text + citations); `run_retrieval()` composes all of the
   above into the one function `llm_client.py` needs.
 - `llm_client.py` — the only file in this package that knows an LLM provider exists.
-  `generate_answer()` calls Groq (an OpenAI-compatible, hardware-accelerated hosted inference API)
-  serving Llama (`GROQ_MODEL`, default `llama-3.3-70b-versatile` — verified live against Groq's
-  production catalog 2026-09-01, see the module's own docstring). `answer_query()` composes
-  `pipeline.run_retrieval()` with `generate_answer()` into the full chatbot call — this is what
-  `POST /rag/query` (`main.py`) calls. A missing `GROQ_API_KEY`, a non-2xx response, or a network
+  It sends the advisor's prompts to Groq (an OpenAI-compatible hosted inference API, model
+  `GROQ_MODEL`) or to a configured local/paid OpenAI-compatible server. The assistant itself is
+  `advisor.py` (evidence gathering by role, public research, deterministic landed cost, claim-level
+  citations checked against the evidence); `answer_query()` delegates to it. A missing `GROQ_API_KEY`, a non-2xx response, or a network
   failure all raise `LLMError` (never a bare `httpx` exception) so the caller has exactly one
   exception type to handle. No new dependency — uses `httpx`, already declared for FastAPI's
   `TestClient`.

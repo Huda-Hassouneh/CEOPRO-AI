@@ -288,7 +288,7 @@ def test_rag_query_returns_answer_and_sources_on_success():
     fake_conn = MagicMock()
     fake_result = {"answer": "Sunscreen SPF 50.", "sources": [{"source_index": 1, "chunk_id": "c1", "score": 0.9}]}
     with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.rag.rag_llm_client.answer_query", return_value=fake_result) as mock_answer, \
+         patch("src.ai.routers.rag.rag_advisor.answer", return_value=fake_result) as mock_answer, \
          patch("src.ai.routers.rag.conversation_store.create_session", return_value="sess-1") as mock_create_session, \
          patch("src.ai.routers.rag.conversation_store.append_message") as mock_append_message:
         response = client.post("/rag/query", params={"query_text": "what is our best seller?"}, headers=_auth())
@@ -324,7 +324,7 @@ def test_rag_query_passes_token_usage_through_to_the_http_response():
         "token_usage": {"prompt_tokens": 342, "completion_tokens": 58, "total_tokens": 400},
     }
     with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.rag.rag_llm_client.answer_query", return_value=fake_result), \
+         patch("src.ai.routers.rag.rag_advisor.answer", return_value=fake_result), \
          patch("src.ai.routers.rag.conversation_store.create_session", return_value="sess-1"), \
          patch("src.ai.routers.rag.conversation_store.append_message"):
         response = client.post("/rag/query", params={"query_text": "what is our best seller?"}, headers=_auth())
@@ -346,7 +346,7 @@ def test_rag_query_maps_llm_provider_failure_to_502_not_500():
     with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
          patch("src.ai.routers.rag.usage.release") as mock_release, \
          patch(
-             "src.ai.routers.rag.rag_llm_client.answer_query",
+             "src.ai.routers.rag.rag_advisor.answer",
              side_effect=rag_llm_client_module.LLMError("GROQ_API_KEY is not set"),
          ):
         response = client.post("/rag/query", params={"query_text": "q"}, headers=_auth())
@@ -370,7 +370,7 @@ def test_rag_query_says_when_no_language_model_is_configured():
     with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
          patch("src.ai.routers.rag.usage.release") as mock_release, \
          patch(
-             "src.ai.routers.rag.rag_llm_client.answer_query",
+             "src.ai.routers.rag.rag_advisor.answer",
              side_effect=rag_llm_client_module.LLMNotConfiguredError("GROQ_API_KEY is not set"),
          ):
         response = client.post("/rag/query", params={"query_text": "q"}, headers=_auth())
@@ -389,7 +389,7 @@ def test_rag_query_maps_provider_rate_limit_to_503_with_retry_after_and_no_provi
     with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
          patch("src.ai.routers.rag.usage.release") as mock_release, \
          patch(
-             "src.ai.routers.rag.rag_llm_client.answer_query",
+             "src.ai.routers.rag.rag_advisor.answer",
              side_effect=rag_llm_client_module.LLMRateLimitError("429 for organization org_123", 12.4),
          ):
         response = client.post("/rag/query", params={"query_text": "q"}, headers=_auth())
@@ -408,7 +408,7 @@ def test_rag_query_returns_500_and_rolls_back_on_unexpected_error():
     fake_conn = MagicMock()
     with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
          patch("src.ai.routers.rag.usage.release") as mock_release, \
-         patch("src.ai.routers.rag.rag_llm_client.answer_query", side_effect=RuntimeError("boom")):
+         patch("src.ai.routers.rag.rag_advisor.answer", side_effect=RuntimeError("boom")):
         response = client.post("/rag/query", params={"query_text": "q"}, headers=_auth())
 
     assert response.status_code == 500
@@ -456,7 +456,7 @@ def test_rag_query_passes_parsed_history_through_to_answer_query():
         {"role": "assistant", "content": "Sunscreen SPF 50."},
     ]
     with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.rag.rag_llm_client.answer_query", return_value=fake_result) as mock_answer:
+         patch("src.ai.routers.rag.rag_advisor.answer", return_value=fake_result) as mock_answer:
         response = client.post(
             "/rag/query",
             params={"query_text": "why is that?", "history_json": json.dumps(history)},
@@ -471,7 +471,7 @@ def test_rag_query_treats_a_missing_history_json_as_no_history():
     fake_conn = MagicMock()
     fake_result = {"answer": "ok", "sources": []}
     with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.rag.rag_llm_client.answer_query", return_value=fake_result) as mock_answer:
+         patch("src.ai.routers.rag.rag_advisor.answer", return_value=fake_result) as mock_answer:
         response = client.post("/rag/query", params={"query_text": "q"}, headers=_auth())
 
     assert response.status_code == 200

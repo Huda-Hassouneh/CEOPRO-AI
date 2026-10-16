@@ -81,33 +81,29 @@ def test_the_reader_s_language_is_taken_from_the_question():
     assert "«Products»" in product_guide.build_guide_block("How do I add a new product?")
 
 
-def test_the_guide_is_placed_in_the_assistant_prompt():
-    from src.ai.rag import llm_client
-    from src.ai.rag.pipeline import AssembledContext
+def test_the_guide_becomes_evidence_in_the_assistant_prompt(monkeypatch):
+    from src.ai.rag import advisor, llm_client
 
-    block = product_guide.build_guide_block("How do I add a product?")
-    context = AssembledContext(query="How do I add a product?", context_text="", sources=[])
-    prompt = llm_client._build_user_prompt(context, product_guide_block=block)
-    assert block in prompt and prompt.index(block) < prompt.index("Question:")
-    assert "How to do this in KEEL" in llm_client.SYSTEM_PROMPT
+    prompts = []
+    monkeypatch.setattr(advisor, "_call", lambda messages, usage, max_tokens=None: prompts.append(messages) or
+                        '{"blocks": [{"type": "paragraph", "claims": [{"text": "Open Products.", "kind": "fact", "evidence": ["E1"]}]}]}')
+    result = advisor.answer(None, "t", "How do I add a product?")
+    user_prompt = prompts[0][-1]["content"]
+    assert "product guide" in user_prompt and "«Add Product»" in user_prompt
+    assert user_prompt.index("Evidence:") < user_prompt.index("Question:")
+    assert "product guide" in llm_client.SYSTEM_PROMPT
+    assert result["references"][0]["kind"] == "product_guide"
 
 
-def test_answer_query_sends_the_guide_and_not_the_old_registry_steps():
-    from unittest.mock import patch
-    from src.ai.rag import llm_client
-    from src.ai.rag.pipeline import AssembledContext
+def test_a_how_to_question_never_triggers_research_or_the_old_registry_steps(monkeypatch):
+    from src.ai.rag import advisor
 
-    question = "How do I add a product?"
-    empty = AssembledContext(query=question, context_text="", sources=[])
-    registry = ("CEOPRO_APPLICATION_KNOWLEDGE", "Click 'Add product' ... Save")
-    with patch.object(llm_client, "run_retrieval", return_value=empty), \
-         patch.object(llm_client, "build_structured_facts_block", return_value=""), \
-         patch.object(llm_client, "build_financial_facts_block", return_value=""), \
-         patch("src.ai.rag.orchestrator.build_tool_facts_blocks", return_value=[registry]), \
-         patch.object(llm_client.web_fallback, "build_web_fallback_context") as web, \
-         patch.object(llm_client, "_generate_answer_with_usage", return_value=("ok", {})) as generate:
-        llm_client.answer_query(object(), "tenant", question)
-    kwargs = generate.call_args.kwargs
-    assert "«Add Product»" in kwargs["product_guide_block"]
-    assert "CEOPRO_APPLICATION_KNOWLEDGE" not in kwargs["structured_facts"]
-    web.assert_not_called()  # a how-to question never triggers web research
+    researched = []
+    monkeypatch.setattr(advisor.public_research, "research", lambda *a, **k: researched.append(1))
+    monkeypatch.setattr(advisor, "build_tool_facts_blocks", lambda *a, **k: [("CEOPRO_APPLICATION_KNOWLEDGE", "Click 'Add product' ... Save")])
+    prompts = []
+    monkeypatch.setattr(advisor, "_call", lambda messages, usage, max_tokens=None: prompts.append(messages) or
+                        '{"blocks": [{"type": "paragraph", "claims": [{"text": "Use Products.", "kind": "general", "evidence": []}]}]}')
+    advisor.answer(None, "tenant", "How do I add a product?")
+    assert "Click 'Add product'" not in prompts[0][-1]["content"]
+    assert researched == []
