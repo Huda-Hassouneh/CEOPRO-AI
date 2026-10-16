@@ -118,7 +118,7 @@ def list_market_news(limit: int = Query(default=30, ge=1, le=100), competitor_id
 @router.get("/competitors")
 def list_discovered(
     status: Literal["all", "tracked", "suggested"] = "all",
-    sort: Literal["relevance", "distance", "rating", "reviews", "name", "recent"] = "relevance",
+    sort: Literal["relevance", "confidence", "distance", "rating", "reviews", "name", "recent"] = "relevance",
     q: Optional[str] = Query(default=None, max_length=100),
     origin: Optional[Literal["manual", "map", "web"]] = None,
     min_confidence: Optional[float] = Query(default=None, ge=0, le=1),

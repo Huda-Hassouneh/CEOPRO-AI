@@ -1720,6 +1720,32 @@ the old rules was demoted on re-score. 3 live-DB tests that failed on untouched 
 1 machine-timezone) - the two network ones now pass; the timezone one is unchanged. 34 test files
 (ML-dependency imports) could not be collected in this environment.
 
+## 2026-10-17 — Competitor quality audit on the integrated branch (selection, owner choices, sorting, links)
+
+Audit of the competitors surface after the relevance work was ported onto the integrated branch, which
+also carries a second, independent discovery system (`market_discovery`, the Competitors screen's
+source). Gaps found and closed:
+
+- **Wrong competitors still listed.** The newer pipeline never applied the category rule, so a donut shop
+  was listed for a burger restaurant as an INDIRECT competitor. It now drops a business in a different
+  segment unless it has stronger evidence (same priced products or the company's own specialty); unknown
+  categories are never excluded.
+- **Owner choices could be overturned.** Re-scoring after discovery could re-track a competitor the owner
+  untracked, and promote every suggestion up to the plan cap. Fixed with an explicit
+  `tenant_competitors.tracking_decision`; re-scoring (`apply_tracking=False`) now refreshes scores only.
+- **Scores missing.** Competitors found by the newer pipeline had no category / 0-100 competitive
+  confidence / evidence; they are now scored after every run.
+- **Sorting.** The discovery list had no confidence sort (added). The flat `GET /competitors` keeps its alphabetical default - its test pins it - with an opt-in `sort=confidence`.
+- **Over-filtering found by the existing suite.** A bakery lost "Habibah Sweets" because the taxonomy split bakeries from sweets shops; bakery now shares the desserts segment (a bakery, sweets shop and donut shop compete).
+- **Details/links.** The discovery list now returns the confidence score, label, reasons, category,
+  classification reason and a map link (`maps_url`); the website, source and social links already existed.
+- **Closed businesses.** The older Places-nearby path now skips permanently closed places.
+
+Verified on a real Postgres through the restricted app role, including a mutation check that the
+"re-score must not start tracking" test fails on the old behaviour. Not covered: the frontend; Places
+Details fields beyond business status; a competitor MENU (no source provides one - the newer pipeline
+reads published menu/product prices from the competitor's own website into `competitor_intel`).
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
