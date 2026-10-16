@@ -163,7 +163,18 @@ def _matches(keyword: str, question: str) -> bool:
     return re.search(r"\b" + re.escape(keyword) + r"s?\b", question) is not None
 
 
-def select_sections(question: str, language: str = "en", limit: int = 3) -> List[str]:
+# The screen each section starts from (frontend/src/app/router/routePaths.js),
+# so a reference to the guide opens that screen.
+SCREENS = {
+    "add_product": "/products", "upload_sales": "/connect-data", "record_sale": "/products",
+    "product_page": "/products", "reviews": "/connect-data", "competitors": "/market/competitors",
+    "search_scope": "/market/search-scope", "target_markets": "/settings", "forecast": "/demand",
+    "pricing": "/pricing", "campaign": "/marketing", "assistant_documents": "/ai-advisor",
+    "team": "/settings/team", "billing": "/billing", "language": "/settings", "dashboard": "/dashboard",
+}
+
+
+def _selected(question: str, limit: int) -> List[tuple]:
     q = (question or "").lower()
     scored = []
     for key, keywords, text in SECTIONS:
@@ -171,7 +182,18 @@ def select_sections(question: str, language: str = "en", limit: int = 3) -> List
         if score:
             scored.append((score, key, text))
     scored.sort(reverse=True)
-    return [_render(text, language) for _score, _key, text in scored[:limit]]
+    return [(key, text) for _score, key, text in scored[:limit]]
+
+
+def select_sections(question: str, language: str = "en", limit: int = 3) -> List[str]:
+    return [_render(text, language) for _key, text in _selected(question, limit)]
+
+
+def guide_screens(question: str) -> List[str]:
+    """The screen of each section build_guide_block() returns, in the same order."""
+    if not is_how_to_question(question):
+        return []
+    return [SCREENS.get(key) for key, _text in _selected(question, limit=2)]
 
 
 def build_guide_block(question: str, language: str = None) -> str:
