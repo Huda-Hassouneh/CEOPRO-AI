@@ -767,8 +767,10 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     user_ids = _user_inputs(registry, question, state, u.follow_up, language)
     guide = product_guide.build_guide_block(question)
     if guide:
-        registry.add_fact_lines(guide.splitlines(), route=None, capabilities=frozenset(), kind=ev.PRODUCT_GUIDE,
-                                credibility=ev.PRIMARY, title="KEEL product guide")
+        items = registry.add_fact_lines(guide.splitlines(), route=None, capabilities=frozenset(),
+                                        kind=ev.PRODUCT_GUIDE, credibility=ev.PRIMARY, title="KEEL product guide")
+        for item, screen in zip(items, product_guide.guide_screens(question)):
+            item.route = screen
 
     company_found = 0
     products: Dict[str, dict] = {}
