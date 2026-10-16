@@ -6,7 +6,7 @@ without a language-specific tokenizer. Pure function - no I/O.
 """
 
 import os
-from typing import List
+from typing import List, Optional
 
 DEFAULT_CHUNK_SIZE_WORDS = int(os.getenv("RAG_CHUNK_SIZE_WORDS", "200"))
 DEFAULT_CHUNK_OVERLAP_WORDS = int(os.getenv("RAG_CHUNK_OVERLAP_WORDS", "40"))
@@ -41,3 +41,22 @@ def chunk_text(text: str, chunk_size_words: int = None, overlap_words: int = Non
             break
 
     return chunks
+
+
+def chunk_pages(text: str, chunk_count: int, chunk_size_words: int = None, overlap_words: int = None) -> List[Optional[int]]:
+    """The page (1-based) each chunk of chunk_text(text) starts on, for text
+    whose pages are separated by form feeds (PDFs); all None otherwise."""
+    if "\f" not in (text or ""):
+        return [None] * chunk_count
+    chunk_size_words = DEFAULT_CHUNK_SIZE_WORDS if chunk_size_words is None else chunk_size_words
+    overlap_words = DEFAULT_CHUNK_OVERLAP_WORDS if overlap_words is None else overlap_words
+    starts, offset = [], 0
+    for page_text in text.split("\f"):
+        starts.append(offset)
+        offset += len(page_text.split())
+    step = chunk_size_words - overlap_words
+    pages = []
+    for index in range(chunk_count):
+        word = index * step
+        pages.append(max(number for number, start in enumerate(starts, start=1) if start <= word))
+    return pages

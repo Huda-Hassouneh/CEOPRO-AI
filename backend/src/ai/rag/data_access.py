@@ -120,10 +120,15 @@ def fetch_document_text(minio_client, bucket: str, object_key: str) -> str:
     return _extract_xlsx_text(raw)
 
 
+PAGE_BREAK = "\f"
+
+
 def _extract_pdf_text(raw: bytes) -> str:
+    """Page texts separated by a form feed, so passages can name their page
+    (chunking.chunk_pages()); blank pages keep their place in the count."""
     with pdfplumber.open(io.BytesIO(raw)) as pdf:
-        pages = [page.extract_text() for page in pdf.pages]
-    return "\n\n".join(page for page in pages if page)
+        pages = [page.extract_text() or "" for page in pdf.pages]
+    return PAGE_BREAK.join(pages) if any(page.strip() for page in pages) else ""
 
 
 def _extract_docx_text(raw: bytes) -> str:
@@ -158,7 +163,8 @@ def _extract_xlsx_text(raw: bytes) -> str:
 
 
 def replace_document_chunks(
-    conn, tenant_id: str, document_id: str, chunks: List[str], embeddings: np.ndarray, model_version: str
+    conn, tenant_id: str, document_id: str, chunks: List[str], embeddings: np.ndarray, model_version: str,
+    pages: Optional[List[Optional[int]]] = None,
 ) -> None:
     """
     Idempotent wipe-and-replace: deletes every existing chunk for this
@@ -179,10 +185,11 @@ def replace_document_chunks(
     """
     if embeddings is None:  # stored for keyword search; vectors backfilled later
         embeddings = [None] * len(chunks)
+    pages = pages or [None] * len(chunks)
     values = [
         (tenant_id, document_id, chunk_index, text,
-         _to_pgvector_literal(embedding) if embedding is not None else None, model_version)
-        for chunk_index, (text, embedding) in enumerate(zip(chunks, embeddings))
+         _to_pgvector_literal(embedding) if embedding is not None else None, model_version, page)
+        for chunk_index, (text, embedding, page) in enumerate(zip(chunks, embeddings, pages))
     ]
     with conn.cursor() as cursor:
         cursor.execute(
@@ -199,11 +206,12 @@ def replace_document_chunks(
                 cursor,
                 """
                 INSERT INTO rag_document_chunks
-                    (tenant_id, document_id, chunk_index, chunk_text_content, embedding, embedding_model_version)
+                    (tenant_id, document_id, chunk_index, chunk_text_content, embedding, embedding_model_version,
+                     page_number)
                 VALUES %s;
                 """,
                 values,
-                template="(%s, %s, %s, %s, %s::vector, %s)",
+                template="(%s, %s, %s, %s, %s::vector, %s, %s)",
             )
 
 

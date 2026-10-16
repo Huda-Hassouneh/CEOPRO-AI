@@ -442,10 +442,11 @@ services:
       GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
       GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
       # Optional - src/market_scraper/searxng_discovery.py's own fallback,
-      # and src/ai/rag/web_fallback.py's chatbot web-search fallback both
-      # degrade to returning nothing when unset.
+      # and the assistant's public research (src/ai/research/) both
+      # degrade to "not set up" when no search provider is configured.
       SEARXNG_INSTANCE_URL: ${SEARXNG_INSTANCE_URL:-}
-      RAG_WEB_FALLBACK_DAILY_LIMIT: ${RAG_WEB_FALLBACK_DAILY_LIMIT:-50}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      RESEARCH_DAILY_SEARCH_LIMIT: ${RESEARCH_DAILY_SEARCH_LIMIT:-30}
       # Published by POST /extraction/upload right after new products are
       # persisted; consumed by the market-discovery-worker service below -
       # must match that service's own DISCOVERY_STREAM_KEY.

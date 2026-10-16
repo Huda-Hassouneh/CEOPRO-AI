@@ -48,7 +48,7 @@ import numpy as np
 from src.ai.rag import data_access
 from src.ai.rag import embeddings as embeddings_module
 from src.ai.rag.bm25_index import BM25Index
-from src.ai.rag.chunking import chunk_text
+from src.ai.rag.chunking import chunk_pages, chunk_text
 from src.ai.rag.embeddings import embed, try_embed
 from src.ai.rag.faiss_index import FAISSIndex
 from src.ai.rag.hybrid_retrieval import reciprocal_rank_fusion
@@ -131,6 +131,7 @@ def ingest_pending_documents(conn, minio_client, tenant_id: str, bucket: str = D
             data_access.replace_document_chunks(
                 conn, tenant_id, doc["document_id"], chunks, doc_embeddings,
                 embeddings_module.MODEL_NAME if doc_embeddings is not None else None,
+                pages=chunk_pages(text, len(chunks)),
             )
             data_access.mark_document_status(conn, doc["document_id"], "Processed")
             processed_count += 1

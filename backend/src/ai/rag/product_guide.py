@@ -116,7 +116,7 @@ SECTIONS = [
      "[[Preferences||التفضيلات]]."),
     ("dashboard",
      ["dashboard", "overview", "kpi", "summary", "home", "لوحة التحكم", "ملخص", "نظرة عامة"],
-     "The [[Command Center||مركز القيادة]] shows today's sales, revenue and units for the chosen period (7, 30 or 90 "
+     "The [[Dashboard||لوحة التحكم]] shows today's sales, revenue and units for the chosen period (7, 30 or 90 "
      "days) with the change versus the previous period, the 30-day forecast, products to restock, the next best "
      "actions, top and falling products, recent competitor price changes and price opportunities. "
      "[[Reports||التقارير]] has detailed sales reports to export."),

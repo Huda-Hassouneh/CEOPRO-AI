@@ -43,7 +43,6 @@ from src.ai.dashboard import (
 from src.ai.knowledge.application_registry import get_feature, search_features
 from src.ai.marketing import data_access as _marketing_data_access
 from src.ai.pricing import pipeline as _pricing_pipeline
-from src.ai.rag import web_fallback as _web_fallback
 from src.ai.rag.pipeline import run_retrieval as _run_retrieval
 from src.ai.routers import products as _products_router
 
@@ -246,17 +245,6 @@ def retrieve_relevant_context(conn, tenant_id: str, query_text: str, top_k: int 
 
 
 # ---------------------------------------------------------------------------
-# External research (wraps rag/web_fallback.py::build_web_fallback_context
-# - preserves its existing confidence gate/citation shape rather than
-# adding a second, less-careful web-search path)
-# ---------------------------------------------------------------------------
-
-def web_search(conn, tenant_id: str, query_text: str) -> dict:
-    context_text, sources = _web_fallback.build_web_fallback_context(conn, tenant_id, query_text)
-    return {"context_text": context_text, "sources": sources}
-
-
-# ---------------------------------------------------------------------------
 # Registry: stable tool name -> (function, human-readable description).
 # orchestrator.py uses the names/descriptions below; it never calls a tool
 # function directly by import, so adding/removing a tool here is the one
@@ -289,5 +277,4 @@ TOOL_REGISTRY = {
     "get_marketing_performance": (get_marketing_performance, "List of recent marketing campaigns."),
     "search_documents": (search_documents, "Hybrid retrieval over this tenant's ingested documents."),
     "retrieve_relevant_context": (retrieve_relevant_context, "Alias of search_documents."),
-    "web_search": (web_search, "Confidence-gated external web research with real citations."),
 }
