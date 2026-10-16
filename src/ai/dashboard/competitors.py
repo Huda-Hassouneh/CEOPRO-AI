@@ -176,30 +176,45 @@ def _strengths_and_weaknesses(price_competitiveness_10: Optional[float], sentime
     return strengths, weaknesses
 
 
-def _summary_line(tier: str, overlap_pct: Optional[float], matched_product_count: int) -> str:
+def _summary_line(
+    tier: str, overlap_pct: Optional[float], matched_product_count: int,
+    confidence_label: Optional[str] = None, category_path=None, distance_km: Optional[float] = None,
+) -> str:
     """One factual sentence built only from fields this table already
     computes - never a researched "who they are" narrative (this
     platform doesn't scrape a competitor's own About page), just what
     the real classification and matching already established about them."""
-    if tier == TIER_STRATEGIC:
-        return f"Strategic competitor — {overlap_pct:.0f}% product overlap with your catalog."
-    plural = "product" if matched_product_count == 1 else "products"
-    return f"Relevant competitor — {matched_product_count} of your {plural} matched for price comparison."
+    lead = f"{confidence_label} confidence {tier.lower()} competitor" if confidence_label else f"{tier.capitalize()} competitor"
+    facts = []
+    if category_path:
+        facts.append(f"category {' > '.join(p.replace('_', ' ') for p in category_path)}")
+    if tier == TIER_STRATEGIC and overlap_pct:
+        facts.append(f"{overlap_pct:.0f}% product overlap with your catalog")
+    elif matched_product_count:
+        plural = "product" if matched_product_count == 1 else "products"
+        facts.append(f"{matched_product_count} of your {plural} matched for price comparison")
+    if distance_km is not None:
+        facts.append(f"{distance_km:.1f} km away")
+    return lead + (" — " + ", ".join(facts) if facts else "") + "."
 
 
 def get_competitor_directory(conn, tenant_id: str) -> dict:
     """Returns {"strategic": [...], "relevant": [...]} - the exact two
     groups and fields the frontend needs (see this module's own
-    docstring). Ordered alphabetically by name within each group."""
+    docstring). Each group is ordered by confidence_score, best first (ties
+    and unscored rows fall back to alphabetical)."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
             SELECT gc.global_competitor_id, gc.competitor_name, gc.website_url,
-                   tc.tier, tc.product_match_rate, tc.classified_at
+                   tc.tier, tc.product_match_rate, tc.classified_at,
+                   tc.confidence_score, tc.confidence_label, tc.confidence_reasons,
+                   tc.distance_km, tc.competitor_scope, tc.discovery_method, tc.category_similarity,
+                   gc.category_path, gc.address, gc.city, gc.phone, gc.rating, gc.rating_count
             FROM tenant_competitors tc
             JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
             WHERE tc.tenant_id = %s AND tc.is_tracked = TRUE AND tc.tier IN (%s, %s)
-            ORDER BY gc.competitor_name ASC;
+            ORDER BY tc.confidence_score DESC NULLS LAST, gc.competitor_name ASC;
             """,
             (tenant_id, TIER_STRATEGIC, TIER_RELEVANT),
         )
@@ -210,7 +225,10 @@ def get_competitor_directory(conn, tenant_id: str) -> dict:
 
     strategic = []
     relevant = []
-    for global_competitor_id, name, website_url, tier, match_rate, classified_at in rows:
+    for (global_competitor_id, name, website_url, tier, match_rate, classified_at,
+         confidence_score, confidence_label, confidence_reasons,
+         distance_km, competitor_scope, discovery_method, category_similarity,
+         category_path, address, city, phone, rating, rating_count) in rows:
         global_competitor_id = str(global_competitor_id)
         price_pairs = _load_price_comparisons(conn, tenant_id, global_competitor_id)
 
@@ -238,8 +256,22 @@ def get_competitor_directory(conn, tenant_id: str) -> dict:
         strengths, weaknesses = _strengths_and_weaknesses(price_competitiveness_10, sentiment_label)
         overlap_pct = round(float(match_rate) * 100, 1) if tier == TIER_STRATEGIC else None
 
+        matched_count = len(price_pairs)
         common_fields = {
             "name": name,
+            "confidence_score": confidence_score,
+            "confidence_label": confidence_label,
+            "confidence_reasons": confidence_reasons or [],
+            "category": " > ".join(p.replace("_", " ") for p in category_path) if category_path else None,
+            "category_match_pct": round(category_similarity * 100) if category_similarity is not None else None,
+            "address": address or city,
+            "phone": phone,
+            "rating": float(rating) if rating is not None else None,
+            "rating_count": rating_count,
+            "distance_km": round(distance_km, 1) if distance_km is not None else None,
+            "competitor_scope": competitor_scope,
+            "found_via": discovery_method or "MANUAL",
+            "matched_product_count": matched_count,
             "tier": tier,
             "website_url": website_url,
             "market_sentiment_label": sentiment_label,
@@ -249,7 +281,7 @@ def get_competitor_directory(conn, tenant_id: str) -> dict:
             "relevance_score": _relevance_score(_avg_raw_price_competitiveness(price_pairs), sentiment_score, activity_for_composite),
             "strengths": strengths,
             "weaknesses": weaknesses,
-            "summary_line": _summary_line(tier, overlap_pct, len(price_pairs)),
+            "summary_line": _summary_line(tier, overlap_pct, matched_count, confidence_label, category_path, distance_km),
         }
 
         if tier == TIER_STRATEGIC:

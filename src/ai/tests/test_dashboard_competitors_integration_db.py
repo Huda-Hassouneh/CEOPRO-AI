@@ -331,3 +331,37 @@ def test_summary_line_is_factual_and_tier_specific(conn):
     directory = get_competitor_directory(conn, tenant_id)
     assert directory["strategic"][0]["summary_line"] == "Strategic competitor — 75% product overlap with your catalog."
     assert directory["relevant"][0]["summary_line"] == "Relevant competitor — 1 of your product matched for price comparison."
+
+
+def test_directory_is_ordered_by_confidence_best_first_and_carries_details(conn):
+    tenant_id = _insert_company(conn)
+    low = _insert_tracked_competitor(conn, tenant_id, "Aardvark Low", TIER_RELEVANT, 0.2)
+    high = _insert_tracked_competitor(conn, tenant_id, "Zebra High", TIER_RELEVANT, 0.2)
+    mid = _insert_tracked_competitor(conn, tenant_id, "Mid Co", TIER_RELEVANT, 0.2)
+    with conn.cursor() as cursor:
+        for competitor_id, score, label in ((low, 30.0, "Low"), (high, 88.0, "High"), (mid, 55.0, "Medium")):
+            cursor.execute(
+                "UPDATE tenant_competitors SET confidence_score = %s, confidence_label = %s, "
+                "confidence_reasons = %s, distance_km = 2.34, category_similarity = 0.67 "
+                "WHERE tenant_id = %s AND global_competitor_id = %s;",
+                (score, label, json.dumps(["Closely related category"]), tenant_id, competitor_id),
+            )
+        cursor.execute(
+            "UPDATE global_competitors SET category_path = %s, address = 'Rainbow St, Amman', phone = '+962 6 1', "
+            "rating = 4.5, rating_count = 120 WHERE global_competitor_id = %s;",
+            (["food", "snacks", "pizza"], high),
+        )
+
+    relevant = get_competitor_directory(conn, tenant_id)["relevant"]
+
+    assert [c["name"] for c in relevant] == ["Zebra High", "Mid Co", "Aardvark Low"]
+    top = relevant[0]
+    assert top["confidence_label"] == "High" and top["confidence_score"] == 88.0
+    assert top["category"] == "food > snacks > pizza"
+    assert top["category_match_pct"] == 67
+    assert top["address"] == "Rainbow St, Amman" and top["phone"] == "+962 6 1"
+    assert top["rating"] == 4.5 and top["rating_count"] == 120
+    assert top["distance_km"] == 2.3
+    assert top["confidence_reasons"] == ["Closely related category"]
+    assert top["found_via"] == "MANUAL"
+    assert top["summary_line"].startswith("High confidence relevant competitor")

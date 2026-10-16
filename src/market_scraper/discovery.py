@@ -34,6 +34,7 @@ from typing import Optional
 from urllib.parse import urlsplit
 
 from src.ai.pricing.competitor_classification import classify_competitor
+from src.market_scraper.category_taxonomy import categorize
 from src.market_scraper import data_access
 from src.market_scraper.policy import SourceCapabilities, evaluate_source, is_public_http_url
 from src.market_scraper.sector_detection import MANUFACTURER_SIGNAL_WORDS
@@ -117,6 +118,13 @@ class CandidateSource:
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     city: Optional[str] = None
+    # Business details a location-aware source can supply (Google Places);
+    # all None for plain web-search candidates, never guessed.
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    rating: Optional[float] = None
+    rating_count: Optional[int] = None
+    place_types: Optional[tuple] = None
 
 
 @dataclass(frozen=True)
@@ -291,7 +299,7 @@ def _register_tenant_scoped_competitor(
                 RETURNING global_competitor_id;
                 """,
                 (
-                    candidate.title or hostname, website_url, identity_key, tenant_id, is_manufacturer,
+                    _business_name_from_host(hostname, candidate, identity_key), website_url, identity_key, tenant_id, is_manufacturer,
                     candidate.latitude, candidate.longitude, candidate.city,
                 ),
             )
@@ -311,11 +319,12 @@ def _register_tenant_scoped_competitor(
                 RETURNING global_competitor_id;
                 """,
                 (
-                    candidate.title or hostname, website_url, tenant_id, is_manufacturer,
+                    _business_name_from_host(hostname, candidate, identity_key), website_url, tenant_id, is_manufacturer,
                     candidate.latitude, candidate.longitude, candidate.city,
                 ),
             )
         competitor_id = cursor.fetchone()[0]
+        _store_competitor_details(cursor, competitor_id, candidate, name_text=_business_name_from_host(hostname, candidate, identity_key))
 
         cursor.execute(
             "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, discovery_method) "
@@ -411,7 +420,7 @@ def _register_tenant_scoped_competitor(
         "mapping_id": str(mapping_id),
         "policy_status": policy_status_value,
         "product_url": candidate.url,
-        "competitor_name": candidate.title or hostname,
+        "competitor_name": _business_name_from_host(hostname, candidate, identity_key),
         "is_manufacturer": is_manufacturer,
         "product_match_rate": classification.product_match_rate,
         "is_confirmed_competitor": classification.is_confirmed_competitor,
@@ -424,6 +433,52 @@ def _register_tenant_scoped_competitor(
 
 
 DOMAIN_LEVEL_DISCOVERY_METHODS = {"PLACES_NEARBY", "INDUSTRY_KEYWORD_SEARCH"}
+
+
+def _business_name_from_host(hostname: str, candidate: Optional["CandidateSource"] = None, identity_key: Optional[str] = None) -> str:
+    """A readable business name for a PRODUCT-level find. Product-level
+    discovery only has a PRODUCT page title (e.g. "Yellow Digital MultiMeter
+    DT830B"), which is not the seller's name - storing it as the
+    competitor's name made a product show up as a competitor in the
+    directory. So the seller is named by its hostname ("www.sparkfun.com"
+    -> "sparkfun.com"). The one exception: a social-profile find (identity
+    key is a path like "instagram.com/acmecoffee"), where the profile title
+    genuinely IS the business."""
+    if candidate is not None and candidate.title and identity_key and "/" in identity_key:
+        return candidate.title
+    return hostname[4:] if hostname.startswith("www.") else hostname
+
+
+def _store_competitor_details(cursor, competitor_id, candidate: "CandidateSource", name_text: Optional[str] = None) -> None:
+    """Persists the category and business details a candidate carries onto
+    its global_competitors row. COALESCE throughout: a later, thinner
+    sighting of the same business (e.g. a bare web-search hit) never wipes
+    richer details an earlier Places lookup already stored. The category is
+    derived here, from the candidate's Places types first and its name
+    second (category_taxonomy.categorize) - NULL when neither says
+    anything, never a guess. name_text overrides which text is
+    keyword-matched: a product-level find's candidate.title is a PRODUCT
+    page title, not the business's name, so that caller passes the
+    business's own hostname instead."""
+    categorization = categorize(name_text if name_text is not None else candidate.title, candidate.place_types)
+    cursor.execute(
+        """
+        UPDATE global_competitors
+        SET category_path = COALESCE(category_path, %s),
+            address = COALESCE(address, %s),
+            phone = COALESCE(phone, %s),
+            rating = COALESCE(rating, %s),
+            rating_count = COALESCE(rating_count, %s),
+            place_types = COALESCE(place_types, %s)
+        WHERE global_competitor_id = %s;
+        """,
+        (
+            list(categorization.path) if categorization else None,
+            candidate.address, candidate.phone, candidate.rating, candidate.rating_count,
+            list(candidate.place_types) if candidate.place_types else None,
+            competitor_id,
+        ),
+    )
 
 
 def register_domain_level_competitor(
@@ -536,6 +591,7 @@ def _register_domain_level_competitor(
                 ),
             )
         competitor_id = cursor.fetchone()[0]
+        _store_competitor_details(cursor, competitor_id, candidate)
 
         # discovery_method is preserved on conflict (COALESCE), never
         # overwritten - the column records how this competitor was FIRST
@@ -628,6 +684,7 @@ def register_manual_competitor(conn, tenant_id: str, name: str, website_url: str
                     (name, normalized_url, tenant_id, is_manufacturer),
                 )
             competitor_id = cursor.fetchone()[0]
+            _store_competitor_details(cursor, competitor_id, candidate)
 
             cursor.execute(
                 "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s) "
