@@ -34,13 +34,25 @@ tracking and price-comparing the moment it clears those two gates,
 whether or not enough of the tenant's catalog overlaps with theirs yet
 to call it STRATEGIC. tier is the separate axis that answers "how much
 of my catalog do they compete on" (RELEVANT below the bar, STRATEGIC at
-or above it) - only TIER_CANDIDATE (manufacturer, or out of region) is
-ever excluded from tracking.
+or above it) - only TIER_CANDIDATE (manufacturer, out of region, or a
+different business category - a donut shop is not a burger restaurant's
+competitor) is ever excluded from tracking.
+
+Category relevance (market_scraper/category_taxonomy.py) is also what
+decides STRATEGIC for a domain-level find with no product mappings: same
+segment earns STRATEGIC, a merely related one RELEVANT. Every result also
+carries a 0-100 confidence score + reasons (competitor_confidence.py), which
+the competitor directory orders by.
 """
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+from src.ai.pricing.competitor_confidence import ConfidenceResult, compute_confidence
+from src.market_scraper.category_taxonomy import (
+    MIN_COMPETING_SIMILARITY, STRONG_COMPETING_SIMILARITY, best_similarity, categorize, categorize_catalog,
+)
 from src.market_scraper.geo import distance_km_if_known
 
 DEFAULT_MATCH_RATE_THRESHOLD = 0.6
@@ -81,6 +93,23 @@ class ClassificationResult:
     competitor_scope: str
     matched_product_count: int
     distance_km: Optional[float]
+    category_similarity: Optional[float] = None
+    confidence_score: Optional[float] = None
+    confidence_label: Optional[str] = None
+    confidence_reasons: tuple = ()
+
+
+def _tenant_category_paths(cursor, tenant_id: str, business_type: Optional[str]) -> list:
+    """The category paths this tenant operates in, from its own product
+    names (every language variant of the JSONB name) plus business_type."""
+    cursor.execute("SELECT product_name FROM products WHERE tenant_id = %s AND deleted_at IS NULL;", (tenant_id,))
+    names = []
+    for (product_name,) in cursor.fetchall():
+        if isinstance(product_name, dict):
+            names.extend(v for v in product_name.values() if isinstance(v, str) and v)
+        elif isinstance(product_name, str):
+            names.append(product_name)
+    return categorize_catalog(names, business_type)
 
 
 def _matched_and_total_product_counts(conn, tenant_id: str, global_competitor_id: str) -> tuple:
@@ -213,23 +242,26 @@ def classify_competitor(
 
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT is_manufacturer, country_code, latitude, longitude FROM global_competitors "
+            "SELECT is_manufacturer, country_code, latitude, longitude, competitor_name, category_path, "
+            "place_types, website_url, address, rating FROM global_competitors "
             "WHERE global_competitor_id = %s;",
             (global_competitor_id,),
         )
         row = cursor.fetchone()
         if not row:
             raise ValueError("global_competitor_id not found")
-        is_manufacturer, competitor_country, competitor_lat, competitor_lon = row
+        (is_manufacturer, competitor_country, competitor_lat, competitor_lon, competitor_name, stored_category_path,
+         competitor_place_types, competitor_website, competitor_address, competitor_rating) = row
 
         cursor.execute(
-            "SELECT country_code, operating_countries, latitude, longitude FROM companies WHERE tenant_id = %s;",
+            "SELECT country_code, operating_countries, latitude, longitude, business_type FROM companies WHERE tenant_id = %s;",
             (tenant_id,),
         )
         company_row = cursor.fetchone()
         if not company_row:
             raise ValueError("tenant_id not found")
-        tenant_country, tenant_operating_countries, tenant_lat, tenant_lon = company_row
+        tenant_country, tenant_operating_countries, tenant_lat, tenant_lon, tenant_business_type = company_row
+        tenant_category_paths = _tenant_category_paths(cursor, tenant_id, tenant_business_type)
 
         cursor.execute(
             "SELECT discovery_method FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
@@ -249,42 +281,79 @@ def classify_competitor(
     distance_km = distance_km_if_known(tenant_lat, tenant_lon, competitor_lat, competitor_lon)
     is_domain_level_find = discovery_method in DOMAIN_LEVEL_DISCOVERY_METHODS and matched_product_count == 0
 
+    # Category relevance: the missing check that let a donut shop be listed
+    # as a burger restaurant's competitor. Uses the stored category when a
+    # discovery source already derived one, else categorizes the competitor
+    # now from its name/Places types. None on either side = unknown, which
+    # is never treated as a mismatch.
+    competitor_category = tuple(stored_category_path) if stored_category_path else None
+    if competitor_category is None:
+        categorization = categorize(competitor_name, competitor_place_types)
+        competitor_category = categorization.path if categorization else None
+    category_similarity = best_similarity(tenant_category_paths, competitor_category)
+    category_label = " > ".join(p.replace("_", " ") for p in competitor_category) if competitor_category else None
+    # A manually added competitor (discovery_method NULL) is the owner's own
+    # call - never second-guessed by category. Strong product evidence
+    # (overlap at/above the STRATEGIC bar) also outranks a category guess.
+    different_category = (
+        category_similarity is not None
+        and category_similarity < MIN_COMPETING_SIMILARITY
+        and discovery_method is not None
+        and match_rate < threshold
+    )
+
     if is_manufacturer:
         reason = "excluded: manufacturer/wholesaler, not a retail competitor"
         tier = TIER_CANDIDATE
     elif not in_region:
         reason = f"excluded: competitor country {competitor_country!r} is outside the tenant's operating region"
         tier = TIER_CANDIDATE
+    elif different_category:
+        reason = (
+            f"excluded: different business category ({category_label}) - does not compete with this tenant's "
+            f"{' / '.join(' > '.join(p) for p in tenant_category_paths)}"
+        )
+        tier = TIER_CANDIDATE
     elif is_domain_level_find:
         # A domain-level find (Places nearby-search / industry-keyword
-        # search) has no product mappings to measure overlap against yet -
-        # requiring product_match_rate >= threshold here would mean NO
-        # domain-level competitor could ever be confirmed, defeating the
-        # entire point of discovering them: passing manufacturer+region IS
-        # the confirmation bar for this class, exactly matching "detect
-        # competitors by industry/domain even if product lines don't
-        # completely overlap". Once real product mappings appear for this
-        # competitor, a later run naturally falls through to the ordinary
-        # match-rate branches below instead.
-        reason = f"confirmed: same-industry, in-region, not a manufacturer (found via {discovery_method})"
-        tier = TIER_STRATEGIC
+        # search) has no product mappings to measure overlap against, so
+        # category closeness is its evidence instead: same segment
+        # (burger vs. pizza) earns STRATEGIC; only broadly related, or a
+        # category we could not determine, is RELEVANT - found nearby is
+        # not by itself proof of competing.
+        if category_similarity is not None and category_similarity >= STRONG_COMPETING_SIMILARITY:
+            reason = f"confirmed (STRATEGIC): same-segment category ({category_label}), in-region, not a manufacturer (found via {discovery_method})"
+            tier = TIER_STRATEGIC
+        elif category_similarity is not None:
+            reason = f"tracked (RELEVANT): broadly related category ({category_label}) (found via {discovery_method})"
+            tier = TIER_RELEVANT
+        else:
+            reason = f"tracked (RELEVANT): category could not be verified, in-region, not a manufacturer (found via {discovery_method})"
+            tier = TIER_RELEVANT
     elif match_rate < threshold:
-        # Passed the manufacturer/region checks - a real, in-region retail
-        # seller, just not (yet) enough catalog overlap to call "strategic".
-        # Still tracked and price-compared (real bug fix: this used to also
-        # mark is_tracked/is_confirmed_competitor FALSE here, silently
-        # dropping every RELEVANT competitor from tracking entirely - tier
-        # is the axis that answers "how much of my catalog do they cover",
-        # not "is this a real competitor at all"). This is the tier
-        # recommended_collector_config() (product_families.py) gates
-        # expensive deep-collection (paid comment/review depth) OFF for -
-        # a RELEVANT competitor still gets tracked and price-compared, just
-        # not the expensive social depth STRATEGIC gets.
+        # Passed the manufacturer/region/category checks - a real,
+        # in-region retail seller, just not (yet) enough catalog overlap to
+        # call "strategic". Still tracked and price-compared (tier answers
+        # "how much of my catalog do they cover", not "is this a real
+        # competitor at all"). This is the tier recommended_collector_config()
+        # (product_families.py) gates expensive deep-collection OFF for.
         reason = f"tracked (RELEVANT): {match_rate:.0%} product overlap - below the {threshold:.0%} STRATEGIC bar, but a real, in-region, non-manufacturer competitor"
         tier = TIER_RELEVANT
     else:
         reason = f"confirmed (STRATEGIC): {match_rate:.0%} product overlap, in-region, not a manufacturer"
         tier = TIER_STRATEGIC
+
+    confidence = compute_confidence(
+        category_similarity=category_similarity,
+        product_match_rate=match_rate,
+        matched_product_count=matched_product_count,
+        distance_km=distance_km,
+        strategic_match_rate=threshold,
+        has_website=bool(competitor_website),
+        has_address=bool(competitor_address),
+        has_rating=competitor_rating is not None,
+        category_label=category_label,
+    )
 
     # is_confirmed_competitor/is_tracked = "not excluded" (see this
     # function's own docstring) - true for every tier except CANDIDATE,
@@ -292,17 +361,27 @@ def classify_competitor(
     confirmed = tier != TIER_CANDIDATE
 
     with conn.cursor() as cursor:
+        if stored_category_path is None and competitor_category is not None:
+            # Persist a category derived just now so the directory can show
+            # it and later runs skip re-deriving (backfills pre-existing rows).
+            cursor.execute(
+                "UPDATE global_competitors SET category_path = %s WHERE global_competitor_id = %s AND category_path IS NULL;",
+                (list(competitor_category), global_competitor_id),
+            )
         cursor.execute(
             """
             UPDATE tenant_competitors
             SET product_match_rate = %s, is_confirmed_competitor = %s,
                 is_tracked = %s, classified_at = %s, tier = %s,
-                competitor_scope = %s, distance_km = %s
+                competitor_scope = %s, distance_km = %s,
+                category_similarity = %s, confidence_score = %s, confidence_label = %s,
+                confidence_reasons = %s, classification_reason = %s
             WHERE tenant_id = %s AND global_competitor_id = %s;
             """,
             (
                 match_rate, confirmed, confirmed, datetime.now(timezone.utc), tier,
-                scope, distance_km, tenant_id, global_competitor_id,
+                scope, distance_km, category_similarity, confidence.score, confidence.label,
+                json.dumps(confidence.reasons), reason, tenant_id, global_competitor_id,
             ),
         )
         if cursor.rowcount != 1:
@@ -320,4 +399,30 @@ def classify_competitor(
         competitor_scope=scope,
         matched_product_count=matched_product_count,
         distance_km=distance_km,
+        category_similarity=category_similarity,
+        confidence_score=confidence.score,
+        confidence_label=confidence.label,
+        confidence_reasons=tuple(confidence.reasons),
     )
+
+
+def reclassify_all_for_tenant(conn, tenant_id: str, threshold: float = DEFAULT_MATCH_RATE_THRESHOLD) -> dict:
+    """Re-runs classify_competitor() over every competitor this tenant has,
+    including ones previously tracked - the way rows classified before the
+    category rules existed (a donut shop under a burger restaurant) get
+    re-scored, demoted to CANDIDATE, and given a confidence score. Safe to
+    re-run. Returns a count per resulting tier plus how many were demoted."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT global_competitor_id, tier FROM tenant_competitors WHERE tenant_id = %s;", (tenant_id,),
+        )
+        rows = [(str(cid), old_tier) for cid, old_tier in cursor.fetchall()]
+
+    counts = {TIER_STRATEGIC: 0, TIER_RELEVANT: 0, TIER_CANDIDATE: 0}
+    demoted = 0
+    for competitor_id, old_tier in rows:
+        result = classify_competitor(conn, tenant_id, competitor_id, threshold=threshold)
+        counts[result.tier] += 1
+        if result.tier == TIER_CANDIDATE and old_tier in (TIER_STRATEGIC, TIER_RELEVANT):
+            demoted += 1
+    return {"reclassified": len(rows), "by_tier": counts, "demoted_to_candidate": demoted}

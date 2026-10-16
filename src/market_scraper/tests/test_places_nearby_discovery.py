@@ -52,9 +52,44 @@ def test_returns_a_real_candidate_with_its_own_coordinates():
     assert candidates == [
         CandidateSource(
             "electronics store", "https://downtown-electronics.example", "Downtown Electronics",
-            latitude=31.9454, longitude=35.9284, city="Amman, Jordan",
+            latitude=31.9454, longitude=35.9284, city="Amman, Jordan", address="Amman, Jordan",
         )
     ]
+
+
+def test_carries_business_details_and_place_types_when_google_provides_them():
+    nearby = _nearby_payload({"place_id": "p1", "name": "Napoli Pizza", "types": ["restaurant"], "rating": 4.1})
+    details = {"result": {
+        "website": "https://napoli-pizza.example",
+        "geometry": {"location": {"lat": 31.9, "lng": 35.9}},
+        "formatted_address": "Rainbow St, Amman",
+        "formatted_phone_number": "06 123 4567",
+        "rating": 4.5, "user_ratings_total": 210,
+        "types": ["pizza_restaurant", "restaurant", "food"],
+    }}
+    with patch("src.market_scraper.places_nearby_discovery._get") as mock_get:
+        mock_get.side_effect = [nearby, details]
+        (candidate,) = discover_nearby_places(31.95, 35.91, "restaurant OR cafe", radius_km=25, api_key="k")
+
+    assert candidate.address == "Rainbow St, Amman"
+    assert candidate.phone == "06 123 4567"
+    assert candidate.rating == 4.5 and candidate.rating_count == 210
+    assert candidate.place_types == ("pizza_restaurant", "restaurant", "food")
+
+
+def test_requests_the_detail_fields_the_competitor_directory_shows():
+    captured = {}
+
+    def fake_get(url, params):
+        if "details" in url:
+            captured.update(params)
+            return {"result": {}}
+        return _nearby_payload({"place_id": "p1", "name": "X"})
+
+    with patch("src.market_scraper.places_nearby_discovery._get", side_effect=fake_get):
+        discover_nearby_places(31.95, 35.91, "restaurant", radius_km=25, api_key="k")
+    for field in ("website", "types", "rating", "user_ratings_total", "formatted_phone_number", "formatted_address"):
+        assert field in captured["fields"]
 
 
 def test_radius_is_clamped_to_the_real_google_api_cap():

@@ -63,8 +63,11 @@ def test_domain_level_competitor_is_confirmed_without_any_product_mapping(conn):
     confirmed - requiring product overlap here would make domain-level
     discovery pointless."""
     tenant_id = _insert_company(conn, country_code="JO")
+    _insert_product(conn, tenant_id, "Arduino Nano")
+    # Same segment as the tenant's catalog (Arduino parts) - category
+    # closeness is what earns a no-mapping domain-level find STRATEGIC.
     candidate = CandidateSource(
-        "electronics store", "https://downtown-electronics.example", "Downtown Electronics",
+        "electronics store", "https://downtown-electronics.example", "Downtown Arduino Parts",
         latitude=31.9454, longitude=35.9284, city="Amman, Jordan",
     )
 
@@ -366,3 +369,88 @@ def test_register_domain_level_competitor_rolls_back_cleanly_on_classification_f
     with conn.cursor() as cursor:
         cursor.execute("SELECT 1;")
         assert cursor.fetchone()[0] == 1
+
+
+# --- category relevance: a burger restaurant must not be shown a donut shop ---
+
+def _burger_tenant(conn) -> str:
+    tenant_id = _insert_company(conn, country_code="JO")
+    for name in ("Cheeseburger", "Double Beef Burger", "Chicken Burger", "Fries"):
+        _insert_product(conn, tenant_id, name)
+    return tenant_id
+
+
+def _register(conn, tenant_id, title, url, **kwargs):
+    candidate = CandidateSource("restaurant", url, title, **kwargs)
+    return register_domain_level_competitor(
+        conn, tenant_id, str(uuid.uuid4()), candidate, discovery_method="PLACES_NEARBY", country_code="JO",
+    )
+
+
+def test_a_donut_shop_is_excluded_for_a_burger_restaurant(conn):
+    tenant_id = _burger_tenant(conn)
+    result = _register(conn, tenant_id, "Krispy Donuts", "https://krispy-donuts.example")
+
+    assert result["tier"] == TIER_CANDIDATE
+    assert result["is_confirmed_competitor"] is False
+    assert "different business category" in result["classification_reason"]
+
+
+def test_a_pizza_place_is_a_strategic_competitor_of_a_burger_restaurant(conn):
+    tenant_id = _burger_tenant(conn)
+    result = _register(conn, tenant_id, "Napoli Pizza", "https://napoli-pizza.example")
+
+    assert result["tier"] == TIER_STRATEGIC
+    assert result["is_confirmed_competitor"] is True
+
+
+def test_places_types_drive_the_category_when_the_name_says_nothing(conn):
+    tenant_id = _burger_tenant(conn)
+    result = _register(
+        conn, tenant_id, "The Corner", "https://the-corner.example", place_types=("restaurant", "hamburger_restaurant"),
+    )
+    assert result["tier"] == TIER_STRATEGIC
+
+
+def test_a_generic_restaurant_is_only_relevant_not_strategic(conn):
+    tenant_id = _burger_tenant(conn)
+    result = _register(conn, tenant_id, "Joe's Restaurant", "https://joes.example")
+    assert result["tier"] == "RELEVANT"
+
+
+def test_an_unrecognizable_business_is_relevant_not_strategic(conn):
+    tenant_id = _burger_tenant(conn)
+    result = _register(conn, tenant_id, "Zorblax Holdings", "https://zorblax.example")
+    assert result["tier"] == "RELEVANT"
+
+
+def test_confidence_score_and_details_are_persisted(conn):
+    tenant_id = _burger_tenant(conn)
+    result = _register(
+        conn, tenant_id, "Napoli Pizza", "https://napoli-pizza.example",
+        address="Rainbow St, Amman", phone="+962 6 123 4567", rating=4.5, rating_count=210,
+        place_types=("pizza_restaurant", "restaurant"),
+    )
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT tc.confidence_score, tc.confidence_label, tc.category_similarity, tc.confidence_reasons, "
+            "gc.category_path, gc.address, gc.phone, gc.rating, gc.rating_count "
+            "FROM tenant_competitors tc JOIN global_competitors gc USING (global_competitor_id) "
+            "WHERE tc.tenant_id = %s AND tc.global_competitor_id = %s;",
+            (tenant_id, result["competitor_id"]),
+        )
+        score, label, similarity, reasons, category_path, address, phone, rating, rating_count = cursor.fetchone()
+    assert 0 < score <= 100 and label in ("High", "Medium", "Low")
+    assert similarity == pytest.approx(0.67, abs=0.01)
+    assert category_path == ["food", "snacks", "pizza"]
+    assert address == "Rainbow St, Amman" and phone == "+962 6 123 4567"
+    assert float(rating) == 4.5 and rating_count == 210
+    assert reasons
+
+
+def test_a_manually_added_competitor_is_never_excluded_by_category(conn):
+    from src.market_scraper.discovery import register_manual_competitor
+    tenant_id = _burger_tenant(conn)
+    result = register_manual_competitor(conn, tenant_id, "Krispy Donuts", "https://krispy-donuts.example")
+    assert result["tier"] != TIER_CANDIDATE
+    assert result["is_confirmed_competitor"] is True

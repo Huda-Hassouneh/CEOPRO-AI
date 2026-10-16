@@ -43,6 +43,7 @@ from src.ai.dashboard import activity as dashboard_activity
 from src.ai.dashboard import competitor_activity as dashboard_competitor_activity
 from src.ai.dashboard import competitor_pricing as dashboard_competitor_pricing
 from src.ai.dashboard import competitors as dashboard_competitors
+from src.ai.pricing import competitor_classification
 from src.ai.dashboard import forecast as dashboard_forecast
 from src.ai.dashboard import forecast_detail as dashboard_forecast_detail
 from src.ai.dashboard import forecast_movers as dashboard_forecast_movers
@@ -748,6 +749,27 @@ def dashboard_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_conte
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         result = dashboard_competitors.get_competitor_directory(conn, ctx.tenant_id)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@app.post("/competitors/reclassify")
+def reclassify_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    Re-scores every competitor this tenant already has against the current
+    classification rules (category relevance + confidence score) - the
+    one-time cleanup for competitors discovered before category checks
+    existed. Idempotent; see competitor_classification.py::
+    reclassify_all_for_tenant().
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = competitor_classification.reclassify_all_for_tenant(conn, ctx.tenant_id)
         conn.commit()
         return result
     except Exception:
