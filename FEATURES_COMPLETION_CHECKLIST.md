@@ -19,12 +19,12 @@ Check each item only after verifying it end-to-end with real test data. Existing
 |   7 | **Competitor Management** (`competitor_management`)       | 🟡 Processing |
 |   8 | **Data Integration** (`data_integration`)                 | 🟡 Processing  |
 |   9 | **Connected Data Sources** (`connected_data_sources`)     | 🟡 Processing  |
-|  10 | **Document Extraction** (`document_extraction`)           | ⚪ Not Started |
-|  11 | **Document Storage** (`document_storage_mb`)              | ⚪ Not Started |
-|  12 | **RAG Assistant** (`rag_assistant`)                       | ⚪ Not Started |
-|  13 | **Business Recommendations** (`business_recommendations`) | ⚪ Not Started |
-|  14 | **Smart Alerts** (`system_alerts`)                        | ⚪ Not Started |
-|  15 | **AI Pricing Recommendations** (`ai_pricing`)             | ⚪ Not Started |
+|  10 | **Document Extraction** (`document_extraction`)           | 🟡 Processing |
+|  11 | **Document Storage** (`document_storage_mb`)              | 🟡 Processing |
+|  12 | **RAG Assistant** (`rag_assistant`)                       | 🟡 Processing |
+|  13 | **Business Recommendations** (`business_recommendations`) | 🟡 Processing |
+|  14 | **Smart Alerts** (`system_alerts`)                        | 🟡 Processing |
+|  15 | **AI Pricing Recommendations** (`ai_pricing`)             |🟡 Processing |
 
 **Status definitions**
 
