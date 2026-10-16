@@ -125,16 +125,23 @@ def test_fetch_document_text_extracts_pdf_text_per_page(monkeypatch):
     assert "Page two content." in text
 
 
-def test_fetch_document_text_skips_pdf_pages_with_no_extractable_text(monkeypatch):
-    """A scanned/image-only page returns None from extract_text() - must be
-    dropped, not turned into a literal "None" string in the joined output."""
-    pages = [_FakePdfPage("Real content."), _FakePdfPage(None)]
+def test_fetch_document_text_keeps_page_places_for_pages_with_no_extractable_text(monkeypatch):
+    """A scanned/image-only page returns None from extract_text(): it adds
+    no text (never a literal "None"), but keeps its place in the page count
+    so later passages still name their real page."""
+    pages = [_FakePdfPage("Real content."), _FakePdfPage(None), _FakePdfPage("Page three.")]
     monkeypatch.setattr(data_access_module.pdfplumber, "open", lambda file_obj: _FakePdf(pages))
 
     client = _FakeMinioClient(b"%PDF-1.4 fake pdf bytes")
     text = fetch_document_text(client, "bucket", "policy.pdf")
 
-    assert text == "Real content."
+    assert text.split(data_access_module.PAGE_BREAK) == ["Real content.", "", "Page three."]
+    assert "None" not in text
+
+
+def test_a_pdf_with_no_text_at_all_is_empty(monkeypatch):
+    monkeypatch.setattr(data_access_module.pdfplumber, "open", lambda file_obj: _FakePdf([_FakePdfPage(None)]))
+    assert fetch_document_text(_FakeMinioClient(b"%PDF-1.4"), "bucket", "scan.pdf") == ""
 
 
 def test_fetch_document_text_extracts_docx_paragraphs():

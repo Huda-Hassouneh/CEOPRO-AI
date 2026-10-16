@@ -27,17 +27,20 @@ scoring harness around it - this is that harness, honestly scoped:
    real, if narrow, groundedness/non-fabrication signal, still with no
    LLM call.
 
-3. **Live-LLM check** (`--live-llm`, needs a real GROQ_API_KEY AND
-   outbound network access to Groq). Actually calls answer_query() end to
-   end for each case. If this mode is requested but the environment
-   cannot reach Groq (no key, or a network error), the report says so
-   explicitly - this harness NEVER fabricates an LLM response or reports
-   a live-LLM result that didn't really happen.
+3. **Live-LLM check** (`--live-llm`, needs a configured language model
+   and AI_TEST_DATABASE_URL). Runs the assistant (rag/advisor.py) end to
+   end for each case - as an existing member with `--email`, or against a
+   seeded test tenant - and scores every answer (score_answer()): share
+   of claims needing evidence that are cited and verified, completeness
+   of the references, reply language, unsupported claims the checks
+   caught, calculations and their missing inputs, latency. If the model
+   cannot be reached, the report says so explicitly - this harness NEVER
+   fabricates an LLM response or reports a result that didn't happen.
 
 Usage:
     python -m src.ai.rag.eval.run_eval                  # mode 1 only
     python -m src.ai.rag.eval.run_eval --live-db         # + mode 2
-    python -m src.ai.rag.eval.run_eval --live-llm        # + mode 3 (attempted)
+    python -m src.ai.rag.eval.run_eval --live-llm [--email owner@company.com] [--report scores.json]
 """
 import argparse
 import json
@@ -47,6 +50,7 @@ import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from src.ai.rag import citations, understanding
 from src.ai.rag import orchestrator as _orchestrator
 from src.ai.rag.business_tools import is_financial_question
 from src.ai.rag.eval.business_copilot_eval_set import EVAL_QUESTIONS
@@ -96,6 +100,8 @@ def run_deterministic_gate_check() -> list:
             verdict = "PASS" if hits["application_knowledge"] else "FAIL"
         elif expected == "structured_data":
             verdict = "PASS" if any_business_data_hit else "FAIL"
+        elif expected == "calculation":
+            verdict = "PASS" if understanding.LANDED_COST in understanding.detect_intents(case["question"]) else "FAIL"
         else:
             # "mixed" cases (per business_copilot_eval_set.py's own
             # docstring) may legitimately be grounded by the ALWAYS-ON
@@ -182,12 +188,79 @@ def run_live_db_check() -> dict:
         conn.close()
 
 
-def run_live_llm_check() -> dict:
-    """Returns {"ran": bool, "reason": str|None, "results": [...]}. Only
-    ATTEMPTS a real call - if GROQ_API_KEY is unset, or the call fails
-    (including for network-restricted sandboxes), reason explains exactly
-    why, and no fabricated answer is ever reported as if it came from the
-    model."""
+_NEEDS_EVIDENCE = citations.NEEDS_EVIDENCE
+
+
+def _claims(result: dict) -> list:
+    claims = []
+    for block in result.get("answer_blocks") or []:
+        if block["type"] == "paragraph":
+            claims += block["claims"]
+        elif block["type"] == "list":
+            claims += [claim for item in block["items"] for claim in item]
+    return claims
+
+
+def _mostly_arabic(text: str) -> bool:
+    letters = [ch for ch in text or "" if ch.isalpha()]
+    return bool(letters) and sum("\u0600" <= ch <= "\u06ff" for ch in letters) >= 0.4 * len(letters)
+
+
+def score_answer(case: dict, result: dict, latency_seconds: float) -> dict:
+    """What one assistant answer shows about citation quality, without
+    judging its wording: are the claims that need evidence cited and
+    verified, is every reference complete, does the reply match the
+    question's language, and did a calculation or abstention happen when
+    the case calls for one."""
+    claims = _claims(result)
+    needing = [claim for claim in claims if claim["kind"] in _NEEDS_EVIDENCE]
+    references = result.get("references") or []
+    complete = [ref for ref in references
+                if ref.get("title") and ref.get("excerpt") and (ref.get("url") or ref.get("route") or ref.get("calculation")
+                                                                 or ref.get("kind") == "user_input")]
+    answer_text = result.get("answer") or ""
+    arabic_question, arabic_answer = _mostly_arabic(case["question"]), _mostly_arabic(answer_text)
+    calculation = (result.get("calculations") or [None])[0]
+    return {
+        "id": case["id"], "expected_grounding": case["expected_grounding"], "answer_mode": result.get("answer_mode"),
+        "latency_seconds": round(latency_seconds, 2), "total_tokens": (result.get("token_usage") or {}).get("total_tokens"),
+        "claims": len(claims), "claims_needing_evidence": len(needing),
+        "claims_cited_and_verified": sum(1 for claim in needing if claim["refs"] and claim["verified"]),
+        "unverified_claims": sum(1 for claim in claims if not claim["verified"]),
+        "unknown_claims": sum(1 for claim in claims if claim["kind"] == citations.UNKNOWN),
+        "citation_issues_caught": (result.get("citation_check") or {}).get("issues", 0),
+        "repaired": (result.get("citation_check") or {}).get("repaired", False),
+        "references": len(references), "references_complete": len(complete),
+        "language_ok": arabic_answer == arabic_question if answer_text else False,
+        "calculation_complete": calculation["complete"] if calculation else None,
+        "calculation_missing": [m["key"] for m in calculation["missing"]] if calculation else None,
+        "evidence_status": result.get("evidence_status"),
+    }
+
+
+def summarize(scores: list) -> dict:
+    needing = sum(s["claims_needing_evidence"] for s in scores)
+    references = sum(s["references"] for s in scores)
+    latencies = sorted(s["latency_seconds"] for s in scores)
+    p95 = latencies[min(len(latencies) - 1, int(round(0.95 * (len(latencies) - 1))))] if latencies else None
+    return {
+        "cases": len(scores),
+        "citation_coverage": round(sum(s["claims_cited_and_verified"] for s in scores) / needing, 3) if needing else None,
+        "reference_completeness": round(sum(s["references_complete"] for s in scores) / references, 3) if references else None,
+        "language_match": round(sum(1 for s in scores if s["language_ok"]) / len(scores), 3) if scores else None,
+        "answers_with_unverified_claims": sum(1 for s in scores if s["unverified_claims"]),
+        "unsupported_claims_caught": sum(s["citation_issues_caught"] for s in scores),
+        "latency_p50_seconds": latencies[len(latencies) // 2] if latencies else None,
+        "latency_p95_seconds": p95,
+    }
+
+
+def run_live_llm_check(email: str = None, limit: int = None) -> dict:
+    """Runs the assistant end to end (rag/advisor.py) for each case and scores
+    the answers (score_answer). With `email`, as that existing member (their
+    real data and role); otherwise against a freshly seeded test tenant.
+    Only ATTEMPTS real calls - an unconfigured or unreachable provider is
+    reported as such, and no answer is ever fabricated."""
     if not os.getenv("GROQ_API_KEY") and not os.getenv("LOCAL_LLM_BASE_URL") and not os.getenv("PAID_LLM_BASE_URL"):
         return {"ran": False, "reason": "No LLM provider configured (GROQ_API_KEY/LOCAL_LLM_BASE_URL/PAID_LLM_BASE_URL all unset)", "results": []}
 
@@ -196,21 +269,38 @@ def run_live_llm_check() -> dict:
         return {"ran": False, "reason": "AI_TEST_DATABASE_URL not set - live-LLM mode also needs a real tenant to query against", "results": []}
 
     import psycopg2
-    from src.ai.rag.llm_client import LLMError, answer_query
+    from src.ai.rag import advisor
+    from src.ai.rag.llm_client import LLMError
 
     conn = psycopg2.connect(database_url)
     try:
-        tenant_id = _seed_live_tenant(conn)
-        results = []
-        for i, case in enumerate(EVAL_QUESTIONS[:6]):  # bounded - this is a real, rate-limited API call per case
+        user_id = None
+        if email:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT tu.tenant_id, tu.user_id FROM tenant_users tu JOIN users u ON u.user_id = tu.user_id "
+                               "WHERE lower(u.email) = lower(%s) AND tu.removed_at IS NULL LIMIT 1;", (email,))
+                row = cursor.fetchone()
+            if not row:
+                return {"ran": False, "reason": f"no active member with email {email}", "results": []}
+            tenant_id, user_id = map(str, row)
+        else:
+            tenant_id = _seed_live_tenant(conn)
+        results, state = [], None
+        for i, case in enumerate(EVAL_QUESTIONS[:limit] if limit else EVAL_QUESTIONS):
             if i > 0:
                 time.sleep(LIVE_LLM_CALL_SPACING_SECONDS)
+            started = time.monotonic()
             try:
-                response = answer_query(conn, tenant_id, case["question"])
-                results.append({"id": case["id"], "ok": True, "answer_preview": response["answer"][:200], "source_count": len(response["sources"])})
+                response = advisor.answer(conn, tenant_id, case["question"], user_id=user_id,
+                                          state=state if case["id"] in ("mix-04",) else None)
+                state = response.get("state")
+                results.append({"ok": True, **score_answer(case, response, time.monotonic() - started),
+                                "answer_preview": response["answer"][:240]})
             except LLMError as exc:
-                results.append({"id": case["id"], "ok": False, "error": str(exc)})
-        return {"ran": True, "reason": None, "results": results}
+                results.append({"id": case["id"], "ok": False, "error": str(exc)[:200]})
+            conn.rollback()
+        scored = [r for r in results if r.get("ok")]
+        return {"ran": True, "reason": None, "results": results, "summary": summarize(scored)}
     except Exception as exc:  # network failure, DNS, etc. - report, don't hide
         return {"ran": False, "reason": f"Live-LLM attempt raised: {exc}", "results": []}
     finally:
@@ -221,7 +311,10 @@ def run_live_llm_check() -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live-db", action="store_true", help="Also run the live-DB tool-output check")
-    parser.add_argument("--live-llm", action="store_true", help="Also attempt a real end-to-end LLM call per case (bounded to 6 cases)")
+    parser.add_argument("--live-llm", action="store_true", help="Also run the assistant end to end for each case and score its citations")
+    parser.add_argument("--email", help="With --live-llm: ask as this existing member (their data and role)")
+    parser.add_argument("--limit", type=int, help="With --live-llm: only the first N cases")
+    parser.add_argument("--report", help="With --live-llm: write the scored results as JSON to this file")
     args = parser.parse_args()
 
     print("=" * 70)
@@ -256,12 +349,21 @@ def main() -> int:
             print(f"\n[Mode 2: Live-DB check] NOT RUN - {live_db['reason']}")
 
     if args.live_llm:
-        live_llm = run_live_llm_check()
+        live_llm = run_live_llm_check(args.email, args.limit)
         if live_llm["ran"]:
             ok_count = sum(1 for r in live_llm["results"] if r["ok"])
             print(f"\n[Mode 3: Live-LLM check] ran {len(live_llm['results'])} real calls, {ok_count} succeeded.")
             for r in live_llm["results"]:
-                print(f"  {r['id']}: {'OK' if r['ok'] else 'ERROR - ' + r.get('error', '')}")
+                if not r["ok"]:
+                    print(f"  {r['id']}: ERROR - {r.get('error', '')}")
+                    continue
+                print(f"  {r['id']}: {r['answer_mode']}, {r['claims_cited_and_verified']}/{r['claims_needing_evidence']} "
+                      f"claims cited, {r['references_complete']}/{r['references']} references complete, "
+                      f"language {'ok' if r['language_ok'] else 'MISMATCH'}, {r['latency_seconds']}s")
+            print(f"  summary: {json.dumps(live_llm['summary'])}")
+            if args.report:
+                with open(args.report, "w", encoding="utf-8") as handle:
+                    json.dump(live_llm, handle, ensure_ascii=False, indent=2, default=str)
         else:
             print(f"\n[Mode 3: Live-LLM check] NOT RUN - {live_llm['reason']}")
 

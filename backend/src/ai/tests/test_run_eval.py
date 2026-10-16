@@ -43,3 +43,33 @@ def test_no_case_in_the_real_dataset_fails_its_own_expected_category():
     results = run_deterministic_gate_check()
     failures = [r for r in results if r["verdict"] == "FAIL"]
     assert failures == [], f"Unexpected gate-selection failures: {failures}"
+
+
+def test_answers_are_scored_on_citations_references_and_language():
+    from src.ai.rag.eval.run_eval import score_answer, summarize
+
+    case = {"id": "x", "question": "How were my sales?", "expected_grounding": "structured_data"}
+    result = {
+        "answer": "Revenue was 10 JOD.¹ Maybe more.", "answer_mode": "ai",
+        "answer_blocks": [{"type": "paragraph", "claims": [
+            {"text": "Revenue was 10 JOD.", "kind": "fact", "refs": [1], "verified": True, "notes": []},
+            {"text": "Maybe more.", "kind": "inference", "refs": [], "verified": False, "notes": ["no_evidence"]},
+        ]}],
+        "references": [{"n": 1, "title": "Sales", "excerpt": "Revenue 10 JOD", "route": "/sales"},
+                       {"n": 2, "title": "Broken", "excerpt": "", "route": None}],
+        "citation_check": {"issues": 2, "repaired": True}, "token_usage": {"total_tokens": 900},
+    }
+    score = score_answer(case, result, 3.21)
+    assert score["claims_needing_evidence"] == 2 and score["claims_cited_and_verified"] == 1
+    assert score["unverified_claims"] == 1 and score["references_complete"] == 1
+    assert score["language_ok"] and score["citation_issues_caught"] == 2 and score["latency_seconds"] == 3.21
+    arabic = score_answer({**case, "question": "كيف المبيعات؟"}, result, 1.0)
+    assert arabic["language_ok"] is False, "an English reply to an Arabic question is a mismatch"
+    summary = summarize([score, arabic])
+    assert summary["citation_coverage"] == 0.5 and summary["reference_completeness"] == 0.5
+    assert summary["language_match"] == 0.5 and summary["unsupported_claims_caught"] == 4
+
+
+def test_calculation_cases_pass_the_gate_check():
+    results = {r["id"]: r for r in run_deterministic_gate_check()}
+    assert all(results[case]["verdict"] == "PASS" for case in ("trade-01", "trade-02", "trade-03"))

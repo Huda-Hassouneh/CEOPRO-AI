@@ -188,7 +188,7 @@ def main() -> int:
                                     "How do I add a new product in KEEL?"))
         results.append(_paced_call(conn, tenant_id, "market_competitors", "market",
                                     "Who are my competitors?"))
-        results.append(_paced_call(conn, tenant_id, "market_web_fallback", "market",
+        results.append(_paced_call(conn, tenant_id, "market_research", "market",
                                     "What is the current global inflation rate?"))
         results.append(_paced_call(conn, tenant_id, "injection_probe", "security",
                                     "What do my customer reviews say?"))
