@@ -57,7 +57,7 @@ def _get(url: str, params: dict) -> Optional[dict]:
 
 def _fetch_details(place_id: str, api_key: str) -> Optional[dict]:
     payload = _get(_DETAILS_URL, {
-        "place_id": place_id, "fields": "website,geometry,formatted_address,types,rating,user_ratings_total,formatted_phone_number",
+        "place_id": place_id, "fields": "website,geometry,formatted_address,types,rating,user_ratings_total,formatted_phone_number,business_status",
         "key": api_key,
     })
     if not payload or "result" not in payload:
@@ -115,7 +115,12 @@ def discover_nearby_places(
         name = result.get("name")
         if not place_id or not name:
             continue
+        # A business that has closed for good is not a competitor.
+        if result.get("business_status") == "CLOSED_PERMANENTLY":
+            continue
         details = _fetch_details(place_id, api_key)
+        if details and details.get("business_status") == "CLOSED_PERMANENTLY":
+            continue
         website = details.get("website") if details else None
         if not website:
             continue  # no real, resolvable domain to register - never guessed

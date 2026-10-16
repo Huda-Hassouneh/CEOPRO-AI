@@ -32,3 +32,9 @@ def test_operator_verified_international_domain_is_kept_and_not_out_of_region(mo
 def test_unlisted_domain_has_unknown_origin():
     assert known_origin_country("some-new-shop.example") is None
     assert known_origin_country("www.sparkfun.com") == "US"
+
+
+def test_maps_url_from_coordinates_or_none():
+    from src.market_scraper.geo import maps_url
+    assert maps_url(31.95, 35.91) == "https://www.google.com/maps/search/?api=1&query=31.95,35.91"
+    assert maps_url(None, 35.91) is None and maps_url(31.95, None) is None

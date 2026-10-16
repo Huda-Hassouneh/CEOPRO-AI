@@ -39,6 +39,7 @@ class DiscoveryQuery:
     google_types: Tuple[str, ...] = ()
     category_words: Tuple[str, ...] = ()     # English category words for a type described in another language
     specialty_terms: Tuple[str, ...] = ()    # what this company specifically sells (relevance.py)
+    category_paths: Tuple[Tuple[str, ...], ...] = ()  # the segments it operates in (category_taxonomy.py)
     max_results: int = int(os.getenv("DISCOVERY_MAX_RESULTS", "1000"))
 
     @property
