@@ -177,6 +177,9 @@ class CandidateSource:
     rating: Optional[float] = None
     rating_count: Optional[int] = None
     place_types: Optional[tuple] = None
+    # Google's stable id for the business. A Places find with no website of its
+    # own is registered under it (url is then "") instead of being dropped.
+    place_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -534,14 +537,15 @@ def _store_competitor_details(
             rating = COALESCE(rating, %s),
             rating_count = COALESCE(rating_count, %s),
             place_types = COALESCE(place_types, %s),
-            country_code = COALESCE(country_code, %s)
+            country_code = COALESCE(country_code, %s),
+            google_place_id = COALESCE(google_place_id, %s)
         WHERE global_competitor_id = %s;
         """,
         (
             list(categorization.path) if categorization else None,
             candidate.address, candidate.phone, candidate.rating, candidate.rating_count,
             list(candidate.place_types) if candidate.place_types else None,
-            country_code, competitor_id,
+            country_code, candidate.place_id, competitor_id,
         ),
     )
 
@@ -598,9 +602,20 @@ def _register_domain_level_competitor(
     conn, tenant_id: str, candidate: CandidateSource,
     discovery_method: str, industry_sector: Optional[str], country_code: Optional[str],
 ) -> dict:
-    hostname = urlsplit(candidate.url).hostname or candidate.url
-    identity_key = compute_website_identity_key(candidate.url)
-    website_url = candidate.url if identity_key and "/" in identity_key else f"{urlsplit(candidate.url).scheme}://{hostname}"
+    if candidate.url:
+        hostname = urlsplit(candidate.url).hostname or candidate.url
+        identity_key = compute_website_identity_key(candidate.url)
+        website_url = candidate.url if identity_key and "/" in identity_key else f"{urlsplit(candidate.url).scheme}://{hostname}"
+    else:
+        # A business with no website of its own (many local shops live only on
+        # Maps/Instagram) is still a real competitor: identified by Google's
+        # place id, no website to store. "place:<id>" has no "/" so it is never
+        # mistaken for a social-profile identity.
+        if not candidate.place_id:
+            raise ValueError("a candidate with no url must carry a place_id")
+        hostname = candidate.title or candidate.place_id
+        identity_key = f"place:{candidate.place_id}"
+        website_url = None
 
     with conn.cursor() as cursor:
         # No brand-token check here (unlike register_tenant_scoped_competitor
@@ -628,7 +643,7 @@ def _register_domain_level_competitor(
                      is_manufacturer, latitude, longitude, city, industry_sector, country_code)
                 VALUES (%s, %s, %s, 'PRIVATE', %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (added_by_tenant_id, website_identity_key) WHERE (visibility = 'PRIVATE' AND website_identity_key IS NOT NULL)
-                DO UPDATE SET website_url = EXCLUDED.website_url,
+                DO UPDATE SET website_url = COALESCE(EXCLUDED.website_url, global_competitors.website_url),
                               is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer,
                               latitude = COALESCE(global_competitors.latitude, EXCLUDED.latitude),
                               longitude = COALESCE(global_competitors.longitude, EXCLUDED.longitude),
@@ -650,7 +665,7 @@ def _register_domain_level_competitor(
                      latitude, longitude, city, industry_sector, country_code)
                 VALUES (%s, %s, 'PRIVATE', %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (added_by_tenant_id, LOWER(competitor_name)) WHERE (visibility = 'PRIVATE')
-                DO UPDATE SET website_url = EXCLUDED.website_url,
+                DO UPDATE SET website_url = COALESCE(EXCLUDED.website_url, global_competitors.website_url),
                               is_manufacturer = global_competitors.is_manufacturer OR EXCLUDED.is_manufacturer,
                               latitude = COALESCE(global_competitors.latitude, EXCLUDED.latitude),
                               longitude = COALESCE(global_competitors.longitude, EXCLUDED.longitude),

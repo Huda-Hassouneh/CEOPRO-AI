@@ -79,7 +79,8 @@ def discover_nearby_places(
     genuinely no nearby matches all return [] - the same honest-
     degradation contract every other discovery source in this codebase
     uses. A result missing a real website (common - many small local
-    businesses have none) is skipped, not guessed at.
+    businesses have none) is kept with url="" and its place_id, not
+    guessed at and not dropped.
 
     Returns CandidateSource records carrying REAL coordinates (this
     result's own geometry.location, not the search center) - this is
@@ -121,9 +122,10 @@ def discover_nearby_places(
         details = _fetch_details(place_id, api_key)
         if details and details.get("business_status") == "CLOSED_PERMANENTLY":
             continue
-        website = details.get("website") if details else None
-        if not website:
-            continue  # no real, resolvable domain to register - never guessed
+        # No website is no longer a reason to drop the business: many local
+        # shops exist only on Maps/Instagram. It is registered by place_id
+        # with an empty url (never a guessed one) - see discovery.py.
+        website = (details.get("website") if details else None) or ""
         location = (details or {}).get("geometry", {}).get("location") or result.get("geometry", {}).get("location") or {}
         candidates.append(CandidateSource(
             product_name=keyword, url=website, title=name,
@@ -134,5 +136,6 @@ def discover_nearby_places(
             rating=(details or {}).get("rating", result.get("rating")),
             rating_count=(details or {}).get("user_ratings_total", result.get("user_ratings_total")),
             place_types=tuple((details or {}).get("types") or result.get("types") or ()) or None,
+            place_id=place_id,
         ))
     return candidates
