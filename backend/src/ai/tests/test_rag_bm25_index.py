@@ -54,3 +54,9 @@ def test_len_reflects_chunk_count():
 def test_singular_question_finds_plural_document():
     index = BM25Index([("a", "Our returns are accepted within 14 days."), ("b", "Delivery is same-day in Amman.")])
     assert index.query("how does a return work", top_k=1)[0].chunk_id == "a"
+
+
+def test_chunks_without_any_query_term_are_not_returned():
+    # BM25Plus gives non-matching chunks a positive score; they must still be excluded.
+    index = BM25Index([("a", "refund policy for customers"), ("b", "shipping times and carriers"), ("c", "office parking rules")])
+    assert [r.chunk_id for r in index.query("refund", top_k=5)] == ["a"]
