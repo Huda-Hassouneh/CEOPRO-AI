@@ -49,6 +49,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+from src.ai.forecasting.evidence import insert_evidence_record
 from src.ai.pricing.competitor_confidence import ConfidenceResult, compute_confidence
 from src.market_scraper.category_taxonomy import (
     MIN_COMPETING_SIMILARITY, STRONG_COMPETING_SIMILARITY, best_similarity, categorize, categorize_catalog,
@@ -56,6 +57,13 @@ from src.market_scraper.category_taxonomy import (
 from src.market_scraper.geo import distance_km_if_known
 
 DEFAULT_MATCH_RATE_THRESHOLD = 0.6
+
+SOURCE_MODULE = "competitor_classification"
+MODEL_VERSION = "competitor-classification-v1"
+# A new evidence record is written only when the tier changes or the score
+# moves by at least this many points - re-scoring an unchanged competitor
+# must not flood the (append-only) evidence trail.
+EVIDENCE_SCORE_DELTA = 1.0
 
 # Breadth classification thresholds - a separate axis from the tier above:
 # tier answers "is this a real, trackable competitor at all", scope answers
@@ -97,6 +105,8 @@ class ClassificationResult:
     confidence_score: Optional[float] = None
     confidence_label: Optional[str] = None
     confidence_reasons: tuple = ()
+    confidence_breakdown: tuple = ()
+    evidence_id: Optional[str] = None
 
 
 def _tenant_category_paths(cursor, tenant_id: str, business_type: Optional[str]) -> list:
@@ -272,6 +282,14 @@ def classify_competitor(
             raise ValueError("tenant_competitors row not found for this tenant/competitor pair")
         discovery_method = discovery_row[0]
 
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT tier, confidence_score, evidence_id FROM tenant_competitors "
+            "WHERE tenant_id = %s AND global_competitor_id = %s;",
+            (tenant_id, global_competitor_id),
+        )
+        previous_tier, previous_score, previous_evidence_id = cursor.fetchone()
+
     matched_product_count, total_products = _matched_and_total_product_counts(
         conn, tenant_id, global_competitor_id
     )
@@ -360,6 +378,31 @@ def classify_competitor(
     # regardless of which match-rate branch above produced it.
     confirmed = tier != TIER_CANDIDATE
 
+    # Spec S22: confidence is not implemented independently - the assessment
+    # is recorded in the shared evidence_records trail. UNKNOWN when there is
+    # no category evidence and no product overlap to judge by; otherwise a
+    # FACT derived from observed data by transparent rules. Written only on a
+    # real change (see EVIDENCE_SCORE_DELTA).
+    evidence_id = previous_evidence_id
+    changed = (
+        previous_evidence_id is None
+        or previous_tier != tier
+        or previous_score is None
+        or abs(float(previous_score) - confidence.score) >= EVIDENCE_SCORE_DELTA
+    )
+    if changed:
+        evidence_id = insert_evidence_record(
+            conn, tenant_id,
+            "UNKNOWN" if category_similarity is None and matched_product_count == 0 else "FACT",
+            SOURCE_MODULE,
+            {"global_competitor_id": str(global_competitor_id), "weights": confidence.weights},
+            round(confidence.score / 100, 2),
+            f"{tier}: {reason}. Confidence {confidence.score:.0f}/100 ({confidence.label}): "
+            + "; ".join(confidence.reasons) + ".",
+            MODEL_VERSION,
+            tenant_country,
+        )
+
     with conn.cursor() as cursor:
         if stored_category_path is None and competitor_category is not None:
             # Persist a category derived just now so the directory can show
@@ -375,13 +418,15 @@ def classify_competitor(
                 is_tracked = %s, classified_at = %s, tier = %s,
                 competitor_scope = %s, distance_km = %s,
                 category_similarity = %s, confidence_score = %s, confidence_label = %s,
-                confidence_reasons = %s, classification_reason = %s
+                confidence_reasons = %s, classification_reason = %s,
+                confidence_breakdown = %s, evidence_id = %s
             WHERE tenant_id = %s AND global_competitor_id = %s;
             """,
             (
                 match_rate, confirmed, confirmed, datetime.now(timezone.utc), tier,
                 scope, distance_km, category_similarity, confidence.score, confidence.label,
-                json.dumps(confidence.reasons), reason, tenant_id, global_competitor_id,
+                json.dumps(confidence.reasons), reason, json.dumps(confidence.breakdown), evidence_id,
+                tenant_id, global_competitor_id,
             ),
         )
         if cursor.rowcount != 1:
@@ -403,6 +448,8 @@ def classify_competitor(
         confidence_score=confidence.score,
         confidence_label=confidence.label,
         confidence_reasons=tuple(confidence.reasons),
+        confidence_breakdown=tuple(confidence.breakdown),
+        evidence_id=str(evidence_id) if evidence_id else None,
     )
 
 

@@ -59,11 +59,11 @@ def build_structured_facts_block(conn, tenant_id: str) -> str:
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT gc.competitor_name, tc.tier, gc.website_url
+            SELECT gc.competitor_name, tc.tier, gc.website_url, tc.confidence_label, gc.category_path
             FROM tenant_competitors tc
             JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
             WHERE tc.tenant_id = %s AND tc.is_tracked = TRUE
-            ORDER BY tc.tier = 'STRATEGIC' DESC, gc.competitor_name ASC
+            ORDER BY tc.tier = 'STRATEGIC' DESC, tc.confidence_score DESC NULLS LAST, gc.competitor_name ASC
             LIMIT 15;
             """,
             (tenant_id,),
@@ -86,9 +86,17 @@ def build_structured_facts_block(conn, tenant_id: str) -> str:
             "joined via tenant_competitors) - cite these real names directly when asked who your "
             "competitors are, rather than only stating a count or tier:"
         )
-        for name, tier, website_url in competitor_rows:
+        for name, tier, website_url, confidence_label, category_path in competitor_rows:
             site_text = f" ({website_url})" if website_url else ""
-            lines.append(f"- {name}{site_text}: {tier} tier.")
+            # Same facts the dashboard shows (best-confidence first), so the
+            # chatbot and the competitor list never disagree about who matters.
+            extras = []
+            if confidence_label:
+                extras.append(f"{confidence_label} confidence")
+            if category_path:
+                extras.append("category " + " > ".join(p.replace("_", " ") for p in category_path))
+            extra_text = f" ({', '.join(extras)})" if extras else ""
+            lines.append(f"- {name}{site_text}: {tier} tier{extra_text}.")
 
     with conn.cursor() as cursor:
         cursor.execute(

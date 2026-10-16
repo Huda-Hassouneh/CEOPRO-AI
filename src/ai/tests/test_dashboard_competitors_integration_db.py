@@ -352,7 +352,7 @@ def test_directory_is_ordered_by_confidence_best_first_and_carries_details(conn)
             (["food", "snacks", "pizza"], high),
         )
 
-    directory = get_competitor_directory(conn, tenant_id)
+    directory = get_competitor_directory(conn, tenant_id, separate_weak_leads=True)
     relevant = directory["relevant"]
 
     # the Low-confidence row with nothing in common is a weak lead, kept apart
@@ -367,7 +367,8 @@ def test_directory_is_ordered_by_confidence_best_first_and_carries_details(conn)
     assert top["distance_km"] == 2.3
     assert top["confidence_reasons"] == ["Closely related category"]
     assert top["found_via"] == "MANUAL"
-    assert top["summary_line"].startswith("High confidence relevant competitor")
+    assert top["confidence_summary"].startswith("High confidence relevant competitor")
+    assert top["summary_line"].startswith("Relevant competitor — ")  # original wording is a stable contract
 
 
 def test_weak_low_confidence_leads_are_listed_apart_from_relevant(conn):
@@ -387,7 +388,79 @@ def test_weak_low_confidence_leads_are_listed_apart_from_relevant(conn):
             )
     conn.commit()
 
-    directory = get_competitor_directory(conn, tenant_id)
+    directory = get_competitor_directory(conn, tenant_id, separate_weak_leads=True)
 
     assert [c["name"] for c in directory["possible"]] == ["Weak Lead"]
     assert {c["name"] for c in directory["relevant"]} == {"Solid Co", "Unscored Co", "Overlap Co"}
+
+
+# --- backward-compatible contract: new behaviours are opt-in ---
+
+def _seed_scored(conn, tenant_id):
+    ids = {}
+    for name, label, score, distance in (
+        ("Alpha", "High", 90.0, 1.0), ("Bravo", "Medium", 60.0, 5.0), ("Charlie", "Low", 20.0, 30.0), ("Delta", "Low", 10.0, None),
+    ):
+        cid = _insert_tracked_competitor(conn, tenant_id, name, TIER_RELEVANT, 0.1)
+        ids[name] = cid
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tenant_competitors SET confidence_label = %s, confidence_score = %s, distance_km = %s "
+                "WHERE tenant_id = %s AND global_competitor_id = %s;", (label, score, distance, tenant_id, cid),
+            )
+    return ids
+
+
+def test_by_default_weak_leads_stay_in_relevant_so_the_original_contract_holds(conn):
+    tenant_id = _insert_company(conn)
+    _seed_scored(conn, tenant_id)
+    directory = get_competitor_directory(conn, tenant_id)
+    assert [c["name"] for c in directory["relevant"]] == ["Alpha", "Bravo", "Charlie", "Delta"]  # best first
+    assert directory["possible"] == []
+    assert set(directory) == {"strategic", "relevant", "possible"}
+
+
+def test_opting_in_splits_out_weak_leads(conn):
+    tenant_id = _insert_company(conn)
+    _seed_scored(conn, tenant_id)
+    directory = get_competitor_directory(conn, tenant_id, separate_weak_leads=True)
+    assert [c["name"] for c in directory["relevant"]] == ["Alpha", "Bravo"]
+    assert [c["name"] for c in directory["possible"]] == ["Charlie", "Delta"]
+
+
+def test_min_confidence_filter(conn):
+    tenant_id = _insert_company(conn)
+    _seed_scored(conn, tenant_id)
+    names = [c["name"] for c in get_competitor_directory(conn, tenant_id, min_confidence=50)["relevant"]]
+    assert names == ["Alpha", "Bravo"]
+
+
+def test_max_distance_filter_excludes_unknown_distance(conn):
+    tenant_id = _insert_company(conn)
+    _seed_scored(conn, tenant_id)
+    names = [c["name"] for c in get_competitor_directory(conn, tenant_id, max_distance_km=10)["relevant"]]
+    assert names == ["Alpha", "Bravo"]
+
+
+def test_pagination_applies_after_ordering(conn):
+    tenant_id = _insert_company(conn)
+    _seed_scored(conn, tenant_id)
+    page = get_competitor_directory(conn, tenant_id, limit=2, offset=1)["relevant"]
+    assert [c["name"] for c in page] == ["Bravo", "Charlie"]
+
+
+def test_every_original_contract_field_is_still_present(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Widget")
+    strategic = _insert_tracked_competitor(conn, tenant_id, "S Co", TIER_STRATEGIC, 0.8, website_url="https://s.example")
+    relevant = _insert_tracked_competitor(conn, tenant_id, "R Co", TIER_RELEVANT, 0.2)
+    conn.commit()
+    _map_product_with_price(conn, tenant_id, product_id, relevant, your_price=10.0, their_price=9.0)
+    directory = get_competitor_directory(conn, tenant_id)
+
+    original_common = {
+        "name", "tier", "website_url", "market_sentiment_label", "price_competitiveness", "last_updated",
+        "market_activity", "relevance_score", "strengths", "weaknesses", "summary_line",
+    }
+    assert original_common <= set(directory["strategic"][0]) and "overlap_pct" in directory["strategic"][0]
+    assert original_common <= set(directory["relevant"][0]) and "price_comparisons" in directory["relevant"][0]
