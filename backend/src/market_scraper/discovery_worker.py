@@ -37,6 +37,7 @@ import os
 import redis
 
 from src.market_scraper import data_access
+from src.market_scraper.competitor_enrichment import enrich_tenant_competitors
 from src.market_scraper.discovery import refresh_tenant_competitors
 from src.market_scraper.enqueue import enqueue_collection
 from src.market_scraper.tenant_discovery import (
@@ -109,6 +110,16 @@ def discover_for_tenant(tenant_id: str) -> dict:
             conn.rollback()
             logger.exception("competitor refresh failed for tenant %s", tenant_id)
             refresh_summary = {"error": "refresh_failed"}
+        # Fill in profile + social links for what was just found. Bounded per
+        # run (ENRICHMENT_MAX_PER_RUN) and failure-isolated for the same
+        # reason as the refresh above; per-competitor outcomes, including a
+        # missing/rejected Places key, are recorded in competitor_enrichment.
+        try:
+            enrichment_summary = enrich_tenant_competitors(conn, tenant_id)
+        except Exception:  # noqa: BLE001
+            conn.rollback()
+            logger.exception("competitor enrichment failed for tenant %s", tenant_id)
+            enrichment_summary = {"error": "enrichment_failed"}
     finally:
         conn.close()
 
@@ -121,6 +132,7 @@ def discover_for_tenant(tenant_id: str) -> dict:
         "domain_level_candidates": len(domain_results),
         "enqueued_source_ids": enqueued,
         "competitor_refresh": refresh_summary,
+        "competitor_enrichment": enrichment_summary,
     }
 
 

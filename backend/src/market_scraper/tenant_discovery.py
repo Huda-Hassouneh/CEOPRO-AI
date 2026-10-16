@@ -59,6 +59,7 @@ enforced by cli.py's own gate) before any collection actually runs.
 Discovery finds and records candidates; it was never the thing deciding
 it's safe to scrape them.
 """
+import os
 from typing import List, Optional
 from urllib.parse import urlsplit
 
@@ -66,7 +67,7 @@ from src.market_scraper.category_taxonomy import categorize_catalog, search_keyw
 from src.market_scraper.company_geo_profile import get_tenant_search_scope
 from src.market_scraper.direct_search import retailer_domains_for, search_product_across_retailers
 from src.market_scraper.discovery import (
-    evaluate_candidate, register_domain_level_competitor, register_tenant_scoped_competitor,
+    DiscoveryDecision, evaluate_candidate, register_domain_level_competitor, register_tenant_scoped_competitor,
 )
 from src.market_scraper.places_nearby_discovery import discover_nearby_places
 from src.market_scraper.product_families import select_family_representatives
@@ -320,6 +321,10 @@ def discover_domain_level_competitors_for_tenant(
     resolved_radius_km = resolve_tenant_search_radius(conn, tenant_id, override_km=radius_km)
 
     candidates = []
+    # The discovery worker passes no key explicitly; the env var is the
+    # production source (it was previously never read here, so Places
+    # discovery was silently skipped in every deployed run).
+    google_places_api_key = google_places_api_key or os.getenv("GOOGLE_PLACES_API_KEY") or None
 
     # resolved_radius_km is None only for an explicit COUNTRY scope choice
     # (resolve_tenant_search_radius()'s own contract) - a radius-bounded
@@ -347,7 +352,12 @@ def discover_domain_level_competitors_for_tenant(
 
     results = []
     for candidate in candidates:
-        decision = evaluate_candidate(candidate)
+        if candidate.url:
+            decision = evaluate_candidate(candidate)
+        else:
+            # No website: nothing to fetch robots.txt from or collect, but the
+            # business itself is still recorded as a competitor.
+            decision = DiscoveryDecision(candidate, None, "RESTRICTED", "business has no website to collect from", None)
         method = "PLACES_NEARBY" if candidate.latitude is not None else "INDUSTRY_KEYWORD_SEARCH"
         registered = register_domain_level_competitor(
             conn, tenant_id, actor_user_id, candidate, discovery_method=method, industry_sector=vertical,

@@ -329,6 +329,47 @@ services:
       timeout: 5s
       retries: 3
 
+  # Consumes market.enrichment.requested (per-competitor Retry with
+  # ?background=true, "retry all failed", and this worker's own hourly sweep
+  # of never-attempted / due-for-retry competitors). See enrichment_worker.py.
+  market-enrichment-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.enrichment_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      REDIS_URL: redis://redis:6379/0
+      ENRICHMENT_STREAM_KEY: ${ENRICHMENT_STREAM_KEY:-market.enrichment.requested}
+      ENRICHMENT_DEAD_STREAM_KEY: ${ENRICHMENT_DEAD_STREAM_KEY:-market.enrichment.dead}
+      ENRICHMENT_MAX_ATTEMPTS: ${ENRICHMENT_MAX_ATTEMPTS:-3}
+      ENRICHMENT_CLAIM_IDLE_MS: ${ENRICHMENT_CLAIM_IDLE_MS:-300000}
+      ENRICHMENT_SWEEP_INTERVAL_SECONDS: ${ENRICHMENT_SWEEP_INTERVAL_SECONDS:-3600}
+      ENRICHMENT_DEDUPE_SECONDS: ${ENRICHMENT_DEDUPE_SECONDS:-600}
+      ENRICHMENT_MAX_PER_RUN: ${ENRICHMENT_MAX_PER_RUN:-50}
+      ENRICHMENT_MAX_BULK: ${ENRICHMENT_MAX_BULK:-200}
+      ENRICHMENT_RETRY_AFTER_HOURS: ${ENRICHMENT_RETRY_AFTER_HOURS:-6}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      # Operator's recorded approval to store Google Places reviews (Google's
+      # terms govern stored Places content). Unset = reviews stay BLOCKED.
+      PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   # Scheduled polling for both connector types - direct-database
   # (connector_sync.py) and generic POS/ERP/API (api_connector_sync.py).
   # Neither had ever been wired into a running process before this
@@ -451,6 +492,11 @@ services:
       # persisted; consumed by the market-discovery-worker service below -
       # must match that service's own DISCOVERY_STREAM_KEY.
       DISCOVERY_STREAM_KEY: ${DISCOVERY_STREAM_KEY:-market.discovery.requested}
+      # Must match market-enrichment-worker (same defaults) so a queued Retry reaches it.
+      ENRICHMENT_STREAM_KEY: ${ENRICHMENT_STREAM_KEY:-market.enrichment.requested}
+      ENRICHMENT_DEDUPE_SECONDS: ${ENRICHMENT_DEDUPE_SECONDS:-600}
+      # Enables the REVIEWS facet for a synchronous Retry served by this API.
+      PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
     ports:
       - "8001:8000"
     networks:

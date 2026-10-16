@@ -40,7 +40,7 @@ from src.ai.core.rate_limit import RateLimitMiddleware
 from src.infrastructure.monitoring.error_tracking import init_error_tracking
 from src.infrastructure.request_language import RequestLanguageMiddleware
 from src.ai.routers import (
-    alerts, auth, billing, competitors, dashboard, discovery, extraction, forecasting, health, marketing, mpi, onboarding, pricing, products, rag, reports,
+    alerts, auth, billing, competitor_enrichment, competitors, dashboard, discovery, extraction, forecasting, health, marketing, mpi, onboarding, pricing, products, rag, reports,
     reviews, sales, sentiment, settings,
 )
 
@@ -169,6 +169,7 @@ app.include_router(onboarding.router)
 app.include_router(dashboard.router)
 app.include_router(sales.router)
 app.include_router(competitors.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT)])
+app.include_router(competitor_enrichment.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT)])
 app.include_router(discovery.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT)])
 app.include_router(alerts.router)
 app.include_router(products.router)

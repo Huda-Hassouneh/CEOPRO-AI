@@ -45,13 +45,17 @@ docstring for exactly what real signal this is built from and why; a
 competitor with no price observations in the window defaults to "Low",
 matching "no detected change" rather than "unknown").
 """
+import logging
 from typing import Optional
 
 from src.ai.dashboard.competitor_activity import LEVEL_HIGH, LEVEL_LOW, LEVEL_MEDIUM, get_market_activity_levels
 from src.ai.pricing.competitor_classification import TIER_RELEVANT, TIER_STRATEGIC
 from src.ai.sentiment.data_access import load_aggregate_sentiment_by_competitor
 from src.market_scraper.geo import maps_url
+from src.market_scraper.competitor_enrichment import load_data_completeness
 from src.market_scraper.scoring import composite_score, price_competitiveness
+
+logger = logging.getLogger(__name__)
 
 # A deliberately coarse numeric stand-in for market_activity's own High/
 # Medium/Low label, used ONLY as one of composite_score()'s three 0-100
@@ -252,6 +256,14 @@ def get_competitor_directory(
 
     sentiment_by_competitor = load_aggregate_sentiment_by_competitor(conn, tenant_id)
     activity_by_competitor = get_market_activity_levels(conn, tenant_id)
+    # Additive field: a problem computing it must never take the whole
+    # directory down (it only explains gaps; it is not the directory).
+    try:
+        completeness_by_competitor = load_data_completeness(conn, tenant_id)
+    except Exception:  # noqa: BLE001
+        conn.rollback()
+        logger.exception("could not load data completeness for tenant %s", tenant_id)
+        completeness_by_competitor = {}
 
     strategic = []
     relevant = []
@@ -333,6 +345,7 @@ def get_competitor_directory(
             "strength_codes": [_TRAIT_CODES[text] for text in strengths],
             "weakness_codes": [_TRAIT_CODES[text] for text in weaknesses],
             "product_overlap_pct": overlap_pct,
+            "data_completeness": completeness_by_competitor.get(global_competitor_id),
         }
 
         if tier == TIER_STRATEGIC:
