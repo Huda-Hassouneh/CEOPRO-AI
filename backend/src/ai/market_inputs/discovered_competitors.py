@@ -5,6 +5,7 @@ the Command Center."""
 from typing import Optional
 
 from src.ai.market_inputs import public_sources
+from src.market_scraper.geo import maps_url
 
 SORTS = {
     "relevance": "tc.relevance_score DESC NULLS LAST, tc.confidence DESC NULLS LAST, gc.competitor_name",
@@ -13,6 +14,10 @@ SORTS = {
     "reviews": "gc.review_count DESC NULLS LAST",
     "name": "LOWER(gc.competitor_name)",
     "recent": "tc.first_seen_at DESC NULLS LAST, tc.added_at DESC",
+    # How sure we are it really competes with this company (category fit,
+    # shared products, distance, evidence - competitor_confidence.py), best
+    # first; ties fall back to "how sure it is a real business" and relevance.
+    "confidence": "tc.confidence_score DESC NULLS LAST, tc.confidence DESC NULLS LAST, tc.relevance_score DESC NULLS LAST, gc.competitor_name",
 }
 # Customers see the kind of public source, never our providers (public_sources.py).
 SOURCE_LABELS = public_sources.LABELS
@@ -22,7 +27,8 @@ def _row(r) -> dict:
     (cid, name, name_ar, website, phone, address, city, country, lat, lon, categories, rating, reviews, price_level,
      industry, tracked, tier, method, distance, relevance, confidence, source_count, branches, first_seen, last_seen,
      reasons, added_at, sources, demo_workspace, relationship, intel_status, intel_checked, items, priced_items,
-     matched_prices, promotions) = r
+     matched_prices, promotions, confidence_score, confidence_label, confidence_reasons, category_path,
+     classification_reason, tracking_decision) = r
     return {
         "competitor_id": str(cid), "name": name, "name_ar": name_ar, "website_url": website, "phone": phone,
         "address": address, "city": city, "country_code": country, "latitude": lat, "longitude": lon,
@@ -48,6 +54,19 @@ def _row(r) -> dict:
         "website_read": {"status": intel_status, "checked_at": intel_checked.isoformat() if intel_checked else None,
                          "products": items or 0, "prices": priced_items or 0, "promotions": promotions or 0},
         "matched_prices": matched_prices or 0,
+        # "confidence" above = how sure we are this is a real, open business
+        # (0-1). These = how sure we are it COMPETES with this company
+        # (0-100; category fit, shared products, distance, evidence).
+        "confidence_score": float(confidence_score) if confidence_score is not None else None,
+        "confidence_label": confidence_label,
+        "confidence_reasons": confidence_reasons or [],
+        "category": " > ".join(p.replace("_", " ") for p in category_path) if category_path else None,
+        "classification_reason": classification_reason,
+        # An explicit owner choice (USER_TRACKED / USER_UNTRACKED) that automatic
+        # re-scoring never overturns; None when the owner has not chosen.
+        "tracking_decision": tracking_decision,
+        # A link to the place on a map, from its coordinates.
+        "maps_url": maps_url(lat, lon),
     }
 
 
@@ -70,7 +89,9 @@ _SELECT = """
               AND cpm.global_competitor_id = tc.global_competitor_id AND cpm.is_active
               AND EXISTS (SELECT 1 FROM competitor_prices cp WHERE cp.tenant_id = cpm.tenant_id AND cp.mapping_id = cpm.mapping_id)),
            (SELECT COUNT(*) FROM competitor_intel ci WHERE ci.tenant_id = tc.tenant_id
-              AND ci.global_competitor_id = tc.global_competitor_id AND ci.kind = 'promotion')
+              AND ci.global_competitor_id = tc.global_competitor_id AND ci.kind = 'promotion'),
+           tc.confidence_score, tc.confidence_label, tc.confidence_reasons, gc.category_path,
+           tc.classification_reason, tc.tracking_decision
     FROM tenant_competitors tc
     JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
     WHERE tc.tenant_id = %(t)s
@@ -181,14 +202,17 @@ def _profiles(payloads) -> list:
 
 
 def set_tracked(conn, tenant_id: str, competitor_id: str, tracked: bool) -> bool:
+    """The owner's explicit choice. Recorded as tracking_decision so that
+    re-scoring after discovery never overturns it (competitor_classification.py)."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
             UPDATE tenant_competitors SET is_tracked = %s,
-                tier = CASE WHEN %s THEN (CASE WHEN tier = 'STRATEGIC' THEN tier ELSE 'RELEVANT' END) ELSE 'CANDIDATE' END
+                tier = CASE WHEN %s THEN (CASE WHEN tier = 'STRATEGIC' THEN tier ELSE 'RELEVANT' END) ELSE 'CANDIDATE' END,
+                tracking_decision = CASE WHEN %s THEN 'USER_TRACKED' ELSE 'USER_UNTRACKED' END
             WHERE tenant_id = %s AND global_competitor_id = %s;
             """,
-            (tracked, tracked, tenant_id, competitor_id),
+            (tracked, tracked, tracked, tenant_id, competitor_id),
         )
         return cursor.rowcount == 1
 

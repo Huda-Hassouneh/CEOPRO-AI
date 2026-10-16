@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 from urllib.parse import urlsplit
 
@@ -40,7 +40,10 @@ def _require_role(conn, tenant_id: str, user_id: str, allowed_roles: set) -> str
 
 
 @router.get("/competitors")
-def list_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def list_competitors_endpoint(
+    sort: Literal["name", "confidence"] = "name",
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
     """
     The Competitors list page's backend contract - a single flat list a
     table/grid can render directly, instead of GET /dashboard/competitors'
@@ -50,14 +53,20 @@ def list_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) 
     for the real query/scoring logic rather than duplicating it - this
     endpoint only reshapes its output (both groups concatenated, each row
     keeping its own "tier" field so the page can still show/filter by
-    STRATEGIC vs RELEVANT), sorted alphabetically by name (a stable order for the table; the
-    tier-grouped directory itself is ordered by confidence).
+    STRATEGIC vs RELEVANT). Alphabetical by name by default (the page's
+    original, stable order); `sort=confidence` orders by confidence_score,
+    best first (unscored rows last, then by name) - the same order as the
+    tier-grouped directory.
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         directory = dashboard_competitors.get_competitor_directory(conn, ctx.tenant_id)
         conn.commit()
-        competitors = sorted(directory["strategic"] + directory["relevant"], key=lambda row: row["name"])
+        rows = directory["strategic"] + directory["relevant"]
+        if sort == "confidence":
+            competitors = sorted(rows, key=lambda row: (row.get("confidence_score") is None, -(row.get("confidence_score") or 0), row["name"]))
+        else:
+            competitors = sorted(rows, key=lambda row: row["name"])
         return {"competitors": competitors}
     except Exception:
         conn.rollback()
@@ -70,9 +79,11 @@ def list_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) 
 def reclassify_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """
     Re-scores every competitor this tenant already has against the current
-    classification rules (category relevance + confidence score) - the
-    one-time cleanup for competitors discovered before category checks
-    existed, and repairs old product-title names. Idempotent; see
+    classification rules (category relevance + confidence score) and repairs
+    old product-title names. Scores, categories and evidence are refreshed;
+    tracking is only ever REMOVED (a competitor the system tracked that is in
+    a different category) - never started, and an owner's explicit track /
+    untrack choice is never overturned. Idempotent; see
     discovery.py::refresh_tenant_competitors().
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)

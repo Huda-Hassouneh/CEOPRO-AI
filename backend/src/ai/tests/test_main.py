@@ -1115,6 +1115,25 @@ def test_list_competitors_flattens_and_sorts_both_tiers_by_name():
     mock_directory.assert_called_once_with(fake_conn, "t1")
 
 
+def test_list_competitors_can_be_ordered_by_confidence_on_request():
+    fake_conn = MagicMock()
+    fake_directory = {
+        "strategic": [{"id": "c2", "name": "Zebra Corp", "tier": "STRATEGIC", "confidence_score": 90.0}],
+        "relevant": [{"id": "c1", "name": "Acme Inc", "tier": "RELEVANT", "confidence_score": 40.0},
+                     {"id": "c3", "name": "Unscored Ltd", "tier": "RELEVANT"}],  # rows from older callers carry no score
+    }
+    with patch("src.ai.routers.competitors.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.competitors.dashboard_competitors.get_competitor_directory", return_value=fake_directory):
+        response = client.get("/competitors?sort=confidence", headers=_auth())
+    assert response.status_code == 200
+    assert [c["name"] for c in response.json()["competitors"]] == ["Zebra Corp", "Acme Inc", "Unscored Ltd"]
+
+
+def test_list_competitors_rejects_an_unknown_sort():
+    with patch("src.ai.routers.competitors.db.app_role_connection", return_value=MagicMock()):
+        assert client.get("/competitors?sort=bogus", headers=_auth()).status_code == 422
+
+
 def test_list_competitors_returns_an_empty_list_with_no_tracked_competitors():
     fake_conn = MagicMock()
     with patch("src.ai.routers.competitors.db.app_role_connection", return_value=fake_conn), \
