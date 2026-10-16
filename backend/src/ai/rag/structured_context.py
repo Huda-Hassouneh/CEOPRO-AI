@@ -252,11 +252,12 @@ def _build_competitor_lines(conn, tenant_id: str) -> list:
         cursor.execute(
             """
             SELECT gc.competitor_name, tc.tier, gc.website_url, tc.distance_km, gc.rating, gc.review_count,
-                   tc.branch_count, gc.address
+                   tc.branch_count, gc.address, tc.confidence_label, gc.category_path
             FROM tenant_competitors tc
             JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
             WHERE tc.tenant_id = %s AND tc.is_tracked = TRUE AND tc.tier IN ('STRATEGIC', 'RELEVANT')
-            ORDER BY tc.tier = 'STRATEGIC' DESC, tc.relevance_score DESC NULLS LAST, gc.competitor_name ASC
+            ORDER BY tc.tier = 'STRATEGIC' DESC, tc.confidence_score DESC NULLS LAST, tc.relevance_score DESC NULLS LAST,
+                     gc.competitor_name ASC
             LIMIT 15;
             """,
             (tenant_id,),
@@ -279,8 +280,15 @@ def _build_competitor_lines(conn, tenant_id: str) -> list:
             "joined via tenant_competitors) - cite these real names directly when asked who your "
             "competitors are, rather than only stating a count or tier:"
         )
-        for name, tier, website_url, distance, rating, reviews, branches, address in competitor_rows:
+        for name, tier, website_url, distance, rating, reviews, branches, address, confidence_label, category_path \
+                in competitor_rows:
             details = [f"{tier} tier"]
+            # Same facts the dashboard shows (best-confidence first), so the
+            # assistant and the competitor list never disagree about who matters.
+            if confidence_label:
+                details.append(f"{confidence_label} confidence")
+            if category_path:
+                details.append("category " + " > ".join(p.replace("_", " ") for p in category_path))
             if distance is not None:
                 details.append(f"{distance:.1f} km away")
             if address:

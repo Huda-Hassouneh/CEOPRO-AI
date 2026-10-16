@@ -41,6 +41,21 @@ Compared `AI_CONTRACT_CHANGES_AND_CLARIFICATIONS.md`, `AI_ENGINEERING_PLAN.md`, 
 
 ---
 
+## 2026-10-16 — Competitor relevance: contract review (additive; spec S20 / S22 / S19 alignment)
+
+Compared the competitor-relevance work (category-aware tiers, confidence score, directory ordering) against the contracts it touches. Full field-level list: `src/infrastructure/CONTRACT_CHANGELOG.md` (2026-10-16).
+
+| Contract | Finding | Resolution |
+|---|---|---|
+| Spec S22 — one shared evidence architecture, "confidence must not be implemented independently" | The first version stored a bespoke confidence score with no evidence record. | **Spec wins.** Each classification outcome now writes a shared `evidence_records` row (`competitor_classification`; `FACT`/`UNKNOWN`), de-duplicated so re-scoring an unchanged competitor adds nothing; linked via `tenant_competitors.evidence_id`. |
+| Spec S20 — ranking transparent, weights configurable | Weights were constants; no breakdown. | **Spec wins.** `COMPETITOR_CONFIDENCE_WEIGHTS` + per-call override; every row returns `confidence_breakdown` and `confidence_reasons`. |
+| Spec S19 — foreign competitors not automatically direct competitors | Seeded retailers were US-only for every tenant. | **Spec wins.** Seeded retailers geo-scoped (`retailer_geo.py`). |
+| Spec S29 — APIs support filtering/pagination | `/dashboard/competitors` had neither. | Added optional `min_confidence`, `max_distance_km`, `limit`, `offset`. |
+| Frontend contract for `/dashboard/competitors` (documented as the "final backend contract") | First version changed `summary_line` wording and silently moved weak rows to a new group. | **Contract wins.** `summary_line` restored byte-for-byte (new text lives in `confidence_summary`); weak-lead split is opt-in (`separate_weak_leads`). Remaining intentional changes: ordering (alphabetical -> confidence) and CANDIDATE now excluding different-category businesses — both requested product behaviour, listed in the changelog. |
+| Multi-tenancy / RLS (PR checklist) | Prior competitor tests ran as superuser, proving nothing about RLS (cf. PENDING_ACTIONS #32). | New `test_competitor_relevance_rls_integration_db.py` runs classification, evidence, refresh, directory, shared GLOBAL rows and cross-tenant isolation as the real `ceopro_app` role. |
+
+---
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

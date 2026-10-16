@@ -37,6 +37,7 @@ import os
 import redis
 
 from src.market_scraper import data_access
+from src.market_scraper.discovery import refresh_tenant_competitors
 from src.market_scraper.enqueue import enqueue_collection
 from src.market_scraper.tenant_discovery import (
     discover_competitors_for_tenant, discover_domain_level_competitors_for_tenant,
@@ -97,6 +98,17 @@ def discover_for_tenant(tenant_id: str) -> dict:
         domain_results = discover_domain_level_competitors_for_tenant(
             conn, tenant_id, actor_user_id, google_places_api_key=google_places_api_key,
         )
+        # The catalog may have changed since the last pass (new uploads are
+        # what trigger discovery), which changes the tenant's categories -
+        # re-score every competitor against it so the list never goes stale.
+        # A failure here must not discard the discovery that already
+        # succeeded, so it is logged and reported rather than raised.
+        try:
+            refresh_summary = refresh_tenant_competitors(conn, tenant_id)
+        except Exception:  # noqa: BLE001
+            conn.rollback()
+            logger.exception("competitor refresh failed for tenant %s", tenant_id)
+            refresh_summary = {"error": "refresh_failed"}
     finally:
         conn.close()
 
@@ -108,6 +120,7 @@ def discover_for_tenant(tenant_id: str) -> dict:
         "product_level_candidates": len(product_results),
         "domain_level_candidates": len(domain_results),
         "enqueued_source_ids": enqueued,
+        "competitor_refresh": refresh_summary,
     }
 
 

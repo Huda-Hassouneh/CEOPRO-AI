@@ -57,7 +57,8 @@ def _get(url: str, params: dict) -> Optional[dict]:
 
 def _fetch_details(place_id: str, api_key: str) -> Optional[dict]:
     payload = _get(_DETAILS_URL, {
-        "place_id": place_id, "fields": "website,geometry,formatted_address", "key": api_key,
+        "place_id": place_id, "fields": "website,geometry,formatted_address,types,rating,user_ratings_total,formatted_phone_number",
+        "key": api_key,
     })
     if not payload or "result" not in payload:
         return None
@@ -123,5 +124,10 @@ def discover_nearby_places(
             product_name=keyword, url=website, title=name,
             latitude=location.get("lat"), longitude=location.get("lng"),
             city=(details or {}).get("formatted_address"),
+            address=(details or {}).get("formatted_address"),
+            phone=(details or {}).get("formatted_phone_number"),
+            rating=(details or {}).get("rating", result.get("rating")),
+            rating_count=(details or {}).get("user_ratings_total", result.get("user_ratings_total")),
+            place_types=tuple((details or {}).get("types") or result.get("types") or ()) or None,
         ))
     return candidates
