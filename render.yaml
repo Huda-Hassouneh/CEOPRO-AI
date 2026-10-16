@@ -163,8 +163,9 @@ services:
         sync: false
       - key: TAVILY_API_KEY
         sync: false
-      - key: RAG_WEB_FALLBACK_DAILY_LIMIT
-        value: "50"
+      # Assistant public research: searches per day for the whole server.
+      - key: RESEARCH_DAILY_SEARCH_LIMIT
+        value: "30"
 
       # --- Credential vault (only needed for POS/ERP connector
       # credential storage - onboarding.py's data_sources flows) ---

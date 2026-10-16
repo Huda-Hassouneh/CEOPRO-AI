@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.ai import db
 from src.ai.core import usage
 from src.ai.core.security import TenantContext, get_tenant_context
+from src.ai.rag import advisor as rag_advisor
 from src.ai.rag import conversation_store
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
@@ -43,6 +44,11 @@ _MAX_QUERY_TEXT_LENGTH = int(os.getenv("RAG_MAX_QUERY_TEXT_LENGTH", "2000"))
 # about the raw request size before it ever gets that far.
 _MAX_HISTORY_JSON_LENGTH = int(os.getenv("RAG_MAX_HISTORY_JSON_LENGTH", "20000"))
 
+
+# An answer's claims, references and calculations, kept with the message
+# so a reopened conversation shows exactly what the user saw.
+_STORED_ANSWER_FIELDS = ("answer_blocks", "references", "calculations", "evidence_status", "research",
+                         "follow_up_questions", "answer_mode")
 
 # Why a question got no answer, for the chat to explain it in the user's
 # language: not_configured | provider_busy | provider_unavailable | internal_error.
@@ -124,16 +130,23 @@ def rag_query(
         estimate = usage.RAG_TOKEN_RESERVATION if left is None else max(1, min(usage.RAG_TOKEN_RESERVATION, left))
         reservation = usage.reserve(conn, ctx.tenant_id, usage.RAG_ASSISTANT, estimate)
         conn.commit()
+        state = None
         if session_id:
             if not conversation_store.session_exists(conn, ctx.tenant_id, session_id):
                 raise HTTPException(status_code=404, detail="Conversation session not found.")
             history = conversation_store.load_session_history(conn, ctx.tenant_id, session_id)
+            state = conversation_store.load_session_state(conn, ctx.tenant_id, session_id)
         else:
             session_id = conversation_store.create_session(conn, ctx.tenant_id, ctx.user_id, query_text)
 
         conversation_store.append_message(conn, ctx.tenant_id, session_id, ctx.user_id, "user", query_text)
-        result = rag_llm_client.answer_query(conn, ctx.tenant_id, query_text, top_k=top_k, history=history)
-        conversation_store.append_message(conn, ctx.tenant_id, session_id, ctx.user_id, "assistant", result["answer"], sources=result.get("sources"))
+        result = rag_advisor.answer(conn, ctx.tenant_id, query_text, top_k=top_k, history=history,
+                                    user_id=ctx.user_id, state=state)
+        conversation_store.append_message(
+            conn, ctx.tenant_id, session_id, ctx.user_id, "assistant", result["answer"], sources=result.get("sources"),
+            answer_payload={key: result.get(key) for key in _STORED_ANSWER_FIELDS},
+        )
+        conversation_store.save_session_state(conn, ctx.tenant_id, session_id, result.pop("state", None) or {})
         conn.commit()
         # An evidence-mode reply used no AI capacity, so it doesn't count
         # against the plan's allowance (released in `finally`).

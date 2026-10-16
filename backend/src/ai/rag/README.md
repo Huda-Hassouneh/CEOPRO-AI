@@ -49,8 +49,8 @@ export LOCAL_LLM_BASE_URL=http://127.0.0.1:8090/v1/chat/completions   # 127.0.0.
 ```
 
 Live-verified 2026-09-06 on real hardware (i5-1135G7, 4-core/8-thread CPU, Qwen2.5-3B-Instruct
-Q5_K_M): ~6 tokens/sec generation, a real 32.6s for one full grounded answer through the actual
-`generate_answer()` code path — correct, coherent, correctly cited. Genuinely slower than Groq;
+Q5_K_M): ~6 tokens/sec generation, a real 32.6s for one full grounded answer through the then-current
+answer code path — correct, coherent, correctly cited. Genuinely slower than Groq;
 that's the real trade for zero cost and full privacy, not a bug. This was a single smoke test, not
 an accuracy evaluation — a real side-by-side comparison against Groq's answers on a batch of
 questions is the honest next step for quantified confidence, not yet done.
@@ -59,7 +59,7 @@ questions is the honest next step for quantified confidence, not yet done.
 
 Groq stays the active default. When a paid subscription is actually provisioned (OpenAI,
 Together AI, Azure OpenAI, Fireworks, or any other vendor that speaks the same OpenAI-compatible
-`/v1/chat/completions` schema Groq and llama-server already do), point `generate_answer()` at it
+`/v1/chat/completions` schema Groq and llama-server already do), point the model call (`llm_client._chat_completion_with_usage()`) at it
 with three env vars and nothing else changes:
 
 ```bash
@@ -94,62 +94,49 @@ print(f"Ingested {processed_count} document(s)")
 
 ## 3. Test and query the model
 
-This is the exact shape of a real call, end to end — copy this, swap in a real `tenant_id` and
-`GROQ_API_KEY`, and run it.
+The assistant is the evidence-first advisor in `advisor.py`. `llm_client.answer_query()` is a thin
+wrapper around it, kept for existing callers.
 
 ```python
 # query_example.py
-import os
 import psycopg2
-from src.ai.rag import llm_client
-
-os.environ["GROQ_API_KEY"] = "your-real-key-here"   # or set it in your shell environment instead
+from src.ai.rag import advisor
 
 conn = psycopg2.connect("postgresql://ceopro_app:...@localhost:5432/ceopro_platform")
+# Row-level security needs app.current_tenant_id / app.current_user_id set on the connection
+# (db.app_role_connection does this for the API).
 
-result = llm_client.answer_query(
+result = advisor.answer(
     conn,
     tenant_id="00000000-0000-0000-0000-000000000000",
-    query_text="What is our best selling product this summer?",
-    top_k=5,
+    question="How were my sales in the last 30 days?",
+    user_id="00000000-0000-0000-0000-000000000001",   # the member's role decides what may be read
 )
 
-print("Answer: ", result["answer"])
-print("Sources:", result["sources"])
+print(result["answer"])        # text with superscript reference markers
+print(result["references"])    # numbered references behind those markers
 ```
 
-```bash
-python query_example.py
-```
+Main fields of `result`:
 
-Expected shape of `result`:
-
-```json
-{
-  "answer": "Your best selling summer product is Sunscreen SPF 50, based on the retrieved sales notes.",
-  "sources": [
-    {"source_index": 1, "chunk_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "score": 0.87}
-  ]
-}
-```
-
-An empty `sources` list with an "I don't have any relevant information..." answer means retrieval
-found nothing in that tenant's knowledge base for the query — the LLM was never called (see
-`answer_query()`'s own short-circuit).
+| Field | Meaning |
+|---|---|
+| `answer` | Plain text with superscript markers (¹ ² …), for clients that cannot render blocks. |
+| `answer_blocks` | Headings, paragraphs, lists and tables made of claims; each claim lists its reference numbers, its kind (fact, calculation, regulation, recommendation, …) and whether it was verified. |
+| `references` | Numbered by first use: title, kind, credibility, excerpt, page or screen link, source URL, publication and retrieval dates, limitations, and the calculation trace for calculated figures. |
+| `calculations` | Deterministic landed-cost results (steps, inputs, missing inputs, assumptions, sensitivity). |
+| `evidence_status` | What was looked for and what was found, missing, or not permitted for this role. |
+| `research` | Outcome of public research (`not_needed`, `not_configured`, `budget_exhausted`, `no_results`, `found`, …). |
+| `follow_up_questions` | Suggested next questions. |
+| `answer_mode` | `advisor`, or a fallback (`evidence_mode`, `unverifiable`, `unlinked`) when the model is unavailable or its claims could not be checked. |
+| `state` | Intents and slots carried into the next question of the same conversation. |
 
 ### Via the HTTP endpoint
 
-With `src/ai/main.py` running (`uvicorn src.ai.main:app`, or the `ai` service in
-`docker-compose.yml`):
-
-```bash
-curl -X POST "http://localhost:8000/rag/query?query_text=What+is+our+best+selling+product%3F&top_k=5" \
-  -H "Authorization: Bearer <your JWT>"
-```
-
-Returns the same `{"answer": ..., "sources": [...]}` shape as a JSON response. A Groq/network
-failure comes back as HTTP 502 (retrieval succeeded, only the LLM call didn't); anything else
-unexpected comes back as 500.
+With `src/ai/main.py` running (`./keel start`, `uvicorn src.ai.main:app`, or the `ai` service in
+`docker-compose.yml`), the assistant page calls the chat endpoint in `routers/rag.py`; it stores each
+answer with its references and the conversation state, so reopened conversations keep their
+citations. A provider failure returns the evidence found, labelled as such, instead of an error.
 
 ### Interactive terminal chat (`chat_cli.py`)
 
@@ -214,57 +201,43 @@ actual provider call yourself.
 ## 5. Architecture summary
 
 ```text
-Document upload (MinIO)          structured_summaries.py
-        |                        (regenerate_all_structured_summaries)
-        |                                |
-        |                        real narrative text from
-        |                        invoices/tenant_competitors/
-        |                        sentiment_results/competitor_prices
-        |                                |
-        |                        written to MinIO as a real .txt file,
-        |                        registered in rag_documents_metadata
-        |                        (one stable "slot" per summary type -
-        |                        regeneration overwrites, never duplicates)
-        |                                |
-        +----------------+---------------+
-                         |
-        ingest_pending_documents()  -- chunk, embed, persist (once, at ingest time)
-                         |
-        rag_document_chunks (Postgres + pgvector)
-                         |
-        run_retrieval()
-          |-- build_hybrid_index()        -- read persisted chunks, no MinIO/re-embed
-          |-- retrieve_hybrid()           -- BM25 + FAISS, wide candidate pool -> RRF fusion
-          |-- rerank()                    -- multilingual Cross-Encoder, narrows to top_k
-          |-- assemble_context()          -- source-labeled context text + citations
-                         |
-                AssembledContext                    structured_context.py             business_tools.py
-                         |                    (build_structured_facts_block)   (build_financial_facts_block,
-                         |                                |                     only when the question looks
-                         |                    real, LIVE current numbers -      financial - see below)
-                         |                    sentiment score, competitor                |
-                         |                    tier counts, price gaps -         real gross-profit/margin
-                         |                    queried fresh, never chunked      numbers from invoices +
-                         |                    or embedded                       invoice_items + products.
-                         |                                |                     cost_price, query-gated
-                         +-------------------+------------+-------------------+
-                                             |
-                        generate_answer()  -- Groq API call, all sections in
-                                              one prompt, separately labeled
-                                             |
-                        {"answer": ..., "sources": [...]}
+question (+ previous turn's state)
+   |
+understanding.py      intents (sales, pricing, trade, regulation, research, ...) and slots
+                      (countries, period, quantity, money amounts, rates, HS code, incoterm, URLs)
+   |
+access.py             the member's role -> capabilities (owner/admin/manager: all;
+                      accountant: sales, costs, catalog, inventory, forecasts, documents;
+                      staff: catalog and inventory only)
+   |
+advisor.py: gather company evidence the role may see
+   |-- structured_context.build_fact_sections()   live sales, sentiment, competitors, price gaps,
+   |                                              forecasts, insights (read-only)
+   |-- business analysis / orchestrator / financial blocks (business_tools.py)
+   |-- uploaded documents via run_retrieval() (BM25 + FAISS + RRF + Cross-Encoder), with page numbers
+   |-- products, reviews, product guide (how-to questions)
+   |
+research/ (only when the question needs public information or nothing internal was found)
+   |-- plan_queries()   private figures stripped; official sites first for trade/regulation
+   |-- web_search       daily and per-company search budgets
+   |-- page_reader.read()  SSRF check on every redirect, robots.txt, no logins or paywalls
+   |-- research_pages   shared cache of public pages only (no tenant, user or question stored)
+   |
+trade/landed_cost.py  deterministic landed cost: CIF/FOB customs value, ad-valorem and specific
+                      duty, excise, sales tax, fees, per-unit cost, comparison, break-even,
+                      sensitivity. Missing inputs are listed, never guessed.
+   |
+EvidenceRegistry (evidence.py)  every item numbered E1..En with kind, credibility, dates, link
+   |
+LLM (JSON claims citing E-ids) -> citations.validate()
+   |   numbers must appear in (or be derived from) the cited evidence, quotes must match,
+   |   links must belong to cited evidence; one repair round, then fallback modes
+   |
+citations.render()  numbered references + blocks -> frontend markers and reference panel
 ```
 
-Unlike `structured_context.py`'s block (always run, every question),
-`business_tools.py::build_financial_facts_block()` only runs its two
-extra queries when the question actually looks financial
-(`is_financial_question()` - a real keyword gate, English + Arabic) - the
-first instance in this codebase of the chat pipeline choosing which extra
-data source a specific question needs, rather than running a fixed set on
-every turn. See `../../../RAG_BUSINESS_COPILOT_ARCHITECTURE.md` for the
-full audit this was built against, including what's still genuinely
-missing (a real multi-step tool-orchestration loop, conversation
-persistence, a structured application-knowledge layer).
+The model never does arithmetic: every computed figure comes from `trade/landed_cost.py` or from
+the company records, and a claim whose numbers cannot be traced to its evidence is removed.
 
 ## 6. Unified context: scraped market data + internal sales history
 
@@ -290,11 +263,10 @@ mechanism — see each module's own docstring for the full reasoning, summarized
   **every** chat question and injected directly into the LLM prompt as a second, separately-labeled
   section — never chunked or embedded. This is deliberate, not an oversight: an LLM asked for an
   exact number should never have to rely on semantic search having retrieved the one chunk with the
-  precise right figure, a well-documented RAG failure mode for numeric precision. `llm_client.py::
-  answer_query()` calls this automatically (`include_structured_facts=True` by default) and now only
-  short-circuits to "I don't have any relevant information" when **neither** retrieval **nor**
-  structured facts have anything — a pure-numbers question with no matching document (e.g. "what's
-  my current price gap") still gets a real answer.
+  precise right figure, a well-documented RAG failure mode for numeric precision. The advisor reads
+  these facts through `build_fact_sections()`, one section per topic, each filtered by the member's
+  role and linked to the screen it comes from. When nothing internal answers the question, it
+  researches public sources or says exactly what is missing instead of giving up.
 
 **Known, flagged gap**: neither `regenerate_all_structured_summaries()` nor the four narrative
 generators are yet wired into an automatic schedule (a cron/webhook after a scraping run) — they're
