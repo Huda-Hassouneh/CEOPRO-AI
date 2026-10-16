@@ -24,6 +24,7 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple
 
+from src.market_scraper.category_taxonomy import MIN_COMPETING_SIMILARITY, best_similarity, categorize
 from src.market_scraper.market_discovery import industries
 from src.market_scraper.market_discovery.offerings import _word_in, normalize, tokens
 
@@ -147,3 +148,26 @@ def specialty_categories(named: List[Tuple[List[str], str]], query, min_count: i
         for name in specific_categories(categories, query):
             counts[name] = counts.get(name, 0) + 1
     return {name for name, n in counts.items() if n >= min_count}
+
+
+def in_different_category(name: str, name_ar: Optional[str], categories: List[str], query) -> bool:
+    """True when this business is in a different SEGMENT from the company
+    (a donut shop for a burger restaurant: food > desserts vs. food >
+    snacks) - not a competitor even though both are "restaurants". Only a
+    positive mismatch counts: if the company's segment or the business's
+    category is unknown, nothing is ruled out. Callers keep a business that
+    has stronger evidence (same products at a published price, or the
+    company's own specialty) regardless."""
+    paths = getattr(query, "category_paths", ()) or ()
+    if not paths:
+        return False
+    types, words = [], []
+    for raw in categories or []:
+        value = raw.split(":", 1)[-1].split("=", 1)[-1].lower()
+        types.append(value)
+        words.append(value.replace("_", " "))
+    categorization = categorize(" ".join([name or "", name_ar or "", *words]), types)
+    if categorization is None:
+        return False
+    similarity = best_similarity(paths, categorization.path)
+    return similarity is not None and similarity < MIN_COMPETING_SIMILARITY
