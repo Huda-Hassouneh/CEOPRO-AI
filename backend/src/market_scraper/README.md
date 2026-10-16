@@ -489,6 +489,49 @@ three checks:
 `tenant_competitors.product_match_rate`/`is_confirmed_competitor`/`classified_at` record the result
 of the most recent classification.
 
+## Competitor relevance: category, confidence, and keeping the list fresh
+
+A competitor is only useful if it competes. Earlier, "relevant" meant only
+"in-region and not a manufacturer", so a burger restaurant was shown donut
+shops. The pipeline now decides relevance in four places:
+
+1. **Find the right businesses** - `tenant_discovery.py` builds the Places /
+   web search keyword from the tenant's own segment
+   (`category_taxonomy.search_keyword_for_path`, e.g. "burger restaurant"),
+   falling back to the coarse vertical label ("restaurant OR cafe") only when
+   the catalog gives no segment.
+2. **Categorize** - `category_taxonomy.py` maps a business to a path
+   (`food > snacks > burger`) from Google Places `types` first, name keywords
+   (English + Arabic) second; a tenant's categories come from its product
+   names + `companies.business_type`. Unknown is `None`, never a guess. Add a
+   business type by adding one entry to `_LEAVES` (and `_SEARCH_LABELS`).
+3. **Classify** - `ai/pricing/competitor_classification.py`: different segment
+   -> `CANDIDATE` (excluded, kept as an audit row); same segment -> `STRATEGIC`;
+   broadly related or unverifiable -> `RELEVANT`. Manual adds and >= 60%
+   product overlap are never excluded by category.
+4. **Score + rank** - `ai/pricing/competitor_confidence.py` gives each
+   competitor a 0-100 confidence (category 45 / products 30 / proximity 15 /
+   evidence 10, renormalized over known signals) with plain-language reasons
+   and a per-signal breakdown. Weights are configurable
+   (`COMPETITOR_CONFIDENCE_WEIGHTS`, spec S20). Each outcome is recorded in the
+   shared `evidence_records` trail (spec S22), only when tier/score changes.
+   `GET /dashboard/competitors` orders best-first; weak leads (Low confidence,
+   nothing in common) are split into `possible` only when the client passes
+   `separate_weak_leads=true`, so the original response contract is unchanged
+   by default. Optional `min_confidence`, `max_distance_km`, `limit`, `offset`.
+
+**Freshness:** `discovery.refresh_tenant_competitors()` repairs old
+product-title names and re-scores every competitor. It runs automatically at
+the end of each discovery pass (`discovery_worker.py`) and on demand via
+`POST /competitors/reclassify` - run that once per tenant after deploying the
+`20261016000000` migration.
+
+**Seeded retailers are geo-scoped** (`retailer_geo.py`): a seeded retailer is
+only used for tenants operating in its origin country. Shipping can't be
+inferred from a domain, so a retailer an operator has verified ships to the
+tenant's market must be listed in `RETAILER_INTERNATIONAL_DOMAINS`
+(comma-separated; see `.env.example`).
+
 ## Collection policy
 
 Every source starts `RESTRICTED`. `policy.py` evaluates and records one of:

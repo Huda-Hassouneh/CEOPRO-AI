@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -150,7 +151,14 @@ def dashboard_competitor_pricing_endpoint(
 
 
 @router.get("/competitors")
-def dashboard_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def dashboard_competitors_endpoint(
+    separate_weak_leads: bool = False,
+    min_confidence: Optional[float] = Query(None, ge=0, le=100),
+    max_distance_km: Optional[float] = Query(None, ge=0),
+    limit: Optional[int] = Query(None, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
     """
     The dashboard's Competitor Directory - the frontend's final backend
     contract for the competitor UI, grouped by tier (see dashboard/
@@ -161,10 +169,18 @@ def dashboard_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_conte
     that bar) with a per-product price comparison instead. Excludes
     CANDIDATE (manufacturer, or out of region) entirely - those were
     never confirmed as real competitors in the first place.
+
+    Ordered by confidence_score within each group. Optional query params
+    (all backward compatible - omitting them returns the original shape):
+    separate_weak_leads (split Low-confidence, no-shared-product rows into
+    "possible"), min_confidence, max_distance_km, limit/offset (per group).
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = dashboard_competitors.get_competitor_directory(conn, ctx.tenant_id)
+        result = dashboard_competitors.get_competitor_directory(
+            conn, ctx.tenant_id, separate_weak_leads=separate_weak_leads, min_confidence=min_confidence,
+            max_distance_km=max_distance_km, limit=limit, offset=offset,
+        )
         conn.commit()
         return result
     except Exception:

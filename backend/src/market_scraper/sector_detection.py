@@ -207,7 +207,7 @@ def build_retail_search_query(product_name: str, geo_scope: str = None) -> str:
     return query
 
 
-def build_industry_search_query(vertical: str, geo_scope: str = None) -> str:
+def build_industry_search_query(vertical: str, geo_scope: str = None, industry_label: str = None) -> str:
     """
     The domain-level counterpart to build_retail_search_query() - instead
     of "who sells THIS product", asks "who else operates in this INDUSTRY".
@@ -219,8 +219,13 @@ def build_industry_search_query(vertical: str, geo_scope: str = None) -> str:
     An unrecognized vertical key falls back to VERTICAL_INDUSTRY_LABELS'
     "general_retail" entry rather than raising - same honest-degradation
     convention detect_vertical() itself already uses.
+
+    industry_label (e.g. "burger restaurant", from category_taxonomy.
+    search_keyword_for_path) overrides the coarse vertical label
+    ("restaurant OR cafe") when the tenant's own segment is known, so the
+    search targets that segment instead of its whole vertical.
     """
-    label = VERTICAL_INDUSTRY_LABELS.get(vertical, VERTICAL_INDUSTRY_LABELS["general_retail"])
+    label = industry_label or VERTICAL_INDUSTRY_LABELS.get(vertical, VERTICAL_INDUSTRY_LABELS["general_retail"])
     query = f"{label} " + " ".join(RETAIL_QUERY_HINTS)
     if geo_scope:
         query += f" {geo_scope}"
