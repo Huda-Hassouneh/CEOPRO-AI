@@ -23,17 +23,36 @@ def test_discover_for_tenant_runs_both_discovery_passes_and_closes_the_connectio
     with patch("src.market_scraper.discovery_worker.data_access.get_tenant_connection", return_value=fake_conn), \
          patch("src.market_scraper.discovery_worker.discover_competitors_for_tenant", return_value=[]) as mock_product, \
          patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]) as mock_domain, \
-         patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", return_value={"reclassified": 0}) as mock_refresh:
+         patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", return_value={"reclassified": 0}) as mock_refresh, \
+         patch("src.market_scraper.discovery_worker.enrich_tenant_competitors", return_value={"competitors_attempted": 0, "candidates": 0}) as mock_enrich:
         result = discovery_worker.discover_for_tenant("tenant-1")
 
     mock_product.assert_called_once_with(fake_conn, "tenant-1", "actor-1")
     mock_domain.assert_called_once_with(fake_conn, "tenant-1", "actor-1", google_places_api_key=None)
     mock_refresh.assert_called_once_with(fake_conn, "tenant-1")  # list is re-scored after every discovery pass
+    mock_enrich.assert_called_once_with(fake_conn, "tenant-1")  # then profile/social links are filled in
     fake_conn.close.assert_called_once()
     assert result == {
         "product_level_candidates": 0, "domain_level_candidates": 0, "enqueued_source_ids": [],
         "competitor_refresh": {"reclassified": 0},
+        "competitor_enrichment": {"competitors_attempted": 0, "candidates": 0},
     }
+
+
+def test_a_failed_enrichment_does_not_discard_a_successful_discovery(monkeypatch):
+    monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", "actor-1")
+    fake_conn = MagicMock()
+    with patch("src.market_scraper.discovery_worker.data_access.get_tenant_connection", return_value=fake_conn), \
+         patch("src.market_scraper.discovery_worker.discover_competitors_for_tenant", return_value=[{"x": 1}]), \
+         patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]), \
+         patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", return_value={"reclassified": 1}), \
+         patch("src.market_scraper.discovery_worker.enrich_tenant_competitors", side_effect=RuntimeError("places down")):
+        result = discovery_worker.discover_for_tenant("tenant-1")
+
+    assert result["product_level_candidates"] == 1
+    assert result["competitor_refresh"] == {"reclassified": 1}
+    assert result["competitor_enrichment"] == {"error": "enrichment_failed"}
+    fake_conn.close.assert_called_once()
 
 
 def test_a_failed_competitor_refresh_does_not_discard_a_successful_discovery(monkeypatch):
@@ -43,7 +62,8 @@ def test_a_failed_competitor_refresh_does_not_discard_a_successful_discovery(mon
     with patch("src.market_scraper.discovery_worker.data_access.get_tenant_connection", return_value=fake_conn), \
          patch("src.market_scraper.discovery_worker.discover_competitors_for_tenant", return_value=[{"x": 1}]), \
          patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]), \
-         patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", side_effect=RuntimeError("db down")):
+         patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", side_effect=RuntimeError("db down")), \
+         patch("src.market_scraper.discovery_worker.enrich_tenant_competitors", return_value={"competitors_attempted": 0, "candidates": 0}):
         result = discovery_worker.discover_for_tenant("tenant-1")
 
     assert result["product_level_candidates"] == 1
