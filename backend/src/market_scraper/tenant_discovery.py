@@ -62,8 +62,9 @@ it's safe to scrape them.
 from typing import List, Optional
 from urllib.parse import urlsplit
 
+from src.market_scraper.category_taxonomy import categorize_catalog, search_keyword_for_path
 from src.market_scraper.company_geo_profile import get_tenant_search_scope
-from src.market_scraper.direct_search import RETAILER_DOMAINS_BY_VERTICAL, search_product_across_retailers
+from src.market_scraper.direct_search import retailer_domains_for, search_product_across_retailers
 from src.market_scraper.discovery import (
     evaluate_candidate, register_domain_level_competitor, register_tenant_scoped_competitor,
 )
@@ -199,7 +200,12 @@ def discover_competitors_for_tenant(
         products = products[:max_products]
 
     vertical = detect_vertical([p["product_name"] for p in products], load_business_type(conn, tenant_id)).vertical
-    seeded_domains = RETAILER_DOMAINS_BY_VERTICAL.get(vertical, [])
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT country_code, operating_countries FROM companies WHERE tenant_id = %s;", (tenant_id,))
+        company_row = cursor.fetchone()
+    # Only retailers that actually serve this tenant's market (see
+    # retailer_geo.py) - a Jordan shop is not handed US-only stores.
+    seeded_domains = retailer_domains_for(vertical, *(company_row or (None, ())))
     sitemap_domains = SITEMAP_DOMAINS_BY_VERTICAL.get(vertical, [])
     resolved_geo_scope = resolve_tenant_geo_scope(conn, tenant_id, override=geo_scope)
 
@@ -301,7 +307,14 @@ def discover_domain_level_competitors_for_tenant(
             if text:
                 product_names.append(text)
 
-    vertical = detect_vertical(product_names, load_business_type(conn, tenant_id)).vertical
+    business_type = load_business_type(conn, tenant_id)
+    vertical = detect_vertical(product_names, business_type).vertical
+    # Search for the tenant's actual segment ("burger restaurant"), not its
+    # whole vertical ("restaurant OR cafe") - otherwise discovery finds every
+    # donut shop and cafe nearby only for classification to throw them out.
+    # Falls back to the vertical label when the catalog gives no segment.
+    tenant_paths = categorize_catalog(product_names, business_type)
+    segment_label = search_keyword_for_path(tenant_paths[0]) if tenant_paths else None
     resolved_geo_scope = resolve_tenant_geo_scope(conn, tenant_id, override=geo_scope)
     scope = get_tenant_search_scope(conn, tenant_id)
     resolved_radius_km = resolve_tenant_search_radius(conn, tenant_id, override_km=radius_km)
@@ -318,7 +331,7 @@ def discover_domain_level_competitors_for_tenant(
         scope["latitude"] is not None and scope["longitude"] is not None
         and google_places_api_key and resolved_radius_km is not None
     ):
-        keyword = VERTICAL_INDUSTRY_LABELS.get(vertical, VERTICAL_INDUSTRY_LABELS["general_retail"])
+        keyword = segment_label or VERTICAL_INDUSTRY_LABELS.get(vertical, VERTICAL_INDUSTRY_LABELS["general_retail"])
         candidates.extend(discover_nearby_places(
             scope["latitude"], scope["longitude"], keyword,
             radius_km=resolved_radius_km,
@@ -327,6 +340,7 @@ def discover_domain_level_competitors_for_tenant(
 
     candidates.extend(discover_industry_candidates(
         vertical, resolved_geo_scope, max_results=max_results, conn=conn, daily_query_limit=daily_query_limit,
+        industry_label=segment_label,
     ))
 
     active_products = _load_active_tenant_products(conn, tenant_id, skip_already_discovered=False)

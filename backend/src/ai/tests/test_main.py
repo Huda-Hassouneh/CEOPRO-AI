@@ -788,7 +788,58 @@ def test_dashboard_competitors_returns_the_directory_result():
     assert response.status_code == 200
     assert response.json() == fake_result
     fake_conn.commit.assert_called_once()
-    mock_directory.assert_called_once_with(fake_conn, "t1")
+    # default request == original behaviour: no opt-ins, no filters, no paging
+    mock_directory.assert_called_once_with(
+        fake_conn, "t1", separate_weak_leads=False, min_confidence=None, max_distance_km=None, limit=None, offset=0,
+    )
+
+
+def test_dashboard_competitors_forwards_the_optional_filters_and_paging():
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.dashboard.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.dashboard.dashboard_competitors.get_competitor_directory", return_value={}) as mock_directory:
+        response = client.get(
+            "/dashboard/competitors?separate_weak_leads=true&min_confidence=40&max_distance_km=12.5&limit=10&offset=5",
+            headers=_auth(),
+        )
+    assert response.status_code == 200
+    mock_directory.assert_called_once_with(
+        fake_conn, "t1", separate_weak_leads=True, min_confidence=40.0, max_distance_km=12.5, limit=10, offset=5,
+    )
+
+
+@pytest.mark.parametrize("query", ["min_confidence=101", "min_confidence=-1", "max_distance_km=-3", "limit=0", "limit=501", "offset=-1"])
+def test_dashboard_competitors_validates_its_query_parameters(query):
+    with patch("src.ai.routers.dashboard.db.app_role_connection", return_value=MagicMock()):
+        response = client.get(f"/dashboard/competitors?{query}", headers=_auth())
+    assert response.status_code == 422
+
+
+def test_reclassify_competitors_requires_auth():
+    assert client.post("/competitors/reclassify").status_code == 401
+
+
+def test_reclassify_competitors_refreshes_only_the_callers_tenant():
+    fake_conn = MagicMock()
+    summary = {"reclassified": 3, "by_tier": {"STRATEGIC": 1, "RELEVANT": 1, "CANDIDATE": 1}, "demoted_to_candidate": 1, "names_repaired": 0}
+    with patch("src.ai.routers.competitors.db.app_role_connection", return_value=fake_conn) as mock_connect, \
+         patch("src.ai.routers.competitors.market_scraper_discovery.refresh_tenant_competitors", return_value=summary) as mock_refresh:
+        response = client.post("/competitors/reclassify", headers=_auth())
+    assert response.status_code == 200 and response.json() == summary
+    mock_refresh.assert_called_once_with(fake_conn, "t1")
+    assert mock_connect.call_args.args[0] == "t1"
+    fake_conn.commit.assert_called_once()
+
+
+def test_reclassify_competitors_rolls_back_and_closes_on_failure():
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.competitors.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.competitors.market_scraper_discovery.refresh_tenant_competitors", side_effect=RuntimeError("boom")):
+        failing_client = TestClient(app, raise_server_exceptions=False)
+        response = failing_client.post("/competitors/reclassify", headers=_auth())
+    assert response.status_code == 500
+    fake_conn.rollback.assert_called_once()
+    fake_conn.close.assert_called_once()
 
 
 def test_dashboard_market_overview_requires_auth():
