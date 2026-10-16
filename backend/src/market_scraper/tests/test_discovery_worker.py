@@ -66,7 +66,8 @@ def test_discover_for_tenant_passes_google_places_api_key_through_from_env(monke
     fake_conn = MagicMock()
     with patch("src.market_scraper.discovery_worker.data_access.get_tenant_connection", return_value=fake_conn), \
          patch("src.market_scraper.discovery_worker.discover_competitors_for_tenant", return_value=[]), \
-         patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]) as mock_domain:
+         patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]) as mock_domain, \
+         patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", return_value={"reclassified": 0}):
         discovery_worker.discover_for_tenant("tenant-1")
 
     mock_domain.assert_called_once_with(fake_conn, "tenant-1", "actor-1", google_places_api_key="real-places-key")
