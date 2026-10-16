@@ -303,9 +303,15 @@ def _build_competitor_lines(conn, tenant_id: str) -> list:
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT COUNT(*) FILTER (WHERE NOT is_tracked), COUNT(*) FILTER (WHERE distance_km <= 1),
-                   COUNT(*) FILTER (WHERE distance_km <= 3), MAX(last_seen_at)
-            FROM tenant_competitors WHERE tenant_id = %s AND discovery_method IS NOT NULL;
+            SELECT COUNT(*) FILTER (WHERE NOT is_tracked AND competing),
+                   COUNT(*) FILTER (WHERE distance_km <= 1 AND competing),
+                   COUNT(*) FILTER (WHERE distance_km <= 3 AND competing), MAX(last_seen_at)
+            FROM (
+                -- An excluded find (manufacturer, out of scope, or a different
+                -- business category) is not a competing business.
+                SELECT is_tracked, distance_km, last_seen_at, tier IS DISTINCT FROM 'CANDIDATE' AS competing
+                FROM tenant_competitors WHERE tenant_id = %s AND discovery_method IS NOT NULL
+            ) found;
             """,
             (tenant_id,),
         )
