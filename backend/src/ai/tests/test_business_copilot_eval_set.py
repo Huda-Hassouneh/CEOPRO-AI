@@ -4,7 +4,8 @@ harness (none exists yet - see that module's own docstring), just proof
 the dataset itself is well-formed and covers the categories it claims to."""
 from src.ai.rag.eval.business_copilot_eval_set import EVAL_QUESTIONS
 
-_VALID_GROUNDING = {"structured_data", "application_knowledge", "market_external", "insufficient_data", "mixed"}
+_VALID_GROUNDING = {"structured_data", "application_knowledge", "market_external", "insufficient_data", "mixed",
+                    "calculation"}
 
 
 def test_every_case_has_required_fields_and_valid_grounding():
@@ -22,7 +23,7 @@ def test_ids_are_unique():
 
 def test_covers_every_category_the_design_brief_named():
     categories = {case["category"] for case in EVAL_QUESTIONS}
-    assert categories == {"application", "company_financial", "market", "mixed", "edge_case"}
+    assert categories == {"application", "company_financial", "market", "mixed", "edge_case", "trade", "research"}
 
 
 def test_conversation_memory_pair_exists_and_is_ordered():

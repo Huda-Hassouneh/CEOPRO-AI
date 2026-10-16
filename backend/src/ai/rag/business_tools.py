@@ -46,7 +46,7 @@ def is_financial_question(query_text: str) -> bool:
     return any(keyword in lowered for keyword in _FINANCIAL_KEYWORDS)
 
 
-def build_financial_facts_block(conn, tenant_id: str, query_text: str) -> str:
+def build_financial_facts_block(conn, tenant_id: str, query_text: str, window_days: int = None) -> str:
     """
     Returns "" (never a placeholder) when the question doesn't look
     financial, OR when it does but there is genuinely no sales data to
@@ -59,8 +59,9 @@ def build_financial_facts_block(conn, tenant_id: str, query_text: str) -> str:
     if not is_financial_question(query_text):
         return ""
 
-    summary = get_profitability_summary(conn, tenant_id)
-    ranking = get_product_profitability(conn, tenant_id)
+    window = {"window_days": window_days} if window_days else {}
+    summary = get_profitability_summary(conn, tenant_id, **window)
+    ranking = get_product_profitability(conn, tenant_id, **window)
 
     if summary["revenue"]["amount"] <= 0:
         return ""

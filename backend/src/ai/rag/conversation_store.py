@@ -19,6 +19,7 @@ messages are returned, same MAX_HISTORY_MESSAGES bound llm_client.py's
 own _sanitize_history() already enforces server-side - this module
 enforces it at the query level too (LIMIT), not just after the fact.
 """
+import json
 from typing import List, Optional
 
 # Mirrors rag/llm_client.py's MAX_HISTORY_MESSAGES (12 = 6 user/assistant
@@ -49,14 +50,18 @@ def create_session(conn, tenant_id: str, user_id: str, first_message: str) -> st
         return str(cursor.fetchone()[0])
 
 
-def append_message(conn, tenant_id: str, session_id: str, user_id: str, role: str, content: str, sources: Optional[list] = None) -> str:
-    import json
-
+def append_message(conn, tenant_id: str, session_id: str, user_id: str, role: str, content: str,
+                   sources: Optional[list] = None, answer_payload: Optional[dict] = None) -> str:
+    """answer_payload: an assistant answer's claims, references and
+    calculations (rag/advisor.py), stored as the user saw them, so a
+    reopened conversation shows the same references even if a cited web
+    page has changed since."""
     with conn.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO conversation_messages (tenant_id, session_id, user_id, role, content, sources) "
-            "VALUES (%s, %s, %s, %s, %s, %s) RETURNING message_id;",
-            (tenant_id, session_id, user_id, role, content, json.dumps(sources) if sources is not None else None),
+            "INSERT INTO conversation_messages (tenant_id, session_id, user_id, role, content, sources, answer_payload) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING message_id;",
+            (tenant_id, session_id, user_id, role, content, json.dumps(sources) if sources is not None else None,
+             json.dumps(answer_payload, ensure_ascii=False, default=str) if answer_payload is not None else None),
         )
         message_id = cursor.fetchone()[0]
         # updated_at drives list_sessions()'s "most recently active first"
@@ -106,7 +111,7 @@ def load_session_messages_for_display(conn, tenant_id: str, session_id: str) -> 
     massive archive; no evidence this needs pagination yet)."""
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT message_id, role, content, sources, created_at FROM conversation_messages "
+            "SELECT message_id, role, content, sources, answer_payload, created_at FROM conversation_messages "
             "WHERE tenant_id = %s AND session_id = %s ORDER BY seq ASC;",
             (tenant_id, session_id),
         )
@@ -117,10 +122,26 @@ def load_session_messages_for_display(conn, tenant_id: str, session_id: str) -> 
             "role": role,
             "content": content,
             "sources": sources or [],
+            **(payload or {}),
             "created_at": created_at.isoformat(),
         }
-        for message_id, role, content, sources, created_at in rows
+        for message_id, role, content, sources, payload, created_at in rows
     ]
+
+
+def load_session_state(conn, tenant_id: str, session_id: str) -> Optional[dict]:
+    """What the conversation is about so far (rag/understanding.py), or None."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT state FROM conversation_sessions WHERE tenant_id = %s AND session_id = %s;",
+                       (tenant_id, session_id))
+        row = cursor.fetchone()
+    return row[0] if row and row[0] else None
+
+
+def save_session_state(conn, tenant_id: str, session_id: str, state: dict) -> None:
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE conversation_sessions SET state = %s WHERE tenant_id = %s AND session_id = %s;",
+                       (json.dumps(state, ensure_ascii=False, default=str), tenant_id, session_id))
 
 
 def list_sessions(conn, tenant_id: str, user_id: str, limit: int = DEFAULT_SESSION_LIST_LIMIT) -> List[dict]:

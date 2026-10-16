@@ -17,14 +17,16 @@ Deliberately small and fast: this runs on every single chat question
 meant for a schedule/webhook), so it stays to a handful of cheap,
 indexed queries - not a full report.
 """
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Callable, FrozenSet, List, Optional
 
 from src.ai.insights.pipeline import generate_insights_for_tenant
 from src.ai.sentiment.pipeline import get_subject_sentiment_summary
 from src.ai.core.money import format_money_text as format_money
 from src.ai.core.quantities import format_quantity
 from src.ai.core.business_time import window_start
+from src.ai.rag import access
 
 # How far back a real observed competitor listing/price/post still counts
 # as "recent" enough to mention - old enough to catch a genuine recent
@@ -98,7 +100,7 @@ def _build_competitor_activity_block(conn, tenant_id: str) -> list:
 SALES_WINDOW_DAYS = 30
 
 
-def _build_sales_block(conn, tenant_id: str) -> list:
+def build_sales_lines(conn, tenant_id: str, days: int = None) -> list:
     """
     "How were sales this month / what sold best?" is the most common owner
     question, and no other always-on line answers it: the sales narrative in
@@ -108,9 +110,9 @@ def _build_sales_block(conn, tenant_id: str) -> list:
     by issue_date, last 30 days vs the 30 days before), so the assistant and
     the dashboard never disagree.
     """
-    now = datetime.now(timezone.utc)
-    recent_start = window_start(conn, SALES_WINDOW_DAYS)
-    prior_start = window_start(conn, SALES_WINDOW_DAYS, periods=2)
+    days = days or SALES_WINDOW_DAYS
+    recent_start = window_start(conn, days)
+    prior_start = window_start(conn, days, periods=2)
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -143,38 +145,95 @@ def _build_sales_block(conn, tenant_id: str) -> list:
         top_products = cursor.fetchall()
     if not totals:
         return []
-    lines = [f"Sales in the last {SALES_WINDOW_DAYS} days (source: invoices.total_amount by issue_date, same as the dashboard revenue card):"]
+    lines = [f"Sales in the last {days} days (source: invoices.total_amount by issue_date, same as the dashboard revenue card):"]
     for currency, recent, invoice_count, prior in totals:
         lines.append(
             f"- Revenue {format_money(recent, currency)} {currency} from {invoice_count} invoices; "
-            f"the {SALES_WINDOW_DAYS} days before: {format_money(prior, currency)} {currency}."
+            f"the {days} days before: {format_money(prior, currency)} {currency}."
         )
     if top_products:
-        lines.append(f"Top products by revenue in the last {SALES_WINDOW_DAYS} days (source: invoice_items joined to products):")
+        lines.append(f"Top products by revenue in the last {days} days (source: invoice_items joined to products):")
         for name, currency, units, revenue in top_products:
             lines.append(f"- {name}: {format_money(revenue, currency)} {currency} from {format_quantity(units)} units.")
     return lines
 
 
+@dataclass
+class FactSection:
+    """One group of live facts: who may see it, and the screen it comes from."""
+    key: str
+    lines: List[str]
+    capabilities: FrozenSet[str]
+    route: Optional[str]
+
+
+def build_fact_sections(conn, tenant_id: str, allowed: Optional[Callable[..., bool]] = None) -> List[FactSection]:
+    """
+    Real, current facts only, grouped by the kind of record they come from.
+    `allowed(*capabilities)` (rag/access.py) decides which groups are even
+    queried for this member; None means all of them (internal callers and
+    tests). A group with nothing to say is left out entirely - never a
+    placeholder line.
+    """
+    def wanted(*capabilities: str) -> bool:
+        return allowed is None or allowed(*capabilities)
+
+    sections: List[FactSection] = []
+
+    def add(key: str, lines: List[str], capabilities: tuple, route: Optional[str]) -> None:
+        if lines:
+            sections.append(FactSection(key, lines, frozenset(capabilities), route))
+
+    if wanted(access.SALES):
+        add("sales", build_sales_lines(conn, tenant_id), (access.SALES,), "/sales")
+
+    if wanted(access.REVIEWS):
+        business_sentiment = get_subject_sentiment_summary(conn, tenant_id, "BUSINESS")
+        if business_sentiment["status"] == "OK":
+            add("sentiment", [
+                f"Current overall sentiment score (source: sentiment_results, business-wide aggregate): "
+                f"{business_sentiment['sentiment_score']:.2f} "
+                f"(sample size: {business_sentiment['sample_size']['analyzed_count']} analyzed reviews)."
+            ], (access.REVIEWS,), "/market")
+
+    if wanted(access.COMPETITORS):
+        add("competitors", _build_competitor_lines(conn, tenant_id), (access.COMPETITORS,), "/market/competitors")
+
+    if wanted(access.COMPETITORS, access.CATALOG):
+        add("price_gaps", _build_price_gap_lines(conn, tenant_id), (access.COMPETITORS, access.CATALOG), "/pricing")
+
+    if wanted(access.FORECASTS):
+        add("forecasts", _build_forecast_lines(conn, tenant_id), (access.FORECASTS,), "/demand")
+
+    # Proactive cross-signal insights (src.ai.insights): capped small, since
+    # they are offered on every question regardless of relevance - a nudge,
+    # not a wall of unrelated text competing with the real answer. They mix
+    # sales, pricing and cost signals, so only members who may see those get them.
+    if wanted(access.SALES, access.COSTS):
+        insights = generate_insights_for_tenant(conn, tenant_id, max_insights=3)
+        if insights:
+            add("insights", [
+                "Proactive insights worth mentioning if relevant (source: cross-signal analysis of pricing, sentiment, "
+                "sales, and forecasts):",
+                *[f"- {insight.message}" for insight in insights],
+            ], (access.SALES, access.COSTS), "/dashboard")
+
+    if wanted(access.COMPETITORS):
+        add("competitor_activity", _build_competitor_activity_block(conn, tenant_id), (access.COMPETITORS,),
+            "/market/competitors")
+    return sections
+
+
 def build_structured_facts_block(conn, tenant_id: str) -> str:
     """
-    Real, current facts only - every line cites its own source table so
-    the LLM's provenance discipline (llm_client.py's SYSTEM_PROMPT
-    already instructs it to cite the table/field a number came from) has
-    something concrete to point at. Returns "" (never a placeholder
-    string) when nothing is available yet - answer_query() treats an
-    empty block the same as empty retrieved context.
+    Every fact section as one text block, each line naming its own source.
+    Returns "" (never a placeholder string) when nothing is available yet.
     """
-    lines = _build_sales_block(conn, tenant_id)
+    return "\n".join(line for section in build_fact_sections(conn, tenant_id) for line in section.lines)
 
-    business_sentiment = get_subject_sentiment_summary(conn, tenant_id, "BUSINESS")
-    if business_sentiment["status"] == "OK":
-        lines.append(
-            f"Current overall sentiment score (source: sentiment_results, business-wide aggregate): "
-            f"{business_sentiment['sentiment_score']:.2f} "
-            f"(sample size: {business_sentiment['sample_size']['analyzed_count']} analyzed reviews)."
-        )
 
+def _build_competitor_lines(conn, tenant_id: str) -> list:
+    lines = []
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -250,6 +309,11 @@ def build_structured_facts_block(conn, tenant_id: str) -> str:
             f"{suggested} more found but not tracked."
         )
 
+    return lines
+
+
+def _build_price_gap_lines(conn, tenant_id: str) -> list:
+    lines = []
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -282,6 +346,11 @@ def build_structured_facts_block(conn, tenant_id: str) -> str:
             who = competitor_name or "a tracked competitor (name not recorded)"
             lines.append(f"- {name}: you charge {float(own_price):.2f} {currency}; {who} charges {float(competitor_price):.2f} {currency}.")
 
+    return lines
+
+
+def _build_forecast_lines(conn, tenant_id: str) -> list:
+    lines = []
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -302,21 +371,4 @@ def build_structured_facts_block(conn, tenant_id: str) -> str:
         for name, expected_demand, target_date in forecast_rows:
             lines.append(f"- {name}: about {format_quantity(expected_demand)} units expected in total between now and {target_date.isoformat()}.")
 
-    # Proactive cross-signal insights (src.ai.insights) - injected on every
-    # single question, not only when explicitly asked for "advice" or
-    # "recommendations": the whole point of automating this synthesis is
-    # that the chatbot can weave a relevant strategic observation into any
-    # answer without the user having to know to ask for it separately.
-    # Capped small (top 3, not all 5 generate_insights_for_tenant() can
-    # return) since this block is injected on every question regardless
-    # of relevance to what was actually asked - keep it a nudge, not a
-    # wall of unrelated text competing with the real answer.
-    insights = generate_insights_for_tenant(conn, tenant_id, max_insights=3)
-    if insights:
-        lines.append("Proactive insights worth mentioning if relevant (source: cross-signal analysis of pricing, sentiment, sales, and forecasts):")
-        for insight in insights:
-            lines.append(f"- {insight.message}")
-
-    lines.extend(_build_competitor_activity_block(conn, tenant_id))
-
-    return "\n".join(lines)
+    return lines
