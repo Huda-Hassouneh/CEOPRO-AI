@@ -30,12 +30,15 @@ def test_returns_empty_list_on_api_error_status():
         assert discover_nearby_places(31.95, 35.91, "electronics store", radius_km=25, api_key="k") == []
 
 
-def test_skips_a_result_with_no_real_website():
+def test_keeps_a_result_with_no_website_registered_by_its_place_id():
     nearby = _nearby_payload({"place_id": "p1", "name": "No Website Shop"})
     with patch("src.market_scraper.places_nearby_discovery._get") as mock_get:
         mock_get.side_effect = [nearby, {"result": {}}]  # Details returns no "website" field
         candidates = discover_nearby_places(31.95, 35.91, "electronics store", radius_km=25, api_key="k")
-    assert candidates == []
+    assert len(candidates) == 1
+    assert candidates[0].url == ""  # never a guessed domain
+    assert candidates[0].place_id == "p1"
+    assert candidates[0].title == "No Website Shop"
 
 
 def test_returns_a_real_candidate_with_its_own_coordinates():
@@ -52,7 +55,7 @@ def test_returns_a_real_candidate_with_its_own_coordinates():
     assert candidates == [
         CandidateSource(
             "electronics store", "https://downtown-electronics.example", "Downtown Electronics",
-            latitude=31.9454, longitude=35.9284, city="Amman, Jordan", address="Amman, Jordan",
+            latitude=31.9454, longitude=35.9284, city="Amman, Jordan", address="Amman, Jordan", place_id="p1",
         )
     ]
 

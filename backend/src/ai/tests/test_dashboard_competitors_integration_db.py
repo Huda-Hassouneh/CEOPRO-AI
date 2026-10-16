@@ -519,3 +519,20 @@ def test_every_original_contract_field_is_still_present(conn):
     }
     assert original_common <= set(directory["strategic"][0]) and "overlap_pct" in directory["strategic"][0]
     assert original_common <= set(directory["relevant"][0]) and "price_comparisons" in directory["relevant"][0]
+
+
+def test_each_row_carries_its_id_and_a_data_completeness_breakdown(conn):
+    tenant_id = _insert_company(conn)
+    competitor_id = _insert_tracked_competitor(
+        conn, tenant_id, "SparkFun Electronics", TIER_STRATEGIC, match_rate=0.75, website_url="https://sparkfun.com",
+    )
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+
+    assert row["id"] == competitor_id
+    completeness = row["data_completeness"]
+    assert set(completeness["facets"]) == {"PROFILE", "SOCIAL_LINKS", "PRICES", "REVIEWS", "SOCIAL_CONTENT"}
+    # An empty facet always says why, so the owner (or the Retry button) can act on it.
+    assert completeness["facets"]["PRICES"]["reason_code"] == "NO_PRODUCTS_MAPPED"
+    assert completeness["facets"]["PROFILE"]["can_retry"] is True
