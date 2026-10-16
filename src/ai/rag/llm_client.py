@@ -565,6 +565,34 @@ def _generate_answer_with_usage(
     return answer, usage
 
 
+def _safe_structured_facts(conn, tenant_id: str) -> str:
+    """
+    Live facts are a bonus on top of retrieval - a failure in any of their
+    queries (missing table, bad data) must not turn a question that
+    retrieval can answer into a 500. A SAVEPOINT (not a full rollback)
+    isolates the failure: a rollback would also discard the connection's
+    transaction-scoped tenant/RLS context.
+    """
+    protected = True
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SAVEPOINT structured_facts;")
+    except Exception as err:
+        logger.warning(f"Could not open savepoint for structured facts, running unprotected: {err}")
+        protected = False
+    try:
+        return build_structured_facts_block(conn, tenant_id)
+    except Exception as err:
+        logger.error(f"Structured facts failed for tenant={tenant_id}, answering from retrieval only: {err}")
+        if protected:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("ROLLBACK TO SAVEPOINT structured_facts;")
+            except Exception:
+                raise err  # transaction unusable; surface the original failure
+        return ""
+
+
 def answer_query(
     conn, tenant_id: str, query_text: str, top_k: int = 5,
     include_structured_facts: bool = True, history: list = None, **retrieval_kwargs,
@@ -605,7 +633,7 @@ def answer_query(
     live structured queries aren't desired for this one call).
     """
     context = run_retrieval(conn, tenant_id, query_text, top_k=top_k, **retrieval_kwargs)
-    structured_facts = build_structured_facts_block(conn, tenant_id) if include_structured_facts else ""
+    structured_facts = _safe_structured_facts(conn, tenant_id) if include_structured_facts else ""
 
     answer, token_usage = _generate_answer_with_usage(context, structured_facts=structured_facts, history=history)
     return {"answer": answer, "sources": context.sources, "token_usage": token_usage}

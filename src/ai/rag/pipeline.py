@@ -129,12 +129,16 @@ def ingest_pending_documents(conn, minio_client, tenant_id: str, bucket: str = D
                 conn, tenant_id, doc["document_id"], chunks, doc_embeddings, embeddings_module.MODEL_NAME
             )
             data_access.mark_document_status(conn, doc["document_id"], "Processed")
+            conn.commit()  # per document: one bad file must not roll back or poison the rest
             processed_count += 1
         except Exception as err:
             logger.error(f"Failed to ingest document={doc['document_id']} file={doc['file_name']}: {err}")
+            # A DB error mid-insert leaves the transaction aborted, which would make
+            # the status update below (and every later document) fail too.
+            conn.rollback()
             data_access.mark_document_status(conn, doc["document_id"], "Failed")
+            conn.commit()
 
-    conn.commit()
     if processed_count > 0:
         invalidate_tenant_index_cache(tenant_id)
     logger.info(f"Ingestion complete for tenant={tenant_id}: {processed_count}/{len(pending)} processed")
@@ -170,8 +174,27 @@ def build_hybrid_index(conn, tenant_id: str, use_cache: bool = True) -> TenantIn
 
     rows = data_access.load_tenant_chunks(conn, tenant_id)
     chunks = [(chunk_id, text) for chunk_id, text, _ in rows]
-    embeddings = np.stack([embedding for _, _, embedding in rows]).astype(np.float32) if rows else np.empty((0, 0), dtype=np.float32)
-    index = TenantIndex(bm25=BM25Index(chunks), faiss=FAISSIndex(chunks, embeddings))
+
+    # BM25 can index every chunk; FAISS only those with a usable embedding.
+    # A NULL embedding (row written without one) or a different dimension
+    # (embedding model swapped, old rows not yet re-ingested) used to crash
+    # np.stack and take down every query for the tenant.
+    embedded = [(cid, text, emb) for cid, text, emb in rows if emb is not None]
+    if embedded:
+        dim = embedded[0][2].shape[0]
+        usable = [row for row in embedded if row[2].shape[0] == dim]
+        if len(usable) != len(rows):
+            logger.warning(
+                f"tenant={tenant_id}: {len(rows) - len(usable)}/{len(rows)} chunks lack a usable embedding "
+                f"(NULL or dimension != {dim}); semantic search skips them - re-ingest to fix"
+            )
+        faiss_chunks = [(cid, text) for cid, text, _ in usable]
+        embeddings = np.stack([emb for _, _, emb in usable]).astype(np.float32)
+    else:
+        if rows:
+            logger.warning(f"tenant={tenant_id}: no chunks have embeddings; semantic search disabled")
+        faiss_chunks, embeddings = [], np.empty((0, 0), dtype=np.float32)
+    index = TenantIndex(bm25=BM25Index(chunks), faiss=FAISSIndex(faiss_chunks, embeddings))
 
     if use_cache:
         with _TENANT_INDEX_CACHE_LOCK:
@@ -202,8 +225,14 @@ def retrieve_hybrid(
     """
     candidate_pool_size = candidate_pool_size or max(top_k * 4, 20)
     bm25_results = tenant_index.bm25.query(query_text, top_k=candidate_pool_size)
-    query_embedding = embed([query_text])[0]
-    faiss_results = tenant_index.faiss.query(query_embedding, top_k=candidate_pool_size)
+    try:
+        query_embedding = embed([query_text])[0]
+        faiss_results = tenant_index.faiss.query(query_embedding, top_k=candidate_pool_size)
+    except Exception as err:
+        # Same philosophy as the re-ranker fallback in run_retrieval(): lexical-only
+        # retrieval is a degraded answer, an embedding-model failure shouldn't be a 500.
+        logger.error(f"Semantic retrieval failed, falling back to BM25 only: {err}")
+        faiss_results = []
     return reciprocal_rank_fusion(bm25_results, faiss_results, top_k=top_k)
 
 

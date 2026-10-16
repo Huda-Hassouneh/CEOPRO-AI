@@ -45,6 +45,7 @@ class BM25Index:
         self._chunk_ids = [chunk_id for chunk_id, _ in chunks]
         self._texts = [text for _, text in chunks]
         tokenized_corpus = [tokenize(text) for text in self._texts]
+        self._token_sets = [set(tokens) for tokens in tokenized_corpus]
         self._bm25 = BM25Plus(tokenized_corpus) if tokenized_corpus else None
 
     def __len__(self) -> int:
@@ -57,5 +58,15 @@ class BM25Index:
         tokenized_query = tokenize(query_text)
         scores = self._bm25.get_scores(tokenized_query)
 
-        ranked = sorted(zip(self._chunk_ids, self._texts, scores), key=lambda r: r[2], reverse=True)
-        return [ScoredChunk(chunk_id=cid, text=text, score=float(score)) for cid, text, score in ranked[:top_k] if score > 0]
+        # BM25Plus's delta term gives EVERY chunk a positive score for any
+        # in-vocabulary query term, even chunks that don't contain it - so
+        # `score > 0` alone doesn't mean "lexical match". Without this
+        # overlap check, unrelated chunks leaked into RRF fusion with an
+        # arbitrary lexical rank.
+        query_terms = set(tokenized_query)
+        ranked = sorted(
+            (row for row in zip(self._chunk_ids, self._texts, scores, self._token_sets) if row[3] & query_terms),
+            key=lambda r: r[2],
+            reverse=True,
+        )
+        return [ScoredChunk(chunk_id=cid, text=text, score=float(score)) for cid, text, score, _ in ranked[:top_k] if score > 0]
