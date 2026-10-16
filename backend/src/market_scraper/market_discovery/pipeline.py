@@ -25,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
+from src.market_scraper.category_taxonomy import categorize_catalog
 from src.market_scraper.market_discovery import enrich, geocode, industries, matching, news, offerings, scoring
 from src.market_scraper.market_discovery import relevance as relevance_rules
 from src.market_scraper.market_discovery.models import DiscoveryQuery, ProviderResult
@@ -132,6 +133,7 @@ def build_query(tenant_id: str, profile: dict, radius_km: Optional[float] = None
         language="ar" if profile.get("language") == "ar" else "en",
         own_name=profile.get("name"), own_website=profile.get("website"),
         osm_tags=industry.osm_tags, google_types=industry.google_types,
+        category_paths=tuple(categorize_catalog(profile.get("product_names") or [], profile.get("business_type"))),
     )
 
 
@@ -242,6 +244,12 @@ def _classify(query: DiscoveryQuery, scored):
             if shared:
                 relationship, why = relevance_rules.DIRECT, [{"code": "same_specialty", "term": sorted(shared)[0].replace("_", " "),
                                                               "where": "category"}]
+        # A business in a different segment (a donut shop for a burger
+        # restaurant) is not a competitor - unless it has stronger evidence:
+        # the same products at a published price, or the company's own specialty.
+        if relationship != relevance_rules.DIRECT and relevance_rules.in_different_category(
+                entity.name, entity.first("name_ar"), entity.categories(), query):
+            continue
         relevance = round(relevance_rules.adjusted_score(relevance, relationship), 4)
         codes = {w.get("code") for w in why}
         reasons = [{"code": "relationship", "value": relationship}] + why + [r for r in reasons if r.get("code") not in codes]
@@ -407,9 +415,23 @@ def _relationship(reasons) -> Optional[str]:
     return next((r["value"] for r in reasons or [] if r.get("code") == "relationship"), None)
 
 
+def _score_competitors(conn, tenant_id: str) -> None:
+    """Fills in each competitor's category, 0-100 competitive confidence and
+    evidence record (competitor_classification.py). Re-scoring only: it never
+    starts tracking anyone and never overturns an owner's choice. A failure
+    here must not discard the discovery that already succeeded."""
+    try:
+        from src.market_scraper.discovery import refresh_tenant_competitors
+        refresh_tenant_competitors(conn, tenant_id)
+    except Exception:  # noqa: BLE001
+        conn.rollback()
+        logger.exception("could not score competitors for tenant %s", tenant_id)
+
+
 def auto_track(conn, tenant_id: str, new_ids) -> int:
     """Starts tracking the strongest newly found competitors, within the
-    plan's limit. Never untracks anything the owner chose."""
+    plan's limit. Never untracks anything the owner chose, and never
+    re-tracks anything the owner untracked."""
     from src.ai.core import usage
 
     feature = usage.get_plan(conn, tenant_id)["features"].get(usage.TRACKED_COMPETITORS)
@@ -420,12 +442,15 @@ def auto_track(conn, tenant_id: str, new_ids) -> int:
         room = AUTO_TRACK_MAX if limit is None else max(0, min(AUTO_TRACK_MAX, int(limit) - tracked))
         chosen = [cid for cid, relevance, confidence in sorted(new_ids, key=lambda r: (-r[1], -r[2]))
                   if relevance >= AUTO_TRACK_MIN_RELEVANCE and confidence >= AUTO_TRACK_MIN_CONFIDENCE][:room]
+        started = 0
         for competitor_id in chosen:
             cursor.execute(
-                "UPDATE tenant_competitors SET is_tracked = TRUE, tier = 'RELEVANT' WHERE tenant_id = %s AND global_competitor_id = %s;",
+                "UPDATE tenant_competitors SET is_tracked = TRUE, tier = 'RELEVANT' WHERE tenant_id = %s AND global_competitor_id = %s "
+                "AND tracking_decision IS DISTINCT FROM 'USER_UNTRACKED';",
                 (tenant_id, competitor_id),
             )
-    return len(chosen)
+            started += cursor.rowcount
+    return started
 
 
 # --- Runs -------------------------------------------------------------
@@ -498,6 +523,7 @@ def execute_run(conn, tenant_id: str, run_id: str, radius_km: Optional[float] = 
         counts = store(conn, tenant_id, query, ranked)
         tracked = auto_track(conn, tenant_id, counts["new_ids"])
         conn.commit()
+        _score_competitors(conn, tenant_id)
         # 5. Read what the competitors publish on their own sites, then match
         #    their priced items to the company's own products.
         site_intel = _collect_site_intel(conn, tenant_id, site_reader, query.country_code)
@@ -615,7 +641,8 @@ def _track_priced(conn, tenant_id: str, competitor_ids: List[str]) -> int:
             if added >= room:
                 break
             cursor.execute(
-                "UPDATE tenant_competitors SET is_tracked = TRUE, tier = 'RELEVANT' WHERE tenant_id = %s AND global_competitor_id = %s AND NOT is_tracked;",
+                "UPDATE tenant_competitors SET is_tracked = TRUE, tier = 'RELEVANT' WHERE tenant_id = %s AND global_competitor_id = %s AND NOT is_tracked "
+                "AND tracking_decision IS DISTINCT FROM 'USER_UNTRACKED';",
                 (tenant_id, competitor_id),
             )
             added += cursor.rowcount

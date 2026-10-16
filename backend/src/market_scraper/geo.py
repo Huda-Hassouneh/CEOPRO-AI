@@ -37,3 +37,10 @@ def distance_km_if_known(
     if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
         return None
     return haversine_km(lat1, lon1, lat2, lon2)
+
+
+def maps_url(latitude, longitude):
+    """A link to the place on a map, from its coordinates; None when either is unknown."""
+    if latitude is None or longitude is None:
+        return None
+    return f"https://www.google.com/maps/search/?api=1&query={latitude},{longitude}"
