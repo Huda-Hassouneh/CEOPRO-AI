@@ -117,12 +117,14 @@ def _upsert_summary_document(conn, minio_client, tenant_id: str, slot: str, text
 
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT document_id, content_hash FROM rag_documents_metadata "
+            "SELECT document_id, content_hash, processed_status FROM rag_documents_metadata "
             "WHERE tenant_id = %s AND storage_bucket_path = %s;",
             (tenant_id, object_key),
         )
         existing = cursor.fetchone()
-    if existing and existing[1] == content_hash:
+    # Only skip when the identical text was actually ingested: a 'Failed' row with a
+    # matching hash would otherwise never be retried while its content stays unchanged.
+    if existing and existing[1] == content_hash and existing[2] == "Processed":
         return str(existing[0])
 
     minio_client.put_object(bucket, object_key, io.BytesIO(payload), length=len(payload), content_type="text/plain")
@@ -649,6 +651,10 @@ def regenerate_all_structured_summaries(
             document_ids[slot] = _upsert_summary_document(conn, minio_client, tenant_id, slot, text, bucket)
         except Exception as e:  # noqa: BLE001 - one slot's failure must not block the others
             logger.error("failed to regenerate structured summary slot=%s tenant=%s: %s", slot, tenant_id, e)
+            try:
+                conn.rollback()  # a failed query leaves the transaction aborted, failing every later slot
+            except Exception:  # noqa: BLE001
+                pass
             document_ids[slot] = None
 
     processed_count = ingest_pending_documents(conn, minio_client, tenant_id, bucket=bucket)

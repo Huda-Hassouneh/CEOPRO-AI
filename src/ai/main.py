@@ -377,6 +377,7 @@ def extraction_template(fmt: str, ctx: TenantContext = Depends(get_tenant_contex
     """Serves the actual committed canonical template files (templates/) -
     still auth-gated (Depends(get_tenant_context)) even though the content
     itself carries no tenant data, for consistency with every other
+        logging.getLogger("CEOPRO_AI_MAIN").exception("RAG query failed for tenant=%s", ctx.tenant_id)
     endpoint rather than carving out an unauthenticated exception."""
     if fmt not in ("csv", "xlsx"):
         raise HTTPException(status_code=404, detail="Unknown template format - use 'csv' or 'xlsx'.")

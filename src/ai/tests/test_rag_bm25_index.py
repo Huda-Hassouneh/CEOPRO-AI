@@ -47,3 +47,9 @@ def test_top_k_limits_result_count():
 def test_len_reflects_chunk_count():
     chunks = [("c1", "text one"), ("c2", "text two")]
     assert len(BM25Index(chunks)) == 2
+
+
+def test_chunks_without_any_query_term_are_not_returned():
+    # BM25Plus gives non-matching chunks a positive score; they must still be excluded.
+    index = BM25Index([("a", "refund policy for customers"), ("b", "shipping times and carriers"), ("c", "office parking rules")])
+    assert [r.chunk_id for r in index.query("refund", top_k=5)] == ["a"]

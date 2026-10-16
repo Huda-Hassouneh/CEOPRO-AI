@@ -17,6 +17,8 @@ from sentence_transformers import SentenceTransformer
 DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 MODEL_NAME = os.getenv("RAG_EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 
+MAX_SEQ_LENGTH = int(os.getenv("RAG_EMBEDDING_MAX_SEQ_LENGTH", "256"))  # 0 = keep the model's own default
+
 _model_cache = {}
 
 
@@ -29,7 +31,13 @@ def get_model(model_name: str = None) -> SentenceTransformer:
     """
     model_name = model_name or MODEL_NAME
     if model_name not in _model_cache:
-        _model_cache[model_name] = SentenceTransformer(model_name)
+        model = SentenceTransformer(model_name)
+        # paraphrase-multilingual-MiniLM-L12-v2 defaults to 128 tokens, but chunks
+        # are ~200 words (more tokens in Arabic), so the tail of every chunk was
+        # silently never embedded. The model's positions support up to 512.
+        if MAX_SEQ_LENGTH > 0:
+            model.max_seq_length = MAX_SEQ_LENGTH
+        _model_cache[model_name] = model
     return _model_cache[model_name]
 
 

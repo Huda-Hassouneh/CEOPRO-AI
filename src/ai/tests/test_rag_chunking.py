@@ -52,3 +52,14 @@ def test_invalid_chunk_size_raises():
 def test_overlap_greater_than_chunk_size_raises():
     with pytest.raises(ValueError):
         chunk_text("some text", chunk_size_words=10, overlap_words=10)
+
+
+def test_line_breaks_and_tabs_are_preserved_within_a_chunk():
+    text = "Sheet: Prices\nitem\tprice\nmilk\t2.5\nbread\t1.0"
+    assert chunk_text(text, chunk_size_words=200, overlap_words=0) == [text]
+
+
+def test_chunks_have_no_leading_or_trailing_whitespace():
+    text = "\n\n  a b c\n\n d e f  \n"
+    chunks = chunk_text(text, chunk_size_words=3, overlap_words=1)
+    assert chunks == ["a b c", "c\n\n d e", "e f"]
