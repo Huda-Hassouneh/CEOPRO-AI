@@ -114,6 +114,75 @@ _LEAVES: Dict[str, Tuple[CategoryPath, List[str], List[str]]] = {
     "decor": (("home", "decor", "general"),
               ["lamp", "rug", "curtain", "mirror", "cushion", "decor"],
               []),
+    "salon": (("beauty", "salon"),
+              ["salon", "hairdresser", "barber", "barbershop", "hair", "nails", "manicure", "صالون", "حلاق"],
+              ["hair_care", "beauty_salon", "barber_shop", "nail_salon"]),
+    "spa": (("beauty", "spa"), ["spa", "massage", "wellness", "سبا"], ["spa"]),
+    "cosmetics": (("beauty", "cosmetics"),
+                  ["cosmetics", "makeup", "perfume", "fragrance", "skincare", "مكياج", "عطور"],
+                  ["cosmetics_store"]),
+    "gym": (("fitness", "gym"), ["gym", "fitness", "crossfit", "yoga", "pilates", "نادي"], ["gym", "fitness_center"]),
+    "auto_parts": (("auto", "parts"),
+                   ["auto parts", "car parts", "spare parts", "tires", "tyres", "قطع غيار"],
+                   ["car_parts_store"]),
+    "auto_repair": (("auto", "repair"),
+                    ["garage", "mechanic", "car repair", "car wash", "ورشة"],
+                    ["car_repair", "car_wash"]),
+    "auto_sales": (("auto", "sales"), ["car dealer", "dealership", "showroom", "معرض سيارات"], ["car_dealer"]),
+    "books": (("retail", "books_stationery"),
+              ["book", "books", "bookstore", "bookshop", "stationery", "مكتبة", "قرطاسية"],
+              ["book_store"]),
+    "toys": (("retail", "toys"), ["toy", "toys", "lego", "ألعاب"], ["toy_store"]),
+    "pets": (("retail", "pets"), ["pet", "pets", "petshop", "aquarium", "حيوانات"], ["pet_store"]),
+    "jewelry": (("retail", "jewelry"),
+                ["jewelry", "jewellery", "gold", "necklace", "bracelet", "مجوهرات", "ذهب"],
+                ["jewelry_store"]),
+    "gifts_flowers": (("retail", "gifts_flowers"),
+                      ["florist", "flowers", "bouquet", "gift", "gifts", "ورد", "هدايا"],
+                      ["florist", "gift_shop"]),
+}
+
+# What to type into a Places/web search to FIND businesses of a category -
+# discovery searches for the tenant's actual segment ("burger restaurant"),
+# not its whole vertical ("restaurant OR cafe"), so irrelevant businesses
+# are never found in the first place instead of being found then excluded.
+_SEARCH_LABELS: Dict[CategoryPath, str] = {
+    ("food", "snacks", "burger"): "burger restaurant",
+    ("food", "snacks", "pizza"): "pizza restaurant",
+    ("food", "snacks", "sandwich"): "shawarma OR sandwich shop",
+    ("food", "snacks", "fried_chicken"): "fried chicken restaurant",
+    ("food", "meals", "grill"): "grill restaurant",
+    ("food",): "restaurant",
+    ("food", "desserts", "donuts"): "donut shop",
+    ("food", "desserts", "ice_cream"): "ice cream shop",
+    ("food", "desserts", "sweets"): "dessert shop",
+    ("food", "bakery", "bread"): "bakery",
+    ("food", "beverages", "coffee"): "coffee shop",
+    ("food", "beverages", "juice"): "juice bar",
+    ("grocery", "supermarket"): "supermarket",
+    ("health", "pharmacy"): "pharmacy",
+    ("electronics", "components", "parts"): "electronic components store",
+    ("electronics", "accessories", "cables_chargers"): "mobile accessories store",
+    ("electronics", "devices", "consumer"): "electronics store",
+    ("electronics",): "electronics store",
+    ("apparel", "clothing", "general"): "clothing store",
+    ("apparel", "footwear", "shoes"): "shoe store",
+    ("apparel",): "clothing store",
+    ("home", "furniture", "general"): "furniture store",
+    ("home", "decor", "general"): "home decor store",
+    ("home",): "home goods store",
+    ("beauty", "salon"): "hair salon",
+    ("beauty", "spa"): "spa",
+    ("beauty", "cosmetics"): "cosmetics store",
+    ("fitness", "gym"): "gym",
+    ("auto", "parts"): "auto parts store",
+    ("auto", "repair"): "car repair garage",
+    ("auto", "sales"): "car dealership",
+    ("retail", "books_stationery"): "bookstore",
+    ("retail", "toys"): "toy store",
+    ("retail", "pets"): "pet store",
+    ("retail", "jewelry"): "jewelry store",
+    ("retail", "gifts_flowers"): "florist OR gift shop",
 }
 
 _WORD_RE = re.compile(r"[\w'’]+", re.UNICODE)
@@ -235,3 +304,14 @@ def best_similarity(tenant_paths: Sequence[CategoryPath], competitor_path: Optio
     lines up, so take the best match. None if either side is unknown."""
     scores = [s for s in (category_similarity(tp, competitor_path) for tp in tenant_paths) if s is not None]
     return max(scores) if scores else None
+
+
+def search_keyword_for_path(path: Optional[CategoryPath]) -> Optional[str]:
+    """The search phrase that finds businesses of this category, falling back
+    to the nearest broader category's phrase; None for an unknown path."""
+    path = tuple(path or ())
+    while path:
+        if path in _SEARCH_LABELS:
+            return _SEARCH_LABELS[path]
+        path = path[:-1]
+    return None

@@ -35,6 +35,7 @@ from urllib.parse import urlsplit
 
 from src.ai.pricing.competitor_classification import classify_competitor
 from src.market_scraper.category_taxonomy import categorize
+from src.market_scraper.retailer_geo import known_origin_country
 from src.market_scraper import data_access
 from src.market_scraper.policy import SourceCapabilities, evaluate_source, is_public_http_url
 from src.market_scraper.sector_detection import MANUFACTURER_SIGNAL_WORDS
@@ -324,7 +325,7 @@ def _register_tenant_scoped_competitor(
                 ),
             )
         competitor_id = cursor.fetchone()[0]
-        _store_competitor_details(cursor, competitor_id, candidate, name_text=_business_name_from_host(hostname, candidate, identity_key))
+        _store_competitor_details(cursor, competitor_id, candidate, name_text=_business_name_from_host(hostname, candidate, identity_key), country_code=known_origin_country(hostname))
 
         cursor.execute(
             "INSERT INTO tenant_competitors (tenant_id, global_competitor_id, discovery_method) "
@@ -449,7 +450,9 @@ def _business_name_from_host(hostname: str, candidate: Optional["CandidateSource
     return hostname[4:] if hostname.startswith("www.") else hostname
 
 
-def _store_competitor_details(cursor, competitor_id, candidate: "CandidateSource", name_text: Optional[str] = None) -> None:
+def _store_competitor_details(
+    cursor, competitor_id, candidate: "CandidateSource", name_text: Optional[str] = None, country_code: Optional[str] = None,
+) -> None:
     """Persists the category and business details a candidate carries onto
     its global_competitors row. COALESCE throughout: a later, thinner
     sighting of the same business (e.g. a bare web-search hit) never wipes
@@ -469,14 +472,15 @@ def _store_competitor_details(cursor, competitor_id, candidate: "CandidateSource
             phone = COALESCE(phone, %s),
             rating = COALESCE(rating, %s),
             rating_count = COALESCE(rating_count, %s),
-            place_types = COALESCE(place_types, %s)
+            place_types = COALESCE(place_types, %s),
+            country_code = COALESCE(country_code, %s)
         WHERE global_competitor_id = %s;
         """,
         (
             list(categorization.path) if categorization else None,
             candidate.address, candidate.phone, candidate.rating, candidate.rating_count,
             list(candidate.place_types) if candidate.place_types else None,
-            competitor_id,
+            country_code, competitor_id,
         ),
     )
 
@@ -713,3 +717,60 @@ def register_manual_competitor(conn, tenant_id: str, name: str, website_url: str
         "tier": classification.tier,
         "classification_reason": classification.reason,
     }
+
+
+def repair_product_level_competitor_names(conn, tenant_id: str) -> int:
+    """Renames PRIVATE competitors this tenant found by product search whose
+    stored name is a product page title (the bug fixed in
+    _business_name_from_host) to the seller's hostname. Only rows found via
+    PRODUCT_SEARCH on an ordinary website (not a social-profile identity)
+    are touched - those are exactly the rows that carried a product title by
+    construction. A rename that would collide with an existing competitor of
+    the same name is skipped, never forced. Returns the number renamed."""
+    renamed = 0
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT gc.global_competitor_id, gc.competitor_name, gc.website_url
+            FROM tenant_competitors tc
+            JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
+            WHERE tc.tenant_id = %s AND tc.discovery_method = 'PRODUCT_SEARCH'
+              AND gc.visibility = 'PRIVATE' AND gc.added_by_tenant_id = %s
+              AND COALESCE(gc.website_identity_key, '') NOT LIKE '%%/%%';
+            """,
+            (tenant_id, tenant_id),
+        )
+        rows = cursor.fetchall()
+        for competitor_id, current_name, website_url in rows:
+            hostname = urlsplit(website_url or "").hostname
+            if not hostname:
+                continue
+            new_name = _business_name_from_host(hostname)
+            if new_name == current_name:
+                continue
+            cursor.execute(
+                "SELECT 1 FROM global_competitors WHERE added_by_tenant_id = %s AND visibility = 'PRIVATE' "
+                "AND LOWER(competitor_name) = LOWER(%s) AND global_competitor_id <> %s;",
+                (tenant_id, new_name, competitor_id),
+            )
+            if cursor.fetchone():
+                continue
+            cursor.execute(
+                "UPDATE global_competitors SET competitor_name = %s WHERE global_competitor_id = %s;",
+                (new_name, competitor_id),
+            )
+            renamed += 1
+    conn.commit()
+    return renamed
+
+
+def refresh_tenant_competitors(conn, tenant_id: str) -> dict:
+    """Brings every competitor this tenant has up to the current rules:
+    repairs product-title names, then re-scores tier + confidence. Run
+    automatically after each discovery pass (discovery_worker.py) so the
+    list tracks the tenant's current catalog, and on demand via
+    POST /competitors/reclassify for rows that predate these rules."""
+    from src.ai.pricing.competitor_classification import reclassify_all_for_tenant
+    names_repaired = repair_product_level_competitor_names(conn, tenant_id)
+    result = reclassify_all_for_tenant(conn, tenant_id)
+    return {**result, "names_repaired": names_repaired}
