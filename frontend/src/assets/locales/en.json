@@ -1747,7 +1747,7 @@
   "ragAssistant": {
     "page": {
       "title": "Assistant",
-      "subtitle": "Ask questions about your business documents and get AI-powered answers."
+      "subtitle": "Ask about your business, products, customers, market, trade and regulations. Important points show numbered references you can open."
     },
     "chat": {
       "regionLabel": "Document assistant conversation",
@@ -1755,29 +1755,28 @@
       "you": "You",
       "generating": "Generating answer...",
       "unavailable": "The assistant could not answer that question right now. Your question was kept in this session - please try again.",
-      "evidenceNote": "Shown without an AI summary — this is the information KEEL found for your question."
+      "evidenceNote": "Shown without an AI summary — this is the information KEEL found for your question.",
+      "unverifiedNote": "Parts of this answer could not be checked against the evidence. Treat anything marked as not verified with care.",
+      "followUps": "Suggested follow-up questions"
     },
     "composer": {
-      "placeholder": "Ask a question about your documents...",
+      "placeholder": "Ask about your business, market, trade or regulations...",
       "send": "Send question",
-      "helper": "Ask about information contained in your company's available knowledge base documents."
+      "helper": "Answers use your company's records and documents, public sources when needed, and KEEL's own calculations."
     },
     "empty": {
-      "title": "Ask a question about your business documents.",
-      "description": "Answers use your uploaded documents and your live business data, and say where each answer comes from.",
+      "title": "Ask KEEL about your business.",
+      "description": "Answers use your own data and documents, research public sources when needed, and show a numbered reference beside each important point.",
       "restoring": "Restoring your previous conversation...",
       "prompts": {
-        "summary": "Summarize this month's product report.",
-        "pricing": "What does our pricing document say about Product X?",
-        "compare": "Compare information across my uploaded documents."
+        "summary": "How were my sales in the last 30 days?",
+        "pricing": "Why do customers prefer my best-selling product?",
+        "compare": "Would importing my top product be cheaper than buying it locally?"
       }
     },
     "sources": {
       "title": "Sources",
-      "page": "Page {{value}}",
-      "pages": "Pages {{value}}",
       "knowledgeBase": "Knowledge Base",
-      "chatAttachment": "Chat attachment",
       "web": "External web source"
     },
     "attachments": {
@@ -1841,6 +1840,122 @@
       "busy": "The assistant is answering many questions right now. Please ask again in about {{seconds}} seconds.",
       "uploadFailed": "The document upload failed. Please try again.",
       "uploadSummary": "{{added}} document(s) added to the assistant · {{data}} spreadsheet(s) imported as business data · {{failed}} could not be processed"
+    },
+    "claims": {
+      "kindCalculation": "Calculation",
+      "kindEstimate": "Estimate",
+      "kindInference": "Analysis",
+      "kindRecommendation": "Recommendation",
+      "kindAssumption": "Assumption",
+      "kindUnknown": "Not established",
+      "unverified": "Not verified",
+      "unofficial": "Unofficial source"
+    },
+    "references": {
+      "title": "References",
+      "open": "Open reference {{n}}",
+      "close": "Close reference",
+      "organisation": "Published by",
+      "location": "Where",
+      "jurisdiction": "Jurisdiction",
+      "appliesTo": "Applies to",
+      "excerpt": "Supporting evidence",
+      "method": "How it was calculated",
+      "limitations": "Limitations",
+      "openSource": "Open the original source",
+      "openRecord": "Open in KEEL",
+      "newTab": "(opens in a new tab)",
+      "date": {
+        "published": "Published",
+        "effective": "Effective",
+        "observed": "Observed",
+        "retrieved": "Retrieved"
+      },
+      "kindCompanyRecord": "Your company records",
+      "kindCompanySummary": "KEEL summary of your data",
+      "kindCompanyDocument": "Your document",
+      "kindProductGuide": "KEEL product guide",
+      "kindWebPage": "Public source",
+      "kindCalculation": "KEEL calculation",
+      "kindUserInput": "What you told KEEL",
+      "credibilityOfficial": "Official source",
+      "credibilityPrimary": "Primary source",
+      "credibilityCompany": "Your own data",
+      "credibilitySecondary": "Secondary source",
+      "credibilityUser": "Provided by you",
+      "credibilityCalculated": "Calculated by KEEL",
+      "useFact": "Supports a fact",
+      "useCalculation": "Calculation result",
+      "useCalculationInput": "Calculation input",
+      "useEstimate": "Supports an estimate",
+      "useAnalysis": "Supports the analysis",
+      "useRecommendation": "Supports a recommendation",
+      "useAssumption": "Supports an assumption",
+      "useContext": "Context"
+    },
+    "calculation": {
+      "formula": "Formula",
+      "value": "Result",
+      "step": "Step",
+      "stepsCaption": "Calculation steps",
+      "inputSources": "Sources of the inputs:",
+      "missing": "Still needed",
+      "assumptions": "Assumptions",
+      "exclusions": "Not included",
+      "sensitivity": "If the uncertain inputs change",
+      "scenario": "Scenario",
+      "perUnit": "Per unit",
+      "saving": "Difference vs local",
+      "sourceUser": "from your message",
+      "sourceEvidence": "from a cited source",
+      "sourceCompany": "from your records",
+      "sourceAssumption": "assumption",
+      "inputs": {
+        "supplier_unit_price": "Supplier price per unit",
+        "quantity": "Quantity",
+        "fx_rate": "Exchange rate",
+        "freight": "Freight",
+        "insurance": "Insurance",
+        "duty_rate": "Customs duty rate",
+        "specific_duty_per_unit": "Specific duty per unit",
+        "excise_rate": "Excise rate",
+        "sales_tax_rate": "Sales tax / VAT rate",
+        "local_unit_price": "Local price per unit",
+        "selling_price": "Your selling price",
+        "brokerage": "Brokerage",
+        "clearance": "Customs clearance",
+        "port_handling": "Port handling",
+        "inspection": "Inspection",
+        "testing": "Testing",
+        "certification": "Certification",
+        "permits": "Permits",
+        "documentation": "Documentation",
+        "bank_fees": "Bank fees",
+        "warehousing": "Warehousing",
+        "local_delivery": "Local delivery",
+        "other": "Other costs"
+      },
+      "cardTitle": "KEEL calculation",
+      "landedPerUnit": "Landed cost per unit",
+      "landedTotal": "Landed cost (total)",
+      "localPerUnit": "Local price per unit",
+      "importSaves": "Importing saves",
+      "importCostsMore": "Importing costs more by",
+      "breakEven": "Break-even order size (units)",
+      "stillNeeded": "Still needed for a complete figure: {{items}}.",
+      "listSeparator": ", "
+    },
+    "status": {
+      "researchNotConfigured": "Public research isn't set up on this server, so this answer uses only your own data and documents.",
+      "researchBudget": "Today's public research allowance is used up, so this answer could not check public sources.",
+      "researchFailed": "Public research couldn't be completed right now, so public sources weren't checked.",
+      "researchNoResults": "No public sources were found for this question. That doesn't prove the information doesn't exist.",
+      "researchUnreadable": "Public sources were found but couldn't be read, so they weren't used.",
+      "calculationMissing": "Some inputs for the calculation are missing - see the calculation reference for what's still needed.",
+      "companyRecordsNone": "Nothing in your company's records answers this. Public research can't reveal private figures that were never recorded.",
+      "reviewsNone": "No customer reviews are stored for this yet.",
+      "notPermitted": "Some of the data this question needs isn't available to your role.",
+      "documentsFailed": "Document search wasn't available for this question."
     }
   },
   "dataIngestion": {

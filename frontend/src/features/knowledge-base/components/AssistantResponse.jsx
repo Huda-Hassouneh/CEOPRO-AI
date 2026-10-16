@@ -1,31 +1,44 @@
 import { parseMarkdown } from '../utils/markdown.js';
-function AnswerTable({ block }) {
-  const columns = Array.isArray(block.columns) ? block.columns : [];
-  const rows = Array.isArray(block.rows) ? block.rows : [];
-  if (!columns.length) return null;
-  return <div className="rag-answer-table-wrap"><table><thead><tr>{columns.map((column, index) => <th key={column.key || index}>{column.label || column}</th>)}</tr></thead><tbody>{rows.map((row, rowIndex) => <tr key={row.id || rowIndex}>{columns.map((column, columnIndex) => {
-    const key = column.key || column;
-    return <td key={`${key}-${columnIndex}`}>{Array.isArray(row) ? row[columnIndex] : row[key]}</td>;
-  })}</tr>)}</tbody></table></div>;
+import { CitationMarkers } from './CitationMarker.jsx';
+
+const KIND_LABELS = {
+  calculation: 'kindCalculation', estimate: 'kindEstimate', inference: 'kindInference',
+  recommendation: 'kindRecommendation', assumption: 'kindAssumption', unknown: 'kindUnknown',
+};
+
+// One sentence of an answer: its text, a small label when it is not a plain
+// fact (a calculation, an estimate, analysis, a recommendation, an
+// assumption, or something that could not be established), a "not
+// verified" mark when it could not be checked, then its reference markers.
+function Claim({ claim, onOpenRef, activeRef, t }) {
+  const label = KIND_LABELS[claim.kind];
+  return <span className={`rag-claim is-${claim.kind}${claim.verified ? '' : ' is-unverified'}`}>
+    {claim.text}
+    {label && <span className="rag-claim__kind">{t(`ragAssistant.claims.${label}`)}</span>}
+    {!claim.verified && <span className="rag-claim__unverified">{t('ragAssistant.claims.unverified')}</span>}
+    {claim.notes.includes('unofficial_source') && <span className="rag-claim__unverified">{t('ragAssistant.claims.unofficial')}</span>}
+    <CitationMarkers refs={claim.refs} onOpen={onOpenRef} activeRef={activeRef} t={t} />
+  </span>;
 }
 
-function InlineContent({ segments, fallback }) {
-  if (!Array.isArray(segments)) return fallback;
-  return segments.map((segment, index) => segment.emphasis
-    ? <strong key={segment.id || index}>{segment.text}</strong>
-    : <span key={segment.id || index}>{segment.text}</span>);
+function Claims({ claims, onOpenRef, activeRef, t }) {
+  return claims.map((claim, index) => <span key={index}>{index > 0 && ' '}<Claim claim={claim} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></span>);
 }
 
-function AnswerBlock({ block }) {
-  if (typeof block === 'string') return <p>{block}</p>;
-  if (!block || typeof block !== 'object') return null;
-  if (block.type === 'table') return <AnswerTable block={block} />;
-  if (block.type === 'list') {
-    const List = block.ordered ? 'ol' : 'ul';
-    return <List>{(block.items || []).map((item, index) => <li key={item.id || index}>{item.text || item}</li>)}</List>;
-  }
-  if (block.type === 'heading') return <h4>{block.text}</h4>;
-  return <p><InlineContent segments={block.segments} fallback={block.text || block.content || ''} /></p>;
+function CitedBlocks({ blocks, onOpenRef, activeRef, t }) {
+  return <div className="rag-answer-copy">{blocks.map((block, index) => {
+    if (block.type === 'heading') return <h4 key={index}>{block.text}</h4>;
+    if (block.type === 'list') {
+      const List = block.ordered ? 'ol' : 'ul';
+      return <List key={index}>{block.items.map((item, k) => <li key={k}><Claims claims={item} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></li>)}</List>;
+    }
+    if (block.type === 'table') {
+      return <div className="rag-answer-table-wrap" key={index}><table><thead><tr>{block.columns.map((column, c) => <th key={c} scope="col">{column}</th>)}</tr></thead>
+        <tbody>{block.rows.map((row, r) => <tr key={r}>{block.columns.map((_, c) => <td key={c}><bdi>{row[c] ?? ''}</bdi></td>)}</tr>)}</tbody></table>
+        {block.refs.length > 0 && <p className="rag-table-refs"><CitationMarkers refs={block.refs} onOpen={onOpenRef} activeRef={activeRef} t={t} /></p>}</div>;
+    }
+    return <p key={index}><Claims claims={block.claims} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></p>;
+  })}</div>;
 }
 
 // A small, safe renderer for the Markdown the language model writes
@@ -45,9 +58,9 @@ function MarkdownAnswer({ text }) {
   })}</div>;
 }
 
-export function AssistantResponse({ content }) {
-  if (typeof content === 'string') return <MarkdownAnswer text={content} />;
-  const blocks = Array.isArray(content) ? content : content?.blocks;
-  if (!Array.isArray(blocks)) return null;
-  return <div className="rag-answer-copy">{blocks.map((block, index) => <AnswerBlock block={block} key={block.id || index} />)}</div>;
+// An answer with claim-level references renders claim by claim; an older
+// answer (saved before references existed) renders as the Markdown it was.
+export function AssistantResponse({ content, blocks, onOpenRef, activeRef, t }) {
+  if (Array.isArray(blocks) && blocks.length) return <CitedBlocks blocks={blocks} onOpenRef={onOpenRef} activeRef={activeRef} t={t} />;
+  return <MarkdownAnswer text={typeof content === 'string' ? content : ''} />;
 }
