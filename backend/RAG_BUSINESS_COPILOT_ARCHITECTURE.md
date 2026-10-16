@@ -7,6 +7,12 @@ as a recommendation/limitation not yet implemented. Nothing here should
 be read as "the copilot now understands everything about your business" -
 see "What this honestly cannot do yet" at the end.
 
+> **Current design:** sections 1–18 are the history of earlier passes. The
+> assistant now runs on the evidence-first advisor described in §19; where
+> earlier sections mention `web_fallback.py`, `evidence_answer.py`,
+> `generate_answer()` or `SourceCitationList.jsx`, those were replaced by
+> the modules listed there.
+
 ## 1. What already existed (do not rebuild)
 
 The RAG pipeline was audited file-by-file before any change. It is
@@ -366,7 +372,7 @@ tool, specifically to avoid duplicating logic):
 | Forecasting | `get_product_forecast`, `get_demand_summary` | `dashboard/forecast_detail.py`, `forecast.py` (presentation-layer reads of already-computed forecasts, never triggers a new model run per chat question) |
 | Marketing | `get_campaign_summary`, `get_marketing_performance` | `marketing/data_access.py` |
 | RAG | `search_documents`, `retrieve_relevant_context` | `rag/pipeline.py::run_retrieval` (the same retrieval `answer_query()` already uses) |
-| External | `web_search` | `rag/web_fallback.py::build_web_fallback_context` |
+| External | (removed from the registry) | public research now runs in `research/research.py`, called by the advisor - see §19 |
 
 Every tool is `tool_fn(conn, tenant_id, **kwargs) -> dict`, read-only, no
 write path anywhere in this file.
@@ -583,3 +589,76 @@ question.
 Cost/infrastructure impact: zero. Two new tables (no new database, no
 new service), one new GitHub Actions workflow (GitHub-hosted runners are
 free for this repo's usage pattern), no new external dependency.
+
+## 19. Evidence-first advisor (current design)
+
+The chat endpoint (`routers/rag.py`) calls `rag/advisor.py::answer()`. Each
+question goes through these steps:
+
+1. **Understand** (`rag/understanding.py`): intents and slots (countries,
+   period, quantity, amounts and their roles, rates, HS code, incoterm,
+   URLs, products) in English and Arabic. A short follow-up inherits the
+   previous turn's slots, which are stored per conversation in
+   `conversation_sessions.state`.
+2. **Authorize** (`rag/access.py`): the member's role from `tenant_users`
+   maps to capabilities. Staff never receive revenue, cost or document
+   evidence; anything withheld is reported as `not_permitted` rather than
+   silently omitted. Row-level security still isolates companies.
+3. **Gather company evidence**: fact sections from
+   `structured_context.build_fact_sections()`, the business-analysis,
+   orchestrator and financial blocks, uploaded documents (with page
+   numbers, `rag_document_chunks.page_number`), products, reviews and the
+   product guide. Every item is registered in `rag/evidence.py` with its
+   kind, credibility, dates and the screen or file it comes from.
+4. **Research** (`research/`) only when the question needs public
+   information, or nothing internal answers it. Queries never carry
+   private figures. Official sites come first for trade and regulation.
+   Pages are read only if robots.txt allows; every redirect is checked
+   for private addresses; login walls and paywalls are reported, never
+   bypassed. Search budgets apply daily and per company. Public pages are
+   cached in `research_pages`, which has no tenant, user or question
+   columns.
+5. **Calculate** (`trade/landed_cost.py`): landed cost, comparison with
+   the local price, break-even and sensitivity, using exact decimal
+   arithmetic. Each input records whether it came from the user, the
+   company or cited evidence. Missing inputs are listed, never guessed.
+6. **Draft and check** (`rag/citations.py`): the model returns JSON
+   claims that cite evidence ids. The validator removes:
+   - unknown ids;
+   - links that don't belong to the cited evidence;
+   - claims whose figures aren't in, or derivable from, the cited evidence.
+
+   It also marks unmatched quotes as unverified and flags regulatory
+   claims that rest on unofficial sources. One repair round is allowed.
+   If the provider fails, or nothing can be verified, the answer shows the
+   evidence found, labelled with that mode.
+7. **Render**: references are numbered by first use. The frontend
+   (`CitationMarker`, `ReferencePanel`, `CalculationTrace`,
+   `CalculationCard`, `AnswerReferences`) shows clickable superscripts and
+   an accessible reference panel, in English and Arabic (RTL). Answers and
+   references are stored in `conversation_messages.answer_payload`.
+
+Migration: `20261016000000_add_rag_advisor_evidence.sql`. It is additive
+only: two nullable columns, one JSONB column and the `research_pages`
+table.
+
+Settings (`backend/.env.example`):
+- `RESEARCH_DAILY_SEARCH_LIMIT`
+- `RESEARCH_TENANT_DAILY_SEARCH_LIMIT`
+- `RESEARCH_MAX_PAGES`
+- `RESEARCH_PAGE_RETENTION_DAYS`
+- `ADVISOR_MAX_TOKENS`
+
+Research uses the existing `market_scraper.web_search` providers. When
+none is configured, research reports `not_configured`. No new paid
+service is added.
+
+Evaluation: `python -m src.ai.rag.eval.run_eval --live-llm --email <member>
+--report out.json` scores citation coverage, reference completeness,
+language match and latency per case.
+
+Known limits:
+- Customs and tax figures come from public sources, not binding rulings.
+- Freight and insurance must be supplied by the user or a quote.
+- The Groq free tier's tokens-per-minute limit caps prompt size, so a
+  compact prompt is used on retry.
