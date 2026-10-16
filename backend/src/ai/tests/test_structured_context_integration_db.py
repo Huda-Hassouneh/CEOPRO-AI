@@ -372,3 +372,25 @@ def test_chatbot_lists_competitors_best_confidence_first_with_category(conn):
 
     assert block.index("Zebra Strong") < block.index("Aardvark Weak")
     assert "High confidence" in block and "category food > snacks > pizza" in block
+
+
+def test_the_market_scan_never_counts_an_excluded_business_as_a_competitor(conn):
+    """A find that classification excluded (a different business category,
+    a manufacturer, out of scope) must not be counted as a competing
+    business nearby or as a suggestion."""
+    tenant_id = _insert_company(conn)
+    tracked = _insert_competitor(conn, tenant_id, "Napoli Pizza", tier="STRATEGIC")
+    suggested = _insert_competitor(conn, tenant_id, "Joe's Restaurant", tier="RELEVANT", is_tracked=False)
+    excluded = _insert_competitor(conn, tenant_id, "Krispy Donuts", tier="CANDIDATE", is_tracked=False)
+    with conn.cursor() as cursor:
+        for competitor_id, distance in ((tracked, 0.5), (suggested, 2.0), (excluded, 0.4)):
+            cursor.execute(
+                "UPDATE tenant_competitors SET discovery_method = 'PLACES_NEARBY', distance_km = %s, last_seen_at = NOW() "
+                "WHERE tenant_id = %s AND global_competitor_id = %s;", (distance, tenant_id, competitor_id),
+            )
+    conn.commit()
+
+    block = build_structured_facts_block(conn, tenant_id)
+
+    assert "1 competing businesses within 1 km and 2 within 3 km; 1 more found but not tracked." in block
+    assert "Krispy Donuts" not in block
