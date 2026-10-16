@@ -301,6 +301,7 @@ def discover_industry_candidates(
     max_results: int = _MAX_RESULTS_PER_QUERY,
     conn=None, searxng_instance_url: Optional[str] = None,
     daily_query_limit: Optional[int] = 100,
+    industry_label: Optional[str] = None,
 ) -> List[CandidateSource]:
     """
     Domain-level discovery: "who else operates in this industry", not "who
@@ -319,7 +320,7 @@ def discover_industry_candidates(
     register_tenant_scoped_competitor() (which requires a real product_id
     to scope a mapping to).
     """
-    query = build_industry_search_query(vertical, geo_scope or None)
+    query = build_industry_search_query(vertical, geo_scope or None, industry_label)
     return _with_cache_and_fallback(
         conn, vertical, query, max_results, api_key, cx, searxng_instance_url, daily_query_limit,
     )
