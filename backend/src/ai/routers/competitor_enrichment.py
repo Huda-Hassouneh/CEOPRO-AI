@@ -21,7 +21,8 @@ from pydantic import BaseModel
 from src.ai import db
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
-from src.ai.market_inputs import public_sources
+from src.ai.dashboard import product_market
+from src.ai.market_inputs import competitor_comments, public_sources
 from src.market_scraper import competitor_enrichment, enrichment_queue, price_coverage
 
 router = APIRouter(tags=["competitors"])
@@ -220,3 +221,52 @@ def list_market_prices_endpoint(product_id: str, ctx: TenantContext = Depends(ge
         }
         for seller, title, url, price, currency, rating, review_count, score, plausible, provider, observed_at in rows
     ]}
+
+
+@router.get("/competitors/{competitor_id}/reviews")
+def competitor_reviews_endpoint(
+    competitor_id: str, sort: str = Query(default=competitor_comments.SORT_HELPFUL, pattern="^(helpful|recent)$"),
+    limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    The real comments and reviews collected about one competitor: the text, star
+    rating, how many people liked each (people_agreeing), replies under the comment
+    they answer, and the sentiment read from the text. sort=helpful puts the most
+    agreed-with first. Comments held back by the safety scan are counted in
+    summary.held_back_for_safety, never silently dropped.
+    """
+    competitor_id = _competitor_uuid(competitor_id)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = competitor_comments.list_competitor_comments(conn, ctx.tenant_id, competitor_id, sort, limit, offset)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    if result is None:
+        raise HTTPException(status_code=404, detail="Competitor not found.")
+    return {"competitor_id": competitor_id, **result}
+
+
+@router.get("/competitor-data/overview")
+def competitor_data_overview_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    One bulk read for the competitor list: for every tracked competitor its
+    Google rating and review count, comments collected, people agreeing,
+    sentiment (plain and agreement-weighted), social profiles and data
+    completeness (what is missing, why, and whether Retry applies). Keyed by
+    competitor_id - the list screens merge it onto their rows.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        details = product_market.competitor_details(conn, ctx.tenant_id)
+        conn.commit()
+        return {"competitors": details}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

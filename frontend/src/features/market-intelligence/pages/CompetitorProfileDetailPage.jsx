@@ -14,6 +14,9 @@ import { useCompetitorProfile } from '../hooks/useCompetitorProfile.js';
 import { useTrackCompetitor } from '../hooks/useDiscovery.js';
 import { RecordCompetitorPrice } from '../components/RecordCompetitorPrice.jsx';
 import { CompetitorIntel } from '../components/CompetitorIntel.jsx';
+import { DataCompleteness } from '../components/DataCompleteness.jsx';
+import { CompetitorComments } from '../components/CompetitorComments.jsx';
+import { useCompetitorDataStatus } from '../hooks/useCompetitorData.js';
 import '../styles/MarketIntelligence.css';
 
 function reasonText(t, number, reason) {
@@ -47,6 +50,7 @@ export function CompetitorProfileDetailPage() {
   const tracked = query.data?.is_tracked;
   const profile = useCompetitorProfile(tracked ? competitorId : null);
   const track = useTrackCompetitor();
+  const dataStatus = useCompetitorDataStatus(competitorId, Boolean(tracked));
   const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }), [locale]);
   const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
   const money = (value, currency) => { try { return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value); } catch { return `${value} ${currency}`; } };
@@ -140,6 +144,9 @@ export function CompetitorProfileDetailPage() {
           </div>
 
           <CompetitorIntel competitor={c} t={t} locale={locale} />
+
+          {c.is_tracked && <DataCompleteness completeness={dataStatus.data} competitorId={competitorId} queued={Boolean(dataStatus.data?.queued)} />}
+          {c.is_tracked && <CompetitorComments competitorId={competitorId} />}
 
           {c.is_tracked && (
             <Panel eyebrow={t('discovery.detail.pricesEyebrow')} title={t('market.detail.priceComparison')} subtitle={t('market.detail.priceComparisonSubtitle')} bodyClassName="is-flush">

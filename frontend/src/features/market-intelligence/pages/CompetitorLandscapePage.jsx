@@ -2,7 +2,7 @@ import { MarketTabs } from '../components/MarketTabs.jsx';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Layers, MapPin, Package, Plus, Search, ShieldCheck, Tag, Users } from 'lucide-react';
+import { Layers, MapPin, Package, Plus, RefreshCw, Search, ShieldCheck, Tag, Users } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { DashboardLayout } from '../../../app/layouts/DashboardLayout.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
@@ -13,6 +13,9 @@ import { competitorsApi } from '../api/competitorsApi.js';
 import { MarketScan } from '../components/MarketScan.jsx';
 import { MarketInsights } from '../components/MarketInsights.jsx';
 import { CompetitorDirectory } from '../components/CompetitorDirectory.jsx';
+import { PriceCoverage } from '../components/PriceCoverage.jsx';
+import { useRetryAllFailed } from '../hooks/useCompetitorData.js';
+import { retryOutcome } from '../api/competitorDataApi.js';
 
 const COVERAGE_FILTERS = ['all', 'none', 'above'];
 
@@ -22,6 +25,7 @@ export function CompetitorLandscapePage() {
   const [coverageFilter, setCoverageFilter] = useState('all');
   const [search, setSearch] = useState('');
   const query = useQuery({ queryKey: ['competitor-landscape'], queryFn: competitorsApi.landscape });
+  const retryAll = useRetryAllFailed();
 
   const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   const money = (amount, currency) => (amount == null || !currency ? '—' : new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount));
@@ -33,6 +37,7 @@ export function CompetitorLandscapePage() {
       subtitle={t('competitorsApex.subtitle')}
       actions={(
         <>
+          <ApexButton variant="ghost" icon={RefreshCw} loading={retryAll.isPending} title={t('competitorData.retryAllHint')} onClick={() => retryAll.mutate()}>{t('competitorData.retryAll')}</ApexButton>
           <ApexButton variant="ghost" icon={MapPin} onClick={() => navigate(routePaths.marketSearchScope)}>{t('competitorsApex.searchArea')}</ApexButton>
           <ApexButton variant="secondary" icon={ShieldCheck} onClick={() => navigate(routePaths.marketPendingSources)}>{t('competitorsApex.sources')}</ApexButton>
           <ApexButton icon={Plus} onClick={() => navigate(routePaths.marketAddCompetitor)}>{t('competitorsApex.add.button')}</ApexButton>
@@ -57,6 +62,9 @@ export function CompetitorLandscapePage() {
         {header}
         <MarketTabs />
         <div className="apex-page" dir={dir}>
+          <p className="price-coverage__note apex-muted" role="status" aria-live="polite">
+            {retryAll.isError ? t('competitorData.outcome.error') : retryAll.data ? t(`competitorData.outcome.${retryOutcome(retryAll.data)}`) : ''}
+          </p>
           <div className="apex-grid apex-grid--stats">
             <Stat label={t('competitorsApex.stats.tracked')} value={number.format(data.competitors.length)} hint={limit != null ? t('competitorsApex.stats.ofPlan', { limit: number.format(limit) }) : t('competitorsApex.stats.unlimited')} icon={Users} />
             <Stat label={t('competitorsApex.stats.levels')} value={`${number.format(data.market_wide)} · ${number.format(data.product_level)}`} hint={t('competitorsApex.stats.levelsHint')} icon={Layers} tone="violet" />
@@ -67,6 +75,7 @@ export function CompetitorLandscapePage() {
 
           <MarketScan />
           <CompetitorDirectory pricing={pricing} planLimit={limit} />
+          <PriceCoverage />
           <MarketInsights />
 
           <Panel

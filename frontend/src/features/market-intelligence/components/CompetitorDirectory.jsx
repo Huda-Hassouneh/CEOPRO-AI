@@ -5,6 +5,8 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { ApexButton, Meter, Panel, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
 import { useDiscoveredCompetitors, useTrackCompetitor } from '../hooks/useDiscovery.js';
+import { useCompetitorOverview } from '../hooks/useCompetitorData.js';
+import { CompetitorDataChips } from './DataCompleteness.jsx';
 
 const STATUSES = ['tracked', 'suggested', 'all'];
 const SORTS = ['relevance', 'distance', 'rating', 'reviews', 'name', 'recent'];
@@ -52,6 +54,8 @@ export function CompetitorDirectory({ pricing = {}, planLimit }) {
   const filters = useMemo(() => ({ status, sort, origin, relationship, q: search.trim() }), [status, sort, origin, relationship, search]);
   const query = useDiscoveredCompetitors(filters);
   const track = useTrackCompetitor();
+  // Ratings, comments, agreement and data completeness for each tracked competitor (one bulk read; the list works without it).
+  const overview = useCompetitorOverview();
   const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   const isArabic = locale?.startsWith('ar');
   const competitorPath = (id) => routePaths.marketCompetitorDetail.replace(':competitorId', id);
@@ -130,6 +134,7 @@ export function CompetitorDirectory({ pricing = {}, planLimit }) {
                           {websiteSummary(c, t) && <span className="apex-muted competitor-row__website">{websiteSummary(c, t)}</span>}
                         </div>
                       )}
+                      {c.is_tracked && <CompetitorDataChips data={overview.data?.[c.competitor_id]} competitorId={c.competitor_id} />}
                       <div className="competitor-row__sources">
                         {c.origin === 'manual' && !c.sources.length && <Pill>{t('discovery.origin.manual')}</Pill>}
                         {c.is_demo && <Pill tone="warning">{t('discovery.list.demo')}</Pill>}

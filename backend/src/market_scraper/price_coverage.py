@@ -51,7 +51,7 @@ _QUERY = """
     LEFT JOIN data_sources ds ON ds.tenant_id = m.tenant_id AND ds.source_id = m.source_id
     LEFT JOIN competitor_prices cpr ON cpr.tenant_id = m.tenant_id AND cpr.mapping_id = m.mapping_id
     LEFT JOIN market_price_lookups l ON l.tenant_id = p.tenant_id AND l.product_id = p.product_id
-    WHERE p.tenant_id = %s AND p.deleted_at IS NULL
+    WHERE p.tenant_id = %s AND p.deleted_at IS NULL AND (%s::uuid IS NULL OR p.product_id = %s::uuid)
     GROUP BY p.product_id, product_name, p.current_price, p.currency, l.outcome, l.last_attempt_at, has_barcode
     ORDER BY product_name, p.product_id;
 """
@@ -86,16 +86,17 @@ def get_barcode_summary(conn, tenant_id: str) -> dict:
 
 def get_price_coverage(
     conn, tenant_id: str, include_covered: bool = False, limit: Optional[int] = 100, offset: int = 0,
-    missing_barcode: bool = False,
+    missing_barcode: bool = False, product_id: Optional[str] = None,
 ) -> dict:
     """{"summary": {...}, "products": [...]}. The summary always covers EVERY
     product; `products` lists the gaps (plus covered products when
     include_covered) paged by limit/offset. missing_barcode=True instead lists
     every product without a barcode, price gaps first - the owner's worklist for
     entering barcodes (PATCH /products/{id} {"barcode": ...}). Each product says
-    has_barcode, and a gap without one carries suggestion "add_barcode"."""
+    has_barcode, and a gap without one carries suggestion "add_barcode". product_id
+    narrows everything (summary included) to that one product."""
     with conn.cursor() as cursor:
-        cursor.execute(_QUERY, (tenant_id,))
+        cursor.execute(_QUERY, (tenant_id, product_id, product_id))
         rows = cursor.fetchall()
 
     by_reason = {reason: 0 for reason in REASONS}
