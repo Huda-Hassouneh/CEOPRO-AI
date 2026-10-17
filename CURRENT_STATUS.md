@@ -82,8 +82,15 @@ staging). Values are never committed.
 | Error tracking (crash reports for the API, workers and browser app) | `SENTRY_DSN` (API and workers), `VITE_SENTRY_DSN` (frontend build) | Errors only go to the server logs |
 | Uptime alerts | an uptime monitor account pointed at `/health/ready` | No one is alerted when the service is down |
 | More competitor sources | `GOOGLE_PLACES_API_KEY`, `GOOGLE_CUSTOM_SEARCH_API_KEY` + `GOOGLE_CUSTOM_SEARCH_CX`, `APIFY_API_TOKEN`, or `SEARXNG_INSTANCE_URL` | OpenStreetMap only |
+| Paid AI and data providers (Groq, Google, Apify, Hugging Face, search APIs) | A confirmed price per provider, recorded with `python -m scripts.billing_admin set-price` (not an environment setting) | The call is refused ("not set up"): no paid call runs without a price to charge Data or AI Credits against. See `docs/SUBSCRIPTIONS_AND_CREDITS.md` |
 
 ## Decisions pending
+
+- **Subscription budgets:** Standard / Plus / Pro / Custom with Data and AI
+  Credits are in place (`docs/SUBSCRIPTIONS_AND_CREDITS.md`). The credit
+  budgets come from a cost model whose processing-fee, split and
+  infrastructure figures are planning assumptions to replace with real
+  numbers; provider prices must be confirmed before paid features run.
 
 - **Logo colours:** the approved symbol (hull, keel and bulb) and the
   Cormorant Garamond wordmark are in the app, favicon, app icons and link

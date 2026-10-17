@@ -82,8 +82,12 @@ def _stripe_sub(sub_id, customer, price_id, status="active", cancel=False, trial
 def test_the_catalog_lists_self_serve_plans_with_prices_and_limits(sys_conn):
     plans = {p["plan_key"]: p for p in store.catalog(sys_conn)}
     # Radar's agreed plan terms (docs/PLAN_LIMITS_FEASIBILITY.md).
-    assert {k: (p["monthly_price"], p["trial_days"]) for k, p in plans.items() if p["self_serve"]} == {
-        "starter": (55.0, 14), "growth": (140.0, 14), "enterprise": (350.0, 7)}
+    assert {k: (p["name"]["en"], p["monthly_price"], p["trial_days"]) for k, p in plans.items() if p["self_serve"]} == {
+        "starter": ("Standard", 55.0, 14), "growth": ("Plus", 140.0, 14), "enterprise": ("Pro", 350.0, 7)}
+    # A trial gets a bounded tenth of a paid month's credits, never the whole month.
+    assert {k: plans[k]["trial_limits"] for k in ("starter", "growth", "enterprise")} == {
+        "starter": {"data_credits": 43, "ai_credits": 43}, "growth": {"data_credits": 111, "ai_credits": 111},
+        "enterprise": {"data_credits": 278, "ai_credits": 278}}
     assert {p["period_code"] for p in plans["growth"]["prices"]} == {"monthly", "three-months", "six-months"}
     amounts = {k: {p["period_code"]: p["amount"] for p in plans[k]["prices"]} for k in ("starter", "growth", "enterprise")}
     assert amounts == {"starter": {"monthly": 55.0, "three-months": 148.5, "six-months": 264.0},
@@ -91,13 +95,17 @@ def test_the_catalog_lists_self_serve_plans_with_prices_and_limits(sys_conn):
                        "enterprise": {"monthly": 350.0, "three-months": 945.0, "six-months": 1680.0}}
     assert plans["custom"]["self_serve"] is False and plans["custom"]["prices"] == []
     assert "standard" not in plans and "pro" not in plans, "retired packages are no longer sold"
-    agreed = {  # products, competitors, reviews/month, AI tokens, sources, storage MB, uploads KB/month, images
-        "starter": (250, 10, 5000, 100000, 1, 1024, 51200, 20),
-        "growth": (2000, 30, 25000, 500000, 5, 10240, 512000, 100),
-        "enterprise": (10000, 100, 100000, 2000000, 20, 51200, 2097152, 150),
+    # KEEL's subscription terms (docs/SUBSCRIPTIONS_AND_CREDITS.md): Standard / Plus / Pro.
+    # products, reports/month, seats, competitors (None: budget-based), Data and AI Credits,
+    # reviews/month, AI token safety cap, sources, storage MB, uploads KB/month, images
+    agreed = {
+        "starter": (100, 5, 5, None, 436, 436, 5000, 100000, 1, 1024, 51200, 20),
+        "growth": (250, 20, 20, None, 1111, 1111, 25000, 500000, 5, 10240, 512000, 100),
+        "enterprise": (750, 60, 60, None, 2780, 2780, 100000, 2000000, 20, 51200, 2097152, 150),
     }
-    features = ("tracked_products", "tracked_competitors", "sentiment_analysis", "rag_assistant",
-                "connected_data_sources", "document_storage_mb", "document_extraction", "marketing_image_generation")
+    features = ("tracked_products", "monthly_reports", "team_seats", "tracked_competitors", "data_credits", "ai_credits",
+                "sentiment_analysis", "rag_assistant", "connected_data_sources", "document_storage_mb",
+                "document_extraction", "marketing_image_generation")
     for plan_key, values in agreed.items():
         assert tuple(plans[plan_key]["limits"][f] for f in features) == values, plan_key
         # Every plan includes the core intelligence; plans differ by capacity.

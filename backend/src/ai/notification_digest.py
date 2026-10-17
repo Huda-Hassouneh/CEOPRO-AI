@@ -46,6 +46,10 @@ _TEXT = {
         "import_failed": "An import failed: {name}",
         "trial_ending": "Your trial ends in {days} days - choose a plan to keep access",
         "payment_failed": "Your last payment failed - update your payment method in Billing",
+        "credits_low": "You've used {percent}% of this period's {budget} - they renew on {resets_on}",
+        "credits_exhausted": "This period's {budget} are used up - they renew on {resets_on}; upgrade in Billing for more",
+        "budget_data": "Data Credits",
+        "budget_ai": "AI Credits",
         "subject": "KEEL: {count} new for {company}",
         "intro": "Here is what needs your attention at {company}:",
         "open": "Open",
@@ -61,6 +65,10 @@ _TEXT = {
         "import_failed": "فشل استيراد: {name}",
         "trial_ending": "تنتهي فترتك التجريبية خلال {days} أيام - اختر خطة للاستمرار",
         "payment_failed": "فشلت آخر عملية دفع - حدّث وسيلة الدفع من الفوترة",
+        "credits_low": "استخدمت {percent}٪ من {budget} لهذه الفترة - تتجدد في {resets_on}",
+        "credits_exhausted": "نفدت {budget} لهذه الفترة - تتجدد في {resets_on}؛ يمكنك الترقية من الفوترة",
+        "budget_data": "أرصدة البيانات",
+        "budget_ai": "أرصدة الذكاء الاصطناعي",
         "subject": "KEEL: {count} جديد في {company}",
         "intro": "إليك ما يحتاج انتباهك في {company}:",
         "open": "افتح",
@@ -89,6 +97,9 @@ def alert_line(alert: dict, lang: str) -> str:
         return text[key].format(product=p.get("product"), pct=_num(abs(p.get("gap_pct") or 0)), competitor=p.get("competitor"))
     if kind == "restock":
         return text["restock"].format(product=p.get("product"), days=_num(p.get("days"), 0), quantity=_num(p.get("quantity"), 1))
+    if kind in ("credits_low", "credits_exhausted"):
+        budget = text["budget_ai" if p.get("budget") == "ai" else "budget_data"]
+        return text[kind].format(budget=budget, percent=_num(p.get("percent"), 0), resets_on=p.get("resets_on") or "?")
     if kind in ("new_competitors", "import_failed", "trial_ending", "payment_failed"):
         return text[kind].format(**{k: (v if v is not None else "?") for k, v in p.items()})
     return kind

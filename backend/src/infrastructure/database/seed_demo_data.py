@@ -55,6 +55,15 @@ class EnterprisePlatformSeeder:
             """,
             (tenant_id, business_name, country_code, currency),
         )
+        # Demo companies are on the Plus plan (a company with no plan has no
+        # access - UNASSIGNED_PLAN_ACCESS).
+        cursor.execute(
+            """
+            INSERT INTO tenant_plan_assignments (tenant_id, plan_key, status, source)
+            VALUES (%s, 'growth', 'active', 'manual') ON CONFLICT (tenant_id) DO NOTHING;
+            """,
+            (tenant_id,),
+        )
 
         # users has no tenant_id/role column - multi-tenancy and role
         # assignment both go through the separate tenant_users pivot table

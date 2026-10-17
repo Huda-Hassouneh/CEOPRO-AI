@@ -1,7 +1,10 @@
 const CONTEXT_LIMIT_KEYS = Object.freeze({
   'product-limit': 'products',
-  'competitor-limit': 'competitors',
-  'rag-limit': 'aiTokens',
+  'rag-limit': 'aiCredits',
+  'ai-credits': 'aiCredits',
+  'data-credits': 'dataCredits',
+  'report-limit': 'reports',
+  'seat-limit': 'teamSeats',
   'storage-limit': 'storageGb',
 });
 

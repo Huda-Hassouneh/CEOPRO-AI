@@ -1,3 +1,10 @@
+import os
+
+# Same as src/ai/tests/conftest.py: provider tests mock HTTP without a
+# database, and pre-billing tests create companies without a plan.
+os.environ.setdefault("KEEL_TEST_DISABLE_METERING", "1")
+os.environ.setdefault("UNASSIGNED_PLAN_ACCESS", "default")
+
 import pytest
 
 

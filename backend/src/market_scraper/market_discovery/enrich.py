@@ -29,6 +29,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
+from src.ai.billing import credits
 from src.market_scraper.market_discovery import industries
 from src.market_scraper.market_discovery.http import USER_AGENT
 from src.market_scraper.market_discovery.matching import Entity, domain_key
@@ -239,7 +240,8 @@ def enrich(ranked, fetch=fetch_site, limit: int = ENRICH_MAX) -> dict:
     if not targets:
         return counts
     with ThreadPoolExecutor(max_workers=min(6, len(targets))) as pool:
-        pages = list(pool.map(lambda target: fetch(target[1]), targets))
+        # Each worker keeps the company's billing context (paid fetches are metered).
+        pages = list(pool.map(credits.bind(lambda target: fetch(target[1])), targets))
     for (entity, site), page in zip(targets, pages):
         if not page:
             continue

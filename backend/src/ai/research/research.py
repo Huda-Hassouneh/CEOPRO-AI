@@ -36,6 +36,7 @@ from typing import Callable, Dict, List, Optional
 from src.ai.rag import evidence as ev
 from src.ai.rag.bm25_index import BM25Index
 from src.ai.research import page_reader, sources
+from src.ai.billing import credits
 
 logger = logging.getLogger("KEEL_RESEARCH")
 
@@ -313,6 +314,7 @@ def _page_evidence(registry: ev.EvidenceRegistry, page: page_reader.Page, passag
     return added
 
 
+@credits.metered("web_research")
 def research(conn, tenant_id: str, registry: ev.EvidenceRegistry, question: str, intents: List[str], slots: dict,
              company: dict, ask: Optional[Callable] = None, search_fn: Optional[Callable] = None,
              fetch: Optional[Callable] = None, resolver=None, language: str = "en") -> ResearchResult:

@@ -39,7 +39,7 @@ def catalog(conn) -> list:
             """
         )
         plans = cursor.fetchall()
-        cursor.execute("SELECT plan_key, feature_code, limit_value FROM usage_plan_limits;")
+        cursor.execute("SELECT plan_key, feature_code, limit_value, trial_limit_value FROM usage_plan_limits;")
         limits = cursor.fetchall()
         cursor.execute("SELECT plan_key, feature_code FROM usage_plan_entitlements;")
         entitlements = cursor.fetchall()
@@ -60,7 +60,9 @@ def catalog(conn) -> list:
             "trial_days": trial_days,
             "tier_level": tier,
             "self_serve": self_serve,
-            "limits": {code: (None if value is None else int(value)) for plan, code, value in limits if plan == key},
+            "limits": {code: (None if value is None else int(value)) for plan, code, value, _trial in limits if plan == key},
+            # What a free trial of this plan includes where it differs (Data and AI Credits).
+            "trial_limits": {code: int(trial) for plan, code, _value, trial in limits if plan == key and trial is not None},
             "entitlements": sorted(code for plan, code in entitlements if plan == key),
             "prices": [
                 {
@@ -111,24 +113,56 @@ def resolve_price(conn, stripe_price_id: str) -> Optional[tuple]:
 
 # --- trials -----------------------------------------------------------------
 
-def start_trial(sys_conn, tenant_id: str, now: Optional[datetime] = None) -> Optional[dict]:
-    """Gives a company its one free trial (of the trial plan) if it never had
-    one and has no plan yet. Returns the trial, or None when not granted."""
+def trial_eligibility(conn, tenant_id: str, plan_key: str, started_by_user_id: Optional[str] = None) -> Optional[str]:
+    """None when this company may start a free trial of this plan, else the
+    reason it may not: one trial per company ever, one per person across
+    their companies, never on top of a plan or subscription, and only on a
+    self-serve plan that offers a trial."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT trial_days, self_serve, is_active FROM usage_plans WHERE plan_key = %s;", (plan_key,))
+        row = cursor.fetchone()
+        if not row or not row[2] or not row[1] or int(row[0]) <= 0:
+            return "plan_has_no_trial"
+        cursor.execute("SELECT 1 FROM billing_trials WHERE tenant_id = %s;", (tenant_id,))
+        if cursor.fetchone():
+            return "trial_already_used"
+        if started_by_user_id:
+            cursor.execute("SELECT 1 FROM billing_trials WHERE started_by_user_id = %s;", (started_by_user_id,))
+            if cursor.fetchone():
+                return "trial_already_used_by_person"
+        cursor.execute("SELECT 1 FROM tenant_plan_assignments WHERE tenant_id = %s;", (tenant_id,))
+        if cursor.fetchone():
+            return "plan_already_assigned"
+        cursor.execute("SELECT 1 FROM billing_subscriptions WHERE tenant_id = %s;", (tenant_id,))
+        if cursor.fetchone():
+            return "subscription_exists"
+    return None
+
+
+def start_trial(sys_conn, tenant_id: str, now: Optional[datetime] = None, *,
+                started_by_user_id: Optional[str] = None, plan_key: Optional[str] = None) -> Optional[dict]:
+    """Gives a company its one free trial if it is eligible
+    (trial_eligibility). The trial lasts the plan's trial_days from `now`, to
+    the second (UTC). Returns the trial, or None when not granted. Caller
+    commits."""
     now = now or datetime.now(timezone.utc)
-    plan_key = config.trial_plan_key()
+    plan_key = plan_key or config.trial_plan_key()
+    with sys_conn.cursor() as cursor:
+        # Two sign-ups by the same person can't both pass the per-person check.
+        cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                       (f"keel_trial:{started_by_user_id or tenant_id}",))
+    if trial_eligibility(sys_conn, tenant_id, plan_key, started_by_user_id):
+        return None
     with sys_conn.cursor() as cursor:
         cursor.execute("SELECT trial_days FROM usage_plans WHERE plan_key = %s;", (plan_key,))
-        row = cursor.fetchone()
-        days = int(row[0]) if row else 0
-        if days <= 0:
-            return None
+        days = int(cursor.fetchone()[0])
         ends_at = now + timedelta(days=days)
         cursor.execute(
             """
-            INSERT INTO billing_trials (tenant_id, plan_key, started_at, ends_at) VALUES (%s, %s, %s, %s)
+            INSERT INTO billing_trials (tenant_id, plan_key, started_at, ends_at, started_by_user_id) VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (tenant_id) DO NOTHING RETURNING tenant_id;
             """,
-            (tenant_id, plan_key, now, ends_at),
+            (tenant_id, plan_key, now, ends_at, started_by_user_id),
         )
         if cursor.fetchone() is None:
             return None

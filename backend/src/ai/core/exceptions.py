@@ -46,6 +46,15 @@ def register_exception_handlers(app: FastAPI) -> None:
         http = exc.as_http()
         return JSONResponse(status_code=http.status_code, content={"detail": http.detail})
 
+    from src.ai.billing.credits import BudgetError
+
+    @app.exception_handler(BudgetError)
+    async def _budget_handler(request: Request, exc: BudgetError) -> JSONResponse:
+        # A paid provider call refused before it was made (billing/credits.py):
+        # reason code and plain message only - never provider names or prices.
+        http = exc.as_http()
+        return JSONResponse(status_code=http.status_code, content={"detail": http.detail})
+
     @app.exception_handler(StarletteHTTPException)
     async def _http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         # Re-implements Starlette's own default HTTPException body exactly
