@@ -39,6 +39,8 @@ DOCUMENT = ("Supplier agreement summary. Our supplier Al-Noor Trading delivers e
             "Late deliveries earn a 3 percent discount on that invoice.")
 # "What are the payment terms with the supplier?" - no word in common with DOCUMENT.
 CROSS_LINGUAL_QUESTION = "ما هي شروط الدفع مع المورد؟"
+# Shares words with DOCUMENT: what keyword search alone must still answer.
+KEYWORD_QUESTION = "What are the payment terms with Al-Noor Trading?"
 SENTENCES = [DOCUMENT, CROSS_LINGUAL_QUESTION, "Which products are most profitable?"]
 ONNX_FILES = ("onnx/model_quint8_avx2.onnx", "onnx/model_qint8_avx512_vnni.onnx", "onnx/model.onnx")
 
@@ -95,9 +97,11 @@ def main() -> int:
     print(f"Embedding backend: {embeddings.BACKEND}"
           + (f" ({embeddings.ONNX_FILE})" if embeddings.BACKEND == "onnx" else "") + f", model {embeddings.MODEL_NAME}")
     print(f"Re-ranker: {reranking.MODEL_NAME if pipeline.RERANKER_ENABLED else 'disabled (RAG_RERANKER_ENABLED)'}")
+    semantic = embeddings.BACKEND not in embeddings.DISABLED_BACKENDS
     try:
-        embeddings.get_model()
-        memory["after_embedding_model"] = _status_mb("VmRSS")
+        if semantic:
+            embeddings.get_model()
+            memory["after_embedding_model"] = _status_mb("VmRSS")
         if pipeline.RERANKER_ENABLED:
             reranking.get_model()
             memory["after_reranker"] = _status_mb("VmRSS")
@@ -127,23 +131,28 @@ def main() -> int:
             cursor.execute("SELECT count(*), count(embedding) FROM rag_document_chunks WHERE tenant_id = %s;", (tenant,))
             chunks, with_vectors = cursor.fetchone()
         print(f"Ingested {processed} document(s): {chunks} chunk(s), {with_vectors} with a stored vector")
-        if not processed or not chunks or with_vectors != chunks:
+        if not processed or not chunks:
+            failures.append("ingestion stored no chunks")
+        elif semantic and with_vectors != chunks:
             failures.append("ingestion did not store a vector for every chunk")
+        if not semantic:
+            print("Semantic search is switched off: checking keyword retrieval instead")
 
+        document_question = CROSS_LINGUAL_QUESTION if semantic else KEYWORD_QUESTION
         index = pipeline.build_hybrid_index(conn, tenant, use_cache=False)
-        keyword_hits = [c for c in index.bm25.query(CROSS_LINGUAL_QUESTION, top_k=5) if c.score > 0]
-        context = pipeline.run_retrieval(conn, tenant, CROSS_LINGUAL_QUESTION, top_k=3)
+        keyword_hits = [c for c in index.bm25.query(document_question, top_k=5) if c.score > 0]
+        context = pipeline.run_retrieval(conn, tenant, document_question, top_k=3)
         found = "net 45 days" in context.context_text
-        print(f"Arabic question vs English document: keyword hits={len(keyword_hits)}, "
+        print(f"{'Arabic' if semantic else 'English'} question vs English document: keyword hits={len(keyword_hits)}, "
               f"retrieved={len(context.sources)}, document found={found}")
-        print("  tokens the keyword index saw:", bm25_index.tokenize(CROSS_LINGUAL_QUESTION))
-        if keyword_hits:
+        print("  tokens the keyword index saw:", bm25_index.tokenize(document_question))
+        if semantic and keyword_hits:
             print("  (BM25 matched something, so this run doesn't isolate the semantic path)")
         if not found:
-            failures.append("semantic retrieval did not find the document for a cross-lingual question")
+            failures.append(("semantic" if semantic else "keyword") + " retrieval did not find the document")
 
         if os.getenv("GROQ_API_KEY") or llm_client.LOCAL_LLM_BASE_URL or llm_client.PAID_LLM_BASE_URL:
-            for question in (CROSS_LINGUAL_QUESTION, "Which products are most profitable?"):
+            for question in (document_question, "Which products are most profitable?"):
                 result = advisor.answer(conn, tenant, question, enable_research=False)
                 conn.rollback()
                 titles = [r.get("title") for r in result["references"]]
@@ -152,7 +161,7 @@ def main() -> int:
                 print("   A:", result["answer"][:400].replace("\n", " "))
                 if result["answer_mode"] != "ai":
                     failures.append(f"assistant answered in {result['answer_mode']} mode for {question!r}")
-                if question == CROSS_LINGUAL_QUESTION and not any("supplier_agreement" in str(t) for t in titles):
+                if question == document_question and not any("supplier_agreement" in str(t) for t in titles):
                     failures.append("the assistant's answer to the document question did not cite the document")
         else:
             print("\nLLM check skipped: no provider configured (GROQ_API_KEY unset)")
@@ -167,7 +176,7 @@ def main() -> int:
     if args.max_peak_mb and peak > args.max_peak_mb:
         failures.append(f"peak memory {round(peak)} MB is over the {round(args.max_peak_mb)} MB limit")
     if args.compare_onnx:
-        if embeddings.BACKEND == "onnx":
+        if embeddings.BACKEND != "torch":
             print("--compare-onnx needs the torch backend as the reference; skipped")
         else:
             failures += compare_onnx(embeddings.embed(SENTENCES))
