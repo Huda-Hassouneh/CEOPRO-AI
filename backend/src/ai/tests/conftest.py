@@ -9,6 +9,10 @@ os.environ.setdefault("API_RATE_LIMIT_ENABLED", "false")  # test_rate_limit.py t
 os.environ.setdefault("DISCOVERY_ENRICH_MAX_SITES", "0")
 # Model loaders are mocked in tests: skip the hub reachability probe.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# Onboarding's connect endpoints refuse (503) without a credential-vault key;
+# give unit tests a throwaway one so they don't depend on the developer's shell.
+os.environ.setdefault("CREDENTIAL_VAULT_KMS_BACKEND", "local")
+os.environ.setdefault("CREDENTIAL_VAULT_MASTER_KEY", "x6M1l3m0V0kq0cV8k2Yb3m1c1ZkQe0Qm9d7mP2l1nQ4=")
 
 import time
 
