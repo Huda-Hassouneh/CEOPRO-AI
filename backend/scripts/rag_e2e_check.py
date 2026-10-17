@@ -13,8 +13,9 @@ Checks, each against the live API and its database:
   the same question
   gets an answer citing its own document and never the first company's -
   in its answer or its document list (tenant isolation);
-- with an LLM configured, answers are written in AI mode; without one, the
-  assistant's evidence mode still returns the cited sources.
+- with an LLM provider configured (llm_client.active_provider()), the answers
+  are written by it - an evidence-mode fallback fails the check; without one,
+  the assistant's evidence mode still returns the cited sources.
 - with --api-pid, the API process's peak memory (VmHWM) stays under
   --max-peak-mb.
 
@@ -120,6 +121,13 @@ def main() -> int:
                     failures.append(f"{file_name}: {vectors}/{chunks} chunks have a vector")
 
     print()
+    from src.ai.rag import llm_client
+
+    # The API runs with this script's environment in CI: with a provider
+    # configured, answers must be written by it, not fall back to evidence mode.
+    llm = llm_client.active_provider() if llm_client.provider_configured() else None
+    print(f"LLM provider: {llm or 'none configured (answers in evidence mode)'}")
+    modes = []
     right = 0
     for doc, question in ARABIC_QUESTIONS.items():
         result = _ask(client, question)
@@ -130,12 +138,17 @@ def main() -> int:
         documents = [t for t in result["titles"] if str(t).endswith(f"_{run}.pdf")]
         first = documents[0] if documents else None
         right += first == names[doc]
+        modes.append(result["mode"])
         print(f"{question}\n  mode={result['mode']} {result['seconds']:.1f}s, first document cited: {first} "
               f"({'right' if first == names[doc] else 'WRONG'}), all references: {result['titles']}")
         print("  answer:", result["answer"][:300].replace("\n", " "))
     print(f"{right}/{len(ARABIC_QUESTIONS)} Arabic questions cited their English document first")
     if right < len(ARABIC_QUESTIONS) - 1:
         failures.append(f"only {right}/{len(ARABIC_QUESTIONS)} Arabic questions cited the right document first")
+
+    if llm and "evidence" in modes:
+        failures.append(f"{llm} is configured but {modes.count('evidence')} answer(s) fell back to evidence mode "
+                        "(the provider call failed - see the API log)")
 
     company_question = _ask(client, "Which products are most profitable?")
     print(f"\nWhich products are most profitable?\n  mode={company_question.get('mode')}, "

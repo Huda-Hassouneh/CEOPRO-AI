@@ -49,7 +49,9 @@ Both run the same code: the `main` branch of
      applies the database migrations.
 3. Add your Groq key: open `backend/.env` and set `GROQ_API_KEY=` to your key.
    A free key is available at https://console.groq.com. Without it, everything
-   works except the AI assistant's answers.
+   works except the AI assistant's answers. `backend/.env` is git-ignored and
+   stays on your machine; in a Codespace use Codespaces secrets instead. All
+   names and permissions: docs/SECRETS.md.
 4. Start the backend in terminal 1:
    ```bash
    cd backend && source .venv/bin/activate && set -a && source .env && set +a

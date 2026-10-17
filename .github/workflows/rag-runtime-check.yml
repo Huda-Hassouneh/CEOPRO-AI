@@ -19,6 +19,7 @@ on:
       - backend/src/ai/requirements.txt
       - backend/scripts/rag_runtime_check.py
       - backend/scripts/rag_e2e_check.py
+      - backend/scripts/llm_provider_check.py
       - .github/workflows/rag-runtime-check.yml
   workflow_dispatch:
 
@@ -104,6 +105,29 @@ jobs:
           RAG_RERANKER_ENABLED: "false"
         run: python -m scripts.rag_runtime_check --max-peak-mb 512
 
+      # One real request to each provider whose repository secret is set
+      # (fixed prompt, no company data); a provider without its secret is
+      # reported as skipped, never as passing.
+      - name: LLM providers - one real request each
+        if: always()
+        working-directory: backend
+        env:
+          HUGGINGFACE_API_TOKEN: ${{ secrets.HUGGINGFACE_API_TOKEN }}
+          HF_LLM_MODEL: ${{ vars.HUGGINGFACE_LLM_MODEL || 'openai/gpt-oss-20b' }}
+        run: |
+          status=0
+          if [ -n "$GROQ_API_KEY" ]; then
+            python -m scripts.llm_provider_check || status=1
+          else
+            echo "Groq: skipped - no GROQ_API_KEY Actions secret"
+          fi
+          if [ -n "$HUGGINGFACE_API_TOKEN" ]; then
+            HUGGINGFACE_LLM_MODEL="$HF_LLM_MODEL" python -m scripts.llm_provider_check || status=1
+          else
+            echo "Hugging Face Inference Providers: skipped - no HUGGINGFACE_API_TOKEN Actions secret"
+          fi
+          exit $status
+
   # The running API end to end, as the frontend uses it: sign-up/sign-in,
   # PDF upload through /extraction/upload into object storage (MinIO),
   # ingestion and stored vectors, /rag/query with Arabic questions about
@@ -146,8 +170,13 @@ jobs:
       RAG_EMBEDDING_BACKEND: static
       RAG_RERANKER_ENABLED: "false"
       # Empty when the repository secret isn't set: answers then come in the
-      # assistant's evidence mode, with the same cited sources.
+      # assistant's evidence mode, with the same cited sources. With a key,
+      # an evidence-mode fallback fails the check.
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      # Answers through Hugging Face Inference Providers instead, only when
+      # the HUGGINGFACE_LLM_MODEL repository variable names a model.
+      HUGGINGFACE_API_TOKEN: ${{ secrets.HUGGINGFACE_API_TOKEN }}
+      HUGGINGFACE_LLM_MODEL: ${{ vars.HUGGINGFACE_LLM_MODEL }}
       E2E_EMAIL: rag-e2e@keel-ci.example
       E2E_PASSWORD: Rag!E2E-Only-2026
     steps:
