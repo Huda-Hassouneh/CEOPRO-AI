@@ -82,8 +82,13 @@ as Codespaces secrets.
 4. Check without revealing anything:
    - `./keel status` names the assistant's active provider and whether its
      credential is available.
-   - `./keel llm-check` sends one real request with a fixed prompt and no
-     company data; it prints PASS only when the model answers.
+   - `./keel llm-check` checks the credential, that the model has a
+     confirmed price (without one every assistant call is refused with
+     `COST_NOT_CONFIGURED`), and that the provider serves the model (its
+     model list, not billed). `./keel llm-check --tenant <company id>` also
+     sends one real request with a fixed prompt and no company data,
+     metered against that company's AI Credits; it prints PASS only when
+     the model answers.
    - `python -m scripts.rag_e2e_check ...` (see that script) tests the
      assistant end to end. With a provider configured, an answer that falls
      back to evidence mode fails the check.
@@ -121,6 +126,10 @@ set up on that account, and the assistant then answers in evidence mode.
   succeeded ("ready", 0.7 s) in a development sandbox, with a key provided
   by that sandbox's own environment. The GitHub Actions secret
   `GROQ_API_KEY` is not set yet, so CI answers in evidence mode.
+  Re-checked after AI Credits were added: with the price recorded
+  (`billing_admin set-price`), `llm_provider_check --tenant ...` answered
+  "ready", metered, and the full upload -> `/rag/query` flow answered from
+  the uploaded documents with Groq (`answer_mode` "ai").
 - **Hugging Face Inference Providers:** implemented and unit-tested. **Not
   yet verified with a real request:** no `HUGGINGFACE_API_TOKEN` was
   available, and the development sandbox's network policy blocks
