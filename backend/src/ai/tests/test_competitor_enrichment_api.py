@@ -125,3 +125,16 @@ def test_retry_all_failed_queues_one_tenant_wide_force_job():
         response = client.post("/competitors/enrich-failed", headers=_auth())
     assert response.status_code == 202 and response.json()["competitor_id"] is None
     assert enqueue.call_args.args[1:] == ("t1", None, None, "force")
+
+
+def test_market_coverage_requires_auth_and_returns_the_report_for_the_callers_tenant():
+    assert client.get("/pricing/market-coverage").status_code == 401
+    conn = MagicMock()
+    report = {"summary": {"total_products": 0}, "products": []}
+    with patch(f"{R}.db.app_role_connection", return_value=conn) as connect, \
+         patch(f"{R}.price_coverage.get_price_coverage", return_value=report) as coverage:
+        response = client.get("/pricing/market-coverage?include_covered=true&limit=10&offset=5", headers=_auth())
+    assert response.status_code == 200 and response.json() == report
+    coverage.assert_called_once_with(conn, "t1", True, 10, 5)
+    assert connect.call_args.args[0] == "t1"
+    assert client.get("/pricing/market-coverage?limit=0", headers=_auth()).status_code == 422

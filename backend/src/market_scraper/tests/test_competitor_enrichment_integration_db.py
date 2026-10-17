@@ -167,3 +167,29 @@ def _only_competitor(conn, tenant_id):
     with conn.cursor() as cursor:
         cursor.execute("SELECT global_competitor_id FROM tenant_competitors WHERE tenant_id = %s;", (tenant_id,))
         return str(cursor.fetchone()[0])
+
+
+def test_price_coverage_reports_each_product_with_its_real_reason(conn):
+    from src.market_scraper.price_coverage import REASON_NO_MAPPING, REASON_TERMS, get_price_coverage
+    tenant_id = _insert_company(conn)
+    competitor_id = _register(conn, tenant_id)
+    with conn.cursor() as cursor:
+        for name in ("Mapped but unreviewed", "Unmatched"):
+            cursor.execute(
+                "INSERT INTO products (tenant_id, product_name, current_price, currency) VALUES (%s, %s::jsonb, 5, 'JOD') RETURNING product_id;",
+                (tenant_id, '{"en": "%s"}' % name),
+            )
+            if name.startswith("Mapped"):
+                product_id = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO data_sources (tenant_id, source_name, source_type, policy_status) VALUES (%s, 'x', 'WEB_SCRAPE', 'RESTRICTED') RETURNING source_id;", (tenant_id,))
+        source_id = cursor.fetchone()[0]
+        cursor.execute(
+            "INSERT INTO competitor_product_mappings (tenant_id, global_competitor_id, product_id, competitor_product_url, source_id) VALUES (%s, %s, %s, 'https://x.example/p', %s);",
+            (tenant_id, competitor_id, product_id, source_id),
+        )
+    conn.commit()
+    result = get_price_coverage(conn, tenant_id)
+    reasons = {i["product_name"]: i["reason_code"] for i in result["products"]}
+    assert reasons == {"Mapped but unreviewed": REASON_TERMS, "Unmatched": REASON_NO_MAPPING}
+    assert result["summary"]["coverage_pct"] == 0.0
+    assert next(i for i in result["products"] if i["reason_code"] == REASON_TERMS)["source_ids"] == [str(source_id)]
