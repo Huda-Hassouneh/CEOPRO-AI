@@ -15,6 +15,8 @@ import Toast from '../../../shared/components/ui/Toast.jsx';
 import httpClient from '../../../shared/lib/httpClient.js';
 import { QuickSaleModal } from '../components/QuickSaleModal.jsx';
 import { PriceRecommendationModal } from '../../pricing/components/PriceRecommendationModal.jsx';
+import { CompetitorDataChips } from '../../market-intelligence/components/DataCompleteness.jsx';
+import { ProductMarketDetail } from '../../market-intelligence/components/ProductMarketDetail.jsx';
 
 const TONE_ICON = { restock: Boxes, overstock: Boxes, sales_down: TrendingDown, sales_up: TrendingUp, no_recent_sales: AlertTriangle, priced_above: Tag, priced_below: Tag, no_competitor_prices: Users, competitor_price_change: Tag, negative_reviews: MessageSquareText };
 
@@ -157,6 +159,7 @@ export function ProductHubPage() {
                           <td>
                             <button type="button" className="apex-table__link" onClick={() => navigate(routePaths.marketCompetitorDetail.replace(':competitorId', c.competitor_id))}>{c.name}</button>
                             <div><Pill tone={c.level === 'PRODUCT' ? 'violet' : 'neutral'}>{t(c.level === 'PRODUCT' ? 'productHub.competition.levelProduct' : 'productHub.competition.levelMarket')}</Pill></div>
+                            <CompetitorDataChips data={c.details} competitorId={c.competitor_id} />
                             {c.url && <a className="apex-inline-link" href={c.url} target="_blank" rel="noreferrer noopener" aria-label={t('productHub.competition.openListing', { name: c.name })}><ExternalLink size={12} /></a>}
                           </td>
                           <td className="apex-table__num apex-table__primary">{c.price == null ? '—' : money(c.price, c.currency)}{c.price_change_pct != null && <div><Delta value={c.price_change_pct} /></div>}</td>
@@ -177,6 +180,7 @@ export function ProductHubPage() {
                   </table>
                 </div>
               )}
+              <ProductMarketDetail product={product} competitors={competitors} currency={currency} />
               {competitors.industry_level.length > 0 && (
                 <div className="product-industry">
                   <p className="apex-eyebrow">{t('productHub.competition.industryTitle')}</p>

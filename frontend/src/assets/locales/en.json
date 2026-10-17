@@ -3227,5 +3227,169 @@
       "within": "within range"
     },
     "provenance": "Counts and prices come only from stored scan results; each price links to the page it was published on."
+  },
+  "competitorData": {
+    "title": "Data we have",
+    "retry": "Retry",
+    "retrying": "Retrying…",
+    "retryAll": "Retry all failed",
+    "retryAllHint": "Re-tries every competitor detail that failed or is missing. It runs in the background.",
+    "lastTry": "Last tried {{date}}",
+    "never": "Not tried yet",
+    "reviewTerms": "Review terms",
+    "completeness": {
+      "title": "Data completeness",
+      "subtitle": "What KEEL has collected about this competitor, what is missing and why. Retry only adds data; it never removes what is already stored.",
+      "score": "{{score}}% complete",
+      "unknown": "Not checked yet",
+      "items": "{{count}} found"
+    },
+    "facet": {
+      "PROFILE": "Business profile",
+      "SOCIAL_LINKS": "Social profiles",
+      "REVIEWS": "Google reviews",
+      "PRICES": "Prices",
+      "SOCIAL_CONTENT": "Social posts and comments"
+    },
+    "status": {
+      "SUCCEEDED": "Collected",
+      "PARTIAL": "Partly collected",
+      "FAILED": "Failed",
+      "BLOCKED": "Blocked",
+      "PENDING": "Waiting",
+      "NOT_APPLICABLE": "Not applicable"
+    },
+    "reason": {
+      "NO_CREDENTIALS": "The service has no Google key set up.",
+      "CREDENTIALS_REJECTED": "Google rejected the key. Check it is enabled for the Places API.",
+      "QUOTA_EXHAUSTED": "Google's daily limit was reached. It will be retried automatically.",
+      "PROVIDER_ERROR": "The data provider had a problem. It will be retried automatically.",
+      "NO_MATCH": "No matching Google listing was found for this business.",
+      "INCOMPLETE_LISTING": "The Google listing exists but has no address or rating.",
+      "NO_WEBSITE": "This business has no website.",
+      "ROBOTS_DISALLOWED": "The website does not allow automated collection.",
+      "SITE_UNREACHABLE": "The website could not be reached. It will be retried automatically.",
+      "SHARED_RECORD": "This is a shared record and cannot be changed.",
+      "NO_PRODUCTS_MAPPED": "None of your products has been matched on this competitor yet.",
+      "TERMS_UNREVIEWED": "The site's terms have not been reviewed, so prices are not collected.",
+      "NO_DATA_COLLECTED": "Collection is set up but nothing has come back yet.",
+      "COLLECTOR_NOT_ENABLED": "This kind of data is not collected yet.",
+      "NO_SOCIAL_LINKS": "No social profile is known for this competitor.",
+      "NO_PLACE_ID": "No Google listing is known yet. Retry the business profile first.",
+      "PLATFORM_APPROVAL_MISSING": "Storing Google reviews has not been approved by the administrator yet.",
+      "SERVICE_MISCONFIGURED": "The service is missing a setting. Please contact support.",
+      "NOT_ATTEMPTED": "Not collected yet.",
+      "UNKNOWN": "No more detail is available."
+    },
+    "outcome": {
+      "succeeded": "Everything was collected.",
+      "partial": "Some details were collected; the rest is shown below with the reason.",
+      "failed": "Nothing new could be collected. The reasons are shown below.",
+      "queued": "Retry started in the background. Results appear here shortly.",
+      "alreadyQueued": "A retry is already running.",
+      "tooSoon": "You just retried. Please wait a moment.",
+      "error": "The retry could not be started. Please try again."
+    },
+    "overview": {
+      "rating": "{{rating}} on Google ({{count}})",
+      "comments": "Comments collected: {{count}}",
+      "agreeing": "People agreeing: {{count}}",
+      "noComments": "No comments collected yet",
+      "sentiment": {
+        "Positive": "Mostly positive",
+        "Neutral": "Mixed",
+        "Negative": "Mostly negative"
+      }
+    },
+    "comments": {
+      "title": "What people say",
+      "subtitle": "The real comments and reviews collected about this competitor. A like counts as one more person who agrees.",
+      "summary": "Comments: {{comments}} · Replies: {{replies}} · People agreeing: {{agreeing}}",
+      "sort": "Sort comments",
+      "helpful": "Most agreed",
+      "recent": "Newest",
+      "agree": "{{count}} agree",
+      "replies": "Replies: {{count}}",
+      "repliesTo": "Replies",
+      "heldBack": "Held back by the safety check: {{count}}",
+      "loadMore": "Show more",
+      "empty": "No comments collected yet",
+      "emptyHint": "Use Retry above to collect Google reviews. Social comments need a connected social data provider.",
+      "error": "The comments could not be loaded.",
+      "sentiment": {
+        "positive": "Positive",
+        "negative": "Negative",
+        "neutral": "Neutral"
+      },
+      "anonymous": "Anonymous"
+    },
+    "coverage": {
+      "eyebrow": "Market prices",
+      "title": "Does every product have a market price?",
+      "subtitle": "A market price comes from a tracked competitor or, failing that, from public listings and price databases. A product nobody sells online can stay empty - the reason is shown.",
+      "stats": {
+        "covered": "With a market price",
+        "competitor": "From competitors",
+        "reference": "From public listings",
+        "gaps": "Without a price",
+        "barcodes": "Without a barcode"
+      },
+      "find": "Find missing prices",
+      "finding": "Looking…",
+      "findStarted": "Looking for prices in the background. Refresh in a minute.",
+      "findAlready": "A price search is already running.",
+      "findFailed": "The price search could not be started.",
+      "onlyGaps": "Price gaps",
+      "onlyBarcodes": "Add barcodes",
+      "product": "Product",
+      "reason": "Why there is no price",
+      "lastLookup": "Last search: {{outcome}} · {{date}}",
+      "neverSearched": "Not searched yet",
+      "allCovered": "Every product has a market price.",
+      "noBarcodes": "Every product has a barcode.",
+      "error": "Price coverage could not be loaded.",
+      "reasons": {
+        "NO_COMPETITOR_MAPPED": "No competitor is matched to this product.",
+        "TERMS_UNREVIEWED": "Matched, but the site's terms are waiting for your review.",
+        "ROBOTS_DISALLOWED": "Matched, but the site does not allow automated collection.",
+        "NO_DATA_COLLECTED": "A source is approved but no price has come back yet."
+      },
+      "lookup": {
+        "FOUND": "found",
+        "NOTHING_FOUND": "nothing found",
+        "NOT_CONFIGURED": "no source set up",
+        "PROVIDER_ERROR": "source error"
+      },
+      "basis": {
+        "competitor": "Competitor price",
+        "market_reference": "Public listing"
+      }
+    },
+    "barcode": {
+      "label": "Barcode",
+      "placeholder": "EAN / UPC (8–14 digits)",
+      "add": "Add barcode",
+      "save": "Save",
+      "saved": "Barcode saved",
+      "invalid": "That is not a valid barcode. Check the digits.",
+      "hint": "A barcode lets KEEL find this product's price exactly."
+    },
+    "product": {
+      "eyebrow": "Market prices",
+      "title": "Prices on the market",
+      "subtitle": "Prices from public listings and price databases, shown separately from your tracked competitors.",
+      "basis": "Price basis",
+      "none": "No market price found yet",
+      "seller": "Seller",
+      "price": "Price",
+      "rating": "Their rating",
+      "listing": "Listing",
+      "counted": "Counted",
+      "notCounted": "Far from your price - not counted",
+      "referenceRange": "Public listings: lowest {{low}} · average {{avg}} · highest {{high}} ({{count}})",
+      "reviews": "Reviews: {{count}}",
+      "open": "Open listing",
+      "competitorDetails": "Competitor details"
+    }
   }
 }
