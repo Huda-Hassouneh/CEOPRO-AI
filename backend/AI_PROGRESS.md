@@ -1,5 +1,4 @@
 # KEEL — AI/ML Engineering Progress Log
-
 **Owner:** AI/ML Engineering
 **Tracks:** implementation progress against `MASTER_SPEC_v4.md`'s AI phases (§18–§27, Phase 2 onward).
 **Update convention:** append-only, date-stamped entries at the bottom. Don't edit or delete past
