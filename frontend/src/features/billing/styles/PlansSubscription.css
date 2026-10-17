@@ -36,3 +36,9 @@
 .billing-current-plan__actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-inline-start: auto; }
 .billing-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
 .billing-invoice-table a { display: inline-flex; align-items: center; gap: 4px; color: var(--ceopro-primary); }
+.billing-credit-line { display: block; margin-top: 6px; color: var(--ceopro-text-muted); font-size: 10px; }
+.billing-usage-card.is-approaching .billing-credit-line[role="status"] { color: var(--apex-warning); }
+.billing-usage-card.is-reached .billing-credit-line[role="alert"] { color: var(--ceopro-error); }
+.billing-credit-help { display: block; margin-top: 10px; color: var(--ceopro-text-muted); font-size: 9px; }
+.billing-credit-note { margin: 12px 0 0; color: var(--ceopro-text-muted); font-size: 11px; }
+.billing-credit-grid .billing-usage-card header strong { display: inline-flex; align-items: center; gap: 5px; }
