@@ -37,8 +37,24 @@ import uuid
 DOCUMENT = ("Supplier agreement summary. Our supplier Al-Noor Trading delivers every Tuesday. "
             "The minimum order with Al-Noor Trading is 250 JOD and the payment terms are net 45 days. "
             "Late deliveries earn a 3 percent discount on that invoice.")
-# "What are the payment terms with the supplier?" - no word in common with DOCUMENT.
-CROSS_LINGUAL_QUESTION = "ما هي شروط الدفع مع المورد؟"
+# Four unrelated company documents, so finding the right one is a real choice.
+DOCUMENTS = {
+    "supplier_agreement.txt": DOCUMENT,
+    "leave_policy.txt": ("Staff handbook, time off. Every employee receives 21 days of paid annual leave each year. "
+                         "Sick leave longer than two days needs a medical certificate."),
+    "summer_campaign.txt": ("Marketing plan. The summer campaign launches on Instagram in June, "
+                            "offering customers a 15 percent discount code for the first week."),
+    "delivery_times.txt": ("Logistics note. Orders to Irbid arrive within two working days; "
+                           "deliveries to Aqaba take four working days."),
+}
+# Arabic questions, none sharing a word with the English document they're about.
+ARABIC_QUESTIONS = {
+    "supplier_agreement.txt": "ما هي شروط الدفع مع المورد؟",  # What are the payment terms with the supplier?
+    "leave_policy.txt": "كم يوما من الإجازة السنوية يحصل عليها الموظف؟",  # How many days of annual leave does an employee get?
+    "summer_campaign.txt": "متى تبدأ الحملة التسويقية الصيفية؟",  # When does the summer marketing campaign start?
+    "delivery_times.txt": "كم يستغرق توصيل الطلبات إلى إربد؟",  # How long does delivery of orders to Irbid take?
+}
+CROSS_LINGUAL_QUESTION = ARABIC_QUESTIONS["supplier_agreement.txt"]
 # Shares words with DOCUMENT: what keyword search alone must still answer.
 KEYWORD_QUESTION = "What are the payment terms with Al-Noor Trading?"
 SENTENCES = [DOCUMENT, CROSS_LINGUAL_QUESTION, "Which products are most profitable?"]
@@ -74,7 +90,8 @@ class _Storage:
     """Stands in for MinIO: the check is about retrieval, not object storage."""
 
     def get_object(self, bucket, key):
-        return _Object(DOCUMENT.encode())
+        name = next(n for n in DOCUMENTS if key.endswith(n.replace(".txt", "")) or n.replace(".txt", "") in key)
+        return _Object(DOCUMENTS[name].encode())
 
 
 def main() -> int:
@@ -118,13 +135,15 @@ def main() -> int:
     conn = psycopg2.connect(database_url)
     try:
         tenant = _seed_live_tenant(conn)
+        document_ids = []
         with conn.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO rag_documents_metadata (tenant_id, file_name, storage_bucket_path, file_size_bytes, content_type) "
-                "VALUES (%s, 'supplier_agreement.txt', %s, %s, 'text/plain') RETURNING document_id;",
-                (tenant, f"{tenant}/supplier_agreement_{uuid.uuid4().hex[:8]}.txt", len(DOCUMENT)),
-            )
-            document_id = cursor.fetchone()[0]
+            for name, text in DOCUMENTS.items():
+                cursor.execute(
+                    "INSERT INTO rag_documents_metadata (tenant_id, file_name, storage_bucket_path, file_size_bytes, content_type) "
+                    "VALUES (%s, %s, %s, %s, 'text/plain') RETURNING document_id;",
+                    (tenant, name, f"{tenant}/{name.replace('.txt', '')}_{uuid.uuid4().hex[:8]}.txt", len(text)),
+                )
+                document_ids.append(cursor.fetchone()[0])
         conn.commit()
         processed = pipeline.ingest_pending_documents(conn, _Storage(), tenant)
         with conn.cursor() as cursor:
@@ -140,16 +159,26 @@ def main() -> int:
 
         document_question = CROSS_LINGUAL_QUESTION if semantic else KEYWORD_QUESTION
         index = pipeline.build_hybrid_index(conn, tenant, use_cache=False)
-        keyword_hits = [c for c in index.bm25.query(document_question, top_k=5) if c.score > 0]
-        context = pipeline.run_retrieval(conn, tenant, document_question, top_k=3)
-        found = "net 45 days" in context.context_text
-        print(f"{'Arabic' if semantic else 'English'} question vs English document: keyword hits={len(keyword_hits)}, "
-              f"retrieved={len(context.sources)}, document found={found}")
-        print("  tokens the keyword index saw:", bm25_index.tokenize(document_question))
-        if semantic and keyword_hits:
-            print("  (BM25 matched something, so this run doesn't isolate the semantic path)")
-        if not found:
-            failures.append(("semantic" if semantic else "keyword") + " retrieval did not find the document")
+        pipeline.invalidate_tenant_index_cache(tenant)
+        questions = ARABIC_QUESTIONS if semantic else {"supplier_agreement.txt": KEYWORD_QUESTION}
+        right = 0
+        for expected, question in questions.items():
+            keyword_hits = [c for c in index.bm25.query(question, top_k=5) if c.score > 0]
+            context = pipeline.run_retrieval(conn, tenant, question, top_k=1)
+            top = next((n for n, text in DOCUMENTS.items() if text[:40] in context.context_text), None)
+            right += top == expected
+            print(f"{question}\n  expected {expected}: top result {top} ({'right' if top == expected else 'WRONG'}), "
+                  f"keyword hits {len(keyword_hits)}")
+            if semantic and keyword_hits:
+                print("  (BM25 matched something for this question)")
+        print(f"{right}/{len(questions)} questions found their document first"
+              + (" - by meaning alone: no question shares a word with the documents" if semantic else ""))
+        if semantic and (right < len(questions) - 1 or "net 45 days" not in pipeline.run_retrieval(
+                conn, tenant, CROSS_LINGUAL_QUESTION, top_k=1).context_text):
+            failures.append(f"semantic retrieval ranked the right document first for only {right}/{len(questions)} "
+                            "Arabic questions (needs the supplier question and at least 3)")
+        if not semantic and not right:
+            failures.append("keyword retrieval did not find the document")
 
         if os.getenv("GROQ_API_KEY") or llm_client.LOCAL_LLM_BASE_URL or llm_client.PAID_LLM_BASE_URL:
             for question in (document_question, "Which products are most profitable?"):
@@ -166,7 +195,8 @@ def main() -> int:
         else:
             print("\nLLM check skipped: no provider configured (GROQ_API_KEY unset)")
         with conn.cursor() as cursor:  # the seeded tenant's other rows stay, as with run_eval
-            cursor.execute("DELETE FROM rag_documents_metadata WHERE document_id = %s;", (document_id,))
+            cursor.execute("DELETE FROM rag_documents_metadata WHERE document_id = ANY(%s::uuid[]);",
+                           ([str(d) for d in document_ids],))
         conn.commit()
     finally:
         conn.close()
