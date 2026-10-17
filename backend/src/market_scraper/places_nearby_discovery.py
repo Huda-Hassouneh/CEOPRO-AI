@@ -32,6 +32,7 @@ from typing import List, Optional
 
 from src.market_scraper.discovery import CandidateSource
 from src.market_scraper.settings import USER_AGENT
+from src.market_scraper.provider_billing import metered_request
 
 logger = logging.getLogger("CEOPRO_AI_PLACES_NEARBY_DISCOVERY")
 
@@ -48,8 +49,12 @@ def _get(url: str, params: dict) -> Optional[dict]:
     query = urllib.parse.urlencode(params)
     req = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT) as resp:
-            return json.loads(resp.read().decode("utf-8", errors="ignore"))
+        def send():
+            with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT) as resp:
+                return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+        # Paid from the company's Data Credits; refused (never sent) when they don't allow it.
+        return metered_request(url, send)
     except Exception as e:  # noqa: BLE001 - any failure here means "no data", not a crash
         logger.warning("Google Places request failed: %s", e)
         return None

@@ -7,7 +7,7 @@ import { PeriodSelector } from './PeriodSelector.jsx';
 
 // The public plan catalog (landing page): real prices from the backend.
 export function PlanSelector({ billingPeriod, onPeriodChange, onPlanSelect }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const plansQuery = usePlans();
   if (plansQuery.isPending) return <div className="ceopro-plan-grid">{[0, 1, 2].map((i) => <Skeleton key={i} height="320px" variant="rectangular" />)}</div>;
   if (plansQuery.isError) return null;
@@ -23,7 +23,7 @@ export function PlanSelector({ billingPeriod, onPeriodChange, onPlanSelect }) {
       <div className="ceopro-billing-period-row"><PeriodSelector plans={plans} value={billingPeriod} onChange={onPeriodChange} /></div>
       <div className="ceopro-plan-grid">
         {plans.map((plan) => <PlanCard key={plan.id} plan={plan} billingPeriod={billingPeriod} onAction={onPlanSelect}
-          actionLabel={plan.selfServe ? t('billing.plans.startWith', { plan: plan.name?.en }) : t('billing.management.contactSales')} />)}
+          actionLabel={plan.selfServe ? t('billing.plans.startWith', { plan: plan.name?.[locale] || plan.name?.en }) : t('billing.management.contactSales')} />)}
       </div>
     </div>
   );

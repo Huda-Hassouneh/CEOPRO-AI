@@ -63,6 +63,7 @@ import os
 from typing import List, Optional
 from urllib.parse import urlsplit
 
+from src.ai.billing import credits
 from src.market_scraper.category_taxonomy import categorize_catalog, search_keyword_for_path
 from src.market_scraper.company_geo_profile import get_tenant_search_scope
 from src.market_scraper.direct_search import retailer_domains_for, search_product_across_retailers
@@ -126,6 +127,7 @@ def _load_active_tenant_products(conn, tenant_id: str, skip_already_discovered: 
     return products
 
 
+@credits.metered("product_discovery")
 def discover_competitors_for_tenant(
     conn, tenant_id: str, actor_user_id: str,
     geo_scope: Optional[str] = None, max_products: Optional[int] = None,
@@ -249,6 +251,7 @@ def discover_competitors_for_tenant(
     return results
 
 
+@credits.metered("product_discovery")
 def discover_domain_level_competitors_for_tenant(
     conn, tenant_id: str, actor_user_id: str,
     google_places_api_key: Optional[str] = None,
@@ -380,6 +383,7 @@ def discover_domain_level_competitors_for_tenant(
     return results
 
 
+@credits.metered("product_discovery")
 def map_products_on_domain_competitor_site(
     conn, tenant_id: str, actor_user_id: str, website_url: str, products: list,
     group_by_family: bool = True, per_product_limit: int = 3,

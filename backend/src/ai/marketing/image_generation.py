@@ -91,6 +91,8 @@ from urllib.parse import quote
 import httpx
 from PIL import Image
 
+from src.ai.billing import credits
+
 logger = logging.getLogger("CEOPRO_AI_MARKETING_IMAGE")
 
 _NOT_CONFIGURED_MESSAGE = (
@@ -339,6 +341,9 @@ _PROVIDERS = {
 _KEYED = {"cloudflare": lambda: bool(os.getenv("CLOUDFLARE_ACCOUNT_ID") and os.getenv("CLOUDFLARE_API_TOKEN")),
           "huggingface": lambda: bool(os.getenv("HUGGINGFACE_API_TOKEN"))}
 _TOTAL_BUDGET_SECONDS = float(os.getenv("MARKETING_IMAGE_TOTAL_SECONDS", "120"))
+# Spending-policy refusals about one provider (its price, switch or cap):
+# the next provider may still be tried.
+_PROVIDER_SPECIFIC_REFUSALS = ("COST_NOT_CONFIGURED", "PROVIDER_DISABLED", "PROVIDER_CAP_REACHED")
 
 
 def provider_chain() -> List[str]:
@@ -435,7 +440,18 @@ def generate_campaign_image(
             break
         logger.info("Generating marketing image via %s (reference_image=%s)", name, bool(reference_image))
         try:
-            image = verify_image(_PROVIDERS[name](prompt, reference_image=reference_image, reference_content_type=reference_content_type))
+            # Paid from the company's AI Credits; an image the provider
+            # returned is billed even if it then fails our checks.
+            with credits.provider_call(credits.AI, name, "image_generation", {"image": 1}) as call:
+                raw = _PROVIDERS[name](prompt, reference_image=reference_image, reference_content_type=reference_content_type)
+                call.measured({"image": 1})
+            image = verify_image(raw)
+        except credits.BudgetError as err:
+            if err.reason not in _PROVIDER_SPECIFIC_REFUSALS:
+                raise  # the company's budget or access: no other provider may run either
+            attempts.append({"provider": name, "reason": "not_configured"})
+            logger.warning("image provider %s refused by spending policy: %s", name, err.reason)
+            continue
         except ProviderBusy as err:
             _cool_down(name, err.retry_after)
             attempts.append({"provider": name, "reason": "busy"})

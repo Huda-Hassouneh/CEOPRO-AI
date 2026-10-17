@@ -62,10 +62,15 @@ Fetch = Callable[..., dict]
 
 
 def _default_fetch(method: str, url: str, *, params=None, json=None, headers=None) -> dict:
-    response = httpx.request(method, url, params=params, json=json, timeout=TIMEOUT,
-                             headers={"User-Agent": USER_AGENT, **(headers or {})})
-    response.raise_for_status()
-    return response.json()
+    from src.market_scraper.provider_billing import metered_request
+
+    def send():
+        response = httpx.request(method, url, params=params, json=json, timeout=TIMEOUT,
+                                 headers={"User-Agent": USER_AGENT, **(headers or {})})
+        response.raise_for_status()
+        return response.json()
+
+    return metered_request(url, send, json_body=json)  # paid searches come out of Data Credits
 
 
 def _results(items, url_key: str, snippet_key: str, limit: int) -> List[Result]:

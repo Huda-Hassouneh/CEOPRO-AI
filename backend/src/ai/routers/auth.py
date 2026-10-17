@@ -29,7 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from src.ai import db
-from src.ai.core import auth_throttle, notifications
+from src.ai.core import auth_throttle, notifications, usage
 from src.ai.core.calendar import default_timezone_for_country
 from src.ai.core import security
 from src.ai.core.security import (
@@ -204,10 +204,11 @@ def is_demo_email(email: str) -> bool:
     return (email or "").strip().lower().endswith(".example")
 
 
-def _start_free_trial(tenant_id: str) -> None:
-    """A new company starts on the plan's free trial (once per company).
-    A failure here never blocks sign-up: the company simply starts without
-    a trial and can subscribe from Billing."""
+def _start_free_trial(tenant_id: str, user_id: str) -> None:
+    """A new company starts on the plan's free trial: once per company, and
+    once per person (someone who already started a trial for another company
+    doesn't get a second one). A failure or a refused trial never blocks
+    sign-up: the company has no plan until it subscribes from Billing."""
     from src.ai.billing import store as billing_store
 
     try:
@@ -216,7 +217,7 @@ def _start_free_trial(tenant_id: str) -> None:
         logger.exception("Could not open a system connection to start the trial (tenant=%s)", tenant_id)
         return
     try:
-        billing_store.start_trial(sys_conn, tenant_id)
+        billing_store.start_trial(sys_conn, tenant_id, started_by_user_id=user_id)
         sys_conn.commit()
     except Exception:  # noqa: BLE001
         sys_conn.rollback()
@@ -304,7 +305,7 @@ def signup(body: SignupRequest) -> dict:
     finally:
         conn.close()
 
-    _start_free_trial(tenant_id)
+    _start_free_trial(tenant_id, user_id)
     # The first verification code goes out with the welcome; the app shows
     # where to enter it next.
     lookup_conn = db.auth_lookup_connection()
@@ -443,7 +444,7 @@ def create_workspace(body: CreateWorkspaceRequest, ctx: TenantContext = Depends(
         raise
     finally:
         conn.close()
-    _start_free_trial(tenant_id)
+    _start_free_trial(tenant_id, ctx.user_id)
     return _session(tenant_id, ctx.user_id, "owner", business_name, full_name, language or "en", email)
 
 
@@ -722,6 +723,22 @@ class AcceptInvitationRequest(BaseModel):
     password: Optional[str] = None
 
 
+def _seat_limit(tenant_id: str):
+    """The company's seat limit (None = unlimited), read on the billing
+    service's connection: the invitee isn't a member yet. A company without
+    access gets no new members."""
+    sys_conn = db.system_connection()
+    try:
+        plan = usage.get_plan(sys_conn, tenant_id)
+        sys_conn.commit()
+    finally:
+        sys_conn.close()
+    if plan["status"] not in usage.ACCESS_GRANTING_STATUSES:
+        raise usage.PlanLimitReached("SUBSCRIPTION_INACTIVE", usage.TEAM_SEATS).as_http()
+    feature = plan["features"].get(usage.TEAM_SEATS)
+    return feature["limit"] if feature else 0
+
+
 @router.post("/invitations/{token}/accept")
 def accept_invitation(token: str, body: AcceptInvitationRequest) -> dict:
     """
@@ -756,6 +773,7 @@ def accept_invitation(token: str, body: AcceptInvitationRequest) -> dict:
         user_id = str(uuid.uuid4())
         full_name = body.full_name
 
+    seat_limit = _seat_limit(tenant_id)
     conn = db.app_role_connection(tenant_id, user_id)
     try:
         if existing_user is None:
@@ -766,9 +784,15 @@ def accept_invitation(token: str, body: AcceptInvitationRequest) -> dict:
                 )
         with conn.cursor() as cursor:
             # Through a SECURITY DEFINER function: the invitee isn't a member
-            # yet, so tenant_users' own policies can't admit them (see
-            # migration 20261011000100_add_auth_join_tenant.sql).
-            cursor.execute("SELECT auth_join_tenant(%s, %s, %s);", (tenant_id, user_id, invitation["role_key"]))
+            # yet, so tenant_users' own policies can't admit them. It checks
+            # the plan's seat limit under a per-company lock (migration
+            # 20261020000000_keel_subscriptions_and_credits.sql).
+            cursor.execute("SELECT auth_join_tenant(%s, %s, %s, %s);",
+                           (tenant_id, user_id, invitation["role_key"], seat_limit))
+            joined = cursor.fetchone()[0]
+        if not joined:
+            conn.rollback()
+            raise usage.PlanLimitReached("CAPACITY_REACHED", usage.TEAM_SEATS, None, seat_limit, "lifetime").as_http()
         conn.commit()
         _consume_token(conn, invitation["token_id"])
     except Exception:
