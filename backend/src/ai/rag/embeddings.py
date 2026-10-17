@@ -42,6 +42,7 @@ MODEL_NAME = os.getenv("RAG_EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 BACKEND = os.getenv("RAG_EMBEDDING_BACKEND", "torch").strip().lower()
 ONNX_FILE = os.getenv("RAG_EMBEDDING_ONNX_FILE", "onnx/model_quint8_avx2.onnx")
 _ONNX_BATCH = 32
+_ONNX_THREADS = int(os.getenv("RAG_EMBEDDING_ONNX_THREADS", "1"))
 
 # paraphrase-multilingual-MiniLM-L12-v2 defaults to 128 tokens, but chunks are ~200
 # words (more tokens in Arabic), so the tail of every chunk was silently never
@@ -79,7 +80,13 @@ class _OnnxEncoder:
         self._tokenizer = Tokenizer.from_file(hf_hub_download(model_name, "tokenizer.json"))
         self._tokenizer.enable_truncation(max_seq_length)
         self._tokenizer.enable_padding()
-        self._session = onnxruntime.InferenceSession(hf_hub_download(model_name, file_name),
+        options = onnxruntime.SessionOptions()
+        # Memory over speed: no pre-grown arena or per-shape memory plans
+        # (they hold hundreds of MB between calls), and one thread.
+        options.enable_cpu_mem_arena = False
+        options.enable_mem_pattern = False
+        options.intra_op_num_threads = _ONNX_THREADS
+        self._session = onnxruntime.InferenceSession(hf_hub_download(model_name, file_name), options,
                                                      providers=["CPUExecutionProvider"])
         self._inputs = {i.name for i in self._session.get_inputs()}
 
