@@ -231,7 +231,7 @@ def test_create_product_calls_with_manual_semantics_and_returns_result():
     fake_conn.commit.assert_called_once()
     mock_create.assert_called_once_with(
         fake_conn, "t1", "u1", {"en": "Widget", "ar": "ودجت"}, {"en": "Acme"}, None, None,
-        10.0, 6.0, "JOD", 25,
+        10.0, 6.0, "JOD", 25, None,
     )
 
 
@@ -462,7 +462,7 @@ def test_query_create_product_always_writes_manual_source():
     conn = MagicMock()
     insert_cursor = _cursor_returning(fetchone_values=[("new-product-id",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None),
+        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None),
         None,
     ])
     conn.cursor.side_effect = [insert_cursor, get_cursor]
@@ -486,7 +486,7 @@ def test_query_create_product_leaves_stock_untracked_when_omitted():
     conn = MagicMock()
     insert_cursor = _cursor_returning(fetchone_values=[("new-product-id",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None),
+        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None),
         None,
     ])
     conn.cursor.side_effect = [insert_cursor, get_cursor]
@@ -508,7 +508,7 @@ def test_query_update_product_builds_set_clause_only_from_whitelisted_columns():
     conn = MagicMock()
     update_cursor = _cursor_returning(fetchone_values=[("p1",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("p1", {"en": "New Name"}, None, None, None, 12.0, None, "JOD", "MANUAL", None, None), None,
+        ("p1", {"en": "New Name"}, None, None, None, 12.0, None, "JOD", "MANUAL", None, None, None), None,
     ])
     conn.cursor.side_effect = [update_cursor, get_cursor]
 
@@ -586,3 +586,68 @@ def test_query_upsert_inventory_updates_only_provided_fields_when_row_exists():
     assert "reorder_level" not in sql.split("SET")[1].split("WHERE")[0]
     assert params == [7, "inv-1"]
     assert result["stock_quantity"] == 7
+
+
+# ---- barcode (EAN/UPC/GTIN) ---------------------------------------------------------------
+
+def test_barcode_check_digit_validation():
+    from src.ai.core.barcode import normalize_barcode
+    assert normalize_barcode("3017620422003") == "3017620422003"          # EAN-13
+    assert normalize_barcode("3017 6204-22003") == "3017620422003"        # spaces and hyphens are removed
+    assert normalize_barcode("036000291452") == "036000291452"            # UPC-A
+    assert normalize_barcode("96385074") == "96385074"                    # EAN-8
+    assert normalize_barcode(None) is None and normalize_barcode("  ") is None
+    for bad in ("3017620422004", "12345", "30176204220AB", "0360002914521"):
+        try:
+            normalize_barcode(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"{bad!r} should have been refused")
+
+
+def test_create_and_update_refuse_a_bad_barcode_with_a_422():
+    body = {"product_name": {"en": "Widget"}, "current_price": 1, "currency": "JOD", "barcode": "3017620422004"}
+    assert client.post("/products", json=body, headers=_auth()).status_code == 422
+    assert client.patch("/products/p1", json={"barcode": "123"}, headers=_auth()).status_code == 422
+
+
+def test_create_passes_a_normalized_barcode_through():
+    with patch("src.ai.routers.products.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.products._publish_discovery_request"), \
+         patch("src.ai.routers.products.create_product", return_value={"product_id": "n"}) as mock_create:
+        response = client.post(
+            "/products", headers=_auth(),
+            json={"product_name": {"en": "Widget"}, "current_price": 1, "currency": "JOD", "barcode": "3017 6204 22003"},
+        )
+    assert response.status_code == 200
+    assert mock_create.call_args.args[-1] == "3017620422003"
+
+
+def test_query_create_product_stores_the_barcode_in_metadata_without_touching_other_keys():
+    conn = MagicMock()
+    insert_cursor = _cursor_returning(fetchone_values=[("new-id",)])
+    get_cursor = _cursor_returning(fetchone_values=[
+        ("new-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, "3017620422003"), None,
+    ])
+    conn.cursor.side_effect = [insert_cursor, get_cursor]
+    result = products.create_product(conn, "t1", "u1", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", None, "3017620422003")
+    sql, params = insert_cursor.execute.call_args_list[0].args
+    assert "metadata" in sql and '"barcode": "3017620422003"' in params[8]
+    assert result["barcode"] == "3017620422003"
+    conn.cursor.side_effect = [_cursor_returning(fetchone_values=[("n2",)]), _cursor_returning(fetchone_values=[
+        ("n2", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, None), None])]
+    products.create_product(conn, "t1", "u1", {"en": "W"}, None, None, None, 1.0, None, "JOD", None)
+    assert conn.cursor.call_count == 4
+
+
+def test_query_update_product_sets_and_clears_the_barcode_key_only():
+    for value, expected_fragment in (("3017620422003", "|| jsonb_build_object('barcode'"), (None, "- 'barcode'")):
+        conn = MagicMock()
+        update_cursor = _cursor_returning(fetchone_values=[("p1",)])
+        get_cursor = _cursor_returning(fetchone_values=[
+            ("p1", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, value), None])
+        conn.cursor.side_effect = [update_cursor, get_cursor]
+        products.update_product(conn, "t1", "u1", "p1", {"barcode": value})
+        sql, params = update_cursor.execute.call_args.args
+        assert expected_fragment in sql and "metadata = COALESCE(metadata" in sql
+        assert ("3017620422003" in params) is (value is not None)
