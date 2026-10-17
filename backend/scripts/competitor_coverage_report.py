@@ -86,7 +86,6 @@ def main() -> int:
                 causes[(facet, info["reason_code"])] += 1
             print(f"    {facet:15s} {info['status']:15s} {line}")
         print()
-
     total = len(raw)
     print(f"Summary over {total} competitor(s) - most common gaps:")
     for (facet, reason), count in causes.most_common(10):
