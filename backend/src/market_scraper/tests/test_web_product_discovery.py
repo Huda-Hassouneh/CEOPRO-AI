@@ -115,8 +115,7 @@ def test_cache_miss_calls_live_api_and_stores_the_result():
     conn = MagicMock()
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
          patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
-         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
-         patch("src.market_scraper.web_product_discovery.search_quota.record_query") as mocked_record, \
+         patch("src.market_scraper.web_product_discovery.search_quota.try_reserve_query", return_value=True) as mocked_record, \
          patch("src.market_scraper.web_product_discovery._get", return_value=payload):
         candidates = discover_product_candidates("Espresso Machine", api_key="k", cx="c", conn=conn)
 
@@ -129,8 +128,7 @@ def test_a_genuinely_empty_google_result_is_cached_not_treated_as_a_failure():
     conn = MagicMock()
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
          patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
-         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
-         patch("src.market_scraper.web_product_discovery.search_quota.record_query"), \
+         patch("src.market_scraper.web_product_discovery.search_quota.try_reserve_query", return_value=True), \
          patch("src.market_scraper.web_product_discovery._get", return_value={"items": []}), \
          patch("src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates") as mocked_searxng:
         candidates = discover_product_candidates("A product nobody sells", api_key="k", cx="c", conn=conn)
@@ -144,8 +142,7 @@ def test_google_error_triggers_searxng_fallback_and_is_not_cached():
     conn = MagicMock()
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
          patch("src.market_scraper.web_product_discovery.search_cache.set_cached") as mocked_set, \
-         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
-         patch("src.market_scraper.web_product_discovery.search_quota.record_query"), \
+         patch("src.market_scraper.web_product_discovery.search_quota.try_reserve_query", return_value=True), \
          patch("src.market_scraper.web_product_discovery._get", return_value={"error": {"code": 429}}), \
          patch(
              "src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates",
@@ -174,10 +171,8 @@ def test_record_query_commits_immediately_even_when_the_result_is_zero_candidate
 
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
          patch("src.market_scraper.web_product_discovery.search_cache.set_cached"), \
-         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=True), \
-         patch(
-             "src.market_scraper.web_product_discovery.search_quota.record_query",
-             side_effect=lambda *a, **k: call_order.append("record_query"),
+         patch("src.market_scraper.web_product_discovery.search_quota.try_reserve_query",
+             side_effect=lambda *a, **k: call_order.append("record_query") or True,
          ), \
          patch("src.market_scraper.web_product_discovery._get", return_value={"items": []}):
         discover_product_candidates("A product nobody sells", api_key="k", cx="c", conn=conn)
@@ -188,7 +183,7 @@ def test_record_query_commits_immediately_even_when_the_result_is_zero_candidate
 
 def test_quota_exhausted_skips_the_live_call_and_tries_searxng():
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
-         patch("src.market_scraper.web_product_discovery.search_quota.has_budget", return_value=False), \
+         patch("src.market_scraper.web_product_discovery.search_quota.try_reserve_query", return_value=False), \
          patch("src.market_scraper.web_product_discovery._get") as mocked_get, \
          patch(
              "src.market_scraper.web_product_discovery.searxng_discovery.discover_product_candidates",
@@ -205,8 +200,7 @@ def test_daily_query_limit_none_disables_local_quota_tracking():
     payload = {"items": [{"title": "Buy Espresso Machine", "link": "https://acme.example/espresso"}]}
     with patch("src.market_scraper.web_product_discovery.search_cache.get_cached", return_value=None), \
          patch("src.market_scraper.web_product_discovery.search_cache.set_cached"), \
-         patch("src.market_scraper.web_product_discovery.search_quota.has_budget") as mocked_has_budget, \
-         patch("src.market_scraper.web_product_discovery.search_quota.record_query"), \
+         patch("src.market_scraper.web_product_discovery.search_quota.try_reserve_query") as mocked_has_budget, \
          patch("src.market_scraper.web_product_discovery._get", return_value=payload):
         candidates = discover_product_candidates(
             "Espresso Machine", api_key="k", cx="c", conn=MagicMock(), daily_query_limit=None,

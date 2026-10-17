@@ -63,3 +63,25 @@ def has_budget(conn, daily_limit: int = 100) -> bool:
     daily_limit - checked BEFORE a call is attempted, never after, so a
     call that would exceed the free tier is never made at all."""
     return queries_used_today(conn) < daily_limit
+
+
+def try_reserve_query(conn, daily_limit: int) -> bool:
+    """Atomically claim one query against today's budget: True and the
+    count is incremented, or False and nothing changes. A single
+    INSERT ... ON CONFLICT DO UPDATE ... WHERE is row-locked by Postgres,
+    so concurrent workers cannot both slip under the limit the way a
+    separate has_budget() check followed by record_query() allows."""
+    if daily_limit <= 0:
+        return False
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO search_quota_usage (usage_date, query_count)
+            VALUES (%s, 1)
+            ON CONFLICT (usage_date) DO UPDATE SET query_count = search_quota_usage.query_count + 1
+            WHERE search_quota_usage.query_count < %s
+            RETURNING query_count;
+            """,
+            (_today(), daily_limit),
+        )
+        return cursor.fetchone() is not None
