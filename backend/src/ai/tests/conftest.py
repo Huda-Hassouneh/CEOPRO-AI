@@ -1,5 +1,9 @@
 import os
 
+# One JWT secret for the whole run: core/security.py reads it once at import,
+# so every test file must sign tokens with this same value.
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
+
 # No background forecast threads outliving a test (forecasting/refresh.py).
 os.environ.setdefault("FORECAST_AUTO_REFRESH", "0")
 os.environ.setdefault("DISCOVERY_REFRESH_ENABLED", "0")
