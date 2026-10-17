@@ -78,6 +78,7 @@ from typing import List, Optional, Tuple
 from src.market_scraper import search_cache, search_quota, searxng_discovery, web_search
 from src.market_scraper.discovery import CandidateSource
 from src.market_scraper.sector_detection import build_industry_search_query, build_retail_search_query
+from src.market_scraper.provider_billing import metered_request
 from src.market_scraper.settings import USER_AGENT
 
 logger = logging.getLogger("CEOPRO_AI_WEB_PRODUCT_DISCOVERY")
@@ -97,8 +98,12 @@ def _get(params: dict) -> Optional[dict]:
         f"{_CUSTOM_SEARCH_URL}?{query}", headers={"User-Agent": USER_AGENT},
     )
     try:
-        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT) as resp:
-            return json.loads(resp.read().decode("utf-8", errors="ignore"))
+        def send():
+            with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT) as resp:
+                return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+        # Paid from the company's Data Credits; refused (never sent) when they don't allow it.
+        return metered_request(_CUSTOM_SEARCH_URL, send)
     except Exception as e:  # noqa: BLE001 - any failure here means "no data", not a crash
         logger.warning("Custom Search request failed: %s", e)
         return None

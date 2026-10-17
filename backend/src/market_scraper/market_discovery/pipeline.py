@@ -30,6 +30,7 @@ from src.market_scraper.market_discovery import enrich, geocode, industries, mat
 from src.market_scraper.market_discovery import relevance as relevance_rules
 from src.market_scraper.market_discovery.models import DiscoveryQuery, ProviderResult
 from src.market_scraper.market_discovery.providers import apify_maps, google_places, osm, overture, place_search, web_search, wikidata
+from src.ai.billing import credits
 
 logger = logging.getLogger("KEEL_MARKET_DISCOVERY")
 PROVIDERS = (osm, overture, place_search, wikidata, google_places, web_search, apify_maps)
@@ -183,7 +184,8 @@ def with_category_words(query: DiscoveryQuery, ask=None) -> DiscoveryQuery:
 
 def search_all(query: DiscoveryQuery, providers=PROVIDERS) -> List[ProviderResult]:
     with ThreadPoolExecutor(max_workers=len(providers)) as pool:
-        futures = [pool.submit(p.search, query) for p in providers]
+        # Each provider's thread keeps the company's billing context.
+        futures = [pool.submit(credits.bind(p.search), query) for p in providers]
         results = []
         for provider, future in zip(providers, futures):
             try:
@@ -495,6 +497,7 @@ def _failure_reason(query: DiscoveryQuery, results: List[ProviderResult]) -> str
     return "no_sources"
 
 
+@credits.metered("market_discovery")
 def execute_run(conn, tenant_id: str, run_id: str, radius_km: Optional[float] = None, providers=PROVIDERS,
                 site_reader=None, news_reader=None) -> dict:
     """Runs a queued discovery to completion on `conn` (a tenant connection).

@@ -3,17 +3,22 @@ import httpClient from '../../../shared/lib/httpClient.js';
 // Real billing: the plan catalog, the company's subscription and usage come
 // from the backend (/billing/*); payment happens on Stripe-hosted pages.
 
-// Backend feature codes -> the keys the usage and plan screens render.
-const LIMIT_KEYS = {
+// Backend feature codes -> the keys the usage and plan screens render (the
+// same plan terms as routers/billing.py's _PAGE_KEYS). Competitors have no
+// fixed count (Data Credits limit discovery), and the assistant's token cap
+// is an internal safety limit, so neither is listed.
+export const LIMIT_KEYS = Object.freeze({
   tracked_products: ['products', 1],
-  tracked_competitors: ['competitors', 1],
-  rag_assistant: ['aiTokens', 1],
+  monthly_reports: ['reports', 1],
+  team_seats: ['teamSeats', 1],
+  data_credits: ['dataCredits', 1],
+  ai_credits: ['aiCredits', 1],
   marketing_image_generation: ['imageGenerations', 1],
   document_storage_mb: ['storageGb', 1 / 1024],
   document_extraction: ['documentProcessingMb', 1 / 1024],
   sentiment_analysis: ['sentimentRecords', 1],
   connected_data_sources: ['dataSources', 1],
-};
+});
 
 // Plan modules (backend usage_plan_entitlements) shown on the plan cards.
 export const PLAN_MODULES = Object.freeze(['market_intelligence', 'demand_prediction', 'competitor_management']);
@@ -25,13 +30,17 @@ export const BILLING_PERIODS = Object.freeze([
 ]);
 
 export function mapPlan(plan) {
-  const limits = {};
-  for (const [code, value] of Object.entries(plan.limits || {})) {
-    // Only the plan terms customers see; internal budgets (e.g. web_searches) are skipped.
-    if (!LIMIT_KEYS[code]) continue;
-    const [key, factor] = LIMIT_KEYS[code];
-    limits[key] = value === null ? null : Math.round(value * factor * 1000) / 1000;
-  }
+  const toKeys = (raw) => {
+    const out = {};
+    for (const [code, value] of Object.entries(raw || {})) {
+      // Only the plan terms customers see; internal budgets (e.g. web_searches) are skipped.
+      if (!LIMIT_KEYS[code]) continue;
+      const [key, factor] = LIMIT_KEYS[code];
+      out[key] = value === null ? null : Math.round(value * factor * 1000) / 1000;
+    }
+    return out;
+  };
+  const limits = toKeys(plan.limits);
   const prices = Object.fromEntries((plan.prices || []).map((price) => [price.period_code, {
     amount: price.amount,
     currency: price.currency,
@@ -50,6 +59,7 @@ export function mapPlan(plan) {
     selfServe: plan.self_serve,
     featured: plan.plan_key === 'growth',
     limits,
+    trialLimits: toKeys(plan.trial_limits),
     entitlements: plan.entitlements || [],
     prices,
   };
@@ -80,4 +90,6 @@ export const billingApi = Object.freeze({
   cancelScheduledChange: async () => (await httpClient.delete('/billing/scheduled-change')).data,
   cancel: async () => (await httpClient.post('/billing/cancel')).data,
   resume: async () => (await httpClient.post('/billing/resume')).data,
+  getUsageHistory: async () => (await httpClient.get('/billing/usage-history')).data.items || [],
+  startTrial: async ({ planId }) => (await httpClient.post('/billing/trial', { plan_key: planId })).data,
 });

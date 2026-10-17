@@ -36,7 +36,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator
 
 from src.ai import company_data, db
-from src.ai.core import security
+from src.ai.core import security, usage
 from src.ai import notification_prefs
 from src.ai.core import notifications
 from src.ai.core.security import (
@@ -540,6 +540,35 @@ class InviteTeamMemberRequest(BaseModel):
     role_key: str
 
 
+def _ensure_seat_for_invitation(conn, tenant_id: str, email: str) -> None:
+    """Seats in use = active members + invitations still open (unused,
+    unexpired; re-inviting the same address doesn't take a second seat). A new invitation needs a
+    free seat; 402 otherwise. Locked per company until this transaction
+    ends, so two invitations can't both take the last seat. Accepting checks
+    the seat again (auth_join_tenant), in case the plan changed since."""
+    plan = usage.get_plan(conn, tenant_id)
+    if plan["status"] not in usage.ACCESS_GRANTING_STATUSES:
+        raise usage.PlanLimitReached("SUBSCRIPTION_INACTIVE", usage.TEAM_SEATS).as_http()
+    feature = plan["features"].get(usage.TEAM_SEATS)
+    limit = feature["limit"] if feature else 0
+    if limit is None:
+        return
+    usage.lock_feature(conn, tenant_id, usage.TEAM_SEATS)
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT (SELECT COUNT(*) FROM tenant_users WHERE tenant_id = %(t)s AND removed_at IS NULL)
+                 + (SELECT COUNT(DISTINCT lower(a.email)) FROM auth_tokens a
+                    WHERE a.token_type = 'TEAM_INVITATION' AND a.tenant_id = %(t)s AND a.used_at IS NULL
+                      AND a.expires_at > NOW() AND lower(a.email) <> lower(%(e)s));
+            """,
+            {"t": tenant_id, "e": email},
+        )
+        in_use = int(cursor.fetchone()[0])
+    if in_use + 1 > limit:
+        raise usage.PlanLimitReached("CAPACITY_REACHED", usage.TEAM_SEATS, in_use, limit, "lifetime").as_http()
+
+
 @router.post("/team/invitations")
 def invite_team_member(body: InviteTeamMemberRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """
@@ -561,6 +590,7 @@ def invite_team_member(body: InviteTeamMemberRequest, ctx: TenantContext = Depen
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
+        _ensure_seat_for_invitation(conn, ctx.tenant_id, body.email)
 
         with conn.cursor() as cursor:
             cursor.execute("SELECT business_name FROM companies WHERE tenant_id = %s;", (ctx.tenant_id,))
