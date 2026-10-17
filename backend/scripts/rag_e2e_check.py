@@ -10,7 +10,8 @@ Checks, each against the live API and its database:
 - an Arabic question about each English document, sharing no word with it,
   gets that document cited first (semantic retrieval; keyword search can't);
 - a company-data question cites the company's own records;
-- another company, with a document of its own, asking the same question
+- another company, with the same supplier text in a file of its own, asking
+  the same question
   gets an answer citing its own document and never the first company's -
   in its answer or its document list (tenant isolation);
 - with an LLM configured, answers are written in AI mode; without one, the
@@ -146,12 +147,12 @@ def main() -> int:
     other = Client(args.api)
     other_company = replace(company, business_name=f"Isolation Check {run}", owner_name="Isolation Check")
     sign_in(other, other_company, f"isolation-{run}@keel-ci.example", args.password)
-    # A document of its own, so the question is answered (not refused for
-    # lack of evidence) and a leak would have somewhere to show up.
+    # The same supplier text under its own file name: the question then has
+    # evidence in this company too (answered, not refused), and the first
+    # company's identical document is the one that must not show up.
     own = f"isolation_supplier_{run}.pdf"
-    data = other.request("POST", "/extraction/upload", files={"file": (own, _pdf(
-        "Supplier note. Our olive oil supplier is Green Valley Farms; invoices are paid within 30 days."),
-        "application/pdf")})
+    data = other.request("POST", "/extraction/upload", files={"file": (
+        own, _pdf(DOCUMENTS["supplier_agreement.txt"]), "application/pdf")})
     if data.get("rag_document_status") != "Processed":
         failures.append(f"tenant isolation: the other company's {own} was not processed")
     ours = set(names.values())
