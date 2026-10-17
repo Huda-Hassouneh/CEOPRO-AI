@@ -264,7 +264,7 @@ def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = No
             "NOT_CONFIGURED",
             "MARKETING_IMAGE_PROVIDER is 'huggingface' but HUGGINGFACE_API_TOKEN is not set.",
         )
-    models = _csv("HUGGINGFACE_IMAGE_MODELS", "HUGGINGFACE_IMAGE_MODEL") or [_DEFAULT_HUGGINGFACE_MODEL, "stabilityai/stable-diffusion-xl-base-1.0"]
+    models = _csv("HUGGINGFACE_IMAGE_MODELS", "HUGGINGFACE_IMAGE_MODEL") or [_DEFAULT_HUGGINGFACE_MODEL, "stabilityai/stable-diffusion-xl-base-1.0"]  # both commercially usable licences
     response = None
     for model in models:  # the next model is tried if one is unavailable; a quota error stops (shared credit)
         try:
@@ -309,7 +309,14 @@ _CLOUDFLARE_URL = os.getenv(
 _CLOUDFLARE_MODEL = os.getenv("CLOUDFLARE_IMAGE_MODEL", "@cf/black-forest-labs/flux-1-schnell")
 
 
-_CLOUDFLARE_MODELS = ("@cf/black-forest-labs/flux-1-schnell", "@cf/bytedance/stable-diffusion-xl-lightning")
+# Tried in order within one account if a model fails (best quality first). All are on
+# Workers AI's free allowance, which is shared per ACCOUNT, not per model.
+_CLOUDFLARE_MODELS = (
+    "@cf/black-forest-labs/flux-1-schnell",
+    "@cf/bytedance/stable-diffusion-xl-lightning",
+    "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+    "@cf/lykon/dreamshaper-8-lcm",
+)
 
 
 def _cloudflare_models() -> List[str]:
