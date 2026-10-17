@@ -21,7 +21,7 @@ export const competitorDataApi = {
   dataStatus: async (id) => (await httpClient.get(`/competitors/${encodeURIComponent(id)}/data-status`)).data,
 
   // Retry one competitor now (waits for the result) or in the background.
-  // facets: optional subset of PROFILE | SOCIAL_LINKS | REVIEWS.
+  // facets: optional subset of PROFILE | SOCIAL_LINKS | REVIEWS | NEWS | COMMENTS.
   retry: async (id, { facets, background = false } = {}) => (await httpClient.post(
     `/competitors/${encodeURIComponent(id)}/enrich`,
     facets?.length ? { facets } : undefined,
@@ -43,9 +43,9 @@ export const competitorDataApi = {
   setBarcode: async (productId, barcode) => (await httpClient.patch(`/products/${encodeURIComponent(productId)}`, { barcode: barcode || null })).data,
 };
 
-export const FACET_ORDER = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'PRICES', 'SOCIAL_CONTENT'];
+export const FACET_ORDER = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS', 'COMMENTS', 'PRICES', 'SOCIAL_CONTENT'];
 // Facets the Retry button can re-collect; the others are fixed elsewhere (review a source, add a barcode).
-export const RETRYABLE_FACETS = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS'];
+export const RETRYABLE_FACETS = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS', 'COMMENTS'];
 
 export function facetTone(status) {
   switch (status) {
@@ -91,7 +91,7 @@ export const REASON_CODES = [
   'NO_CREDENTIALS', 'CREDENTIALS_REJECTED', 'QUOTA_EXHAUSTED', 'PROVIDER_ERROR', 'NO_MATCH', 'INCOMPLETE_LISTING',
   'NO_WEBSITE', 'ROBOTS_DISALLOWED', 'SITE_UNREACHABLE', 'SHARED_RECORD', 'NO_PRODUCTS_MAPPED', 'TERMS_UNREVIEWED',
   'NO_DATA_COLLECTED', 'COLLECTOR_NOT_ENABLED', 'NO_SOCIAL_LINKS', 'NO_PLACE_ID', 'PLATFORM_APPROVAL_MISSING',
-  'SERVICE_MISCONFIGURED', 'NOT_ATTEMPTED',
+  'SERVICE_MISCONFIGURED', 'NOT_ATTEMPTED', 'NO_FEED', 'NO_NEWS', 'NO_VIDEOS',
 ];
 
 export const PRICE_REASON_CODES = ['NO_COMPETITOR_MAPPED', 'TERMS_UNREVIEWED', 'ROBOTS_DISALLOWED', 'NO_DATA_COLLECTED'];

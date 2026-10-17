@@ -229,9 +229,10 @@ def extract_offers(html: str, page_url: str) -> List[PriceQuote]:
     return quotes
 
 
-def fetch_html(url: str, fetch=None) -> Optional[str]:
-    """The page's HTML, read the way page_reader.read() reads any page (public
-    addresses only, robots.txt, size limit, no logins); None when it cannot be."""
+def fetch_html(url: str, fetch=None, kinds=("html",)) -> Optional[str]:
+    """The page's text, read the way page_reader.read() reads any page (public
+    addresses only, robots.txt, size limit, no logins); None when it cannot be.
+    kinds: content-type fragments accepted - HTML by default, ("xml",) for a feed."""
     fetch = fetch or page_reader._default_fetch
     current = url
     try:
@@ -249,7 +250,8 @@ def fetch_html(url: str, fetch=None) -> Optional[str]:
             return None
     except (UnsafeTargetError, page_reader._TooLarge, httpx.HTTPError):
         return None
-    if response.status_code >= 400 or "html" not in (response.headers.get("content-type") or "").lower():
+    content_type = (response.headers.get("content-type") or "").lower()
+    if response.status_code >= 400 or not any(kind in content_type for kind in kinds):
         return None
     return response.text
 

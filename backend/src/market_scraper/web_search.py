@@ -37,6 +37,7 @@ USER_AGENT = os.getenv("MARKET_RESEARCH_USER_AGENT", "KEEL-MarketResearch/1.0")
 
 GOOGLE_CSE_URL = "https://www.googleapis.com/customsearch/v1"
 BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
+BRAVE_NEWS_URL = "https://api.search.brave.com/res/v1/news/search"
 TAVILY_URL = "https://api.tavily.com/search"
 
 
@@ -45,6 +46,8 @@ class Result:
     url: str
     title: str
     snippet: str
+    # When the source says it was published (news searches only); None when not stated.
+    published: Optional[str] = None
 
     def as_dict(self) -> dict:
         return {"url": self.url, "title": self.title, "snippet": self.snippet}
@@ -108,6 +111,43 @@ def _searxng(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> Li
     return _results(payload.get("results"), "url", "content", limit)
 
 
+def _news_results(items, url_key: str, snippet_key: str, date_key: str, limit: int) -> List[Result]:
+    out = []
+    for item in items or []:
+        url = item.get(url_key)
+        if url:
+            out.append(Result(url=url, title=item.get("title") or url, snippet=item.get(snippet_key) or "",
+                              published=item.get(date_key) or None))
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _brave_news(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[Result]:
+    params = {"q": query, "count": min(limit, 20), "freshness": "pm"}
+    if country:
+        params["country"] = country.upper()
+    payload = fetch("GET", BRAVE_NEWS_URL, params=params,
+                    headers={"Accept": "application/json", "X-Subscription-Token": os.environ["BRAVE_SEARCH_API_KEY"]})
+    return _news_results(payload.get("results"), "url", "description", "page_age", limit)
+
+
+def _tavily_news(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[Result]:
+    body = {"query": query, "max_results": min(limit, 20), "topic": "news", "days": 90}
+    payload = fetch("POST", TAVILY_URL, json=body, headers={"Authorization": f"Bearer {os.environ['TAVILY_API_KEY']}"})
+    return _news_results(payload.get("results"), "url", "content", "published_date", limit)
+
+
+def _searxng_news(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[Result]:
+    base = os.environ["SEARXNG_INSTANCE_URL"].rstrip("/")
+    payload = fetch("GET", f"{base}/search", params={"q": query, "format": "json", "categories": "news"})
+    return _news_results(payload.get("results"), "url", "content", "publishedDate", limit)
+
+
+# Only providers with a news mode; a Google CSE key has none and is skipped for news.
+NEWS_PROVIDERS: Dict[str, Callable] = {"brave": _brave_news, "tavily": _tavily_news, "searxng": _searxng_news}
+
+
 PROVIDERS: Dict[str, Tuple[Tuple[str, ...], Callable]] = {
     "google_cse": (("GOOGLE_CUSTOM_SEARCH_API_KEY", "GOOGLE_CUSTOM_SEARCH_CX"), _google_cse),
     "brave": (("BRAVE_SEARCH_API_KEY",), _brave),
@@ -139,4 +179,21 @@ def search(query: str, max_results: int = 10, country: Optional[str] = None,
             return name, PROVIDERS[name][1](fetch, query, max_results, country)
         except (httpx.HTTPError, ValueError, KeyError, SearchFailed) as exc:
             logger.warning("web search via %s failed: %s", name, exc)
+    raise SearchFailed("unreachable")
+
+
+def search_news(query: str, max_results: int = 10, country: Optional[str] = None,
+                fetch: Optional[Fetch] = None) -> Tuple[str, List[Result]]:
+    """(provider, news results with their publication date when stated) from the first
+    configured provider that has a news mode and answers. Raises SearchFailed when none
+    is set up for news ("not_configured") or every one failed ("unreachable")."""
+    fetch = fetch or _default_fetch
+    providers = [p for p in configured_providers() if p in NEWS_PROVIDERS]
+    if not providers:
+        raise SearchFailed("not_configured")
+    for name in providers:
+        try:
+            return name, NEWS_PROVIDERS[name](fetch, query, max_results, country)
+        except (httpx.HTTPError, ValueError, KeyError, SearchFailed) as exc:
+            logger.warning("news search via %s failed: %s", name, exc)
     raise SearchFailed("unreachable")

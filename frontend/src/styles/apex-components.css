@@ -625,3 +625,5 @@ html .mk-photo-picker:focus-within { outline: none; box-shadow: var(--apex-focus
 .product-market-detail__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .product-market-detail__range { margin: 0; font-size: 12.5px; }
 .apex-table tr.is-muted td { opacity: 0.6; }
+
+.intel-news__summary { margin: 2px 0 4px; font-size: 12.5px; line-height: 1.45; color: var(--apex-text-2); overflow-wrap: anywhere; }

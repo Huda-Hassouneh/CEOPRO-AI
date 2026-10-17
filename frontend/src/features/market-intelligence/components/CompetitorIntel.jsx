@@ -20,6 +20,9 @@ function AnalysisError({ error, t }) {
   );
 }
 
+// Where a news item came from, when known (older rows have none).
+const NEWS_ORIGIN = { own_site: 'intel.newsFromSite', web_search: 'intel.newsFromSearch' };
+
 // What a competitor publishes on its own website (each fact linked to its
 // page and dated), news naming it, and a clearly labelled AI analysis of
 // those facts in which every point cites them.
@@ -127,7 +130,8 @@ export function CompetitorIntel({ competitor, t, locale }) {
             {news.data.map((a) => (
               <li key={a.url}><Newspaper size={14} aria-hidden="true" />
                 <div><a href={a.url} target="_blank" rel="noreferrer noopener" dir="auto">{a.title}</a>
-                  <div className="apex-muted">{[a.source_domain, a.published_at && date.format(new Date(a.published_at))].filter(Boolean).join(' · ')}</div></div>
+                  {a.summary && <p className="intel-news__summary" dir="auto">{a.summary}</p>}
+                  <div className="apex-muted">{[a.source_domain, a.published_at && date.format(new Date(a.published_at)), NEWS_ORIGIN[a.source_kind] && t(NEWS_ORIGIN[a.source_kind])].filter(Boolean).join(' · ')}</div></div>
               </li>
             ))}
           </ul>

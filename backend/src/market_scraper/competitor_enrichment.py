@@ -45,6 +45,8 @@ from urllib.parse import urlsplit
 
 from src.ai.pricing.matching import similarity
 from src.market_scraper import direct_search
+from src.market_scraper import competitor_mentions as mentions
+from src.market_scraper import web_search
 from src.market_scraper.category_taxonomy import categorize
 from src.market_scraper.content_safety import scan_external_text
 from src.market_scraper.discovery import SOCIAL_PLATFORM_HOSTS
@@ -57,9 +59,14 @@ FACET_SOCIAL_LINKS = "SOCIAL_LINKS"
 FACET_PRICES = "PRICES"
 FACET_REVIEWS = "REVIEWS"
 FACET_SOCIAL_CONTENT = "SOCIAL_CONTENT"
-ALL_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_PRICES, FACET_REVIEWS, FACET_SOCIAL_CONTENT)
+FACET_NEWS = "NEWS"
+FACET_COMMENTS = "COMMENTS"
+ALL_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT)
 # The facets this module can actually (re)collect today.
-ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS)
+ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS)
+# What the routine runs (after discovery, the sweep, "retry all failed") collect. COMMENTS searches YouTube
+# (100 quota units a search), so it only runs when asked for: the per-competitor Retry, or an explicit facet.
+ROUTINE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS)
 
 STATUS_SUCCEEDED = "SUCCEEDED"
 STATUS_PARTIAL = "PARTIAL"
@@ -87,6 +94,9 @@ NO_PLACE_ID = "NO_PLACE_ID"
 PLATFORM_APPROVAL_MISSING = "PLATFORM_APPROVAL_MISSING"
 SERVICE_MISCONFIGURED = "SERVICE_MISCONFIGURED"
 NOT_ATTEMPTED = "NOT_ATTEMPTED"
+NO_FEED = "NO_FEED"
+NO_NEWS = "NO_NEWS"
+NO_VIDEOS = "NO_VIDEOS"
 ACTION_REVIEW_SOURCE = "review_source"
 
 # Transient failures are retried automatically by a later sweep after this long.
@@ -377,17 +387,20 @@ def _places_review_records(place_id: str, raw_reviews) -> list:
     return records
 
 
-def _places_review_source(conn, tenant_id: str, actor_user_id: str, approval_reference: str) -> str:
-    """The tenant's one 'Google Places (official API)' data source, created on
-    first use. It is ALLOWED on the strength of the OPERATOR's recorded
-    approval (approval_reference) - Google's API is a licensed channel, not a
-    site whose terms each tenant must review - with the same audited approval
-    fields chk_allowed_source_has_approval demands of every ALLOWED row."""
+def _review_source(
+    conn, tenant_id: str, actor_user_id: str, approval_reference: str, *,
+    name: str, collector_key: str, retention_days: Optional[int] = None,
+) -> str:
+    """The tenant's one data source for `collector_key`, created on first use. It is ALLOWED on the
+    strength of the OPERATOR's recorded approval (approval_reference) - these are licensed APIs, not
+    sites whose terms each tenant must review - with the same audited approval fields
+    chk_allowed_source_has_approval demands of every ALLOWED row. retention_days is set where the
+    provider's terms require stored data to be refreshed or deleted (YouTube: 30)."""
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT source_id FROM data_sources WHERE tenant_id = %s AND collector_key = 'google_places' "
+            "SELECT source_id FROM data_sources WHERE tenant_id = %s AND collector_key = %s "
             "AND source_type = 'OFFICIAL_API' AND is_active = TRUE ORDER BY created_at LIMIT 1;",
-            (tenant_id,),
+            (tenant_id, collector_key),
         )
         row = cursor.fetchone()
         if row:
@@ -396,16 +409,20 @@ def _places_review_source(conn, tenant_id: str, actor_user_id: str, approval_ref
             """
             INSERT INTO data_sources
                 (tenant_id, source_name, source_type, collector_key, policy_status, is_active,
-                 approval_reference, approved_by, approved_at, privacy_reviewed_at)
-            VALUES (%s, 'Google Places (official API)', 'OFFICIAL_API', 'google_places', 'ALLOWED', TRUE,
-                    %s, %s, NOW(), NOW())
+                 approval_reference, approved_by, approved_at, privacy_reviewed_at, retention_days)
+            VALUES (%s, %s, 'OFFICIAL_API', %s, 'ALLOWED', TRUE, %s, %s, NOW(), NOW(), COALESCE(%s, 90))
             RETURNING source_id;
             """,
-            (tenant_id, approval_reference, actor_user_id),
+            (tenant_id, name, collector_key, approval_reference, actor_user_id, retention_days),
         )
         source_id = str(cursor.fetchone()[0])
     conn.commit()
     return source_id
+
+
+def _places_review_source(conn, tenant_id: str, actor_user_id: str, approval_reference: str) -> str:
+    return _review_source(conn, tenant_id, actor_user_id, approval_reference,
+                          name="Google Places (official API)", collector_key="google_places")
 
 
 def _request_sentiment_analysis(tenant_id: str) -> None:
@@ -458,7 +475,8 @@ def _reviews_outcome(conn, tenant_id, competitor_id, competitor, api_key, contex
         except _PlacesError as exc:
             return STATUS_FAILED, exc.code, exc.detail, 0, None
     records = _places_review_records(place_id, details.get("reviews"))
-    if not records:
+    deep_token = os.getenv("APIFY_TOKEN", "").strip()
+    if not records and not deep_token:
         return STATUS_FAILED, NO_DATA_COLLECTED, "Google returned no review text for this listing.", 0, None
 
     source_id = _places_review_source(conn, tenant_id, actor, approval)
@@ -491,11 +509,247 @@ def _reviews_outcome(conn, tenant_id, competitor_id, competitor, api_key, contex
         )
         row = cursor.fetchone()
     conn.commit()
-    if new_reviews:
+    confidence = row[0] if row else None
+
+    # Places returns at most 5 reviews per listing. With an Apify token the same listing is read
+    # deeper - more reviews, with likes and the owner's replies - without double-storing the 5.
+    deep_total, deep_new, deep_error = 0, 0, None
+    if deep_token:
+        try:
+            deep_new, deep_total = _store_deep_google_reviews(conn, tenant_id, competitor_id, place_id, source_id, deep_token)
+        except mentions.SourceError as exc:
+            conn.rollback()
+            deep_error = exc
+    if new_reviews or deep_new:
         _request_sentiment_analysis(tenant_id)
-    # Places returns at most 5 reviews per listing; that is the whole
-    # available set, so storing it is a success, not a PARTIAL.
-    return STATUS_SUCCEEDED, None, None, len(records), (row[0] if row else None)
+
+    total = len(records) + deep_total
+    if total == 0:
+        code = deep_error.code if deep_error else NO_DATA_COLLECTED
+        return STATUS_FAILED, code, (deep_error.detail if deep_error else "Google returned no review text for this listing."), 0, None
+    if deep_error:
+        return (STATUS_PARTIAL, deep_error.code,
+                f"Google's own API gave {len(records)} reviews; the deeper source failed: {deep_error.detail}", total, confidence)
+    return STATUS_SUCCEEDED, None, None, total, confidence
+
+
+def _store_deep_google_reviews(conn, tenant_id: str, competitor_id: str, place_id: str, source_id: str, token: str) -> "tuple[int, int]":
+    """Reads the listing's reviews through the Apify actor and stores them. Returns (new, total).
+    A review already stored from the Places API (same author, one text opening the other - Places and the actor can differ in how much of a long review they return) is not
+    duplicated - it just gains the like count the Places API never gives. An owner's reply is
+    stored under the review it answers. Likes are one more person agreeing."""
+    reviews = mentions.apify_google_reviews(place_id, token, max_reviews=int(os.getenv("APIFY_REVIEWS_MAX", "100")))
+    new = 0
+    with conn.cursor() as cursor:
+        for review in reviews:
+            flags = scan_external_text(review["text"])
+            cursor.execute(
+                """
+                SELECT review_id FROM reviews
+                WHERE tenant_id = %s AND competitor_id = %s AND subject_type = 'COMPETITOR' AND parent_review_id IS NULL
+                  AND LOWER(COALESCE(reviewer_name, '')) = LOWER(COALESCE(%s, ''))
+                  AND LEFT(review_text, LEAST(60, LENGTH(review_text), LENGTH(%s))) = LEFT(%s, LEAST(60, LENGTH(review_text), LENGTH(%s)))
+                LIMIT 1;
+                """,
+                (tenant_id, competitor_id, review["author"], review["text"], review["text"], review["text"]),
+            )
+            existing = cursor.fetchone()
+            if existing:
+                review_id = str(existing[0])
+                cursor.execute(
+                    "UPDATE reviews SET like_count = GREATEST(COALESCE(like_count, 0), COALESCE(%s, 0)) "
+                    "WHERE tenant_id = %s AND review_id = %s AND %s IS NOT NULL;",
+                    (review["likes"], tenant_id, review_id, review["likes"]),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO reviews
+                        (tenant_id, product_id, source_platform, reviewer_name, review_text, review_rating,
+                         review_date, subject_type, competitor_id, source_status, collection_method,
+                         source_id, external_review_id, safety_status, safety_flags, like_count)
+                    VALUES (%s, NULL, 'Google Places', %s, %s, %s, COALESCE(%s::timestamptz, NOW()),
+                            'COMPETITOR', %s, 'ALLOWED', 'PUBLIC_API', %s, %s, %s, %s::jsonb, %s)
+                    ON CONFLICT (tenant_id, source_id, external_review_id)
+                        WHERE source_id IS NOT NULL AND external_review_id IS NOT NULL
+                    DO UPDATE SET like_count = EXCLUDED.like_count, review_text = EXCLUDED.review_text
+                    RETURNING review_id, (xmax = 0);
+                    """,
+                    (
+                        tenant_id, review["author"], review["text"], review["rating"], review["published_at"], competitor_id,
+                        source_id, "apify:" + review["external_id"], "QUARANTINED" if flags else "SAFE", json.dumps(flags), review["likes"],
+                    ),
+                )
+                review_id, inserted = cursor.fetchone()
+                review_id = str(review_id)
+                new += 1 if inserted else 0
+            if review["owner_reply"]:
+                reply_flags = scan_external_text(review["owner_reply"])
+                cursor.execute(
+                    """
+                    INSERT INTO reviews
+                        (tenant_id, product_id, source_platform, reviewer_name, review_text, review_date, subject_type,
+                         competitor_id, source_status, collection_method, source_id, external_review_id, safety_status,
+                         safety_flags, parent_review_id)
+                    VALUES (%s, NULL, 'Google Places', 'Owner', %s, COALESCE(%s::timestamptz, NOW()), 'COMPETITOR',
+                            %s, 'ALLOWED', 'PUBLIC_API', %s, %s, %s, %s::jsonb, %s)
+                    ON CONFLICT (tenant_id, source_id, external_review_id)
+                        WHERE source_id IS NOT NULL AND external_review_id IS NOT NULL
+                    DO NOTHING;
+                    """,
+                    (
+                        tenant_id, review["owner_reply"], review["owner_reply_at"], competitor_id, source_id,
+                        "apify:" + review["external_id"] + ":owner", "QUARANTINED" if reply_flags else "SAFE",
+                        json.dumps(reply_flags), review_id,
+                    ),
+                )
+    conn.commit()
+    return new, len(reviews)
+
+
+# --------------------------------------------------------------------------- news
+
+def _save_news(conn, tenant_id: str, competitor_id: str, items: list, source_kind: str) -> int:
+    """Stores news about this competitor in market_news (an article already stored is left as it is).
+    Returns how many were new."""
+    added = 0
+    with conn.cursor() as cursor:
+        for item in items:
+            cursor.execute(
+                """
+                INSERT INTO market_news (tenant_id, url, title, source_domain, language, published_at, topic,
+                                         global_competitor_id, source_kind, summary)
+                VALUES (%s, %s, %s, %s, NULL, %s::timestamptz, 'competitor', %s, %s, %s)
+                ON CONFLICT (tenant_id, url) DO NOTHING;
+                """,
+                (tenant_id, item["url"][:2000], item["title"], item.get("source_domain"), item.get("published_at"),
+                 competitor_id, source_kind, item.get("summary")),
+            )
+            added += cursor.rowcount
+    conn.commit()
+    return added
+
+
+def enrich_news(conn, tenant_id: str, competitor_id: str, competitor: dict) -> dict:
+    status, reason_code, detail, items, confidence = _news_outcome(conn, tenant_id, competitor_id, competitor)
+    _write_ledger(conn, tenant_id, competitor_id, FACET_NEWS, status, reason_code, detail, "news", items, confidence)
+    return {"status": status, "reason_code": reason_code, "reason_detail": detail, "items_found": items}
+
+
+def _news_outcome(conn, tenant_id, competitor_id, competitor):
+    found, own_reason, web_state, confidence = 0, None, None, None
+
+    website = competitor["website_url"]
+    if not website:
+        own_reason = NO_WEBSITE
+    elif not is_public_http_url(website):
+        own_reason = ROBOTS_DISALLOWED
+    elif direct_search._robots_allowed_cached(website) is False:
+        own_reason = ROBOTS_DISALLOWED
+    else:
+        items, own_reason = mentions.read_own_site_news(website)
+        if items:
+            _save_news(conn, tenant_id, competitor_id, items, "own_site")
+            found += len(items)
+            confidence = 1.0
+
+    try:
+        web_items = mentions.web_news(competitor["name"], None)
+        web_state = "ok"
+        if web_items:
+            _save_news(conn, tenant_id, competitor_id, web_items, "web_search")
+            found += len(web_items)
+            confidence = 0.6 if confidence is None else confidence
+    except web_search.SearchFailed as exc:
+        web_state = str(exc)  # "not_configured" | "unreachable"
+
+    if found:
+        return STATUS_SUCCEEDED, None, None, found, confidence
+    if web_state == "ok":
+        return STATUS_FAILED, NO_NEWS, "No recent news naming this competitor was found.", 0, None
+    if web_state == "unreachable":
+        return STATUS_FAILED, PROVIDER_ERROR, "The news search could not be reached.", 0, None
+    # No news search is set up (web_state == "not_configured"): only the competitor's own site could say.
+    if own_reason == NO_FEED:
+        return STATUS_FAILED, NO_FEED, "This competitor's website publishes no news feed, and no news search is set up.", 0, None
+    if own_reason == SITE_UNREACHABLE:
+        return STATUS_FAILED, SITE_UNREACHABLE, "The website could not be read, and no news search is set up.", 0, None
+    if own_reason == ROBOTS_DISALLOWED:
+        return STATUS_BLOCKED, ROBOTS_DISALLOWED, "The website does not allow automated reading, and no news search is set up.", 0, None
+    return (STATUS_BLOCKED, NO_CREDENTIALS,
+            "No news search provider is configured (BRAVE_SEARCH_API_KEY, TAVILY_API_KEY or SEARXNG_INSTANCE_URL) and this competitor has no website feed.",
+            0, None)
+
+
+# ----------------------------------------------------------------- video comments
+
+def _save_comments(conn, tenant_id: str, competitor_id: str, source_id: str, platform: str, comments: list) -> int:
+    """Stores comments as competitor reviews: top-level first, replies linked to their parent. Likes are
+    kept as like_count (people agreeing). Returns how many were new."""
+    new = 0
+    ids = {}
+    ordered = [c for c in comments if not c["parent_external_id"]] + [c for c in comments if c["parent_external_id"]]
+    with conn.cursor() as cursor:
+        for comment in ordered:
+            parent = ids.get(comment["parent_external_id"]) if comment["parent_external_id"] else None
+            if comment["parent_external_id"] and parent is None:
+                continue  # a reply whose comment was not stored cannot be linked
+            flags = scan_external_text(comment["text"])
+            cursor.execute(
+                """
+                INSERT INTO reviews
+                    (tenant_id, product_id, source_platform, reviewer_name, review_text, review_date, subject_type,
+                     competitor_id, source_status, collection_method, source_id, external_review_id, safety_status,
+                     safety_flags, like_count, reply_count, parent_review_id)
+                VALUES (%s, NULL, %s, %s, %s, COALESCE(%s::timestamptz, NOW()), 'COMPETITOR', %s, 'ALLOWED', 'PUBLIC_API',
+                        %s, %s, %s, %s::jsonb, %s, %s, %s)
+                ON CONFLICT (tenant_id, source_id, external_review_id)
+                    WHERE source_id IS NOT NULL AND external_review_id IS NOT NULL
+                DO UPDATE SET like_count = EXCLUDED.like_count, reply_count = EXCLUDED.reply_count
+                RETURNING review_id, (xmax = 0);
+                """,
+                (
+                    tenant_id, platform, comment["author"], comment["text"], comment["published_at"], competitor_id,
+                    source_id, comment["external_id"], "QUARANTINED" if flags else "SAFE", json.dumps(flags),
+                    comment["likes"], comment["reply_count"], parent,
+                ),
+            )
+            review_id, inserted = cursor.fetchone()
+            ids[comment["external_id"]] = str(review_id)
+            new += 1 if inserted else 0
+    conn.commit()
+    return new
+
+
+def enrich_comments(conn, tenant_id: str, competitor_id: str, competitor: dict, actor_user_id: Optional[str] = None) -> dict:
+    status, reason_code, detail, items, confidence = _comments_outcome(conn, tenant_id, competitor_id, competitor, actor_user_id)
+    _write_ledger(conn, tenant_id, competitor_id, FACET_COMMENTS, status, reason_code, detail, "youtube", items, confidence)
+    return {"status": status, "reason_code": reason_code, "reason_detail": detail, "items_found": items}
+
+
+def _comments_outcome(conn, tenant_id, competitor_id, competitor, actor_user_id):
+    api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
+    if not api_key:
+        return STATUS_BLOCKED, NO_CREDENTIALS, "YOUTUBE_API_KEY is not set for the service that collects comments.", 0, None
+    approval = os.getenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "").strip()
+    if not approval:
+        return (STATUS_BLOCKED, PLATFORM_APPROVAL_MISSING,
+                "The operator has not recorded approval to store public comments (EXTERNAL_COMMENTS_APPROVAL_REFERENCE).", 0, None)
+    actor = actor_user_id or os.getenv("SCRAPER_ACTOR_USER_ID") or os.getenv("AI_SERVICE_ACTOR_USER_ID")
+    if not actor:
+        return STATUS_FAILED, SERVICE_MISCONFIGURED, "No acting user is configured for this service (SCRAPER_ACTOR_USER_ID).", 0, None
+    try:
+        comments = mentions.youtube_comments(competitor["name"], competitor["city"], api_key)
+    except mentions.SourceError as exc:
+        return STATUS_FAILED, exc.code, exc.detail, 0, None
+    if not comments:
+        return STATUS_FAILED, NO_VIDEOS, "No video naming this competitor, with public comments, was found.", 0, None
+    source_id = _review_source(conn, tenant_id, actor, approval, name="YouTube comments (official API)",
+                               collector_key="youtube_comments", retention_days=30)
+    new = _save_comments(conn, tenant_id, competitor_id, source_id, "YouTube", comments)
+    if new:
+        _request_sentiment_analysis(tenant_id)
+    return STATUS_SUCCEEDED, None, None, len(comments), 0.7
 
 
 def _recent_attempt_wait(conn, tenant_id: str, competitor_id: str, facet: str) -> int:
@@ -550,6 +804,10 @@ def enrich_competitor(
                 competitor = _load_competitor(conn, tenant_id, competitor_id) or competitor
             elif facet == FACET_REVIEWS:
                 results[facet] = enrich_reviews(conn, tenant_id, competitor_id, competitor, api_key, context, actor_user_id)
+            elif facet == FACET_NEWS:
+                results[facet] = enrich_news(conn, tenant_id, competitor_id, competitor)
+            elif facet == FACET_COMMENTS:
+                results[facet] = enrich_comments(conn, tenant_id, competitor_id, competitor, actor_user_id)
             else:
                 results[facet] = enrich_social_links(conn, tenant_id, competitor_id, competitor)
         except Exception as exc:  # noqa: BLE001 - one facet failing must not stop the rest
@@ -608,7 +866,7 @@ def enrich_tenant_competitors(
             WHERE tc.tenant_id = %s AND tc.is_tracked = TRUE
               AND gc.visibility = 'PRIVATE' AND gc.added_by_tenant_id = %s
               AND EXISTS (
-                  SELECT 1 FROM unnest(ARRAY['PROFILE', 'SOCIAL_LINKS', 'REVIEWS']) AS f(facet)
+                  SELECT 1 FROM unnest(ARRAY['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS']) AS f(facet)
                   LEFT JOIN competitor_enrichment ce
                     ON ce.tenant_id = tc.tenant_id AND ce.global_competitor_id = tc.global_competitor_id AND ce.facet = f.facet
                   WHERE {condition}
@@ -624,7 +882,7 @@ def enrich_tenant_competitors(
     outcomes: dict = {}
     for competitor_id in competitor_ids:
         try:
-            results = enrich_competitor(conn, tenant_id, competitor_id, places_api_key=places_api_key)
+            results = enrich_competitor(conn, tenant_id, competitor_id, facets=ROUTINE_FACETS, places_api_key=places_api_key)
             attempted += 1
             for result in results.values():
                 outcomes[result["status"]] = outcomes.get(result["status"], 0) + 1
@@ -711,6 +969,13 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
         )
         review_counts = {str(r[0]): r[1] for r in cursor.fetchall()}
 
+        cursor.execute(
+            "SELECT global_competitor_id, COUNT(*) FROM market_news WHERE tenant_id = %s AND global_competitor_id IS NOT NULL "
+            "GROUP BY global_competitor_id;",
+            (tenant_id,),
+        )
+        news_counts = {str(r[0]): r[1] for r in cursor.fetchall()}
+
     result = {}
     for cid, info in competitors.items():
         facets = {}
@@ -720,6 +985,10 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
                 # Reviews exist (from Places or any other collector): the data wins over a stale ledger status.
                 last = row[5] if row else None
                 facets[facet] = _facet(STATUS_SUCCEEDED, items=review_counts[cid], confidence=row[4] if row else None, last_attempt=last, can_retry=True)
+            elif facet == FACET_NEWS and news_counts.get(cid, 0):
+                # News exists (from any source, including the industry scan): the data wins over a stale ledger status.
+                facets[facet] = _facet(STATUS_SUCCEEDED, items=news_counts[cid], confidence=row[4] if row else None,
+                                       last_attempt=row[5] if row else None, can_retry=True)
             elif row:
                 status, code, detail, items, confidence, last_attempt = row
                 facets[facet] = _facet(status, code, detail, items, confidence, last_attempt, can_retry=status != STATUS_NOT_APPLICABLE)
