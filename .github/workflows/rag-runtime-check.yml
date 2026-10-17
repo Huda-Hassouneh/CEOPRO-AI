@@ -164,9 +164,14 @@ jobs:
           df -h /
 
       - name: Object storage (MinIO)
+        # MinIO's own server binary: no container registry (Docker Hub's
+        # anonymous pull limit) in the way.
         run: |
-          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD minio/minio server /data
-          for i in $(seq 1 30); do curl -sf http://localhost:9000/minio/health/live && exit 0; sleep 1; done; exit 1
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/minio" https://dl.min.io/server/minio/release/linux-amd64/minio
+          chmod +x "$RUNNER_TEMP/minio" && mkdir -p "$RUNNER_TEMP/minio-data"
+          nohup "$RUNNER_TEMP/minio" server "$RUNNER_TEMP/minio-data" --address :9000 > "$RUNNER_TEMP/minio.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:9000/minio/health/live && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/minio.log"; exit 1
 
       - name: Install backend dependencies
         working-directory: backend
