@@ -360,6 +360,8 @@ services:
       # More competitor sources: news (own-site feeds + the news mode of Brave/Tavily/SearXNG above),
       # YouTube comments with likes, deeper Google reviews with likes (Apify).
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      # One name everywhere: APIFY_API_TOKEN (APIFY_TOKEN, the older name, still works).
+      APIFY_API_TOKEN: ${APIFY_API_TOKEN:-}
       APIFY_TOKEN: ${APIFY_TOKEN:-}
       EXTERNAL_COMMENTS_APPROVAL_REFERENCE: ${EXTERNAL_COMMENTS_APPROVAL_REFERENCE:-}
       NEWS_MAX_AGE_DAYS: ${NEWS_MAX_AGE_DAYS:-180}
@@ -527,6 +529,7 @@ services:
       PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
       # A synchronous per-competitor Retry served by this API also reads news and video comments.
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      # One name everywhere: APIFY_API_TOKEN (APIFY_TOKEN, the older name, still works).
       APIFY_TOKEN: ${APIFY_TOKEN:-}
       EXTERNAL_COMMENTS_APPROVAL_REFERENCE: ${EXTERNAL_COMMENTS_APPROVAL_REFERENCE:-}
     ports:
