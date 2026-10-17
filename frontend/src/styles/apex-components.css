@@ -570,3 +570,58 @@ html .mk-photo-picker:focus-within { outline: none; box-shadow: var(--apex-focus
 .cc-activity__line .is-error { color: var(--apex-danger, #f87171); display: inline-flex; align-items: center; gap: 4px; }
 .cc-updates { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .cc-updates .apex-alerts__item { width: 100%; }
+
+/* ---- Competitor data: completeness, comments, market prices, barcodes ---- */
+.competitor-data-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12.5px; color: var(--apex-text-2); min-width: 0; }
+.competitor-data-chips > span { min-width: 0; overflow-wrap: anywhere; }
+.competitor-data-chips .apex-btn { margin-inline-start: -4px; }
+
+.data-completeness__score { display: grid; grid-template-columns: auto minmax(80px, 1fr) auto; align-items: center; gap: 12px; margin-bottom: 14px; }
+.data-completeness { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.data-completeness__row { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 12px 14px; border-radius: 12px; background: var(--apex-glass); border: 1px solid var(--apex-glass-border); font-size: 13px; }
+.data-completeness__row > div:first-child { min-width: 0; }
+.data-completeness__why { margin-top: 2px; overflow-wrap: anywhere; }
+.data-completeness__when { margin-top: 2px; font-size: 11.5px; }
+.data-completeness__state { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; flex-shrink: 0; }
+.data-completeness__notice { min-height: 1.2em; margin: 12px 0 0; font-size: 12.5px; color: var(--apex-text-2); }
+@media (max-width: 560px) {
+  .data-completeness__row { flex-direction: column; }
+  .data-completeness__state { justify-content: flex-start; }
+  .data-completeness__score { grid-template-columns: minmax(0, 1fr); }
+}
+
+.competitor-comments__summary { margin: 0 0 12px; font-size: 12.5px; }
+.competitor-comments, .competitor-comment__replies { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.competitor-comment { padding: 12px 14px; border-radius: 12px; background: var(--apex-glass); border: 1px solid var(--apex-glass-border); font-size: 13.5px; }
+.competitor-comment.is-reply { background: transparent; border-style: dashed; padding: 10px 12px; }
+.competitor-comment__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12.5px; }
+.competitor-comment p { margin: 6px 0 8px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+.competitor-comment__foot { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+.competitor-comment__foot > span { display: inline-flex; align-items: center; gap: 4px; }
+.competitor-comment__replies { margin-top: 10px; margin-inline-start: 16px; padding-inline-start: 12px; border-inline-start: 2px solid var(--apex-glass-border-strong); }
+
+.price-coverage__stats { margin: 0 22px; }
+.price-coverage__stats .apex-stat { padding: 14px 16px; }
+.price-coverage__note { min-height: 1.2em; margin: 10px 22px 12px; font-size: 12.5px; }
+.price-coverage__lookup { font-size: 11.5px; margin: 2px 0 6px; }
+.price-coverage__barcode { min-width: 250px; }
+
+.barcode-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.barcode-editor label { display: grid; gap: 4px; }
+.barcode-editor__label { font-size: 12px; color: var(--apex-text-3); }
+.barcode-editor input { min-width: 190px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--apex-glass-border-strong); background: var(--apex-field); color: var(--apex-text); font: inherit; font-size: 13px; }
+.barcode-editor input[aria-invalid="true"] { border-color: var(--apex-danger, #dc2626); }
+.barcode-editor__note { flex-basis: 100%; min-height: 1.1em; font-size: 12px; color: var(--apex-text-3); }
+.barcode-editor.is-compact .barcode-editor__note { flex-basis: 100%; }
+.barcode-editor.is-compact input { min-width: 150px; }
+
+.product-market-detail { padding: 16px 22px 20px; border-top: 1px solid var(--apex-glass-border); display: grid; gap: 12px; }
+.product-market-detail__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.product-market-detail__head h3 { margin: 2px 0; font-size: 15px; }
+.product-market-detail__head p { margin: 0; font-size: 12.5px; }
+.product-market-detail__basis { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.product-market-detail__gap { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--apex-glass); border: 1px solid var(--apex-glass-border); }
+.product-market-detail__gap p { margin: 0; font-size: 13px; }
+.product-market-detail__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.product-market-detail__range { margin: 0; font-size: 12.5px; }
+.apex-table tr.is-muted td { opacity: 0.6; }

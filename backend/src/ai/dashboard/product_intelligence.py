@@ -10,12 +10,16 @@ products, reviews) or KEEL's tracking and calculations (competitor prices,
 forecasts); a signal is only produced when its data exists.
 """
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from src.ai.dashboard.product_market import competitor_details, product_market_detail
 from src.ai.forecasting import overview as forecast_overview
 from src.ai.routers.products import get_product
 from src.ai.core.business_time import business_today, window_start
+
+logger = logging.getLogger(__name__)
 
 WINDOW_DAYS = 30
 TREND_MIN_UNITS = 5
@@ -234,9 +238,22 @@ def build_product_intelligence(conn, tenant_id: str, product_id: str, today=None
     if product.get("cost_price") is not None and product["current_price"]:
         margin = round((product["current_price"] - product["cost_price"]) / product["current_price"] * 100, 1)
 
+    # Depth beyond the headline price list: ratings, real comment counts, likes as agreement,
+    # data completeness and reasons per competitor, the product's market-price coverage and
+    # open-market reference prices. Additive - a failure here must never take the page down.
+    market_detail = {"barcode": None, "price_coverage": None, "reference_prices": [], "reference_market": None}
+    try:
+        market_detail = product_market_detail(conn, tenant_id, product)
+        details = competitor_details(conn, tenant_id, [c["competitor_id"] for c in product_competitors + industry_competitors])
+        for competitor in product_competitors + industry_competitors:
+            competitor["details"] = details.get(competitor["competitor_id"])
+    except Exception:  # noqa: BLE001
+        conn.rollback()
+        logger.exception("could not load market detail for product %s", product_id)
+
     return {
         "product": {**product, "display_name": display_name, "display_category": display_category,
-                    "display_brand": display_brand, "margin_pct": margin},
+                    "display_brand": display_brand, "margin_pct": margin, "barcode": market_detail["barcode"]},
         "sales": sales,
         "demand": {
             "forecast_next_30": demand_row.get("forecast_next_30"),
@@ -258,7 +275,11 @@ def build_product_intelligence(conn, tenant_id: str, product_id: str, today=None
             "series": demand["series"],
             "as_of": demand["as_of"],
         },
-        "competitors": {"product_level": product_competitors, "industry_level": industry_competitors, "market": market},
+        "competitors": {
+            "product_level": product_competitors, "industry_level": industry_competitors, "market": market,
+            "price_coverage": market_detail["price_coverage"], "reference_prices": market_detail["reference_prices"],
+            "reference_market": market_detail["reference_market"],
+        },
         "reviews": reviews,
         "signals": _signals(sales, demand_row, market, reviews, product_competitors, industry_competitors),
     }
