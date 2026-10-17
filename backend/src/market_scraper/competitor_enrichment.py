@@ -475,7 +475,8 @@ def _reviews_outcome(conn, tenant_id, competitor_id, competitor, api_key, contex
         except _PlacesError as exc:
             return STATUS_FAILED, exc.code, exc.detail, 0, None
     records = _places_review_records(place_id, details.get("reviews"))
-    deep_token = os.getenv("APIFY_TOKEN", "").strip()
+    # The same token as competitor discovery (apify_maps.py); APIFY_TOKEN is its older name.
+    deep_token = (os.getenv("APIFY_API_TOKEN") or os.getenv("APIFY_TOKEN") or "").strip()
     if not records and not deep_token:
         return STATUS_FAILED, NO_DATA_COLLECTED, "Google returned no review text for this listing.", 0, None
 

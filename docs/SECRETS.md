@@ -30,7 +30,8 @@ it isn't configured instead of failing.
 | `TAVILY_API_KEY` | Public web research in assistant answers (preferred free provider: 1,000 credits/month, no card) | Optional | Default key | optional | no | optional |
 | `BRAVE_SEARCH_API_KEY`, `SERPAPI_API_KEY`, `GOOGLE_CUSTOM_SEARCH_API_KEY` + `GOOGLE_CUSTOM_SEARCH_CX` | Alternative web-research providers | Optional | Search-only keys | optional | no | optional |
 | `GOOGLE_PLACES_API_KEY` | Competitor discovery via Google Places | Optional | Restricted to the Places API | optional | no | optional |
-| `APIFY_API_TOKEN` | Competitor discovery via Apify's Google Maps actor. **Each run is billed to the Apify account** | Optional | A scoped Apify API token | only if needed | no | optional |
+| `APIFY_API_TOKEN` | Competitor discovery via Apify's Google Maps actor, and Google reviews read beyond the Places API's five (with likes and owner replies). **Each run is billed to the Apify account.** `APIFY_TOKEN`, the older name, still works | Optional | A scoped Apify API token | only if needed | no | optional (both `keel-ai-staging` and `keel-workers-staging`) |
+| `YOUTUBE_API_KEY` | Public YouTube comments, with likes, on videos naming a competitor | Optional | An API key restricted to the YouTube Data API v3 (free daily quota) | optional | no | optional (`keel-ai-staging`, `keel-workers-staging`) |
 | `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` | Marketing images via Cloudflare Workers AI | Optional | Token with Workers AI access only | optional | no | optional |
 | `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD` | Sending email (verification, digests). Without them, emails are logged as not sent | Optional in development | An SMTP credential for the sending address only | no | no | yes, for real email |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Billing | Production only | A restricted Stripe key | no | no | yes, once billing is live |
