@@ -67,6 +67,7 @@ def main(argv=None) -> int:
     p.add_argument("--not-final", action="store_true", help="the provider bills later; reconcile these calls")
     p.add_argument("--source", required=True)
     p.add_argument("--verified-on", required=True, type=date.fromisoformat)
+    p.add_argument("--if-missing", action="store_true", help="keep a price that is already recorded")
 
     c = sub.add_parser("set-control")
     c.add_argument("--provider", required=True, help="'*' for every provider, or provider:model")
@@ -114,10 +115,13 @@ def main(argv=None) -> int:
     try:
         if args.command == "set-price":
             unit_cost = args.usd if args.usd is not None else args.usd_per_million / Decimal(1_000_000)
-            admin.set_price(conn, budget_kind=args.budget, provider=args.provider, operation=args.operation, unit=args.unit,
-                            unit_cost_usd=unit_cost, source=args.source, verified_on=args.verified_on,
-                            approved_by=args.by, reason=args.reason, safety_margin=args.safety_margin,
-                            charged_on_failure=not args.not_charged_on_failure, cost_is_final=not args.not_final)
+            written = admin.set_price(conn, budget_kind=args.budget, provider=args.provider, operation=args.operation,
+                                      unit=args.unit, unit_cost_usd=unit_cost, source=args.source,
+                                      verified_on=args.verified_on, approved_by=args.by, reason=args.reason,
+                                      safety_margin=args.safety_margin, charged_on_failure=not args.not_charged_on_failure,
+                                      cost_is_final=not args.not_final, if_missing=args.if_missing)
+            if not written:
+                print(f"Kept: {args.provider}/{args.operation} {args.unit} already has a recorded price.")
         elif args.command == "set-control":
             admin.set_control(conn, provider=args.provider, approved_by=args.by, reason=args.reason,
                               monthly_cap_usd=args.monthly_cap_usd, clear_cap=args.clear_cap,

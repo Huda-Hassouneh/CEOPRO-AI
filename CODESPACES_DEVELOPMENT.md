@@ -14,8 +14,9 @@ that ceiling.
 **Short version:** create the Codespace, wait for setup to finish, run
 `./keel start` in a terminal and open the forwarded port 5173. API keys
 such as `GROQ_API_KEY` come from the repository's Codespaces secrets
-(docs/SECRETS.md), not from a file. The rest of this page explains what happens
-underneath.
+(docs/SECRETS.md), not from a file. To prove the assistant works end to end,
+run `./keel rag-check` in a second terminal. The rest of this page explains
+what happens underneath.
 
 Nothing here touches Render, Neon, or production. This is a completely
 separate, local, throwaway environment - its own Postgres, its own Redis,
@@ -48,8 +49,12 @@ Open Codespace
      backend/.env + frontend/.env from the repo's own .env.example files
   -> postStartCommand (start-services.sh) runs automatically: starts
      Postgres+pgvector/Redis/MinIO via docker compose, runs migrations,
-     rewrites CORS_ALLOWED_ORIGINS/VITE_API_BASE_URL to your Codespace's
-     real forwarded URLs
+     comments out empty backend/.env lines that a Codespaces secret
+     provides (e.g. GROQ_API_KEY=), records the assistant model's price in
+     this Codespace's own database if it's missing (AI calls are refused
+     without one - docs/SUBSCRIPTIONS_AND_CREDITS.md section 4), sets
+     CORS_ALLOWED_ORIGINS to your forwarded 5173 URL and VITE_API_BASE_URL
+     to /api (the frontend dev server forwards /api to the backend)
 Start backend  (Terminal 1): cd backend && source .venv/bin/activate
                               set -a && source .env && set +a
                               uvicorn src.ai.main:app --reload --host 0.0.0.0 --port 8000
@@ -68,12 +73,27 @@ hand every time.
 API credentials are not part of setup: a repository admin adds them once as
 **Codespaces secrets** (Settings → Secrets and variables → Codespaces), and
 every Codespace created afterwards receives them as environment variables -
-restart a running Codespace to pick up a new one. `backend/.env` keeps those
-names empty and `./keel` keeps the environment's value. Without
+restart a running Codespace to pick up a new one. Codespaces secrets are
+separate from GitHub **Actions** secrets: CI (`rag-runtime-check.yml`) reads
+`GROQ_API_KEY` from Actions secrets, a Codespace only from Codespaces secrets.
+`start-services.sh` comments out the matching empty lines in `backend/.env`,
+so both `./keel start` and `set -a && source .env` keep the secret's value. No
+Hugging Face token is needed: the embedding and re-ranking models are public
+(`HUGGINGFACE_API_TOKEN` is only for Hugging Face image or chat models). Without
 `GROQ_API_KEY`, the assistant still answers, listing the sources it found
 without an AI-written summary. `./keel status` shows which provider is
-active and whether its credential is available; `./keel llm-check` proves it
-with one real request. Full list and permissions: docs/SECRETS.md.
+active and whether its credential is available; `./keel llm-check` checks the
+key, the model and its recorded price. Full list and permissions: docs/SECRETS.md.
+
+**Prove the assistant end to end:** with `./keel start` running, run
+`./keel rag-check` in a second terminal. Through the same `/api` path the
+browser uses, it creates a test company, uploads four PDFs, checks every
+chunk got an embedding, asks Arabic questions about the English documents,
+expects AI-written answers citing the right document, asks a company-data
+question, and checks a second company never sees the first one's documents.
+It ends with `PASS` or the list of what failed. The first run downloads the
+embedding models (a few minutes). Groq's free tier allows 8,000 tokens a
+minute, so the run waits out its rate limit between questions.
 
 ---
 
@@ -87,8 +107,8 @@ demo data - so you start exactly like a new customer.
    database migrations). AI-written assistant answers need the
    `GROQ_API_KEY` Codespaces secret (docs/SECRETS.md).
 2. Open the **Ports** tab, find port **5173 (KEEL Frontend)** and open its
-   forwarded address in your browser. Keep ports 5173 and 8000 either both
-   Private (same GitHub account in the browser) or both Public - see below.
+   forwarded address in your browser. It can stay Private; port 8000 never
+   needs to be opened (the frontend reaches the backend through /api).
 3. Click **Sign up** and create your account with your own email and a
    password you choose (8+ characters with an upper- and lower-case letter,
    a number and a symbol). You type it only into KEEL - never share it.
@@ -189,14 +209,16 @@ differs per Codespace):
 
 - `backend/.env`'s `CORS_ALLOWED_ORIGINS` -> your Codespace's forwarded
   5173 URL (`https://$CODESPACE_NAME-5173.app.github.dev`)
-- `frontend/.env`'s `VITE_API_BASE_URL` -> your Codespace's forwarded
-  8000 URL (`https://$CODESPACE_NAME-8000.app.github.dev`)
+- `frontend/.env`'s `VITE_API_BASE_URL` -> `/api`: the browser calls the
+  API on the frontend's own address, and the Vite dev server forwards it to
+  the backend on `localhost:8000` (`frontend/vite.config.js`), which also
+  allows the `*.app.github.dev` host name (Vite otherwise answers "Blocked
+  request. This host is not allowed").
 
-**Port visibility**: forward both 5173 and 8000 as **Public** (Ports tab
--> right-click -> Port Visibility), or leave them **Private** and access
-from a browser signed into the same GitHub account (works from another
-device too, e.g. testing from your phone). Private is the safer default
-if you're not sharing the link with anyone else.
+**Port visibility**: only 5173 is used from the browser. Leave it
+**Private** and open it from a browser signed into the same GitHub account
+(works from another device too). Port 8000 can stay private - nothing in
+the browser calls it directly.
 
 No authentication system was changed - this only ever adjusts which
 origins are allowed to call the same existing JWT-header-based API.
