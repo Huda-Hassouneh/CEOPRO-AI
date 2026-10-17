@@ -54,6 +54,11 @@ async def _lifespan(app: FastAPI):
     # check-only smoke test). This lifespan's real job is the other half:
     # a clean, explicit shutdown instead of leaving pooled sockets to
     # time out on their own when the process exits.
+    # Configuration problems are logged by setting name, never by value
+    # (core/config_check.py); start-up continues so health checks can report.
+    from src.ai.core import config_check
+
+    config_check.log_findings(logging.getLogger("CEOPRO_AI_MAIN"), config_check.check_environment())
     # Keeps competitor lists current (market_discovery/refresh.py).
     from src.market_scraper.market_discovery import refresh as discovery_refresh
 
