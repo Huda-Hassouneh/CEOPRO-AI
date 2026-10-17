@@ -22,6 +22,8 @@ import sys
 import uuid
 
 import httpx
+import time
+
 import jwt
 
 DEFAULT_BASE_URL = "http://localhost:8000"
@@ -30,7 +32,7 @@ REQUEST_TIMEOUT_SECONDS = 60.0
 
 
 def _mint_token(secret: str, tenant_id: str, user_id: str) -> str:
-    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id}, secret, algorithm="HS256")
+    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, secret, algorithm="HS256")
 
 
 def _ask(base_url: str, token: str, query_text: str, top_k: int) -> dict:

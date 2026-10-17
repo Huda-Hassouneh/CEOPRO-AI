@@ -83,6 +83,24 @@ def _balance(conn, tenant, kind="data"):
     return (Decimal(row[0]), Decimal(row[1])) if row else (Decimal(0), Decimal(0))
 
 
+def _cost_usd(conn, tenant, kind="data"):
+    conn.rollback()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT consumed_cost_usd FROM tenant_credit_balances WHERE tenant_id = %s AND budget_kind = %s;", (tenant, kind))
+        row = cursor.fetchone()
+    conn.rollback()
+    return Decimal(row[0]) if row else Decimal(0)
+
+
+def _adjustments(conn, tenant):
+    conn.rollback()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT credits_delta, cost_delta_usd FROM usage_ledger_adjustments WHERE tenant_id = %s ORDER BY created_at;", (tenant,))
+        rows = [(Decimal(c), Decimal(u)) for c, u in cursor.fetchall()]
+    conn.rollback()
+    return rows
+
+
 def _ledger(conn, tenant):
     conn.rollback()
     with conn.cursor() as cursor:
@@ -290,6 +308,38 @@ def test_delayed_provider_cost_is_reconciled_once(sys_conn):
     assert _ledger(sys_conn, tenant)[0][0] == "reconciled"
 
 
+def _only_ledger_id(conn, tenant):
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT ledger_id FROM usage_ledger WHERE tenant_id = %s;", (tenant,))
+        return cursor.fetchone()[0]
+
+
+def test_reconcile_moves_the_usd_total_and_records_the_usd_difference(sys_conn):
+    tenant = _company(sys_conn, "starter")
+    provider = _provider(sys_conn, usd="0.10", final=False)
+    with credits.metering(tenant, "test"):
+        with credits.provider_call("data", provider, "op", {"request": 1}) as call:
+            call.measured({"request": 1})
+    assert _cost_usd(sys_conn, tenant) == Decimal("0.10")                    # measured cost counted at settlement
+    credits.reconcile(sys_conn, _only_ledger_id(sys_conn, tenant), Decimal("0.08"), reference="r1", actor="test")
+    sys_conn.commit()
+    assert _cost_usd(sys_conn, tenant) == Decimal("0.08")                    # was left at 0.10 before the fix
+    assert _adjustments(sys_conn, tenant) == [(Decimal("-3.5"), Decimal("-0.02"))]  # the DIFFERENCE, not the 0.08 total
+
+
+def test_reconcile_of_an_unreported_charge_replaces_the_estimate(sys_conn):
+    tenant = _company(sys_conn, "starter")
+    provider = _provider(sys_conn, usd="0.10", final=False)
+    with credits.metering(tenant, "test"):
+        with credits.provider_call("data", provider, "op", {"request": 1}) as call:
+            call.billed_unreported()                                          # billed, usage not reported: estimate charged
+    assert _cost_usd(sys_conn, tenant) == Decimal("0.10")
+    credits.reconcile(sys_conn, _only_ledger_id(sys_conn, tenant), Decimal("0.25"), reference="r2", actor="test")
+    sys_conn.commit()
+    assert _cost_usd(sys_conn, tenant) == Decimal("0.25")
+    assert _adjustments(sys_conn, tenant)[0][1] == Decimal("0.15")
+
+
 def test_a_crashed_call_keeps_counting_and_is_charged_later(sys_conn):
     tenant = _company(sys_conn, "starter")
     provider = _provider(sys_conn, usd="0.30")
@@ -360,7 +410,9 @@ def test_an_unpriced_provider_is_refused_and_never_called(sys_conn):
         with pytest.raises(credits.BudgetError) as refused:
             with credits.provider_call("data", f"unpriced_{uuid.uuid4().hex[:6]}", "op", {"request": 1}):
                 called.append(True)
-    assert refused.value.reason == "COST_NOT_CONFIGURED" and not called
+    # ACCOUNTING_UNAVAILABLE here (seen once, not reproduced) would mean reserve() hit an unexpected
+    # database/connection error; the repr carries its exception class so a recurrence is diagnosable.
+    assert refused.value.reason == "COST_NOT_CONFIGURED" and not called, repr(refused.value)
 
 
 def test_a_paid_call_outside_any_company_is_refused(sys_conn):

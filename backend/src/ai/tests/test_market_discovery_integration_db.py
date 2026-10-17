@@ -8,6 +8,7 @@ Sources are replaced by fakes returning the shapes the real APIs return.
 import json
 import os
 import re
+import time
 import uuid
 
 import psycopg2
@@ -263,7 +264,7 @@ def test_competitor_websites_are_read_stored_with_sources_and_kept_private():
     finally:
         conn.close()
     client = TestClient(app)
-    token = jwt.encode({"tenant_id": other, "user_id": other_user}, os.environ["JWT_SECRET"], algorithm="HS256")
+    token = jwt.encode({"tenant_id": other, "user_id": other_user, "exp": int(time.time()) + 3600}, os.environ["JWT_SECRET"], algorithm="HS256")
     headers = {"Authorization": f"Bearer {token}"}
     assert client.get(f"/discovery/competitors/{competitor_id}", headers=headers).status_code == 404
     assert client.post(f"/discovery/competitors/{competitor_id}/refresh", headers=headers).status_code == 404
@@ -335,7 +336,7 @@ def test_ai_analysis_cites_only_real_evidence_and_stays_private(monkeypatch):
 
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage", model)
     client = TestClient(app)
-    headers = {"Authorization": f"Bearer {jwt.encode({'tenant_id': tenant, 'user_id': user}, os.environ['JWT_SECRET'], algorithm='HS256')}"}
+    headers = {"Authorization": f"Bearer {jwt.encode({'tenant_id': tenant, 'user_id': user, 'exp': int(time.time()) + 3600}, os.environ['JWT_SECRET'], algorithm='HS256')}"}
     response = client.post(f"/discovery/competitors/{competitor_id}/analysis", headers=headers)
     assert response.status_code == 200, response.text
     analysis = response.json()
@@ -348,7 +349,7 @@ def test_ai_analysis_cites_only_real_evidence_and_stays_private(monkeypatch):
     assert cited["url"].startswith("https://habibah.jo")
     stored = client.get(f"/discovery/competitors/{competitor_id}", headers=headers).json()["intel"]["analysis"]
     assert stored["strengths"] == analysis["strengths"]
-    other_headers = {"Authorization": f"Bearer {jwt.encode({'tenant_id': other, 'user_id': other_user}, os.environ['JWT_SECRET'], algorithm='HS256')}"}
+    other_headers = {"Authorization": f"Bearer {jwt.encode({'tenant_id': other, 'user_id': other_user, 'exp': int(time.time()) + 3600}, os.environ['JWT_SECRET'], algorithm='HS256')}"}
     assert client.post(f"/discovery/competitors/{competitor_id}/analysis", headers=other_headers).status_code == 404
 
 
