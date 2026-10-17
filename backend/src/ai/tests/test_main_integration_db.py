@@ -30,7 +30,7 @@ APP_DB_PASSWORD = os.getenv("APP_DB_PASSWORD")
 MINIO_ENDPOINT = os.getenv("AI_TEST_MINIO_ENDPOINT")
 MINIO_ROOT_USER = os.getenv("AI_TEST_MINIO_ROOT_USER", "minio_admin")
 MINIO_ROOT_PASSWORD = os.getenv("AI_TEST_MINIO_ROOT_PASSWORD")
-JWT_SECRET = "test-jwt-secret-for-integration-tests"
+JWT_SECRET = os.environ["JWT_SECRET"]  # set once in conftest.py; the app reads it at import time
 
 pytestmark = pytest.mark.skipif(
     not (DATABASE_URL and APP_DB_PASSWORD and MINIO_ENDPOINT and MINIO_ROOT_PASSWORD),
@@ -128,7 +128,8 @@ def test_uploading_the_canonical_template_is_verified_zero_loss(client, admin_co
         cursor.execute(
             "SELECT validation_status FROM import_staging_rows WHERE tenant_id = %s;", (tenant_id,)
         )
-        assert cursor.fetchone()[0] == "VALID"
+        # Upload promotes valid staging rows straight into the real tables.
+        assert cursor.fetchone()[0] == "COMMITTED"
         cursor.execute("SELECT job_status FROM ingestion_jobs WHERE tenant_id = %s;", (tenant_id,))
         assert cursor.fetchone()[0] == "COMPLETED"
 
