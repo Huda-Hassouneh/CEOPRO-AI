@@ -241,4 +241,8 @@ findings at start-up.
 
 Everything else is optional; add a confirmed price for each paid provider you turn on.
 STRIPE_SECRET_KEY=rk_test_51URcP4Jlm0Kyqxjrn34HtRele9vdYqEzMqNernV8i6XsVYOk3fgPUoizUmCqZHKCQaOlNIHA6ZL82qiDCuHTPqI200ucvzw4wR
+STRIPE_WEBHOOK_SECRET=whsec_fB7FpaRLNeWtwxuG4N7jL9PCWphluswY
 
+
+
+**
