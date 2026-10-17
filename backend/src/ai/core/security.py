@@ -76,7 +76,8 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
 
     token = authorization[len("Bearer "):]
     try:
-        claims = jwt.decode(token, _JWT_SECRET, algorithms=["HS256"])
+        # exp is mandatory: a signed token with no expiry would never stop working.
+        claims = jwt.decode(token, _JWT_SECRET, algorithms=["HS256"], options={"require": ["exp"]})
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 

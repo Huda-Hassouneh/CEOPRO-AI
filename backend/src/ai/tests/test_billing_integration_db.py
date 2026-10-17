@@ -315,3 +315,55 @@ def test_payments_flag_follows_the_secret(monkeypatch):
 
 def test_today_is_a_date():  # guards the trial-expiry comparison type
     assert isinstance(datetime.now(timezone.utc).date(), date)
+
+
+def test_two_simultaneous_deliveries_of_one_event_process_it_once(sys_conn, stripe_prices, monkeypatch):
+    """Stripe retries / replays can arrive together. The event must run exactly once;
+    the other delivery waits, then is acknowledged as a duplicate."""
+    import threading
+
+    tenant = _company(sys_conn)
+    sys_conn.commit()
+    event = _event("customer.subscription.updated", {"id": "sub_race"})
+    runs, results, errors = [], [], []
+
+    def slow_sync(conn, subscription_id, created, hint=None):
+        runs.append(subscription_id)
+        time.sleep(1.0)  # long enough for the second delivery to arrive mid-processing
+        return tenant
+
+    monkeypatch.setattr(webhooks, "sync_subscription", slow_sync)
+
+    def deliver():
+        conn = psycopg2.connect(DATABASE_URL)
+        try:
+            results.append(webhooks.handle_event(conn, event)["duplicate"])
+        except Exception as err:  # noqa: BLE001
+            errors.append(err)
+        finally:
+            conn.close()
+
+    threads = [threading.Thread(target=deliver) for _ in range(4)]
+    [t.start() for t in threads]
+    [t.join(timeout=60) for t in threads]
+    assert not errors, errors
+    assert len(runs) == 1, f"event ran {len(runs)} times"
+    assert sorted(results) == [False, True, True, True]
+
+
+def test_a_failed_event_is_retried_not_swallowed_as_a_duplicate(sys_conn, monkeypatch):
+    event = _event("customer.subscription.updated", {"id": "sub_retry"})
+    attempts = []
+
+    def flaky(conn, subscription_id, created, hint=None):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise RuntimeError("temporary")
+        return None
+
+    monkeypatch.setattr(webhooks, "sync_subscription", flaky)
+    with pytest.raises(webhooks.WebhookRetry):
+        webhooks.handle_event(sys_conn, event)
+    assert webhooks.handle_event(sys_conn, event)["duplicate"] is False  # Stripe's retry runs it again
+    assert webhooks.handle_event(sys_conn, event)["duplicate"] is True    # and only once
+    assert len(attempts) == 2
