@@ -694,24 +694,28 @@ def reconcile(conn, ledger_id: str, actual_cost_usd: Decimal, *, reference: str,
               reason: str = "provider-reported usage") -> Decimal:
     """Records the provider's final cost for a pending row: the difference
     becomes an append-only adjustment (a refund of over-reservation, or the
-    extra cost). Idempotent per reference. Returns the credit delta. Caller
+    extra cost) in both credits and USD, and the balance's credits and USD
+    totals move by the same differences. Idempotent per reference. Returns the credit delta. Caller
     commits."""
     pol = policy(conn)
     credit_value = Decimal(str(pol["credit_usd_value"]))
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT tenant_id, budget_kind, period_start, consumed_credits, status FROM usage_ledger "
-            "WHERE ledger_id = %s FOR UPDATE;",
+            "SELECT tenant_id, budget_kind, period_start, consumed_credits, status, actual_cost_usd, estimated_cost_usd "
+            "FROM usage_ledger WHERE ledger_id = %s FOR UPDATE;",
             (ledger_id,),
         )
         row = cursor.fetchone()
         if row is None:
             raise ValueError("unknown ledger row")
-        tenant_id, kind, period_start, consumed, status = row
+        tenant_id, kind, period_start, consumed, status, counted_actual, estimated = row
         if status != "pending_reconciliation":
             return Decimal("0")
         actual_credits = _to_credits(Decimal(str(actual_cost_usd)), credit_value)
         delta = actual_credits - Decimal(consumed or 0)
+        # What this call already added to the balance's USD total at settlement: the measured
+        # cost when the provider reported usage, else the estimate (unreported / expired calls).
+        cost_delta = Decimal(str(actual_cost_usd)) - Decimal(str(counted_actual if counted_actual is not None else estimated))
         cursor.execute(
             """
             INSERT INTO usage_ledger_adjustments
@@ -719,7 +723,7 @@ def reconcile(conn, ledger_id: str, actual_cost_usd: Decimal, *, reference: str,
             VALUES (%s, %s, %s, %s, %s, %s, 'reconciliation', %s, %s, %s)
             ON CONFLICT (tenant_id, reference) DO NOTHING RETURNING adjustment_id;
             """,
-            (tenant_id, ledger_id, kind, period_start, delta, Decimal(str(actual_cost_usd)), reference, reason, actor),
+            (tenant_id, ledger_id, kind, period_start, delta, cost_delta, reference, reason, actor),
         )
         if cursor.fetchone() is None:
             return Decimal("0")
@@ -729,10 +733,12 @@ def reconcile(conn, ledger_id: str, actual_cost_usd: Decimal, *, reference: str,
         )
         cursor.execute(
             """
-            UPDATE tenant_credit_balances SET consumed_credits = GREATEST(0, consumed_credits + %s), updated_at = NOW()
+            UPDATE tenant_credit_balances
+            SET consumed_credits = GREATEST(0, consumed_credits + %s),
+                consumed_cost_usd = GREATEST(0, consumed_cost_usd + %s), updated_at = NOW()
             WHERE tenant_id = %s AND budget_kind = %s AND period_start = %s;
             """,
-            (delta, tenant_id, kind, period_start),
+            (delta, cost_delta, tenant_id, kind, period_start),
         )
     return delta
 

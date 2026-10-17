@@ -8,6 +8,8 @@ convention, adapted to this module's own routers/ location.
 import os
 from unittest.mock import MagicMock, patch
 
+import time
+
 import jwt
 import pytest
 from fastapi.testclient import TestClient
@@ -22,7 +24,7 @@ _SECRET = os.environ["JWT_SECRET"]
 
 
 def _token(tenant_id="t1", user_id="u1"):
-    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id}, _SECRET, algorithm="HS256")
+    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, _SECRET, algorithm="HS256")
 
 
 def _auth():

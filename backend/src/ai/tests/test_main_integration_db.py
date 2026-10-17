@@ -14,6 +14,8 @@ FastAPI app - not a mock standing in for any of it.
 import os
 import uuid
 
+import time
+
 import jwt
 import psycopg2
 import pytest
@@ -94,7 +96,7 @@ def seeded_tenant(admin_conn):
             "INSERT INTO tenant_users (tenant_id, user_id, role_key) VALUES (%s, %s, %s);",
             (tenant_id, user_id, role_key),
         )
-    token = jwt.encode({"tenant_id": tenant_id, "user_id": user_id}, JWT_SECRET, algorithm="HS256")
+    token = jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
     return tenant_id, {"Authorization": f"Bearer {token}"}
 
 

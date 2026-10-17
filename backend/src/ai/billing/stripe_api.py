@@ -84,3 +84,21 @@ def construct_event(payload: bytes, signature: str, secret: str):
     """Verifies the Stripe-Signature header against the raw body (default
     5-minute tolerance) and returns the event; raises on any mismatch."""
     return stripe.Webhook.construct_event(payload, signature, secret)
+
+
+# --- Catalog reads/updates (scripts/stripe_sync_catalog.py reconciles with these) ---
+
+def list_products(active: bool = True, limit: int = 100):
+    return [_plain(p) for p in _client().Product.list(active=active, limit=limit).auto_paging_iter()]
+
+
+def retrieve_product(product_id: str):
+    return _plain(_client().Product.retrieve(product_id))
+
+
+def list_prices(product_id: str, active: bool = True):
+    return [_plain(p) for p in _client().Price.list(product=product_id, active=active, limit=100).auto_paging_iter()]
+
+
+def retrieve_price(price_id: str):
+    return _plain(_client().Price.retrieve(price_id))
