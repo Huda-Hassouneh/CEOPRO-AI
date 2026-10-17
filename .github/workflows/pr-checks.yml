@@ -102,7 +102,13 @@ jobs:
         run: |
           pip install --no-cache-dir pip-audit
           pip freeze --exclude-editable | grep -v '^pip-audit==' > "$RUNNER_TEMP/installed.txt"
-          pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off
+          # CVE-2026-106454 (Twisted IMAP *server* wildcardToRegexp ReDoS) is the only
+          # ignored advisory: Twisted is just Scrapy's transitive dependency, nothing here
+          # imports twisted.mail/imap4 or runs an IMAP server, 26.4.0 is already the newest
+          # release and no fixed version exists (checked 2026-10-17). Remove this ignore as
+          # soon as Twisted publishes a fix; every other finding still fails the job.
+          pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off \
+            --ignore-vuln CVE-2026-106454
 
       - name: Apply database migrations
         working-directory: backend
