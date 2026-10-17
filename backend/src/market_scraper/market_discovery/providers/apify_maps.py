@@ -1,6 +1,8 @@
 """Apify's Google Maps scraper actor (compass/crawler-google-places) for
-accounts that prefer it to the Places API. Needs APIFY_TOKEN; the actor's
-own usage is billed to that Apify account."""
+accounts that prefer it to the Places API. Needs APIFY_API_TOKEN (the
+older name APIFY_TOKEN still works); the actor's own usage is billed to
+that Apify account. The token travels in the Authorization header, never
+in the URL, so it can't reach logs, error text or cache keys."""
 import logging
 import os
 
@@ -17,8 +19,12 @@ RUN_URL = "https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
 MAX_PLACES = int(os.getenv("APIFY_MAX_PLACES_PER_SEARCH", "40"))
 
 
+def _token():
+    return os.getenv("APIFY_API_TOKEN") or os.getenv("APIFY_TOKEN")  # APIFY_TOKEN: the older name
+
+
 def available():
-    return (True, None) if os.getenv("APIFY_TOKEN") else (False, "not_configured")
+    return (True, None) if _token() else (False, "not_configured")
 
 
 def parse(items, query: DiscoveryQuery):
@@ -59,8 +65,16 @@ def search(query: DiscoveryQuery) -> ProviderResult:
         return ProviderResult(NAME, "skipped", reason="no_location")
     try:
         items = request_json("POST", RUN_URL.format(actor=ACTOR), json_body=body,
-                             params={"token": os.environ["APIFY_TOKEN"]}, timeout=180)
+                             headers={"Authorization": f"Bearer {_token()}"}, timeout=180)
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        logger.warning("Apify run failed: HTTP %s", status)  # not str(exc): it names the URL
+        reason = "auth_failed" if status in (401, 403) else "unreachable"
+        return ProviderResult(NAME, "failed", reason=reason, requests=1)
+    except httpx.TimeoutException:
+        logger.warning("Apify run timed out")
+        return ProviderResult(NAME, "failed", reason="timeout", requests=1)
     except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("Apify run failed: %s", exc)
+        logger.warning("Apify run failed: %s", type(exc).__name__)
         return ProviderResult(NAME, "failed", reason="unreachable", requests=1)
     return ProviderResult(NAME, "ok", parse(items, query), requests=1)

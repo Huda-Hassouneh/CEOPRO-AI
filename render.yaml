@@ -157,6 +157,10 @@ services:
         sync: false
       - key: SEARXNG_INSTANCE_URL
         sync: false
+      # Apify's Google Maps actor for competitor discovery (runs in this
+      # service); each run is billed to the Apify account.
+      - key: APIFY_API_TOKEN
+        sync: false
       # Google Custom Search closes on 2027-01-01; set one of these instead
       # (order via WEB_SEARCH_PROVIDERS, see market_scraper/web_search.py).
       - key: BRAVE_SEARCH_API_KEY
