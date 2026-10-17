@@ -20,6 +20,12 @@ pytestmark = pytest.mark.skipif(
     reason="AI_TEST_DATABASE_URL and/or APP_DB_PASSWORD not set - skipping live-DB plan catalog test",
 )
 
+# These tests store real objects, so they need MinIO as well as Postgres (CI has no MinIO service).
+requires_minio = pytest.mark.skipif(
+    not all(os.getenv(k) for k in ("MINIO_ENDPOINT", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD")),
+    reason="MINIO_ENDPOINT/MINIO_ROOT_USER/MINIO_ROOT_PASSWORD not set - skipping MinIO-backed test",
+)
+
 
 @pytest.fixture
 def client():
@@ -268,6 +274,7 @@ def _storage_rows(tenant):
     return _admin("SELECT kind, size_bytes FROM tenant_storage_objects WHERE tenant_id = %s ORDER BY kind;", (tenant,))
 
 
+@requires_minio
 def test_stored_upload_results_count_toward_storage(client):
     session, headers = _company(client, "starter")
     tenant = session["tenant_id"]
@@ -283,6 +290,7 @@ def test_stored_upload_results_count_toward_storage(client):
         conn.close()
 
 
+@requires_minio
 def test_a_marketing_image_is_refused_when_storage_is_full(client, monkeypatch):
     from src.ai.rag import llm_client
     from src.ai.tests.test_marketing_content_generator import _valid_response_json
@@ -302,6 +310,7 @@ def test_a_marketing_image_is_refused_when_storage_is_full(client, monkeypatch):
     assert full.status_code == 402
 
 
+@requires_minio
 def test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_counted(client, monkeypatch):
     from src.ai.marketing import image_generation
     from src.ai.rag import llm_client
