@@ -63,3 +63,7 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - `GET /pricing/market-coverage`: a product with a plausible reference price now counts as covered. New per-product `price_basis` (`competitor` | `market_reference`), `reference_prices`, `market_lookup` {outcome, last_attempt_at}; new summary keys `with_competitor_price`, `with_reference_price_only`. Existing keys unchanged.
 - New optional `PRICE_LOOKUP_AUTO=true` runs the lookup after each discovery pass (default off: it spends search quota).
 
+## - 2026-10-18 (likes as agreement)
+### Added (additive)
+- **API** — `GET /dashboard/competitors` rows gain `agreement_weighted_sentiment_score` (-1..1; each comment counts once plus once per like, i.e. per person who agreed) and `people_agreeing` (total likes across the competitor's analyzed comments). `sentiment_score` / `market_sentiment_label` are unchanged. Both are `null` with no analyzed comments.
+
