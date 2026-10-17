@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from src.ai import db
 from src.ai.core import usage
 from src.ai.core.security import TenantContext, get_tenant_context
-from src.market_scraper import api_connector_sync, connector_sync
+from src.market_scraper import api_connector_sync, connector_sync, price_coverage
 from src.market_scraper import data_access as market_scraper_data_access
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
@@ -79,6 +79,11 @@ def onboarding_status(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         result = market_scraper_data_access.get_onboarding_status(conn, ctx.tenant_id)
+        # Additive hint: barcodes make market-price lookup exact. Never allowed to break the status call.
+        try:
+            result = {**result, "barcodes": price_coverage.get_barcode_summary(conn, ctx.tenant_id)}
+        except Exception:  # noqa: BLE001
+            conn.rollback()
         conn.commit()
         return result
     except Exception:

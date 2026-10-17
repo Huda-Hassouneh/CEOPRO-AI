@@ -41,7 +41,8 @@ _QUERY = """
            MAX(cpr.observed_at) AS last_price_at,
            (SELECT COUNT(*) FROM market_price_observations o
              WHERE o.tenant_id = p.tenant_id AND o.product_id = p.product_id AND o.plausible IS NOT FALSE) AS reference_prices,
-           l.outcome AS lookup_outcome, l.last_attempt_at AS lookup_at
+           l.outcome AS lookup_outcome, l.last_attempt_at AS lookup_at,
+           (p.metadata->>'barcode') IS NOT NULL AS has_barcode
     FROM products p
     LEFT JOIN (competitor_product_mappings m
                JOIN tenant_competitors tc ON tc.tenant_id = m.tenant_id
@@ -51,7 +52,7 @@ _QUERY = """
     LEFT JOIN competitor_prices cpr ON cpr.tenant_id = m.tenant_id AND cpr.mapping_id = m.mapping_id
     LEFT JOIN market_price_lookups l ON l.tenant_id = p.tenant_id AND l.product_id = p.product_id
     WHERE p.tenant_id = %s AND p.deleted_at IS NULL
-    GROUP BY p.product_id, product_name, p.current_price, p.currency, l.outcome, l.last_attempt_at
+    GROUP BY p.product_id, product_name, p.current_price, p.currency, l.outcome, l.last_attempt_at, has_barcode
     ORDER BY product_name, p.product_id;
 """
 
@@ -66,21 +67,42 @@ def _reason(mappings: int, allowed: int, restricted: list) -> str:
     return REASON_ROBOTS
 
 
+def get_barcode_summary(conn, tenant_id: str) -> dict:
+    """{"products", "with_barcode", "coverage_pct"}: how many active products carry a barcode.
+    A barcode is the exact key for the open price databases, so this is the number the owner
+    can move to improve price coverage."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*), COUNT(*) FILTER (WHERE metadata->>'barcode' IS NOT NULL) "
+            "FROM products WHERE tenant_id = %s AND deleted_at IS NULL;",
+            (tenant_id,),
+        )
+        total, with_barcode = cursor.fetchone()
+    return {
+        "products": int(total), "with_barcode": int(with_barcode),
+        "coverage_pct": round(with_barcode / total * 100, 1) if total else None,
+    }
+
+
 def get_price_coverage(
     conn, tenant_id: str, include_covered: bool = False, limit: Optional[int] = 100, offset: int = 0,
+    missing_barcode: bool = False,
 ) -> dict:
     """{"summary": {...}, "products": [...]}. The summary always covers EVERY
     product; `products` lists the gaps (plus covered products when
-    include_covered) paged by limit/offset."""
+    include_covered) paged by limit/offset. missing_barcode=True instead lists
+    every product without a barcode, price gaps first - the owner's worklist for
+    entering barcodes (PATCH /products/{id} {"barcode": ...}). Each product says
+    has_barcode, and a gap without one carries suggestion "add_barcode"."""
     with conn.cursor() as cursor:
         cursor.execute(_QUERY, (tenant_id,))
         rows = cursor.fetchall()
 
     by_reason = {reason: 0 for reason in REASONS}
     items = []
-    competitor_priced = reference_only = 0
+    competitor_priced = reference_only = without_barcode = gaps_without_barcode = 0
     for (product_id, name, current_price, currency, mappings, prices, allowed, restricted, last_price_at,
-         reference_prices, lookup_outcome, lookup_at) in rows:
+         reference_prices, lookup_outcome, lookup_at, has_barcode) in rows:
         has_price = prices > 0 or reference_prices > 0
         basis = "competitor" if prices > 0 else "market_reference" if reference_prices > 0 else None
         reason = None if has_price else _reason(mappings, allowed, restricted or [])
@@ -90,7 +112,14 @@ def get_price_coverage(
             reference_only += 1
         else:
             by_reason[reason] += 1
-        if has_price and not include_covered:
+        if not has_barcode:
+            without_barcode += 1
+            if not has_price:
+                gaps_without_barcode += 1
+        if missing_barcode:
+            if has_barcode:
+                continue
+        elif has_price and not include_covered:
             continue
         items.append({
             "product_id": str(product_id), "product_name": name,
@@ -102,9 +131,14 @@ def get_price_coverage(
             "action": "review_source" if reason == REASON_TERMS else None,
             "source_ids": sorted(restricted or []) if reason == REASON_TERMS else [],
             # What the open-market lookup did for this product, if it has run.
+            "has_barcode": has_barcode,
+            # The one thing the owner can add that makes the open price databases exact.
+            "suggestion": "add_barcode" if not has_barcode and not has_price else None,
             "market_lookup": {"outcome": lookup_outcome, "last_attempt_at": lookup_at.isoformat()} if lookup_outcome else None,
         })
 
+    if missing_barcode:
+        items.sort(key=lambda item: item["has_market_price"])  # stable: price gaps first, then by name
     total = len(rows)
     covered = competitor_priced + reference_only
     page = items[offset:] if limit is None else items[offset:offset + limit]
@@ -113,6 +147,7 @@ def get_price_coverage(
             "total_products": total, "with_market_price": covered, "without_market_price": total - covered,
             "with_competitor_price": competitor_priced, "with_reference_price_only": reference_only,
             "coverage_pct": round(covered / total * 100, 1) if total else None, "gaps_by_reason": by_reason,
+            "products_without_barcode": without_barcode, "gaps_without_barcode": gaps_without_barcode,
         },
         "products": page,
     }

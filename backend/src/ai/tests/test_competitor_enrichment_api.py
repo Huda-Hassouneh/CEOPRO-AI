@@ -136,7 +136,7 @@ def test_market_coverage_requires_auth_and_returns_the_report_for_the_callers_te
          patch(f"{R}.price_coverage.get_price_coverage", return_value=report) as coverage:
         response = client.get("/pricing/market-coverage?include_covered=true&limit=10&offset=5", headers=_auth())
     assert response.status_code == 200 and response.json() == report
-    coverage.assert_called_once_with(conn, "t1", True, 10, 5)
+    coverage.assert_called_once_with(conn, "t1", True, 10, 5, False)
     assert connect.call_args.args[0] == "t1"
     assert client.get("/pricing/market-coverage?limit=0", headers=_auth()).status_code == 422
 
@@ -173,3 +173,10 @@ def test_market_prices_is_404_for_an_unknown_product_and_422_for_a_bad_id():
     with patch(f"{R}.db.app_role_connection", return_value=conn):
         assert client.get(f"/pricing/market-prices/{COMP}", headers=_auth()).status_code == 404
     assert client.get("/pricing/market-prices/nope", headers=_auth()).status_code == 422
+
+
+def test_market_coverage_can_list_the_missing_barcode_worklist():
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.price_coverage.get_price_coverage", return_value={"summary": {}, "products": []}) as coverage:
+        assert client.get("/pricing/market-coverage?missing_barcode=true", headers=_auth()).status_code == 200
+    assert coverage.call_args.args[-1] is True
