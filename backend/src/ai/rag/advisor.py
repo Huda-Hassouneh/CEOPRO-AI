@@ -214,24 +214,30 @@ def _relevant(question: str, text: str) -> bool:
 # Retrieval always returns its nearest chunks, so each must also pass a
 # relevance check before it becomes evidence. Shared words alone (_relevant)
 # would drop every match semantic search makes across languages - an Arabic
-# question about an English document shares none - so a chunk whose embedding
-# is at least this similar to the question's also counts. Calibrated on the
-# question/document similarities scripts/rag_runtime_check.py prints.
-SEMANTIC_MIN_SIMILARITY = float(os.getenv("RAG_SEMANTIC_MIN_SIMILARITY", "0.35"))
-_UNSET = object()
+# question about an English document shares none - so a chunk also counts
+# when it is the retrieved chunk closest in meaning to the question (or
+# within SEMANTIC_MARGIN of it) and at least SEMANTIC_MIN_SIMILARITY close.
+# Relative, not a fixed cut-off: the static model's similarities are low and
+# vary by question (right document 0.18-0.39, a wrong one up to 0.30, in
+# scripts/rag_runtime_check.py's measurements), so no single cut-off fits.
+SEMANTIC_MIN_SIMILARITY = float(os.getenv("RAG_SEMANTIC_MIN_SIMILARITY", "0.15"))
+SEMANTIC_MARGIN = float(os.getenv("RAG_SEMANTIC_MARGIN", "0.05"))
 
 
-def _semantic_check(question: str) -> Optional[Callable[[str], bool]]:
-    """text -> close enough to `question` by meaning; None without an embedding model."""
+def _semantic_check(question: str, texts: List[str]) -> Optional[Callable[[str], bool]]:
+    """text -> close enough to `question` by meaning, among `texts` (the
+    retrieved chunks); None without an embedding model."""
     from src.ai.rag.embeddings import try_embed
 
-    asked = try_embed([question])
-    if asked is None:
+    vectors = try_embed([question] + list(texts)) if texts else None
+    if vectors is None:
         return None
+    similarity = {text: float(vector @ vectors[0]) for text, vector in zip(texts, vectors[1:])}
+    best = max(similarity.values())
 
     def close(text: str) -> bool:
-        vector = try_embed([text])
-        return vector is not None and float(vector[0] @ asked[0]) >= SEMANTIC_MIN_SIMILARITY
+        score = similarity.get(text)
+        return score is not None and score >= SEMANTIC_MIN_SIMILARITY and score >= best - SEMANTIC_MARGIN
 
     return close
 
@@ -282,7 +288,10 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
         )
         rows = {str(row[0]): row for row in cursor.fetchall()}
     added, withheld = 0, 0
-    close = _UNSET
+    close = None
+    unmatched = [row[2] for row in rows.values() if not _relevant(question, row[2])]
+    if unmatched:
+        close = _semantic_check(question, unmatched)
     for source in context.sources:
         row = rows.get(source["chunk_id"])
         if row is None:
@@ -294,11 +303,8 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
             continue
         if added >= top_k:
             continue
-        if not _relevant(question, text):
-            if close is _UNSET:
-                close = _semantic_check(question)
-            if close is None or not close(text):
-                continue
+        if not _relevant(question, text) and (close is None or not close(text)):
+            continue
         summary = (path or "").startswith("_generated/")
         title = (_w("summary_title", language, name=file_name.rsplit('.', 1)[0].replace('_', ' ')) if summary
                  else file_name)
