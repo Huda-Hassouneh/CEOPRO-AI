@@ -357,6 +357,13 @@ services:
       # Operator's recorded approval to store Google Places reviews (Google's
       # terms govern stored Places content). Unset = reviews stay BLOCKED.
       PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
+      # More competitor sources: news (own-site feeds + the news mode of Brave/Tavily/SearXNG above),
+      # YouTube comments with likes, deeper Google reviews with likes (Apify).
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      APIFY_TOKEN: ${APIFY_TOKEN:-}
+      EXTERNAL_COMMENTS_APPROVAL_REFERENCE: ${EXTERNAL_COMMENTS_APPROVAL_REFERENCE:-}
+      NEWS_MAX_AGE_DAYS: ${NEWS_MAX_AGE_DAYS:-180}
+      APIFY_REVIEWS_MAX: ${APIFY_REVIEWS_MAX:-100}
       # Market reference-price lookup (price_lookup/), run by this worker for POST /pricing/market-coverage/fill.
       PRICE_LOOKUP_PROVIDERS: ${PRICE_LOOKUP_PROVIDERS:-open_prices,web_offers,serpapi_shopping}
       SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
@@ -518,6 +525,10 @@ services:
       ENRICHMENT_DEDUPE_SECONDS: ${ENRICHMENT_DEDUPE_SECONDS:-600}
       # Enables the REVIEWS facet for a synchronous Retry served by this API.
       PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
+      # A synchronous per-competitor Retry served by this API also reads news and video comments.
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      APIFY_TOKEN: ${APIFY_TOKEN:-}
+      EXTERNAL_COMMENTS_APPROVAL_REFERENCE: ${EXTERNAL_COMMENTS_APPROVAL_REFERENCE:-}
     ports:
       - "8001:8000"
     networks:

@@ -72,13 +72,15 @@ const completeness = {
     PROFILE: { status: 'SUCCEEDED', can_retry: true },
     SOCIAL_LINKS: { status: 'FAILED', reason_code: 'NO_SOCIAL_LINKS', can_retry: true },
     REVIEWS: { status: 'BLOCKED', reason_code: 'PLATFORM_APPROVAL_MISSING', can_retry: true },
+    NEWS: { status: 'SUCCEEDED', can_retry: true },
+    COMMENTS: { status: 'FAILED', reason_code: 'NO_VIDEOS', can_retry: true },
     PRICES: { status: 'BLOCKED', reason_code: 'TERMS_UNREVIEWED', can_retry: false, action: 'review_source', action_source_ids: ['s1', 's2'] },
     SOCIAL_CONTENT: { status: 'BLOCKED', reason_code: 'NO_SOCIAL_LINKS', can_retry: false },
   },
 };
 
 test('only facets that are not collected and can be retried are offered for Retry', () => {
-  assert.deepEqual(retryableFacets(completeness), ['SOCIAL_LINKS', 'REVIEWS']);
+  assert.deepEqual(retryableFacets(completeness), ['SOCIAL_LINKS', 'REVIEWS', 'COMMENTS']);
   assert.deepEqual(retryableFacets(null), []);
   assert.deepEqual(retryableFacets({ facets: { PROFILE: { status: 'NOT_APPLICABLE', can_retry: false } } }), []);
 });
@@ -150,6 +152,6 @@ test('the reason codes the backend can send are all known to the screen', () => 
   // backend/src/market_scraper/competitor_enrichment.py reason constants
   const backend = ['NO_CREDENTIALS', 'CREDENTIALS_REJECTED', 'QUOTA_EXHAUSTED', 'PROVIDER_ERROR', 'NO_MATCH', 'INCOMPLETE_LISTING', 'NO_WEBSITE',
     'ROBOTS_DISALLOWED', 'SITE_UNREACHABLE', 'SHARED_RECORD', 'NO_PRODUCTS_MAPPED', 'TERMS_UNREVIEWED', 'NO_DATA_COLLECTED', 'COLLECTOR_NOT_ENABLED',
-    'NO_SOCIAL_LINKS', 'NO_PLACE_ID', 'PLATFORM_APPROVAL_MISSING', 'SERVICE_MISCONFIGURED', 'NOT_ATTEMPTED'];
+    'NO_SOCIAL_LINKS', 'NO_PLACE_ID', 'PLATFORM_APPROVAL_MISSING', 'SERVICE_MISCONFIGURED', 'NOT_ATTEMPTED', 'NO_FEED', 'NO_NEWS', 'NO_VIDEOS'];
   assert.deepEqual(backend.filter((code) => !REASON_CODES.includes(code)), []);
 });

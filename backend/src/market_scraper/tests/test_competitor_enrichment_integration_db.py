@@ -137,9 +137,10 @@ def test_due_mode_skips_permanent_misses_but_force_mode_retries_them_and_fixed_s
     blocked_key = _register(conn, tenant_id, url="https://nokey.example", title="No Key")
     done = _register(conn, tenant_id, url="https://done.example", title="Done")
     for cid in (permanent, transient, blocked_key, done):
-        # SOCIAL_LINKS and REVIEWS are settled for all four, so only PROFILE decides who is picked.
+        # SOCIAL_LINKS, REVIEWS and NEWS are settled for all four, so only PROFILE decides who is picked.
         ce._write_ledger(conn, tenant_id, cid, ce.FACET_SOCIAL_LINKS, ce.STATUS_SUCCEEDED)
         ce._write_ledger(conn, tenant_id, cid, ce.FACET_REVIEWS, ce.STATUS_SUCCEEDED)
+        ce._write_ledger(conn, tenant_id, cid, ce.FACET_NEWS, ce.STATUS_SUCCEEDED)
     ce._write_ledger(conn, tenant_id, done, ce.FACET_PROFILE, ce.STATUS_SUCCEEDED)
     ce._write_ledger(conn, tenant_id, permanent, ce.FACET_PROFILE, ce.STATUS_FAILED, ce.NO_MATCH, "x")
     ce._write_ledger(conn, tenant_id, transient, ce.FACET_PROFILE, ce.STATUS_FAILED, ce.PROVIDER_ERROR, "x")
@@ -224,3 +225,99 @@ def test_price_lookup_picks_only_unpriced_products_stores_a_quote_and_skips_rece
     summary = get_price_coverage(conn, tenant_id, include_covered=True)
     assert summary["summary"]["with_reference_price_only"] == 1
     assert summary["products"][0]["price_basis"] == "market_reference"
+
+
+# ---- news and comments from further sources -------------------------------------------------------------
+
+def test_new_facets_are_accepted_by_the_ledger_and_news_is_stored_once_with_its_origin(conn):
+    from src.market_scraper import competitor_mentions as cm  # noqa: F401
+    tenant_id = _insert_company(conn)
+    competitor_id = _register(conn, tenant_id)
+    ce._write_ledger(conn, tenant_id, competitor_id, ce.FACET_NEWS, ce.STATUS_SUCCEEDED, items_found=2)
+    ce._write_ledger(conn, tenant_id, competitor_id, ce.FACET_COMMENTS, ce.STATUS_FAILED, ce.NO_VIDEOS, "none")
+    items = [
+        {"url": "https://burgerhub.example/a", "title": "New branch", "summary": "Opening soon", "published_at": "2026-10-01T10:00:00+00:00", "source_domain": "burgerhub.example"},
+        {"url": "https://news.example/b", "title": "Burger Hub wins award", "summary": None, "published_at": None, "source_domain": "news.example"},
+    ]
+    assert ce._save_news(conn, tenant_id, competitor_id, items, "own_site") == 2
+    assert ce._save_news(conn, tenant_id, competitor_id, items, "web_search") == 0  # already stored: left as it is
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT title, topic, source_kind, summary, global_competitor_id::text FROM market_news WHERE tenant_id = %s ORDER BY url;", (tenant_id,))
+        rows = cursor.fetchall()
+    assert rows[0] == ("New branch", "competitor", "own_site", "Opening soon", competitor_id)
+    facets = ce.load_data_completeness(conn, tenant_id, competitor_id)[competitor_id]["facets"]
+    assert facets[ce.FACET_NEWS]["status"] == ce.STATUS_SUCCEEDED and facets[ce.FACET_NEWS]["items_found"] == 2  # the data wins
+    assert facets[ce.FACET_COMMENTS]["reason_code"] == ce.NO_VIDEOS
+
+
+def test_comments_are_stored_with_likes_and_replies_linked_to_their_parent_and_restored_idempotently(conn):
+    tenant_id = _insert_company(conn)
+    competitor_id = _register(conn, tenant_id)
+    source_id = ce._review_source(conn, tenant_id, str(uuid.uuid4()), "ops-1", name="YouTube comments (official API)", collector_key="youtube_comments", retention_days=30)
+    again = ce._review_source(conn, tenant_id, str(uuid.uuid4()), "ops-1", name="YouTube comments (official API)", collector_key="youtube_comments", retention_days=30)
+    assert source_id == again  # one source per tenant and provider
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT retention_days, policy_status FROM data_sources WHERE source_id = %s;", (source_id,))
+        assert cursor.fetchone() == (30, "ALLOWED")
+
+    comments = [
+        {"external_id": "c1", "parent_external_id": None, "author": "Sam", "text": "Terrible service", "likes": 400, "published_at": "2026-10-01T10:00:00Z", "reply_count": 1},
+        {"external_id": "r1", "parent_external_id": "c1", "author": "Lee", "text": "Same here", "likes": 2, "published_at": "2026-10-02T10:00:00Z", "reply_count": None},
+    ]
+    assert ce._save_comments(conn, tenant_id, competitor_id, source_id, "YouTube", comments) == 2
+    comments[0]["likes"] = 450  # likes grow between runs
+    assert ce._save_comments(conn, tenant_id, competitor_id, source_id, "YouTube", comments) == 0
+    from src.ai.market_inputs import competitor_comments
+    result = competitor_comments.list_competitor_comments(conn, tenant_id, competitor_id)
+    assert result["comments"][0]["people_agreeing"] == 450 and result["comments"][0]["platform"] == "YouTube"
+    assert [r["text"] for r in result["comments"][0]["replies"]] == ["Same here"]
+
+
+def test_deeper_google_reviews_do_not_duplicate_what_places_gave_and_add_likes_and_owner_replies(conn):
+    tenant_id = _insert_company(conn)
+    competitor_id = _register(conn, tenant_id)
+    source_id = ce._places_review_source(conn, tenant_id, str(uuid.uuid4()), "ops-1")
+    with conn.cursor() as cursor:  # a review the Places API already gave (no likes, no id from Apify)
+        cursor.execute(
+            "INSERT INTO reviews (tenant_id, source_platform, reviewer_name, review_text, review_rating, subject_type, competitor_id, source_status, "
+            "collection_method, source_id, external_review_id) VALUES (%s, 'Google Places', 'Sam', 'Cold food and a very long wait for the bill', 1, 'COMPETITOR', %s, 'ALLOWED', 'PUBLIC_API', %s, 'places-hash');",
+            (tenant_id, competitor_id, source_id),
+        )
+    conn.commit()
+    deep = [
+        {"external_id": "g1", "author": "Sam", "text": "Cold food and a very long wait for the bill - never again", "rating": 1.0, "likes": 12,
+         "published_at": "2026-09-01T10:00:00Z", "owner_reply": "We are sorry", "owner_reply_at": "2026-09-02T10:00:00Z"},
+        {"external_id": "g2", "author": "Lee", "text": "Lovely staff", "rating": 5.0, "likes": 0, "published_at": "2026-09-03T10:00:00Z", "owner_reply": None, "owner_reply_at": None},
+    ]
+    with patch.object(ce.mentions, "apify_google_reviews", return_value=deep):
+        new, total = ce._store_deep_google_reviews(conn, tenant_id, competitor_id, "PID", source_id, "TOKEN")
+        again = ce._store_deep_google_reviews(conn, tenant_id, competitor_id, "PID", source_id, "TOKEN")
+    assert (new, total) == (1, 2) and again == (0, 2)  # Sam's review was already there; Lee's is new; a re-run adds nothing
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM reviews WHERE tenant_id = %s AND competitor_id = %s AND parent_review_id IS NULL;", (tenant_id, competitor_id))
+        assert cursor.fetchone()[0] == 2
+        cursor.execute("SELECT like_count FROM reviews WHERE tenant_id = %s AND reviewer_name = 'Sam' AND parent_review_id IS NULL;", (tenant_id,))
+        assert cursor.fetchone()[0] == 12  # the existing review gained its likes
+        cursor.execute("SELECT review_text FROM reviews WHERE tenant_id = %s AND reviewer_name = 'Owner';", (tenant_id,))
+        assert cursor.fetchall() == [("We are sorry",)]
+
+
+def test_youtube_comments_are_deleted_after_their_retention_but_other_sources_are_only_anonymized(conn):
+    tenant_id = _insert_company(conn)
+    competitor_id = _register(conn, tenant_id)
+    youtube = ce._review_source(conn, tenant_id, str(uuid.uuid4()), "ops-1", name="YouTube comments (official API)", collector_key="youtube_comments", retention_days=30)
+    google = ce._places_review_source(conn, tenant_id, str(uuid.uuid4()), "ops-1")
+    with conn.cursor() as cursor:
+        for source, ext, text in ((youtube, "old-yt", "old youtube"), (youtube, "new-yt", "new youtube"), (google, "old-g", "old google")):
+            cursor.execute(
+                "INSERT INTO reviews (tenant_id, source_platform, reviewer_name, review_text, subject_type, competitor_id, source_status, collection_method, source_id, external_review_id, review_date, created_at) "
+                "VALUES (%s, 'X', 'Sam', %s, 'COMPETITOR', %s, 'ALLOWED', 'PUBLIC_API', %s, %s, NOW() - INTERVAL '400 days', "
+                "CASE WHEN %s LIKE 'old%%' THEN NOW() - INTERVAL '45 days' ELSE NOW() END);",
+                (tenant_id, text, competitor_id, source, ext, ext),
+            )
+    conn.commit()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT enforce_comment_retention();")
+        assert cursor.fetchone()[0] >= 1  # the function is cross-tenant: other tenants' expired comments may go too
+        cursor.execute("SELECT review_text FROM reviews WHERE tenant_id = %s ORDER BY review_text;", (tenant_id,))
+        assert [r[0] for r in cursor.fetchall()] == ["new youtube", "old google"]

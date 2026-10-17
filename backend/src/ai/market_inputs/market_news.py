@@ -37,7 +37,7 @@ def latest(conn, tenant_id: str, limit: int = 30, competitor_id: Optional[str] =
         cursor.execute(
             f"""
             SELECT n.url, n.title, n.source_domain, n.language, n.published_at, n.topic, n.global_competitor_id,
-                   gc.competitor_name, n.retrieved_at
+                   gc.competitor_name, n.retrieved_at, n.source_kind, n.summary
             FROM market_news n LEFT JOIN global_competitors gc ON gc.global_competitor_id = n.global_competitor_id
             WHERE n.tenant_id = %s {"AND n.global_competitor_id = %s" if competitor_id else ""}
             ORDER BY n.published_at DESC NULLS LAST, n.retrieved_at DESC LIMIT %s;
@@ -47,5 +47,8 @@ def latest(conn, tenant_id: str, limit: int = 30, competitor_id: Optional[str] =
         rows = cursor.fetchall()
     return [{"url": url, "title": title, "source_domain": domain, "language": language,
              "published_at": published.isoformat() if published else None, "topic": topic,
-             "competitor_id": str(cid) if cid else None, "competitor_name": name, "retrieved_at": retrieved.isoformat()}
-            for url, title, domain, language, published, topic, cid, name, retrieved in rows]
+             "competitor_id": str(cid) if cid else None, "competitor_name": name, "retrieved_at": retrieved.isoformat(),
+             # Where it came from ("own_site" = the competitor's own feed, "web_search", "gdelt" or None for older rows)
+             # and the excerpt the source published with it.
+             "source_kind": kind, "summary": summary}
+            for url, title, domain, language, published, topic, cid, name, retrieved, kind, summary in rows]
