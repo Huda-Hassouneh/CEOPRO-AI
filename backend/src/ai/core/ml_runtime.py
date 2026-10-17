@@ -19,21 +19,26 @@ _UNOBTAINABLE_UNTIL = {}  # model name -> monotonic time before which it isn't r
 UNOBTAINABLE_RETRY_SECONDS = 600
 
 
-def model_obtainable(model_name: str, probe_timeout: float = 3.0) -> bool:
+WEIGHT_FILES = ("model.safetensors", "pytorch_model.bin")
+
+
+def model_obtainable(model_name: str, probe_timeout: float = 3.0, weights=WEIGHT_FILES) -> bool:
     """Cached wrapper: a model found unavailable isn't probed again for
     UNOBTAINABLE_RETRY_SECONDS, so a blocked host costs one probe per ten
-    minutes instead of one per request."""
+    minutes instead of one per request. `weights` names the files the caller
+    will load (an ONNX export instead of the torch weights, say)."""
     import time
 
-    if _UNOBTAINABLE_UNTIL.get(model_name, 0) > time.monotonic():
+    key = (model_name, tuple(weights))
+    if _UNOBTAINABLE_UNTIL.get(key, 0) > time.monotonic():
         return False
-    ok = _model_obtainable(model_name, probe_timeout)
+    ok = _model_obtainable(model_name, probe_timeout, tuple(weights))
     if not ok:
-        _UNOBTAINABLE_UNTIL[model_name] = time.monotonic() + UNOBTAINABLE_RETRY_SECONDS
+        _UNOBTAINABLE_UNTIL[key] = time.monotonic() + UNOBTAINABLE_RETRY_SECONDS
     return ok
 
 
-def _model_obtainable(model_name: str, probe_timeout: float = 3.0) -> bool:
+def _model_obtainable(model_name: str, probe_timeout: float = 3.0, weights=WEIGHT_FILES) -> bool:
     """True when a Hugging Face model can be loaded: its files are already in
     the local cache, it is a local path, or the hub answers within
     `probe_timeout` seconds. Lets callers fail in seconds instead of sitting
@@ -47,8 +52,8 @@ def _model_obtainable(model_name: str, probe_timeout: float = 3.0) -> bool:
 
         # The weights, not just config.json - an interrupted download leaves
         # the small files cached and the weights as *.incomplete.
-        for weights in ("model.safetensors", "pytorch_model.bin"):
-            if isinstance(try_to_load_from_cache(model_name, weights), str):
+        for file_name in weights:
+            if isinstance(try_to_load_from_cache(model_name, file_name), str):
                 return True
     except Exception:  # noqa: BLE001 - library missing or odd cache: fall through to the probe
         pass
@@ -61,8 +66,8 @@ def _model_obtainable(model_name: str, probe_timeout: float = 3.0) -> bool:
     # Probe the weights download itself (it redirects to a separate file
     # host), not just the hub API - the API can be reachable while the file
     # host is blocked, which is exactly the slow-failure case.
-    for weights in ("model.safetensors", "pytorch_model.bin"):
-        request = urllib.request.Request(f"{endpoint}/{model_name}/resolve/main/{weights}", method="HEAD")
+    for file_name in weights:
+        request = urllib.request.Request(f"{endpoint}/{model_name}/resolve/main/{file_name}", method="HEAD")
         try:
             urllib.request.urlopen(request, timeout=probe_timeout)
             return True
