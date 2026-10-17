@@ -113,8 +113,18 @@ staging). Values are never committed.
   was run against small locally built models on the current library
   versions), and building the Docker images. Each needs one run on
   staging.
+- **Checked on real models in CI (2026-10-17, `rag-runtime-check.yml`):**
+  embedding and re-ranking models download and load from Hugging Face;
+  semantic retrieval finds an English document for an Arabic question
+  with no shared word (keyword search finds nothing); memory per setting
+  is in STAGING_DEPLOYMENT.md. Apify's Google Maps actor was run once
+  through the real discovery pipeline into a test database (one place,
+  parsed and stored, run recorded as ok) - not yet on staging.
 - Without the embedding model, the assistant finds documents by keyword
   search only; vectors are added once the model can be downloaded.
+  `keel-ai-staging` (512 MB) runs this way on purpose
+  (`RAG_EMBEDDING_BACKEND=none`); semantic search needs a 2 GB plan with
+  `RAG_EMBEDDING_BACKEND=onnx`.
 - A free Groq key limits how many assistant questions can be answered per
   minute across all companies: under load, answers wait for the limit
   (seen as 9-16 s replies).
