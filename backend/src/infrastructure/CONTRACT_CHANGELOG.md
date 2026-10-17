@@ -47,3 +47,10 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - After each discovery pass up to `ENRICHMENT_MAX_PER_RUN` competitors are enriched; a profile that gains an address/rating is re-scored, so `confidence_*` can change. Permanent misses (`NO_MATCH`, `NO_SOCIAL_LINKS`) are not retried automatically.
 - Google reviews are stored as competitor-level `reviews` rows (`collection_method = PUBLIC_API`, source "Google Places (official API)", up to 5 per listing) only when the operator sets `PLACES_TERMS_APPROVAL_REFERENCE`; new reviews trigger `market.analysis.requested`.
 - Data ownership matrix unchanged: competitor data is still written only by the AI Market Scraper Service code path.
+
+## - 2026-10-18 (market price coverage)
+### Added (additive)
+- **API** — `GET /pricing/market-coverage` (`include_covered`, `limit`, `offset`): `summary` {total_products, with_market_price, without_market_price, coverage_pct, gaps_by_reason} over every product, and `products` listing each product with no competitor price and its `reason_code` (`NO_COMPETITOR_MAPPED | TERMS_UNREVIEWED | ROBOTS_DISALLOWED | NO_DATA_COLLECTED`). A `TERMS_UNREVIEWED` gap carries `action: "review_source"` and the `source_ids` for `POST /competitors/sources/{source_id}/review`. Same `COMPETITOR_MANAGEMENT` entitlement as the competitor routes. Manual prices count as covered.
+### Changed
+- `supervisor.py` runs the new `enrichment` worker (also selectable via `KEEL_WORKERS`); without this the enrichment queue and hourly sweep would not run on the Render worker service.
+

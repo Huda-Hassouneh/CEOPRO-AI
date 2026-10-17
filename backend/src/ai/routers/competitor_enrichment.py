@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from src.ai import db
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
-from src.market_scraper import competitor_enrichment, enrichment_queue
+from src.market_scraper import competitor_enrichment, enrichment_queue, price_coverage
 
 router = APIRouter(tags=["competitors"])
 logger = logging.getLogger("CEOPRO_AI_COMPETITOR_ENRICHMENT_API")
@@ -129,6 +129,31 @@ def enrich_competitor_endpoint(
         return {"competitor_id": competitor_id, "results": results, "data_completeness": completeness.get(competitor_id)}
     except HTTPException:
         raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.get("/pricing/market-coverage")
+def market_price_coverage_endpoint(
+    include_covered: bool = Query(default=False), limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0), ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    How many of the tenant's products have at least one competitor price, and
+    for each that does not, why (price_coverage.py). `summary` covers every
+    product; `products` lists the gaps, paged (include_covered=true adds the
+    products that already have a price). A gap with action "review_source"
+    is fixed by the owner/admin review at
+    POST /competitors/sources/{source_id}/review for each id in `source_ids`.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = price_coverage.get_price_coverage(conn, ctx.tenant_id, include_covered, limit, offset)
+        conn.commit()
+        return result
     except Exception:
         conn.rollback()
         raise
