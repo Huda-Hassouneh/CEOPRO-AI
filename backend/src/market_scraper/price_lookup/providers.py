@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Callable, List, Optional
 from urllib.parse import quote, urlsplit
 
@@ -33,6 +34,7 @@ from src.ai.research import page_reader
 from src.market_scraper import web_search
 from src.market_scraper.iso_countries import country_name
 from src.market_scraper.network_security import UnsafeTargetError, resolve_public_addresses
+from src.market_scraper.price_lookup import matching
 from src.market_scraper.price_lookup.models import PriceQuote, ProductContext, ProviderError, ProviderUnavailable
 
 logger = logging.getLogger("KEEL_PRICE_LOOKUP")
@@ -45,13 +47,25 @@ _SYMBOLS = {"$": "USD", "£": "GBP", "€": "EUR", "د.أ": "JOD", "JD": "JOD", 
 JsonGet = Callable[[str, dict], dict]
 
 
-def _json_get(url: str, params: dict) -> dict:
-    try:
-        response = httpx.get(url, params=params, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}, follow_redirects=True)
-        response.raise_for_status()
-        return response.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        raise ProviderError(type(exc).__name__) from exc
+def _json_get(url: str, params: dict, attempts: int = 2) -> dict:
+    """GET JSON. One retry for a transient failure (timeout, connection error, 5xx):
+    free public services such as Open Food Facts answer 503 now and then."""
+    last: Optional[Exception] = None
+    for attempt in range(attempts):
+        try:
+            response = httpx.get(url, params=params, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}, follow_redirects=True)
+            if response.status_code >= 500 and attempt + 1 < attempts:
+                time.sleep(1.5)
+                continue
+            response.raise_for_status()
+            return response.json()
+        except (httpx.TimeoutException, httpx.ConnectError) as exc:
+            last = exc
+            if attempt + 1 < attempts:
+                time.sleep(1.5)
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ProviderError(type(exc).__name__) from exc
+    raise ProviderError(type(last).__name__ if last else "unreachable") from last
 
 
 def _number(value) -> Optional[float]:
@@ -72,6 +86,15 @@ def _count(value) -> Optional[int]:
     return int(number) if number is not None else None
 
 
+def _older_than_limit(iso_date: str) -> bool:
+    from datetime import date, timedelta
+    try:
+        seen = date.fromisoformat(iso_date)
+    except ValueError:
+        return False  # unparseable date: keep, the price itself is still real
+    return seen < date.today() - timedelta(days=int(os.getenv("PRICE_LOOKUP_MAX_AGE_DAYS", "365")))
+
+
 def currency_from_text(text: Optional[str]) -> Optional[str]:
     """ISO currency for a displayed price like "$12.99" / "JD 4.5"; None if unrecognised."""
     for symbol, code in _SYMBOLS.items():
@@ -83,13 +106,15 @@ def currency_from_text(text: Optional[str]) -> Optional[str]:
 
 # ---------------------------------------------------------------- Open Prices
 
-OFF_SEARCH_URL = "https://world.openfoodfacts.org/cgi/search.pl"
+# Open Food Facts' search-a-licious service; the legacy cgi/search.pl endpoint answers 503 under load.
+OFF_SEARCH_URL = "https://search.openfoodfacts.org/search"
 OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
 
 
 class OpenPrices:
     name = "open_prices"
     MAX_PRODUCTS = 3
+    SEARCH_PAGE_SIZE = 20
     PRICES_PER_PRODUCT = 5
 
     def __init__(self, get: JsonGet = _json_get):
@@ -98,18 +123,36 @@ class OpenPrices:
     def available(self) -> bool:
         return True
 
-    def search(self, ctx: ProductContext) -> List[PriceQuote]:
-        found = self._get(OFF_SEARCH_URL, {
-            "search_terms": ctx.name, "search_simple": 1, "action": "process", "json": 1,
-            "page_size": self.MAX_PRODUCTS, "fields": "code,product_name,brands",
-        })
-        quotes: List[PriceQuote] = []
-        for product in (found.get("products") or [])[: self.MAX_PRODUCTS]:
+    def _candidates(self, ctx: ProductContext) -> List[tuple]:
+        """[(barcode, title)] worth a price query. An exact barcode needs no search and
+        is trusted as the product itself; otherwise the name is searched and only hits
+        whose title (brand + name + pack size) really matches our product are kept -
+        the price service has no name filter, so every kept hit costs one call."""
+        if ctx.barcode and 8 <= len(ctx.barcode) <= 14:
+            return [(ctx.barcode, ctx.name)]
+        # Search by the name's words only: a size in the query ("400g") matches unrelated products
+        # that merely carry that size, and the size is checked below against each hit's own pack size.
+        words = re.sub(r"\d+(?:[.,]\d+)?\s*(?:kg|g|mg|ml|cl|l|oz|lb|pcs|pc)\b", " ", ctx.name, flags=re.I).strip() or ctx.name
+        found = self._get(OFF_SEARCH_URL, {"q": words, "page_size": self.SEARCH_PAGE_SIZE, "fields": "code,product_name,brands,quantity"})
+        kept: List[tuple] = []
+        for product in found.get("hits") or []:
             code, title = product.get("code"), product.get("product_name") or ""
             if not code or not title:
                 continue
-            brand = (product.get("brands") or "").split(",")[0].strip()
+            brands = product.get("brands")
+            brand = (brands[0] if isinstance(brands, list) and brands else str(brands or "").split(",")[0]).strip()
             title = f"{brand} {title}".strip() if brand and brand.lower() not in title.lower() else title
+            if product.get("quantity"):
+                title = f"{title} {product['quantity']}"  # the pack size is what tells 350g from 750g
+            if matching.is_match(matching.match_score(ctx.name, title)):
+                kept.append((code, title))
+            if len(kept) >= self.MAX_PRODUCTS:
+                break
+        return kept
+
+    def search(self, ctx: ProductContext) -> List[PriceQuote]:
+        quotes: List[PriceQuote] = []
+        for code, title in self._candidates(ctx):
             payload = self._get(OPEN_PRICES_URL, {"product_code": code, "order_by": "-date", "size": self.PRICES_PER_PRODUCT})
             for item in payload.get("items") or []:
                 price, currency = _number(item.get("price")), (item.get("currency") or "").upper()
@@ -119,9 +162,13 @@ class OpenPrices:
                 country = (location.get("osm_address_country_code") or "").upper()
                 if ctx.country_code and country and country != ctx.country_code.upper():
                     continue  # a price in another country is not this market's price
+                seen_on = str(item.get("date") or "")[:10] or None
+                if seen_on and _older_than_limit(seen_on):
+                    continue  # a shelf price from years ago is not today's market
                 quotes.append(PriceQuote(
                     provider=self.name, title=title, price=price, currency=currency,
                     seller=location.get("osm_name"), url=f"https://world.openfoodfacts.org/product/{quote(str(code))}",
+                    observed_on=seen_on,
                 ))
         return quotes
 
