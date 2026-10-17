@@ -92,6 +92,17 @@ PAID_LLM_BASE_URL = os.getenv("PAID_LLM_BASE_URL")
 PAID_LLM_API_KEY = os.getenv("PAID_LLM_API_KEY")
 PAID_LLM_MODEL = os.getenv("PAID_LLM_MODEL")
 
+# Optional: Hugging Face Inference Providers (the OpenAI-compatible router,
+# which forwards to a third-party provider HF picks or the model id names,
+# e.g. "openai/gpt-oss-20b:groq"). Off until HUGGINGFACE_LLM_MODEL is set:
+# the token alone (HUGGINGFACE_API_TOKEN, also used for marketing images)
+# never moves the assistant off Groq. The token needs the fine-grained
+# permission "Make calls to Inference Providers". Questions and the company
+# passages retrieved for them go to Hugging Face and that provider, as they
+# go to Groq on the default path.
+HUGGINGFACE_ROUTER_URL = "https://router.huggingface.co/v1/chat/completions"
+HUGGINGFACE_LLM_MODEL = os.getenv("HUGGINGFACE_LLM_MODEL")
+
 # See this module's own docstring: verified live with a real key on
 # 2026-09-03 - override via GROQ_MODEL for a different size/provider.
 DEFAULT_MODEL = "openai/gpt-oss-20b"
@@ -103,6 +114,30 @@ DEFAULT_TIMEOUT_SECONDS = float(os.getenv("GROQ_TIMEOUT_SECONDS", "20"))
 # hosted provider is presumed comparably fast until proven otherwise -
 # override with PAID_LLM_TIMEOUT_SECONDS if the chosen vendor needs more.
 PAID_LLM_TIMEOUT_SECONDS = float(os.getenv("PAID_LLM_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS)))
+# The router adds a hop in front of the provider.
+HUGGINGFACE_LLM_TIMEOUT_SECONDS = float(os.getenv("HUGGINGFACE_LLM_TIMEOUT_SECONDS", "30"))
+
+
+def active_provider() -> str:
+    """Which backend chat calls go to: paid > huggingface > local > groq."""
+    if PAID_LLM_BASE_URL:
+        return "paid"
+    if HUGGINGFACE_LLM_MODEL:
+        return "huggingface"
+    if LOCAL_LLM_BASE_URL:
+        return "local"
+    return "groq"
+
+
+def provider_configured() -> bool:
+    """Whether the active backend has what a call needs to be attempted (a
+    rejected key still fails at call time, as LLMError)."""
+    provider = active_provider()
+    if provider == "groq":
+        return bool(os.getenv("GROQ_API_KEY"))
+    if provider == "huggingface":
+        return bool(os.getenv("HUGGINGFACE_API_TOKEN"))
+    return True
 
 # Local llama-server generates at real-measured ~6 tokens/sec on this
 # platform's reference hardware (i5-1135G7, 4 threads, Qwen2.5-3B Q5_K_M -
@@ -555,9 +590,11 @@ def _chat_completion_with_usage(
     three. Transient failures (network errors, 429/5xx) are retried with
     backoff first - see _post_with_retry().
 
-    Backend selection, in priority order: PAID_LLM_BASE_URL (a paid
+    Backend selection, in priority order (active_provider()):
+    PAID_LLM_BASE_URL (a paid
     subscription vendor, once one is actually provisioned - see this
-    module's PAID_LLM_* constants) > LOCAL_LLM_BASE_URL (a llama.cpp
+    module's PAID_LLM_* constants) > HUGGINGFACE_LLM_MODEL (Hugging Face
+    Inference Providers, with HUGGINGFACE_API_TOKEN) > LOCAL_LLM_BASE_URL (a llama.cpp
     `llama-server` running on this machine for zero-cost, fully local
     inference) > Groq (the default while neither override is set).
     llama-server doesn't validate the Authorization header at all, so no
@@ -580,28 +617,27 @@ def _chat_completion_with_usage(
     backend) rather than raising - token usage is for cost accounting,
     not something the answer itself depends on.
     """
-    using_paid = bool(PAID_LLM_BASE_URL)
-    using_local = bool(LOCAL_LLM_BASE_URL) and not using_paid
+    provider = active_provider()
+    using_paid = provider == "paid"
+    using_hf = provider == "huggingface"
+    using_local = provider == "local"
 
-    if using_paid:
-        url = PAID_LLM_BASE_URL
-    elif using_local:
-        url = LOCAL_LLM_BASE_URL
-    else:
-        url = GROQ_API_URL
+    url = {"paid": PAID_LLM_BASE_URL, "huggingface": HUGGINGFACE_ROUTER_URL,
+           "local": LOCAL_LLM_BASE_URL}.get(provider, GROQ_API_URL)
 
     if timeout is None:
-        if using_paid:
-            timeout = PAID_LLM_TIMEOUT_SECONDS
-        elif using_local:
-            timeout = LOCAL_LLM_TIMEOUT_SECONDS
-        else:
-            timeout = DEFAULT_TIMEOUT_SECONDS
+        timeout = {"paid": PAID_LLM_TIMEOUT_SECONDS, "huggingface": HUGGINGFACE_LLM_TIMEOUT_SECONDS,
+                   "local": LOCAL_LLM_TIMEOUT_SECONDS}.get(provider, DEFAULT_TIMEOUT_SECONDS)
 
     if using_paid:
         api_key = api_key or PAID_LLM_API_KEY
         if not api_key:
             raise LLMNotConfiguredError("PAID_LLM_BASE_URL is set but PAID_LLM_API_KEY is not - cannot call the paid LLM provider.")
+    elif using_hf:
+        api_key = api_key or os.getenv("HUGGINGFACE_API_TOKEN")
+        if not api_key:
+            raise LLMNotConfiguredError("HUGGINGFACE_LLM_MODEL is set but HUGGINGFACE_API_TOKEN is not - cannot call "
+                                        "Hugging Face Inference Providers.")
     else:
         api_key = api_key or os.getenv("GROQ_API_KEY")
         if not api_key:
@@ -609,14 +645,16 @@ def _chat_completion_with_usage(
                 raise LLMNotConfiguredError("GROQ_API_KEY is not set - cannot call the LLM provider.")
             api_key = "local"  # llama-server ignores this; only Groq actually validates it.
 
-    model = model or (PAID_LLM_MODEL if using_paid else None) or MODEL_NAME
+    model = model or (PAID_LLM_MODEL if using_paid else HUGGINGFACE_LLM_MODEL if using_hf else None) or MODEL_NAME
     payload = {
         "model": model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    if _reasoning_model(model) and REASONING_EFFORT in ("low", "medium", "high") and not using_local:
+    # Not through the HF router: whether the provider behind it accepts the
+    # option isn't known ahead of the call.
+    if _reasoning_model(model) and REASONING_EFFORT in ("low", "medium", "high") and not (using_local or using_hf):
         payload["reasoning_effort"] = REASONING_EFFORT
     if json_mode:
         payload["response_format"] = {"type": "json_object"}

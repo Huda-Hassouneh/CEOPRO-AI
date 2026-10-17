@@ -830,7 +830,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         company_found += _reviews(conn, tenant_id, u, access, registry, statuses, language)
 
     ask = None
-    if os.getenv("GROQ_API_KEY") or llm_client.LOCAL_LLM_BASE_URL or llm_client.PAID_LLM_BASE_URL:
+    if llm_client.provider_configured():
         ask = llm_client.chat_completion
     research_result = None
     private_only = bool(u.intents) and set(u.intents) <= _PRIVATE_ONLY

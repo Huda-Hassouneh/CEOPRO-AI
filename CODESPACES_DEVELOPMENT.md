@@ -11,9 +11,10 @@ repo's own RAG/ML dependencies (`torch`, `transformers`,
 real headroom to develop and test the exact same code without fighting
 that ceiling.
 
-**Short version:** create the Codespace, wait for setup to finish, add
-`GROQ_API_KEY` to `backend/.env`, then run `./keel start` in a terminal and
-open the forwarded port 5173. The rest of this page explains what happens
+**Short version:** create the Codespace, wait for setup to finish, run
+`./keel start` in a terminal and open the forwarded port 5173. API keys
+such as `GROQ_API_KEY` come from the repository's Codespaces secrets
+(docs/SECRETS.md), not from a file. The rest of this page explains what happens
 underneath.
 
 Nothing here touches Render, Neon, or production. This is a completely
@@ -64,10 +65,15 @@ without touching the Codespace lifecycle). Infra (Postgres/Redis/MinIO)
 and migrations *are* automatic, since there's no reason to run those by
 hand every time.
 
-One manual step `setup.sh` cannot do for you: **add a real `GROQ_API_KEY`
-to `backend/.env`** (free at https://console.groq.com/) - without it,
-every `/rag/query` request to the RAG Assistant fails with a clear error,
-same as on Render staging today.
+API credentials are not part of setup: a repository admin adds them once as
+**Codespaces secrets** (Settings → Secrets and variables → Codespaces), and
+every Codespace created afterwards receives them as environment variables -
+restart a running Codespace to pick up a new one. `backend/.env` keeps those
+names empty and `./keel` keeps the environment's value. Without
+`GROQ_API_KEY`, the assistant still answers, listing the sources it found
+without an AI-written summary. `./keel status` shows which provider is
+active and whether its credential is available; `./keel llm-check` proves it
+with one real request. Full list and permissions: docs/SECRETS.md.
 
 ---
 
@@ -78,8 +84,8 @@ demo data - so you start exactly like a new customer.
 
 1. In the Codespace terminal: `./keel start` (starts the database, backend
    and frontend; the first run after creating the Codespace also applies
-   database migrations). Optional, for the AI assistant: add your own free
-   `GROQ_API_KEY` to `backend/.env` before starting.
+   database migrations). AI-written assistant answers need the
+   `GROQ_API_KEY` Codespaces secret (docs/SECRETS.md).
 2. Open the **Ports** tab, find port **5173 (KEEL Frontend)** and open its
    forwarded address in your browser. Keep ports 5173 and 8000 either both
    Private (same GitHub account in the browser) or both Public - see below.
