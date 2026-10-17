@@ -112,17 +112,47 @@ memory of the ai process):
 |---|---|---|---|
 | `RAG_EMBEDDING_BACKEND=torch`, re-ranker on (code default) | 2,042 MB | no | no |
 | `onnx`, `RAG_RERANKER_ENABLED=false` | 826 MB | no | yes |
-| `none`, re-ranker off (what `render.yaml` sets here) | ~300 MB | yes | yes |
+| `static`, re-ranker off (what `render.yaml` sets here) | 349 MB (check), 359 MB (whole API process) | yes | yes |
+| `none`, re-ranker off (keyword search only) | ~300 MB | yes | yes |
 
-So `keel-ai-staging` on the free plan answers from keyword search
-(`none`); loading a model would take the process past its memory limit.
-Questions still get Groq answers with citations; only cross-language and
-paraphrase matching need the embedding model. For semantic search, move
-the service to a 2 GB plan and set `RAG_EMBEDDING_BACKEND=onnx` (same
-model, no torch; its vectors match the torch model's, cosine 0.994+);
-documents stored meanwhile get their vectors from
-`backfill_missing_embeddings` on the next ingestion. `/sentiment/*` still
-loads torch and is not usable on the free plan either.
+So `keel-ai-staging` on the free plan uses **semantic search with a static
+multilingual embedding model**
+(`sentence-transformers/static-similarity-mrl-multilingual-v1`,
+Apache-2.0, Arabic included). It runs inside the ai process: no torch, no
+GPU, and **no document or question leaves our own service** for embedding.
+`Dockerfile.ai` downloads the model once at build time and keeps the
+first 384 dimensions as a memory-mapped float16 file (the
+`rag_document_chunks.embedding vector(384)` column is unchanged). Each
+stored vector is labelled with the model that made it
+(`embedding_model_version`). A vector from another model is never
+compared with this one: it's re-embedded by `backfill_missing_embeddings`
+the next time the company's index is built, so switching settings needs
+no manual migration.
+
+Verified in CI (`rag-runtime-check.yml`, job `app-e2e`). The running API
+(uvicorn, migrated pgvector Postgres, Redis, MinIO built from the pinned
+source) was tested over HTTP:
+- sign-in;
+- 4 PDF uploads through `/extraction/upload`, all `Processed` with a vector
+  from this model on every chunk;
+- Arabic questions about English documents (no shared word) answered by
+  `/rag/query`, citing the right document;
+- a company-data question citing the company's records;
+- a second company that sees only its own document, both in its answers and
+  in `/rag/documents`;
+- API peak memory under 512 MB.
+
+The model is weaker than the transformer models: absolute similarities are
+low (0.18-0.39 for the right document), so the advisor keeps a passage
+semantic search found when it scores at least
+`RAG_SEMANTIC_MIN_SIMILARITY` (0.15) and within `RAG_SEMANTIC_MARGIN`
+(0.05) of the best one. For better quality on a 2 GB plan, use `onnx`.
+`/sentiment/*` still loads torch and is not usable on the free plan.
+
+The answers themselves are written by Groq (`GROQ_API_KEY`). That means the
+question and the retrieved passages are sent to Groq, as before. Without a
+key, the assistant answers in evidence mode: the cited passages and records,
+with no LLM call.
 
 ## 5. Deploy both services - Render Blueprint [ACTION NEEDED]
 
