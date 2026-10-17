@@ -32,7 +32,9 @@ def _isolated_from_local_llm_config(monkeypatch):
     monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", None)
     monkeypatch.setattr(llm_client, "PAID_LLM_API_KEY", None)
     monkeypatch.setattr(llm_client, "PAID_LLM_MODEL", None)
+    monkeypatch.setattr(llm_client, "HUGGINGFACE_LLM_MODEL", None)
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("HUGGINGFACE_API_TOKEN", raising=False)
     # The circuit breaker is module-level, in-process state - without this,
     # a test earlier in the run that pushes it past CIRCUIT_BREAKER_THRESHOLD
     # consecutive failures would leave it open for every test after it.
@@ -629,3 +631,54 @@ def test_source_line_matches_the_answer_language():
     assert llm_client.clean_answer_text("Best seller: the Widget.\n\nالمصدر: your own sales records.").endswith(
         "Source: your own sales records.")
     assert llm_client.clean_answer_text("أفضل منتج هو الزيت.\nSource: بيانات شركتك").endswith("المصدر: بيانات شركتك")
+
+
+def test_a_hugging_face_token_alone_keeps_the_assistant_on_groq(monkeypatch):
+    """HUGGINGFACE_API_TOKEN is shared with marketing images: having it set
+    must not move the assistant's calls anywhere."""
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf-token")
+    monkeypatch.setenv("GROQ_API_KEY", "groq-key")
+    captured = {}
+
+    def fake_post(url, headers, json, timeout):
+        captured.update(url=url, auth=headers["Authorization"])
+        return _FakeResponse(200, {"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    _ask()
+    assert llm_client.active_provider() == "groq"
+    assert captured == {"url": llm_client.GROQ_API_URL, "auth": "Bearer groq-key"}
+
+
+def test_hugging_face_inference_providers_when_a_model_is_chosen(monkeypatch):
+    monkeypatch.setattr(llm_client, "HUGGINGFACE_LLM_MODEL", "openai/gpt-oss-20b:groq")
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf-token")
+    monkeypatch.setenv("GROQ_API_KEY", "groq-key")  # not used on this path
+    captured = {}
+
+    def fake_post(url, headers, json, timeout):
+        captured.update(url=url, auth=headers["Authorization"], model=json["model"], timeout=timeout,
+                        reasoning="reasoning_effort" in json)
+        return _FakeResponse(200, {"choices": [{"message": {"content": "Sunscreen SPF 50."}}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    assert _ask() == "Sunscreen SPF 50."
+    assert llm_client.provider_configured()
+    assert captured == {"url": "https://router.huggingface.co/v1/chat/completions", "auth": "Bearer hf-token",
+                        "model": "openai/gpt-oss-20b:groq", "timeout": llm_client.HUGGINGFACE_LLM_TIMEOUT_SECONDS,
+                        "reasoning": False}
+
+
+def test_hugging_face_model_without_its_token_is_reported_not_configured(monkeypatch):
+    monkeypatch.setattr(llm_client, "HUGGINGFACE_LLM_MODEL", "openai/gpt-oss-20b")
+    monkeypatch.setenv("GROQ_API_KEY", "groq-key")  # never a silent fallback to Groq
+    monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: pytest.fail("no request without a token"))
+    assert not llm_client.provider_configured()
+    with pytest.raises(llm_client.LLMNotConfiguredError, match="HUGGINGFACE_API_TOKEN"):
+        _ask()
+
+
+def test_paid_provider_still_takes_priority_over_hugging_face(monkeypatch):
+    monkeypatch.setattr(llm_client, "HUGGINGFACE_LLM_MODEL", "openai/gpt-oss-20b")
+    monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
+    assert llm_client.active_provider() == "paid"

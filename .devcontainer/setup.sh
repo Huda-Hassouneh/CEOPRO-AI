@@ -37,6 +37,13 @@ if ! grep -q "^JWT_SECRET=.\+" backend/.env 2>/dev/null; then
   JWT_SECRET_VALUE=$(python3 -c "import secrets; print(secrets.token_hex(32))")
   set_env_var backend/.env JWT_SECRET "$JWT_SECRET_VALUE"
 fi
+# The same for the key that encrypts stored connector credentials: one per
+# Codespace (a Fernet key), never a shared value.
+if ! grep -q "^CREDENTIAL_VAULT_MASTER_KEY=.\+" backend/.env 2>/dev/null \
+    || grep -q "^CREDENTIAL_VAULT_MASTER_KEY=change_this" backend/.env; then
+  VAULT_KEY_VALUE=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
+  set_env_var backend/.env CREDENTIAL_VAULT_MASTER_KEY "$VAULT_KEY_VALUE"
+fi
 
 # CORS_ALLOWED_ORIGINS/FRONTEND_BASE_URL/VITE_API_BASE_URL are intentionally
 # left at their .env.example localhost defaults here - they get rewritten
@@ -70,10 +77,18 @@ npm --prefix frontend install
 
 echo "==> [5/5] Setup complete."
 echo ""
-echo "GROQ_API_KEY is NOT set yet - required for the RAG Assistant chat"
-echo "endpoint (/rag/query) to work. Get a free key at"
-echo "https://console.groq.com/ and add it to backend/.env yourself -"
-echo "this is a real secret, so it is deliberately never auto-generated."
+# Names only, never values. Codespaces secrets arrive as environment
+# variables; ./keel keeps them when backend/.env leaves the name empty.
+echo "API credentials from Codespaces secrets (see docs/SECRETS.md):"
+for name in GROQ_API_KEY HUGGINGFACE_API_TOKEN TAVILY_API_KEY APIFY_API_TOKEN GOOGLE_PLACES_API_KEY; do
+  if [ -n "${!name:-}" ]; then echo "    $name: available"; else echo "    $name: not set"; fi
+done
+if [ -z "${GROQ_API_KEY:-}" ]; then
+  echo "GROQ_API_KEY is needed for AI-written assistant answers (without it the"
+  echo "assistant only lists the sources it found). Ask a repository admin to add"
+  echo "it as a Codespaces secret, then rebuild or restart the Codespace - don't"
+  echo "paste it into a file that could be committed."
+fi
 echo ""
 echo "Next: the Codespace will now run start-services.sh automatically"
 echo "(postStartCommand) to bring up Postgres/pgvector/Redis/MinIO and run"

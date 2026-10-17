@@ -261,8 +261,12 @@ def run_live_llm_check(email: str = None, limit: int = None) -> dict:
     real data and role); otherwise against a freshly seeded test tenant.
     Only ATTEMPTS real calls - an unconfigured or unreachable provider is
     reported as such, and no answer is ever fabricated."""
-    if not os.getenv("GROQ_API_KEY") and not os.getenv("LOCAL_LLM_BASE_URL") and not os.getenv("PAID_LLM_BASE_URL"):
-        return {"ran": False, "reason": "No LLM provider configured (GROQ_API_KEY/LOCAL_LLM_BASE_URL/PAID_LLM_BASE_URL all unset)", "results": []}
+    from src.ai.rag import llm_client
+
+    if not llm_client.provider_configured():
+        return {"ran": False, "reason": f"No LLM provider configured (active: {llm_client.active_provider()}; "
+                                        "set GROQ_API_KEY, LOCAL_LLM_BASE_URL, PAID_LLM_BASE_URL or "
+                                        "HUGGINGFACE_LLM_MODEL with HUGGINGFACE_API_TOKEN)", "results": []}
 
     database_url = os.getenv("AI_TEST_DATABASE_URL")
     if not database_url:

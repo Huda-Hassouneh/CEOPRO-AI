@@ -12,6 +12,7 @@
 #                    discovery, connector sync, maintenance) - needs ./keel start
 #   ./keel seed      load the seven demo companies (asks for a password)
 #   ./keel test      backend and frontend test suites, lint and production build
+#   ./keel llm-check one real request to the assistant's configured LLM provider
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
@@ -29,7 +30,16 @@ need_setup() {
 backend_env() {
   # shellcheck disable=SC1091
   source backend/.venv/bin/activate
+  # A name left empty in backend/.env (GROQ_API_KEY= and the other secret
+  # placeholders) keeps the value the environment already has - a Codespaces
+  # or CI secret. A value written in the file still wins over the environment.
+  local preset=() key value
+  while IFS='=' read -r key value; do
+    [[ $key =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    [[ -z $value || $value == '""' || $value == "''" ]] && [ -n "${!key:-}" ] && preset+=("$key=${!key}")
+  done < backend/.env
   set -a; source backend/.env; set +a
+  for key in "${preset[@]}"; do export "$key"; done
 }
 
 wait_for() {  # wait_for <url> <name> <seconds>
@@ -42,7 +52,7 @@ wait_for() {  # wait_for <url> <name> <seconds>
 
 cmd_setup() {
   bash .devcontainer/setup.sh
-  bold "Setup done. Add your Groq key to backend/.env (GROQ_API_KEY=...) for the AI assistant, then run: ./keel start"
+  bold "Setup done. API credentials come from Codespaces secrets (docs/SECRETS.md); then run: ./keel start"
 }
 
 cmd_services() {
@@ -119,9 +129,20 @@ except Exception as exc: print(f"  ✗ database ({type(exc).__name__})")
 try:
     import redis; redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=int(os.getenv("REDIS_PORT", "6379"))).ping(); print("  ✓ redis")
 except Exception as exc: print(f"  ✗ redis ({type(exc).__name__})")
-print("  ✓ AI assistant key set" if os.getenv("GROQ_API_KEY") else "  - AI assistant key not set (GROQ_API_KEY)")
+import sys; sys.path.insert(0, "backend")
+from src.ai.rag import llm_client
+provider = llm_client.active_provider()
+print(f"  ✓ AI assistant provider {provider}: credential available (prove it with ./keel llm-check)"
+      if llm_client.provider_configured() else f"  - AI assistant provider {provider}: credential not set (docs/SECRETS.md)")
 PY
   fi
+}
+
+cmd_llm_check() {
+  need_setup
+  backend_env
+  cd backend
+  exec python -m scripts.llm_provider_check
 }
 
 cmd_workers() {
@@ -168,5 +189,6 @@ case "${1:-help}" in
   workers) cmd_workers ;;
   seed) cmd_seed ;;
   test) cmd_test ;;
-  *) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//' ;;
+  llm-check) cmd_llm_check ;;
+  *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' ;;
 esac
