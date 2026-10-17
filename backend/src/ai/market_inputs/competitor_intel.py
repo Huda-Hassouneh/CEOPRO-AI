@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
 from src.market_scraper.market_discovery import intel
+from src.ai.billing import credits
 
 logger = logging.getLogger("KEEL_MARKET_DISCOVERY")
 # Websites read per scan (the most relevant first) and in parallel.
@@ -65,6 +66,7 @@ def save_site_intel(conn, tenant_id: str, competitor_id: str, result: dict) -> s
     return status
 
 
+@credits.metered("competitor_intel")
 def refresh_competitor(conn, tenant_id: str, competitor_id: str, collect=intel.collect) -> dict:
     """Reads one competitor's website now. Caller commits."""
     website = competitor_website(conn, tenant_id, competitor_id)
@@ -92,6 +94,7 @@ def refresh_competitor(conn, tenant_id: str, competitor_id: str, collect=intel.c
     return {"status": status, "pages_read": len(result["pages_read"]), "facts": len(result["facts"]), "prices_matched": matched}
 
 
+@credits.metered("competitor_intel")
 def refresh_strongest(conn, tenant_id: str, limit: int = INTEL_MAX_SITES, collect=intel.collect,
                       country: Optional[str] = None) -> dict:
     """After a discovery run: reads the websites of the tracked, then most
@@ -123,7 +126,7 @@ def refresh_strongest(conn, tenant_id: str, limit: int = INTEL_MAX_SITES, collec
             return collect(target[1])
 
     with ThreadPoolExecutor(max_workers=max(1, min(INTEL_WORKERS, len(targets)))) as pool:
-        results = list(pool.map(read, targets))
+        results = list(pool.map(credits.bind(read), targets))
     for (competitor_id, *_rest), result in zip(targets, results):
         status = save_site_intel(conn, tenant_id, str(competitor_id), result)
         counts["statuses"][status] = counts["statuses"].get(status, 0) + 1

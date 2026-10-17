@@ -659,12 +659,13 @@ def _chat_completion_with_usage(
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    response = _post_with_retry(url, payload, headers, timeout)
+    billed: dict = {}
+    response = _metered_post(provider, model, url, payload, headers, timeout, billed)
     if json_mode and response.status_code == 400:
         # JSON mode refused (unsupported model, or the model's answer failed
         # the provider's own JSON check): ask once more without it.
         payload.pop("response_format", None)
-        response = _post_with_retry(url, payload, headers, timeout)
+        response = _metered_post(provider, model, url, payload, headers, timeout, billed)
     try:
         choice = response.json()["choices"][0] if response.status_code == 200 else {}
     except (KeyError, IndexError, ValueError):
@@ -674,7 +675,7 @@ def _chat_completion_with_usage(
         logger.warning("LLM answer was empty after %s tokens (budget spent reasoning); retrying with %s",
                        max_tokens, min(max_tokens * 2, MAX_TOKENS_ON_RETRY))
         payload["max_tokens"] = min(max_tokens * 2, MAX_TOKENS_ON_RETRY)
-        response = _post_with_retry(url, payload, headers, timeout)
+        response = _metered_post(provider, model, url, payload, headers, timeout, billed)
 
     if response.status_code == 429:
         raise LLMRateLimitError(
@@ -691,16 +692,59 @@ def _chat_completion_with_usage(
     except (KeyError, IndexError, ValueError) as err:
         raise LLMError(f"Unexpected LLM provider response shape: {response.text[:500]}") from err
 
-    # Groq/OpenAI-compatible providers return a top-level `usage` object
-    # alongside `choices`; llama-server (the local backend) does not, so
-    # this defaults every field to 0 rather than raising.
-    raw_usage = response_payload.get("usage") or {}
+    # Every billed attempt of this call (a retry after an empty answer is
+    # billed too), as reported by the provider; 0 when it reports nothing
+    # (the local llama-server backend).
     usage = {
-        "prompt_tokens": raw_usage.get("prompt_tokens", 0),
-        "completion_tokens": raw_usage.get("completion_tokens", 0),
-        "total_tokens": raw_usage.get("total_tokens", 0),
+        "prompt_tokens": billed.get("prompt_tokens", 0),
+        "completion_tokens": billed.get("completion_tokens", 0),
+        "total_tokens": billed.get("total_tokens", 0),
     }
     return answer, usage
+
+
+def estimate_input_tokens(messages: list) -> int:
+    """A deliberately high token estimate for reserving AI Credits before a
+    call (about 2.5 characters per token; Arabic text tokenizes densely).
+    The real count from the provider replaces it afterwards."""
+    chars = sum(len(m.get("content") or "") if isinstance(m.get("content"), str) else len(str(m.get("content")))
+                for m in messages)
+    return max(1, -(-chars * 2 // 5))
+
+
+def _usage_units(raw_usage: dict) -> dict:
+    """Provider usage -> the billable units priced in provider_cost_schedules."""
+    prompt = int(raw_usage.get("prompt_tokens") or 0)
+    cached = int((raw_usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+    return {"input_token": max(0, prompt - cached), "cache_read_token": cached,
+            "output_token": int(raw_usage.get("completion_tokens") or 0)}
+
+
+def _metered_post(provider: str, model: str, url: str, payload: dict, headers: dict, timeout: float,
+                  billed: dict) -> httpx.Response:
+    """One provider request, paid for out of the company's AI Credits
+    (billing/credits.py): reserved before it is sent (refused - never sent -
+    when the company's budget, the provider's price or its spending controls
+    don't allow it), then settled to the tokens the provider reports. An
+    error response isn't billed by these providers and is released."""
+    from src.ai.billing import credits
+
+    estimate = {"input_token": estimate_input_tokens(payload["messages"]), "output_token": int(payload["max_tokens"])}
+    with credits.provider_call(credits.AI, provider, model, estimate) as call:
+        response = _post_with_retry(url, payload, headers, timeout)
+        if response.status_code == 200:
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            raw_usage = body.get("usage") or {}
+            if raw_usage:
+                call.measured(_usage_units(raw_usage), provider_request_id=body.get("id"))
+                for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                    billed[key] = billed.get(key, 0) + int(raw_usage.get(key) or 0)
+            else:
+                call.billed_unreported(provider_request_id=body.get("id"))
+        return response
 
 
 def answer_query(conn, tenant_id: str, query_text: str, top_k: int = 5, history: list = None, **kwargs) -> dict:

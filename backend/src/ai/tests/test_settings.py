@@ -376,6 +376,7 @@ def test_invite_team_member_creates_a_token_and_sends_the_real_email():
 
     with patch("src.ai.routers.settings.db.app_role_connection", return_value=conn), \
          patch("src.ai.routers.settings._require_role", return_value="owner"), \
+         patch("src.ai.routers.settings._ensure_seat_for_invitation"), \
          patch("src.ai.routers.settings.notifications.send_team_invitation_email") as mock_send:
         response = client.post(
             "/settings/team/invitations", headers=_auth_header(),

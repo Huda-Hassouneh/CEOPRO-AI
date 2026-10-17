@@ -174,16 +174,22 @@ email.
 
 ## Plans and usage allowances
 
-Each company's allowances come from its plan. Assistant questions, web
-searches and AI images are counted per billing period, while products,
-competitors and document storage are counted live. The Billing page shows
-usage against each limit. These allowances are separate from the technical
-safety limits (10 MB per upload, 20 MB per assistant document), which apply to
-everyone.
+Each company's allowances come from its plan: Standard, Plus, Pro or Custom
+(keys `starter`, `growth`, `enterprise`, `custom`). Reports, Data Credits and
+AI Credits are counted per billing period; products, team seats and storage
+are counted live. Every paid provider call is paid from the company's Data or
+AI Credits and refused when the provider has no confirmed price - see
+`docs/SUBSCRIPTIONS_AND_CREDITS.md` for the budgets, how to set prices
+(`python -m scripts.billing_admin`) and the counting rules. These allowances
+are separate from the technical safety limits (10 MB per upload, 20 MB per
+assistant document), which apply to everyone.
 
-- Companies without an assigned plan use `DEFAULT_PLAN_KEY` (`growth` unless set).
+- A company without an assigned plan has no access (`UNASSIGNED_PLAN_ACCESS=none`).
+  Sign-up starts a free trial; `./keel seed` puts the demo companies on Plus.
+  `UNASSIGNED_PLAN_ACCESS=default` gives such companies `DEFAULT_PLAN_KEY`
+  instead (single-company installs only).
 - Plans and limits are stored in `usage_plans` and `usage_plan_limits`. A NULL
-  limit means unlimited. The seeded plans are `standard`, `pro` and `custom`.
+  limit means unlimited.
 - To put a company on a plan (an operator task, or done by a billing service),
   connect as the database owner and run:
   ```sql

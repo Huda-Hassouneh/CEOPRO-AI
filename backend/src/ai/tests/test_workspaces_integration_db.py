@@ -79,7 +79,9 @@ def test_owner_runs_two_companies_in_different_industries_without_leakage(client
         assert client.patch("/settings/company", headers=_auth(pharmacy), json={"industry_key": "pharmacy"}).status_code == 200
         status = client.get("/discovery/status", headers=_auth(pharmacy)).json()
         assert status["industry"]["key"] == "pharmacy"
-        assert client.get("/billing/subscription", headers=_auth(pharmacy)).json()["status"] == "trialing"
+        # One free trial per person: the owner's second company doesn't get another.
+        second = client.get("/billing/subscription", headers=_auth(pharmacy)).json()
+        assert second["status"] != "trialing" and second["trialUsed"] is False and second["trialAvailable"] is False
 
         listed = client.get("/auth/workspaces", headers=_auth(pharmacy)).json()
         assert {w["business_name"] for w in listed["workspaces"]} == {"Grill House", "Shifa Pharmacy"}
