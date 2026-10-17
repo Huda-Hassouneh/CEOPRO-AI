@@ -492,6 +492,11 @@ services:
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
       GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
+      # Optional - the Apify Google Maps source of competitor discovery
+      # (market_discovery/providers/apify_maps.py), which runs in this
+      # service. Unset = skipped. Each run is billed to the Apify account.
+      APIFY_API_TOKEN: ${APIFY_API_TOKEN:-}
+      APIFY_MAX_PLACES_PER_SEARCH: ${APIFY_MAX_PLACES_PER_SEARCH:-40}
       # Optional - src/market_scraper/searxng_discovery.py's own fallback,
       # and the assistant's public research (src/ai/research/) both
       # degrade to "not set up" when no search provider is configured.
