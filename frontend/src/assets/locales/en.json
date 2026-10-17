@@ -3072,7 +3072,9 @@
       "empty": "nothing to read",
       "not_own_site": "not their own site",
       "other_business_site": "another business's site"
-    }
+    },
+    "newsFromSite": "From their website",
+    "newsFromSearch": "News search"
   },
   "dashboardActivity": {
     "open": "Open",
@@ -3249,7 +3251,9 @@
       "SOCIAL_LINKS": "Social profiles",
       "REVIEWS": "Google reviews",
       "PRICES": "Prices",
-      "SOCIAL_CONTENT": "Social posts and comments"
+      "SOCIAL_CONTENT": "Social posts and comments",
+      "NEWS": "News about them",
+      "COMMENTS": "Video comments"
     },
     "status": {
       "SUCCEEDED": "Collected",
@@ -3260,7 +3264,7 @@
       "NOT_APPLICABLE": "Not applicable"
     },
     "reason": {
-      "NO_CREDENTIALS": "The service has no Google key set up.",
+      "NO_CREDENTIALS": "A provider key this data needs is not set up on the service.",
       "CREDENTIALS_REJECTED": "Google rejected the key. Check it is enabled for the Places API.",
       "QUOTA_EXHAUSTED": "Google's daily limit was reached. It will be retried automatically.",
       "PROVIDER_ERROR": "The data provider had a problem. It will be retried automatically.",
@@ -3276,10 +3280,13 @@
       "COLLECTOR_NOT_ENABLED": "This kind of data is not collected yet.",
       "NO_SOCIAL_LINKS": "No social profile is known for this competitor.",
       "NO_PLACE_ID": "No Google listing is known yet. Retry the business profile first.",
-      "PLATFORM_APPROVAL_MISSING": "Storing Google reviews has not been approved by the administrator yet.",
+      "PLATFORM_APPROVAL_MISSING": "Storing this data has not been approved by the administrator yet.",
       "SERVICE_MISCONFIGURED": "The service is missing a setting. Please contact support.",
       "NOT_ATTEMPTED": "Not collected yet.",
-      "UNKNOWN": "No more detail is available."
+      "UNKNOWN": "No more detail is available.",
+      "NO_FEED": "This competitor's website publishes no news feed.",
+      "NO_NEWS": "No recent news naming this competitor was found.",
+      "NO_VIDEOS": "No video naming this competitor, with public comments, was found."
     },
     "outcome": {
       "succeeded": "Everything was collected.",
