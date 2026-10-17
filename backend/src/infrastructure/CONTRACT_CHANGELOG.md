@@ -97,3 +97,13 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - **API** — `GET /competitor-data/overview`: one bulk read, keyed by competitor id, of the same per-competitor `details` for the list screens.
 - **UI** — Competitors screen: per-competitor rating / comments / people agreeing / sentiment / completeness with Retry, "Retry all failed", and a market-price coverage panel (gaps with reasons, "Find missing prices", barcode worklist). Competitor page: data completeness (what is missing, why, Retry) and the real comments. Product page: public-listing prices with the listing's rating and review count, why a price is missing, find prices, barcode entry. English and Arabic.
 
+## - 2026-10-19 (more competitor sources: news, comments, likes)
+### Added (additive)
+- **DB** — `20261019000000_add_competitor_news_and_comment_facets.sql`: the enrichment ledger accepts two more facets, `NEWS` and `COMMENTS`; `market_news` gains nullable `source_kind` (`own_site` | `web_search` | `gdelt`) and `summary` (the excerpt the source published). `20261019010000_add_comment_retention.sql`: `enforce_comment_retention()` deletes comments from the `youtube_comments` source once older than its `retention_days` (30); `market_scraper/maintenance.py` runs it and reports `comments_deleted`. (The existing retention job only blanks reviewer names; it never deletes review text.)
+- **Sources** — NEWS: the competitor's own website feed (RSS/Atom, found from its homepage, robots-aware) and the news mode of the configured web-search provider (Brave, Tavily, SearXNG); only items that name the competitor are kept. Google News RSS is not used (personal-use-only terms). COMMENTS: public YouTube comments with like counts and replies on videos naming the competitor (`YOUTUBE_API_KEY`). REVIEWS: when `APIFY_TOKEN` is set, a listing's Google reviews are read deeper than the Places API's five, with likes and the owner's replies, without duplicating the five.
+- **API** — `GET /discovery/news` articles gain `source_kind` and `summary`. Data-completeness facets gain `NEWS` and `COMMENTS`; new reason codes `NO_FEED`, `NO_NEWS`, `NO_VIDEOS`. `POST /competitors/{id}/enrich` accepts `NEWS` and `COMMENTS` in `facets`.
+### Changed (behaviour)
+- The routine runs (after discovery, the hourly sweep, "retry all failed") collect profile, social links, reviews and news; video comments (a YouTube search costs 100 quota units) only run on the per-competitor Retry or when requested explicitly.
+- Storing YouTube comments, and the deeper Google reviews, needs the operator's recorded approval (`EXTERNAL_COMMENTS_APPROVAL_REFERENCE`; Google reviews keep using `PLACES_TERMS_APPROVAL_REFERENCE`).
+- Completeness scores are out of seven facets (was five).
+

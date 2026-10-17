@@ -183,6 +183,19 @@ services:
         sync: false
       - key: TAVILY_API_KEY
         sync: false
+      # Competitor data from more sources (all optional, set in Render's dashboard):
+      # YouTube comments with likes, deeper Google reviews with likes (Apify), and the
+      # operators' recorded approval to store them / Google Places reviews.
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: APIFY_TOKEN
+        sync: false
+      - key: EXTERNAL_COMMENTS_APPROVAL_REFERENCE
+        sync: false
+      - key: PLACES_TERMS_APPROVAL_REFERENCE
+        sync: false
+      - key: SERPAPI_API_KEY
+        sync: false
       # Assistant public research: searches per day for the whole server.
       - key: RESEARCH_DAILY_SEARCH_LIMIT
         value: "30"
@@ -258,6 +271,19 @@ services:
       - key: BRAVE_SEARCH_API_KEY
         sync: false
       - key: TAVILY_API_KEY
+        sync: false
+      # Competitor data from more sources (all optional, set in Render's dashboard):
+      # YouTube comments with likes, deeper Google reviews with likes (Apify), and the
+      # operators' recorded approval to store them / Google Places reviews.
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: APIFY_TOKEN
+        sync: false
+      - key: EXTERNAL_COMMENTS_APPROVAL_REFERENCE
+        sync: false
+      - key: PLACES_TERMS_APPROVAL_REFERENCE
+        sync: false
+      - key: SERPAPI_API_KEY
         sync: false
 
   # The frontend - Render's free tier static sites are genuinely free
