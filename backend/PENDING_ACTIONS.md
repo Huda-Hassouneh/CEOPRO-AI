@@ -7,7 +7,6 @@ in this file gets fixed by AI/ML work; it's a visibility list so the right owner
 **Convention:** unlike `AI_PROGRESS.md` (strictly append-only), rows here get their **Status**
 updated in place once resolved — add a one-line resolution note rather than deleting the row, so
 there's still a record of what happened. New items get added to the bottom of their section.
-
 ---
 
 ## Blocking (something can't be built until this lands)
