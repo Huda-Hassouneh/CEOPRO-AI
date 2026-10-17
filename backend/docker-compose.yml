@@ -407,6 +407,11 @@ services:
       SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
       SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
       CONNECTOR_WORKER_POLL_INTERVAL_SECONDS: ${CONNECTOR_WORKER_POLL_INTERVAL_SECONDS:-300}
+      # Decrypts the connector credentials the API stored: same key as the API.
+      CREDENTIAL_VAULT_KMS_BACKEND: ${CREDENTIAL_VAULT_KMS_BACKEND:-local}
+      CREDENTIAL_VAULT_MASTER_KEY: ${CREDENTIAL_VAULT_MASTER_KEY:-}
+      CREDENTIAL_VAULT_PREVIOUS_KEYS: ${CREDENTIAL_VAULT_PREVIOUS_KEYS:-}
+      AWS_KMS_KEY_ID: ${AWS_KMS_KEY_ID:-}
     networks:
       - ceopro_core_net
     depends_on:
@@ -532,6 +537,29 @@ services:
       # One name everywhere: APIFY_API_TOKEN (APIFY_TOKEN, the older name, still works).
       APIFY_TOKEN: ${APIFY_TOKEN:-}
       EXTERNAL_COMMENTS_APPROVAL_REFERENCE: ${EXTERNAL_COMMENTS_APPROVAL_REFERENCE:-}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      # Billing (Stripe's return pages, plan access, credit upkeep).
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      UNASSIGNED_PLAN_ACCESS: ${UNASSIGNED_PLAN_ACCESS:-none}
+      BILLING_MAINTENANCE_ENABLED: ${BILLING_MAINTENANCE_ENABLED:-true}
+      # Connector credentials (onboarding refuses to store them without a key).
+      CREDENTIAL_VAULT_KMS_BACKEND: ${CREDENTIAL_VAULT_KMS_BACKEND:-local}
+      CREDENTIAL_VAULT_MASTER_KEY: ${CREDENTIAL_VAULT_MASTER_KEY:-}
+      CREDENTIAL_VAULT_PREVIOUS_KEYS: ${CREDENTIAL_VAULT_PREVIOUS_KEYS:-}
+      AWS_KMS_KEY_ID: ${AWS_KMS_KEY_ID:-}
+      # File storage: the minio service on this network.
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # Marketing images (paid ones stay refused until priced).
+      MARKETING_IMAGE_PROVIDERS: ${MARKETING_IMAGE_PROVIDERS:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      HUGGINGFACE_API_TOKEN: ${HUGGINGFACE_API_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
       - "8001:8000"
     networks:

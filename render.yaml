@@ -72,6 +72,9 @@ services:
         value: "https://keel-frontend-staging.onrender.com"
       - key: FRONTEND_BASE_URL
         value: "https://keel-frontend-staging.onrender.com"
+      # Stripe's return pages after checkout and the billing portal.
+      - key: APP_BASE_URL
+        value: "https://keel-frontend-staging.onrender.com"
 
       # --- Outbound email (optional - degrades to logging the real
       # code/link when unset, never fails signup/reset) ---
@@ -151,12 +154,16 @@ services:
       - key: RAG_RERANKER_ENABLED
         value: "false"
 
-      # --- Automated Marketing: AI image generation (optional, unset by
-      # default - see backend/MARKETING_AI_CAPABILITIES.md). Leaving
-      # MARKETING_IMAGE_PROVIDER unset keeps image generation honestly
-      # reported as "not configured" on this staging deployment; set it in
-      # Render's dashboard (not here) to turn it on. ---
-      - key: MARKETING_IMAGE_PROVIDER
+      # --- Automated Marketing: AI image generation (optional - see
+      # backend/MARKETING_AI_CAPABILITIES.md). Blank providers = the keyed
+      # ones set below, then the free keyless Pollinations endpoint. Paid
+      # providers (Cloudflare, Hugging Face) stay refused until their price
+      # is recorded with scripts.billing_admin set-price. ---
+      - key: MARKETING_IMAGE_PROVIDERS
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
         sync: false
       - key: HUGGINGFACE_API_TOKEN
         sync: false
@@ -205,8 +212,12 @@ services:
         value: "30"
 
       # --- Credential vault (only needed for POS/ERP connector
-      # credential storage - onboarding.py's data_sources flows) ---
+      # credential storage - onboarding.py's data_sources flows). A Fernet
+      # key (python -m scripts.vault_key generate); the same value on the
+      # workers. CREDENTIAL_VAULT_PREVIOUS_KEYS only while rotating it. ---
       - key: CREDENTIAL_VAULT_MASTER_KEY
+        sync: false
+      - key: CREDENTIAL_VAULT_PREVIOUS_KEYS
         sync: false
 
       # --- Subscription Floor Price (src/market_scraper/
@@ -261,6 +272,8 @@ services:
       # Same value as on the API service: the connector worker decrypts the
       # credentials the API stored for a company's own database or API.
       - key: CREDENTIAL_VAULT_MASTER_KEY
+        sync: false
+      - key: CREDENTIAL_VAULT_PREVIOUS_KEYS
         sync: false
       - key: GOOGLE_PLACES_API_KEY
         sync: false

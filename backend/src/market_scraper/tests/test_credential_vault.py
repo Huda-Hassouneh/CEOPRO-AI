@@ -151,3 +151,55 @@ def test_get_default_kms_backend_rejects_an_unknown_choice(monkeypatch):
     monkeypatch.setenv("CREDENTIAL_VAULT_KMS_BACKEND", "some_other_vendor")
     with pytest.raises(ValueError, match="unknown CREDENTIAL_VAULT_KMS_BACKEND"):
         get_default_kms_backend()
+
+
+# --- key validation and rotation ---------------------------------------------
+
+from src.market_scraper.credential_vault import master_key_problem, rewrap_envelope  # noqa: E402
+
+
+def test_a_hex_master_key_is_rejected_with_the_fix_and_without_the_value():
+    hex_key = "ab" * 32  # what `openssl rand -hex 32` produces
+    problem = master_key_problem(hex_key)
+    assert "hex" in problem and "Fernet" in problem and hex_key not in problem
+    with pytest.raises(RuntimeError) as refused:
+        LocalEnvelopeKMS(master_key=hex_key)
+    assert hex_key not in str(refused.value)
+
+
+def test_placeholder_and_empty_master_keys_are_rejected():
+    assert master_key_problem("change_this_to_a_real_generated_fernet_key") == "is still the placeholder from .env.example"
+    assert master_key_problem("") == "is not set"
+    assert master_key_problem(Fernet.generate_key().decode()) is None
+
+
+def test_rotating_keeps_old_credentials_readable_and_rewraps_them():
+    old_key, new_key = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+    stored = encrypt_credentials({"password": "db-secret"}, LocalEnvelopeKMS(master_key=old_key, previous_keys=[]))
+    rotated = LocalEnvelopeKMS(master_key=new_key, previous_keys=[old_key])
+    assert decrypt_credentials(stored, rotated) == {"password": "db-secret"}
+    moved = rewrap_envelope(stored, rotated)
+    assert moved is not None and rewrap_envelope(moved, rotated) is None  # already on the new key
+    new_only = LocalEnvelopeKMS(master_key=new_key, previous_keys=[])
+    assert decrypt_credentials(moved, new_only) == {"password": "db-secret"}
+    with pytest.raises(CredentialDecryptionError):
+        decrypt_credentials(stored, new_only)  # the old copy needs the old key
+
+
+def test_new_credentials_are_always_wrapped_with_the_current_key():
+    old_key, new_key = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+    rotated = LocalEnvelopeKMS(master_key=new_key, previous_keys=[old_key])
+    stored = encrypt_credentials({"k": "v"}, rotated)
+    assert decrypt_credentials(stored, LocalEnvelopeKMS(master_key=new_key, previous_keys=[])) == {"k": "v"}
+
+
+def test_rewrap_refuses_a_credential_no_configured_key_opens():
+    stored = encrypt_credentials({"k": "v"}, _local_kms())
+    with pytest.raises(CredentialDecryptionError):
+        rewrap_envelope(stored, _local_kms())
+
+
+def test_an_invalid_previous_key_is_rejected(monkeypatch):
+    monkeypatch.setenv("CREDENTIAL_VAULT_PREVIOUS_KEYS", "ab" * 32)
+    with pytest.raises(RuntimeError, match="CREDENTIAL_VAULT_PREVIOUS_KEYS entry 1"):
+        LocalEnvelopeKMS(master_key=Fernet.generate_key().decode())
