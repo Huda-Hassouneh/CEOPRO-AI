@@ -34,6 +34,7 @@ preserved, in every case, regardless of format.
 | `order_id` | No | Text | Order number/reference. |
 | `email` | No | Text | Customer email, if collected. |
 | `phone` | No | Text | Customer phone, if collected. |
+| `barcode` | No | Text | Product barcode (EAN/UPC/GTIN) if you have it - lets KEEL find the product's market price exactly. Invalid or mangled-by-Excel numbers are repaired when the check digit allows, otherwise ignored (the row still imports). |
 | `competitor_name` | No | Text | A competitor mentioned in this record, if relevant. |
 | `amount_raw` | No | Number | Total line amount, if independently available. |
 

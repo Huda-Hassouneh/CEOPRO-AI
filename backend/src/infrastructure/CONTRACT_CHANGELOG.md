@@ -79,3 +79,9 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - **API** — `POST /products` and `PATCH /products/{id}` accept an optional `barcode` (EAN-8, UPC-A, EAN-13 or GTIN-14; spaces/hyphens ignored; length and GS1 check digit validated, `422` otherwise). `PATCH` with `barcode: null` clears it; omitting it leaves it alone. `GET /products/{id}` and the create/update responses return `barcode` (`null` when none). Stored in `products.metadata->>'barcode'` - no schema change; other metadata keys are preserved.
 - Why: a barcode is the exact key for the market reference-price lookup (Open Prices), which cannot reliably find a product by name.
 
+## - 2026-10-18 (barcode column on imports)
+### Added (additive)
+- **Import** — files may include a barcode column (headers such as `barcode`, `EAN`, `UPC`, `GTIN`, `code barre`, `الباركود`; not `SKU`/`product code`). Cells mangled by Excel (`3017620422003.0`, `3.017620422003E+12`, a UPC-A that lost its leading zero) are repaired when the GS1 check digit confirms the repair; an invalid cell is ignored and never blocks the row. The distributed template (`templates/apex_sales_import_v1.*`, version unchanged) gains an optional `barcode` column.
+- **Behaviour** — a product that has no barcode gets the file's (fill-only: an existing barcode is never overwritten, and a barcode already owned by another product is not reused). A row whose product name is new but whose barcode belongs to an existing product is recorded against that product instead of creating a duplicate. Duplicate-row detection is unchanged (the barcode is not part of a row's identity).
+- **API** — `POST /extraction/upload` promotion summary gains `barcodes_applied` and `products_matched_by_barcode`.
+
