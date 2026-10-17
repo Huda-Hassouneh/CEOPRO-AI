@@ -73,8 +73,9 @@ python-multipart>=0.0.9,<0.1
 # FastAPI 0.110+ - test-only, but declared here since there's no separate
 # test-requirements file in this repo.
 httpx>=0.27,<1.0
-# Overture Maps places (competitor discovery): reads its GeoParquet files
-pyarrow==17.0.0
+# Overture Maps places (competitor discovery): reads its GeoParquet files.
+# 23.0.1+: 17.0.0 has PYSEC-2026-113 (pip-audit in pr-checks.yml).
+pyarrow==23.0.1
 # extraction/adapters/csv_adapter.py's legacy-encoding fallback (Windows-1256/
 # 1252/UTF-16 CSV exports) - already installed via requests, pinned explicitly.
 charset-normalizer>=3.0,<4.0
