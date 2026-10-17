@@ -140,7 +140,8 @@ def enrich_competitor_endpoint(
 @router.get("/pricing/market-coverage")
 def market_price_coverage_endpoint(
     include_covered: bool = Query(default=False), limit: int = Query(default=100, ge=1, le=500),
-    offset: int = Query(default=0, ge=0), ctx: TenantContext = Depends(get_tenant_context),
+    offset: int = Query(default=0, ge=0), missing_barcode: bool = Query(default=False),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict:
     """
     How many of the tenant's products have at least one competitor price, and
@@ -148,11 +149,14 @@ def market_price_coverage_endpoint(
     product; `products` lists the gaps, paged (include_covered=true adds the
     products that already have a price). A gap with action "review_source"
     is fixed by the owner/admin review at
-    POST /competitors/sources/{source_id}/review for each id in `source_ids`.
+    POST /competitors/sources/{source_id}/review for each id in `source_ids`. A gap
+    with suggestion "add_barcode" has no barcode: entering one (PATCH /products/{id},
+    or a barcode column on import) makes the open price databases exact.
+    missing_barcode=true lists every product without a barcode instead (the worklist).
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = price_coverage.get_price_coverage(conn, ctx.tenant_id, include_covered, limit, offset)
+        result = price_coverage.get_price_coverage(conn, ctx.tenant_id, include_covered, limit, offset, missing_barcode)
         conn.commit()
         return result
     except Exception:
