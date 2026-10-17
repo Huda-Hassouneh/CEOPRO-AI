@@ -85,7 +85,7 @@ Marketing copy (headlines, captions, hashtags) and the business chat both use
 the language model. Pick ONE option.
 
 ```
-GROQ_API_KEY=
+GROQ_API_KEY=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
 ```
 
 - **FREE** - console.groq.com -> API Keys (free tier with rate limits).
