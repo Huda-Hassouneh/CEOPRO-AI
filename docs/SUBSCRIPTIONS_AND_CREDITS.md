@@ -13,7 +13,7 @@ display what `/billing/*` returns.
 | Plan key (database, Stripe) | `starter` | `growth` | `enterprise` | `custom` |
 | Monthly price | $55 | $140 | $350 | quoted |
 | Free trial | 14 days | 14 days | 7 days | per contract (0-90 days) |
-| Products | 100 | 250 | 750 | contract |
+| Products | 100 | 250 | 500 | contract |
 | Reports per month | 5 | 20 | 60 | contract (default 60) |
 | Team seats | 5 | 20 | 60 | contract (default 60) |
 | Competitors | no fixed count, limited by Data Credits | same | same | same |
