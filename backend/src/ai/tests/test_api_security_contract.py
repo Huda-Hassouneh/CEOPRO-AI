@@ -64,7 +64,8 @@ def _concrete(path: str) -> str:
 
 
 def _tok(claims=None, secret=_SECRET, alg="HS256"):
-    claims = {"tenant_id": "t1", "user_id": "u1", "ev": True} if claims is None else claims
+    claims = {"tenant_id": "t1", "user_id": "u1", "ev": True} if claims is None else dict(claims)
+    claims.setdefault("exp", int(time.time()) + 3600)  # a token with no expiry is rejected (see test below)
     return jwt.encode(claims, secret, algorithm=alg)
 
 
@@ -111,6 +112,11 @@ def test_malformed_authorization_headers_are_401(headers):
 
 def test_expired_token_is_rejected():
     token = _tok({"tenant_id": "t1", "user_id": "u1", "exp": int(time.time()) - 60})
+    assert client.get("/dashboard/metrics", headers=_bearer(token)).status_code == 401
+
+
+def test_token_without_an_expiry_is_rejected():
+    token = jwt.encode({"tenant_id": "t1", "user_id": "u1", "ev": True}, _SECRET, algorithm="HS256")
     assert client.get("/dashboard/metrics", headers=_bearer(token)).status_code == 401
 
 

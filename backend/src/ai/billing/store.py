@@ -413,7 +413,8 @@ def claim_event(sys_conn, event_id: str, event_type: str, created: datetime, pay
         )
         if cursor.fetchone():
             return True
-        # Lock the row so two deliveries of the same event can't both run.
+        # Row lock for the rest of this transaction only; webhooks.handle_event also holds an
+        # event-wide advisory lock, which is what actually keeps two deliveries from both running.
         cursor.execute(
             "SELECT processed_at FROM billing_webhook_events WHERE stripe_event_id = %s FOR UPDATE;", (event_id,)
         )
