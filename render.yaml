@@ -188,8 +188,6 @@ services:
       # operators' recorded approval to store them / Google Places reviews.
       - key: YOUTUBE_API_KEY
         sync: false
-      - key: APIFY_TOKEN
-        sync: false
       - key: EXTERNAL_COMMENTS_APPROVAL_REFERENCE
         sync: false
       - key: PLACES_TERMS_APPROVAL_REFERENCE
@@ -277,7 +275,7 @@ services:
       # operators' recorded approval to store them / Google Places reviews.
       - key: YOUTUBE_API_KEY
         sync: false
-      - key: APIFY_TOKEN
+      - key: APIFY_API_TOKEN
         sync: false
       - key: EXTERNAL_COMMENTS_APPROVAL_REFERENCE
         sync: false
