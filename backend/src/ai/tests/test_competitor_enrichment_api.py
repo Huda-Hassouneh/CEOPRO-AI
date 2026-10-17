@@ -180,3 +180,34 @@ def test_market_coverage_can_list_the_missing_barcode_worklist():
          patch(f"{R}.price_coverage.get_price_coverage", return_value={"summary": {}, "products": []}) as coverage:
         assert client.get("/pricing/market-coverage?missing_barcode=true", headers=_auth()).status_code == 200
     assert coverage.call_args.args[-1] is True
+
+
+def test_competitor_reviews_endpoint_returns_comments_and_validates_input():
+    assert client.get(f"/competitors/{COMP}/reviews").status_code == 401
+    assert client.get("/competitors/nope/reviews", headers=_auth()).status_code == 422
+    assert client.get(f"/competitors/{COMP}/reviews?sort=loudest", headers=_auth()).status_code == 422
+    assert client.get(f"/competitors/{COMP}/reviews?limit=0", headers=_auth()).status_code == 422
+    result = {"summary": {"comments": 1}, "comments": [{"id": "r1", "text": "Awful", "people_agreeing": 400}], "next_offset": None}
+    conn = MagicMock()
+    with patch(f"{R}.db.app_role_connection", return_value=conn), \
+         patch(f"{R}.competitor_comments.list_competitor_comments", return_value=result) as listing:
+        response = client.get(f"/competitors/{COMP}/reviews?sort=recent&limit=5&offset=10", headers=_auth())
+    assert response.status_code == 200 and response.json() == {"competitor_id": COMP, **result}
+    listing.assert_called_once_with(conn, "t1", COMP, "recent", 5, 10)
+
+
+def test_competitor_reviews_is_404_for_a_competitor_the_tenant_does_not_track():
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.competitor_comments.list_competitor_comments", return_value=None):
+        assert client.get(f"/competitors/{COMP}/reviews", headers=_auth()).status_code == 404
+
+
+def test_competitor_data_overview_is_one_bulk_read_for_the_callers_tenant():
+    assert client.get("/competitor-data/overview").status_code == 401
+    conn = MagicMock()
+    with patch(f"{R}.db.app_role_connection", return_value=conn) as connect, \
+         patch(f"{R}.product_market.competitor_details", return_value={COMP: {"rating": 4.4}}) as details:
+        response = client.get("/competitor-data/overview", headers=_auth())
+    assert response.status_code == 200 and response.json() == {"competitors": {COMP: {"rating": 4.4}}}
+    details.assert_called_once_with(conn, "t1")
+    assert connect.call_args.args[0] == "t1"
