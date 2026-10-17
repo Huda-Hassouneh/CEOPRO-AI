@@ -1,6 +1,5 @@
 """
 KEEL - Daily Google Custom Search Quota Tracking.
-
 The real zero-dollar answer to "the free 100/day quota isn't enough for
 a 1k-10k SKU catalog": pace the (bounded, one-time) onboarding job across
 days for free, rather than pay for overage or lean on SearXNG as the
