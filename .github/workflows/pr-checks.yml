@@ -12,7 +12,8 @@ name: PR Checks
 on:
   pull_request:
   push:
-    branches: [main]
+    # KEEL_Test is the integration branch: pushed to directly, never via PR.
+    branches: [main, KEEL_Test]
 
 jobs:
   backend:
