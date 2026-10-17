@@ -119,3 +119,14 @@ def test_retrieval_skips_a_disabled_reranker(monkeypatch):
     monkeypatch.setattr(pipeline, "RERANKER_ENABLED", False)
     context = pipeline.run_retrieval(None, "t", "question", top_k=2)
     assert [s["chunk_id"] for s in context.sources] == ["c0", "c1"]
+
+
+def test_a_switched_off_backend_never_loads_a_model(monkeypatch):
+    """RAG_EMBEDDING_BACKEND=none (a host too small for any model): keyword
+    search only, without the load attempt that would exhaust its memory."""
+    monkeypatch.setattr(embeddings, "BACKEND", "none")
+    monkeypatch.setattr(embeddings, "_model_cache", {})
+    monkeypatch.setattr(embeddings, "_load", lambda name: (_ for _ in ()).throw(AssertionError("must not load")))
+    monkeypatch.setattr("src.ai.core.ml_runtime.model_obtainable",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not probe")))
+    assert embeddings.try_embed(["text"]) is None

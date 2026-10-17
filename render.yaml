@@ -128,6 +128,20 @@ services:
         value: "openai/gpt-oss-20b"
       - key: GROQ_MAX_TOKENS
         value: "1500"
+      # --- Assistant retrieval models, sized to this plan's 512 MB ---
+      # Measured (scripts/rag_runtime_check.py, .github/workflows/
+      # rag-runtime-check.yml): the app alone peaks ~300 MB; with the torch
+      # embedding model and re-ranker 2,042 MB; with the ONNX embedder and
+      # no re-ranker 826 MB. Loading either here would get the service
+      # killed for memory, so this plan answers from keyword search, and
+      # chunks are stored without vectors (filled in later by
+      # backfill_missing_embeddings once a model is enabled). On a plan with
+      # 2 GB or more (Render "standard"), set RAG_EMBEDDING_BACKEND=onnx for
+      # semantic search; keep the torch re-ranker off below 4 GB.
+      - key: RAG_EMBEDDING_BACKEND
+        value: "none"
+      - key: RAG_RERANKER_ENABLED
+        value: "false"
 
       # --- Automated Marketing: AI image generation (optional, unset by
       # default - see backend/MARKETING_AI_CAPABILITIES.md). Leaving

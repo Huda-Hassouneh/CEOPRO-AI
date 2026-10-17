@@ -39,7 +39,10 @@ MODEL_NAME = os.getenv("RAG_EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 # with the model's own tokenizer, no torch - same mean pooling and
 # normalization, so its vectors match the stored ones (cosine 1.0 for the
 # full-precision export, ~0.995 for the 8-bit ones).
+# "none": don't load an embedding model at all - keyword search only, for a
+# host that can't hold one (trying would get the process killed for memory).
 BACKEND = os.getenv("RAG_EMBEDDING_BACKEND", "torch").strip().lower()
+DISABLED_BACKENDS = ("none", "off", "disabled")
 ONNX_FILE = os.getenv("RAG_EMBEDDING_ONNX_FILE", "onnx/model_quint8_avx2.onnx")
 _ONNX_BATCH = 32
 _ONNX_THREADS = int(os.getenv("RAG_EMBEDDING_ONNX_THREADS", "1"))
@@ -128,6 +131,8 @@ def get_model(model_name: str = None) -> "SentenceTransformer":
     """
     global _unavailable_until
     model_name = model_name or MODEL_NAME
+    if BACKEND in DISABLED_BACKENDS:
+        raise EmbeddingUnavailable(f"semantic search is switched off (RAG_EMBEDDING_BACKEND={BACKEND})")
     if model_name not in _model_cache:
         if time.monotonic() < _unavailable_until:
             raise EmbeddingUnavailable(f"embedding model {model_name} is unavailable (retrying later)")
