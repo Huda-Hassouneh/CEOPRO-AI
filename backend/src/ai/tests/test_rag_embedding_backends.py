@@ -203,3 +203,21 @@ def test_advisor_semantic_check_is_off_without_an_embedding_model(monkeypatch):
 
     monkeypatch.setattr(embeddings, "try_embed", lambda texts: None)
     assert advisor._semantic_check("any question", ["a chunk"]) is None
+
+
+def test_evidence_mode_keeps_the_matched_document_among_many_records():
+    """A question matching no topic (an Arabic leave question) brings every
+    record section; without an LLM, the document that answers it must still
+    be among the sources shown."""
+    from src.ai.rag import advisor
+    from src.ai.rag import evidence as ev
+
+    registry = ev.EvidenceRegistry()
+    for n in range(12):
+        registry.add(ev.COMPANY_RECORD, f"Record {n}", f"line {n}", ev.COMPANY, ev.OBSERVED)
+    registry.add(ev.COMPANY_DOCUMENT, "leave_policy.pdf", "21 days of paid annual leave", ev.COMPANY, ev.OBSERVED)
+    draft = advisor._evidence_mode(registry, "en")
+    shown = [claim[0].text for claim in draft.blocks[1]["items"]]
+    assert len(shown) == 8
+    assert shown[-1].startswith("leave_policy.pdf")  # still after the records, as ranked
+    assert shown[0].startswith("Record 0")
