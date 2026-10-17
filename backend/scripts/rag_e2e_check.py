@@ -3,7 +3,6 @@ KEEL - the assistant end to end through the running API, the way the frontend
 uses it: sign in, upload documents (POST /extraction/upload -> object storage
 -> chunking -> embeddings stored in rag_document_chunks), then ask questions
 (POST /rag/query) and check what comes back.
-
 Checks, each against the live API and its database:
 - every uploaded PDF is Processed, and its chunks carry a vector from the
   configured embedding model;
