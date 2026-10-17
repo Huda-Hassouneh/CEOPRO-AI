@@ -10,8 +10,9 @@ Checks, each against the live API and its database:
 - an Arabic question about each English document, sharing no word with it,
   gets that document cited first (semantic retrieval; keyword search can't);
 - a company-data question cites the company's own records;
-- another company asking the same question never sees the first company's
-  document (tenant isolation);
+- another company, with a document of its own, asking the same question
+  gets an answer citing its own document and never the first company's -
+  in its answer or its document list (tenant isolation);
 - with an LLM configured, answers are written in AI mode; without one, the
   assistant's evidence mode still returns the cited sources.
 - with --api-pid, the API process's peak memory (VmHWM) stays under
@@ -96,6 +97,10 @@ def main() -> int:
         if status != "Processed":
             failures.append(f"{file_name} was not processed ({status})")
 
+    listed = {d.get("file_name") for d in client.request("GET", "/rag/documents").get("documents") or []}
+    if not set(names.values()) <= listed:
+        failures.append(f"the document list is missing {sorted(set(names.values()) - listed)}")
+
     model = None
     if os.getenv("DATABASE_URL"):
         import psycopg2
@@ -141,11 +146,28 @@ def main() -> int:
     other = Client(args.api)
     other_company = replace(company, business_name=f"Isolation Check {run}", owner_name="Isolation Check")
     sign_in(other, other_company, f"isolation-{run}@keel-ci.example", args.password)
+    # A document of its own, so the question is answered (not refused for
+    # lack of evidence) and a leak would have somewhere to show up.
+    own = f"isolation_supplier_{run}.pdf"
+    data = other.request("POST", "/extraction/upload", files={"file": (own, _pdf(
+        "Supplier note. Our olive oil supplier is Green Valley Farms; invoices are paid within 30 days."),
+        "application/pdf")})
+    if data.get("rag_document_status") != "Processed":
+        failures.append(f"tenant isolation: the other company's {own} was not processed")
+    ours = set(names.values())
+    listed = [d.get("file_name") for d in other.request("GET", "/rag/documents").get("documents") or []]
+    print(f"\nAnother company's document list: {listed}")
+    if ours & set(listed):
+        failures.append(f"tenant isolation: another company's document list shows {sorted(ours & set(listed))}")
     leaked = _ask(other, ARABIC_QUESTIONS["supplier_agreement.txt"])
-    leaked_titles = [t for t in leaked.get("titles") or [] if str(t).endswith(f"_{run}.pdf")]
-    print(f"\nAnother company asking the supplier question: references {leaked.get('titles')}")
-    if leaked_titles:
-        failures.append(f"tenant isolation: another company was shown {leaked_titles}")
+    print(f"Another company asking the supplier question: HTTP {leaked['status']}, references {leaked.get('titles')}")
+    if leaked["status"] != 200:
+        failures.append(f"tenant isolation: the other company's question answered {leaked['status']} "
+                        f"({leaked.get('reason')}), so the check proved nothing")
+    elif ours & set(leaked["titles"]):
+        failures.append(f"tenant isolation: another company was shown {sorted(ours & set(leaked['titles']))}")
+    elif own not in leaked["titles"]:
+        failures.append(f"tenant isolation: the other company's own {own} wasn't cited ({leaked['titles']})")
 
     if args.api_pid:
         peak = _peak_mb(args.api_pid)
