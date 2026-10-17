@@ -130,6 +130,14 @@ HEADER_SYNONYMS: Dict[str, List[str]] = {
     ],
     "order_id": ["order", "order id", "order number", "order no", "commande", "n commande", "numero de commande", "رقم الطلب"],
     "currency": ["currency", "currency code", "curr", "devise", "monnaie", "العملة", "عملة"],
+    # Deliberately NOT "sku" / "product code" / "item code": those are internal codes, not
+    # scannable barcodes, and treating them as one would feed wrong keys to price lookup.
+    "barcode": [
+        "barcode", "bar code", "barcodes", "ean", "ean13", "ean 13", "ean8", "upc", "upc a", "upc code", "gtin",
+        "gtin13", "item barcode", "product barcode", "ean code", "scan code",
+        "code barre", "code barres", "code ean", "code-barres",
+        "باركود", "الباركود", "رمز الباركود", "كود الباركود", "الرمز الشريطي",
+    ],
 }
 
 # Every entry above is an assumption, not a confirmed customer format,

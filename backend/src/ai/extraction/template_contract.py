@@ -60,6 +60,11 @@ TEMPLATE_FIELDS: List[TemplateFieldSpec] = [
     TemplateFieldSpec("order_id", False, "Order number/reference, if available.", "ORD-99231"),
     TemplateFieldSpec("email", False, "Customer email, if collected.", "customer@example.com"),
     TemplateFieldSpec("phone", False, "Customer phone, if collected.", "+962791234567"),
+    TemplateFieldSpec(
+        "barcode", False,
+        "Product barcode (EAN/UPC/GTIN), if you have it - lets KEEL find the product's market price exactly.",
+        "6221031020018",
+    ),
     TemplateFieldSpec("competitor_name", False, "A competitor mentioned in this record, if relevant.", "Rival Store"),
     TemplateFieldSpec(
         "amount_raw", False,
