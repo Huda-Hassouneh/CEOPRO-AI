@@ -37,8 +37,8 @@ class _Tokenizer:
 class _Session:
     batches = []
 
-    def __init__(self, path, providers):
-        self.path = path
+    def __init__(self, path, options, providers):
+        self.path, self.options = path, options
 
     def get_inputs(self):
         return [types.SimpleNamespace(name=n) for n in ("input_ids", "attention_mask", "token_type_ids")]
@@ -54,7 +54,8 @@ class _Session:
 
 
 def _stub_runtime(monkeypatch):
-    monkeypatch.setitem(sys.modules, "onnxruntime", types.SimpleNamespace(InferenceSession=_Session))
+    monkeypatch.setitem(sys.modules, "onnxruntime", types.SimpleNamespace(InferenceSession=_Session,
+                                                                         SessionOptions=types.SimpleNamespace))
     monkeypatch.setitem(sys.modules, "tokenizers", types.SimpleNamespace(Tokenizer=_Tokenizer))
     import huggingface_hub
 
@@ -89,6 +90,9 @@ def test_onnx_backend_loads_the_export_without_torch(monkeypatch):
     model = embeddings._load("org/model")
     assert isinstance(model, embeddings._OnnxEncoder)
     assert model._session.path == "/cache/org/model/onnx/model_quint8_avx2.onnx"
+    options = model._session.options  # memory over speed on a small host
+    assert options.enable_cpu_mem_arena is False and options.enable_mem_pattern is False
+    assert options.intra_op_num_threads == embeddings._ONNX_THREADS
 
 
 def test_onnx_backend_checks_for_the_export_it_will_load(monkeypatch):
