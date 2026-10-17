@@ -17,10 +17,10 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."   # repo root
 source .devcontainer/env_utils.sh
 
-echo "==> [1/3] Starting Postgres+pgvector, Redis, MinIO (docker compose)"
+echo "==> [1/5] Starting Postgres+pgvector, Redis, MinIO (docker compose)"
 (cd backend && docker compose up -d postgres redis minio)
 
-echo "==> [2/3] Running database migrations (Final_schema.sql + migrations/)"
+echo "==> [2/5] Running database migrations (Final_schema.sql + migrations/)"
 # `migrate` is a one-shot job, not a long-running service - `docker
 # compose run --rm` (not `up`) is the correct primitive for that: `run`
 # always creates a brand-new, uniquely-named container and removes it on
@@ -42,7 +42,41 @@ echo "==> [2/3] Running database migrations (Final_schema.sql + migrations/)"
 # `migrate` service for the same guidance if invoking it directly.
 (cd backend && docker compose run --rm migrate)
 
-echo "==> [3/3] Configuring Codespaces forwarded URLs"
+echo "==> [3/5] Codespaces secrets"
+# backend/.env (from .env.example) has empty lines such as GROQ_API_KEY= -
+# loaded with `set -a && source .env` they would blank the Codespaces secret.
+defer_empty_to_environment backend/.env
+
+echo "==> [4/5] Recording the assistant model's price in this Codespace's database (if missing)"
+# Every AI call is refused (COST_NOT_CONFIGURED) until the model has a
+# confirmed price (docs/SUBSCRIPTIONS_AND_CREDITS.md section 4). This is the
+# same operator step, on this Codespace's own local database only - never a
+# remote one - and an already-recorded price is kept (--if-missing).
+env_value() { grep -E "^$1=" backend/.env | tail -1 | cut -d= -f2-; }
+MODEL="$(env_value GROQ_MODEL)"; MODEL="${MODEL:-openai/gpt-oss-20b}"
+DB_URL="$(env_value DATABASE_URL)"
+case "$DB_URL" in
+  *@localhost:*|*@127.0.0.1:*) LOCAL_DB=1 ;;
+  *) LOCAL_DB=0 ;;
+esac
+if [ "$LOCAL_DB" != 1 ]; then
+  echo "    DATABASE_URL in backend/.env is not this Codespace's local database - not touching it."
+elif [ "$MODEL" != "openai/gpt-oss-20b" ]; then
+  echo "    GROQ_MODEL=$MODEL has no known price here. Record its real price before asking the assistant:"
+  echo "    cd backend && python -m scripts.billing_admin set-price --budget ai --provider groq --operation $MODEL ..."
+else
+  # Groq's listed price for openai/gpt-oss-20b (console.groq.com/docs/models, checked 2026-10-17).
+  for price in "input_token 0.075" "output_token 0.30"; do
+    set -- $price
+    (cd backend && DATABASE_URL="$DB_URL" .venv/bin/python -m scripts.billing_admin set-price --budget ai \
+      --provider groq --operation "$MODEL" --unit "$1" --usd-per-million "$2" --if-missing \
+      --source "Groq Supported Models page (console.groq.com/docs/models)" --verified-on 2026-10-17 \
+      --by "Codespace setup" --reason "Groq list price, this Codespace's local database") \
+      || echo "    WARNING: could not record the $1 price - see docs/SUBSCRIPTIONS_AND_CREDITS.md section 4."
+  done
+fi
+
+echo "==> [5/5] Configuring Codespaces forwarded URLs"
 if [ -n "${CODESPACE_NAME:-}" ]; then
   DOMAIN="${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}"
   FRONTEND_URL="https://${CODESPACE_NAME}-5173.${DOMAIN}"
@@ -70,16 +104,16 @@ if [ -n "${CODESPACE_NAME:-}" ]; then
 
   set_env_var backend/.env CORS_ALLOWED_ORIGINS "${FRONTEND_URL},http://localhost:5173,http://127.0.0.1:5173"
   set_env_var backend/.env FRONTEND_BASE_URL "$FRONTEND_URL"
-  set_env_var frontend/.env VITE_API_BASE_URL "$BACKEND_URL"
+  # Same-origin API: the browser calls <frontend>/api/..., which the Vite
+  # dev server forwards to the backend on localhost:8000 (vite.config.js).
+  # Only port 5173 has to be opened - it can stay private, and port 8000
+  # never needs to be made public.
+  set_env_var frontend/.env VITE_API_BASE_URL "/api"
 
   echo "    Codespace detected ($CODESPACE_NAME) - backend/.env and"
   echo "    frontend/.env now point at:"
   echo "      Frontend: $FRONTEND_URL"
-  echo "      Backend:  $BACKEND_URL"
-  echo ""
-  echo "    IMPORTANT: forward ports 5173 and 8000 must be set to"
-  echo "    'Public' visibility (or accessed from a browser signed into"
-  echo "    the same GitHub account) - see CODESPACES_DEVELOPMENT.md."
+  echo "      Backend:  $BACKEND_URL (reached through the frontend at /api)"
 else
   echo "    \$CODESPACE_NAME not set - not running inside a Codespace"
   echo "    (e.g. a local devcontainer). Left backend/.env and"
