@@ -719,8 +719,14 @@ def _fallback_draft(text: str, registry: ev.EvidenceRegistry, language: str) -> 
 def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "evidence_mode") -> citations.Draft:
     priority = {ev.PRODUCT_GUIDE: 0, ev.CALCULATION: 1, ev.COMPANY_RECORD: 2, ev.COMPANY_DOCUMENT: 3, ev.WEB_PAGE: 4,
                 ev.COMPANY_SUMMARY: 5, ev.USER_INPUT: 9}
-    items = sorted((i for i in registry.items() if i.kind != ev.USER_INPUT),
-                   key=lambda i: -1 if (i.data or {}).get("summary") else priority.get(i.kind, 6))[:8]
+    rank = lambda i: -1 if (i.data or {}).get("summary") else priority.get(i.kind, 6)  # noqa: E731
+    ranked = sorted((i for i in registry.items() if i.kind != ev.USER_INPUT), key=rank)
+    # Passages already matched to this question keep room among the 8: a
+    # question matching no topic brings every record section, which would
+    # otherwise crowd out the one document that answers it.
+    documents = [i for i in ranked if i.kind == ev.COMPANY_DOCUMENT][:3]
+    others = [i for i in ranked if i.kind != ev.COMPANY_DOCUMENT][:8 - len(documents)]
+    items = sorted(documents + others, key=rank)
     claims = [[citations.Claim(text=f"{item.title}: {item.excerpt[:400]}", kind=citations.FACT, evidence=[item.id])]
               for item in items]
     return citations.Draft(blocks=[
