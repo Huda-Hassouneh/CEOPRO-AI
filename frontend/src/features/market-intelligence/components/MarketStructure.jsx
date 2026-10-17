@@ -60,7 +60,7 @@ export function MarketStructure() {
           <p>{t('structure.websitesValue', { known: number.format(data.websites.known), read: number.format(data.websites.read), priced: number.format(data.websites.with_prices) })}</p>
         </section>
       </div>
-      <section className="market-structure__prices">
+      <section className="market-structure__prices" tabIndex={0} role="region" aria-label={t('structure.prices')}>
         <h3>{t('structure.prices')}</h3>
         {data.product_prices.length === 0
           ? <p className="apex-muted">{t('structure.noPrices')}</p>
