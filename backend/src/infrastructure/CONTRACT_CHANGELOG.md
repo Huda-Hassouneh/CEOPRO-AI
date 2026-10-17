@@ -74,3 +74,8 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 ### Fixed
 - `research/page_reader.py` (assistant research and the new seller-page price lookup): a gzip/deflate-compressed page was reported unreachable because the already-decompressed body was re-wrapped with its `Content-Encoding` header and decompressed twice. Also stops advertising brotli, whose streams failed to decode when the optional package was installed.
 
+## - 2026-10-18 (product barcodes)
+### Added (additive)
+- **API** — `POST /products` and `PATCH /products/{id}` accept an optional `barcode` (EAN-8, UPC-A, EAN-13 or GTIN-14; spaces/hyphens ignored; length and GS1 check digit validated, `422` otherwise). `PATCH` with `barcode: null` clears it; omitting it leaves it alone. `GET /products/{id}` and the create/update responses return `barcode` (`null` when none). Stored in `products.metadata->>'barcode'` - no schema change; other metadata keys are preserved.
+- Why: a barcode is the exact key for the market reference-price lookup (Open Prices), which cannot reliably find a product by name.
+

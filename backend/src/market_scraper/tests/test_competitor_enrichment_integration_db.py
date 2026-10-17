@@ -201,7 +201,7 @@ def test_price_lookup_picks_only_unpriced_products_stores_a_quote_and_skips_rece
     tenant_id = _insert_company(conn)
     with conn.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO products (tenant_id, product_name, current_price, currency) VALUES (%s, '{\"en\": \"Nutella Hazelnut Spread 350g\"}'::jsonb, 3.5, 'JOD') RETURNING product_id;",
+            "INSERT INTO products (tenant_id, product_name, current_price, currency, metadata) VALUES (%s, '{\"en\": \"Nutella Hazelnut Spread 350g\"}'::jsonb, 3.5, 'JOD', '{\"barcode\": \"3017-6204-22003\"}'::jsonb) RETURNING product_id;",
             (tenant_id,),
         )
         product_id = str(cursor.fetchone()[0])
@@ -209,6 +209,7 @@ def test_price_lookup_picks_only_unpriced_products_stores_a_quote_and_skips_rece
 
     contexts = pipeline.products_needing_a_price(conn, tenant_id, limit=10)
     assert [c.product_id for c in contexts] == [product_id]
+    assert contexts[0].barcode == "3017620422003"  # read from products.metadata, digits only
 
     quote = PriceQuote("web_offers", "Nutella Hazelnut Spread 350g", 3.4, "JOD", seller="Shop", url="https://shop.example/p", rating=4.6, review_count=12)
     assert pipeline._store(conn, tenant_id, contexts[0], quote, 1.0, True) is True
