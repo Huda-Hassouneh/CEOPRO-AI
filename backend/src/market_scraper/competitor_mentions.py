@@ -1,6 +1,5 @@
 """
 Where else a competitor shows up, collected from sources that allow it:
-
   own website feed   what the competitor itself publishes (its RSS/Atom feed,
                      found from its homepage). First-party and public.
   news search        headlines that name the competitor, from the configured
