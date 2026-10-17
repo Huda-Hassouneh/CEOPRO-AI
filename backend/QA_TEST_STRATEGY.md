@@ -48,19 +48,27 @@ priority (P0–P3) and a test level. Cheap, offline, deterministic tests run on 
 * **Exit for a release:** 0 failing L1/L2; all P0 L3 green in CI; no open P0/P1 defects; new endpoints
   automatically covered by the auth sweep.
 
-## 4. Gaps identified (backlog, by priority)
+## 4. Gaps identified and their status
 
-1. **P0** – No test enumerated *all* routes for auth; new routes could ship unauthenticated. → added.
-2. **P0** – JWT edge cases (expired, `alg=none`, HS512, empty claims) not covered. → added.
-3. **P0** – No test proving the tenant comes from the token and not from client-supplied params. → added.
-4. **P1** – `security.py` internal-token verification untested (rotation engine + static fallback).
-5. **P1** – No CI workflow runs the test-suite (only `staging-deployment.yml`); L1/L2 should gate PRs.
-6. **P2** – Infra: `token_rotator`, `watchdog`, `backup_verifier` have no tests.
+| # | Pri | Gap | Status |
+|---|---|---|---|
+| 1 | P0 | No test enumerated all routes for auth; a new route could ship unauthenticated | **Done** - `test_api_security_contract.py` (141 operations from OpenAPI, pinned public list of 12) |
+| 2 | P0 | JWT edge cases (expired, `alg=none`, HS512, empty claims) | **Done** |
+| 3 | P0 | Nothing proved the tenant comes only from the token | **Done** |
+| 4 | P1 | `security.py` internal-token verification untested | **Done** - `test_security_internal_token.py` |
+| 5 | P1 | Token rotation grace window / eviction untested | **Done** - `test_token_rotator.py` |
+| 6 | P2 | `watchdog.py` and `backup_verifier.py` untested | **Done** - `test_watchdog.py`, `test_backup_verifier.py` |
+| 7 | P1 | CI did not run the suite | **Not a gap on KEEL_Test** - `.github/workflows/pr-checks.yml` already runs `pytest src/` against Postgres + Redis, so all new tests run in CI automatically |
+| 8 | P2 | Tests depended on the developer's shell (vault key, JWT secret) and one expected `VALID` instead of `COMMITTED` | **Done** - fixed in `conftest.py` / `test_main_integration_db.py` |
+| 9 | - | MinIO-backed tests are skipped in CI (no MinIO service) | **Open, low risk** - run locally with `./scripts/run_qa.sh full` |
 
-## 5. Execution notes (local, no Docker)
+## 5. How to run
 
 ```bash
-export JWT_SECRET=test-secret
-python -m pytest src -q --timeout=20 -k "not integration_db"
+cd backend
+./scripts/run_qa.sh security   # P0 auth/security contract only (seconds)
+./scripts/run_qa.sh            # all offline tests (~30 s, no services)
+./scripts/run_qa.sh full       # + live Postgres/Redis/MinIO tests (docker compose, or your own DATABASE_URL)
 ```
-macOS: xgboost needs `libomp` (`brew install libomp` or `DYLD_FALLBACK_LIBRARY_PATH`).
+
+Details, results and known limitations: see `QA_TEST_REPORT.md`.
