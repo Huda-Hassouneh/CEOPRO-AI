@@ -158,7 +158,6 @@ APIFY_API_TOKEN=
 YOUTUBE_API_KEY=
 SERPAPI_API_KEY=
 ```
-
 | Variable | Used for | Where | Cost |
 |---|---|---|---|
 | `GOOGLE_PLACES_API_KEY` (older name `GOOGLE_MAPS_API_KEY`) | Places discovery, geocoding | console.cloud.google.com -> enable Places API / Geocoding API | **PAID** (billing account required) |
