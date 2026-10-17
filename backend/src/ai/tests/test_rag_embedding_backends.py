@@ -184,16 +184,22 @@ def test_advisor_keeps_a_chunk_close_in_meaning_even_with_no_shared_word(monkeyp
     the word check alone would drop the very match semantic search found."""
     from src.ai.rag import advisor
 
-    vectors = {"ما هي شروط الدفع؟": [1.0, 0.0], "payment terms are net 45 days": [0.8, 0.6], "summer campaign": [0.0, 1.0]}
+    # Low absolute similarities, as the static model gives: the closest
+    # retrieved chunk counts, one far behind it doesn't, nor one under the floor.
+    vectors = {"ما هي شروط الدفع؟": [1.0, 0.0, 0.0], "payment terms are net 45 days": [0.2, 0.98, 0.0],
+               "leave policy": [0.12, 0.99, 0.0], "summer campaign": [0.05, 0.0, 1.0]}
     monkeypatch.setattr(embeddings, "try_embed", lambda texts: np.array([vectors[t] for t in texts], dtype=np.float32))
-    monkeypatch.setattr(advisor, "SEMANTIC_MIN_SIMILARITY", 0.5)
+    monkeypatch.setattr(advisor, "SEMANTIC_MIN_SIMILARITY", 0.15)
+    monkeypatch.setattr(advisor, "SEMANTIC_MARGIN", 0.05)
     assert not advisor._relevant("ما هي شروط الدفع؟", "payment terms are net 45 days")
-    close = advisor._semantic_check("ما هي شروط الدفع؟")
-    assert close("payment terms are net 45 days") and not close("summer campaign")
+    close = advisor._semantic_check("ما هي شروط الدفع؟", ["payment terms are net 45 days", "leave policy", "summer campaign"])
+    assert close("payment terms are net 45 days")
+    assert not close("leave policy")  # 0.12: under the floor and 0.08 behind the best
+    assert not close("summer campaign")
 
 
 def test_advisor_semantic_check_is_off_without_an_embedding_model(monkeypatch):
     from src.ai.rag import advisor
 
     monkeypatch.setattr(embeddings, "try_embed", lambda texts: None)
-    assert advisor._semantic_check("any question") is None
+    assert advisor._semantic_check("any question", ["a chunk"]) is None
