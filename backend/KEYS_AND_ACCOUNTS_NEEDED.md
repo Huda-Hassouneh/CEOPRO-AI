@@ -1,163 +1,226 @@
-# Keys, tokens and accounts needed - fill-in checklist
+# Keys, tokens and accounts KEEL really uses - fill-in checklist
 
-Every value below is **blank on purpose**. Never commit real values (git history
-is permanent). Put them in your local `backend/.env` (git-ignored) and in
-Render -> your service -> **Environment** for the deployed app.
+Checked against the code on `KEEL_Test` (every name below is one the backend or
+frontend actually reads). **Every value is blank on purpose: never write a real
+value in this file or any committed file - this repository is public and git
+history is permanent.** Put real values in:
 
-Legend: **FREE** = no payment needed - **PAID** = needs a paid plan or card -
-**YOU GENERATE** = no account, you create the value yourself.
+- your local `backend/.env` (git-ignored) for development, and
+- Render -> each service -> **Environment** for staging/production.
 
-> Completeness note: this list was written from the variables visible in
-> `backend/.env.example` (first ~290 lines), `render.yaml` and the code. If
-> `.env.example` has a variable that is not listed here, it is optional tuning
-> unless it ends in `_KEY`, `_TOKEN`, `_SECRET` or `_PASSWORD` - check those.
+Legend: **REQUIRED** - **FREE** - **PAID** (card or paid plan) - **YOU GENERATE**
+(no account; you create the value).
+
+> **If a real value was ever committed here, treat it as stolen: revoke it at the
+> provider and create a new one.** Editing the file does not remove it from git
+> history or from anyone who already copied it.
 
 ---------------------------------------------------------------------------
 
-## 1. Secrets you generate yourself (no account) - REQUIRED
-
-Generate each with `openssl rand -hex 32` in a terminal, one per variable.
+## 1. Secrets you generate yourself - REQUIRED
 
 ```
-JWT_SECRET=8a72d8377cdd7d8d84d2a69482c835ac3d399de64db165f3f1b1589ce5563077
-POSTGRES_PASSWORD=538c581df4ed75c51a254d3d98547740c93bc2b36837a5c7fb896f8fc5a694a4
-APP_DB_PASSWORD=3846d062a53a0fae9247f5b27060cd8bc9500f340fd76ec2d15abb71bb3e6d8e
-MINIO_ROOT_PASSWORD=5D11E19FE268D0E38BAC176E79289C8B967C12BA77CADA2F60E6AB9473F18C11
-GRAFANA_ADMIN_PASSWORD=6687920e6b05cc29b7cabba20c1905eb78b7cbd524cefa960d471e6f15225f11
-CREDENTIAL_VAULT_MASTER_KEY=d9783b1a328f44b2a6d50d4324b31ed0b6372ca3e7e39cecc55675d35b978f9f
+JWT_SECRET=
+POSTGRES_PASSWORD=
+APP_DB_PASSWORD=
+MINIO_ROOT_PASSWORD=
+GRAFANA_ADMIN_PASSWORD=
+CREDENTIAL_VAULT_MASTER_KEY=
 ```
 
-- `JWT_SECRET`: the app refuses to start without it.
-- `CREDENTIAL_VAULT_MASTER_KEY`: encrypts the database-connector credentials
-  tenants save. **Its required format is defined in the code and I could not
-  confirm it** - read the comment above where it is used before generating, and
-  never change it after tenants have saved connectors (they become unreadable).
-- On Render, managed Postgres/Redis give you their own connection strings;
-  use those for `DATABASE_URL` / `REDIS_URL` instead of the local defaults.
+| Variable | How to create it | Notes |
+|---|---|---|
+| `JWT_SECRET` | `openssl rand -hex 32` | The API refuses to start without it. Changing it signs everyone out. |
+| `POSTGRES_PASSWORD` | `openssl rand -hex 32` | Local Docker Postgres only. On Render, the managed database has its own (in `DATABASE_URL`). |
+| `APP_DB_PASSWORD` | `openssl rand -hex 32` | Password of the restricted `ceopro_app` database role; the migration runner sets it. |
+| `MINIO_ROOT_PASSWORD` | `openssl rand -hex 32` (local MinIO) | On staging/production with Cloudflare R2 it is the R2 **Secret Access Key** instead (section 6). |
+| `GRAFANA_ADMIN_PASSWORD` | `openssl rand -hex 32` | Local monitoring stack only (`docker-compose.yml`). |
+| `CREDENTIAL_VAULT_MASTER_KEY` | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` | **Must be a Fernet key** (44 characters, base64, ends in `=`). A hex string from `openssl rand -hex` is **rejected** and saving database/API connectors fails. Never change it once companies have saved connectors - their saved credentials become unreadable. |
 
-## 2. Marketing images (this feature) - all FREE
+Also set, not secret: `CREDENTIAL_VAULT_KMS_BACKEND=local` (or `aws` with
+`AWS_KMS_KEY_ID` and AWS credentials, the stronger production option),
+`SCRAPER_ACTOR_USER_ID=00000000-0000-0000-0000-000000000000`,
+`MINIO_ROOT_USER` and `GRAFANA_ADMIN_USER` (any user name you choose).
 
-At least one keyed account is strongly recommended; with none, users get the
-local "designed" poster (works, but is not AI-generated) or a slow AI Horde image.
-More accounts = more free AI images per day (comma-separate several).
-
-```
-CLOUDFLARE_ACCOUNTS=e20eeea75975181122485dfa91bf1174
-HUGGINGFACE_API_TOKENS=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
-GEMINI_API_KEYS=AIzaSyC4eNPTtu8sU6eo9g8kcQWOXJ8TmCmyqAI
-TOGETHER_API_KEYS=key_Cg7vyeHCF8x1ZvySk6EnA
-HORDE_API_KEYS=9AdtPPfeSBer8mRWQV9osA
-POLLINATIONS_API_KEYS=sk_BQ3nPBNVMJYQvspIQLT6SFjCTAnoK8YV
-```
-
-| Variable | Format | Where to get it | Notes |
-|---|---|---|---|
-| `CLOUDFLARE_ACCOUNTS` | `ACCOUNT_ID:TOKEN` (colon, no spaces) | dash.cloudflare.com -> AI -> Workers AI -> Use REST API -> Create a Workers AI API Token | **Best first choice.** Token permission: Account -> Workers AI -> Read (Edit is fine). Free daily allowance. |
-| `HUGGINGFACE_API_TOKENS` | `hf_...` | huggingface.co/settings/tokens -> Fine-grained -> tick "Make calls to Inference Providers" | Free monthly credit is small (a few dozen images). |
-| `GEMINI_API_KEYS` | `AIza...` | aistudio.google.com/apikey | Free tier with limits; the model name may change (`GEMINI_IMAGE_MODEL`). |
-| `TOGETHER_API_KEYS` | key | api.together.ai | Uses the free FLUX.1-schnell-Free model; availability not verified. |
-| `HORDE_API_KEYS` | key | aihorde.net/register | Optional. Without it the anonymous key still works but queues for minutes. |
-| `POLLINATIONS_API_KEYS` | key | enter.pollinations.ai | Optional. Never used without a key (keyless images carry a visible watermark). |
-
-**About "how many models":** free quotas are per *account*, not per model - extra
-models from the same account do not add images; extra accounts do. Models used:
-Cloudflare 4 (FLUX.1-schnell, SDXL-Lightning, SDXL-base, DreamShaper-8), Hugging
-Face 2 (FLUX.1-schnell, SDXL-base), Gemini 1, Together 1, and AI Horde (a network
-of dozens of community models, no per-model cap but a slow queue). To raise the
-free volume, add more accounts (comma-separated), e.g. a second Cloudflare account.
-
-Rules: do not put any of these in a committed file; roll (regenerate) a token
-immediately if it is ever pasted in chat, a screenshot or an issue.
-
-## 3. Marketing: background removal - FREE, nothing to sign up for
+## 2. Database, Redis and file storage - REQUIRED, from your host
 
 ```
-MARKETING_BACKGROUND_REMOVAL_PROVIDER=
+DATABASE_URL=
+REDIS_URL=
+MINIO_ENDPOINT=
+MINIO_ROOT_USER=
+MINIO_ROOT_PASSWORD=
 ```
 
-Set to `rembg` only on a host with real RAM headroom (it needs about 540MB;
-Render's free plan has 512MB and would kill the service - see
-`MARKETING_AI_CAPABILITIES.md` section 1a).
+- `DATABASE_URL` / `REDIS_URL`: copy from Render's managed Postgres / Redis
+  (locally the Docker defaults in `.env.example` work).
+- File storage (uploads, documents, marketing images), staging/production on
+  **Cloudflare R2** (free tier, card on file): create a bucket and an R2 API
+  token with read/write on it, then
+  `MINIO_ENDPOINT` = `https://<account-id>.r2.cloudflarestorage.com`,
+  `MINIO_ROOT_USER` = Access Key ID, `MINIO_ROOT_PASSWORD` = Secret Access Key.
+  Without storage everything works except uploads and stored images.
 
-## 4. Chat / copy writing (LLM) - REQUIRED for chat and marketing copy
-
-Marketing copy (headlines, captions, hashtags) and the business chat both use
-the language model. Pick ONE option.
-
-```
-GROQ_API_KEY=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
-```
-
-- **FREE** - console.groq.com -> API Keys (free tier with rate limits).
-- Alternatives: `LOCAL_LLM_BASE_URL` (a llama.cpp server you run - free but slow)
-  or `PAID_LLM_BASE_URL` + `PAID_LLM_API_KEY` (+ `PAID_LLM_MODEL`) for a paid
-  OpenAI-compatible vendor. A set `PAID_LLM_*` wins over the others.
-
-## 5. Email (password reset, verification, team invites, alert digests)
-
-Without SMTP the app still runs, but no email is sent (reset codes and invites
-never arrive), so **required for real users**.
+## 3. AI language model - REQUIRED for the assistant, AI analysis and marketing copy
 
 ```
-SMTP_HOST=smtp-relay.brevo.com
-SMTP_PORT=587
-SMTP_USERNAME=be9c22001@smtp-brevo.com
-SMTP_PASSWORD=xsmtpsib-a915711c21fe2c03fcd62488eb921803079a4b1e372c637cba80b1b9be9c3e1f-dpSsGcwdCWNxAKF0
-EMAIL_FROM_ADDRESS=huda.hasouneh@gmail.com
-FRONTEND_BASE_URL=https://fuzzy-yodel-p79gw575pxg6cg7x-5173.app.github.dev
-CORS_ALLOWED_ORIGINS=https://fuzzy-yodel-p79gw575pxg6cg7x-8000.app.github.dev
+GROQ_API_KEY=
 ```
 
-- Any SMTP provider works. FREE options with a small daily limit: Brevo
-  (300/day), Mailjet, or Gmail with an **app password** (Google Account ->
-  Security -> 2-Step Verification -> App passwords).
-- `EMAIL_FROM_ADDRESS` must be an address your provider has verified.
-- `FRONTEND_BASE_URL` and `CORS_ALLOWED_ORIGINS`: your real deployed frontend
-  URL (https, no trailing slash). The localhost defaults will not work online.
+- **FREE** - console.groq.com -> API Keys. Model: `GROQ_MODEL` (default `openai/gpt-oss-20b`).
+- Alternatives (pick one; the first set wins): `PAID_LLM_BASE_URL` +
+  `PAID_LLM_API_KEY` (+ `PAID_LLM_MODEL`) for a paid OpenAI-compatible vendor;
+  `HUGGINGFACE_LLM_MODEL` (uses `HUGGINGFACE_API_TOKEN`); `LOCAL_LLM_BASE_URL`
+  (a llama.cpp server you run).
+- **Also needed since the subscription/credits change:** a confirmed price for
+  the model, recorded once with
+  `python -m scripts.billing_admin set-price ...` (see
+  `docs/SUBSCRIPTIONS_AND_CREDITS.md` section 4). Without a price every AI call
+  is refused ("not set up") - the key alone is not enough.
 
-## 6. Storage and infrastructure - provided by your host
+## 4. Email - REQUIRED for real users
 
 ```
-MINIO_ENDPOINT=http://minio:9000
-MINIO_ROOT_USER=minio_admin
-DATABASE_URL=postgresql://ceopro_admin:538c581df4ed75c51a254d3d98547740c93bc2b36837a5c7fb896f8fc5a694a4@postgres:5432/ceopro_platform
-REDIS_URL=redis://redis:6379/0
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USERNAME=
+SMTP_PASSWORD=
+EMAIL_FROM_ADDRESS=
 ```
 
-Production needs an S3-compatible bucket store (MinIO, or equivalent) and managed
-Postgres + Redis. Copy the connection details from your hosting dashboard.
+- Sign-up codes, password reset, team invitations and alert summaries. Without
+  SMTP, codes are only written to the server log.
+- Any SMTP provider. FREE: Brevo (300/day), Mailjet, or Gmail with an app password.
+- `EMAIL_FROM_ADDRESS` must be a sender your provider has verified.
 
-## 7. Optional integrations (features degrade gracefully when blank)
+## 5. Your app's addresses - REQUIRED when deployed (not secret)
+
+```
+FRONTEND_BASE_URL=
+APP_BASE_URL=
+CORS_ALLOWED_ORIGINS=
+VITE_API_BASE_URL=
+```
+
+- `FRONTEND_BASE_URL`: the frontend's public URL (links in emails).
+- `APP_BASE_URL`: the same frontend URL - Stripe sends customers back here after
+  checkout and the billing portal.
+- `CORS_ALLOWED_ORIGINS`: the **frontend** URL(s) allowed to call the API
+  (https, no trailing slash, comma-separated).
+- `VITE_API_BASE_URL` (frontend build): the **API**'s public URL.
+
+## 6. Marketing images - FREE, at least one recommended
+
+```
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_API_TOKEN=
+HUGGINGFACE_API_TOKEN=
+```
+
+| Variable | Where to get it | Notes |
+|---|---|---|
+| `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` | dash.cloudflare.com -> AI -> Workers AI -> Use REST API -> create a token (Workers AI permission) | Two separate variables (not `ACCOUNT_ID:TOKEN` in one). |
+| `HUGGINGFACE_API_TOKEN` | huggingface.co/settings/tokens -> fine-grained -> "Make calls to Inference Providers" | One token (singular name). Also usable for the AI model (section 3). |
+
+- With neither, images come from the free keyless Pollinations endpoint
+  (`MARKETING_IMAGE_KEYLESS=true`, the default). Order and choice:
+  `MARKETING_IMAGE_PROVIDERS` (e.g. `cloudflare,huggingface,pollinations`).
+- Paid image providers also need a confirmed price (`billing_admin set-price
+  --budget ai --provider cloudflare|huggingface --operation image_generation
+  --unit image ...`), otherwise they are skipped and the next one is tried.
+- **Not used by the code** (remove them from your `.env`, they do nothing):
+  `CLOUDFLARE_ACCOUNTS`, `HUGGINGFACE_API_TOKENS` (plural), `GEMINI_API_KEYS`,
+  `TOGETHER_API_KEYS`, `HORDE_API_KEYS`, `POLLINATIONS_API_KEYS`.
+- Background removal: `MARKETING_BACKGROUND_REMOVAL_PROVIDER=rembg` only on a
+  host with about 540 MB free RAM (not Render's free plan). No account.
+
+## 7. Competitor discovery and market data - optional
+
+Free and keyless, always on: OpenStreetMap, Nominatim, Photon, Wikidata,
+Overture Maps, GDELT news, Open Food Facts.
 
 ```
 GOOGLE_PLACES_API_KEY=
 GOOGLE_CUSTOM_SEARCH_API_KEY=
 GOOGLE_CUSTOM_SEARCH_CX=
+BRAVE_SEARCH_API_KEY=
+TAVILY_API_KEY=
+SEARXNG_INSTANCE_URL=
+APIFY_API_TOKEN=
+YOUTUBE_API_KEY=
+SERPAPI_API_KEY=
+```
+
+| Variable | Used for | Where | Cost |
+|---|---|---|---|
+| `GOOGLE_PLACES_API_KEY` (older name `GOOGLE_MAPS_API_KEY`) | Places discovery, geocoding | console.cloud.google.com -> enable Places API / Geocoding API | **PAID** (billing account required) |
+| `GOOGLE_CUSTOM_SEARCH_API_KEY` + `GOOGLE_CUSTOM_SEARCH_CX` | web search | Google Programmable Search | free 100/day, then paid |
+| `BRAVE_SEARCH_API_KEY` | web + news search | api.search.brave.com | free tier / paid |
+| `TAVILY_API_KEY` | web + news search | app.tavily.com | 1,000 free credits/month |
+| `SEARXNG_INSTANCE_URL` | web + news search | a SearXNG server you host | **FREE** (no key) |
+| `APIFY_API_TOKEN` (older name `APIFY_TOKEN`) | Google Maps places and reviews | console.apify.com -> Integrations | **PAID** per result |
+| `YOUTUBE_API_KEY` | competitors' YouTube comments | Google Cloud -> YouTube Data API v3 | **FREE** (quota) |
+| `SERPAPI_API_KEY` | shopping prices | serpapi.com | **PAID** |
+
+Search order: `WEB_SEARCH_PROVIDERS` (the first configured one answers).
+**Each paid provider also needs a confirmed price** recorded with
+`billing_admin set-price --budget data ...`, or its calls are refused.
+Price-feed collectors (ScrapeCreators, Amazon PA-API, Digi-Key, Mouser) take
+their credentials from each company's saved connectors, not from environment
+variables (their names in `scripts/live_credential_smoke_tests.py` are only for
+that smoke test).
+
+## 8. Payments - optional (needed to charge for plans)
+
+```
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRODUCT_ID=
+```
+
+- **PAID/regulated**: a Stripe account with business verification.
+- `STRIPE_SECRET_KEY`: dashboard.stripe.com -> Developers -> API keys (use
+  `sk_test_...` until you go live).
+- `STRIPE_WEBHOOK_SECRET`: Developers -> Webhooks -> add endpoint
+  `<API URL>/billing/webhook` -> signing secret `whsec_...`.
+- `STRIPE_PRODUCT_ID`: optional, only for `scripts/stripe_sync_catalog.py`.
+- `STRIPE_AUTOMATIC_TAX=true` only after Stripe Tax is set up.
+- Without them, plans and usage still show; checkout says payments aren't on.
+
+## 9. Monitoring - optional
+
+```
+SENTRY_DSN=
+VITE_SENTRY_DSN=
 ALERT_WEBHOOK_URL=
 ```
 
-- Google keys: console.cloud.google.com -> enable "Places API" / "Custom Search API".
-  **Google requires a billing account on file** even for the free monthly credit,
-  so treat these as PAID/optional. They power competitor discovery.
-- Competitor discovery via Apify (the project has an Apify integration) needs an
-  Apify token; I could not confirm the variable name - look in `.env.example`.
-- `ALERT_WEBHOOK_URL`: a Slack/Discord/other incoming-webhook URL for infra alerts.
+- `SENTRY_DSN` (API and workers) / `VITE_SENTRY_DSN` (frontend build): sentry.io
+  -> project -> Client Keys. FREE developer tier.
+- `ALERT_WEBHOOK_URL`: a Slack/Discord incoming webhook for infrastructure alerts.
 
-## 8. Billing (only if you charge for plans)
+## 10. Settings that must have these values (not secret)
 
-`render.yaml` declares `STRIPE_WEBHOOK_SECRET`; billing also needs Stripe's API
-secret key. **PAID/regulated** - Stripe account with business verification.
-Leave blank to run without billing. Check `.env.example` for the exact names.
+```
+UNASSIGNED_PLAN_ACCESS=none
+BILLING_MAINTENANCE_ENABLED=true
+REQUIRE_EMAIL_VERIFICATION=auto
+```
+
+- `UNASSIGNED_PLAN_ACCESS=none`: a company without a plan has no access. Use
+  `default` only for a single-company install.
+- Optional frontend: `VITE_SUPPORT_EMAIL` (Custom plan "Contact sales" button),
+  `VITE_SPLINE_HERO_SCENE` (landing-page 3D scene).
 
 ---------------------------------------------------------------------------
 
-## Minimum to go live with the marketing feature working
+## Minimum to go live
 
-1. Section 1 (all six generated secrets).
-2. `CLOUDFLARE_ACCOUNTS` (section 2) - add `HUGGINGFACE_API_TOKENS` and
-   `GEMINI_API_KEYS` for more free daily images.
-3. `GROQ_API_KEY` (section 4).
-4. SMTP + `FRONTEND_BASE_URL` + `CORS_ALLOWED_ORIGINS` (section 5).
-5. Hosting-provided Postgres / Redis / storage (section 6).
+1. Section 1 - six values you generate (Fernet format for the vault key).
+2. Section 2 - database, Redis, file storage from your host.
+3. Section 3 - `GROQ_API_KEY` **and** its confirmed price (`billing_admin set-price`).
+4. Section 4 - SMTP.
+5. Section 5 - your public URLs.
+6. Section 10 - the fixed settings.
 
-Everything else is optional.
+Everything else is optional; add a confirmed price for each paid provider you turn on.
