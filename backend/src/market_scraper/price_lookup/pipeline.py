@@ -41,7 +41,8 @@ def products_needing_a_price(conn, tenant_id: str, limit: int, force: bool = Fal
         company = cursor.fetchone() or (None, None)
         cursor.execute(
             """
-            SELECT p.product_id, COALESCE(p.product_name->>'en', p.product_name->>'ar', p.product_name::text), p.current_price
+            SELECT p.product_id, COALESCE(p.product_name->>'en', p.product_name->>'ar', p.product_name::text), p.current_price,
+                   COALESCE(p.metadata->>'barcode', p.metadata->>'gtin', p.metadata->>'ean')
             FROM products p
             LEFT JOIN market_price_lookups l ON l.tenant_id = p.tenant_id AND l.product_id = p.product_id
             WHERE p.tenant_id = %s AND p.deleted_at IS NULL
@@ -61,8 +62,9 @@ def products_needing_a_price(conn, tenant_id: str, limit: int, force: bool = Fal
         )
         rows = cursor.fetchall()
     return [
-        ProductContext(str(pid), name, company[0], company[1], float(price) if price is not None else None)
-        for pid, name, price in rows if name
+        ProductContext(str(pid), name, company[0], company[1], float(price) if price is not None else None,
+                       "".join(ch for ch in (barcode or "") if ch.isdigit()) or None)
+        for pid, name, price, barcode in rows if name
     ]
 
 
@@ -85,8 +87,8 @@ def _store(conn, tenant_id: str, ctx: ProductContext, quote: PriceQuote, score: 
             """
             INSERT INTO market_price_observations
                 (tenant_id, product_id, provider, seller_name, product_title, source_url, price, currency,
-                 rating, review_count, match_score, plausible, dedupe_key)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 rating, review_count, match_score, plausible, dedupe_key, observed_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s::date::timestamptz, NOW()))
             ON CONFLICT (tenant_id, product_id, dedupe_key) DO UPDATE SET observed_at = NOW()
             RETURNING (xmax = 0);
             """,
@@ -94,6 +96,7 @@ def _store(conn, tenant_id: str, ctx: ProductContext, quote: PriceQuote, score: 
                 tenant_id, ctx.product_id, quote.provider, quote.seller, quote.title[:300], quote.url, quote.price, quote.currency,
                 quote.rating, quote.review_count, score, plausible,
                 matching.dedupe_key(quote.provider, quote.seller, quote.url, quote.price, quote.currency),
+                quote.observed_on,
             ),
         )
         return bool(cursor.fetchone()[0])
