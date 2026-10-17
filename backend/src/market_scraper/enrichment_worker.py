@@ -47,6 +47,9 @@ def process_job(payload: dict) -> dict:
     mode = payload.get("mode") or enrichment_queue.MODE_DUE
     conn = data_access.get_tenant_connection(tenant_id)
     try:
+        if mode == enrichment_queue.MODE_PRICES:
+            from src.market_scraper.price_lookup.pipeline import lookup_missing_prices
+            return lookup_missing_prices(conn, tenant_id)
         if competitor_id:
             return {"results": enrich_competitor(conn, tenant_id, competitor_id, facets=facets)}
         return enrich_tenant_competitors(conn, tenant_id, mode=mode)

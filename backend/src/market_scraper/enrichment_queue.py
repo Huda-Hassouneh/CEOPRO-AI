@@ -18,7 +18,8 @@ DEDUPE_SECONDS = int(os.getenv("ENRICHMENT_DEDUPE_SECONDS", "600"))
 
 MODE_DUE = "due"      # never attempted, or a scheduled retry is due
 MODE_FORCE = "force"  # also failed/partial regardless of schedule, and setup-blocked (key now fixed?)
-MODES = (MODE_DUE, MODE_FORCE)
+MODE_PRICES = "prices"  # tenant-wide open-market price lookup for products with no price (price_lookup/)
+MODES = (MODE_DUE, MODE_FORCE, MODE_PRICES)
 
 
 def inflight_key(tenant_id: str, competitor_id: Optional[str], mode: str) -> str:
@@ -47,5 +48,6 @@ def enqueue_enrichment(
 
 
 def is_queued(redis_client, tenant_id: str, competitor_id: Optional[str]) -> bool:
-    keys = [inflight_key(tenant_id, competitor_id, m) for m in MODES] + [inflight_key(tenant_id, None, m) for m in MODES]
+    modes = (MODE_DUE, MODE_FORCE)  # a tenant-wide price lookup is not a pending retry of this competitor
+    keys = [inflight_key(tenant_id, competitor_id, m) for m in modes] + [inflight_key(tenant_id, None, m) for m in modes]
     return any(redis_client.exists(key) for key in keys)
