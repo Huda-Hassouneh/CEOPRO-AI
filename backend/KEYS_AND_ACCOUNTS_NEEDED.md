@@ -19,9 +19,9 @@ Legend: **FREE** = no payment needed - **PAID** = needs a paid plan or card -
 Generate each with `openssl rand -hex 32` in a terminal, one per variable.
 
 ```
-JWT_SECRET=
+JWT_SECRET=KEEL1234@2026
 POSTGRES_PASSWORD=
-APP_DB_PASSWORD=
+APP_DB_PASSWORD=Cefhgsdg45#$573fvyd4
 MINIO_ROOT_PASSWORD=
 GRAFANA_ADMIN_PASSWORD=
 CREDENTIAL_VAULT_MASTER_KEY=
@@ -42,12 +42,12 @@ local "designed" poster (works, but is not AI-generated) or a slow AI Horde imag
 More accounts = more free AI images per day (comma-separate several).
 
 ```
-CLOUDFLARE_ACCOUNTS=
-HUGGINGFACE_API_TOKENS=
-GEMINI_API_KEYS=
-TOGETHER_API_KEYS=
-HORDE_API_KEYS=
-POLLINATIONS_API_KEYS=
+CLOUDFLARE_ACCOUNTS=e20eeea75975181122485dfa91bf1174
+HUGGINGFACE_API_TOKENS=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
+GEMINI_API_KEYS=AIzaSyC4eNPTtu8sU6eo9g8kcQWOXJ8TmCmyqAI
+TOGETHER_API_KEYS=key_Cg7vyeHCF8x1ZvySk6EnA
+HORDE_API_KEYS=9AdtPPfeSBer8mRWQV9osA
+POLLINATIONS_API_KEYS=sk_BQ3nPBNVMJYQvspIQLT6SFjCTAnoK8YV
 ```
 
 | Variable | Format | Where to get it | Notes |
