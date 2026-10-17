@@ -154,8 +154,11 @@ def _with_cache_and_fallback(
     # calls) and a limit is actually set (None = no local tracking, trust
     # Google's own account-level enforcement instead).
     quota_available = True
+    quota_reserved = False
     if conn is not None and daily_query_limit is not None:
-        quota_available = search_quota.has_budget(conn, daily_query_limit)
+        # Atomic reserve (not check-then-record): concurrent workers can't overshoot the limit.
+        quota_available = search_quota.try_reserve_query(conn, daily_query_limit)
+        quota_reserved = quota_available
         if not quota_available:
             logger.info(
                 "Daily Google Custom Search budget (%s) already used - skipping live call for %r, trying fallback.",
@@ -163,8 +166,7 @@ def _with_cache_and_fallback(
             )
 
     if api_key and cx and quota_available:
-        if conn is not None:
-            search_quota.record_query(conn)
+        if quota_reserved:
             # Commit immediately, not later: this is real, money-relevant
             # Google API spend (the call already happened - success or
             # failure both count against the real quota either way), and
@@ -190,9 +192,8 @@ def _with_cache_and_fallback(
     elif not (api_key and cx) and quota_available and web_search.is_configured(exclude=("google_cse", "searxng")):
         # Google's API is closed to new customers (ends 2027-01-01): another
         # configured paid provider takes its place, under the same budget.
-        if conn is not None:
-            search_quota.record_query(conn)
-            conn.commit()
+        if quota_reserved:
+            conn.commit()  # the reservation above is the spend record; make it durable before the call
         try:
             _, results = web_search.search(query, max_results, exclude=("google_cse", "searxng"))
         except web_search.SearchFailed:

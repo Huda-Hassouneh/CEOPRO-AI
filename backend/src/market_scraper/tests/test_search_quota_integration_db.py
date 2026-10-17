@@ -8,7 +8,7 @@ import os
 import psycopg2
 import pytest
 
-from src.market_scraper.search_quota import has_budget, queries_used_today, record_query
+from src.market_scraper.search_quota import has_budget, queries_used_today, record_query, try_reserve_query
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -55,3 +55,46 @@ def test_has_budget_becomes_false_once_the_limit_is_reached(conn):
 def test_has_budget_true_one_query_under_the_limit(conn):
     record_query(conn, count=99)
     assert has_budget(conn, daily_limit=100) is True
+
+
+def test_try_reserve_query_never_exceeds_the_limit(conn):
+    assert [try_reserve_query(conn, 2) for _ in range(4)] == [True, True, False, False]
+    assert queries_used_today(conn) == 2
+
+
+def test_try_reserve_query_zero_limit_reserves_nothing(conn):
+    assert try_reserve_query(conn, 0) is False
+    assert queries_used_today(conn) == 0
+
+
+def test_concurrent_reservations_cannot_overshoot_the_limit():
+    """The race the old has_budget()+record_query() pair allowed: many workers at once."""
+    import threading
+
+    setup = psycopg2.connect(DATABASE_URL)
+    setup.cursor().execute("DELETE FROM search_quota_usage WHERE usage_date = (NOW() AT TIME ZONE 'UTC')::date;")
+    setup.commit()
+    wins, lock = [], threading.Lock()
+
+    def worker():
+        c = psycopg2.connect(DATABASE_URL)
+        try:
+            got = try_reserve_query(c, 10)
+            c.commit()
+            with lock:
+                wins.append(got)
+        finally:
+            c.close()
+
+    threads = [threading.Thread(target=worker) for _ in range(40)]
+    [t.start() for t in threads]
+    [t.join(60) for t in threads]
+    check = psycopg2.connect(DATABASE_URL)
+    try:
+        assert sum(wins) == 10 and len(wins) == 40
+        assert queries_used_today(check) == 10
+    finally:
+        check.cursor().execute("DELETE FROM search_quota_usage WHERE usage_date = (NOW() AT TIME ZONE 'UTC')::date;")
+        check.commit()
+        check.close()
+        setup.close()

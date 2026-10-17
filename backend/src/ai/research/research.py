@@ -194,9 +194,9 @@ def _search(conn, tenant_id: str, query: str, country: Optional[str], search_fn)
     if search_fn is None:
         if not web_search.is_configured():
             raise _Stop(NOT_CONFIGURED)
-        if not search_quota.has_budget(conn, DAILY_SEARCH_LIMIT) or not _tenant_budget_ok(tenant_id):
+        # Tenant allowance first, then an atomic reserve of the shared daily budget (no check-then-record race).
+        if not _tenant_budget_ok(tenant_id) or not search_quota.try_reserve_query(conn, DAILY_SEARCH_LIMIT):
             raise _Stop(BUDGET_EXHAUSTED)
-        search_quota.record_query(conn)
         conn.commit()
         try:
             _provider, results = web_search.search(query, MAX_RESULTS_PER_QUERY, country=country)
