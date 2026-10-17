@@ -157,21 +157,26 @@ def ingest_pending_documents(conn, minio_client, tenant_id: str, bucket: str = D
     return processed_count
 
 
-def backfill_missing_embeddings(conn, tenant_id: str, batch_size: int = 256) -> int:
-    """Embeds chunks stored while the semantic model was unavailable.
-    Returns how many were filled in (0 when none are missing or the model is
-    still unavailable)."""
-    missing = data_access.load_chunks_missing_embeddings(conn, tenant_id, limit=batch_size)
-    if not missing:
-        return 0
-    vectors = try_embed([text for _, text in missing])
-    if vectors is None:
-        return 0
-    data_access.set_chunk_embeddings(
-        conn, tenant_id, [chunk_id for chunk_id, _ in missing], vectors, embeddings_module.MODEL_NAME
-    )
-    conn.commit()
-    return len(missing)
+def backfill_missing_embeddings(conn, tenant_id: str, batch_size: int = 256, max_batches: int = 40) -> int:
+    """Embeds chunks stored while the semantic model was unavailable, and
+    re-embeds chunks whose vector came from another model (after a model
+    change). Returns how many were filled in (0 when none are missing or the
+    model is still unavailable)."""
+    filled = 0
+    for _ in range(max_batches):
+        missing = data_access.load_chunks_missing_embeddings(conn, tenant_id, limit=batch_size,
+                                                             model_version=embeddings_module.MODEL_NAME)
+        if not missing:
+            break
+        vectors = try_embed([text for _, text in missing])
+        if vectors is None:
+            break
+        data_access.set_chunk_embeddings(
+            conn, tenant_id, [chunk_id for chunk_id, _ in missing], vectors, embeddings_module.MODEL_NAME
+        )
+        conn.commit()
+        filled += len(missing)
+    return filled
 
 
 def build_tenant_index(conn, tenant_id: str) -> BM25Index:
@@ -201,7 +206,17 @@ def build_hybrid_index(conn, tenant_id: str, use_cache: bool = True) -> TenantIn
         if cached is not None:
             return cached
 
-    rows = data_access.load_tenant_chunks(conn, tenant_id)
+    rows = data_access.load_tenant_chunks(conn, tenant_id, model_version=embeddings_module.MODEL_NAME)
+    if any(embedding is None for _, _, embedding in rows) and embeddings_module.BACKEND not in embeddings_module.DISABLED_BACKENDS:
+        # Chunks without a vector from the current model (stored while it was
+        # unavailable, or before a model change): embed them now, so the
+        # first question after a change searches every document by meaning.
+        try:
+            if backfill_missing_embeddings(conn, tenant_id):
+                rows = data_access.load_tenant_chunks(conn, tenant_id, model_version=embeddings_module.MODEL_NAME)
+        except Exception as err:  # noqa: BLE001 - keyword search still covers them
+            conn.rollback()
+            logger.warning(f"tenant={tenant_id}: re-embedding stored chunks failed: {err}")
     chunks = [(chunk_id, text) for chunk_id, text, _ in rows]
     # Keyword search covers every chunk; semantic search covers the chunks
     # that have vectors (all of them, unless some were stored while the
