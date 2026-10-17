@@ -15,7 +15,7 @@ display what `/billing/*` returns.
 | Free trial | 14 days | 14 days | 7 days | per contract (0-90 days) |
 | Products | 100 | 250 | 500 | contract |
 | Reports per month | 5 | 20 | 60 | contract (default 60) |
-| Team seats | 5 | 20 | 60 | contract (default 60) |
+| Team seats | 5 | 20 | 50 | contract (default 60) |
 | Competitors | no fixed count, limited by Data Credits | same | same | same |
 | Data Credits per month (trial) | 436 (43) | 1,111 (111) | 2,780 (278) | contract (default 2,780 / 278) |
 | AI Credits per month (trial) | 436 (43) | 1,111 (111) | 2,780 (278) | contract (default 2,780 / 278) |
