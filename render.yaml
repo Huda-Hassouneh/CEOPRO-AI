@@ -179,13 +179,13 @@ services:
       - key: SERVER_ALLOCATION_USD
         sync: false
 
-  # Background workers - all five market workers in one container, run by
+  # Background workers - all six market workers in one container, run by
   # src/market_scraper/supervisor.py, which restarts any that exit.
   # Needs a paid plan: Render has no free background workers, and the
   # analysis worker's sentiment models plus the headless browser need
   # about 1.5 GB of memory (standard = 2 GB). KEEL_WORKERS=name,name runs
-  # a subset instead (prices, analysis, discovery, connectors,
-  # maintenance) if you split them across services later.
+  # a subset instead (prices, analysis, discovery, enrichment,
+  # connectors, maintenance) if you split them across services later.
   - type: worker
     name: keel-workers-staging
     runtime: docker
