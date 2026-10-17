@@ -150,7 +150,7 @@ def _load_index(client: httpx.Client) -> dict:
             with open(path, "rb") as handle:
                 _index[release] = pickle.load(handle)
                 return _index[release]
-        except (OSError, pickle.PickleError, EOFError):
+        except Exception:  # noqa: BLE001 - missing, truncated, or written by another pyarrow: rebuild
             pass
         keys, _ = _list(client, f"release/{release}/theme=places/type=place/")
         files = []
