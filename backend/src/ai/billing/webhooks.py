@@ -97,8 +97,50 @@ def _failure_reason(invoice: dict) -> str:
     return error.get("message") or "The payment could not be collected."
 
 
+_LOCK_WAIT = "30s"
+
+
+def _lock_event(sys_conn, event_id: str) -> None:
+    """Serialises everything done for one Stripe event id. claim_event's row
+    lock is released by the commit that follows it, so without this two
+    simultaneous deliveries of the same event (Stripe retries, or a replay)
+    could both see it unprocessed and both run. A session-level advisory lock
+    survives those commits; the second delivery waits here, then finds the
+    event already processed and acknowledges it as a duplicate."""
+    import psycopg2
+
+    try:
+        with sys_conn.cursor() as cursor:
+            cursor.execute(f"SET lock_timeout = '{_LOCK_WAIT}';")
+            cursor.execute("SELECT pg_advisory_lock(hashtextextended(%s, 0));", ("keel_stripe_event:" + event_id,))
+            cursor.execute("RESET lock_timeout;")
+        sys_conn.commit()  # a session-level lock outlives commits and rollbacks
+    except psycopg2.errors.LockNotAvailable as err:
+        sys_conn.rollback()
+        raise WebhookRetry(f"event {event_id} is still being processed by another delivery") from err
+
+
+def _unlock_event(sys_conn, event_id: str) -> None:
+    try:
+        sys_conn.rollback()  # a failed transaction cannot run the unlock
+        with sys_conn.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0));", ("keel_stripe_event:" + event_id,))
+        sys_conn.commit()
+    except Exception:  # noqa: BLE001 - a dead connection drops its session locks anyway
+        logger.warning("could not release the lock for Stripe event %s", event_id)
+
+
 def handle_event(sys_conn, event: dict) -> dict:
-    """Processes one verified event. Returns {"duplicate": bool}."""
+    """Processes one verified event, at most once at a time per event id.
+    Returns {"duplicate": bool}."""
+    _lock_event(sys_conn, event["id"])
+    try:
+        return _handle_locked(sys_conn, event)
+    finally:
+        _unlock_event(sys_conn, event["id"])
+
+
+def _handle_locked(sys_conn, event: dict) -> dict:
     created = datetime.fromtimestamp(int(event.get("created") or 0), tz=timezone.utc)
     if not store.claim_event(sys_conn, event["id"], event["type"], created, event):
         sys_conn.commit()
