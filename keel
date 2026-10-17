@@ -15,6 +15,9 @@
 #   ./keel llm-check the assistant's LLM provider: credential, price, model;
 #                    --tenant <id> adds one real, metered request
 #   ./keel check     settings vs backend/KEYS_AND_ACCOUNTS_NEEDED.md (names only)
+#   ./keel rag-check the assistant end to end on the running app (needs ./keel
+#                    start): a new test company, PDF upload, embeddings, Arabic
+#                    questions, AI-written cited answers, tenant isolation
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
@@ -154,6 +157,24 @@ cmd_llm_check() {
   exec python -m scripts.llm_provider_check "$@"
 }
 
+cmd_rag_check() {
+  need_setup
+  # Through the frontend's /api proxy when it is up (the browser's own path),
+  # otherwise straight to the backend.
+  local api="http://localhost:$BACKEND_PORT"
+  curl -fsS -o /dev/null "$api/health" || fail "Start KEEL first: ./keel start (in another terminal)"
+  curl -fsS -o /dev/null "http://localhost:$FRONTEND_PORT/api/health" 2>/dev/null && api="http://localhost:$FRONTEND_PORT/api"
+  # A fresh test company each run; its password exists only in this shell.
+  local email="rag-check-$(date +%s)@keel-check.example"
+  local password
+  password="Rc-$(python3 -c 'import secrets; print(secrets.token_urlsafe(18))')"
+  backend_env
+  cd backend
+  python -m scripts.llm_provider_check
+  python -m scripts.ci_smoke_account --api "$api" --email "$email" --password "$password"
+  exec python -m scripts.rag_e2e_check --api "$api" --email "$email" --password "$password"
+}
+
 cmd_workers() {
   need_setup
   backend_env
@@ -200,5 +221,6 @@ case "${1:-help}" in
   test) cmd_test ;;
   llm-check) shift; cmd_llm_check "$@" ;;
   check) cmd_check ;;
-  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
+  rag-check) cmd_rag_check ;;
+  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' ;;
 esac

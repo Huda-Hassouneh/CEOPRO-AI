@@ -21,3 +21,23 @@ set_env_var() {
     printf '%s=%s\n' "$key" "$value" >> "$file"
   fi
 }
+
+# Codespaces secrets arrive as environment variables. An empty `KEY=` line in
+# the .env file would override one when the file is loaded with
+# `set -a && source .env` (an empty value wins), so the backend would start
+# without e.g. GROQ_API_KEY. Comment out every empty line whose name the
+# environment provides; a value typed into the file is never touched.
+# Names only are printed, never values.
+#
+# Usage: defer_empty_to_environment <file>
+defer_empty_to_environment() {
+  local file="$1" key
+  [ -f "$file" ] || return 0
+  while IFS= read -r key; do
+    if [ -n "${!key:-}" ]; then
+      sed -i.bak "s/^${key}=\$/# ${key}= (set by a Codespaces secret - leave this line commented out)/" "$file" \
+        && rm -f "${file}.bak"
+      echo "    $key: using the Codespaces secret"
+    fi
+  done < <(grep -oE '^[A-Za-z_][A-Za-z0-9_]*=$' "$file" | sed 's/=$//')
+}

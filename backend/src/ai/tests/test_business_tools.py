@@ -57,11 +57,51 @@ def test_returns_empty_string_for_non_financial_question():
     mock_summary.assert_not_called()  # never runs the extra queries for an irrelevant question
 
 
-def test_returns_empty_string_when_no_revenue_at_all():
+class _CatalogConn:
+    """Answers the catalog query with fixed rows: (name, price, cost, currency)."""
+
+    def __init__(self, rows):
+        self.rows = rows
+
+    def cursor(self):
+        conn = self
+
+        class _Cursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def execute(self, sql, params):
+                conn.params = params
+
+            def fetchall(self):
+                return conn.rows
+
+        return _Cursor()
+
+
+def test_returns_empty_string_when_no_revenue_and_no_priced_products():
     with patch("src.ai.rag.business_tools.get_profitability_summary", return_value=_EMPTY_SUMMARY), \
          patch("src.ai.rag.business_tools.get_product_profitability", return_value=_EMPTY_RANKING):
-        result = build_financial_facts_block(conn=None, tenant_id="t1", query_text="Where did my profit go?")
+        result = build_financial_facts_block(conn=_CatalogConn([]), tenant_id="t1", query_text="Where did my profit go?")
     assert result == ""
+
+
+def test_no_revenue_falls_back_to_per_unit_catalog_margins_labelled_as_list_prices():
+    from decimal import Decimal
+
+    conn = _CatalogConn([("Olive Oil Tin 4L", Decimal("33.0000"), Decimal("24.5000"), "JOD"),
+                         ("Loose Za'atar", Decimal("9.8000"), Decimal("6.0000"), "JOD")])
+    with patch("src.ai.rag.business_tools.get_profitability_summary", return_value=_EMPTY_SUMMARY), \
+         patch("src.ai.rag.business_tools.get_product_profitability", return_value=_EMPTY_RANKING):
+        result = build_financial_facts_block(conn=conn, tenant_id="t1", query_text="Which product is most profitable?")
+    assert result.startswith("Per-unit margin from the product catalog")
+    assert "No sales were recorded in the trailing 30 days" in result and "not sales" in result
+    assert '- #1 by margin per unit: "Olive Oil Tin 4L": price 33.00, cost 24.50, margin 8.50 JOD per unit (25.8% of the price)' in result
+    assert '- #2 by margin per unit: "Loose Za\'atar"' in result
+    assert conn.params[0] == "t1"
 
 
 def test_builds_block_with_gross_margin_and_explicit_exclusions():

@@ -660,3 +660,16 @@ def test_worker_threads_keep_the_company_context(sys_conn):
         with ThreadPoolExecutor(max_workers=2) as pool:
             unbound = list(pool.map(lambda _: credits.current(), range(2)))
     assert seen == [tenant] * 8 and unbound == [None, None]
+
+
+def test_set_price_if_missing_records_a_missing_price_and_keeps_an_existing_one(sys_conn):
+    name = f"ifmissing_{uuid.uuid4().hex[:6]}"
+    common = dict(budget_kind="ai", provider=name, operation="model-x", unit="input_token", source="test",
+                  verified_on=date(2026, 10, 17), approved_by="tester", reason="test")
+    assert admin.set_price(sys_conn, unit_cost_usd=Decimal("0.000001"), if_missing=True, **common) is True
+    assert admin.set_price(sys_conn, unit_cost_usd=Decimal("0.000009"), if_missing=True, **common) is False
+    prices = credits.schedule(sys_conn, "ai", name, "model-x")
+    assert prices["input_token"]["cost"] == Decimal("0.000001")
+    # Without if_missing an operator's new price still replaces the old one.
+    assert admin.set_price(sys_conn, unit_cost_usd=Decimal("0.000002"), **common) is True
+    assert credits.schedule(sys_conn, "ai", name, "model-x")["input_token"]["cost"] == Decimal("0.000002")

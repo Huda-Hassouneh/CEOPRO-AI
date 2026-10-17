@@ -45,8 +45,11 @@ def _audit(cursor, tenant_id: Optional[str], action: str, subject: str, old, new
 
 def set_price(conn, *, budget_kind: str, provider: str, operation: str, unit: str, unit_cost_usd: Decimal,
               source: str, verified_on: date, approved_by: str, reason: str,
-              safety_margin: Optional[Decimal] = None, charged_on_failure: bool = True, cost_is_final: bool = True) -> None:
-    """Records a provider's confirmed price (per unit, in USD)."""
+              safety_margin: Optional[Decimal] = None, charged_on_failure: bool = True, cost_is_final: bool = True,
+              if_missing: bool = False) -> bool:
+    """Records a provider's confirmed price (per unit, in USD). With
+    if_missing, a price already recorded is kept unchanged. Returns whether
+    the price was written."""
     approved_by, reason, source = _require(approved_by, "approved_by"), _require(reason, "reason"), _require(source, "source")
     if budget_kind not in (credits.DATA, credits.AI):
         raise AdminError("budget must be data or ai")
@@ -59,6 +62,8 @@ def set_price(conn, *, budget_kind: str, provider: str, operation: str, unit: st
             (budget_kind, provider, operation, unit),
         )
         old = cursor.fetchone()
+        if if_missing and old and old[0] is not None:
+            return False
         cursor.execute(
             """
             INSERT INTO provider_cost_schedules (budget_kind, provider, operation, unit, unit_cost_usd, safety_margin,
@@ -77,6 +82,7 @@ def set_price(conn, *, budget_kind: str, provider: str, operation: str, unit: st
                None if not old else {"unit_cost_usd": old[0], "safety_margin": old[1], "source": old[2]},
                {"unit_cost_usd": Decimal(unit_cost_usd), "safety_margin": safety_margin, "source": source,
                 "verified_on": verified_on}, approved_by, reason)
+    return True
 
 
 def set_control(conn, *, provider: str, approved_by: str, reason: str, monthly_cap_usd: Optional[Decimal] = None,
