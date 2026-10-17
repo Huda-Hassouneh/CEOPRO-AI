@@ -117,3 +117,15 @@ def test_sweep_survives_a_listing_failure_and_a_redis_failure():
     with patch.object(w, "list_tenants_with_due_enrichment", return_value=["a"]), \
          patch.object(w.enrichment_queue, "enqueue_enrichment", side_effect=redis.ConnectionError("x")):
         assert w.run_sweep(client) == {"tenants_with_work": 1, "jobs_queued": 0}
+
+
+def test_a_prices_job_runs_the_tenant_wide_lookup_and_is_not_a_competitor_retry():
+    conn = MagicMock()
+    with patch.object(w.data_access, "get_tenant_connection", return_value=conn), \
+         patch("src.market_scraper.price_lookup.pipeline.lookup_missing_prices", return_value={"products_attempted": 3}) as lookup:
+        assert w.process_job({"tenant_id": T, "competitor_id": "", "facets": "", "mode": "prices"}) == {"products_attempted": 3}
+    lookup.assert_called_once_with(conn, T)
+    conn.close.assert_called_once()
+    client = MagicMock()
+    client.exists.side_effect = lambda key: key == q.inflight_key(T, None, q.MODE_PRICES)
+    assert q.is_queued(client, T, C) is False

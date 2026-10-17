@@ -1,6 +1,12 @@
 """
 Per-product market-price coverage: which of the tenant's products have at
-least one competitor price, and for those that do not, WHY.
+least one price, and for those that do not, WHY.
+
+A price is either a COMPETITOR price (a tracked competitor's mapped product,
+scraped or entered by hand) or a MARKET REFERENCE price (price_lookup/: a
+seller's public page, a public price database or a shopping search, matched to
+the product and not wildly off its own price). Either counts as covered;
+price_basis says which.
 
 "Every product has a market price" cannot be promised - a product nobody else
 sells, or sold only on sites that forbid collection, genuinely has none - but
@@ -32,7 +38,10 @@ _QUERY = """
            COUNT(DISTINCT cpr.competitor_price_id) AS prices,
            COUNT(DISTINCT m.source_id) FILTER (WHERE ds.policy_status = 'ALLOWED') AS allowed_sources,
            ARRAY_REMOVE(ARRAY_AGG(DISTINCT m.source_id::text) FILTER (WHERE ds.policy_status = 'RESTRICTED'), NULL) AS restricted_sources,
-           MAX(cpr.observed_at) AS last_price_at
+           MAX(cpr.observed_at) AS last_price_at,
+           (SELECT COUNT(*) FROM market_price_observations o
+             WHERE o.tenant_id = p.tenant_id AND o.product_id = p.product_id AND o.plausible IS NOT FALSE) AS reference_prices,
+           l.outcome AS lookup_outcome, l.last_attempt_at AS lookup_at
     FROM products p
     LEFT JOIN (competitor_product_mappings m
                JOIN tenant_competitors tc ON tc.tenant_id = m.tenant_id
@@ -40,8 +49,9 @@ _QUERY = """
            ON m.tenant_id = p.tenant_id AND m.product_id = p.product_id AND m.is_active = TRUE
     LEFT JOIN data_sources ds ON ds.tenant_id = m.tenant_id AND ds.source_id = m.source_id
     LEFT JOIN competitor_prices cpr ON cpr.tenant_id = m.tenant_id AND cpr.mapping_id = m.mapping_id
+    LEFT JOIN market_price_lookups l ON l.tenant_id = p.tenant_id AND l.product_id = p.product_id
     WHERE p.tenant_id = %s AND p.deleted_at IS NULL
-    GROUP BY p.product_id, product_name, p.current_price, p.currency
+    GROUP BY p.product_id, product_name, p.current_price, p.currency, l.outcome, l.last_attempt_at
     ORDER BY product_name, p.product_id;
 """
 
@@ -68,12 +78,16 @@ def get_price_coverage(
 
     by_reason = {reason: 0 for reason in REASONS}
     items = []
-    covered = 0
-    for product_id, name, current_price, currency, mappings, prices, allowed, restricted, last_price_at in rows:
-        has_price = prices > 0
+    competitor_priced = reference_only = 0
+    for (product_id, name, current_price, currency, mappings, prices, allowed, restricted, last_price_at,
+         reference_prices, lookup_outcome, lookup_at) in rows:
+        has_price = prices > 0 or reference_prices > 0
+        basis = "competitor" if prices > 0 else "market_reference" if reference_prices > 0 else None
         reason = None if has_price else _reason(mappings, allowed, restricted or [])
-        if has_price:
-            covered += 1
+        if basis == "competitor":
+            competitor_priced += 1
+        elif basis == "market_reference":
+            reference_only += 1
         else:
             by_reason[reason] += 1
         if has_price and not include_covered:
@@ -81,18 +95,23 @@ def get_price_coverage(
         items.append({
             "product_id": str(product_id), "product_name": name,
             "your_price": float(current_price) if current_price is not None else None, "currency": currency,
-            "has_market_price": has_price, "competitor_prices": prices,
+            "has_market_price": has_price, "price_basis": basis,
+            "competitor_prices": prices, "reference_prices": reference_prices,
             "last_price_at": last_price_at.isoformat() if last_price_at else None,
             "reason_code": reason, "matched_competitor_sources": mappings,
             "action": "review_source" if reason == REASON_TERMS else None,
             "source_ids": sorted(restricted or []) if reason == REASON_TERMS else [],
+            # What the open-market lookup did for this product, if it has run.
+            "market_lookup": {"outcome": lookup_outcome, "last_attempt_at": lookup_at.isoformat()} if lookup_outcome else None,
         })
 
     total = len(rows)
+    covered = competitor_priced + reference_only
     page = items[offset:] if limit is None else items[offset:offset + limit]
     return {
         "summary": {
             "total_products": total, "with_market_price": covered, "without_market_price": total - covered,
+            "with_competitor_price": competitor_priced, "with_reference_price_only": reference_only,
             "coverage_pct": round(covered / total * 100, 1) if total else None, "gaps_by_reason": by_reason,
         },
         "products": page,

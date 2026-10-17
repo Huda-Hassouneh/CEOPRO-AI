@@ -193,3 +193,31 @@ def test_price_coverage_reports_each_product_with_its_real_reason(conn):
     assert reasons == {"Mapped but unreviewed": REASON_TERMS, "Unmatched": REASON_NO_MAPPING}
     assert result["summary"]["coverage_pct"] == 0.0
     assert next(i for i in result["products"] if i["reason_code"] == REASON_TERMS)["source_ids"] == [str(source_id)]
+
+
+def test_price_lookup_picks_only_unpriced_products_stores_a_quote_and_skips_recent_lookups(conn):
+    from src.market_scraper.price_lookup import pipeline
+    from src.market_scraper.price_lookup.models import PriceQuote
+    tenant_id = _insert_company(conn)
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO products (tenant_id, product_name, current_price, currency) VALUES (%s, '{\"en\": \"Nutella Hazelnut Spread 350g\"}'::jsonb, 3.5, 'JOD') RETURNING product_id;",
+            (tenant_id,),
+        )
+        product_id = str(cursor.fetchone()[0])
+    conn.commit()
+
+    contexts = pipeline.products_needing_a_price(conn, tenant_id, limit=10)
+    assert [c.product_id for c in contexts] == [product_id]
+
+    quote = PriceQuote("web_offers", "Nutella Hazelnut Spread 350g", 3.4, "JOD", seller="Shop", url="https://shop.example/p", rating=4.6, review_count=12)
+    assert pipeline._store(conn, tenant_id, contexts[0], quote, 1.0, True) is True
+    assert pipeline._store(conn, tenant_id, contexts[0], quote, 1.0, True) is False  # same listing: updated, not duplicated
+    pipeline._record_lookup(conn, tenant_id, contexts[0], pipeline.OUTCOME_FOUND, ["web_offers"], 1)
+    conn.commit()
+
+    assert pipeline.products_needing_a_price(conn, tenant_id, limit=10) == []  # it now has a reference price
+    from src.market_scraper.price_coverage import get_price_coverage
+    summary = get_price_coverage(conn, tenant_id, include_covered=True)
+    assert summary["summary"]["with_reference_price_only"] == 1
+    assert summary["products"][0]["price_basis"] == "market_reference"
