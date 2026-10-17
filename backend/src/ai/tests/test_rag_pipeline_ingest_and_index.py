@@ -86,7 +86,7 @@ def test_ingest_invalidates_cache_only_when_something_processed(monkeypatch):
 
 
 def rows_for(monkeypatch, rows):
-    monkeypatch.setattr(pipeline.data_access, "load_tenant_chunks", lambda conn, t: rows)
+    monkeypatch.setattr(pipeline.data_access, "load_tenant_chunks", lambda conn, t, model_version=None: rows)
 
 
 def vec(*xs):
@@ -131,3 +131,35 @@ def test_build_index_caches_per_tenant(monkeypatch):
     rows_for(monkeypatch, [])
     assert pipeline.build_hybrid_index(MagicMock(), "t1") is first
     assert pipeline.build_hybrid_index(MagicMock(), "t2") is not first
+
+
+def test_build_index_first_embeds_chunks_without_a_current_vector(monkeypatch):
+    """After a model change (or chunks stored while the model was down), the
+    index re-embeds them before searching, instead of leaving them keyword-only."""
+    loads = []
+
+    def load(conn, t, model_version=None):
+        loads.append(model_version)
+        return [("c1", "alpha text", None)] if len(loads) == 1 else [("c1", "alpha text", vec(1, 0))]
+
+    monkeypatch.setattr(pipeline.data_access, "load_tenant_chunks", load)
+    monkeypatch.setattr(pipeline, "backfill_missing_embeddings", lambda conn, t: 1)
+    index = pipeline.build_hybrid_index(MagicMock(), "t1", use_cache=False)
+    assert len(index.faiss) == 1 and loads == [pipeline.embeddings_module.MODEL_NAME] * 2
+
+
+def test_backfill_targets_vectors_from_other_models_and_labels_new_ones(monkeypatch):
+    batches = [[("c1", "one"), ("c2", "two")], []]
+    seen, stored = [], []
+
+    def missing(conn, t, limit=256, model_version=None):
+        seen.append(model_version)
+        return batches.pop(0)
+
+    monkeypatch.setattr(pipeline.data_access, "load_chunks_missing_embeddings", missing)
+    monkeypatch.setattr(pipeline, "try_embed", lambda texts: np.ones((len(texts), 2), dtype=np.float32))
+    monkeypatch.setattr(pipeline.data_access, "set_chunk_embeddings",
+                        lambda conn, t, ids, vectors, version: stored.append((ids, version)))
+    assert pipeline.backfill_missing_embeddings(MagicMock(), "t1") == 2
+    assert seen == [pipeline.embeddings_module.MODEL_NAME] * 2
+    assert stored == [(["c1", "c2"], pipeline.embeddings_module.MODEL_NAME)]

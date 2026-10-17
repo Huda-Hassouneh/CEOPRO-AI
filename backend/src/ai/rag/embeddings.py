@@ -41,8 +41,24 @@ MODEL_NAME = os.getenv("RAG_EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 # full-precision export, ~0.995 for the 8-bit ones).
 # "none": don't load an embedding model at all - keyword search only, for a
 # host that can't hold one (trying would get the process killed for memory).
+# "static": a static multilingual embedding model - per-token vectors averaged,
+# no transformer, no torch - so semantic search fits a 512 MB host. Default
+# sentence-transformers/static-similarity-mrl-multilingual-v1 (Apache-2.0),
+# trained on parallel sentences in 50 languages including Arabic, so an
+# Arabic question still finds an English document. Matryoshka-trained, so its
+# first STATIC_DIM dimensions are a usable embedding: 384 fills the existing
+# vector(384) column. Prepared once (prepare_static(), done at image build)
+# into a float16 matrix that is memory-mapped, not loaded.
 BACKEND = os.getenv("RAG_EMBEDDING_BACKEND", "torch").strip().lower()
 DISABLED_BACKENDS = ("none", "off", "disabled")
+STATIC_MODEL = os.getenv("RAG_STATIC_EMBEDDING_MODEL", "sentence-transformers/static-similarity-mrl-multilingual-v1")
+STATIC_DIM = int(os.getenv("RAG_STATIC_EMBEDDING_DIM", "384"))
+STATIC_DIR = os.getenv("RAG_STATIC_EMBEDDING_DIR",
+                       os.path.join(os.path.expanduser("~"), ".cache", "keel", "static-embeddings"))
+if BACKEND == "static":
+    # Also what each stored vector is labelled with (embedding_model_version),
+    # so vectors from another model are re-embedded rather than compared.
+    MODEL_NAME = f"{STATIC_MODEL}@{STATIC_DIM}"
 ONNX_FILE = os.getenv("RAG_EMBEDDING_ONNX_FILE", "onnx/model_quint8_avx2.onnx")
 _ONNX_BATCH = 32
 _ONNX_THREADS = int(os.getenv("RAG_EMBEDDING_ONNX_THREADS", "1"))
@@ -110,7 +126,77 @@ class _OnnxEncoder:
         return np.concatenate(out).astype(np.float32)
 
 
+def _static_paths(model: str, dim: int, directory: str):
+    stem = os.path.join(directory, model.replace("/", "--") + f"-{dim}")
+    return stem + ".npy", stem + ".tokenizer.json", stem + ".json"
+
+
+def prepare_static(model: str = None, dim: int = None, directory: str = None) -> dict:
+    """Writes the static model's first `dim` dimensions as a float16 matrix
+    next to its tokenizer, once. Reads the published weights in row blocks,
+    so the full 1024-wide float32 matrix (~430 MB) is never in memory."""
+    import json
+    import shutil
+
+    model, dim, directory = model or STATIC_MODEL, dim or STATIC_DIM, directory or STATIC_DIR
+    matrix_path, tokenizer_path, meta_path = _static_paths(model, dim, directory)
+    if os.path.exists(meta_path):
+        with open(meta_path) as handle:
+            return json.load(handle)
+    from huggingface_hub import hf_hub_download
+    from safetensors import safe_open
+
+    os.makedirs(directory, exist_ok=True)
+    weights = hf_hub_download(model, "0_StaticEmbedding/model.safetensors")
+    tokenizer = hf_hub_download(model, "0_StaticEmbedding/tokenizer.json")
+    partial = matrix_path + ".partial.npy"
+    with safe_open(weights, framework="numpy") as tensors:
+        table = tensors.get_slice(next(iter(tensors.keys())))
+        rows, width = table.get_shape()
+        if dim > width:
+            raise ValueError(f"{model} has {width} dimensions, fewer than {dim}")
+        out = np.lib.format.open_memmap(partial, mode="w+", dtype=np.float16, shape=(rows, dim))
+        for start in range(0, rows, 8192):
+            end = min(start + 8192, rows)  # safetensors slices don't clamp
+            out[start:end] = table[start:end, :dim].astype(np.float16)
+        out.flush()
+        del out
+    os.replace(partial, matrix_path)
+    shutil.copyfile(tokenizer, tokenizer_path)
+    meta = {"model": model, "dim": dim, "rows": int(rows)}
+    with open(meta_path, "w") as handle:  # written last: marks the preparation complete
+        json.dump(meta, handle)
+    return meta
+
+
+class _StaticEncoder:
+    """sentence-transformers' StaticEmbedding steps: tokenize without special
+    tokens or truncation (the whole chunk counts), average the token vectors,
+    L2-normalize. Rows are read from the memory-mapped matrix as needed."""
+
+    def __init__(self):
+        from tokenizers import Tokenizer
+
+        prepare_static()
+        matrix_path, tokenizer_path, _ = _static_paths(STATIC_MODEL, STATIC_DIM, STATIC_DIR)
+        self._matrix = np.load(matrix_path, mmap_mode="r")
+        self._tokenizer = Tokenizer.from_file(tokenizer_path)
+        self._tokenizer.no_truncation()
+        self._tokenizer.no_padding()
+
+    def encode(self, texts, convert_to_numpy=True, normalize_embeddings=True):
+        vectors = np.zeros((len(texts), self._matrix.shape[1]), dtype=np.float32)
+        for row, encoded in enumerate(self._tokenizer.encode_batch(list(texts), add_special_tokens=False)):
+            if encoded.ids:
+                vectors[row] = np.asarray(self._matrix[np.asarray(encoded.ids)], dtype=np.float32).mean(axis=0)
+        if normalize_embeddings:
+            vectors /= np.maximum(np.linalg.norm(vectors, axis=1, keepdims=True), 1e-12)
+        return vectors
+
+
 def _load(model_name: str):
+    if BACKEND == "static":
+        return _StaticEncoder()
     if BACKEND == "onnx":
         # The model's own default (128) when MAX_SEQ_LENGTH is 0, as with torch.
         return _OnnxEncoder(model_name, ONNX_FILE, MAX_SEQ_LENGTH or 128)
@@ -141,7 +227,11 @@ def get_model(model_name: str = None) -> "SentenceTransformer":
                 from src.ai.core.ml_runtime import model_obtainable
 
                 weights = (ONNX_FILE,) if BACKEND == "onnx" else WEIGHT_FILES
-                if not model_obtainable(model_name, weights=weights):
+                if BACKEND == "static":
+                    weights = ("0_StaticEmbedding/model.safetensors",)
+                prepared = BACKEND == "static" and os.path.exists(_static_paths(STATIC_MODEL, STATIC_DIM, STATIC_DIR)[2])
+                if not prepared and not model_obtainable(STATIC_MODEL if BACKEND == "static" else model_name,
+                                                         weights=weights):
                     with _unavailable_lock:
                         _unavailable_until = time.monotonic() + _RETRY_AFTER_SECONDS
                     logger.error("Embedding model %s is not cached and its host is unreachable; using keyword search only", model_name)
