@@ -3,6 +3,15 @@
 How the Apify Google Maps source is wired into competitor discovery, what
 was broken, what changed, and how to confirm it works on a real deployment.
 
+## Status (17 Oct 2026)
+
+| | State |
+|---|---|
+| Code and config on `KEEL_Test` | Done (commit `85b1152`): token name, header auth, no token in logs, `render.yaml` / compose / `.env.example` slots |
+| Real Apify call through KEEL's pipeline | Verified once, outside staging: `execute_run` with Apify as the only source, one search phrase, `APIFY_MAX_PLACES_PER_SEARCH=1`, into a throwaway database. The actor answered 201, one Amman bakery was parsed and stored in `global_competitors` / `competitor_sources` (`source = apify_google_maps`, a Google place ID as `source_ref`, coordinates, rating 4.4, 30 reviews), and `discovery_runs.providers.apify_google_maps` read `{"status": "ok", "found": 1, "requests": 1}`. The full debug log of that run held no token, no `token=` and no `Bearer` value. |
+| `APIFY_API_TOKEN` on `keel-ai-staging` | Not done: needs the Render dashboard (it is a `sync: false` secret), not reachable from the environment this was built in |
+| Live run on staging | Not done: waits on the token above and a redeploy |
+
 ## What it is
 
 `backend/src/market_scraper/market_discovery/providers/apify_maps.py` runs

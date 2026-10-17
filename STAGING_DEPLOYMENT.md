@@ -103,20 +103,26 @@ Without this, every `/rag/query` chat request fails - there's no local
 fallback configured in this Blueprint (`LOCAL_LLM_BASE_URL` stays
 unset).
 
-**A real limit worth knowing about**: `/rag/query`'s embedding step and
-`/sentiment/*` both load a real local transformer model (torch +
-transformers/sentence-transformers) on first use - measured directly at
-~780MB RSS just for that import, before any model weights even finish
-loading. That's over Render's free 512Mi ceiling on its own, so those
-two specific endpoints may still get OOM-killed on a real call, even
-though the rest of the API (including the RAG *generation* step itself,
-which only calls the Groq API - no local model) runs comfortably under
-512Mi. Nothing was removed or stubbed to work around this; the code is
-untouched, correct, and will work exactly as designed the moment it runs
-somewhere with more memory. If you want those two endpoints reliably
-testable on staging, the realistic options are a small paid Render plan
-for just this service, or a smaller/quantized model - both are real
-product decisions, not something to default into.
+**A real limit worth knowing about**: the assistant's retrieval models
+and `/sentiment/*` load local transformer models on first use. Measured
+on real models (`.github/workflows/rag-runtime-check.yml`, peak resident
+memory of the ai process):
+
+| Retrieval setting | Peak | Fits free 512 MB | Fits standard 2 GB |
+|---|---|---|---|
+| `RAG_EMBEDDING_BACKEND=torch`, re-ranker on (code default) | 2,042 MB | no | no |
+| `onnx`, `RAG_RERANKER_ENABLED=false` | 826 MB | no | yes |
+| `none`, re-ranker off (what `render.yaml` sets here) | ~300 MB | yes | yes |
+
+So `keel-ai-staging` on the free plan answers from keyword search
+(`none`); loading a model would take the process past its memory limit.
+Questions still get Groq answers with citations; only cross-language and
+paraphrase matching need the embedding model. For semantic search, move
+the service to a 2 GB plan and set `RAG_EMBEDDING_BACKEND=onnx` (same
+model, no torch; its vectors match the torch model's, cosine 0.994+);
+documents stored meanwhile get their vectors from
+`backfill_missing_embeddings` on the next ingestion. `/sentiment/*` still
+loads torch and is not usable on the free plan either.
 
 ## 5. Deploy both services - Render Blueprint [ACTION NEEDED]
 
