@@ -19,12 +19,12 @@ Legend: **FREE** = no payment needed - **PAID** = needs a paid plan or card -
 Generate each with `openssl rand -hex 32` in a terminal, one per variable.
 
 ```
-JWT_SECRET=KEEL1234@2026
-POSTGRES_PASSWORD=
-APP_DB_PASSWORD=Cefhgsdg45#$573fvyd4
-MINIO_ROOT_PASSWORD=
-GRAFANA_ADMIN_PASSWORD=
-CREDENTIAL_VAULT_MASTER_KEY=
+JWT_SECRET=8a72d8377cdd7d8d84d2a69482c835ac3d399de64db165f3f1b1589ce5563077
+POSTGRES_PASSWORD=538c581df4ed75c51a254d3d98547740c93bc2b36837a5c7fb896f8fc5a694a4
+APP_DB_PASSWORD=3846d062a53a0fae9247f5b27060cd8bc9500f340fd76ec2d15abb71bb3e6d8e
+MINIO_ROOT_PASSWORD=5D11E19FE268D0E38BAC176E79289C8B967C12BA77CADA2F60E6AB9473F18C11
+GRAFANA_ADMIN_PASSWORD=6687920e6b05cc29b7cabba20c1905eb78b7cbd524cefa960d471e6f15225f11
+CREDENTIAL_VAULT_MASTER_KEY=d9783b1a328f44b2a6d50d4324b31ed0b6372ca3e7e39cecc55675d35b978f9f
 ```
 
 - `JWT_SECRET`: the app refuses to start without it.
@@ -99,13 +99,13 @@ Without SMTP the app still runs, but no email is sent (reset codes and invites
 never arrive), so **required for real users**.
 
 ```
-SMTP_HOST=
+SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
-SMTP_USERNAME=
-SMTP_PASSWORD=
-EMAIL_FROM_ADDRESS=
-FRONTEND_BASE_URL=
-CORS_ALLOWED_ORIGINS=
+SMTP_USERNAME=be9c22001@smtp-brevo.com
+SMTP_PASSWORD=xsmtpsib-a915711c21fe2c03fcd62488eb921803079a4b1e372c637cba80b1b9be9c3e1f-dpSsGcwdCWNxAKF0
+EMAIL_FROM_ADDRESS=huda.hasouneh@gmail.com
+FRONTEND_BASE_URL=https://fuzzy-yodel-p79gw575pxg6cg7x-5173.app.github.dev
+CORS_ALLOWED_ORIGINS=https://fuzzy-yodel-p79gw575pxg6cg7x-8000.app.github.dev
 ```
 
 - Any SMTP provider works. FREE options with a small daily limit: Brevo
