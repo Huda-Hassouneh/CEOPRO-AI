@@ -14,7 +14,7 @@ from typing import List, Optional
 
 import numpy as np
 
-from src.ai.core.ml_runtime import ML_LOAD_LOCK
+from src.ai.core.ml_runtime import ML_LOAD_LOCK, WEIGHT_FILES
 
 # sentence_transformers is deliberately NOT imported at module level - this
 # module is reached from main.py's own eager router-import chain
@@ -31,6 +31,17 @@ from src.ai.core.ml_runtime import ML_LOAD_LOCK
 # spec S8's Arabic-English code-switching requirement.
 DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 MODEL_NAME = os.getenv("RAG_EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
+
+# How the model runs. "torch" (default): sentence-transformers on torch - torch
+# alone is ~520 MB resident and the loaded model ~1.6 GB (measured,
+# scripts/rag_runtime_check.py), too much for a 512 MB host. "onnx": the same
+# model's ONNX export (shipped in its own Hugging Face repo) on onnxruntime
+# with the model's own tokenizer, no torch - same mean pooling and
+# normalization, so its vectors match the stored ones (cosine 1.0 for the
+# full-precision export, ~0.995 for the 8-bit ones).
+BACKEND = os.getenv("RAG_EMBEDDING_BACKEND", "torch").strip().lower()
+ONNX_FILE = os.getenv("RAG_EMBEDDING_ONNX_FILE", "onnx/model_quint8_avx2.onnx")
+_ONNX_BATCH = 32
 
 # paraphrase-multilingual-MiniLM-L12-v2 defaults to 128 tokens, but chunks are ~200
 # words (more tokens in Arabic), so the tail of every chunk was silently never
@@ -54,6 +65,53 @@ class EmbeddingUnavailable(RuntimeError):
     """The semantic model can't be used right now; keyword search still works."""
 
 
+class _OnnxEncoder:
+    """The model's ONNX export behind the one method embed() uses, with
+    sentence-transformers' own steps for this model: tokenize (truncated to
+    max_seq_length), run, mean-pool over real tokens, L2-normalize."""
+
+    def __init__(self, model_name: str, file_name: str, max_seq_length: int):
+        import onnxruntime
+        from huggingface_hub import hf_hub_download
+        from tokenizers import Tokenizer
+
+        self.max_seq_length = max_seq_length
+        self._tokenizer = Tokenizer.from_file(hf_hub_download(model_name, "tokenizer.json"))
+        self._tokenizer.enable_truncation(max_seq_length)
+        self._tokenizer.enable_padding()
+        self._session = onnxruntime.InferenceSession(hf_hub_download(model_name, file_name),
+                                                     providers=["CPUExecutionProvider"])
+        self._inputs = {i.name for i in self._session.get_inputs()}
+
+    def encode(self, texts, convert_to_numpy=True, normalize_embeddings=True):
+        out = []
+        for start in range(0, len(texts), _ONNX_BATCH):  # bounded memory for a large document
+            encoded = self._tokenizer.encode_batch(texts[start:start + _ONNX_BATCH])
+            ids = np.array([e.ids for e in encoded], dtype=np.int64)
+            mask = np.array([e.attention_mask for e in encoded], dtype=np.int64)
+            feeds = {"input_ids": ids, "attention_mask": mask}
+            if "token_type_ids" in self._inputs:
+                feeds["token_type_ids"] = np.zeros_like(ids)
+            hidden = self._session.run(None, feeds)[0]
+            pooled = (hidden * mask[..., None]).sum(axis=1) / np.maximum(mask.sum(axis=1, keepdims=True), 1)
+            if normalize_embeddings:
+                pooled = pooled / np.maximum(np.linalg.norm(pooled, axis=1, keepdims=True), 1e-12)
+            out.append(pooled)
+        return np.concatenate(out).astype(np.float32)
+
+
+def _load(model_name: str):
+    if BACKEND == "onnx":
+        # The model's own default (128) when MAX_SEQ_LENGTH is 0, as with torch.
+        return _OnnxEncoder(model_name, ONNX_FILE, MAX_SEQ_LENGTH or 128)
+    from sentence_transformers import SentenceTransformer
+
+    model = SentenceTransformer(model_name)
+    if MAX_SEQ_LENGTH > 0:
+        model.max_seq_length = MAX_SEQ_LENGTH
+    return model
+
+
 def get_model(model_name: str = None) -> "SentenceTransformer":
     """
     Lazily loads and caches the model - downloading/loading a transformer on
@@ -70,18 +128,14 @@ def get_model(model_name: str = None) -> "SentenceTransformer":
             if model_name not in _model_cache:
                 from src.ai.core.ml_runtime import model_obtainable
 
-                if not model_obtainable(model_name):
+                weights = (ONNX_FILE,) if BACKEND == "onnx" else WEIGHT_FILES
+                if not model_obtainable(model_name, weights=weights):
                     with _unavailable_lock:
                         _unavailable_until = time.monotonic() + _RETRY_AFTER_SECONDS
                     logger.error("Embedding model %s is not cached and its host is unreachable; using keyword search only", model_name)
                     raise EmbeddingUnavailable(f"embedding model {model_name} is not cached and its host is unreachable")
                 try:
-                    from sentence_transformers import SentenceTransformer
-
-                    model = SentenceTransformer(model_name)
-                    if MAX_SEQ_LENGTH > 0:
-                        model.max_seq_length = MAX_SEQ_LENGTH
-                    _model_cache[model_name] = model
+                    _model_cache[model_name] = _load(model_name)
                 except Exception as err:
                     with _unavailable_lock:
                         _unavailable_until = time.monotonic() + _RETRY_AFTER_SECONDS

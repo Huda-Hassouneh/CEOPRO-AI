@@ -69,6 +69,15 @@ jobs:
         working-directory: backend
         run: python scripts/apply_migrations.py
 
-      - name: Real models, real database, real LLM when configured
+      - name: Default stack - torch embedder and re-ranker (plus ONNX comparison)
         working-directory: backend
-        run: python -m scripts.rag_runtime_check --probe-onnx
+        run: python -m scripts.rag_runtime_check --compare-onnx
+
+      # What keel-ai-staging runs on Render's 512 MB free plan (render.yaml).
+      - name: Small-host stack - ONNX embedder, no re-ranker, within 512 MB
+        if: always()
+        working-directory: backend
+        env:
+          RAG_EMBEDDING_BACKEND: onnx
+          RAG_RERANKER_ENABLED: "false"
+        run: python -m scripts.rag_runtime_check --max-peak-mb 512

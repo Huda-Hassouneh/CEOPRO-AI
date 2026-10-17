@@ -67,6 +67,12 @@ DEFAULT_BUCKET = "ceopro-rag-knowledge"
 # enough to keep re-ranking cost bounded" default.
 DEFAULT_RERANK_CANDIDATES = 20
 
+# The cross-encoder re-ranker runs on torch (~1.8 GB resident with the torch
+# embedder, measured by scripts/rag_runtime_check.py). On a host too small for
+# it, RAG_RERANKER_ENABLED=false keeps the RRF-fused order - the same
+# fallback a re-ranker failure already uses - without trying to load it.
+RERANKER_ENABLED = os.getenv("RAG_RERANKER_ENABLED", "true").strip().lower() not in ("0", "false", "no", "off")
+
 # See run_retrieval()'s own docstring for why this has no built-in numeric
 # default - unset (None) unless an operator has actually calibrated one
 # against their real reranker's score distribution and set
@@ -326,7 +332,7 @@ def run_retrieval(
     tenant_index = build_hybrid_index(conn, tenant_id)
     fused = retrieve_hybrid(tenant_index, query_text, top_k=rerank_candidates)
 
-    if use_reranker and fused:
+    if use_reranker and RERANKER_ENABLED and fused:
         try:
             ranked = rerank(query_text, fused, top_k=top_k)
         except Exception as err:
