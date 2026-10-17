@@ -71,7 +71,6 @@ def _ask(client: Client, question: str) -> dict:
     return {"status": 200, "mode": body.get("answer_mode"), "answer": body.get("answer", ""),
             "titles": [r.get("title") for r in body.get("references") or []], "seconds": elapsed}
 
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--api", required=True)
