@@ -171,6 +171,15 @@ def main() -> int:
                   f"keyword hits {len(keyword_hits)}")
             if semantic and keyword_hits:
                 print("  (BM25 matched something for this question)")
+        if semantic:  # the numbers RAG_SEMANTIC_MIN_SIMILARITY is set from
+            import numpy as np
+
+            names = list(DOCUMENTS)
+            doc_vectors = embeddings.embed([DOCUMENTS[n] for n in names])
+            print("Cosine similarity, Arabic question (row) vs document (column):", names)
+            for expected, question in questions.items():
+                sims = doc_vectors @ embeddings.embed([question])[0]
+                print(f"  {expected:24} " + " ".join(f"{s:6.3f}" for s in np.asarray(sims)))
         print(f"{right}/{len(questions)} questions found their document first"
               + (" - by meaning alone: no question shares a word with the documents" if semantic else ""))
         if semantic and (right < len(questions) - 1 or "net 45 days" not in pipeline.run_retrieval(

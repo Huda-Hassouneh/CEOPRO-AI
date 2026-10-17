@@ -177,3 +177,23 @@ def test_static_backend_labels_vectors_with_model_and_width():
     finally:
         os.environ.pop("RAG_EMBEDDING_BACKEND")
         importlib.reload(embeddings)
+
+
+def test_advisor_keeps_a_chunk_close_in_meaning_even_with_no_shared_word(monkeypatch):
+    """An Arabic question about an English document shares no word with it;
+    the word check alone would drop the very match semantic search found."""
+    from src.ai.rag import advisor
+
+    vectors = {"ما هي شروط الدفع؟": [1.0, 0.0], "payment terms are net 45 days": [0.8, 0.6], "summer campaign": [0.0, 1.0]}
+    monkeypatch.setattr(embeddings, "try_embed", lambda texts: np.array([vectors[t] for t in texts], dtype=np.float32))
+    monkeypatch.setattr(advisor, "SEMANTIC_MIN_SIMILARITY", 0.5)
+    assert not advisor._relevant("ما هي شروط الدفع؟", "payment terms are net 45 days")
+    close = advisor._semantic_check("ما هي شروط الدفع؟")
+    assert close("payment terms are net 45 days") and not close("summer campaign")
+
+
+def test_advisor_semantic_check_is_off_without_an_embedding_model(monkeypatch):
+    from src.ai.rag import advisor
+
+    monkeypatch.setattr(embeddings, "try_embed", lambda texts: None)
+    assert advisor._semantic_check("any question") is None
