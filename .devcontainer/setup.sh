@@ -38,9 +38,12 @@ if ! grep -q "^JWT_SECRET=.\+" backend/.env 2>/dev/null; then
   set_env_var backend/.env JWT_SECRET "$JWT_SECRET_VALUE"
 fi
 # The same for the key that encrypts stored connector credentials: one per
-# Codespace (a Fernet key), never a shared value.
-if ! grep -q "^CREDENTIAL_VAULT_MASTER_KEY=.\+" backend/.env 2>/dev/null \
-    || grep -q "^CREDENTIAL_VAULT_MASTER_KEY=change_this" backend/.env; then
+# Codespace (a Fernet key), never a shared value. A value that isn't a valid
+# Fernet key (empty, the placeholder, a hex string) is replaced: nothing can
+# ever have been encrypted with it, so no stored credential is lost. A valid
+# key is never replaced.
+CURRENT_VAULT_KEY=$(grep "^CREDENTIAL_VAULT_MASTER_KEY=" backend/.env 2>/dev/null | head -1 | cut -d= -f2-)
+if ! python3 -c "import base64, sys; k = sys.argv[1].strip(); sys.exit(0 if len(k) == 44 and len(base64.urlsafe_b64decode(k)) == 32 else 1)" "$CURRENT_VAULT_KEY" 2>/dev/null; then
   VAULT_KEY_VALUE=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
   set_env_var backend/.env CREDENTIAL_VAULT_MASTER_KEY "$VAULT_KEY_VALUE"
 fi
