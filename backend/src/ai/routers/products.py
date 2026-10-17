@@ -65,6 +65,7 @@ itself enforces, flagged here rather than silently assumed.
 import json
 from typing import Dict, Optional
 
+from src.ai.core.barcode import normalize_barcode
 from src.ai.core import text_search
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
@@ -105,7 +106,9 @@ _CATEGORY_EXPR = "localized_text(p.category)"
 # value is still sent as a real parameterized query parameter.
 _UPDATABLE_JSONB_COLUMNS = ("product_name", "brand", "category", "description")
 _UPDATABLE_SCALAR_COLUMNS = ("current_price", "cost_price", "currency")
-_UPDATABLE_COLUMNS = frozenset(_UPDATABLE_JSONB_COLUMNS) | frozenset(_UPDATABLE_SCALAR_COLUMNS)
+# "barcode" is not a column: it lives in products.metadata->>'barcode' and is written
+# through its own branch in update_product() below.
+_UPDATABLE_COLUMNS = frozenset(_UPDATABLE_JSONB_COLUMNS) | frozenset(_UPDATABLE_SCALAR_COLUMNS) | {"barcode"}
 
 
 class ProductValidationError(Exception):
@@ -143,6 +146,13 @@ class ProductCreateRequest(BaseModel):
     currency: str = Field(..., pattern=r"^[A-Z]{3}$")
     # float: stock is counted in the product's own unit (pieces, kg, m, L).
     initial_stock_quantity: Optional[float] = Field(default=None, ge=0, le=1_000_000_000)
+    # EAN/UPC/GTIN. Optional; checked (length + GS1 check digit) and stored digits-only.
+    barcode: Optional[str] = None
+
+    @field_validator("barcode")
+    @classmethod
+    def _barcode_is_valid(cls, value: Optional[str]) -> Optional[str]:
+        return normalize_barcode(value)
 
     @field_validator("product_name")
     @classmethod
@@ -165,6 +175,13 @@ class ProductUpdateRequest(BaseModel):
     current_price: Optional[float] = Field(default=None, ge=0)
     cost_price: Optional[float] = Field(default=None, ge=0)
     currency: Optional[str] = Field(default=None, pattern=r"^[A-Z]{3}$")
+    # Sent as null (or "") it clears the stored barcode; omitted leaves it alone.
+    barcode: Optional[str] = None
+
+    @field_validator("barcode")
+    @classmethod
+    def _barcode_is_valid(cls, value: Optional[str]) -> Optional[str]:
+        return normalize_barcode(value)
 
     @field_validator("product_name")
     @classmethod
@@ -257,7 +274,8 @@ def get_product(conn, tenant_id: str, product_id: str) -> Optional[dict]:
         cursor.execute(
             """
             SELECT product_id, product_name, brand, category, description,
-                   current_price, cost_price, currency, source, created_at, updated_at
+                   current_price, cost_price, currency, source, created_at, updated_at,
+                   metadata->>'barcode'
             FROM products
             WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;
             """,
@@ -268,7 +286,7 @@ def get_product(conn, tenant_id: str, product_id: str) -> Optional[dict]:
             return None
         (
             pid, product_name, brand, category, description,
-            current_price, cost_price, currency, source, created_at, updated_at,
+            current_price, cost_price, currency, source, created_at, updated_at, barcode,
         ) = row
 
         # No uniqueness constraint on (tenant_id, product_id) in `inventory` -
@@ -308,6 +326,7 @@ def get_product(conn, tenant_id: str, product_id: str) -> Optional[dict]:
         "cost_price": float(cost_price) if cost_price is not None else None,
         "currency": currency,
         "source": source,
+        "barcode": barcode,
         "created_at": created_at.isoformat() if created_at else None,
         "updated_at": updated_at.isoformat() if updated_at else None,
         "inventory": inventory,
@@ -318,7 +337,7 @@ def create_product(
     conn, tenant_id: str, user_id: Optional[str],
     product_name: Dict[str, str], brand: Optional[Dict[str, str]], category: Optional[Dict[str, str]],
     description: Optional[Dict[str, str]], current_price: float, cost_price: Optional[float],
-    currency: str, initial_stock_quantity: Optional[float] = None,
+    currency: str, initial_stock_quantity: Optional[float] = None, barcode: Optional[str] = None,
 ) -> dict:
     """Inserts a new MANUAL product, plus an inventory row only when
     initial_stock_quantity is given (None = stock not tracked). JSONB columns are
@@ -329,8 +348,8 @@ def create_product(
             """
             INSERT INTO products
                 (tenant_id, product_name, brand, category, description, current_price,
-                 cost_price, currency, source, created_by_user_id, updated_by_user_id)
-            VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, 'MANUAL', %s, %s)
+                 cost_price, currency, source, metadata, created_by_user_id, updated_by_user_id)
+            VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, 'MANUAL', %s::jsonb, %s, %s)
             RETURNING product_id;
             """,
             (
@@ -338,7 +357,7 @@ def create_product(
                 json.dumps(brand) if brand is not None else None,
                 json.dumps(category) if category is not None else None,
                 json.dumps(description) if description is not None else None,
-                current_price, cost_price, currency, user_id, user_id,
+                current_price, cost_price, currency, json.dumps({"barcode": barcode} if barcode else {}), user_id, user_id,
             ),
         )
         product_id = str(cursor.fetchone()[0])
@@ -371,7 +390,14 @@ def update_product(conn, tenant_id: str, user_id: Optional[str], product_id: str
     for column in _UPDATABLE_COLUMNS:
         if column not in fields:
             continue
-        if column in _UPDATABLE_JSONB_COLUMNS:
+        if column == "barcode":
+            # Lives in the metadata document; every other metadata key is left as-is.
+            if fields[column]:
+                set_clauses.append("metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('barcode', %s::text)")
+                params.append(fields[column])
+            else:
+                set_clauses.append("metadata = COALESCE(metadata, '{}'::jsonb) - 'barcode'")
+        elif column in _UPDATABLE_JSONB_COLUMNS:
             set_clauses.append(f"{column} = %s::jsonb")
             params.append(json.dumps(fields[column]) if fields[column] is not None else None)
         else:
@@ -527,7 +553,7 @@ def create_product_endpoint(body: ProductCreateRequest, ctx: TenantContext = Dep
         result = create_product(
             conn, ctx.tenant_id, ctx.user_id, body.product_name, body.brand, body.category,
             body.description, body.current_price, body.cost_price, body.currency,
-            body.initial_stock_quantity,
+            body.initial_stock_quantity, body.barcode,
         )
         conn.commit()
     except Exception:
