@@ -130,3 +130,50 @@ def test_a_switched_off_backend_never_loads_a_model(monkeypatch):
     monkeypatch.setattr("src.ai.core.ml_runtime.model_obtainable",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not probe")))
     assert embeddings.try_embed(["text"]) is None
+
+
+def _tiny_static_model(tmp_path):
+    """A 4-token static model, 3 wide, saved the way the real one is published."""
+    from safetensors.numpy import save_file
+    from tokenizers import Tokenizer, models, pre_tokenizers
+
+    weights = tmp_path / "model.safetensors"
+    save_file({"embedding.weight": np.array([[0, 0, 9], [1, 0, 9], [0, 1, 9], [1, 1, 9]], dtype=np.float32)}, str(weights))
+    tokenizer = Tokenizer(models.WordLevel({"[UNK]": 0, "pay": 1, "terms": 2, "supplier": 3}, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+    tokenizer.save(str(tmp_path / "tokenizer.json"))
+    return {"0_StaticEmbedding/model.safetensors": str(weights), "0_StaticEmbedding/tokenizer.json": str(tmp_path / "tokenizer.json")}
+
+
+def test_static_model_is_prepared_once_as_its_first_dims_and_averaged(monkeypatch, tmp_path):
+    import huggingface_hub
+
+    files = _tiny_static_model(tmp_path)
+    downloads = []
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", lambda repo, name: downloads.append(name) or files[name])
+    for name, value in (("STATIC_MODEL", "org/static"), ("STATIC_DIM", 2), ("STATIC_DIR", str(tmp_path / "prepared"))):
+        monkeypatch.setattr(embeddings, name, value)
+    meta = embeddings.prepare_static()
+    assert meta == {"model": "org/static", "dim": 2, "rows": 4}
+    embeddings.prepare_static()
+    assert len(downloads) == 2  # already prepared: nothing downloaded again
+
+    encoder = embeddings._StaticEncoder()
+    assert encoder._matrix.dtype == np.float16 and encoder._matrix.shape == (4, 2)
+    vectors = encoder.encode(["pay terms", "supplier", ""], normalize_embeddings=False)
+    np.testing.assert_allclose(vectors, [[0.5, 0.5], [1.0, 1.0], [0.0, 0.0]])  # 3rd column dropped
+    normalized = encoder.encode(["pay terms"])
+    np.testing.assert_allclose(np.linalg.norm(normalized, axis=1), 1.0, rtol=1e-6)
+
+
+def test_static_backend_labels_vectors_with_model_and_width():
+    import importlib
+    import os
+
+    os.environ["RAG_EMBEDDING_BACKEND"] = "static"
+    try:
+        module = importlib.reload(embeddings)
+        assert module.MODEL_NAME == f"{module.STATIC_MODEL}@{module.STATIC_DIM}"
+    finally:
+        os.environ.pop("RAG_EMBEDDING_BACKEND")
+        importlib.reload(embeddings)
