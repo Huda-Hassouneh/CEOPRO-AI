@@ -76,8 +76,12 @@ def test_handle_message_opens_a_tenant_scoped_connection_and_closes_it(consumer)
     exposure that would otherwise be possible.
     """
     fake_conn = MagicMock()
+    # The summary regeneration after a forecast is not what this test is about, and with a real MinIO
+    # reachable it would run against this fake connection and (correctly) roll back its failed steps.
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn) as mock_app_conn, \
-         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast:
+         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast, \
+         patch("src.ai.forecasting.consumer.regenerate_all_structured_summaries"), \
+         patch("src.ai.forecasting.consumer.minio_client"):
         consumer._handle_message(payload={"tenant_id": "t1", "product_id": "p1", "horizon_days": "14"})
 
     mock_app_conn.assert_called_once_with("t1", consumer.actor_user_id)
@@ -288,7 +292,9 @@ def test_listen_acks_only_after_successful_processing(consumer):
     consumer.client.xack = MagicMock()
 
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast:
+         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast, \
+         patch("src.ai.forecasting.consumer.regenerate_all_structured_summaries"), \
+         patch("src.ai.forecasting.consumer.minio_client"):
         consumer.listen()
 
     mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 30)

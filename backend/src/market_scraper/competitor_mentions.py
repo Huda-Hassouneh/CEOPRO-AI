@@ -11,7 +11,7 @@ Where else a competitor shows up, collected from sources that allow it:
                      or channel names the competitor (YouTube Data API, needs
                      YOUTUBE_API_KEY). A like is a person who agrees.
   Google reviews     deeper than the Places API's five, with likes and the owner's
-  with likes         replies, through the Apify Maps actor (needs APIFY_TOKEN).
+  with likes         replies, through the Apify Maps actor (needs APIFY_API_TOKEN; the older APIFY_TOKEN still works).
 
 Google News' own RSS is deliberately not used (its terms allow personal,
 non-commercial use only - see market_discovery/news.py).
