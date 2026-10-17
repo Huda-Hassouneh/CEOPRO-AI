@@ -47,6 +47,7 @@ _PROMOTION_BATCH_SIZE = 1000
 _BATCH_SAVEPOINT = "promotion_batch_write"
 _ROW_SAVEPOINT = "promotion_row_write"
 _PRODUCT_SAVEPOINT = "promotion_product_write"
+_BARCODE_SAVEPOINT = "promotion_barcode_write"
 
 T = TypeVar("T")
 
@@ -60,6 +61,10 @@ class PromotionSummary:
     # _import_invoice_number) - skipped, not written a second time.
     rows_duplicate: int = 0
     products_created: int = 0
+    # Barcodes written onto products that had none, and rows whose product was
+    # recognised by its barcode though the file's name for it differed.
+    barcodes_applied: int = 0
+    products_matched_by_barcode: int = 0
     # Rows whose product would have exceeded the plan's product limit.
     rows_over_product_limit: int = 0
     errors: List[Dict] = field(default_factory=list)
@@ -81,6 +86,8 @@ class _EligibleRow:
     # Deterministic per-content invoice number (see _import_invoice_number);
     # None falls back to the legacy per-job number.
     invoice_number: Optional[str] = None
+    # Validated EAN/UPC/GTIN from the file's barcode column, if it had one.
+    barcode: Optional[str] = None
 
     def __post_init__(self):
         self.quantity = Decimal(self.quantity)
@@ -265,6 +272,7 @@ def _extract_eligible_rows(
                 transaction_date=fields["transaction_date"],
                 line_total=line_total,
                 invoice_number=_import_invoice_number(material, occurrences[material]),
+                barcode=fields.get("barcode") or None,
             )
         )
     return eligible, skipped
@@ -344,6 +352,66 @@ def _insert_one_product(
             (tenant_id, _name_json(raw_name), price, currency, metadata, user_id, user_id),
         )
         return str(cursor.fetchone()[0])
+
+
+def _load_barcode_index(conn, tenant_id: str) -> Dict[str, str]:
+    """{barcode: product_id} for this tenant's active products that have one."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT metadata->>'barcode', product_id FROM products "
+            "WHERE tenant_id = %s AND deleted_at IS NULL AND metadata->>'barcode' IS NOT NULL;",
+            (tenant_id,),
+        )
+        return {barcode: str(product_id) for barcode, product_id in cursor.fetchall() if barcode}
+
+
+def _alias_names_by_barcode(rows: List[_EligibleRow], known: Dict[str, str], barcode_index: Dict[str, str]) -> int:
+    """A row whose name is new to us but whose barcode belongs to an existing product IS
+    that product (a POS names the same item differently): point the name at it instead of
+    creating a duplicate. Returns how many distinct names were recognised this way."""
+    matched = 0
+    for row in rows:
+        if row.barcode and row.product_name_normalized not in known and row.barcode in barcode_index:
+            known[row.product_name_normalized] = barcode_index[row.barcode]
+            matched += 1
+    return matched
+
+
+def _apply_barcodes(conn, tenant_id: str, rows: List[_EligibleRow], known: Dict[str, str], barcode_index: Dict[str, str]) -> int:
+    """Records each product's barcode from the file. Fill-only: a product that already has a
+    barcode keeps it (a curated value is never overwritten by an import), and a barcode that
+    already belongs to a different product is not given to a second one. Non-critical - a
+    failure here is rolled back on its own and never stops the sales import. Returns the
+    number of products that gained a barcode."""
+    wanted: Dict[str, str] = {}
+    taken = set(barcode_index)
+    for row in rows:
+        product_id = known.get(row.product_name_normalized)
+        if not (row.barcode and product_id) or product_id in wanted or row.barcode in taken:
+            continue
+        wanted[product_id] = row.barcode
+        taken.add(row.barcode)
+    if not wanted:
+        return 0
+
+    def _write() -> int:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE products p
+                SET metadata = COALESCE(p.metadata, '{}'::jsonb) || jsonb_build_object('barcode', v.barcode)
+                FROM unnest(%s::uuid[], %s::text[]) AS v(product_id, barcode)
+                WHERE p.tenant_id = %s AND p.product_id = v.product_id AND p.deleted_at IS NULL
+                  AND p.metadata->>'barcode' IS NULL;
+                """,
+                (list(wanted), list(wanted.values()), tenant_id),
+            )
+            return cursor.rowcount
+
+    try:
+        return _run_in_savepoint(conn, _BARCODE_SAVEPOINT, _write)
+    except Exception:  # noqa: BLE001 - barcodes are optional extras; the sales import must go on
+        return 0
 
 
 def _create_missing_products(
@@ -625,8 +693,11 @@ def promote_ingested_rows(
         return result
 
     known = _load_existing_products(conn, tenant_id)
+    barcode_index = _load_barcode_index(conn, tenant_id) if any(row.barcode for row in eligible) else {}
+    result.products_matched_by_barcode = _alias_names_by_barcode(eligible, known, barcode_index)
     known_before = set(known)
     result.products_created = _create_missing_products(conn, tenant_id, user_id, job_id, eligible, known)
+    result.barcodes_applied = _apply_barcodes(conn, tenant_id, eligible, known, barcode_index)
     room_left = usage.capacity_left(conn, tenant_id, usage.TRACKED_PRODUCTS)
 
     # A row whose product still isn't in `known` (product creation failed

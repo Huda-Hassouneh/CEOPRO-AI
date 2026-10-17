@@ -9,6 +9,7 @@ from datetime import date
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from src.ai.core.barcode import parse_barcode_cell
 from src.ai.extraction.numerals import normalize_number_string, to_ascii_digits
 from src.ai.extraction.regex_patterns import ExtractedEntity, extract_email, normalize_slash_date, extract_all
 
@@ -39,6 +40,8 @@ FIELD_PARSERS = {
     # symbol handling, so a combined cell would be a real, avoidable source
     # of parse failure for a template KEEL controls the shape of.
     "currency": "currency_code",
+    # EAN/UPC/GTIN, optional. Exact key for market price lookup (price_lookup/).
+    "barcode": "barcode",
 }
 
 
@@ -168,6 +171,12 @@ def _parse_typed_cell(
 
     if field_type == "text":
         return raw, 1.0
+
+    if field_type == "barcode":
+        # A cell that is not a valid barcode (bad check digit, a SKU in the wrong column) is
+        # left out, like a bad email - it never blocks the sales row it sits on.
+        code = parse_barcode_cell(raw)
+        return (code, 1.0) if code else (None, 0.0)
 
     if field_type == "currency_code":
         code = to_ascii_digits(raw).strip().upper()

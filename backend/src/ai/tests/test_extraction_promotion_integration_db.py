@@ -501,3 +501,61 @@ def test_paid_amount_rounded_up_to_the_currency_unit_is_trusted():
     # ...but not a whole unit above it (a tax-inclusive or whole-order figure)
     assert promotion._line_total({"amount_raw": "229.044"}, Decimal("237.35"), Decimal("0.965"), "JOD") == Decimal("229.0428")
     assert promotion._line_total({"amount_raw": "1500"}, Decimal("1"), Decimal("1499.6"), "XOF") == Decimal("1500.0000")
+
+
+def _run_with_barcode(conn, tenant_id, job_id, user_id, rows):
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv", headers=_TEMPLATE_HEADERS + ["barcode"], rows=rows, conn=conn,
+    )
+    return summary, promotion.promote_ingested_rows(conn, tenant_id, job_id, summary, user_id=user_id)
+
+
+def _barcode_of(conn, name, tenant_id):
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT metadata->>'barcode' FROM products WHERE tenant_id = %s AND product_name->>'en' = %s AND deleted_at IS NULL;", (tenant_id, name))
+        rows = cursor.fetchall()
+    return [r[0] for r in rows]
+
+
+def test_barcode_column_sets_the_barcode_on_a_new_product_and_repairs_excel_formatting(conn, seeded_tenant):
+    tenant_id, user_id, job_id = seeded_tenant
+    _, promo = _run_with_barcode(conn, tenant_id, job_id, user_id, [_template_row(product_name="Nutella 400g", barcode="3.017620422003E+12")])
+    conn.commit()
+    assert promo.rows_promoted == 1 and promo.barcodes_applied == 1
+    assert _barcode_of(conn, "Nutella 400g", tenant_id) == ["3017620422003"]
+
+
+def test_an_invalid_barcode_never_blocks_the_sale_and_a_curated_barcode_is_never_overwritten(conn, seeded_tenant):
+    tenant_id, user_id, job_id = seeded_tenant
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO products (tenant_id, product_name, current_price, currency, source, metadata) "
+            "VALUES (%s, '{\"en\": \"Curated\"}'::jsonb, 5, 'JOD', 'MANUAL', '{\"barcode\": \"96385074\"}'::jsonb);",
+            (tenant_id,),
+        )
+    conn.commit()
+    _, promo = _run_with_barcode(conn, tenant_id, job_id, user_id, [
+        _template_row(product_name="Bad Code", barcode="3017620422004"),        # wrong check digit
+        _template_row(product_name="Curated", barcode="3017620422003"),         # already has 96385074
+    ])
+    conn.commit()
+    assert promo.rows_promoted == 2 and promo.barcodes_applied == 0
+    assert _barcode_of(conn, "Bad Code", tenant_id) == [None]
+    assert _barcode_of(conn, "Curated", tenant_id) == ["96385074"]
+
+
+def test_a_product_named_differently_in_the_file_is_matched_by_its_barcode(conn, seeded_tenant):
+    tenant_id, user_id, job_id = seeded_tenant
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO products (tenant_id, product_name, current_price, currency, source, metadata) "
+            "VALUES (%s, '{\"en\": \"Nutella Hazelnut Spread 400g\"}'::jsonb, 5, 'JOD', 'MANUAL', '{\"barcode\": \"3017620422003\"}'::jsonb);",
+            (tenant_id,),
+        )
+    conn.commit()
+    _, promo = _run_with_barcode(conn, tenant_id, job_id, user_id, [_template_row(product_name="NUTELLA JAR 400", barcode="3017620422003")])
+    conn.commit()
+    assert promo.rows_promoted == 1 and promo.products_created == 0 and promo.products_matched_by_barcode == 1
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM products WHERE tenant_id = %s AND deleted_at IS NULL;", (tenant_id,))
+        assert cursor.fetchone()[0] == 1
