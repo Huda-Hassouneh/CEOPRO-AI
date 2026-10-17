@@ -82,6 +82,7 @@ _TOOL_BLOCKS = (
     ("Restock check", (acl.INVENTORY, acl.FORECASTS), "/demand/inventory"),
     ("Competitor comparison", (acl.COMPETITORS, acl.CATALOG), "/market/competitors"),
     ("Gross margin analysis", (acl.SALES, acl.COSTS), "/sales"),
+    ("Per-unit margin from the product catalog", (acl.CATALOG, acl.COSTS), "/products"),
 )
 _LEADS = {
     "evidence_mode": {

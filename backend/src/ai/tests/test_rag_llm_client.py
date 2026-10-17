@@ -149,6 +149,26 @@ def test_rate_limit_waits_for_retry_after_and_then_succeeds(monkeypatch):
     assert sleeps == [7.0]
 
 
+def test_repeated_rate_limits_are_waited_out_within_the_budget_not_the_retry_count(monkeypatch):
+    """Seen live on Groq's free tier (8,000 tokens a minute): 429 with a 22 s,
+    then a 1 s, then another 1 s Retry-After. Giving up after MAX_RETRIES
+    turned an answer seconds away into an evidence-mode reply."""
+    monkeypatch.setattr(llm_client, "MAX_RETRIES", 2)
+    monkeypatch.setattr(llm_client, "RATE_LIMIT_MAX_WAIT_SECONDS", 40)
+    sleeps = []
+    monkeypatch.setattr(llm_client.time, "sleep", sleeps.append)
+    responses = iter([
+        _FakeResponse(429, text="rate limit", headers={"retry-after": "22"}),
+        _FakeResponse(429, text="rate limit", headers={"retry-after": "1"}),
+        _FakeResponse(429, text="rate limit", headers={"retry-after": "0"}),
+        _FakeResponse(200, {"choices": [{"message": {"content": "Net 45 days."}}]}),
+    ])
+    monkeypatch.setattr(llm_client.httpx, "post", lambda *a, **k: next(responses))
+
+    assert _ask(api_key="test-key") == "Net 45 days."
+    assert sleeps == [22.0, 1.0, 1.0]  # a 0 s hint still waits a second
+
+
 def test_rate_limit_beyond_the_wait_budget_raises_rate_limit_error_without_opening_the_circuit(monkeypatch):
     """A busy key is not a provider outage: it must surface as
     LLMRateLimitError (with the provider's retry hint) and never count

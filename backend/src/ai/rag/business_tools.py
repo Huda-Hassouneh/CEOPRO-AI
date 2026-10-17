@@ -64,7 +64,9 @@ def build_financial_facts_block(conn, tenant_id: str, query_text: str, window_da
     ranking = get_product_profitability(conn, tenant_id, **window)
 
     if summary["revenue"]["amount"] <= 0:
-        return ""
+        # No sales to measure realized profit from: the catalog's own price
+        # and cost still give each product's per-unit margin.
+        return _catalog_unit_margin_block(conn, tenant_id, summary["window_days"])
 
     lines = [
         f"Gross margin analysis for the trailing {summary['window_days']} days "
@@ -110,4 +112,34 @@ def build_financial_facts_block(conn, tenant_id: str, query_text: str, window_da
         names = ", ".join(f'"{row["product_name"]}"' for row in ranking["no_cost_data"][:5])
         lines.append(f"- Sold this period but excluded above (no cost_price on file): {names}.")
 
+    return "\n".join(lines)
+
+
+def _catalog_unit_margin_block(conn, tenant_id: str, window_days: int, limit: int = 10) -> str:
+    """Per-unit margin (current price minus cost price) of the products that
+    have both on file, highest first; "" when none do. List prices, not
+    sales: the block says so, so it is never read as realized profit."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT localized_text(product_name), current_price, cost_price, currency
+            FROM products
+            WHERE tenant_id = %s AND deleted_at IS NULL AND current_price > 0 AND cost_price IS NOT NULL
+            ORDER BY current_price - cost_price DESC, localized_text(product_name)
+            LIMIT %s;
+            """,
+            (tenant_id, limit),
+        )
+        rows = cursor.fetchall()
+    if not rows:
+        return ""
+    lines = [
+        f"Per-unit margin from the product catalog (source: products.current_price minus products.cost_price). "
+        f"No sales were recorded in the trailing {window_days} days, so realized profit can't be measured; these "
+        f"are list prices, not sales:",
+    ]
+    for rank, (name, price, cost, currency) in enumerate(rows, start=1):
+        margin = price - cost
+        lines.append(f"- #{rank} by margin per unit: \"{name}\": price {price:.2f}, cost {cost:.2f}, margin {margin:.2f} {currency or ''} per unit "
+                     f"({margin / price * 100:.1f}% of the price).")
     return "\n".join(lines)

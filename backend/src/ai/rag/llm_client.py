@@ -490,6 +490,12 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
     exhausted, so the caller sees exactly the same shape of failure it
     would have without retries, just after trying harder first.
 
+    A 429 is waited out as the provider asks (Retry-After), for up to
+    RATE_LIMIT_MAX_WAIT_SECONDS in total, and doesn't use up a retry: on a
+    per-minute token limit a second short wait often lands just before the
+    window frees up, and giving up there turned an answer that was seconds
+    away into an evidence-mode reply.
+
     Guarded by a circuit breaker (see CIRCUIT_BREAKER_* constants): after
     enough consecutive request-level failures, a new call fails fast
     instead of repeating the full retry sequence against a provider
@@ -504,7 +510,9 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
 
     last_exception = None
     rate_limit_waited = 0.0
-    for attempt in range(MAX_RETRIES + 1):
+    rate_limit_hits = 0
+    attempt = 0
+    while attempt <= MAX_RETRIES:
         try:
             response = httpx.post(url, headers=headers, json=payload, timeout=timeout)
         except httpx.HTTPError as err:
@@ -512,6 +520,7 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             if attempt < MAX_RETRIES:
                 logger.warning(f"LLM request to {url} failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
                 time.sleep(_backoff_seconds(attempt))
+                attempt += 1
                 continue
             _record_circuit_failure()
             raise LLMError(f"LLM provider request failed: {err}") from err
@@ -522,10 +531,12 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             return response
         if response.status_code == 429:
             wait = _retry_after_seconds(response)
-            wait = _backoff_seconds(attempt) if wait is None else wait
-            if attempt == MAX_RETRIES or rate_limit_waited + wait > RATE_LIMIT_MAX_WAIT_SECONDS:
+            wait = _backoff_seconds(rate_limit_hits) if wait is None else max(wait, 1.0)
+            if rate_limit_waited + wait > RATE_LIMIT_MAX_WAIT_SECONDS:
                 return response  # rate limited, not down: no circuit-breaker failure
-            logger.warning(f"LLM provider rate limit (429), waiting {wait:.1f}s (attempt {attempt + 1}/{MAX_RETRIES})")
+            rate_limit_hits += 1
+            logger.warning(f"LLM provider rate limit (429), waiting {wait:.1f}s "
+                           f"({rate_limit_waited + wait:.0f}s of {RATE_LIMIT_MAX_WAIT_SECONDS:.0f}s)")
             rate_limit_waited += wait
             time.sleep(wait)
             continue
@@ -537,6 +548,7 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             f"LLM provider returned {response.status_code}, retrying (attempt {attempt + 1}/{MAX_RETRIES})"
         )
         time.sleep(_backoff_seconds(attempt))
+        attempt += 1
 
     # Unreachable in practice (the loop always returns or raises above),
     # kept only so this function has an explicit exhaustive return path.
