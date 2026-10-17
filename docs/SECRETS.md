@@ -108,7 +108,6 @@ Providers credit. When it runs out, requests are refused unless billing is
 set up on that account, and the assistant then answers in evidence mode.
 
 ## Verification status (2026-10-17)
-
 - **Groq:** a real request through `scripts/llm_provider_check.py`
   succeeded ("ready", 0.7 s) in a development sandbox, with a key provided
   by that sandbox's own environment. The GitHub Actions secret
