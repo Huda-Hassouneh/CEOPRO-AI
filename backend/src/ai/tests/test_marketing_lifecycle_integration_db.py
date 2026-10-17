@@ -170,4 +170,4 @@ def test_an_image_that_cant_be_made_leaves_a_complete_campaign(setup, monkeypatc
                            headers=headers).json()
     assert campaign["status"] == "COMPLETED" and campaign["content"]
     assert campaign["image_generation_status"] == "PROVIDER_ERROR"
-    assert campaign["image_generation_attempts"] == [{"provider": "pollinations", "reason": "busy"}]
+    assert "image_generation_attempts" not in campaign  # provider details stay in the server log

@@ -45,7 +45,8 @@ def _response(status=200, content=b"", content_type="image/png", json_body=None,
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     for name in ("MARKETING_IMAGE_PROVIDER", "MARKETING_IMAGE_PROVIDERS", "MARKETING_IMAGE_KEYLESS", "HUGGINGFACE_API_TOKEN",
-                 "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"):
+                 "HUGGINGFACE_API_TOKENS", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNTS",
+                 "TOGETHER_API_KEYS", "POLLINATIONS_API_KEYS", "HORDE_API_KEYS"):
         monkeypatch.delenv(name, raising=False)
     cooling = set()
     monkeypatch.setattr(image_generation, "_cooling_down", lambda name: name in cooling)
@@ -80,13 +81,14 @@ def test_build_image_prompt_truncates_to_max_length():
 # --- which providers, in which order ---------------------------------
 
 def test_by_default_free_providers_with_keys_come_first_then_the_keyless_one(monkeypatch):
-    assert provider_chain() == ["pollinations"]
+    assert provider_chain() == ["aihorde"]  # zero setup: only the keyless AI Horde (Pollinations needs a key)
     monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
     monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "acc")
     monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "cf")
-    assert provider_chain() == ["cloudflare", "huggingface", "pollinations"]
+    chain = provider_chain()
+    assert sorted(chain[:2]) == ["cloudflare#1", "huggingface#1"] and chain[2:] == ["aihorde"]
     monkeypatch.setenv("MARKETING_IMAGE_KEYLESS", "false")
-    assert provider_chain() == ["cloudflare", "huggingface"]
+    assert sorted(provider_chain()) == ["cloudflare#1", "huggingface#1"]
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "pollinations, huggingface")
     assert provider_chain() == ["pollinations", "huggingface"]
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "none")
@@ -182,39 +184,146 @@ def test_huggingface_json_error_and_missing_token(monkeypatch):
 # --- falling back -----------------------------------------------------
 
 def test_a_failing_or_busy_provider_falls_back_to_the_next(monkeypatch, _clean_env):
+    monkeypatch.setattr(image_generation.random, "shuffle", lambda items: None)  # fixed order for the scripted replies
     monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "acc")
     monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "cf")
     monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    monkeypatch.setenv("POLLINATIONS_API_KEYS", "pk")
     posts = [_response(429, json_body={"errors": [{"message": "daily free allocation exceeded"}]}, content_type="application/json",
                        headers={"retry-after": "3600"}),
              _response(402, content=b'{"error": "monthly credits exceeded"}', content_type="application/json")]
+    def horde_down(*a, **k):
+        raise ImageGenerationError("PROVIDER_ERROR", "queue unavailable")
+
     with patch("src.ai.marketing.image_generation.httpx.post", side_effect=posts), \
+         patch.dict(image_generation._PROVIDERS, {"aihorde": horde_down}), \
          patch("src.ai.marketing.image_generation.httpx.get", return_value=_response(content=JPEG, content_type="image/jpeg")):
         image = generate_campaign_image("x")
     assert image.provider == "pollinations"
-    assert image.attempts == [{"provider": "cloudflare", "reason": "busy"}, {"provider": "huggingface", "reason": "busy"}]
-    assert _clean_env == {"cloudflare", "huggingface"}  # set aside until their Retry-After
+    assert [(a["provider"], a["reason"]) for a in image.attempts] == [
+        ("cloudflare#1", "busy"), ("huggingface#1", "busy")]
+    assert _clean_env == {"cloudflare#1", "huggingface#1"}  # set aside until their Retry-After
     # Next time the busy ones are skipped without a call.
     with patch("src.ai.marketing.image_generation.httpx.post") as post, \
-         patch("src.ai.marketing.image_generation.httpx.get", return_value=_response(content=JPEG, content_type="image/jpeg")):
+         patch("src.ai.marketing.image_generation.httpx.get", return_value=_response(content=JPEG, content_type="image/jpeg")), \
+         patch.dict(image_generation._PROVIDERS, {"aihorde": horde_down}):
         assert generate_campaign_image("x").provider == "pollinations"
     post.assert_not_called()
 
 
 def test_every_provider_failing_is_one_honest_error(monkeypatch):
     monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    monkeypatch.setenv("POLLINATIONS_API_KEYS", "pk")
     with patch("src.ai.marketing.image_generation.httpx.post", side_effect=httpx.ConnectError("down")), \
          patch("src.ai.marketing.image_generation.httpx.get", side_effect=httpx.ConnectError("down")):
         with pytest.raises(ImageGenerationError) as exc:
             generate_campaign_image("x")
     assert exc.value.status == "PROVIDER_ERROR"
-    assert exc.value.attempts == [{"provider": "huggingface", "reason": "failed"}, {"provider": "pollinations", "reason": "failed"}]
+    names = [a["provider"] for a in exc.value.attempts]
+    assert sorted(names[:2]) == ["huggingface#1", "pollinations#1"] and names[2:] == ["aihorde"]
+    assert all(a["reason"] == "failed" for a in exc.value.attempts)
 
 
 # --- capability -------------------------------------------------------
 
 def test_capability_names_the_providers_and_that_text_leaves_keel(monkeypatch):
     capability = get_image_generation_capability()
-    assert capability == {"available": True, "provider": "pollinations", "providers": ["pollinations"], "external": True, "reason": None}
+    # Provider names are never exposed - only that an outside service is used.
+    assert capability == {"available": True, "provider": "ai", "providers": ["ai"], "external": True, "reason": None}
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "huggingface")  # listed but no token: not usable
     assert get_image_generation_capability()["available"] is False
+
+
+# --- more free accounts, more providers, hidden names ----------------------
+
+def test_every_extra_account_is_its_own_chain_entry(monkeypatch):
+    monkeypatch.setenv("HUGGINGFACE_API_TOKENS", "a, b ,c")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNTS", "acc1:t1,acc2:t2")
+    monkeypatch.setenv("TOGETHER_API_KEYS", "k1")
+    chain = provider_chain()
+    assert sorted(chain[:6]) == sorted(["huggingface#1", "huggingface#2", "huggingface#3", "cloudflare#1", "cloudflare#2", "together#1"])
+    assert chain[6:] == ["aihorde"]
+
+
+def test_rotation_spreads_load_across_accounts(monkeypatch):
+    monkeypatch.setenv("HUGGINGFACE_API_TOKENS", "a,b,c")
+    first = {provider_chain()[0] for _ in range(60)}
+    assert first == {"huggingface#1", "huggingface#2", "huggingface#3"}
+
+
+def test_each_account_uses_its_own_credential_and_cools_down_alone(monkeypatch, _clean_env):
+    monkeypatch.setenv("HUGGINGFACE_API_TOKENS", "tok1,tok2")
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "huggingface#1,huggingface#2")
+    seen = []
+
+    def post(url, headers=None, **kw):
+        seen.append(headers["Authorization"])
+        return _response(402, content=b"{}", content_type="application/json") if len(seen) == 1 else _response(content=PNG)
+
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=post):
+        image = generate_campaign_image("x")
+    assert seen == ["Bearer tok1", "Bearer tok2"] and _clean_env == {"huggingface#1"}
+    assert image.provider == "huggingface"
+
+
+def test_cloudflare_account_pairs(monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNTS", "acc9:tok9")
+    encoded = base64.b64encode(JPEG).decode()
+    with patch("src.ai.marketing.image_generation.httpx.post",
+               return_value=_response(json_body={"result": {"image": encoded}}, content_type="application/json")) as post:
+        generate_campaign_image("x", provider="cloudflare#1")
+    assert "/accounts/acc9/" in post.call_args.args[0] and post.call_args.kwargs["headers"]["Authorization"] == "Bearer tok9"
+
+
+def test_together_returns_decoded_image_and_busy_on_402(monkeypatch):
+    monkeypatch.setenv("TOGETHER_API_KEYS", "tk")
+    body = {"data": [{"b64_json": base64.b64encode(PNG).decode()}]}
+    with patch("src.ai.marketing.image_generation.httpx.post",
+               return_value=_response(json_body=body, content_type="application/json")):
+        assert generate_campaign_image("x", provider="together#1").content == PNG
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=_response(402, content_type="application/json")):
+        with pytest.raises(image_generation.ProviderBusy):
+            image_generation._generate_via_together("x", credential="tk")
+
+
+def test_pollinations_402_is_busy_not_a_crash():
+    with patch("src.ai.marketing.image_generation.httpx.get", return_value=_response(402, content_type="application/json")):
+        with pytest.raises(image_generation.ProviderBusy):
+            image_generation._generate_via_pollinations("x")
+
+
+def test_aihorde_polls_downloads_and_always_cancels(monkeypatch):
+    monkeypatch.setattr(image_generation.time, "sleep", lambda s: None)
+    checks = iter([{"done": False}, {"done": True}])
+
+    def get(url, **kw):
+        if "/generate/check/" in url:
+            return _response(json_body=next(checks), content_type="application/json")
+        if "/generate/status/" in url:
+            return _response(json_body={"generations": [{"img": "https://r2.example/i.png"}]}, content_type="application/json")
+        return _response(content=PNG)
+
+    with patch("src.ai.marketing.image_generation.httpx.post",
+               return_value=_response(json_body={"id": "job1"}, content_type="application/json")) as post, \
+         patch("src.ai.marketing.image_generation.httpx.get", side_effect=get), \
+         patch("src.ai.marketing.image_generation.httpx.delete") as delete:
+        image = generate_campaign_image("x", provider="aihorde")
+    params = post.call_args.kwargs["json"]["params"]
+    assert image.content == PNG and params["width"] % 64 == 0 and params["height"] % 64 == 0
+    assert post.call_args.kwargs["headers"]["apikey"] == "0000000000"
+    delete.assert_called_once()
+
+
+def test_aihorde_queue_timeout_cancels_and_is_busy(monkeypatch):
+    monkeypatch.setattr(image_generation, "_HORDE_MAX_WAIT", 0.0)
+    with patch("src.ai.marketing.image_generation.httpx.post",
+               return_value=_response(json_body={"id": "job1"}, content_type="application/json")), \
+         patch("src.ai.marketing.image_generation.httpx.delete") as delete:
+        with pytest.raises(image_generation.ProviderBusy):
+            image_generation._generate_via_aihorde("x")
+    delete.assert_called_once()
+
+
+def test_keyless_pollinations_is_never_in_the_default_chain():
+    # Its keyless tier stamps a visible provider watermark on every image.
+    assert "pollinations" not in provider_chain() and image_generation._credentials("pollinations") == []

@@ -324,7 +324,7 @@ def create_campaign_endpoint(body: CampaignCreateRequest, ctx: TenantContext = D
                 conn.rollback()
                 image = {"image_generation_blocked": {"message": err.detail}}
             result = {**data_access.get_campaign(conn, ctx.tenant_id, campaign_id), **{
-                k: v for k, v in image.items() if k in ("image_generation_attempts", "image_generation_blocked")}}
+                k: v for k, v in image.items() if k in ("image_generation_blocked",)}}
             conn.commit()
         return result
     except HTTPException:
@@ -752,7 +752,6 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) 
             return {
                 "campaign_id": campaign_id, "image_generation_status": err.status,
                 "image_generation_provider": None, "image_generation_error": err.message,
-                "image_generation_attempts": getattr(err, "attempts", []),
                 "image_generation_used_reference": False, "image_generation_reference_note": None,
             }
 
@@ -761,8 +760,10 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) 
             client, generated.content, generated.content_type, ctx.tenant_id, campaign_id,
         )
         previous = campaign.get("generated_image_key")
+        # Which free model served it is never stored or shown (operators see it in the server log).
+        logger.info("Campaign %s image served by %s", campaign_id, generated.provider)
         data_access.save_generated_image(
-            conn, ctx.tenant_id, campaign_id, provider=generated.provider, image_key=image_key,
+            conn, ctx.tenant_id, campaign_id, provider="ai", image_key=image_key,
             used_reference=generated.used_reference, reference_note=generated.reference_note,
         )
         storage_ledger.record(conn, ctx.tenant_id, image_storage.GENERATED_IMAGES_BUCKET, image_key,
@@ -779,8 +780,7 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) 
                 logger.exception("Could not delete the replaced image (tenant=%s campaign=%s)", ctx.tenant_id, campaign_id)
         return {
             "campaign_id": campaign_id, "image_generation_status": "COMPLETED",
-            "image_generation_provider": generated.provider, "generated_image_key": image_key,
-            "image_generation_attempts": generated.attempts,
+            "image_generation_provider": "ai", "generated_image_key": image_key,
             "image_generation_used_reference": generated.used_reference,
             "image_generation_reference_note": generated.reference_note,
         }

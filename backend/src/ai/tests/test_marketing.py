@@ -335,10 +335,10 @@ def test_marketing_options_reports_honest_capabilities_when_unconfigured(monkeyp
 
 
 def test_marketing_options_reports_image_generation_available_when_configured(monkeypatch):
-    monkeypatch.setenv("MARKETING_IMAGE_PROVIDER", "pollinations")
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDER", "aihorde")
     response = client.get("/marketing/options", headers=_auth())
     assert response.status_code == 200
-    assert response.json()["capabilities"]["image_generation"] == {"available": True, "provider": "pollinations", "providers": ["pollinations"],
+    assert response.json()["capabilities"]["image_generation"] == {"available": True, "provider": "ai", "providers": ["ai"],
                                                                    "external": True, "reason": None}
 
 
@@ -529,11 +529,12 @@ def test_generate_image_success_stores_and_returns_completed(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["image_generation_status"] == "COMPLETED"
-    assert body["image_generation_provider"] == "pollinations"
+    assert body["image_generation_provider"] == "ai"  # the real provider is never exposed
+    assert "attempts" not in str(body) and "pollinations" not in str(body)
     assert body["generated_image_key"] == "t1/c1/generated.png"
     mock_upload.assert_called_once()
     mock_save.assert_called_once_with(
-        fake_conn, "t1", "c1", provider="pollinations", image_key="t1/c1/generated.png",
+        fake_conn, "t1", "c1", provider="ai", image_key="t1/c1/generated.png",
         used_reference=False, reference_note=None,
     )
     assert body["image_generation_used_reference"] is False
@@ -799,7 +800,7 @@ def test_generate_image_with_reference_selection_loads_and_passes_it_through(mon
     assert body["image_generation_used_reference"] is False
     assert "does not support reference-image generation" in body["image_generation_reference_note"]
     mock_save.assert_called_once_with(
-        fake_conn, "t1", "c1", provider="pollinations", image_key="t1/c1/generated.png",
+        fake_conn, "t1", "c1", provider="ai", image_key="t1/c1/generated.png",
         used_reference=False, reference_note=generated.reference_note,
     )
 
