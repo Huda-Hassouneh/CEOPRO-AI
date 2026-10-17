@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from src.ai import db
+from src.ai.billing import credits
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import product_market
@@ -60,7 +61,7 @@ def _queue_enrichment(tenant_id: str, competitor_id: Optional[str], facets, mode
     )
 
 
-@router.post("/competitors/enrich-failed")
+@router.post("/competitors/enrich-failed", dependencies=[credits.requires_budget(credits.DATA)])
 def enrich_failed_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)):
     """
     "Retry all failed": queues one background job that re-runs every
@@ -92,7 +93,7 @@ def competitor_data_status_endpoint(competitor_id: str, ctx: TenantContext = Dep
     return {"competitor_id": competitor_id, "queued": queued, **status[competitor_id]}
 
 
-@router.post("/competitors/{competitor_id}/enrich")
+@router.post("/competitors/{competitor_id}/enrich", dependencies=[credits.requires_budget(credits.DATA)])
 def enrich_competitor_endpoint(
     competitor_id: str, body: Optional[EnrichCompetitorRequest] = None,
     background: bool = Query(default=False), ctx: TenantContext = Depends(get_tenant_context),
@@ -167,7 +168,7 @@ def market_price_coverage_endpoint(
         conn.close()
 
 
-@router.post("/pricing/market-coverage/fill")
+@router.post("/pricing/market-coverage/fill", dependencies=[credits.requires_budget(credits.DATA)])
 def fill_market_price_gaps_endpoint(ctx: TenantContext = Depends(get_tenant_context)):
     """
     Looks up a market reference price for products that have none: open price

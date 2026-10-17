@@ -81,8 +81,15 @@ def refresh_once(system_connection=None, tenant_connection=None, now: Optional[d
         tenants = due(conn, now=now)
     finally:
         conn.close()
-    result = {"due": len(tenants), "refreshed": 0, "busy": 0, "failed": 0}
+    from src.ai.billing import credits
+
+    result = {"due": len(tenants), "refreshed": 0, "busy": 0, "failed": 0, "no_budget": 0}
     for tenant_id, user_id, radius_km in tenants:
+        try:  # a company whose Data Credits are used up isn't refreshed on a schedule
+            credits.ensure_available(tenant_id, credits.DATA)
+        except credits.BudgetError:
+            result["no_budget"] += 1
+            continue
         conn = tenant_connection(tenant_id, user_id)
         try:
             run_id = pipeline.start_run(conn, tenant_id, user_id, radius_km)

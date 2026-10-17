@@ -331,6 +331,12 @@ def apify_google_reviews(place_id: str, token: str, max_reviews: int = 100, post
     Maps actor. Handles both shapes the actor can return (reviews nested under the place, or one
     review per item). Raises SourceError for a rejected token / failed run."""
     def default_post(url, params, body):
+        # Paid from the company's Data Credits; refused (never sent) when they don't allow it.
+        from src.market_scraper.provider_billing import metered_request
+
+        return metered_request(url, lambda: _apify_post(url, params, body), json_body=body)
+
+    def _apify_post(url, params, body):
         try:
             response = httpx.post(url, params=params, json=body, timeout=180)
         except httpx.HTTPError as exc:

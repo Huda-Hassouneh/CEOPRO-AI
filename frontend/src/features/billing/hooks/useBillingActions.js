@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { billingApi } from '../api/billingApi.js';
 
+export function useUsageHistory(enabled) {
+  return useQuery({ queryKey: ['billing-usage-history'], queryFn: billingApi.getUsageHistory, enabled });
+}
+
 export function useInvoices(enabled) {
   return useQuery({ queryKey: ['billing-invoices'], queryFn: billingApi.getInvoices, enabled });
 }
