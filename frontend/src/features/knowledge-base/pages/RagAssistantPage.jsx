@@ -164,12 +164,13 @@ export function RagAssistantPage() {
           writeStoredSessionId(companyId, null);
         }
         // The banner states the real reason no answer came back.
+        const renewsOn = result?.renewsOn ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(result.renewsOn)) : '—';
         setRequestError(result?.planLimit
-          ? t('ragAssistant.feedback.planLimit', { date: result.renewsOn ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(result.renewsOn)) : '—' })
+          ? t('ragAssistant.feedback.planLimit', { date: renewsOn })
           : result?.busy
             ? t('ragAssistant.feedback.busy', { seconds: result.retryAfterSeconds ?? 30 })
             : result?.reason
-              ? t(`ragAssistant.feedback.reasons.${result.reason}`)
+              ? t(`ragAssistant.feedback.reasons.${result.reason}`, { date: renewsOn })
               : t('ragAssistant.chat.unavailable'));
         return;
       }

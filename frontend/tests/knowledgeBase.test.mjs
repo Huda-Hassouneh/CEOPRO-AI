@@ -136,6 +136,47 @@ test('knowledge base api lists sessions and restores a session\'s messages for a
   assert.deepEqual(missing.messages, []);
 });
 
+test('knowledge base api tells AI Credit refusals apart from a busy provider', async (t) => {
+  // Bodies exactly as the backend's BudgetError handler sends them (billing/credits.py as_http()).
+  const refusals = {
+    'no price': [503, { reason: 'COST_NOT_CONFIGURED', budget: 'ai', message: 'x', limit: null, used: null, remaining: null, period_end: null }],
+    'credits used': [402, { reason: 'BUDGET_EXHAUSTED', budget: 'ai', message: 'x', limit: 500, used: 500, remaining: 0, period_end: '2026-10-31' }],
+    'switched off': [503, { reason: 'PROVIDER_DISABLED', budget: 'ai', message: 'x', limit: null, used: null, remaining: null, period_end: null }],
+    busy: [503, 'The assistant is handling too many questions right now.'],
+  };
+  const server = http.createServer((req, res) => {
+    const [status, detail] = refusals[new URL(req.url, 'http://localhost').searchParams.get('query_text')];
+    res.statusCode = status;
+    res.setHeader('Content-Type', 'application/json');
+    if (typeof detail === 'string') res.setHeader('Retry-After', '12');
+    res.end(JSON.stringify({ detail }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const originalBaseURL = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = originalBaseURL; server.close(); });
+
+  assert.deepEqual(await knowledgeBaseApi.chat({ question: 'no price' }),
+    { available: false, reason: 'notConfigured', renewsOn: null, message: null });
+  assert.deepEqual(await knowledgeBaseApi.chat({ question: 'credits used' }),
+    { available: false, reason: 'creditsExhausted', renewsOn: '2026-10-31', message: null });
+  assert.equal((await knowledgeBaseApi.chat({ question: 'switched off' })).reason, 'serviceSuspended');
+  const busy = await knowledgeBaseApi.chat({ question: 'busy' });
+  assert.equal(busy.busy, true);
+  assert.equal(busy.retryAfterSeconds, 12);
+});
+
+test('every AI Credit refusal reason has an English and an Arabic message', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/features/knowledge-base/api/knowledgeBaseApi.js', import.meta.url), 'utf8');
+  const keys = new Set([...source.matchAll(/^\s+[A-Z_]+: '(\w+)',$/gm)].map((match) => match[1]));
+  assert.ok(keys.size >= 6);
+  for (const locale of ['en', 'ar']) {
+    const messages = JSON.parse(await readFile(new URL(`../src/assets/locales/${locale}.json`, import.meta.url), 'utf8'));
+    for (const key of keys) assert.ok(messages.ragAssistant.feedback.reasons[key], `${locale}: ragAssistant.feedback.reasons.${key}`);
+  }
+});
+
 test('mapDocuments exposes real uploaded documents with their processing status', async () => {
   const { mapDocuments } = await import('../src/features/knowledge-base/api/knowledgeBaseApi.js');
   const docs = mapDocuments({ documents: [

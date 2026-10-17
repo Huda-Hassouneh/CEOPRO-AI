@@ -12,7 +12,8 @@
 #                    discovery, connector sync, maintenance) - needs ./keel start
 #   ./keel seed      load the seven demo companies (asks for a password)
 #   ./keel test      backend and frontend test suites, lint and production build
-#   ./keel llm-check one real request to the assistant's configured LLM provider
+#   ./keel llm-check the assistant's LLM provider: credential, price, model;
+#                    --tenant <id> adds one real, metered request
 #   ./keel check     settings vs backend/KEYS_AND_ACCOUNTS_NEEDED.md (names only)
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -150,7 +151,7 @@ cmd_llm_check() {
   need_setup
   backend_env
   cd backend
-  exec python -m scripts.llm_provider_check
+  exec python -m scripts.llm_provider_check "$@"
 }
 
 cmd_workers() {
@@ -197,7 +198,7 @@ case "${1:-help}" in
   workers) cmd_workers ;;
   seed) cmd_seed ;;
   test) cmd_test ;;
-  llm-check) cmd_llm_check ;;
+  llm-check) shift; cmd_llm_check "$@" ;;
   check) cmd_check ;;
-  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
 esac
