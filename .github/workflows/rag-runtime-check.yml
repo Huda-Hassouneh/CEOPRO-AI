@@ -16,6 +16,7 @@ on:
     paths:
       - backend/src/ai/rag/**
       - backend/src/ai/core/ml_runtime.py
+      - backend/Dockerfile.ai
       - backend/src/ai/requirements.txt
       - backend/scripts/rag_runtime_check.py
       - .github/workflows/rag-runtime-check.yml
@@ -82,8 +83,20 @@ jobs:
           RAG_RERANKER_ENABLED: "false"
         run: python -m scripts.rag_runtime_check --max-peak-mb 1024
 
-      # What keel-ai-staging runs on Render's 512 MB free plan (render.yaml).
-      - name: Free-plan stack - keyword search only - within 512 MB
+      # What keel-ai-staging runs on Render's 512 MB free plan (render.yaml):
+      # semantic search with the static multilingual model, in-process, no torch.
+      - name: Free-plan stack - static multilingual embeddings - within 512 MB
+        if: always()
+        working-directory: backend
+        env:
+          RAG_EMBEDDING_BACKEND: static
+          RAG_RERANKER_ENABLED: "false"
+        run: |
+          python -c "from src.ai.rag import embeddings; print(embeddings.prepare_static())"
+          python -m scripts.rag_runtime_check --max-peak-mb 512
+
+      # The fallback when no embedding model can be used at all.
+      - name: Keyword search only - within 512 MB
         if: always()
         working-directory: backend
         env:

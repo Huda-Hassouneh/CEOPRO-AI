@@ -215,17 +215,20 @@ def replace_document_chunks(
             )
 
 
-def load_chunks_missing_embeddings(conn, tenant_id: str, limit: int = 256) -> List[Tuple[str, str]]:
-    """(chunk_id, text) for chunks stored without a vector."""
+def load_chunks_missing_embeddings(conn, tenant_id: str, limit: int = 256,
+                                   model_version: Optional[str] = None) -> List[Tuple[str, str]]:
+    """(chunk_id, text) for chunks stored without a vector - or, given
+    model_version, with a vector from any other model (to be re-embedded)."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
             SELECT chunk_id, chunk_text_content FROM rag_document_chunks
-            WHERE tenant_id = %s AND embedding IS NULL
+            WHERE tenant_id = %s
+              AND (embedding IS NULL OR (%s::text IS NOT NULL AND embedding_model_version IS DISTINCT FROM %s::text))
             ORDER BY document_id, chunk_index
             LIMIT %s;
             """,
-            (tenant_id, limit),
+            (tenant_id, model_version, model_version, limit),
         )
         return [(str(chunk_id), text) for chunk_id, text in cursor.fetchall()]
 
@@ -247,12 +250,15 @@ def set_chunk_embeddings(conn, tenant_id: str, chunk_ids: List[str], embeddings:
         )
 
 
-def load_tenant_chunks(conn, tenant_id: str) -> List[Tuple[str, str, Optional[np.ndarray]]]:
-    """Returns every persisted (chunk_id, chunk_text, embedding) row for a tenant, oldest first."""
+def load_tenant_chunks(conn, tenant_id: str,
+                       model_version: Optional[str] = None) -> List[Tuple[str, str, Optional[np.ndarray]]]:
+    """Returns every persisted (chunk_id, chunk_text, embedding) row for a tenant, oldest first.
+    Given model_version, a vector made by any other model comes back as None:
+    vectors from different models can't be compared."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT chunk_id, chunk_text_content, embedding
+            SELECT chunk_id, chunk_text_content, embedding, embedding_model_version
             FROM rag_document_chunks
             WHERE tenant_id = %s
             ORDER BY document_id, chunk_index;
@@ -262,6 +268,8 @@ def load_tenant_chunks(conn, tenant_id: str) -> List[Tuple[str, str, Optional[np
         rows = cursor.fetchall()
 
     return [
-        (str(chunk_id), text, _from_pgvector_literal(embedding) if embedding is not None else None)
-        for chunk_id, text, embedding in rows
+        (str(chunk_id), text,
+         _from_pgvector_literal(embedding) if embedding is not None and (model_version is None or version == model_version)
+         else None)
+        for chunk_id, text, embedding, version in rows
     ]
