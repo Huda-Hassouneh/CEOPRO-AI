@@ -50,7 +50,7 @@ from typing import Optional
 
 from src.ai.dashboard.competitor_activity import LEVEL_HIGH, LEVEL_LOW, LEVEL_MEDIUM, get_market_activity_levels
 from src.ai.pricing.competitor_classification import TIER_RELEVANT, TIER_STRATEGIC
-from src.ai.sentiment.data_access import load_aggregate_sentiment_by_competitor
+from src.ai.sentiment.data_access import load_agreement_weighted_sentiment_by_competitor, load_aggregate_sentiment_by_competitor
 from src.market_scraper.geo import maps_url
 from src.market_scraper.competitor_enrichment import load_data_completeness
 from src.market_scraper.scoring import composite_score, price_competitiveness
@@ -256,6 +256,13 @@ def get_competitor_directory(
 
     sentiment_by_competitor = load_aggregate_sentiment_by_competitor(conn, tenant_id)
     activity_by_competitor = get_market_activity_levels(conn, tenant_id)
+    # Likes as agreement ("N people agree"): additive, and never allowed to take the directory down.
+    try:
+        agreement_by_competitor = load_agreement_weighted_sentiment_by_competitor(conn, tenant_id)
+    except Exception:  # noqa: BLE001
+        conn.rollback()
+        logger.exception("could not load agreement-weighted sentiment for tenant %s", tenant_id)
+        agreement_by_competitor = {}
     # Additive field: a problem computing it must never take the whole
     # directory down (it only explains gaps; it is not the directory).
     try:
@@ -346,6 +353,8 @@ def get_competitor_directory(
             "weakness_codes": [_TRAIT_CODES[text] for text in weaknesses],
             "product_overlap_pct": overlap_pct,
             "data_completeness": completeness_by_competitor.get(global_competitor_id),
+            "agreement_weighted_sentiment_score": agreement_by_competitor.get(global_competitor_id, {}).get("agreement_weighted_score"),
+            "people_agreeing": agreement_by_competitor.get(global_competitor_id, {}).get("people_agreeing"),
         }
 
         if tier == TIER_STRATEGIC:
