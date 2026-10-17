@@ -137,7 +137,9 @@ def test_due_mode_skips_permanent_misses_but_force_mode_retries_them_and_fixed_s
     blocked_key = _register(conn, tenant_id, url="https://nokey.example", title="No Key")
     done = _register(conn, tenant_id, url="https://done.example", title="Done")
     for cid in (permanent, transient, blocked_key, done):
+        # SOCIAL_LINKS and REVIEWS are settled for all four, so only PROFILE decides who is picked.
         ce._write_ledger(conn, tenant_id, cid, ce.FACET_SOCIAL_LINKS, ce.STATUS_SUCCEEDED)
+        ce._write_ledger(conn, tenant_id, cid, ce.FACET_REVIEWS, ce.STATUS_SUCCEEDED)
     ce._write_ledger(conn, tenant_id, done, ce.FACET_PROFILE, ce.STATUS_SUCCEEDED)
     ce._write_ledger(conn, tenant_id, permanent, ce.FACET_PROFILE, ce.STATUS_FAILED, ce.NO_MATCH, "x")
     ce._write_ledger(conn, tenant_id, transient, ce.FACET_PROFILE, ce.STATUS_FAILED, ce.PROVIDER_ERROR, "x")
