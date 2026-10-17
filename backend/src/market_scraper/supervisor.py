@@ -29,6 +29,7 @@ WORKERS: Dict[str, str] = {
     "prices": "src.market_scraper.worker",
     "analysis": "src.market_scraper.analysis_worker",
     "discovery": "src.market_scraper.discovery_worker",
+    "enrichment": "src.market_scraper.enrichment_worker",
     "connectors": "src.market_scraper.connector_worker",
     "maintenance": "src.market_scraper.maintenance",
 }
