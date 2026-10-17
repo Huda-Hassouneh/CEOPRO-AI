@@ -13,7 +13,7 @@ GROUPS = {
     "pricing": ("competitor_price", "price_gap"),
     "market": ("new_competitors",),
     "data": ("import_failed",),
-    "billing": ("payment_failed", "trial_ending"),
+    "billing": ("payment_failed", "trial_ending", "credits_low", "credits_exhausted"),
 }
 GROUP_OF_KIND = {kind: group for group, kinds in GROUPS.items() for kind in kinds}
 FREQUENCIES = ("off", "daily", "weekly")

@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 
 from src.ai import db
-from src.ai.billing import config, service, store, stripe_api, webhooks
+from src.ai.billing import config, credits, service, store, stripe_api, webhooks
 from src.ai.core import usage
 from src.ai.core.security import TenantContext, get_tenant_context
 
@@ -25,12 +25,16 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 
 _BILLING_ROLES = {"owner", "admin", "accountant"}
 
-# feature_code -> the Billing page's usage key, and a unit conversion. Only the
-# owner's agreed plan terms are shown; web_searches is an internal budget.
+# feature_code -> the Billing page's usage key, and a unit conversion. Only
+# plan terms customers see: web_searches and the assistant's token cap are
+# internal safety limits, and competitors have no fixed count (they depend
+# on market discovery and the Data Credit budget).
 _PAGE_KEYS = {
     usage.TRACKED_PRODUCTS: ("products", 1),
-    usage.TRACKED_COMPETITORS: ("competitors", 1),
-    usage.RAG_ASSISTANT: ("aiTokens", 1),
+    usage.MONTHLY_REPORTS: ("reports", 1),
+    usage.TEAM_SEATS: ("teamSeats", 1),
+    usage.DATA_CREDITS: ("dataCredits", 1),
+    usage.AI_CREDITS: ("aiCredits", 1),
     usage.IMAGE_GENERATION: ("imageGenerations", 1),
     usage.DOCUMENT_STORAGE_MB: ("storageGb", 1 / 1024),
     usage.DOCUMENT_EXTRACTION: ("documentProcessingMb", 1 / 1024),
@@ -103,9 +107,19 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         trial = store.trial(conn, ctx.tenant_id)
         has_customer = store.customer_id(conn, ctx.tenant_id) is not None
         can_manage = _role(conn, ctx.tenant_id, ctx.user_id) in _BILLING_ROLES
+        budgets = credits.summary(conn, ctx.tenant_id)
         conn.commit()
     finally:
         conn.close()
+    trial_available = False
+    if not trial and not subscription:
+        # The per-person check needs this person's other companies, which
+        # this company's own connection can't see.
+        sys_conn = db.system_connection()
+        try:
+            trial_available = store.trial_eligibility(sys_conn, ctx.tenant_id, config.trial_plan_key(), ctx.user_id) is None
+        finally:
+            sys_conn.close()
     limits, used = {}, {}
     for item in features:
         if item["feature_code"] not in _PAGE_KEYS:
@@ -143,7 +157,75 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         "usage": used,
         "features": features,
         "entitlements": plan.get("entitlements", []),
+        # Data and AI Credits, separately: limit, used, remaining, warning
+        # threshold reached and reset date. Never provider prices or costs.
+        "credits": budgets,
+        "trialAvailable": trial_available,
+        "trialEndsAtExact": _iso(plan.get("trial_ends_at")),
     }
+
+
+@router.get("/usage-history")
+def usage_history(limit: int = 50, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Recent metered operations (what used Data or AI Credits, and their
+    status). Credits only - never provider prices, costs or raw responses."""
+    limit = max(1, min(200, limit))
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        items = credits.history(conn, ctx.tenant_id, limit)
+        conn.commit()
+    finally:
+        conn.close()
+    return {"items": items}
+
+
+class TrialChoice(BaseModel):
+    plan_key: str
+
+
+@router.post("/trial")
+def start_trial(body: TrialChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """A company that never had a trial (and has no plan) starts one on the
+    plan it picks, for that plan's trial length. Checked on the server: one
+    trial per company, one per person, self-serve plans only. No payment is
+    taken and nothing converts to a paid plan without a checkout."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        conn.commit()
+    finally:
+        conn.close()
+    sys_conn = db.system_connection()
+    try:
+        reason = store.trial_eligibility(sys_conn, ctx.tenant_id, body.plan_key, ctx.user_id)
+        if reason:
+            raise HTTPException(status_code=409, detail={"reason": reason, "message": _TRIAL_REFUSALS.get(reason, _TRIAL_REFUSALS["trial_already_used"])})
+        granted = store.start_trial(sys_conn, ctx.tenant_id, started_by_user_id=ctx.user_id, plan_key=body.plan_key)
+        if not granted:
+            sys_conn.rollback()
+            raise HTTPException(status_code=409, detail={"reason": "trial_already_used", "message": _TRIAL_REFUSALS["trial_already_used"]})
+        sys_conn.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        sys_conn.rollback()
+        raise
+    finally:
+        sys_conn.close()
+    from src.ai.core import entitlements
+
+    entitlements.forget(ctx.tenant_id)
+    return {"plan_key": granted["plan_key"], "started_at": granted["started_at"].isoformat(),
+            "ends_at": granted["ends_at"].isoformat()}
+
+
+_TRIAL_REFUSALS = {
+    "plan_has_no_trial": "This plan doesn't offer a free trial.",
+    "trial_already_used": "Your company has already used its free trial.",
+    "trial_already_used_by_person": "You've already used a free trial with another company.",
+    "plan_already_assigned": "Your company already has a plan.",
+    "subscription_exists": "Your company already has a subscription.",
+}
 
 
 @router.get("/invoices")

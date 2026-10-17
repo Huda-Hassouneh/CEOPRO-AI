@@ -22,6 +22,7 @@ from typing import Callable, Dict, List, Optional
 from src.ai.pricing import currency as fx
 from src.market_scraper.price_lookup import matching, providers
 from src.market_scraper.price_lookup.models import PriceQuote, ProductContext, ProviderError, ProviderUnavailable
+from src.ai.billing import credits
 
 logger = logging.getLogger("KEEL_PRICE_LOOKUP")
 
@@ -116,6 +117,7 @@ def _record_lookup(conn, tenant_id: str, ctx: ProductContext, outcome: str, trie
         )
 
 
+@credits.metered("price_lookup")
 def lookup_product(conn, tenant_id: str, ctx: ProductContext, instances: Dict[str, object], order: List[str], all_providers: bool = False) -> dict:
     tried, kept, errors, unavailable = [], 0, 0, 0
     for name in order:
@@ -157,6 +159,7 @@ def lookup_product(conn, tenant_id: str, ctx: ProductContext, instances: Dict[st
     return {"product_id": ctx.product_id, "outcome": outcome, "providers_tried": tried, "quotes_kept": kept}
 
 
+@credits.metered("price_lookup")
 def lookup_missing_prices(
     conn, tenant_id: str, limit: Optional[int] = None, force: bool = False, provider_instances: Optional[Dict[str, object]] = None,
 ) -> dict:

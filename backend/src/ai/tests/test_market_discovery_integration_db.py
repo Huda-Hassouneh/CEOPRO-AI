@@ -196,7 +196,7 @@ def test_stale_discovery_is_refreshed_on_schedule_and_fresh_is_left_alone():
         outcome = refresh.refresh_once(now=later, providers=(source,))
     finally:
         refresh.due = real_due
-    assert outcome == {"due": 1, "refreshed": 1, "busy": 0, "failed": 0} and source.calls == 1
+    assert outcome == {"due": 1, "refreshed": 1, "busy": 0, "failed": 0, "no_budget": 0} and source.calls == 1
     conn = db.dedicated_tenant_connection(tenant, user)
     try:
         names = sorted(c["name"] for c in discovered_competitors.list_competitors(conn, tenant)["competitors"])

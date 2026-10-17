@@ -8,6 +8,7 @@ os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
 os.environ.setdefault("FORECAST_AUTO_REFRESH", "0")
 os.environ.setdefault("DISCOVERY_REFRESH_ENABLED", "0")
 os.environ.setdefault("NOTIFICATION_DIGEST_ENABLED", "0")
+os.environ.setdefault("BILLING_MAINTENANCE_ENABLED", "0")
 os.environ.setdefault("API_RATE_LIMIT_ENABLED", "false")  # test_rate_limit.py turns it on
 # Discovery tests never fetch real competitor websites.
 os.environ.setdefault("DISCOVERY_ENRICH_MAX_SITES", "0")
@@ -17,6 +18,12 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 # give unit tests a throwaway one so they don't depend on the developer's shell.
 os.environ.setdefault("CREDENTIAL_VAULT_KMS_BACKEND", "local")
 os.environ.setdefault("CREDENTIAL_VAULT_MASTER_KEY", "x6M1l3m0V0kq0cV8k2Yb3m1c1ZkQe0Qm9d7mP2l1nQ4=")
+# Tests written before plan assignments existed create companies directly:
+# give them the default plan. Billing tests set "none" (production) themselves.
+os.environ.setdefault("UNASSIGNED_PLAN_ACCESS", "default")
+# Provider tests mock HTTP without a database; the credit tests turn metering
+# back on (billing/credits.py honours this only under pytest).
+os.environ.setdefault("KEEL_TEST_DISABLE_METERING", "1")
 
 import time
 
@@ -100,7 +107,8 @@ def _no_plan_limits_for_mocked_connections(request, monkeypatch):
     the usage queries; plan enforcement itself is covered against a real
     database in test_usage_integration_db.py (left unpatched)."""
     if request.module.__name__.endswith(("test_usage_integration_db", "test_billing_integration_db",
-                                          "test_plan_catalog_integration_db")):
+                                          "test_plan_catalog_integration_db", "test_credits_integration_db",
+                                          "test_subscription_limits_integration_db")):
         return
     from src.ai.core import entitlements, usage
     monkeypatch.setattr(usage, "reserve", lambda conn, tenant_id, feature_code, amount=1: {

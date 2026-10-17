@@ -15,9 +15,10 @@ import { PlanCard } from '../components/PlanCard.jsx';
 import { PlanComparisonTable } from '../components/PlanComparisonTable.jsx';
 import { PeriodSelector } from '../components/PeriodSelector.jsx';
 import { InvoiceList } from '../components/InvoiceList.jsx';
+import { CreditBudgets, UsageHistory } from '../components/CreditBudgets.jsx';
 import { usePlans } from '../hooks/usePlans.js';
 import { useSubscription } from '../hooks/useSubscription.js';
-import { useBillingAction, useInvoices } from '../hooks/useBillingActions.js';
+import { useBillingAction, useInvoices, useUsageHistory } from '../hooks/useBillingActions.js';
 import { errorReason } from '../api/billingApi.js';
 import { getUpgradeRecommendation } from '../utils/subscriptionRecommendations.js';
 import { formatMoney } from '../utils/money.js';
@@ -29,6 +30,7 @@ const KNOWN_ERRORS = new Set([
   'payments_not_configured', 'price_not_synced', 'subscription_exists', 'plan_not_available', 'contact_sales',
   'no_billing_account', 'no_subscription', 'payment_required', 'cancellation_pending', 'already_on_plan',
   'downgrade_scheduled', 'already_scheduled', 'already_cancelling', 'not_cancelling', 'provider_error',
+  'trial_already_used', 'trial_already_used_by_person', 'plan_has_no_trial', 'plan_already_assigned',
 ]);
 
 export function PlansSubscriptionPage() {
@@ -48,6 +50,8 @@ export function PlansSubscriptionPage() {
   const cancel = useBillingAction('cancel');
   const resume = useBillingAction('resume');
   const cancelScheduled = useBillingAction('cancelScheduledChange');
+  const startTrial = useBillingAction('startTrial');
+  const historyQuery = useUsageHistory(Boolean(subscription));
   const [billingPeriod, setBillingPeriod] = useState('monthly');
   const [confirm, setConfirm] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -77,7 +81,7 @@ export function PlansSubscriptionPage() {
   const currentPlan = plans.find((plan) => plan.id === subscription.planId)
     || { id: subscription.planId, name: { en: subscription.planName, ar: subscription.planName }, limits: subscription.limits || {}, prices: {}, selfServe: false };
   const canManage = subscription.canManageBilling;
-  const busy = checkout.isPending || changePlan.isPending || portal.isPending || cancel.isPending || resume.isPending || cancelScheduled.isPending;
+  const busy = checkout.isPending || changePlan.isPending || portal.isPending || cancel.isPending || resume.isPending || cancelScheduled.isPending || startTrial.isPending;
 
   const fail = (error) => {
     const reason = errorReason(error);
@@ -102,6 +106,8 @@ export function PlansSubscriptionPage() {
     const isCurrent = plan.id === currentPlan.id && (!subscription.hasSubscription || billingPeriod === subscription.billingPeriod);
     if (!plan.selfServe) return { label: t('billing.management.contactSales'), disabled: !SUPPORT_EMAIL, hint: SUPPORT_EMAIL ? null : t('billing.management.contactTeam'), onAction: () => { window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('KEEL Custom plan')}`; } };
     if (!canManage) return { label: isCurrent && subscription.hasSubscription ? t('billing.management.currentPlan') : t('billing.management.askOwner'), disabled: true };
+    // A company that never had a trial can start one (no payment; checked again on the server).
+    if (subscription.trialAvailable && plan.trialDays > 0) return { label: t('billing.management.startTrial', { days: plan.trialDays }), onAction: () => run(startTrial, { planId: plan.id }, 'billing.management.trialStarted') };
     if (!paymentsEnabled) return { label: t('billing.management.paymentsUnavailable'), disabled: true };
     if (!plan.prices?.[billingPeriod]?.purchasable) return { label: t('billing.management.notAvailable'), disabled: true };
     if (subscription.hasSubscription) {
@@ -130,7 +136,12 @@ export function PlansSubscriptionPage() {
     </div>}
     {['failed', 'expired'].includes(subscription.status) && <div className="billing-provider-note is-warning" role="alert">{t(`billing.management.statusHelp.${subscription.status}`)}</div>}
 
+    <section className="billing-management-section" aria-labelledby="credits-title"><header><h2 id="credits-title">{t('billing.management.credits.title')}</h2><p>{t('billing.management.credits.subtitle')}</p></header>
+      <CreditBudgets credits={subscription.credits} locale={locale} t={t} formatDate={formatDate} />
+      <p className="billing-credit-note">{t('billing.management.credits.competitorNote')}{subscription.credits?.top_ups_enabled ? '' : ` ${t('billing.management.credits.topUpsUnavailable')}`}</p>
+    </section>
     <section className="billing-management-section" aria-labelledby="usage-title"><header><h2 id="usage-title">{t('billing.management.usageTitle')}</h2><p>{t('billing.management.usageSubtitle')}</p></header><UsageLimitGrid usage={subscription.usage} limits={subscription.limits} locale={locale} t={t} /></section>
+    <section className="billing-management-section" aria-labelledby="history-title"><header><h2 id="history-title">{t('billing.management.credits.historyTitle')}</h2></header>{historyQuery.isPending ? <Skeleton height="80px" /> : <UsageHistory items={historyQuery.data} locale={locale} t={t} />}</section>
     <UpgradeRecommendation recommendation={recommendation} onCompare={() => compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} t={t} />
 
     <section ref={compareRef} className="billing-management-section billing-compare-section" aria-labelledby="compare-title">
