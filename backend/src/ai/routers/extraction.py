@@ -254,6 +254,8 @@ def _summary_response(
             "rows_failed": promotion_summary.rows_failed,
             "rows_duplicate": promotion_summary.rows_duplicate,
             "products_created": promotion_summary.products_created,
+            "barcodes_applied": promotion_summary.barcodes_applied,
+            "products_matched_by_barcode": promotion_summary.products_matched_by_barcode,
             "rows_over_product_limit": promotion_summary.rows_over_product_limit,
             "errors": promotion_summary.errors,
         }
