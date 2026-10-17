@@ -199,6 +199,5 @@ def probe_onnx():
         cosine = [round(float(np.dot(a, b)), 4) for a, b in zip(vectors, reference)]
         print(f"ONNX {file_name}: peak memory {round(out['peak_rss_mb'])} MB, cosine vs torch model {cosine}")
 
-
 if __name__ == "__main__":
     sys.exit(main())
