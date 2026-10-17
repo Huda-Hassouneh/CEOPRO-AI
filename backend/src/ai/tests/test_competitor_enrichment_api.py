@@ -4,6 +4,7 @@ Retry (synchronous and background) and "retry all failed". DB, Redis and the
 enrichment logic are mocked; the logic itself is covered by
 market_scraper/tests/test_competitor_enrichment.py.
 """
+import json
 import os
 from unittest.mock import MagicMock, patch
 
@@ -138,3 +139,37 @@ def test_market_coverage_requires_auth_and_returns_the_report_for_the_callers_te
     coverage.assert_called_once_with(conn, "t1", True, 10, 5)
     assert connect.call_args.args[0] == "t1"
     assert client.get("/pricing/market-coverage?limit=0", headers=_auth()).status_code == 422
+
+
+def test_fill_market_price_gaps_queues_a_tenant_wide_prices_job():
+    assert client.post("/pricing/market-coverage/fill").status_code == 401
+    with patch(f"{R}._enrichment_redis"), patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value="9-0") as enqueue:
+        response = client.post("/pricing/market-coverage/fill", headers=_auth())
+    assert response.status_code == 202 and response.json()["mode"] == "prices"
+    assert enqueue.call_args.args[1:] == ("t1", None, None, "prices")
+
+
+def test_market_prices_lists_a_products_reference_prices_without_naming_the_vendor():
+    from datetime import datetime, timezone
+    conn = MagicMock()
+    cursor = conn.cursor.return_value.__enter__.return_value
+    cursor.fetchone.return_value = (1,)
+    cursor.fetchall.return_value = [(
+        "Shop", "Nutella 350g", "https://shop.example/p", 3.4, "JOD", 4.6, 128, 1.0, True, "serpapi_shopping",
+        datetime(2026, 10, 18, tzinfo=timezone.utc),
+    ), ("Far", "Nutella", None, 90, "JOD", None, None, 0.9, False, "web_offers", datetime(2026, 10, 18, tzinfo=timezone.utc))]
+    with patch(f"{R}.db.app_role_connection", return_value=conn):
+        response = client.get(f"/pricing/market-prices/{COMP}", headers=_auth())
+    assert response.status_code == 200
+    prices = response.json()["prices"]
+    assert prices[0]["seller"] == "Shop" and prices[0]["rating"] == 4.6 and prices[0]["review_count"] == 128 and prices[0]["counted"] is True
+    assert prices[1]["counted"] is False
+    assert "serpapi" not in json.dumps(response.json()).lower()
+
+
+def test_market_prices_is_404_for_an_unknown_product_and_422_for_a_bad_id():
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = None
+    with patch(f"{R}.db.app_role_connection", return_value=conn):
+        assert client.get(f"/pricing/market-prices/{COMP}", headers=_auth()).status_code == 404
+    assert client.get("/pricing/market-prices/nope", headers=_auth()).status_code == 422

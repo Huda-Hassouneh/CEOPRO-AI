@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from src.ai import db
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
+from src.ai.market_inputs import public_sources
 from src.market_scraper import competitor_enrichment, enrichment_queue, price_coverage
 
 router = APIRouter(tags=["competitors"])
@@ -159,3 +160,59 @@ def market_price_coverage_endpoint(
         raise
     finally:
         conn.close()
+
+
+@router.post("/pricing/market-coverage/fill")
+def fill_market_price_gaps_endpoint(ctx: TenantContext = Depends(get_tenant_context)):
+    """
+    Looks up a market reference price for products that have none: open price
+    databases, sellers' public product pages found by web search, and (when
+    set up) a shopping search - cheapest source first, bounded per run
+    (price_lookup/pipeline.py). Queued for the background worker (202); watch
+    GET /pricing/market-coverage. Products already looked up recently are
+    skipped, so repeating this does not re-spend.
+    """
+    return _queue_enrichment(ctx.tenant_id, None, None, enrichment_queue.MODE_PRICES)
+
+
+@router.get("/pricing/market-prices/{product_id}")
+def list_market_prices_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """The market reference prices found for one product: seller, price, the
+    listing's own star rating and review count when it shows them, and a link
+    to the public page. `counted` is false for a price far from the product's
+    own price (kept for inspection, not counted as coverage)."""
+    product_id = _competitor_uuid(product_id)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM products WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;",
+                (ctx.tenant_id, product_id),
+            )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Product not found.")
+            cursor.execute(
+                """
+                SELECT seller_name, product_title, source_url, price, currency, rating, review_count,
+                       match_score, plausible, provider, observed_at
+                FROM market_price_observations WHERE tenant_id = %s AND product_id = %s
+                ORDER BY (plausible IS NOT FALSE) DESC, observed_at DESC, price LIMIT 50;
+                """,
+                (ctx.tenant_id, product_id),
+            )
+            rows = cursor.fetchall()
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"product_id": product_id, "prices": [
+        {
+            "seller": seller, "listing_title": title, "url": public_sources.public_url(public_sources.category(provider), url),
+            "price": float(price), "currency": currency, "rating": float(rating) if rating is not None else None,
+            "review_count": review_count, "match_score": round(score, 2), "counted": plausible is not False,
+            "source": public_sources.category(provider), "observed_at": observed_at.isoformat(),
+        }
+        for seller, title, url, price, currency, rating, review_count, score, plausible, provider, observed_at in rows
+    ]}
