@@ -85,3 +85,8 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - **Behaviour** — a product that has no barcode gets the file's (fill-only: an existing barcode is never overwritten, and a barcode already owned by another product is not reused). A row whose product name is new but whose barcode belongs to an existing product is recorded against that product instead of creating a duplicate. Duplicate-row detection is unchanged (the barcode is not part of a row's identity).
 - **API** — `POST /extraction/upload` promotion summary gains `barcodes_applied` and `products_matched_by_barcode`.
 
+## - 2026-10-18 (barcode prompts)
+### Added (additive)
+- **API** — `GET /pricing/market-coverage`: each product carries `has_barcode` and, for a price gap with no barcode, `suggestion: "add_barcode"`; summary gains `products_without_barcode` and `gaps_without_barcode`. New query `missing_barcode=true` lists every product without a barcode (price gaps first) as the owner's worklist.
+- **API** — `GET /onboarding/status` gains `barcodes` {products, with_barcode, coverage_pct} (omitted if it cannot be computed; the existing keys are unchanged).
+
