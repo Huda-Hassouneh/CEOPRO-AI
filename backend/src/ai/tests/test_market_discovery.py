@@ -99,7 +99,7 @@ def test_overpass_query_and_parse():
 
 
 def test_providers_without_keys_skip_instead_of_inventing(monkeypatch):
-    for name in ("GOOGLE_PLACES_API_KEY", "GOOGLE_MAPS_API_KEY", "APIFY_TOKEN", "GOOGLE_CUSTOM_SEARCH_API_KEY",
+    for name in ("GOOGLE_PLACES_API_KEY", "GOOGLE_MAPS_API_KEY", "APIFY_API_TOKEN", "APIFY_TOKEN", "GOOGLE_CUSTOM_SEARCH_API_KEY",
                  "GOOGLE_CUSTOM_SEARCH_CX", "SEARXNG_INSTANCE_URL", "TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     for provider in (google_places, apify_maps, web_search):
@@ -172,6 +172,66 @@ def test_apify_parse():
              {"title": "Gone", "placeId": "p2", "permanentlyClosed": True}]
     found = apify_maps.parse(items, _query("pharmacy"))
     assert [c.name for c in found] == ["Reem Pharmacy"] and found[0].industry_key == "pharmacy"
+
+
+def test_apify_reads_the_documented_token_name_and_the_older_one(monkeypatch):
+    monkeypatch.delenv("APIFY_TOKEN", raising=False)
+    monkeypatch.setenv("APIFY_API_TOKEN", "documented-name")
+    assert apify_maps.available() == (True, None)
+    monkeypatch.delenv("APIFY_API_TOKEN")
+    monkeypatch.setenv("APIFY_TOKEN", "older-name")
+    assert apify_maps.available() == (True, None)
+
+
+def test_apify_token_goes_in_the_header_never_the_url(monkeypatch):
+    monkeypatch.setenv("APIFY_API_TOKEN", "secret-apify-token")
+    sent = {}
+
+    def answer(method, url, **kwargs):
+        sent.update(url=url, **kwargs)
+        return [{"title": "Reem Pharmacy", "placeId": "p1", "categories": ["Pharmacy"]}]
+
+    monkeypatch.setattr(apify_maps, "request_json", answer)
+    result = apify_maps.search(_query("pharmacy"))
+    assert result.status == "ok" and [c.name for c in result.candidates] == ["Reem Pharmacy"]
+    assert sent["headers"] == {"Authorization": "Bearer secret-apify-token"}
+    assert "secret-apify-token" not in sent["url"] and "secret-apify-token" not in str(sent.get("params"))
+
+
+def test_apify_failures_name_the_cause_without_logging_the_token(monkeypatch, caplog):
+    import httpx
+
+    monkeypatch.setenv("APIFY_API_TOKEN", "secret-apify-token")
+    url = "https://api.apify.com/v2/acts/a~b/run-sync-get-dataset-items?token=secret-apify-token"
+    failures = {
+        "auth_failed": httpx.HTTPStatusError("401", request=httpx.Request("POST", url), response=httpx.Response(401)),
+        "unreachable": httpx.HTTPStatusError("502", request=httpx.Request("POST", url), response=httpx.Response(502)),
+        "timeout": httpx.ReadTimeout(f"timed out: {url}"),
+    }
+    for reason, error in failures.items():
+        def boom(*args, _error=error, **kwargs):
+            raise _error
+
+        monkeypatch.setattr(apify_maps, "request_json", boom)
+        result = apify_maps.search(_query())
+        assert (result.status, result.reason, result.candidates) == ("failed", reason, [])
+    assert "secret-apify-token" not in caplog.text
+
+
+def test_deployments_hand_the_apify_token_to_the_service_that_runs_discovery():
+    """Discovery (and its Apify source) runs in the ai service: src/ai/main.py
+    and routers/discovery.py. A token that never reaches it silently skips Apify."""
+    from pathlib import Path
+
+    import yaml
+
+    backend = Path(__file__).resolve().parents[3]
+    render = yaml.safe_load((backend.parent / "render.yaml").read_text())
+    api = next(s for s in render["services"] if s["name"] == "keel-ai-staging")
+    assert "APIFY_API_TOKEN" in {v["key"] for v in api["envVars"]}
+    compose = yaml.safe_load((backend / "docker-compose.yml").read_text())
+    assert "APIFY_API_TOKEN" in compose["services"]["ai"]["environment"]
+    assert "APIFY_API_TOKEN=" in (backend / ".env.example").read_text()
 
 
 def test_web_search_drops_listings_marketplaces_and_listicles():
