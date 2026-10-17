@@ -480,6 +480,11 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-1500}
+      # Retrieval models (src/ai/rag/embeddings.py, pipeline.py): torch
+      # (default, ~2 GB peak with the re-ranker), onnx (~830 MB, no torch) or
+      # none (keyword search only, ~300 MB) - see render.yaml for the numbers.
+      RAG_EMBEDDING_BACKEND: ${RAG_EMBEDDING_BACKEND:-torch}
+      RAG_RERANKER_ENABLED: ${RAG_RERANKER_ENABLED:-true}
       # Set to route generation at the llm-local service below (or any other
       # OpenAI-compatible endpoint) instead of Groq - leave blank for Groq,
       # the unchanged default. From inside this container, the llm-local
