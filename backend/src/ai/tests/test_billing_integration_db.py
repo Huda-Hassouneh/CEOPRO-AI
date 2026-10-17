@@ -285,8 +285,14 @@ def test_a_company_can_only_read_its_own_billing_rows(sys_conn):
     store.save_customer(sys_conn, a, f"cus_{uuid.uuid4().hex[:10]}")
     sys_conn.commit()
     with sys_conn.cursor() as cursor:
-        cursor.execute("SELECT user_id FROM users LIMIT 1;")
+        # Create the user: a fresh database has none, and this test must not
+        # depend on rows another test happened to leave behind.
+        cursor.execute(
+            "INSERT INTO users (email, password_hash) VALUES (%s, 'x') RETURNING user_id;",
+            (f"billing-iso-{uuid.uuid4().hex[:10]}@example.com",),
+        )
         any_user = str(cursor.fetchone()[0])
+    sys_conn.commit()
     conn_b = db.dedicated_tenant_connection(b, any_user)
     try:
         assert store.customer_id(conn_b, a) is None
