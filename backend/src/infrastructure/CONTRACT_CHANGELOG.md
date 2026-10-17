@@ -67,3 +67,10 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 ### Added (additive)
 - **API** — `GET /dashboard/competitors` rows gain `agreement_weighted_sentiment_score` (-1..1; each comment counts once plus once per like, i.e. per person who agreed) and `people_agreeing` (total likes across the competitor's analyzed comments). `sentiment_score` / `market_sentiment_label` are unchanged. Both are `null` with no analyzed comments.
 
+## - 2026-10-18 (price lookup hardening, verified against live services)
+### Changed (behaviour)
+- Reference-price lookup: Open Prices uses an exact barcode when the product records one in `products.metadata` (`barcode`, `gtin` or `ean`); otherwise it name-searches Open Food Facts' search service and only queries prices for hits whose brand, name and pack size match. Prices older than `PRICE_LOOKUP_MAX_AGE_DAYS` (365) are ignored and each price keeps its own observed date. Name search alone cannot find every popular product (the price service has no name filter) - a barcode is the reliable key. Pack sizes match with or without a space ("400 g" = "400g").
+- Transient provider failures (timeout, connection error, 5xx) are retried once.
+### Fixed
+- `research/page_reader.py` (assistant research and the new seller-page price lookup): a gzip/deflate-compressed page was reported unreachable because the already-decompressed body was re-wrapped with its `Content-Encoding` header and decompressed twice. Also stops advertising brotli, whose streams failed to decode when the optional package was installed.
+

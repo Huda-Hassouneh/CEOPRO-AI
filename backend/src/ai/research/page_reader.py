@@ -92,7 +92,11 @@ Fetch = Callable[..., httpx.Response]
 def _default_fetch(url: str, **kwargs) -> httpx.Response:
     with httpx.Client(timeout=TIMEOUT_SECONDS, follow_redirects=False,
                       headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/pdf,text/plain;q=0.9,*/*;q=0.5",
-                               "Accept-Language": "en,ar;q=0.9"}) as client:
+                               "Accept-Language": "en,ar;q=0.9",
+                               # Not br: when the optional brotli package is installed, httpx advertises it and
+                               # some servers' streams then fail to decode ("brotli: decoder failed"), which
+                               # showed up as a readable page being reported unreachable.
+                               "Accept-Encoding": "gzip, deflate"}) as client:
         with client.stream("GET", url) as response:
             chunks, size = [], 0
             for chunk in response.iter_bytes():
@@ -100,7 +104,11 @@ def _default_fetch(url: str, **kwargs) -> httpx.Response:
                 if size > MAX_BYTES:
                     raise _TooLarge()
                 chunks.append(chunk)
-            return httpx.Response(response.status_code, headers=response.headers, content=b"".join(chunks),
+            # iter_bytes() has already decompressed the body, so the copy must not claim it is still
+            # compressed: with the original Content-Encoding header httpx decompresses it a second
+            # time and raises DecodingError, which made ordinary gzip pages read as unreachable.
+            headers = [(k, v) for k, v in response.headers.multi_items() if k.lower() not in ("content-encoding", "content-length")]
+            return httpx.Response(response.status_code, headers=headers, content=b"".join(chunks),
                                   request=response.request)
 
 
