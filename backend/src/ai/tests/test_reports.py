@@ -119,6 +119,7 @@ def test_export_requires_auth():
 def test_csv_export_streams_every_row_with_localized_headers_and_no_formulas():
     fake_conn = MagicMock()
     with patch("src.ai.routers.reports.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.reports.usage.reserve_request", return_value=None), \
          patch("src.ai.routers.reports.dashboard_reports.iter_sales_rows", return_value=iter(_EXPORT_ROWS)):
         response = client.get("/reports/sales/export", params={"format": "csv", "lang": "ar"}, headers=_auth())
 
@@ -138,6 +139,7 @@ def test_csv_export_streams_every_row_with_localized_headers_and_no_formulas():
 
 def test_json_export_is_one_valid_document():
     with patch("src.ai.routers.reports.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.reports.usage.reserve_request", return_value=None), \
          patch("src.ai.routers.reports.dashboard_reports.iter_sales_rows", return_value=iter(_EXPORT_ROWS)):
         response = client.get("/reports/sales/export", params={"format": "json"}, headers=_auth())
     body = response.json()
@@ -149,3 +151,38 @@ def test_export_rejects_unknown_formats_and_bad_ranges():
     assert client.get("/reports/sales/export", params={"format": "xlsx"}, headers=_auth()).status_code == 422
     bad = {"start_date": "2026-02-01T00:00:00Z", "end_date": "2026-01-01T00:00:00Z"}
     assert client.get("/reports/sales/export", params=bad, headers=_auth()).status_code == 422
+
+
+def test_an_export_counts_as_one_report_and_is_given_back_if_it_fails():
+    counted = {"tenant_id": "t1", "feature_code": "monthly_reports", "period_start": None, "amount": 1, "idempotency_key": "k"}
+    with patch("src.ai.routers.reports.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.reports.usage.reserve_request", return_value=counted) as reserve, \
+         patch("src.ai.routers.reports.usage.release_request") as release, \
+         patch("src.ai.routers.reports.sales_pdf.report_data", side_effect=RuntimeError("boom")):
+        failing = TestClient(app, raise_server_exceptions=False)
+        assert failing.get("/reports/sales/export", params={"format": "pdf"}, headers=_auth()).status_code == 500
+    reserve.assert_called_once()
+    release.assert_called_once_with(counted)
+
+
+def test_the_report_allowance_answers_402_when_used_up():
+    from src.ai.core import usage
+
+    used_up = usage.PlanLimitReached("QUOTA_EXHAUSTED", usage.MONTHLY_REPORTS, 5, 5, "billing_period", None)
+    with patch("src.ai.routers.reports.usage.reserve_request", side_effect=used_up), \
+         patch("src.ai.routers.reports.db.app_role_connection") as connect:
+        response = client.get("/reports/sales/export", params={"format": "csv"}, headers=_auth())
+    assert response.status_code == 402 and response.json()["detail"]["feature_code"] == "monthly_reports"
+    connect.assert_not_called()  # nothing is generated
+
+
+def test_a_retry_with_the_same_idempotency_key_is_the_same_report():
+    from src.ai.routers import reports
+    from src.ai.core.security import TenantContext
+
+    ctx = TenantContext(tenant_id="t1", user_id="u1")
+    assert reports.report_key(ctx, "retry-key-001", "csv") == reports.report_key(ctx, "retry-key-001", "pdf")
+    assert reports.report_key(ctx, None, "csv", "en") == reports.report_key(ctx, None, "csv", "en")
+    assert reports.report_key(ctx, None, "csv", "en") != reports.report_key(ctx, None, "pdf", "en")
+    bad = client.get("/reports/sales/export", params={"format": "csv"}, headers={**_auth(), "Idempotency-Key": "bad key!"})
+    assert bad.status_code == 422

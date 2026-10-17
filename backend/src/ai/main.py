@@ -62,6 +62,10 @@ async def _lifespan(app: FastAPI):
     from src.ai import notification_digest
 
     notification_digest.start_background()
+    # Stale credit reservations are charged, never left free (billing/maintenance.py).
+    from src.ai.billing import maintenance as billing_maintenance
+
+    billing_maintenance.start_background()
     yield
     db.close_pool()
 

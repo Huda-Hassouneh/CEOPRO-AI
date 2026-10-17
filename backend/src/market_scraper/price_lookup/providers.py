@@ -49,7 +49,14 @@ JsonGet = Callable[[str, dict], dict]
 
 def _json_get(url: str, params: dict, attempts: int = 2) -> dict:
     """GET JSON. One retry for a transient failure (timeout, connection error, 5xx):
-    free public services such as Open Food Facts answer 503 now and then."""
+    free public services such as Open Food Facts answer 503 now and then. A paid
+    provider (SerpAPI) is paid from the company's Data Credits, once per attempt."""
+    from src.market_scraper.provider_billing import metered_request
+
+    return metered_request(url, lambda: _json_get_once(url, params, attempts))
+
+
+def _json_get_once(url: str, params: dict, attempts: int) -> dict:
     last: Optional[Exception] = None
     for attempt in range(attempts):
         try:

@@ -66,12 +66,25 @@ def test_every_plan_includes_the_core_intelligence(client, plan_key):
     assert subscription["planId"] == plan_key
     assert {"market_intelligence", "demand_prediction", "competitor_management"} <= set(subscription["entitlements"])
     # Only the plan terms customers see - no internal budgets under raw codes.
-    assert set(subscription["limits"]) == {"products", "competitors", "aiTokens", "imageGenerations", "storageGb",
-                                           "documentProcessingMb", "sentimentRecords", "dataSources"}
+    assert set(subscription["limits"]) == {"products", "reports", "teamSeats", "dataCredits", "aiCredits", "imageGenerations",
+                                           "storageGb", "documentProcessingMb", "sentimentRecords", "dataSources"}
+    assert set(subscription["credits"]) >= {"data", "ai"}
 
 
-@pytest.mark.parametrize("plan_key, cap", [("starter", 10), ("growth", 30), ("enterprise", 100)])
-def test_tracked_competitors_stop_at_the_plan_cap(client, plan_key, cap):
+@pytest.mark.parametrize("plan_key", ["starter", "growth", "enterprise"])
+def test_competitors_have_no_fixed_count(client, plan_key):
+    """Competitor tracking is limited by the Data Credit budget, not a count."""
+    session, _ = _company(client, plan_key)
+    conn = psycopg2.connect(ADMIN_DATABASE_URL)
+    try:
+        assert usage.get_plan(conn, session["tenant_id"])["features"]["tracked_competitors"]["limit"] is None
+        assert usage.capacity_left(conn, session["tenant_id"], usage.TRACKED_COMPETITORS) is None
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("plan_key, cap", [("standard", 15), ("pro", 60)])
+def test_retired_packages_keep_their_competitor_cap(client, plan_key, cap):
     session, _ = _company(client, plan_key)
     tenant = session["tenant_id"]
     _admin(
@@ -205,21 +218,21 @@ def test_uploads_count_against_document_processing(client):
 
 
 def test_imports_create_products_only_up_to_the_plan_limit(client):
-    session, headers = _company(client, "starter")  # 250 products
+    session, headers = _company(client, "starter")  # Standard: 100 products
     tenant = session["tenant_id"]
     _admin("INSERT INTO products (tenant_id, product_name, current_price, currency, source) "
-           "SELECT %s, jsonb_build_object('en', 'Existing ' || n), 1, 'JOD', 'MANUAL' FROM generate_series(1, 248) AS n;",
+           "SELECT %s, jsonb_build_object('en', 'Existing ' || n), 1, 'JOD', 'MANUAL' FROM generate_series(1, 98) AS n;",
            (tenant,))
     csv = "date,product,quantity,unit_price\n" + "".join(
         f"2026-09-0{i},New item {i},1,2.5\n" for i in range(1, 6)) + "2026-09-07,Existing 1,3,1\n"
     response = client.post("/extraction/upload", files={"file": ("sales.csv", csv.encode(), "text/csv")}, headers=headers)
     assert response.status_code == 200, response.text
     promotion = response.json()["promotion"]
-    assert promotion["products_created"] == 2          # 248 + 2 = the Starter limit of 250
+    assert promotion["products_created"] == 2          # 98 + 2 = the Standard limit of 100
     assert promotion["rows_over_product_limit"] == 3   # rows for the 3 products that didn't fit
     assert promotion["rows_promoted"] == 3             # 2 new products + the existing one
     [(count,)] = _admin("SELECT COUNT(*) FROM products WHERE tenant_id = %s AND deleted_at IS NULL;", (tenant,))
-    assert count == 250
+    assert count == 100
 
 
 def test_campaign_writing_uses_the_ai_token_allowance(client, monkeypatch):

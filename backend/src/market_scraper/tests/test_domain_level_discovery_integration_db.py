@@ -379,8 +379,12 @@ def _tracked(conn, tenant_id: str, competitor_id: str) -> bool:
 
 
 def test_discovery_tracks_new_competitors_only_up_to_the_plan_cap(conn):
-    """No plan assignment = the default Growth plan: 30 tracked competitors."""
+    """Plans with a competitor count still stop there (the retired Standard
+    package: 15). Current plans are limited by Data Credits instead."""
     tenant_id = _insert_company(conn, country_code="JO")
+    with conn.cursor() as cursor:
+        cursor.execute("INSERT INTO tenant_plan_assignments (tenant_id, plan_key, status) VALUES (%s, 'standard', 'active');",
+                       (tenant_id,))
     first = register_domain_level_competitor(
         conn, tenant_id, str(uuid.uuid4()), CandidateSource("bakery", "https://first-bakery.example", "First Bakery"),
         discovery_method="PLACES_NEARBY", industry_sector="bakery", country_code="JO")
@@ -390,7 +394,7 @@ def test_discovery_tracks_new_competitors_only_up_to_the_plan_cap(conn):
         cursor.execute(
             """
             WITH g AS (INSERT INTO global_competitors (competitor_name)
-                       SELECT 'Filler ' || n || ' ' || %s FROM generate_series(1, 29) AS n RETURNING global_competitor_id)
+                       SELECT 'Filler ' || n || ' ' || %s FROM generate_series(1, 14) AS n RETURNING global_competitor_id)
             INSERT INTO tenant_competitors (tenant_id, global_competitor_id, is_tracked) SELECT %s, global_competitor_id, TRUE FROM g;
             """, (tenant_id, tenant_id))
     over = register_domain_level_competitor(
@@ -399,7 +403,7 @@ def test_discovery_tracks_new_competitors_only_up_to_the_plan_cap(conn):
     assert _tracked(conn, tenant_id, over["competitor_id"]) is False  # kept as a suggestion
     with conn.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM tenant_competitors WHERE tenant_id = %s AND is_tracked;", (tenant_id,))
-        assert cursor.fetchone()[0] == 30
+        assert cursor.fetchone()[0] == 15
 
 
 # --- category relevance: a burger restaurant must not be shown a donut shop ---

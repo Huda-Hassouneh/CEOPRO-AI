@@ -1,8 +1,11 @@
 import { getUsageState } from '../utils/subscriptionRecommendations.js';
 
+const CREDIT_KEYS = ['dataCredits', 'aiCredits'];
+
 export function UsageLimitGrid({ usage, limits, locale, t }) {
   const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
-  const keys = Object.keys(limits || {}).filter((key) => usage?.[key] != null);
+  // Data and AI Credits have their own cards (CreditBudgets).
+  const keys = Object.keys(limits || {}).filter((key) => usage?.[key] != null && !CREDIT_KEYS.includes(key));
   if (!keys.length) return <p className="billing-usage-unavailable">{t('billing.management.usageUnavailable')}</p>;
   return <div className="billing-usage-grid">{keys.map((key) => {
     const used = usage[key];

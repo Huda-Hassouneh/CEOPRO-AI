@@ -18,6 +18,7 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from src.ai.billing import credits
 from src.ai.core import usage
 from src.ai.market_inputs import competitor_intel, discovered_competitors, market_news
 from src.ai.rag import llm_client
@@ -187,8 +188,9 @@ def _ask(conn, tenant_id: str, system: str, evidence: List[dict], language: str,
         parsed = None
         for attempt in range(2):  # the model occasionally writes malformed JSON: ask once more
             call_usage = {}
-            text = llm_client.chat_completion([{"role": "system", "content": system}, {"role": "user", "content": user}],
-                                              temperature=0.2, max_tokens=MAX_TOKENS, usage_out=call_usage)
+            with credits.metering(tenant_id, "competitor_analysis", usage_class="multi_competitor_analysis"):
+                text = llm_client.chat_completion([{"role": "system", "content": system}, {"role": "user", "content": user}],
+                                                  temperature=0.2, max_tokens=MAX_TOKENS, usage_out=call_usage)
             token_usage["total_tokens"] = token_usage.get("total_tokens", 0) + (call_usage.get("total_tokens") or 0)
             try:
                 parsed = _parse_json(text)
@@ -197,6 +199,10 @@ def _ask(conn, tenant_id: str, system: str, evidence: List[dict], language: str,
                 if attempt:
                     raise
                 logger.info("analysis answer was not valid JSON; asking again")
+    except credits.BudgetError:
+        usage.release(conn, reservation)
+        conn.commit()
+        raise
     except llm_client.LLMNotConfiguredError as err:
         usage.release(conn, reservation)
         conn.commit()
