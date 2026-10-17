@@ -5,7 +5,6 @@
 **Update convention:** append-only, date-stamped entries at the bottom. Don't edit or delete past
 entries — if something is superseded, add a new entry that says so and link back. Mirrors the
 convention in `AI_PLAN_AND_CONTRACT_UPDATES.md` and `src/infrastructure/CONTRACT_CHANGELOG.md`.
-
 This file lives at the repo root so it stays alongside `MASTER_SPEC_v4.md` and
 `AI_PLAN_AND_CONTRACT_UPDATES.md`. Module-level implementation detail lives in
 [`src/ai/README.md`](src/ai/README.md); this file tracks status and history, not how the code works.
