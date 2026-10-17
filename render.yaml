@@ -129,17 +129,19 @@ services:
       - key: GROQ_MAX_TOKENS
         value: "1500"
       # --- Assistant retrieval models, sized to this plan's 512 MB ---
-      # Measured (scripts/rag_runtime_check.py, .github/workflows/
-      # rag-runtime-check.yml): the app alone peaks ~300 MB; with the torch
-      # embedding model and re-ranker 2,042 MB; with the ONNX embedder and
-      # no re-ranker 826 MB. Loading either here would get the service
-      # killed for memory, so this plan answers from keyword search, and
-      # chunks are stored without vectors (filled in later by
-      # backfill_missing_embeddings once a model is enabled). On a plan with
-      # 2 GB or more (Render "standard"), set RAG_EMBEDDING_BACKEND=onnx for
-      # semantic search; keep the torch re-ranker off below 4 GB.
+      # Measured peak memory of the ai process (scripts/rag_runtime_check.py,
+      # .github/workflows/rag-runtime-check.yml): torch embedder + re-ranker
+      # 2,042 MB; ONNX embedder 826 MB; static multilingual embedder ~350 MB
+      # (app alone ~300 MB). So this plan runs the static model
+      # (static-similarity-mrl-multilingual-v1, prepared into the image by
+      # Dockerfile.ai): semantic search in-process, no model download or
+      # network call at run time, and Arabic questions find English
+      # documents. Chunks stored earlier by another model (or none) are
+      # re-embedded automatically the first time a tenant's index is built.
+      # On 2 GB or more, onnx (the transformer model) is more accurate; keep
+      # the torch re-ranker off below 4 GB.
       - key: RAG_EMBEDDING_BACKEND
-        value: "none"
+        value: "static"
       - key: RAG_RERANKER_ENABLED
         value: "false"
 
