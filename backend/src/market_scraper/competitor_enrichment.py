@@ -51,6 +51,7 @@ from src.market_scraper.category_taxonomy import categorize
 from src.market_scraper.content_safety import scan_external_text
 from src.market_scraper.discovery import SOCIAL_PLATFORM_HOSTS
 from src.market_scraper.policy import is_public_http_url
+from src.ai.billing import credits
 
 logger = logging.getLogger("CEOPRO_AI_COMPETITOR_ENRICHMENT")
 
@@ -230,6 +231,7 @@ def _find_place(competitor: dict, api_key: str) -> "tuple[Optional[dict], Option
     return None, None
 
 
+@credits.metered("competitor_enrichment")
 def enrich_profile(
     conn, tenant_id: str, competitor_id: str, competitor: dict, api_key: Optional[str], context: Optional[dict] = None,
 ) -> dict:
@@ -304,6 +306,7 @@ def _is_share_link(url: str) -> bool:
     return any(marker in lowered for marker in _SHARE_PATH_MARKERS)
 
 
+@credits.metered("competitor_enrichment")
 def enrich_social_links(conn, tenant_id: str, competitor_id: str, competitor: dict) -> dict:
     status, reason_code, detail, items, confidence = _social_outcome(conn, tenant_id, competitor_id, competitor)
     _write_ledger(conn, tenant_id, competitor_id, FACET_SOCIAL_LINKS, status, reason_code, detail, "own_website", items, confidence)
@@ -438,6 +441,7 @@ def _request_sentiment_analysis(tenant_id: str) -> None:
         logger.warning("could not request sentiment analysis for tenant %s", tenant_id)
 
 
+@credits.metered("competitor_enrichment")
 def enrich_reviews(
     conn, tenant_id: str, competitor_id: str, competitor: dict, api_key: Optional[str],
     context: Optional[dict] = None, actor_user_id: Optional[str] = None,
@@ -631,6 +635,7 @@ def _save_news(conn, tenant_id: str, competitor_id: str, items: list, source_kin
     return added
 
 
+@credits.metered("competitor_enrichment")
 def enrich_news(conn, tenant_id: str, competitor_id: str, competitor: dict) -> dict:
     status, reason_code, detail, items, confidence = _news_outcome(conn, tenant_id, competitor_id, competitor)
     _write_ledger(conn, tenant_id, competitor_id, FACET_NEWS, status, reason_code, detail, "news", items, confidence)
@@ -722,6 +727,7 @@ def _save_comments(conn, tenant_id: str, competitor_id: str, source_id: str, pla
     return new
 
 
+@credits.metered("competitor_enrichment")
 def enrich_comments(conn, tenant_id: str, competitor_id: str, competitor: dict, actor_user_id: Optional[str] = None) -> dict:
     status, reason_code, detail, items, confidence = _comments_outcome(conn, tenant_id, competitor_id, competitor, actor_user_id)
     _write_ledger(conn, tenant_id, competitor_id, FACET_COMMENTS, status, reason_code, detail, "youtube", items, confidence)
@@ -767,6 +773,7 @@ def _recent_attempt_wait(conn, tenant_id: str, competitor_id: str, facet: str) -
     return max(0, int(MIN_SECONDS_BETWEEN_ATTEMPTS - elapsed))
 
 
+@credits.metered("competitor_enrichment")
 def enrich_competitor(
     conn, tenant_id: str, competitor_id: str, facets=None, places_api_key: Optional[str] = None,
     throttle: bool = False, actor_user_id: Optional[str] = None,
@@ -839,6 +846,7 @@ _FORCE_CONDITION = """ce.facet IS NULL
                      OR (ce.status = 'BLOCKED' AND ce.reason_code IN ('NO_CREDENTIALS', 'CREDENTIALS_REJECTED', 'PLATFORM_APPROVAL_MISSING'))"""
 
 
+@credits.metered("competitor_enrichment")
 def enrich_tenant_competitors(
     conn, tenant_id: str, limit: Optional[int] = None, places_api_key: Optional[str] = None,
     mode: str = "due",

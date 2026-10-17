@@ -1,13 +1,17 @@
 import csv
+import hashlib
 import io
 import json
+import re
+import time
 from datetime import datetime, timezone
 from typing import Iterator, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 
 from src.ai import db
+from src.ai.core import usage
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import financial_summary as dashboard_financial_summary
 from src.ai.dashboard import reports as dashboard_reports
@@ -89,27 +93,62 @@ def _json_chunks(rows: Iterator[dict], start_date, end_date) -> Iterator[str]:
     }, ensure_ascii=False)[1:]
 
 
+_IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9_.:-]{8,120}$")
+REPORT_DEDUP_SECONDS = 600
+
+
+def report_key(ctx: TenantContext, idempotency_key: Optional[str], *parts) -> str:
+    """Which report this request is, for counting: the client's
+    Idempotency-Key when it sends one, otherwise the same person asking for
+    the same export within ten minutes (a double click or a retry)."""
+    if idempotency_key is not None:
+        if not _IDEMPOTENCY_KEY.match(idempotency_key):
+            raise HTTPException(status_code=422, detail="Idempotency-Key must be 8-120 letters, digits, '-', '_', '.' or ':'.")
+        return f"client:{ctx.user_id}:{idempotency_key}"
+    material = ":".join([ctx.user_id, *[str(p) for p in parts], str(int(time.time() // REPORT_DEDUP_SECONDS))])
+    return "auto:" + hashlib.sha256(material.encode()).hexdigest()[:48]
+
+
+def count_report(ctx: TenantContext, key: str) -> Optional[dict]:
+    """One report against the plan's monthly allowance (402 when used up)."""
+    try:
+        return usage.reserve_request(ctx.tenant_id, usage.MONTHLY_REPORTS, key, ctx.user_id)
+    except usage.PlanLimitReached as err:
+        raise err.as_http()
+
+
 @router.get("/sales/export")
 def export_sales_report(
     format: str = Query(default="csv", pattern="^(csv|json|pdf)$"),
     lang: str = Query(default="en", pattern="^(en|ar)$"),
     start_date: Optional[datetime] = Query(default=None),
     end_date: Optional[datetime] = Query(default=None),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
     ctx: TenantContext = Depends(get_tenant_context),
 ):
     """Every line item in the period as CSV or JSON, streamed in batches -
     not limited to what the page has loaded. PDF is a printable summary of
-    the period (dashboard/sales_pdf.py)."""
+    the period (dashboard/sales_pdf.py). Each export counts as one report
+    against the plan's monthly allowance; a failed export is given back."""
     _check_range(start_date, end_date)
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    counted = count_report(ctx, report_key(ctx, idempotency_key, "sales", format, lang, start_date, end_date))
+    try:
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    except Exception:
+        usage.release_request(counted)
+        raise
     if format == "pdf":
         try:
             data = sales_pdf.report_data(conn, ctx.tenant_id, start_date, end_date)
             conn.commit()
+            content = sales_pdf.render_pdf(data, lang)
+        except Exception:
+            usage.release_request(counted)
+            raise
         finally:
             conn.close()
         filename = f"keel-sales-report-{datetime.now(timezone.utc):%Y-%m-%d}.pdf"
-        return Response(sales_pdf.render_pdf(data, lang), media_type="application/pdf",
+        return Response(content, media_type="application/pdf",
                         headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
     def body() -> Iterator[bytes]:
@@ -119,6 +158,9 @@ def export_sales_report(
             for chunk in chunks:
                 yield chunk.encode("utf-8")
             conn.commit()
+        except Exception:
+            usage.release_request(counted)
+            raise
         finally:
             conn.close()
 

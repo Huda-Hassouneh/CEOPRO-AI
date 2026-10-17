@@ -39,6 +39,7 @@ import redis
 from src.market_scraper import data_access
 from src.market_scraper.competitor_enrichment import enrich_tenant_competitors
 from src.market_scraper.discovery import refresh_tenant_competitors
+from src.ai.billing import credits
 from src.market_scraper.enqueue import enqueue_collection
 from src.market_scraper.tenant_discovery import (
     discover_competitors_for_tenant, discover_domain_level_competitors_for_tenant,
@@ -73,6 +74,7 @@ def _enqueue_allowed(tenant_id: str, results: list) -> list:
     return enqueued
 
 
+@credits.metered("product_discovery")
 def discover_for_tenant(tenant_id: str) -> dict:
     """
     Runs on every real market.discovery.requested event. Opens its own

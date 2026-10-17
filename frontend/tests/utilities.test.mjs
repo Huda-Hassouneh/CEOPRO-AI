@@ -90,12 +90,12 @@ test('plan usage: unlimited, approaching at 80%, reached at the limit', () => {
 });
 
 test('upgrade advice names the limit that blocked the action first', () => {
-  const plan = (usage, extra = {}) => ({ planId: 'starter', status: 'active', limits: { products: 100, competitors: 10 }, usage, ...extra });
+  const plan = (usage, extra = {}) => ({ planId: 'starter', status: 'active', limits: { products: 100, dataCredits: 436 }, usage, ...extra });
   assert.equal(getUpgradeRecommendation(null), null);
   assert.equal(getUpgradeRecommendation(plan({}, { planId: 'custom' })), null);
   assert.deepEqual(getUpgradeRecommendation(plan({}, { status: 'trial' })), { type: 'trial' });
-  assert.deepEqual(getUpgradeRecommendation(plan({ products: 100, competitors: 10 }), 'competitor-limit'), { type: 'reached', key: 'competitors', contextual: true });
-  assert.deepEqual(getUpgradeRecommendation(plan({ products: 100, competitors: 1 })), { type: 'reached', key: 'products' });
-  assert.deepEqual(getUpgradeRecommendation(plan({ products: 85, competitors: 1 })), { type: 'approaching', key: 'products' });
-  assert.equal(getUpgradeRecommendation(plan({ products: 10, competitors: 1 })), null);
+  assert.deepEqual(getUpgradeRecommendation(plan({ products: 100, dataCredits: 436 }), 'data-credits'), { type: 'reached', key: 'dataCredits', contextual: true });
+  assert.deepEqual(getUpgradeRecommendation(plan({ products: 100, dataCredits: 1 })), { type: 'reached', key: 'products' });
+  assert.deepEqual(getUpgradeRecommendation(plan({ products: 85, dataCredits: 1 })), { type: 'approaching', key: 'products' });
+  assert.equal(getUpgradeRecommendation(plan({ products: 10, dataCredits: 1 })), null);
 });

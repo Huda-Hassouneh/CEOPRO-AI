@@ -1167,6 +1167,39 @@
       },
       "usageTitle": "Usage & Limits",
       "usageSubtitle": "Current company usage against the limits configured for your plan.",
+      "credits": {
+        "title": "Data and AI Credits",
+        "subtitle": "Two separate monthly budgets. Each operation uses credits according to what it really costs, so different searches and questions use different amounts.",
+        "data": "Data Credits",
+        "dataHelp": "Used by competitor discovery, monitoring and web research.",
+        "ai": "AI Credits",
+        "aiHelp": "Used by the assistant, AI analysis and marketing content.",
+        "used": "{{used}} of {{limit}} used",
+        "remaining": "{{remaining}} left",
+        "inProgress": "{{reserved}} held for work in progress",
+        "renews": "Renews on {{date}}",
+        "warning": "You've used {{percent}}% of this budget.",
+        "exhausted": "This budget is used up for the period.",
+        "exhaustedOptions": "New work that needs it is paused until {{date}}. You can upgrade your plan now, or contact us about a Custom plan.",
+        "notIncluded": "Not included",
+        "competitorNote": "There is no fixed number of competitors: KEEL discovers and monitors the competitors in your market, area and sources as far as your Data Credits allow.",
+        "topUpsUnavailable": "Extra credits can't be bought yet.",
+        "historyTitle": "Recent usage",
+        "historyEmpty": "Nothing has used credits this period yet.",
+        "historyColumns": { "when": "When", "what": "What", "budget": "Budget", "credits": "Credits", "status": "Status" },
+        "operations": {
+          "assistant_question": "Assistant question", "competitor_analysis": "Competitor analysis", "marketing_campaign": "Marketing content",
+          "marketing_image": "Marketing image", "market_discovery": "Competitor discovery", "competitor_intel": "Competitor websites",
+          "competitor_enrichment": "Competitor details", "product_discovery": "Product discovery", "price_lookup": "Market prices",
+          "web_research": "Web research", "other": "Other"
+        },
+        "statuses": {
+          "reserved": "In progress", "consumed": "Done", "released": "Not charged", "failed_charged": "Failed (charged by provider)",
+          "pending_reconciliation": "Awaiting final cost", "reconciled": "Done"
+        }
+      },
+      "startTrial": "Start {{days}}-day free trial",
+      "trialStarted": "Your free trial has started.",
       "usageUnavailable": "Usage data is not available for this subscription.",
       "gb": " GB",
       "usageLabels": {
@@ -1179,7 +1212,10 @@
         "aiTokens": "AI assistant tokens",
         "documentProcessingMb": "Documents processed (MB)",
         "dataSources": "Connected data sources",
-        "sentimentRecords": "Reviews analysed"
+        "sentimentRecords": "Reviews analysed",
+        "teamSeats": "Team seats",
+        "dataCredits": "Data Credits",
+        "aiCredits": "AI Credits"
       },
       "usageState": {
         "unlimited": "Unlimited",
@@ -1283,19 +1319,19 @@
       "trialIncluded": "{{days}}-day free trial for new companies",
       "startWith": "Start with {{plan}}",
       "starter": {
-        "name": "Starter",
+        "name": "Standard",
         "description": "Market intelligence, demand forecasting, competitor tracking, review sentiment and AI insights, sized for small businesses getting started with KEEL.",
-        "action": "Choose Starter"
+        "action": "Choose Standard"
       },
       "growth": {
-        "name": "Growth",
+        "name": "Plus",
         "description": "Advanced analytics for growing businesses, including demand forecasting, market and competitor intelligence, larger AI capacity, and broader data connectivity.",
         "action": "Start {{days}}-Day Free Trial"
       },
       "enterprise": {
-        "name": "Enterprise",
+        "name": "Pro",
         "description": "High-capacity KEEL access for data-heavy businesses, with advanced integrations, significantly larger AI and document workloads, and faster competitor monitoring.",
-        "action": "Choose Enterprise"
+        "action": "Choose Pro"
       }
     },
     "features": {
@@ -1311,7 +1347,12 @@
       "documentProcessingMb": "{{value}} MB of documents processed per month",
       "dataSources": "Connected data sources: {{value}}",
       "sentimentRecords": "{{value}} reviews analysed per month",
-      "everythingEnterprise": "Everything in Enterprise"
+      "everythingPro": "Everything in Pro",
+      "teamSeats": "{{value}} team seats",
+      "dataCredits": "{{value}} Data Credits per month",
+      "aiCredits": "{{value}} AI Credits per month",
+      "competitorsByBudget": "Competitors found and monitored within your Data Credits - no fixed count",
+      "trialCredits": "Free trial includes {{data}} Data Credits and {{ai}} AI Credits"
     },
     "checkout": {
       "success": "Payment received. Your plan updates here in a few seconds.",
@@ -1333,7 +1374,11 @@
       "already_scheduled": "This change is already scheduled.",
       "already_cancelling": "Your subscription is already set to end.",
       "not_cancelling": "Your subscription isn’t set to end.",
-      "provider_error": "The payment provider didn’t respond. Please try again in a moment."
+      "provider_error": "The payment provider didn’t respond. Please try again in a moment.",
+      "trial_already_used": "Your company has already used its free trial.",
+      "trial_already_used_by_person": "You've already used a free trial with another company.",
+      "plan_has_no_trial": "This plan doesn't offer a free trial.",
+      "plan_already_assigned": "Your company already has a plan."
     },
     "invoices": {
       "title": "Payments",
@@ -2972,7 +3017,10 @@
     "new_competitors": "The market scan found {{count}} new competitors ({{tracked}} now tracked)",
     "import_failed": "An import failed: {{name}}",
     "trial_ending": "Your trial ends in {{days}} days - choose a plan to keep access",
-    "payment_failed": "Your last payment failed - update your payment method in Billing"
+    "payment_failed": "Your last payment failed - update your payment method in Billing",
+    "credits_low": "You've used {{percent}}% of this period's {{budget}} - they renew on {{date}}",
+    "credits_exhausted": "This period's {{budget}} are used up - they renew on {{date}}; upgrade in Billing for more",
+    "budget": { "data": "Data Credits", "ai": "AI Credits" }
   },
   "intel": {
     "citation": "Source {{n}}: {{text}}",
