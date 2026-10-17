@@ -20,6 +20,9 @@ def run_once(database_url: str, stale_minutes: int = 30) -> dict:
             recovered = int(cursor.fetchone()[0])
             cursor.execute("SELECT * FROM enforce_market_retention();")
             staging_deleted, observations_redacted, reviews_anonymized = cursor.fetchone()
+            # Comments from a source whose terms require deletion (YouTube, 30 days) are removed, not just anonymized.
+            cursor.execute("SELECT enforce_comment_retention();")
+            comments_deleted = int(cursor.fetchone()[0])
         connection.commit()
         STALE_RECOVERED.inc(recovered)
         RETENTION_RUNS.labels("completed").inc()
@@ -28,6 +31,7 @@ def run_once(database_url: str, stale_minutes: int = 30) -> dict:
             "staging_deleted": staging_deleted,
             "observations_redacted": observations_redacted,
             "reviews_anonymized": reviews_anonymized,
+            "comments_deleted": comments_deleted,
         }
     except Exception:
         connection.rollback()
