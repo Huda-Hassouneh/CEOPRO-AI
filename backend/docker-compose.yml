@@ -357,6 +357,16 @@ services:
       # Operator's recorded approval to store Google Places reviews (Google's
       # terms govern stored Places content). Unset = reviews stay BLOCKED.
       PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
+      # Market reference-price lookup (price_lookup/), run by this worker for POST /pricing/market-coverage/fill.
+      PRICE_LOOKUP_PROVIDERS: ${PRICE_LOOKUP_PROVIDERS:-open_prices,web_offers,serpapi_shopping}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      PRICE_LOOKUP_MAX_PER_RUN: ${PRICE_LOOKUP_MAX_PER_RUN:-20}
+      PRICE_LOOKUP_RETRY_DAYS: ${PRICE_LOOKUP_RETRY_DAYS:-7}
+      GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
+      GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
+      SEARXNG_INSTANCE_URL: ${SEARXNG_INSTANCE_URL:-http://searxng:8080}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
     networks:
       - ceopro_core_net
     depends_on:
