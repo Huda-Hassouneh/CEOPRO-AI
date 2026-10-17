@@ -118,10 +118,10 @@ CORS_ALLOWED_ORIGINS=https://fuzzy-yodel-p79gw575pxg6cg7x-8000.app.github.dev
 ## 6. Storage and infrastructure - provided by your host
 
 ```
-MINIO_ENDPOINT=
-MINIO_ROOT_USER=
-DATABASE_URL=
-REDIS_URL=
+MINIO_ENDPOINT=http://minio:9000
+MINIO_ROOT_USER=minio_admin
+DATABASE_URL=postgresql://ceopro_admin:538c581df4ed75c51a254d3d98547740c93bc2b36837a5c7fb896f8fc5a694a4@postgres:5432/ceopro_platform
+REDIS_URL=redis://redis:6379/0
 ```
 
 Production needs an S3-compatible bucket store (MinIO, or equivalent) and managed
