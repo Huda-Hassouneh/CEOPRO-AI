@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Bell, Info, PackageX, Radar, Tag, TrendingDown, TrendingUp, CreditCard, FileWarning } from 'lucide-react';
+import { AlertTriangle, Bell, Info, PackageX, Radar, Tag, TrendingDown, TrendingUp, CreditCard, FileWarning, Gauge } from 'lucide-react';
 import { useI18n } from '../../app/providers/I18nProvider.jsx';
 import httpClient from '../../shared/lib/httpClient.js';
 
@@ -9,6 +9,7 @@ export const ICONS = {
   competitor_price: (a) => (a.params.change_pct < 0 ? TrendingDown : TrendingUp),
   restock: () => PackageX, price_gap: () => Tag, new_competitors: () => Radar,
   import_failed: () => FileWarning, payment_failed: () => CreditCard, trial_ending: () => CreditCard,
+  credits_low: () => Gauge, credits_exhausted: () => Gauge,
 };
 
 // One alert in words (the bell and the dashboard's recent updates).
@@ -22,6 +23,8 @@ export function describeAlert(a, t, number, money) {
     case 'import_failed': return t('alerts.import_failed', { name: p.name || '' });
     case 'trial_ending': return t('alerts.trial_ending', { days: p.days });
     case 'payment_failed': return t('alerts.payment_failed');
+    case 'credits_low':
+    case 'credits_exhausted': return t(`alerts.${a.kind}`, { budget: t(`alerts.budget.${p.budget === 'ai' ? 'ai' : 'data'}`), percent: number.format(p.percent ?? 0), date: p.resets_on || '' });
     default: return a.kind;
   }
 }

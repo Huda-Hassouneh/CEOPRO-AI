@@ -25,6 +25,28 @@ def _iso(value):
     return value.isoformat() if hasattr(value, "isoformat") else value
 
 
+def _credit_alerts(conn, tenant_id: str, today) -> list:
+    """Data or AI Credits past a warning threshold (billing_cost_policy, e.g.
+    70/85/100%) this period. One alert per budget and threshold reached."""
+    from src.ai.billing import credits
+
+    try:
+        budgets = credits.summary(conn, tenant_id)
+    except Exception:  # noqa: BLE001 - alerts never fail over billing
+        return []
+    out = []
+    for kind in (credits.DATA, credits.AI):
+        budget = budgets[kind]
+        if budget["warning"] is None:
+            continue
+        exhausted = budget["exhausted"]
+        out.append({"id": _id("credits", kind, budget["period_start"], budget["warning"]),
+                    "kind": "credits_exhausted" if exhausted else "credits_low",
+                    "severity": "danger" if exhausted else "warning", "at": today.isoformat(), "link": "/billing",
+                    "params": {"budget": kind, "percent": round(budget["percent_used"] or 0), "resets_on": budget["resets_on"]}})
+    return out
+
+
 def build_alerts(conn, tenant_id: str, now=None) -> list:
     now = now or datetime.now(timezone.utc)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -91,6 +113,7 @@ def build_alerts(conn, tenant_id: str, now=None) -> list:
     elif trial and trial[0] and not subscription and now <= trial[0] <= now + timedelta(days=3):
         alerts.append({"id": _id("trial", trial[0]), "kind": "trial_ending", "severity": "warning", "at": _iso(trial[0] - timedelta(days=3)),
                        "link": "/billing", "params": {"days": max(0, (trial[0] - now).days)}})
+    alerts.extend(_credit_alerts(conn, tenant_id, today))
 
     order = {"danger": 0, "warning": 1, "info": 2}
     alerts.sort(key=lambda a: (a["at"] or ""), reverse=True)

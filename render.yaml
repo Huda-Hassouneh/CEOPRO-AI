@@ -124,6 +124,12 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      # A company without a plan has no access (never "default" here).
+      - key: UNASSIGNED_PLAN_ACCESS
+        value: "none"
+      # Charges credit reservations left by crashed calls (billing/maintenance.py).
+      - key: BILLING_MAINTENANCE_ENABLED
+        value: "true"
       - key: GROQ_MODEL
         value: "openai/gpt-oss-20b"
       - key: GROQ_MAX_TOKENS

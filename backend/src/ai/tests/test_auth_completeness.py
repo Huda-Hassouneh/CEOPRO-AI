@@ -258,6 +258,7 @@ def test_accept_invitation_joins_an_existing_user_without_needing_a_password():
          }), \
          patch("src.ai.routers.auth._fetch_user_by_email", return_value=("u1", "hash", "Existing User", "en")), \
          patch("src.ai.routers.auth.db.app_role_connection", return_value=conn), \
+         patch("src.ai.routers.auth._seat_limit", return_value=5), \
          patch("src.ai.routers.auth._consume_token") as mock_consume:
         response = client.post("/auth/invitations/good-token/accept", json={})
 
@@ -276,6 +277,7 @@ def test_accept_invitation_creates_a_real_new_account_when_none_exists():
          }), \
          patch("src.ai.routers.auth._fetch_user_by_email", return_value=None), \
          patch("src.ai.routers.auth.db.app_role_connection", return_value=conn), \
+         patch("src.ai.routers.auth._seat_limit", return_value=5), \
          patch("src.ai.routers.auth._consume_token"):
         response = client.post(
             "/auth/invitations/good-token/accept",

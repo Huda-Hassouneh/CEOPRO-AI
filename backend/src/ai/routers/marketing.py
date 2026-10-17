@@ -49,6 +49,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
 from src.ai import db
+from src.ai.billing import credits
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.marketing import occasions
 from src.ai.marketing import (
@@ -258,13 +259,24 @@ def create_campaign_endpoint(body: CampaignCreateRequest, ctx: TenantContext = D
             return {**result, "duplicate_request": True}
 
         try:
-            generated = content_generator.generate_campaign_content(
-                product_understanding, style=body.style, tone=body.tone, focus=body.focus,
-                strategy_type=body.strategy_type, positioning_label=positioning_label,
-                variants_per_platform=body.variants_per_platform,
-                creative_theme=theme, custom_creative_prompt=body.custom_creative_prompt,
-                language=get_request_language(), usage_out=token_usage, platforms=body.platforms,
-            )
+            with credits.metering(ctx.tenant_id, "marketing_campaign", usage_class="long_form_content",
+                                  actor_user_id=ctx.user_id):
+                generated = content_generator.generate_campaign_content(
+                    product_understanding, style=body.style, tone=body.tone, focus=body.focus,
+                    strategy_type=body.strategy_type, positioning_label=positioning_label,
+                    variants_per_platform=body.variants_per_platform,
+                    creative_theme=theme, custom_creative_prompt=body.custom_creative_prompt,
+                    language=get_request_language(), usage_out=token_usage, platforms=body.platforms,
+                )
+        except credits.BudgetError as err:
+            if token_usage.get("total_tokens"):
+                usage.settle(conn, reservation, token_usage["total_tokens"])
+            else:
+                usage.release(conn, reservation)
+            settled = True
+            data_access.mark_campaign_failed(conn, ctx.tenant_id, campaign_id, err.message())
+            conn.commit()
+            raise
         except content_generator.MarketingGenerationError as err:
             if token_usage.get("total_tokens"):
                 usage.settle(conn, reservation, token_usage["total_tokens"])
@@ -305,7 +317,7 @@ def create_campaign_endpoint(body: CampaignCreateRequest, ctx: TenantContext = D
             # image status (and the allowance unused) - never a failed campaign.
             try:
                 image = _generate_image(conn, ctx, campaign_id, result)
-            except usage.PlanLimitReached as err:  # the plan's images or storage are used up: copy kept
+            except (usage.PlanLimitReached, credits.BudgetError) as err:  # images, storage or AI Credits used up: copy kept
                 conn.rollback()
                 image = {"image_generation_blocked": err.as_http().detail}
             except HTTPException as err:  # the selected reference photo couldn't be read
@@ -725,9 +737,11 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) 
     conn.commit()
     try:
         try:
-            generated = image_generation.generate_campaign_image(
-                prompt, reference_image=reference_content, reference_content_type=reference_content_type,
-            )
+            with credits.metering(ctx.tenant_id, "marketing_image", usage_class="image_generation",
+                                  actor_user_id=ctx.user_id):
+                generated = image_generation.generate_campaign_image(
+                    prompt, reference_image=reference_content, reference_content_type=reference_content_type,
+                )
         except image_generation.ImageGenerationError as err:
             usage.release(conn, reservation)
             reservation = None

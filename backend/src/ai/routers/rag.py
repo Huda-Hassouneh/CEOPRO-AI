@@ -12,6 +12,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.ai import db
+from src.ai.billing import credits
 from src.ai.core import usage
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.rag import advisor as rag_advisor
@@ -140,8 +141,11 @@ def rag_query(
             session_id = conversation_store.create_session(conn, ctx.tenant_id, ctx.user_id, query_text)
 
         conversation_store.append_message(conn, ctx.tenant_id, session_id, ctx.user_id, "user", query_text)
-        result = rag_advisor.answer(conn, ctx.tenant_id, query_text, top_k=top_k, history=history,
-                                    user_id=ctx.user_id, state=state)
+        # Every AI call this answer makes is paid from the company's AI Credits.
+        with credits.metering(ctx.tenant_id, "assistant_question", usage_class="simple_question",
+                              actor_user_id=ctx.user_id):
+            result = rag_advisor.answer(conn, ctx.tenant_id, query_text, top_k=top_k, history=history,
+                                        user_id=ctx.user_id, state=state)
         conversation_store.append_message(
             conn, ctx.tenant_id, session_id, ctx.user_id, "assistant", result["answer"], sources=result.get("sources"),
             answer_payload={key: result.get(key) for key in _STORED_ANSWER_FIELDS},
@@ -156,7 +160,7 @@ def rag_query(
             usage.settle(conn, reservation, tokens or reservation["amount"])
             conn.commit()
         return {**result, "session_id": session_id}
-    except (HTTPException, usage.PlanLimitReached):
+    except (HTTPException, usage.PlanLimitReached, credits.BudgetError):
         conn.rollback()
         raise
     except rag_llm_client.LLMRateLimitError as err:

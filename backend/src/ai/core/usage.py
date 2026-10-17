@@ -38,6 +38,10 @@ from src.ai.core.redis_client import get_redis_client
 logger = logging.getLogger("CEOPRO_AI_USAGE")
 
 DEFAULT_PLAN_KEY = os.getenv("DEFAULT_PLAN_KEY", "growth")
+# A company with no plan assignment (its trial was refused, or never
+# started) has no access: "none". "default" grants DEFAULT_PLAN_KEY instead,
+# for local development and single-company installs only.
+UNASSIGNED_ACCESS_DEFAULT = "none"
 AI_REQUESTS_PER_MINUTE = int(os.getenv("AI_REQUESTS_PER_MINUTE_PER_COMPANY", "8"))
 ACCESS_GRANTING_STATUSES = ("active", "trialing")
 
@@ -50,6 +54,11 @@ DOCUMENT_STORAGE_MB = "document_storage_mb"
 DOCUMENT_EXTRACTION = "document_extraction"   # KB processed per billing period
 SENTIMENT_ANALYSIS = "sentiment_analysis"     # records analysed per billing period
 CONNECTED_DATA_SOURCES = "connected_data_sources"
+MONTHLY_REPORTS = "monthly_reports"           # report exports per billing period
+TEAM_SEATS = "team_seats"                     # active members of the company
+DATA_CREDITS = "data_credits"                 # billing/credits.py meters these two
+AI_CREDITS = "ai_credits"
+CREDIT_FEATURES = (DATA_CREDITS, AI_CREDITS)
 
 # Included modules (usage_plan_entitlements), as in the plan catalog.
 MARKET_INTELLIGENCE = "market_intelligence"
@@ -69,6 +78,9 @@ _LIVE_COUNTS = {
                           "+ (SELECT COALESCE(SUM(size_bytes), 0) FROM tenant_storage_objects WHERE tenant_id = %(t)s)) / 1048576.0;"),
     CONNECTED_DATA_SOURCES: ("SELECT COUNT(*) FROM data_sources WHERE tenant_id = %s AND is_active = TRUE "
                              "AND source_type = 'OWN_SYSTEM_CONNECTOR';"),
+    # Seats: members who haven't been removed (invitations still open are
+    # added when inviting - see settings.invite_team_member).
+    TEAM_SEATS: "SELECT COUNT(*) FROM tenant_users WHERE tenant_id = %s AND removed_at IS NULL;",
 }
 
 _MESSAGES = {
@@ -82,6 +94,8 @@ _MESSAGES = {
     WEB_SEARCHES: "Your plan's web searches for this billing period have been used.",
     IMAGE_GENERATION: "Your plan's image generations for this billing period have been used.",
     TRACKED_PRODUCTS: "Your plan's product limit has been reached.",
+    MONTHLY_REPORTS: "Your plan's reports for this billing period have been used.",
+    TEAM_SEATS: "Your plan's team seats are all in use. Remove a member or upgrade your plan to add more.",
     TRACKED_COMPETITORS: "Your plan's limit of tracked competitors has been reached.",
     DOCUMENT_STORAGE_MB: "Your plan's document storage is full.",
 }
@@ -118,46 +132,72 @@ def _month_bounds(today: date):
     return today.replace(day=1), today.replace(day=calendar.monthrange(today.year, today.month)[1])
 
 
-def get_plan(conn, tenant_id: str, today: Optional[date] = None) -> dict:
-    """The company's plan, status, current period and per-feature limits."""
-    today = today or datetime.now(timezone.utc).date()
+def _unassigned_access() -> str:
+    return os.getenv("UNASSIGNED_PLAN_ACCESS", UNASSIGNED_ACCESS_DEFAULT)
+
+
+def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[datetime] = None) -> dict:
+    """The company's plan, status, current period and per-feature limits.
+    Limits are the plan's, replaced by an approved contract override
+    (tenant_entitlement_overrides), or the plan's trial allowance while the
+    company is on a free trial. A free trial ends at its exact UTC time."""
+    now = now or datetime.now(timezone.utc)
+    today = today or now.date()
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT a.plan_key, a.status, a.current_period_start, a.current_period_end, a.source, a.period_code
-            FROM tenant_plan_assignments a WHERE a.tenant_id = %s;
+            SELECT a.plan_key, a.status, a.current_period_start, a.current_period_end, a.source, a.period_code,
+                   t.ends_at
+            FROM tenant_plan_assignments a LEFT JOIN billing_trials t ON t.tenant_id = a.tenant_id
+            WHERE a.tenant_id = %s;
             """,
             (tenant_id,),
         )
         row = cursor.fetchone()
-        plan_key, status, period_start, period_end, source, period_code = (
-            row if row else (DEFAULT_PLAN_KEY, "active", None, None, None, "monthly")
-        )
-        # A free trial ends on its last day unless a paid subscription took over.
-        if source == "trial" and status == "trialing" and period_end and period_end < today:
+        if row:
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = row
+        elif _unassigned_access() == "default":
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = (
+                DEFAULT_PLAN_KEY, "active", None, None, None, "monthly", None)
+        else:
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = (
+                DEFAULT_PLAN_KEY, "none", None, None, None, "monthly", None)
+        # A free trial ends at its exact end time unless a paid subscription took over.
+        trial_over = (trial_ends_at <= now) if trial_ends_at is not None else bool(period_end and period_end < today)
+        if status == "trialing" and ((source == "trial" and trial_over)
+                                     or (source == "contract" and period_end and period_end < today)):
             status = "expired"
         cursor.execute(
             """
-            SELECT p.display_name, f.feature_code, f.unit, f.aggregation_type, f.reset_cycle, l.limit_value
+            SELECT p.display_name, f.feature_code, f.unit, f.aggregation_type, f.reset_cycle, l.limit_value,
+                   l.trial_limit_value, o.limit_value
             FROM usage_plans p
             JOIN usage_plan_limits l ON l.plan_key = p.plan_key
             JOIN usage_features f ON f.feature_code = l.feature_code
+            LEFT JOIN tenant_entitlement_overrides o ON o.tenant_id = %s AND o.feature_code = l.feature_code
             WHERE p.plan_key = %s;
             """,
-            (plan_key,),
+            (tenant_id, plan_key),
         )
         rows = cursor.fetchall()
         cursor.execute("SELECT feature_code FROM usage_plan_entitlements WHERE plan_key = %s;", (plan_key,))
         entitlements = sorted(r[0] for r in cursor.fetchall())
     if not (period_start and period_end and period_start <= today <= period_end):
         period_start, period_end = _month_bounds(today)
-    features = {code: {"unit": unit, "aggregation_type": agg, "reset_cycle": cycle,
-                       "limit": None if limit is None else int(limit)}
-                for _name, code, unit, agg, cycle, limit in rows}
+    trialing = status == "trialing"
+    features = {}
+    for _name, code, unit, agg, cycle, limit, trial_limit, override in rows:
+        if override is not None:
+            limit = override
+        elif trialing and trial_limit is not None:
+            limit = trial_limit
+        features[code] = {"unit": unit, "aggregation_type": agg, "reset_cycle": cycle,
+                          "limit": None if limit is None else int(limit)}
     return {
         "plan_key": plan_key, "display_name": rows[0][0] if rows else plan_key, "status": status,
         "assigned": row is not None, "period_start": period_start, "period_end": period_end, "features": features,
         "source": source, "period_code": period_code or "monthly", "entitlements": entitlements,
+        "trial_ends_at": trial_ends_at,
     }
 
 
@@ -169,6 +209,25 @@ def _metered_used(conn, tenant_id: str, feature_code: str, period_start: date) -
         )
         row = cursor.fetchone()
     return int(row[0]) if row else 0
+
+
+def _credits_used(conn, tenant_id: str, feature_code: str, period_start: date) -> float:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT consumed_credits + reserved_credits FROM tenant_credit_balances "
+            "WHERE tenant_id = %s AND budget_kind = %s AND period_start = %s;",
+            (tenant_id, "data" if feature_code == DATA_CREDITS else "ai", period_start),
+        )
+        row = cursor.fetchone()
+    return round(float(row[0]), 2) if row else 0.0
+
+
+def lock_feature(conn, tenant_id: str, feature_code: str) -> None:
+    """Serialises check-then-create for one company and feature until the
+    caller's transaction ends, so concurrent requests can't both take the
+    last unit of a counted ('max') limit."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));", (f"keel_capacity:{tenant_id}:{feature_code}",))
 
 
 def _live_used(conn, tenant_id: str, feature_code: str) -> float:
@@ -185,8 +244,12 @@ def current_usage(conn, tenant_id: str, plan: Optional[dict] = None) -> list:
     plan = plan or get_plan(conn, tenant_id)
     out = []
     for code, feature in sorted(plan["features"].items()):
-        used = (_metered_used(conn, tenant_id, code, plan["period_start"]) if feature["aggregation_type"] == "sum"
-                else _live_used(conn, tenant_id, code))
+        if code in CREDIT_FEATURES:
+            used = _credits_used(conn, tenant_id, code, plan["period_start"])
+        elif feature["aggregation_type"] == "sum":
+            used = _metered_used(conn, tenant_id, code, plan["period_start"])
+        else:
+            used = _live_used(conn, tenant_id, code)
         limit = feature["limit"]
         out.append({
             "feature_code": code, "unit": feature["unit"], "limit": limit, "current_usage": used,
@@ -253,6 +316,15 @@ def settle(conn, reservation: dict, actual: int) -> None:
     reservation["amount"] = int(actual)
 
 
+# Features introduced with KEEL's credit plans are never unlimited by
+# omission: a plan without a row for them doesn't include them.
+_FAIL_CLOSED_FEATURES = (MONTHLY_REPORTS, TEAM_SEATS, DATA_CREDITS, AI_CREDITS)
+
+
+def _missing_limit(feature_code: str) -> Optional[int]:
+    return 0 if feature_code in _FAIL_CLOSED_FEATURES else None
+
+
 def _require_active(plan: dict, feature_code: str) -> None:
     if plan["status"] not in ACCESS_GRANTING_STATUSES:
         raise PlanLimitReached("SUBSCRIPTION_INACTIVE", feature_code)
@@ -266,7 +338,7 @@ def reserve(conn, tenant_id: str, feature_code: str, amount: int = 1) -> dict:
     plan = get_plan(conn, tenant_id)
     _require_active(plan, feature_code)
     feature = plan["features"].get(feature_code)
-    limit = feature["limit"] if feature else None
+    limit = feature["limit"] if feature else _missing_limit(feature_code)
     period_start = plan["period_start"]
     with conn.cursor() as cursor:
         cursor.execute(
@@ -286,6 +358,71 @@ def reserve(conn, tenant_id: str, feature_code: str, amount: int = 1) -> dict:
         raise PlanLimitReached("QUOTA_EXHAUSTED", feature_code, _metered_used(conn, tenant_id, feature_code, period_start),
                                limit, "billing_period", plan["period_end"])
     return {"tenant_id": tenant_id, "feature_code": feature_code, "period_start": period_start, "amount": int(amount)}
+
+
+def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
+                    actor_user_id: Optional[str] = None, conn_factory=None) -> Optional[dict]:
+    """Counts one request (e.g. a report export) against a metered allowance,
+    once per idempotency key per period: a retried or replayed request with
+    the same key is not counted again (returns None). Raises PlanLimitReached
+    when the allowance is used up. Runs on the billing service's own
+    connection - companies can read these counters but never write them.
+    Fails closed: no accounting connection, no request."""
+    from src.ai import db
+
+    conn = (conn_factory or db.system_connection)()
+    try:
+        plan = get_plan(conn, tenant_id)
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                           (f"keel_metered:{tenant_id}:{feature_code}",))
+            cursor.execute(
+                "SELECT 1 FROM metered_request_keys WHERE tenant_id = %s AND feature_code = %s AND idempotency_key = %s;",
+                (tenant_id, feature_code, idempotency_key),
+            )
+            if cursor.fetchone():
+                conn.rollback()
+                return None
+        reservation = reserve(conn, tenant_id, feature_code, 1)
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO metered_request_keys (tenant_id, feature_code, idempotency_key, period_start, actor_user_id)
+                VALUES (%s, %s, %s, %s, %s);
+                """,
+                (tenant_id, feature_code, idempotency_key, plan["period_start"], actor_user_id),
+            )
+        conn.commit()
+        reservation["idempotency_key"] = idempotency_key
+        return reservation
+    except PlanLimitReached:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def release_request(reservation: Optional[dict], conn_factory=None) -> None:
+    """Gives back a counted request whose work failed (its key is freed, so a
+    retry is counted once)."""
+    if not reservation:
+        return
+    from src.ai import db
+
+    conn = (conn_factory or db.system_connection)()
+    try:
+        release(conn, reservation)
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM metered_request_keys WHERE tenant_id = %s AND feature_code = %s AND idempotency_key = %s;",
+                (reservation["tenant_id"], reservation["feature_code"], reservation["idempotency_key"]),
+            )
+        conn.commit()
+    except Exception:  # noqa: BLE001 - the unit stays counted; never fail the response over it
+        conn.rollback()
+        logger.exception("could not release counted request (%s)", reservation.get("feature_code"))
+    finally:
+        conn.close()
 
 
 def release(conn, reservation: dict) -> None:
@@ -309,6 +446,7 @@ def capacity_left(conn, tenant_id: str, feature_code: str) -> Optional[float]:
     feature = plan["features"].get(feature_code)
     if not feature or feature["limit"] is None:
         return None
+    lock_feature(conn, tenant_id, feature_code)
     return max(0, feature["limit"] - _live_used(conn, tenant_id, feature_code))
 
 
@@ -318,11 +456,13 @@ def ensure_capacity(conn, tenant_id: str, feature_code: str, adding: float = 1) 
     plan = get_plan(conn, tenant_id)
     _require_active(plan, feature_code)
     feature = plan["features"].get(feature_code)
-    if not feature or feature["limit"] is None:
+    limit = feature["limit"] if feature else _missing_limit(feature_code)
+    if limit is None:
         return
+    lock_feature(conn, tenant_id, feature_code)
     used = _live_used(conn, tenant_id, feature_code)
-    if used + adding > feature["limit"]:
-        raise PlanLimitReached("CAPACITY_REACHED", feature_code, used, feature["limit"], feature["reset_cycle"], None)
+    if used + adding > limit:
+        raise PlanLimitReached("CAPACITY_REACHED", feature_code, used, limit, "lifetime", None)
 
 
 # --- Fairness: per-company AI request rate --------------------------------
