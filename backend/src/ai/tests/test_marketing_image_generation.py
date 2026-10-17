@@ -46,7 +46,7 @@ def _response(status=200, content=b"", content_type="image/png", json_body=None,
 def _clean_env(monkeypatch):
     for name in ("MARKETING_IMAGE_PROVIDER", "MARKETING_IMAGE_PROVIDERS", "MARKETING_IMAGE_KEYLESS", "HUGGINGFACE_API_TOKEN",
                  "HUGGINGFACE_API_TOKENS", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNTS",
-                 "TOGETHER_API_KEYS", "POLLINATIONS_API_KEYS", "HORDE_API_KEYS"):
+                 "TOGETHER_API_KEYS", "POLLINATIONS_API_KEYS", "HORDE_API_KEYS", "GEMINI_API_KEYS"):
         monkeypatch.delenv(name, raising=False)
     cooling = set()
     monkeypatch.setattr(image_generation, "_cooling_down", lambda name: name in cooling)
@@ -327,3 +327,42 @@ def test_aihorde_queue_timeout_cancels_and_is_busy(monkeypatch):
 def test_keyless_pollinations_is_never_in_the_default_chain():
     # Its keyless tier stamps a visible provider watermark on every image.
     assert "pollinations" not in provider_chain() and image_generation._credentials("pollinations") == []
+
+
+# --- Gemini and multi-model accounts ----------------------------------------
+
+def test_gemini_returns_inline_image_and_busy_on_429(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEYS", "g1")
+    body = {"candidates": [{"content": {"parts": [{"text": "ok"}, {"inlineData": {"mimeType": "image/png", "data": base64.b64encode(PNG).decode()}}]}}]}
+    assert image_generation.provider_chain()[0] == "gemini#1"
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=_response(json_body=body, content_type="application/json")) as post:
+        assert generate_campaign_image("x", provider="gemini#1").content == PNG
+    assert post.call_args.kwargs["headers"]["x-goog-api-key"] == "g1"
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=_response(429, content_type="application/json")):
+        with pytest.raises(image_generation.ProviderBusy):
+            image_generation._generate_via_gemini("x", credential="g1")
+
+
+def test_cloudflare_tries_the_next_model_and_accepts_raw_image_bytes(monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNTS", "acc:tok")
+    replies = [_response(500, content_type="application/json", json_body={"errors": [{"message": "model down"}]}),
+               _response(content=PNG, content_type="image/png")]
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=replies) as post:
+        image = generate_campaign_image("x", provider="cloudflare#1")
+    urls = [c.args[0] for c in post.call_args_list]
+    assert "flux-1-schnell" in urls[0] and "stable-diffusion-xl-lightning" in urls[1] and image.content == PNG
+
+
+def test_cloudflare_quota_stops_instead_of_burning_the_next_model(monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNTS", "acc:tok")
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=_response(429, content_type="application/json")) as post:
+        with pytest.raises(image_generation.ProviderBusy):
+            image_generation._generate_via_cloudflare("x", credential="acc:tok")
+    assert post.call_count == 1
+
+
+def test_huggingface_falls_through_to_the_second_model(monkeypatch):
+    replies = [_response(503, content=b'{"error": "loading"}', content_type="application/json"), _response(content=PNG)]
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=replies) as post:
+        image = image_generation._generate_via_huggingface("x", credential="tok")
+    assert image.content == PNG and post.call_count == 2

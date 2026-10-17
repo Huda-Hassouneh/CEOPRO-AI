@@ -177,6 +177,8 @@ services:
         sync: false
       - key: HORDE_API_KEYS
         sync: false
+      - key: GEMINI_API_KEYS
+        sync: false
 
       # MARKETING_BACKGROUND_REMOVAL_PROVIDER is deliberately NOT declared
       # here at all (not even as an unset sync:false slot) - setting it to

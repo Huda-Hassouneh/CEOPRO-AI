@@ -477,39 +477,53 @@ def test_generate_image_campaign_not_completed_returns_409():
     assert response.status_code == 409
 
 
-def test_generate_image_not_configured_is_an_honest_200(monkeypatch):
-    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "none")
-    fake_conn = MagicMock()
-    row = _fake_campaign_row_for_image()
-    with patch("src.ai.routers.marketing.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.marketing.data_access.get_campaign", return_value=row), \
-         patch("src.ai.routers.marketing.data_access.save_image_generation_failure") as mock_fail:
-        response = client.post("/marketing/campaigns/c1/generate-image", headers=_auth())
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["image_generation_status"] == "NOT_CONFIGURED"
-    assert "not configured" in body["image_generation_error"].lower()
-    mock_fail.assert_called_once()
-    assert mock_fail.call_args.kwargs["status"] == "NOT_CONFIGURED"
-
-
-def test_generate_image_provider_error_is_an_honest_200(monkeypatch):
-    monkeypatch.setenv("MARKETING_IMAGE_PROVIDER", "pollinations")
+def _run_generate_with_poster_failing(monkeypatch, error_status, message):
+    """Provider chain fails AND the local poster breaks: the only case left that reports an error."""
     fake_conn = MagicMock()
     row = _fake_campaign_row_for_image()
     from src.ai.marketing.image_generation import ImageGenerationError
     with patch("src.ai.routers.marketing.db.app_role_connection", return_value=fake_conn), \
          patch("src.ai.routers.marketing.data_access.get_campaign", return_value=row), \
-         patch("src.ai.routers.marketing.image_generation.generate_campaign_image", side_effect=ImageGenerationError("PROVIDER_ERROR", "Pollinations did not return an image: HTTP 500")), \
+         patch("src.ai.routers.marketing.image_generation.generate_campaign_image", side_effect=ImageGenerationError(error_status, message)), \
+         patch("src.ai.routers.marketing.designed_poster.render_designed_poster", side_effect=RuntimeError("render bug")), \
          patch("src.ai.routers.marketing.data_access.save_image_generation_failure") as mock_fail:
         response = client.post("/marketing/campaigns/c1/generate-image", headers=_auth())
+    return response, mock_fail
 
+
+def test_generate_image_not_configured_and_poster_failing_is_an_honest_200(monkeypatch):
+    response, mock_fail = _run_generate_with_poster_failing(
+        monkeypatch, "NOT_CONFIGURED", "AI image generation is not configured for this environment.")
     assert response.status_code == 200
     body = response.json()
-    assert body["image_generation_status"] == "PROVIDER_ERROR"
-    assert "500" in body["image_generation_error"]
+    assert body["image_generation_status"] == "NOT_CONFIGURED" and "not configured" in body["image_generation_error"].lower()
+    assert mock_fail.call_args.kwargs["status"] == "NOT_CONFIGURED"
+
+
+def test_generate_image_provider_error_and_poster_failing_is_an_honest_200(monkeypatch):
+    response, mock_fail = _run_generate_with_poster_failing(monkeypatch, "PROVIDER_ERROR", "No image provider produced an image (x: busy).")
+    body = response.json()
+    assert response.status_code == 200 and body["image_generation_status"] == "PROVIDER_ERROR"
     mock_fail.assert_called_once()
+
+
+def test_no_ai_image_falls_back_to_a_designed_poster_never_an_error():
+    """Every provider failing must still give the tenant a finished image, labelled as designed."""
+    fake_conn = MagicMock()
+    row = _fake_campaign_row_for_image()
+    from src.ai.marketing.image_generation import ImageGenerationError
+    with patch("src.ai.routers.marketing.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.marketing.data_access.get_campaign", return_value=row), \
+         patch("src.ai.routers.marketing.image_generation.generate_campaign_image", side_effect=ImageGenerationError("PROVIDER_ERROR", "all busy")), \
+         patch("src.ai.routers.marketing.db.minio_client", return_value=MagicMock()), \
+         patch("src.ai.routers.marketing.image_storage.upload_generated_image", return_value="t1/c1/generated.png") as mock_upload, \
+         patch("src.ai.routers.marketing.data_access.save_generated_image") as mock_save:
+        response = client.post("/marketing/campaigns/c1/generate-image", headers=_auth())
+    body = response.json()
+    assert response.status_code == 200 and body["image_generation_status"] == "COMPLETED"
+    assert body["image_generation_mode"] == "designed" and body["image_generation_provider"] == "ai"
+    assert mock_upload.call_args.args[1][:8] == b"\x89PNG\r\n\x1a\n"   # a real PNG, not a placeholder
+    assert mock_save.call_args.kwargs["provider"] == "ai"
 
 
 def test_generate_image_success_stores_and_returns_completed(monkeypatch):

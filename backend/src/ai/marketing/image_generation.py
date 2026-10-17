@@ -155,6 +155,8 @@ class GeneratedImage:
     reference_note: Optional[str] = None
     width: Optional[int] = None
     height: Optional[int] = None
+    # "ai" for a provider-generated image, "designed" for the local fallback poster.
+    mode: str = "ai"
     # Providers tried before this one succeeded, with why each failed.
     attempts: List[dict] = field(default_factory=list)
 
@@ -217,6 +219,8 @@ def _credentials(name: str) -> List[Optional[str]]:
         return pairs
     if name == "together":
         return _csv("TOGETHER_API_KEYS")
+    if name == "gemini":
+        return _csv("GEMINI_API_KEYS")
     if name == "pollinations":
         # Keyed only: the keyless tier stamps a visible "pollinations.ai"
         # watermark on every image (verified live 2026-10-17), which would
@@ -260,18 +264,22 @@ def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = No
             "NOT_CONFIGURED",
             "MARKETING_IMAGE_PROVIDER is 'huggingface' but HUGGINGFACE_API_TOKEN is not set.",
         )
-    model = os.getenv("HUGGINGFACE_IMAGE_MODEL", _DEFAULT_HUGGINGFACE_MODEL)
-    url = _HUGGINGFACE_API_URL.format(model=model)
-
-    try:
-        response = httpx.post(
-            url,
-            headers={"Authorization": f"Bearer {token}"},
-            json={"inputs": prompt},
-            timeout=_TIMEOUT_SECONDS,
-        )
-    except httpx.HTTPError as err:
-        raise ImageGenerationError("PROVIDER_ERROR", f"Hugging Face request failed: {err}") from err
+    models = _csv("HUGGINGFACE_IMAGE_MODELS", "HUGGINGFACE_IMAGE_MODEL") or [_DEFAULT_HUGGINGFACE_MODEL, "stabilityai/stable-diffusion-xl-base-1.0"]
+    response = None
+    for model in models:  # the next model is tried if one is unavailable; a quota error stops (shared credit)
+        try:
+            response = httpx.post(
+                _HUGGINGFACE_API_URL.format(model=model),
+                headers={"Authorization": f"Bearer {token}"},
+                json={"inputs": prompt},
+                timeout=_TIMEOUT_SECONDS,
+            )
+        except httpx.HTTPError as err:
+            if model == models[-1]:
+                raise ImageGenerationError("PROVIDER_ERROR", f"Hugging Face request failed: {type(err).__name__}") from err
+            continue
+        if response.status_code in (402, 429) or response.status_code == 200 or model == models[-1]:
+            break
 
     content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
     if response.status_code in (402, 429):  # free monthly credit used up, or rate limited
@@ -301,37 +309,83 @@ _CLOUDFLARE_URL = os.getenv(
 _CLOUDFLARE_MODEL = os.getenv("CLOUDFLARE_IMAGE_MODEL", "@cf/black-forest-labs/flux-1-schnell")
 
 
+_CLOUDFLARE_MODELS = ("@cf/black-forest-labs/flux-1-schnell", "@cf/bytedance/stable-diffusion-xl-lightning")
+
+
+def _cloudflare_models() -> List[str]:
+    return _csv("CLOUDFLARE_IMAGE_MODELS", "CLOUDFLARE_IMAGE_MODEL") or list(_CLOUDFLARE_MODELS)
+
+
 def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None) -> GeneratedImage:
     if credential:
         account, _, token = credential.partition(":")
     else:
         account, token = os.getenv("CLOUDFLARE_ACCOUNT_ID"), os.getenv("CLOUDFLARE_API_TOKEN")
     if not (account and token):
-        raise ImageGenerationError("NOT_CONFIGURED", "CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are needed for Cloudflare.")
+        raise ImageGenerationError("NOT_CONFIGURED", "CLOUDFLARE_ACCOUNTS (account_id:token) is needed for Cloudflare.")
+    last_error = None
+    for model in _cloudflare_models():  # the next model is tried if one fails; a quota error stops (same account allowance)
+        body = {"prompt": prompt[:2048]}
+        body.update({"steps": 4} if "flux" in model else {"num_steps": 8, "width": 1024, "height": 1024})
+        try:
+            response = httpx.post(
+                _CLOUDFLARE_URL.format(account=account, model=model),
+                headers={"Authorization": f"Bearer {token}"}, json=body, timeout=_TIMEOUT_SECONDS,
+            )
+        except httpx.HTTPError as err:
+            last_error = ImageGenerationError("PROVIDER_ERROR", f"Cloudflare request failed: {type(err).__name__}")
+            continue
+        if response.status_code in (402, 429):
+            raise ProviderBusy("Cloudflare free allowance or rate limit reached", _retry_after(response))
+        content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
+        if response.status_code == 200 and content_type in _SUPPORTED_IMAGE_CONTENT_TYPES:
+            content = response.content  # SDXL-class models answer with raw image bytes
+        else:
+            try:
+                payload = response.json()
+                encoded = (payload.get("result") or {}).get("image")
+                content = base64.b64decode(encoded) if response.status_code == 200 and encoded else None
+            except (ValueError, TypeError, AttributeError):
+                payload, content = {}, None
+            if not content:
+                errors = "; ".join(str(e.get("message", e)) for e in (payload.get("errors") or [])[:2]) if isinstance(payload, dict) else ""
+                last_error = ImageGenerationError("PROVIDER_ERROR", f"Cloudflare did not return an image (HTTP {response.status_code}) {errors}".strip())
+                continue
+            content_type = "image/jpeg"
+        return GeneratedImage(
+            content=content, content_type=content_type, provider="cloudflare",
+            used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
+        )
+    raise last_error or ImageGenerationError("PROVIDER_ERROR", "Cloudflare returned no image.")
+
+
+_GEMINI_URL = os.getenv("GEMINI_URL", "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
+
+
+def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None) -> GeneratedImage:
+    """Google AI Studio's image model on a free API key (no card). Images carry
+    Google's invisible SynthID mark, never a visible one."""
+    if not credential:
+        raise ImageGenerationError("NOT_CONFIGURED", "GEMINI_API_KEYS is not set.")
+    model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
     try:
         response = httpx.post(
-            _CLOUDFLARE_URL.format(account=account, model=_CLOUDFLARE_MODEL),
-            headers={"Authorization": f"Bearer {token}"}, json={"prompt": prompt[:2048], "steps": 4},
+            _GEMINI_URL.format(model=model), headers={"x-goog-api-key": credential},
+            json={"contents": [{"parts": [{"text": prompt[:1500]}]}], "generationConfig": {"responseModalities": ["IMAGE"]}},
             timeout=_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as err:
-        raise ImageGenerationError("PROVIDER_ERROR", f"Cloudflare request failed: {type(err).__name__}") from err
+        raise ImageGenerationError("PROVIDER_ERROR", f"Gemini request failed: {type(err).__name__}") from err
     if response.status_code in (402, 429):
-        raise ProviderBusy("Cloudflare free allowance or rate limit reached", _retry_after(response))
+        raise ProviderBusy(f"Gemini free allowance or rate limit reached (HTTP {response.status_code})", _retry_after(response))
     try:
-        payload = response.json()
-        encoded = (payload.get("result") or {}).get("image")
-    except ValueError:
-        payload, encoded = {}, None
-    if response.status_code != 200 or not encoded:
-        errors = "; ".join(str(e.get("message", e)) for e in (payload.get("errors") or [])[:2]) if isinstance(payload, dict) else ""
-        raise ImageGenerationError("PROVIDER_ERROR", f"Cloudflare did not return an image (HTTP {response.status_code}) {errors}".strip())
-    try:
-        content = base64.b64decode(encoded)
-    except (ValueError, TypeError) as err:
-        raise ImageGenerationError("PROVIDER_ERROR", "Cloudflare returned an unreadable image.") from err
+        parts = response.json()["candidates"][0]["content"]["parts"]
+        inline = next(p["inlineData"] for p in parts if "inlineData" in p)
+        content, content_type = base64.b64decode(inline["data"]), inline.get("mimeType", "image/png")
+    except (ValueError, KeyError, IndexError, TypeError, StopIteration) as err:
+        raise ImageGenerationError("PROVIDER_ERROR", f"Gemini did not return an image (HTTP {response.status_code}).") from err
     return GeneratedImage(
-        content=content, content_type="image/jpeg", provider="cloudflare",
+        content=content, content_type=content_type, provider="gemini",
         used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
     )
 
@@ -457,10 +511,11 @@ _PROVIDERS = {
     "cloudflare": _generate_via_cloudflare,
     "huggingface": _generate_via_huggingface,
     "together": _generate_via_together,
+    "gemini": _generate_via_gemini,
     "pollinations": _generate_via_pollinations,
     "aihorde": _generate_via_aihorde,
 }
-_KEYED = {name: (lambda n=name: bool(_credentials(n))) for name in ("cloudflare", "huggingface", "together", "pollinations")}
+_KEYED = {name: (lambda n=name: bool(_credentials(n))) for name in ("cloudflare", "huggingface", "together", "gemini", "pollinations")}
 _TOTAL_BUDGET_SECONDS = float(os.getenv("MARKETING_IMAGE_TOTAL_SECONDS", "120"))
 # Spending-policy refusals about one provider (its price, switch or cap):
 # the next provider may still be tried.

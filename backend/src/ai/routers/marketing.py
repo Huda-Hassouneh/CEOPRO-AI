@@ -53,7 +53,7 @@ from src.ai.billing import credits
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.marketing import occasions
 from src.ai.marketing import (
-    background_removal, content_generator, creative_direction, data_access, image_generation,
+    background_removal, content_generator, creative_direction, data_access, designed_poster, image_generation,
     image_storage, positioning, url_extractor, video_generation,
 )
 from src.ai.core import storage_ledger, usage
@@ -743,17 +743,30 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) 
                     prompt, reference_image=reference_content, reference_content_type=reference_content_type,
                 )
         except image_generation.ImageGenerationError as err:
-            usage.release(conn, reservation)
-            reservation = None
-            data_access.save_image_generation_failure(
-                conn, ctx.tenant_id, campaign_id, status=err.status, error_message=err.message, provider=None,
-            )
-            conn.commit()
-            return {
-                "campaign_id": campaign_id, "image_generation_status": err.status,
-                "image_generation_provider": None, "image_generation_error": err.message,
-                "image_generation_used_reference": False, "image_generation_reference_note": None,
-            }
+            # No AI image (free allowances used up / providers down / none
+            # configured): deliver a designed poster from the campaign's own
+            # copy (+ the product photo if selected) so the tenant always gets
+            # a finished, watermark-free image. Not AI-generated - and it says so.
+            logger.warning("No AI image for campaign %s (%s); using the designed poster", campaign_id, err.message)
+            try:
+                generated = image_generation.GeneratedImage(
+                    content=designed_poster.render_designed_poster(campaign, reference_content),
+                    content_type="image/png", provider="designed", mode="designed",
+                    used_reference=bool(reference_content),
+                )
+            except Exception:  # noqa: BLE001 - never turn a render bug into a lost image: report honestly
+                logger.exception("Designed poster failed for campaign %s", campaign_id)
+                usage.release(conn, reservation)
+                reservation = None
+                data_access.save_image_generation_failure(
+                    conn, ctx.tenant_id, campaign_id, status=err.status, error_message=err.message, provider=None,
+                )
+                conn.commit()
+                return {
+                    "campaign_id": campaign_id, "image_generation_status": err.status,
+                    "image_generation_provider": None, "image_generation_error": err.message,
+                    "image_generation_used_reference": False, "image_generation_reference_note": None,
+                }
 
         client = db.minio_client()
         image_key = image_storage.upload_generated_image(
@@ -780,7 +793,8 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) 
                 logger.exception("Could not delete the replaced image (tenant=%s campaign=%s)", ctx.tenant_id, campaign_id)
         return {
             "campaign_id": campaign_id, "image_generation_status": "COMPLETED",
-            "image_generation_provider": "ai", "generated_image_key": image_key,
+            "image_generation_provider": "ai", "image_generation_mode": generated.mode,
+            "generated_image_key": image_key,
             "image_generation_used_reference": generated.used_reference,
             "image_generation_reference_note": generated.reference_note,
         }
