@@ -240,3 +240,5 @@ findings at start-up.
 6. Section 10 - the fixed settings.
 
 Everything else is optional; add a confirmed price for each paid provider you turn on.
+STRIPE_SECRET_KEY=rk_test_51URcP4Jlm0Kyqxjrn34HtRele9vdYqEzMqNernV8i6XsVYOk3fgPUoizUmCqZHKCQaOlNIHA6ZL82qiDCuHTPqI200ucvzw4wR
+
