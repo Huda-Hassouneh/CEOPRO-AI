@@ -125,10 +125,11 @@ them yourself (for example on a server), every name is explained in
 | Sign-in (required) | `JWT_SECRET` (a long random string) |
 | Cache / rate limits (required) | `REDIS_HOST`, `REDIS_PORT` (or `REDIS_URL`) |
 | File storage (required) | `MINIO_ENDPOINT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` |
-| Browser access (required) | `CORS_ALLOWED_ORIGINS` (e.g. `http://localhost:5173`), `FRONTEND_BASE_URL` |
+| Browser access (required) | `CORS_ALLOWED_ORIGINS` (the frontend's origin, e.g. `http://localhost:5173`), `FRONTEND_BASE_URL`, `APP_BASE_URL` (the same frontend address, for Stripe's return pages) |
+| Saved connector credentials (required for connectors) | `CREDENTIAL_VAULT_MASTER_KEY` - a Fernet key; `./keel setup` creates one |
 | AI assistant answers | `GROQ_API_KEY` (optional: `GROQ_MODEL`, `GROQ_MAX_TOKENS`) |
 | Emails (codes, invitations) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `EMAIL_FROM_ADDRESS` (if unset nothing is sent; set `EMAIL_LOG_UNSENT_BODIES=true` in a local `.env` to see codes in the backend log, or set a password directly with `python -m scripts.set_password --email you@example.com`) |
-| AI images (optional) | `MARKETING_IMAGE_PROVIDER` and that provider's settings; `MARKETING_BACKGROUND_REMOVAL_PROVIDER=rembg` for background removal |
+| AI images (optional) | `MARKETING_IMAGE_PROVIDERS`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`, `HUGGINGFACE_API_TOKEN` (paid ones need a recorded price); `MARKETING_BACKGROUND_REMOVAL_PROVIDER=rembg` for background removal |
 | Competitor discovery and web search (optional) | `GOOGLE_PLACES_API_KEY`, `GOOGLE_CUSTOM_SEARCH_API_KEY`, `GOOGLE_CUSTOM_SEARCH_CX`, `APIFY_API_TOKEN`, or `SEARXNG_INSTANCE_URL` |
 | Logging | `LOG_LEVEL` (default `INFO`) |
 

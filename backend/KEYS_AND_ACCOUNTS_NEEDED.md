@@ -35,7 +35,15 @@ CREDENTIAL_VAULT_MASTER_KEY=
 | `APP_DB_PASSWORD` | `openssl rand -hex 32` | Password of the restricted `ceopro_app` database role; the migration runner sets it. |
 | `MINIO_ROOT_PASSWORD` | `openssl rand -hex 32` (local MinIO) | On staging/production with Cloudflare R2 it is the R2 **Secret Access Key** instead (section 6). |
 | `GRAFANA_ADMIN_PASSWORD` | `openssl rand -hex 32` | Local monitoring stack only (`docker-compose.yml`). |
-| `CREDENTIAL_VAULT_MASTER_KEY` | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` | **Must be a Fernet key** (44 characters, base64, ends in `=`). A hex string from `openssl rand -hex` is **rejected** and saving database/API connectors fails. Never change it once companies have saved connectors - their saved credentials become unreadable. |
+| `CREDENTIAL_VAULT_MASTER_KEY` | `python -m scripts.vault_key generate` (from `backend/`) | **Must be a Fernet key** (44 characters, base64, ends in `=`). A hex string from `openssl rand -hex` is **rejected** and saving or syncing connectors is refused. Same value on the API and the workers. To replace it, rotate (below) - never just change it. |
+
+**Rotating `CREDENTIAL_VAULT_MASTER_KEY` without losing saved connectors:**
+set the new key as `CREDENTIAL_VAULT_MASTER_KEY` and the old one as
+`CREDENTIAL_VAULT_PREVIOUS_KEYS` (API and workers), run
+`python -m scripts.vault_key check` (every credential opens), then
+`python -m scripts.vault_key rewrap`, `check` again, and remove
+`CREDENTIAL_VAULT_PREVIOUS_KEYS`. `rewrap` changes nothing if any credential
+can't be opened.
 
 Also set, not secret: `CREDENTIAL_VAULT_KMS_BACKEND=local` (or `aws` with
 `AWS_KMS_KEY_ID` and AWS credentials, the stronger production option),
@@ -213,6 +221,15 @@ REQUIRE_EMAIL_VERIFICATION=auto
   `VITE_SPLINE_HERO_SCENE` (landing-page 3D scene).
 
 ---------------------------------------------------------------------------
+
+## Checking an environment
+
+`./keel check` (or `python -m scripts.check_config --db` from `backend/`)
+compares the loaded environment with this file: missing required settings,
+wrong formats (vault key, addresses, CORS), half-set integrations, names the
+code ignores, and paid providers configured without a recorded price. It
+prints setting names and problems only, never values. The API logs the same
+findings at start-up.
 
 ## Minimum to go live
 

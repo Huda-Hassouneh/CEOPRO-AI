@@ -48,9 +48,37 @@ import json
 import os
 from typing import Optional
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 _ENVELOPE_VERSION = 1
+
+GENERATE_COMMAND = 'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+
+
+def master_key_problem(value: Optional[str]) -> Optional[str]:
+    """Why a CREDENTIAL_VAULT_MASTER_KEY value can't be used, or None when it
+    is a valid Fernet key (32 bytes, URL-safe base64, 44 characters). Never
+    includes the value itself."""
+    if not value or not value.strip():
+        return "is not set"
+    value = value.strip()
+    if value.lower().startswith("change_this"):
+        return "is still the placeholder from .env.example"
+    if len(value) == 64 and all(c in "0123456789abcdefABCDEF" for c in value):
+        return ("is a 64-character hex string (e.g. from `openssl rand -hex 32`), not a Fernet key - "
+                f"generate one with: {GENERATE_COMMAND}")
+    try:
+        Fernet(value.encode())
+    except (ValueError, TypeError):
+        return f"is not a valid Fernet key (expected 44 URL-safe base64 characters) - generate one with: {GENERATE_COMMAND}"
+    return None
+
+
+def previous_master_keys() -> list:
+    """CREDENTIAL_VAULT_PREVIOUS_KEYS: comma-separated keys that were the
+    master key before a rotation. Kept only until scripts/vault_key.py
+    rewrap has re-wrapped every stored credential under the current key."""
+    return [k.strip() for k in (os.getenv("CREDENTIAL_VAULT_PREVIOUS_KEYS") or "").split(",") if k.strip()]
 
 
 class CredentialDecryptionError(ValueError):
@@ -79,27 +107,43 @@ class KMSBackend:
 class LocalEnvelopeKMS(KMSBackend):
     name = "local"
 
-    def __init__(self, master_key: Optional[str] = None):
+    def __init__(self, master_key: Optional[str] = None, previous_keys: Optional[list] = None):
+        """New credentials are always wrapped with the current master key;
+        reading also tries the previous keys (CREDENTIAL_VAULT_PREVIOUS_KEYS),
+        so rotating the master key never makes stored credentials unreadable.
+        An invalid key refuses to start the backend - it is never derived,
+        padded or replaced, which would silently make existing credentials
+        unreadable."""
         key = master_key if master_key is not None else os.getenv("CREDENTIAL_VAULT_MASTER_KEY")
-        if not key:
-            raise RuntimeError(
-                "CREDENTIAL_VAULT_MASTER_KEY must be set for the local KMS backend - "
-                "generate one with: python -c \"from cryptography.fernet import Fernet; "
-                "print(Fernet.generate_key().decode())\""
-            )
-        try:
-            self._fernet = Fernet(key.encode() if isinstance(key, str) else key)
-        except (ValueError, TypeError) as e:
-            raise RuntimeError(f"CREDENTIAL_VAULT_MASTER_KEY is not a valid Fernet key: {e}") from e
+        problem = master_key_problem(key.decode() if isinstance(key, bytes) else key)
+        if problem:
+            raise RuntimeError(f"CREDENTIAL_VAULT_MASTER_KEY {problem}")
+        previous = previous_master_keys() if previous_keys is None else list(previous_keys)
+        for index, old in enumerate(previous, 1):
+            old_problem = master_key_problem(old)
+            if old_problem:
+                raise RuntimeError(f"CREDENTIAL_VAULT_PREVIOUS_KEYS entry {index} {old_problem}")
+        self._current = Fernet(key.strip().encode() if isinstance(key, str) else key)
+        self._fernet = MultiFernet([self._current] + [Fernet(k.encode()) for k in previous])
+        self.previous_key_count = len(previous)
 
     def wrap_dek(self, plaintext_dek: bytes) -> bytes:
-        return self._fernet.encrypt(plaintext_dek)
+        return self._current.encrypt(plaintext_dek)
 
     def unwrap_dek(self, wrapped_dek: bytes) -> bytes:
         try:
             return self._fernet.decrypt(wrapped_dek)
         except InvalidToken as e:
-            raise CredentialDecryptionError("local KMS backend could not unwrap this DEK - wrong master key?") from e
+            raise CredentialDecryptionError(
+                "local KMS backend could not unwrap this DEK with the current or any previous master key - "
+                "the key it was stored under is not configured (CREDENTIAL_VAULT_PREVIOUS_KEYS)") from e
+
+    def wrapped_with_current_key(self, wrapped_dek: bytes) -> bool:
+        try:
+            self._current.decrypt(wrapped_dek)
+            return True
+        except InvalidToken:
+            return False
 
 
 class AWSKMSBackend(KMSBackend):
@@ -227,3 +271,24 @@ def is_encrypted_envelope(value: str) -> bool:
         and isinstance(obj.get("wrapped_dek"), str)
         and isinstance(obj.get("ciphertext"), str)
     )
+
+
+def rewrap_envelope(envelope_json: str, kms: KMSBackend) -> Optional[str]:
+    """The same credential with its DEK wrapped under the backend's current
+    key, or None when it already is. The encrypted credential itself is not
+    touched (only the small wrapped DEK changes), so nothing can be lost:
+    a DEK that can't be unwrapped raises CredentialDecryptionError and the
+    stored value stays as it was."""
+    if not is_encrypted_envelope(envelope_json):
+        raise CredentialDecryptionError("not a recognized encrypted envelope")
+    envelope = json.loads(envelope_json)
+    if envelope["kms_backend"] != kms.name:
+        raise CredentialDecryptionError(
+            f"envelope uses KMS backend {envelope['kms_backend']!r}, not {kms.name!r}")
+    wrapped = base64.b64decode(envelope["wrapped_dek"])
+    if isinstance(kms, LocalEnvelopeKMS) and kms.wrapped_with_current_key(wrapped):
+        return None
+    plaintext_dek = kms.unwrap_dek(wrapped)
+    Fernet(plaintext_dek).decrypt(base64.b64decode(envelope["ciphertext"]))  # the credential still opens
+    envelope["wrapped_dek"] = base64.b64encode(kms.wrap_dek(plaintext_dek)).decode("ascii")
+    return json.dumps(envelope)

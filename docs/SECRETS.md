@@ -26,7 +26,7 @@ it isn't configured instead of failing.
 | Name | Needed for | Required? | Least privilege | Codespaces | Actions | Render |
 |---|---|---|---|---|---|---|
 | `GROQ_API_KEY` | AI-written assistant answers (the default LLM provider). Without it, the assistant lists the cited sources it found, unsummarised | Required for AI answers | A normal Groq API key (Groq has no narrower scope); free tier | yes | yes - CI then checks answers are written by the LLM | yes |
-| `HUGGINGFACE_API_TOKEN` | Hugging Face Inference Providers for assistant answers, **only when `HUGGINGFACE_LLM_MODEL` is set** (see below); marketing images with `MARKETING_IMAGE_PROVIDER=huggingface` | Optional | Fine-grained token with only **"Make calls to Inference Providers"** ticked, no repository access | yes, if used | yes, if used | only if used |
+| `HUGGINGFACE_API_TOKEN` | Hugging Face Inference Providers for assistant answers, **only when `HUGGINGFACE_LLM_MODEL` is set** (see below); marketing images (`MARKETING_IMAGE_PROVIDERS` including `huggingface`) | Optional | Fine-grained token with only **"Make calls to Inference Providers"** ticked, no repository access | yes, if used | yes, if used | only if used |
 | `TAVILY_API_KEY` | Public web research in assistant answers (preferred free provider: 1,000 credits/month, no card) | Optional | Default key | optional | no | optional |
 | `BRAVE_SEARCH_API_KEY`, `SERPAPI_API_KEY`, `GOOGLE_CUSTOM_SEARCH_API_KEY` + `GOOGLE_CUSTOM_SEARCH_CX` | Alternative web-research providers | Optional | Search-only keys | optional | no | optional |
 | `GOOGLE_PLACES_API_KEY` | Competitor discovery via Google Places | Optional | Restricted to the Places API | optional | no | optional |
@@ -38,7 +38,7 @@ it isn't configured instead of failing.
 | `SENTRY_DSN` (frontend: `VITE_SENTRY_DSN`) | Error reporting | Optional | A DSN (write-only) | no | no | optional |
 
 Non-secret settings that go with these are ordinary variables, not
-secrets: `GROQ_MODEL`, `HUGGINGFACE_LLM_MODEL`, `MARKETING_IMAGE_PROVIDER`,
+secrets: `GROQ_MODEL`, `HUGGINGFACE_LLM_MODEL`, `MARKETING_IMAGE_PROVIDERS`,
 `RAG_EMBEDDING_BACKEND`. In Actions, `HUGGINGFACE_LLM_MODEL` is a repository
 **variable**.
 
@@ -56,6 +56,15 @@ as Codespaces secrets.
 - **Render:** `render.yaml` generates `JWT_SECRET`; `DATABASE_URL`,
   `APP_DB_PASSWORD`, the MinIO/R2 keys and `CREDENTIAL_VAULT_MASTER_KEY` are
   set once in the service's Environment (see `STAGING_DEPLOYMENT.md`).
+- `CREDENTIAL_VAULT_MASTER_KEY` must be a Fernet key
+  (`python -m scripts.vault_key generate`); a hex string is rejected.
+  Changing it without the rotation steps makes every saved connector
+  credential unreadable: set the new key, put the old one in
+  `CREDENTIAL_VAULT_PREVIOUS_KEYS`, run `python -m scripts.vault_key check`
+  and `rewrap`, then remove the old key (see `backend/scripts/vault_key.py`).
+- Check any environment against `backend/KEYS_AND_ACCOUNTS_NEEDED.md` with
+  `./keel check` (or `python -m scripts.check_config --db`): setting names
+  and problems only, never values.
 
 ## Codespaces: setting up and checking
 
