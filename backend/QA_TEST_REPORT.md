@@ -34,11 +34,24 @@ Five *tests* were fragile (depended on the developer's shell or a stale expectat
    `test_main_integration_db.py` had signed its tokens with a different hard-coded secret (3 failures, order/shell dependent).
 3. `test_main_integration_db.py` expected staged rows to stay `VALID`; upload promotes them to `COMMITTED`.
 
+## 2b. CI findings (GitHub Actions, Python 3.11, pinned dependencies)
+
+* **The backend tests had never run in CI on recent commits.** The "Audit Python dependencies" step failed first on
+  `CVE-2026-106454` (Twisted IMAP *server* ReDoS). Twisted is only Scrapy's transitive dependency, nothing in the repo
+  uses its mail/IMAP code, 26.4.0 is already the newest release and no fix exists. `pr-checks.yml` now ignores **only that
+  one ID**, with the reason beside it (owner-approved). **Remove the ignore when Twisted ships a fix**; any other finding still fails the job.
+* With the audit passing, CI ran the full suite on 3.11: **2908-2909 passed**. The remaining failures were:
+  * 4 MinIO-backed tests (`test_plan_catalog_integration_db.py` x3, `test_marketing_lifecycle_integration_db.py` x1) that
+    only checked for the database, so they failed where MinIO is absent. **Fixed:** they now skip without MinIO (and pass with it, verified both ways).
+  * `test_competitor_enrichment_integration_db.py::test_due_mode_skips_permanent_misses_but_force_mode_retries_them_and_fixed_setup_blocks`
+    failed in one CI run and passed in the next, and passed in 4 local runs, so it is **flaky** (competitor area, out of scope).
+    **Not fixed - cause not reproduced.** If it recurs, the failing assertion is the first one ("due" mode picks the wrong set).
+
 ## 3. Observations worth knowing (no action required)
 
 * RLS isolation tests (`test_rls_integration_db.py`) pass against a real Postgres with the restricted `ceopro_app` role.
 * CI (`.github/workflows/pr-checks.yml`) already runs `pytest src/` with Postgres and Redis, so all new tests run on
-  every PR. CI has no MinIO service, so the MinIO-backed upload/marketing tests skip there.
+  every PR. CI has no MinIO service, so MinIO-backed tests skip there (run `./scripts/run_qa.sh full` with MinIO to cover them).
 * `/health/ready` returns 503 when dependencies are unreachable and is public; `/billing/plans` is public – both intentional.
 
 ## 4. How to run (nothing else to configure)

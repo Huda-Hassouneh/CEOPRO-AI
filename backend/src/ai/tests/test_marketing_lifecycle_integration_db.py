@@ -20,6 +20,12 @@ DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
                                 reason="AI_TEST_DATABASE_URL/APP_DB_PASSWORD not set - skipping live-DB integration test")
 
+# These tests store real objects, so they need MinIO as well as Postgres (CI has no MinIO service).
+requires_minio = pytest.mark.skipif(
+    not all(os.getenv(k) for k in ("MINIO_ENDPOINT", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD")),
+    reason="MINIO_ENDPOINT/MINIO_ROOT_USER/MINIO_ROOT_PASSWORD not set - skipping MinIO-backed test",
+)
+
 
 def _png():
     buffer = io.BytesIO()
@@ -69,6 +75,7 @@ def _storage_keys(tenant):
         return [r[0] for r in cursor.fetchall()]
 
 
+@requires_minio
 def test_a_campaign_is_created_with_its_image_edited_reloaded_paged_and_deleted(setup):
     from src.ai import db
     from src.ai.marketing import image_storage
