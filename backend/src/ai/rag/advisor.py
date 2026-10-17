@@ -211,6 +211,31 @@ def _relevant(question: str, text: str) -> bool:
     return len(found) >= min(2, len(wanted))
 
 
+# Retrieval always returns its nearest chunks, so each must also pass a
+# relevance check before it becomes evidence. Shared words alone (_relevant)
+# would drop every match semantic search makes across languages - an Arabic
+# question about an English document shares none - so a chunk whose embedding
+# is at least this similar to the question's also counts. Calibrated on the
+# question/document similarities scripts/rag_runtime_check.py prints.
+SEMANTIC_MIN_SIMILARITY = float(os.getenv("RAG_SEMANTIC_MIN_SIMILARITY", "0.35"))
+_UNSET = object()
+
+
+def _semantic_check(question: str) -> Optional[Callable[[str], bool]]:
+    """text -> close enough to `question` by meaning; None without an embedding model."""
+    from src.ai.rag.embeddings import try_embed
+
+    asked = try_embed([question])
+    if asked is None:
+        return None
+
+    def close(text: str) -> bool:
+        vector = try_embed([text])
+        return vector is not None and float(vector[0] @ asked[0]) >= SEMANTIC_MIN_SIMILARITY
+
+    return close
+
+
 def _status(statuses: List[dict], need: str, status: str, detail: str = "") -> None:
     statuses.append({"need": need, "status": status, **({"detail": detail} if detail else {})})
 
@@ -257,6 +282,7 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
         )
         rows = {str(row[0]): row for row in cursor.fetchall()}
     added, withheld = 0, 0
+    close = _UNSET
     for source in context.sources:
         row = rows.get(source["chunk_id"])
         if row is None:
@@ -266,8 +292,13 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
         if not access.allows(*needed):
             withheld += 1
             continue
-        if added >= top_k or not _relevant(question, text):
+        if added >= top_k:
             continue
+        if not _relevant(question, text):
+            if close is _UNSET:
+                close = _semantic_check(question)
+            if close is None or not close(text):
+                continue
         summary = (path or "").startswith("_generated/")
         title = (_w("summary_title", language, name=file_name.rsplit('.', 1)[0].replace('_', ' ')) if summary
                  else file_name)
