@@ -20,6 +20,8 @@ on:
       - backend/scripts/rag_runtime_check.py
       - backend/scripts/rag_e2e_check.py
       - backend/scripts/llm_provider_check.py
+      - backend/scripts/billing_admin.py
+      - backend/src/ai/billing/**
       - .github/workflows/rag-runtime-check.yml
   workflow_dispatch:
 
@@ -70,6 +72,19 @@ jobs:
       - name: Apply database migrations
         working-directory: backend
         run: python scripts/apply_migrations.py
+
+      # Paid models start unpriced and every call to one is refused
+      # (COST_NOT_CONFIGURED) until an operator records its price - the same
+      # step as on a real server (docs/SUBSCRIPTIONS_AND_CREDITS.md section 4).
+      - name: Record the Groq model's price (operator step)
+        working-directory: backend
+        run: |
+          for price in "input_token 0.075" "output_token 0.30"; do
+            set -- $price
+            python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \
+              --unit "$1" --usd-per-million "$2" --source "Groq Supported Models page (console.groq.com/docs/models)" \
+              --verified-on 2026-10-17 --by "CI" --reason "Groq list price, this job's own database"
+          done
 
       - name: Default stack - torch embedder and re-ranker (plus ONNX comparison)
         working-directory: backend
@@ -214,6 +229,19 @@ jobs:
       - name: Apply database migrations
         working-directory: backend
         run: python scripts/apply_migrations.py
+
+      # Paid models start unpriced and every call to one is refused
+      # (COST_NOT_CONFIGURED) until an operator records its price - the same
+      # step as on a real server (docs/SUBSCRIPTIONS_AND_CREDITS.md section 4).
+      - name: Record the Groq model's price (operator step)
+        working-directory: backend
+        run: |
+          for price in "input_token 0.075" "output_token 0.30"; do
+            set -- $price
+            python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \
+              --unit "$1" --usd-per-million "$2" --source "Groq Supported Models page (console.groq.com/docs/models)" \
+              --verified-on 2026-10-17 --by "CI" --reason "Groq list price, this job's own database"
+          done
 
       - name: Prepare the static embedding model (as Dockerfile.ai does)
         working-directory: backend

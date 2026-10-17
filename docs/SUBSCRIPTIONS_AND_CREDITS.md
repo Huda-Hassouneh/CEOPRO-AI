@@ -156,12 +156,12 @@ proof of profitability):**
 - **The 35 / 35 / 30 split.** A starting point. Re-balance it from observed
   usage in `usage_ledger` after the first month.
 
-**What a credit buys** depends on the provider prices once configured
-(section 4). For example, if Groq's `openai/gpt-oss-20b` is confirmed at
-the rates third-party trackers list ($0.075 input / $0.30 output per
-million tokens), a typical 2,000-token assistant answer would cost about
-$0.0003, which is 0.03 AI Credits. These figures are not confirmed and
-are not configured.
+**What a credit buys** depends on the provider prices configured
+(section 4). Groq lists `openai/gpt-oss-20b` at $0.075 input / $0.30
+output per million tokens (its Supported Models page, checked
+2026-10-17), so a typical 2,000-token assistant answer costs about
+$0.0003, which is 0.03 AI Credits. Re-check the price against Groq's
+invoice; a new price is recorded the same way (section 4).
 
 ## 4. Provider prices: what must be set before paid operations run
 
@@ -185,13 +185,20 @@ Every paid provider below starts unpriced. **Its calls are refused
 | Data | `brave_search`, `tavily`, `serpapi` (`search`) | request | provider plan |
 | Data | `apify` (`actor_run`) | record (reconciled) | Apify actor pricing / run cost |
 
+The assistant's default model (`GROQ_MODEL=openai/gpt-oss-20b`) at
+Groq's listed price. Run this on every new database (local, staging,
+production) before the assistant can answer; `./keel llm-check` reports a
+missing price. Cached input tokens are charged at the input price unless a
+`cache_read_token` price is recorded too.
+
 ```bash
 cd backend   # DATABASE_URL = the schema-owning role
 python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \
-  --unit input_token --usd-per-million <confirmed> --source "Groq invoice 2026-10" --verified-on 2026-10-20 \
-  --by "<name>" --reason "Confirmed price"
+  --unit input_token --usd-per-million 0.075 --source "Groq Supported Models page (console.groq.com/docs/models)" \
+  --verified-on 2026-10-17 --by "<name>" --reason "Groq list price"
 python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \
-  --unit output_token --usd-per-million <confirmed> --source "..." --verified-on 2026-10-20 --by "<name>" --reason "..."
+  --unit output_token --usd-per-million 0.30 --source "Groq Supported Models page (console.groq.com/docs/models)" \
+  --verified-on 2026-10-17 --by "<name>" --reason "Groq list price"
 python -m scripts.billing_admin set-price --budget data --provider google_places --operation text_search \
   --unit request --usd <confirmed> --source "..." --verified-on 2026-10-20 --by "<name>" --reason "..."
 ```
