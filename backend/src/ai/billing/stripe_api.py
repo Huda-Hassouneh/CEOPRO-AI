@@ -8,6 +8,14 @@ import stripe
 from src.ai.billing import config
 
 
+def _plain(obj):
+    """Stripe SDK objects (stripe 15+) are not dicts - no .get(), no dict() -
+    but the billing code reads Stripe data as dicts everywhere. Every response
+    is converted here, once, so callers (and tests that pass plain dicts)
+    see the same shape."""
+    return obj.to_dict() if hasattr(obj, "to_dict") else obj
+
+
 class PaymentsNotConfigured(Exception):
     """STRIPE_SECRET_KEY isn't set on this server."""
 
@@ -22,54 +30,54 @@ def _client():
 
 
 def create_customer(email: str, company_name: str, tenant_id: str, idempotency_key: str):
-    return _client().Customer.create(
+    return _plain(_client().Customer.create(
         email=email, name=company_name, metadata={"tenant_id": tenant_id},
         idempotency_key=idempotency_key,
-    )
+    ))
 
 
 def create_checkout_session(params: dict, idempotency_key: str):
-    return _client().checkout.Session.create(**params, idempotency_key=idempotency_key)
+    return _plain(_client().checkout.Session.create(**params, idempotency_key=idempotency_key))
 
 
 def create_portal_session(customer_id: str, return_url: str):
-    return _client().billing_portal.Session.create(customer=customer_id, return_url=return_url)
+    return _plain(_client().billing_portal.Session.create(customer=customer_id, return_url=return_url))
 
 
 def retrieve_subscription(subscription_id: str):
-    return _client().Subscription.retrieve(subscription_id)
+    return _plain(_client().Subscription.retrieve(subscription_id))
 
 
 def modify_subscription(subscription_id: str, **params):
-    return _client().Subscription.modify(subscription_id, **params)
+    return _plain(_client().Subscription.modify(subscription_id, **params))
 
 
 def create_schedule_from_subscription(subscription_id: str):
-    return _client().SubscriptionSchedule.create(from_subscription=subscription_id)
+    return _plain(_client().SubscriptionSchedule.create(from_subscription=subscription_id))
 
 
 def retrieve_schedule(schedule_id: str):
-    return _client().SubscriptionSchedule.retrieve(schedule_id)
+    return _plain(_client().SubscriptionSchedule.retrieve(schedule_id))
 
 
 def modify_schedule(schedule_id: str, **params):
-    return _client().SubscriptionSchedule.modify(schedule_id, **params)
+    return _plain(_client().SubscriptionSchedule.modify(schedule_id, **params))
 
 
 def release_schedule(schedule_id: str):
-    return _client().SubscriptionSchedule.release(schedule_id, preserve_cancel_date=True)
+    return _plain(_client().SubscriptionSchedule.release(schedule_id, preserve_cancel_date=True))
 
 
 def retrieve_invoice(invoice_id: str):
-    return _client().Invoice.retrieve(invoice_id)
+    return _plain(_client().Invoice.retrieve(invoice_id))
 
 
 def create_product(name: str, idempotency_key: str):
-    return _client().Product.create(name=name, metadata={"app": "apex"}, idempotency_key=idempotency_key)
+    return _plain(_client().Product.create(name=name, metadata={"app": "apex"}, idempotency_key=idempotency_key))
 
 
 def create_price(params: dict, idempotency_key: str):
-    return _client().Price.create(**params, idempotency_key=idempotency_key)
+    return _plain(_client().Price.create(**params, idempotency_key=idempotency_key))
 
 
 def construct_event(payload: bytes, signature: str, secret: str):
