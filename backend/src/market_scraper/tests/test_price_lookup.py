@@ -15,6 +15,14 @@ CTX = ProductContext("p1", "Nutella Hazelnut Spread 350g", "JO", "JOD", 3.5)
 
 # ---- matching --------------------------------------------------------------------
 
+def test_pack_sizes_match_with_or_without_a_space_and_a_leading_word_anchors_a_terse_listing():
+    assert matching.match_score("Nutella 400g", "Nutella 400 g") == 1.0
+    assert matching.match_score("Milk 1.5l", "Milk 1,5 L") == 1.0
+    assert matching.is_match(matching.match_score("Nutella Hazelnut Spread 400g", "Nutella, Ferrero 400 g e")) is True
+    assert matching.is_match(matching.match_score("Nutella Hazelnut Spread 350g", "Nutella 400 g")) is False   # other size
+    assert matching.is_match(matching.match_score("Hazelnut Spread 400g", "Nutella 400 g")) is False           # leading word missing
+
+
 def test_a_listing_for_the_same_product_matches_and_a_different_size_does_not():
     assert matching.match_score("Nutella Hazelnut Spread 350g", "Nutella hazelnut spread, 350g jar") == 1.0
     assert matching.match_score("Nutella Hazelnut Spread 350g", "Nutella Hazelnut Spread 750g") == 0.0
@@ -31,18 +39,43 @@ def test_plausibility_is_a_wide_band_and_unknown_without_a_reference():
 
 # ---- providers ------------------------------------------------------------------------
 
-def test_open_prices_returns_this_countrys_prices_with_the_product_title():
+def _off_get(prices_by_code, hits=()):
+    calls = []
+
     def get(url, params):
-        if "search.pl" in url:
-            return {"products": [{"code": "3017620422003", "product_name": "Hazelnut Spread", "brands": "Nutella,Ferrero"}]}
-        return {"items": [
-            {"price": 3.2, "currency": "jod", "location": {"osm_name": "Safeway", "osm_address_country_code": "JO"}},
-            {"price": 5.0, "currency": "EUR", "location": {"osm_name": "Carrefour", "osm_address_country_code": "FR"}},
-            {"price": None, "currency": "JOD"},
-        ]}
-    quotes = providers.OpenPrices(get).search(CTX)
-    assert [(q.price, q.currency, q.seller) for q in quotes] == [(3.2, "JOD", "Safeway")]
-    assert quotes[0].title.startswith("Nutella") and "3017620422003" in quotes[0].url
+        calls.append((url, params))
+        if "search.openfoodfacts.org" in url:
+            return {"hits": list(hits)}
+        return {"items": prices_by_code.get(params["product_code"], [])}
+    get.calls = calls
+    return get
+
+
+def _price(price, currency="JOD", country="JO", date="2026-10-06", seller="Safeway"):
+    return {"price": price, "currency": currency, "date": date, "location": {"osm_name": seller, "osm_address_country_code": country}}
+
+
+def test_open_prices_with_a_barcode_skips_the_search_and_returns_this_countrys_fresh_prices():
+    ctx = ProductContext("p1", "Nutella Hazelnut Spread 400g", "JO", "JOD", 3.5, barcode="3017620422003")
+    get = _off_get({"3017620422003": [_price(3.2), _price(5.0, "EUR", "FR"), _price(None), _price(2.0, date="2019-01-01")]})
+    quotes = providers.OpenPrices(get).search(ctx)
+    assert [(q.price, q.currency, q.seller, q.observed_on) for q in quotes] == [(3.2, "JOD", "Safeway", "2026-10-06")]
+    assert quotes[0].title == ctx.name and "3017620422003" in quotes[0].url
+    assert all("search.openfoodfacts.org" not in url for url, _ in get.calls)  # exact barcode: no name search
+
+
+def test_open_prices_name_search_only_spends_price_calls_on_hits_that_match_the_product():
+    hits = [
+        {"code": "111", "product_name": "Nutella", "brands": ["Ferrero", "Nutella"], "quantity": "400 g"},
+        {"code": "222", "product_name": "Nutella", "brands": ["Nutella"], "quantity": "750 g"},   # another size
+        {"code": "333", "product_name": "Chocolate bar", "brands": ["Other"], "quantity": "400 g"},
+    ]
+    get = _off_get({"111": [_price(3.3)]}, hits)
+    quotes = providers.OpenPrices(get).search(ProductContext("p1", "Nutella Hazelnut Spread 400g", "JO", "JOD", 3.5))
+    price_calls = [params["product_code"] for url, params in get.calls if "prices.openfoodfacts.org" in url]
+    assert price_calls == ["111"] and [q.price for q in quotes] == [3.3]
+    search_params = next(params for url, params in get.calls if "search.openfoodfacts.org" in url)
+    assert "400" not in search_params["q"]  # the size is checked against each hit, not put in the query
 
 
 def test_open_prices_failure_is_a_provider_error_not_a_crash():
@@ -225,3 +258,21 @@ def test_lookup_missing_prices_isolates_one_products_failure_and_counts_outcomes
     assert summary == {"products_attempted": 2, "candidates": 3, "outcomes": {"FOUND": 1, "NOTHING_FOUND": 1}}
     assert needing.call_args.args[2] == 5
     conn.rollback.assert_called_once()
+
+
+def test_json_get_retries_a_transient_failure_once_then_gives_up_as_a_provider_error(monkeypatch):
+    import httpx
+    monkeypatch.setattr(providers.time, "sleep", lambda s: None)
+    answers = [httpx.Response(503, request=httpx.Request("GET", "https://x.example")), httpx.Response(200, json={"ok": 1}, request=httpx.Request("GET", "https://x.example"))]
+    with patch.object(providers.httpx, "get", side_effect=answers) as get:
+        assert providers._json_get("https://x.example", {}) == {"ok": 1}
+    assert get.call_count == 2
+    with patch.object(providers.httpx, "get", side_effect=httpx.ConnectError("down")) as get:
+        with pytest.raises(ProviderError):
+            providers._json_get("https://x.example", {})
+    assert get.call_count == 2
+    bad = httpx.Response(404, request=httpx.Request("GET", "https://x.example"))
+    with patch.object(providers.httpx, "get", return_value=bad) as get:
+        with pytest.raises(ProviderError):
+            providers._json_get("https://x.example", {})
+    assert get.call_count == 1  # a 404 is an answer, not worth retrying

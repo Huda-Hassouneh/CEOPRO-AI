@@ -10,6 +10,7 @@ class ProductContext:
     country_code: Optional[str] = None   # the tenant's market, ISO-3166 alpha-2
     currency: Optional[str] = None       # the tenant's own currency (fallback when a listing shows none)
     your_price: Optional[float] = None
+    barcode: Optional[str] = None        # EAN/UPC/GTIN from products.metadata (barcode | gtin | ean), when the owner recorded one
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class PriceQuote:
     url: Optional[str] = None
     rating: Optional[float] = None       # 0-5
     review_count: Optional[int] = None
+    observed_on: Optional[str] = None    # ISO date the source says the price was seen (None = just now)
 
 
 class ProviderUnavailable(Exception):
