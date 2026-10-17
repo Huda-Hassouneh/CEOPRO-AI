@@ -21,6 +21,20 @@ const capabilities = Object.freeze({
   imageInput: false,
 });
 
+// BudgetError reason code -> ragAssistant.feedback.reasons.* key.
+const BILLING_REASONS = Object.freeze({
+  BUDGET_EXHAUSTED: 'creditsExhausted',
+  SUBSCRIPTION_INACTIVE: 'subscriptionInactive',
+  COST_NOT_CONFIGURED: 'notConfigured',
+  NO_BILLING_CONTEXT: 'notConfigured',
+  PROVIDER_DISABLED: 'serviceSuspended',
+  PROVIDER_CAP_REACHED: 'serviceSuspended',
+  CONCURRENCY_LIMIT: 'tooManyRunning',
+  REQUEST_TOO_LARGE: 'tooLarge',
+  ACCOUNTING_UNAVAILABLE: 'accountingUnavailable',
+  DUPLICATE_REQUEST: 'internalError',
+});
+
 const createMessageId = () => globalThis.crypto?.randomUUID?.() || `message-${Date.now()}`;
 
 export function mapDocuments(response) {
@@ -107,6 +121,15 @@ export const knowledgeBaseApi = {
       // that's actually recoverable.
       if (error?.response?.status === 404) {
         return { available: false, sessionNotFound: true, message: null };
+      }
+      // An AI call refused before it ran by the company's AI Credits or the
+      // server's provider settings (backend billing/credits.py BudgetError,
+      // whose body always carries `budget`). Checked before the generic 402/
+      // 503 handling below: "AI pricing isn't set up" or "credits used up"
+      // must never read as "busy, try again in 30 seconds".
+      const detail = error?.response?.data?.detail;
+      if (detail && typeof detail === 'object' && 'budget' in detail && BILLING_REASONS[detail.reason]) {
+        return { available: false, reason: BILLING_REASONS[detail.reason], renewsOn: detail.period_end || null, message: null };
       }
       // 503 = the assistant's language model is rate limited right now;
       // Retry-After says how long until a new question can be answered.

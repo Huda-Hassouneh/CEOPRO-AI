@@ -1879,7 +1879,13 @@
         "notConfigured": "The assistant's AI service isn't set up on this server yet, so no answer could be generated. Your administrator needs to configure it. Your question was kept in this conversation.",
         "providerUnavailable": "The AI service the assistant relies on isn't responding right now, so no answer was generated. Your question was kept — please try again in a few minutes.",
         "internalError": "Something went wrong while preparing the answer, so none was generated. Your question was kept — please try again.",
-        "offline": "Couldn't reach KEEL. Check your internet connection and try again. Your question was kept."
+        "offline": "Couldn't reach KEEL. Check your internet connection and try again. Your question was kept.",
+        "creditsExhausted": "Your plan's AI Credits for this billing period have been used, so no answer was generated. They renew after {{date}} — or upgrade your plan in Billing. Your question was kept.",
+        "subscriptionInactive": "Your subscription isn't active, so the assistant can't answer right now. Update your plan in Billing to continue. Your question was kept.",
+        "serviceSuspended": "The assistant's AI service is paused on this server right now, so no answer was generated. Please try again later. Your question was kept.",
+        "tooManyRunning": "Your company already has several assistant questions being answered. Please wait for them to finish, then ask again. Your question was kept.",
+        "tooLarge": "This question is too long to answer in one go. Please shorten it and ask again.",
+        "accountingUnavailable": "KEEL couldn't check your plan's AI Credits just now, so no answer was generated. Please try again shortly. Your question was kept."
       },
       "planLimit": "You've used all assistant questions included in your plan for this billing period. They renew after {{date}} — or upgrade your plan in Billing.",
       "busy": "The assistant is answering many questions right now. Please ask again in about {{seconds}} seconds.",
