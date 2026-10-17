@@ -73,11 +73,20 @@ jobs:
         working-directory: backend
         run: python -m scripts.rag_runtime_check --compare-onnx
 
-      # What keel-ai-staging runs on Render's 512 MB free plan (render.yaml).
-      - name: Small-host stack - ONNX embedder, no re-ranker, within 512 MB
+      # Semantic search without torch, for a 2 GB host (measured ~830 MB).
+      - name: ONNX embedder, no re-ranker - within 1 GB
         if: always()
         working-directory: backend
         env:
           RAG_EMBEDDING_BACKEND: onnx
+          RAG_RERANKER_ENABLED: "false"
+        run: python -m scripts.rag_runtime_check --max-peak-mb 1024
+
+      # What keel-ai-staging runs on Render's 512 MB free plan (render.yaml).
+      - name: Free-plan stack - keyword search only - within 512 MB
+        if: always()
+        working-directory: backend
+        env:
+          RAG_EMBEDDING_BACKEND: none
           RAG_RERANKER_ENABLED: "false"
         run: python -m scripts.rag_runtime_check --max-peak-mb 512
