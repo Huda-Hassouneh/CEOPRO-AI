@@ -120,11 +120,16 @@ staging). Values are never committed.
   is in STAGING_DEPLOYMENT.md. Apify's Google Maps actor was run once
   through the real discovery pipeline into a test database (one place,
   parsed and stored, run recorded as ok) - not yet on staging.
-- Without the embedding model, the assistant finds documents by keyword
-  search only; vectors are added once the model can be downloaded.
-  `keel-ai-staging` (512 MB) runs this way on purpose
-  (`RAG_EMBEDDING_BACKEND=none`); semantic search needs a 2 GB plan with
-  `RAG_EMBEDDING_BACKEND=onnx`.
+- `keel-ai-staging` (512 MB free plan) runs semantic search with a static
+  multilingual embedding model inside the ai process
+  (`RAG_EMBEDDING_BACKEND=static`; no torch, no external embedding
+  service). Verified in CI against the running API
+  (`rag-runtime-check.yml`, job `app-e2e`): PDF upload, stored vectors,
+  Arabic questions citing the right English document, company records,
+  tenant isolation, and peak memory 359 MB. Not yet verified on Render
+  itself (this sandbox can't reach Render). Accuracy is below the
+  transformer models; `onnx` on a 2 GB plan is better. With
+  `RAG_EMBEDDING_BACKEND=none`, documents are found by keyword search only.
 - A free Groq key limits how many assistant questions can be answered per
   minute across all companies: under load, answers wait for the limit
   (seen as 9-16 s replies).
