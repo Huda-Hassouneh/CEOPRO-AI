@@ -54,3 +54,12 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 ### Changed
 - `supervisor.py` runs the new `enrichment` worker (also selectable via `KEEL_WORKERS`); without this the enrichment queue and hourly sweep would not run on the Render worker service.
 
+## - 2026-10-18 (market reference prices)
+### Added (additive)
+- **DB** — migration `20261018020000_add_market_price_observations.sql`: `market_price_observations` (tenant-scoped reference prices: provider, seller, listing title/url, price + currency, listing star rating and review count, title `match_score`, `plausible`) and `market_price_lookups` (one row per product: last outcome, sources tried, attempts), both RLS `tenant_id = get_current_tenant()`. Reference prices are deliberately **not** written to `competitor_prices`.
+- **API** — `POST /pricing/market-coverage/fill` (`202`, queues a tenant-wide lookup on the enrichment worker); `GET /pricing/market-prices/{product_id}` (reference prices with seller, price, rating, review count, public link; vendor names are not exposed).
+- **Event** — enrichment stream job mode `prices`.
+### Changed (behaviour)
+- `GET /pricing/market-coverage`: a product with a plausible reference price now counts as covered. New per-product `price_basis` (`competitor` | `market_reference`), `reference_prices`, `market_lookup` {outcome, last_attempt_at}; new summary keys `with_competitor_price`, `with_reference_price_only`. Existing keys unchanged.
+- New optional `PRICE_LOOKUP_AUTO=true` runs the lookup after each discovery pass (default off: it spends search quota).
+

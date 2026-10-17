@@ -223,3 +223,30 @@ def test_claimed_messages_returns_empty_list_on_response_error():
     client.xautoclaim.side_effect = redis.ResponseError("NOGROUP")
 
     assert discovery_worker._claimed_messages(client, "consumer-1") == []
+
+
+def test_market_price_lookup_after_discovery_is_opt_in_and_failure_isolated(monkeypatch):
+    monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", "actor-1")
+    fake_conn = MagicMock()
+    common = [
+        patch("src.market_scraper.discovery_worker.data_access.get_tenant_connection", return_value=fake_conn),
+        patch("src.market_scraper.discovery_worker.discover_competitors_for_tenant", return_value=[]),
+        patch("src.market_scraper.discovery_worker.discover_domain_level_competitors_for_tenant", return_value=[]),
+        patch("src.market_scraper.discovery_worker.refresh_tenant_competitors", return_value={}),
+        patch("src.market_scraper.discovery_worker.enrich_tenant_competitors", return_value={}),
+    ]
+    for p in common:
+        p.start()
+    try:
+        monkeypatch.delenv("PRICE_LOOKUP_AUTO", raising=False)
+        with patch("src.market_scraper.price_lookup.pipeline.lookup_missing_prices") as lookup:
+            assert "price_lookup" not in discovery_worker.discover_for_tenant("tenant-1")
+        lookup.assert_not_called()
+        monkeypatch.setenv("PRICE_LOOKUP_AUTO", "true")
+        with patch("src.market_scraper.price_lookup.pipeline.lookup_missing_prices", return_value={"products_attempted": 2}):
+            assert discovery_worker.discover_for_tenant("tenant-1")["price_lookup"] == {"products_attempted": 2}
+        with patch("src.market_scraper.price_lookup.pipeline.lookup_missing_prices", side_effect=RuntimeError("x")):
+            assert discovery_worker.discover_for_tenant("tenant-1")["price_lookup"] == {"error": "price_lookup_failed"}
+    finally:
+        for p in common:
+            p.stop()

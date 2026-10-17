@@ -120,6 +120,19 @@ def discover_for_tenant(tenant_id: str) -> dict:
             conn.rollback()
             logger.exception("competitor enrichment failed for tenant %s", tenant_id)
             enrichment_summary = {"error": "enrichment_failed"}
+        # Opt-in (PRICE_LOOKUP_AUTO=true): also look up open-market reference
+        # prices for products that still have none. Off by default because it
+        # spends search/shopping quota; the owner can trigger it on demand via
+        # POST /pricing/market-coverage/fill.
+        price_summary = None
+        if os.getenv("PRICE_LOOKUP_AUTO", "false").strip().lower() in ("1", "true", "yes"):
+            try:
+                from src.market_scraper.price_lookup.pipeline import lookup_missing_prices
+                price_summary = lookup_missing_prices(conn, tenant_id)
+            except Exception:  # noqa: BLE001
+                conn.rollback()
+                logger.exception("market price lookup failed for tenant %s", tenant_id)
+                price_summary = {"error": "price_lookup_failed"}
     finally:
         conn.close()
 
@@ -133,6 +146,7 @@ def discover_for_tenant(tenant_id: str) -> dict:
         "enqueued_source_ids": enqueued,
         "competitor_refresh": refresh_summary,
         "competitor_enrichment": enrichment_summary,
+        **({"price_lookup": price_summary} if price_summary is not None else {}),
     }
 
 
