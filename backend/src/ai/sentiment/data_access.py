@@ -168,3 +168,42 @@ def load_aggregate_sentiment_by_competitor(
             "sentiment_score": sentiment_score,
         }
     return results
+
+
+def load_agreement_weighted_sentiment_by_competitor(
+    conn: "psycopg2.extensions.connection", tenant_id: str
+) -> dict:
+    """
+    Sentiment where a comment counts once for its author PLUS once for every
+    person who liked it (reviews.like_count): a like is someone saying "I
+    agree", so a negative comment 400 people liked says more than one nobody
+    did. Returned beside - never instead of - the plain sentiment_score, which
+    is unchanged.
+
+    {competitor_id: {"agreement_weighted_score": -1..1, "people_agreeing":
+    total likes across analyzed comments, "comments_with_likes": n}}. A
+    competitor with no analyzed comments has no key. Comments without a like
+    count (Google reviews carry none) weigh 1, exactly as before.
+    """
+    query = """
+        SELECT r.competitor_id,
+               SUM((sr.positive_probability - sr.negative_probability) * (1 + COALESCE(r.like_count, 0)))
+                   / NULLIF(SUM(1 + COALESCE(r.like_count, 0)), 0),
+               SUM(COALESCE(r.like_count, 0)),
+               COUNT(*) FILTER (WHERE COALESCE(r.like_count, 0) > 0)
+        FROM reviews r
+        JOIN sentiment_results sr ON sr.review_id = r.review_id
+        WHERE r.tenant_id = %s AND r.subject_type = 'COMPETITOR' AND r.competitor_id IS NOT NULL
+        GROUP BY r.competitor_id;
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(query, (tenant_id,))
+        rows = cursor.fetchall()
+    return {
+        str(competitor_id): {
+            "agreement_weighted_score": round(float(score), 4) if score is not None else None,
+            "people_agreeing": int(likes or 0),
+            "comments_with_likes": int(with_likes or 0),
+        }
+        for competitor_id, score, likes, with_likes in rows
+    }

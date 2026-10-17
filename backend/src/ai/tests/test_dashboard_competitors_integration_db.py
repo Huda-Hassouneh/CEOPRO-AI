@@ -536,3 +536,29 @@ def test_each_row_carries_its_id_and_a_data_completeness_breakdown(conn):
     # An empty facet always says why, so the owner (or the Retry button) can act on it.
     assert completeness["facets"]["PRICES"]["reason_code"] == "NO_PRODUCTS_MAPPED"
     assert completeness["facets"]["PROFILE"]["can_retry"] is True
+
+
+def test_likes_count_as_people_agreeing_in_a_separate_agreement_weighted_score(conn):
+    from src.ai.sentiment.evidence import insert_sentiment_result
+    tenant_id = _insert_company(conn)
+    competitor_id = _insert_tracked_competitor(conn, tenant_id, "Rival", TIER_STRATEGIC, match_rate=0.75, website_url="https://rival.example")
+    conn.commit()
+    for text, likes, label, positive, neutral, negative in (
+        ("Terrible service, never again", 400, "NEGATIVE", 0.02, 0.03, 0.95),
+        ("Lovely staff", 0, "POSITIVE", 0.90, 0.07, 0.03),
+    ):
+        review_id = str(uuid.uuid4())
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO reviews (review_id, tenant_id, subject_type, competitor_id, source_platform, review_text, like_count) "
+                "VALUES (%s, %s, 'COMPETITOR', %s, 'FACEBOOK', %s, %s);",
+                (review_id, tenant_id, competitor_id, text, likes),
+            )
+        insert_sentiment_result(conn, review_id, tenant_id, label, positive, neutral, negative, 0.9, "test-model-v1")
+    conn.commit()
+
+    row = get_competitor_directory(conn, tenant_id)["strategic"][0]
+
+    assert row["people_agreeing"] == 400
+    assert row["agreement_weighted_sentiment_score"] < -0.5  # the 400 people who agreed with the complaint dominate
+    assert row["market_sentiment_label"] == "Neutral"        # the plain score (one vote each) is unchanged
