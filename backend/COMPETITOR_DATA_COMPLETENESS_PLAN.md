@@ -8,7 +8,6 @@ Findings below come from reading the code; Phase 0 confirms them against the liv
 A competitor row today is a *name + website + score*. Everything a CEO actually acts on —
 their prices, what customers say, what they post — is absent for most rows, and when it
 is missing the owner cannot tell **why** or **do anything about it**.
-
 Target outcome: every listed competitor shows a **data-completeness panel** (Profile · Prices ·
 Reviews · Social) where each facet is either filled, or says *why not* and offers **Retry**.
 Retrying only adds or upgrades data — it never wipes what we already have.
