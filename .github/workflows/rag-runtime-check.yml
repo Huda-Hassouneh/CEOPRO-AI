@@ -1,5 +1,4 @@
 name: RAG runtime check
-
 # The assistant's retrieval with the real models (downloaded from the
 # Hugging Face hub), a real migrated database and, when the GROQ_API_KEY
 # repository secret is set, real Groq answers - plus the memory each stage
