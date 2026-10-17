@@ -511,13 +511,24 @@ def test_onboarding_status_returns_the_pipeline_result():
     fake_conn = MagicMock()
     fake_result = {"status": "not_started", "connected_methods": [], "invoice_count": 0}
     with patch("src.ai.routers.onboarding.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.onboarding.market_scraper_data_access.get_onboarding_status", return_value=fake_result) as mock_status:
+         patch("src.ai.routers.onboarding.market_scraper_data_access.get_onboarding_status", return_value=fake_result) as mock_status, \
+         patch("src.ai.routers.onboarding.price_coverage.get_barcode_summary", return_value={"products": 4, "with_barcode": 1, "coverage_pct": 25.0}):
         response = client.get("/onboarding/status", headers=_auth())
 
     assert response.status_code == 200
-    assert response.json() == fake_result
+    assert response.json() == {**fake_result, "barcodes": {"products": 4, "with_barcode": 1, "coverage_pct": 25.0}}
     fake_conn.commit.assert_called_once()
     mock_status.assert_called_once_with(fake_conn, "t1")
+
+
+def test_onboarding_status_survives_a_failure_computing_the_barcode_hint():
+    fake_conn = MagicMock()
+    fake_result = {"status": "connected", "connected_methods": [], "invoice_count": 3}
+    with patch("src.ai.routers.onboarding.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.onboarding.market_scraper_data_access.get_onboarding_status", return_value=fake_result), \
+         patch("src.ai.routers.onboarding.price_coverage.get_barcode_summary", side_effect=RuntimeError("db")):
+        response = client.get("/onboarding/status", headers=_auth())
+    assert response.status_code == 200 and response.json() == fake_result
 
 
 def test_onboarding_connect_database_requires_auth():
