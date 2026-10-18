@@ -120,25 +120,40 @@ VITE_API_BASE_URL=
 ## 6. Marketing images - FREE, at least one recommended
 
 ```
-CLOUDFLARE_ACCOUNT_ID=
-CLOUDFLARE_API_TOKEN=
-HUGGINGFACE_API_TOKEN=
+CLOUDFLARE_ACCOUNTS=
+HUGGINGFACE_API_TOKENS=
+GEMINI_API_KEYS=
+TOGETHER_API_KEYS=
+HORDE_API_KEYS=
+POLLINATIONS_API_KEYS=
 ```
 
-| Variable | Where to get it | Notes |
-|---|---|---|
-| `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` | dash.cloudflare.com -> AI -> Workers AI -> Use REST API -> create a token (Workers AI permission) | Two separate variables (not `ACCOUNT_ID:TOKEN` in one). |
-| `HUGGINGFACE_API_TOKEN` | huggingface.co/settings/tokens -> fine-grained -> "Make calls to Inference Providers" | One token (singular name). Also usable for the AI model (section 3). |
+Every list takes **several comma-separated accounts**. Each extra free account is
+extra free images per day: free quotas are per *account*, not per model. Accounts
+are rotated and skipped automatically when one runs out; users never see which
+provider made an image.
 
-- With neither, images come from the free keyless Pollinations endpoint
-  (`MARKETING_IMAGE_KEYLESS=true`, the default). Order and choice:
-  `MARKETING_IMAGE_PROVIDERS` (e.g. `cloudflare,huggingface,pollinations`).
-- Paid image providers also need a confirmed price (`billing_admin set-price
-  --budget ai --provider cloudflare|huggingface --operation image_generation
-  --unit image ...`), otherwise they are skipped and the next one is tried.
-- **Not used by the code** (remove them from your `.env`, they do nothing):
-  `CLOUDFLARE_ACCOUNTS`, `HUGGINGFACE_API_TOKENS` (plural), `GEMINI_API_KEYS`,
-  `TOGETHER_API_KEYS`, `HORDE_API_KEYS`, `POLLINATIONS_API_KEYS`.
+| Variable | Format | Where to get it | Notes |
+|---|---|---|---|
+| `CLOUDFLARE_ACCOUNTS` | `ACCOUNT_ID:TOKEN`, comma-separated | dash.cloudflare.com -> AI -> Workers AI -> Use REST API -> create a token (Account -> Workers AI -> Read) | **Best first choice.** Tries 4 models (FLUX.1-schnell, SDXL-Lightning, SDXL-base, DreamShaper-8). The older `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` pair still works. |
+| `HUGGINGFACE_API_TOKENS` | `hf_...`, comma-separated | huggingface.co/settings/tokens -> fine-grained -> "Make calls to Inference Providers" | Small free monthly credit. Tries FLUX.1-schnell then SDXL-base. The older `HUGGINGFACE_API_TOKEN` still works. |
+| `GEMINI_API_KEYS` | `AIza...` | aistudio.google.com/apikey | Free tier with limits; images carry only Google's invisible mark. |
+| `TOGETHER_API_KEYS` | key | api.together.ai | Free FLUX.1-schnell-Free model; availability not verified. |
+| `HORDE_API_KEYS` | key | aihorde.net/register | Optional: without it the anonymous key still works (last in the chain) but can queue for minutes. |
+| `POLLINATIONS_API_KEYS` | key | enter.pollinations.ai | Optional. Keyless Pollinations is **no longer used**: it stamps a visible "pollinations.ai" watermark. |
+
+- **Nothing configured:** the keyless AI Horde is tried; if no AI image can be made
+  the Studio returns a locally drawn **designed poster** (campaign headline + CTA,
+  theme backdrop, the product photo) instead of an error. It is watermark-free and
+  unlimited but not AI-generated, and the response says so
+  (`image_generation_mode: "designed"`).
+- Order and choice: `MARKETING_IMAGE_PROVIDERS` (e.g. `cloudflare#1,huggingface#1`).
+  `MARKETING_IMAGE_KEYLESS=false` turns off the AI Horde fallback.
+- **Pricing rows:** migration `20261022000000` gives the free providers a price of 0
+  (Together, Gemini, AI Horde, and Cloudflare/Hugging Face **free-plan** accounts).
+  If a company's Cloudflare or Hugging Face account is on a **paid** plan, set the
+  real price (`billing_admin set-price --budget ai --provider cloudflare|huggingface
+  --operation image_generation --unit image ...`) or those calls are billed at 0.
 - Background removal: `MARKETING_BACKGROUND_REMOVAL_PROVIDER=rembg` only on a
   host with about 540 MB free RAM (not Render's free plan). No account.
 
