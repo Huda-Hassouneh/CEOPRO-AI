@@ -1,0 +1,51 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel@0.1.0 build
+> npm --prefix backend run build && npm --prefix frontend run build
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-backend@1.0.0 build
+> npm run prisma:generate && tsc
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-backend@1.0.0 prisma:generate
+> prisma generate --config prisma7.config.ts
+
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+Loaded Prisma config from prisma7.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (7.10.0) to ./src/generated/prisma in 713ms
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-frontend@0.1.0 build
+> vite build
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 3078 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                          0.40 kB │ gzip:   0.27 kB
+dist/assets/Sora-ExtraBold-2tKLL3qT.woff2               14.86 kB
+dist/assets/keel-symbol-DUbXAWHH.png                   480.07 kB
+dist/assets/DejaVuSans-Bold-D5xQDVUG.ttf               708.92 kB
+dist/assets/DejaVuSans-uCh15Ap1.ttf                    759.72 kB
+dist/assets/LandingPage-yfs3Md3A.css                    42.25 kB │ gzip:   6.97 kB
+dist/assets/index-jNBekJLs.css                         292.98 kB │ gzip:  48.55 kB
+dist/assets/exportMarketIntelligencePdf-TnpQgLQf.js      7.69 kB │ gzip:   2.67 kB
+dist/assets/exportDemandPredictionPdf-6LY884se.js        7.95 kB │ gzip:   2.62 kB
+dist/assets/LandingPage-2emOIMlV.js                     34.73 kB │ gzip:   8.61 kB
+dist/assets/MarketIntelligencePdfTable-Dmmv2vRB.js   1,202.97 kB │ gzip: 444.69 kB
+dist/assets/index-DWYtUtNx.js                        1,946.34 kB │ gzip: 546.22 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.23s

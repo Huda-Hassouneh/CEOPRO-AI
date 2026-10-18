@@ -1,85 +1,41 @@
-﻿# KEEL - Phase 1 Complete Infrastructure Blueprint
+# Backend
 
-This directory contains the production-grade foundation architecture for **KEEL Phase 1**.
+> **18 October review update:** the custom competitor bridge and dependent Smart Alerts UI are suspended. The current team competitor source is restored unchanged. Earlier descriptions of active custom tracking below are historical. See [current review instructions](../docs/COMPETITOR_REVIEW.md).
 
-## 1. Managed Technical Services (Item 1.1)
-- **PostgreSQL**: Relational storage engine with multi-tenancy logical partitioning (Port `5432`).
-- **Redis**: Low-latency cache memory, rate-limiter, and async transaction status coordinator (Port `6379`).
-- **MinIO**: S3-compatible cloud-ready storage for raw file ingestions and model weights (Ports `9000/9001`).
 
-## 2. Infrastructure Operations Command Checklist
-Use these native Docker Compose commands to manage the infrastructure locally:
-- **Launch Services Asynchronously**: `docker compose up -d`
-- **Verify Operational Container States**: `docker compose ps`
-- **Inspect Infrastructure Logs**: `docker compose logs -f`
-- **Strict Data Reset (Wipe Volumes)**: `docker compose down -v`
+Express 5/TypeScript with Prisma 7's pg adapter. `src/server.ts` starts HTTP; `src/app.ts` mounts routes and raw webhook parsers; `src/config/database.ts` creates the restricted application client. Prisma schema, forward SQL migrations, bootstrap utilities and optional demo seeds live in `prisma/`.
 
-## 3. Deployment Schemas & Specifications Attached
-- `init_schema.sql`: Production-ready PostgreSQL tables establishing multi-tenancy isolation via the explicit `tenant_id` foreign keys (Item 1.2).
-- `REDIS_ARCHITECTURE.md`: Technical documentation defining memory expiration keys and tracking patterns (Item 1.3).
-- `MINIO_STORAGE_ARCHITECTURE.md`: Target bucket isolation rules and file storage paths (Item 1.4).
-- `DATA_OWNERSHIP_AND_CONTRACTS.md`: Explicit microservice permissions matrix and data-transfer payloads (Items 1.5 & 1.6).
-- `.env.example`: Secure production-safe template configuration file (Item 1.7).
-- `check_connectivity.py`: Python automation health check confirming real-time connections pass successfully (Item 1.8).
+## Responsibilities and routes
 
-## 4. Web Crawling / Market Data Collection
-The standalone scraper service lives in [`src/market_scraper/`](src/market_scraper/README.md).
-It implements deny-by-default collection policy decisions, Redis worker allocation, tenant-scoped
-product mappings, respectful Scrapy collection, ingestion-job tracking, canonical PostgreSQL
-`competitor_prices` persistence, JSONL demo output, and offline tests. The repository's approved
-`toscrape.com` target remains the source-specific development fixture.
+| Module | Responsibility / API prefix |
+|---|---|
+| Auth / onboarding | Registration, email checks, sessions, tenant memberships; `/auth`, `/onboarding` |
+| Platform administration | Verified platform staff, tenants/plans/permissions; `/platform-admin` |
+| Subscription | Stripe-backed plan lifecycle, entitlements and usage; `/subscription`, raw `/stripe/webhooks` |
+| Data connections / ingestion | Source registration, extraction staging, canonical promotion; `/data-connection` |
+| Products / competitors | Merchant catalog, GTIN, candidate review, approval and monitored sources; `/products`, `/competitors` |
+| Features | Pricing, recommendations, alerts, sentiment, MPI and RAG under `/features/*` |
+| Notifications | Recipient-scoped inbox/preferences; `/notifications` |
+| Store integration | `/data-connection/store/*`; raw Shopify receiver and OAuth under `/integrations/shopify` |
 
-```bash
-python -m pip install -r src/market_scraper/requirements.txt
-python -m scrapy crawl books_to_scrape -a max_pages=1 -O data/market/books-smoke.jsonl:jsonlines
-```
+Repositories set transaction-local tenant/user context before protected queries. RLS and permission/entitlement checks are complementary; do not remove either. Runtime ceopro_app is distinct from migration/bootstrap and dedicated worker roles. Credentials never belong in frontend env. External calls are bounded and validated; store HTTP runs outside transactions, then page commits persist source-scoped identifiers. Business recommendation evidence and comparable prices are validated before consumption/charging. A failed/unusable pricing result does not consume a recommendation credit.
 
-## 5. Run Connectivity Health Check
-To prove real-time access before handing over to Web App and AI teams, run:
-```bash
-pip install psycopg2-binary redis
-python check_connectivity.py
-```
+## Run and validate
 
-## 6. Mock Infrastructure Spin-Up (One-Command Quickstart)
-To spin up the entire isolated technical mock environment and seed the data broker streams in one continuous workflow execution, run the following unified command:
+From root follow [Development](../docs/DEVELOPMENT.md); it handles missing env files, administrator-only migrations and runtime role passwords. Use root launchers for workers because they resolve Python paths relative to the repository.
+
 ```powershell
-docker compose up -d; python src/infrastructure/init_broker.py; python src/infrastructure/check_connectivity.py
+# From backend:
+npm.cmd run dev
+npm.cmd run prisma:validate
+npm.cmd run build
+npm.cmd run test:routes
+npm.cmd run test:security
+npm.cmd run test:market-tracking
+npm.cmd run test:store-connectors
+npm.cmd run test:rls:isolated
 ```
 
-## 7. Scraping Cost Ledger & Dynamic Cost-to-Margin Gate
-Every real scrape attempt is money spent, and low-value products can't absorb that cost forever.
-`src/market_scraper/cost_ledger.py` protects margins with two checks run before a scrape is
-enqueued (`enqueue.py`), both against a real `scraping_cost_ledger` table that
-`persistence.py`'s `PostgresPricePipeline` writes to automatically for every attempt, promoted or
-quarantined:
+See package.json for isolated, source-contract, browser and live suites. A script named `test:...:rls` or `...:worker` can be a source-contract check; the name does not prove it exercised a live restricted PostgreSQL connection. Live database tests require appropriate test URLs/fixtures. `prisma:migrate:test` is the historical name for forward `prisma migrate deploy`; it does not reset the database.
 
-- **Dynamic cost-to-margin ratio** (`COST_GATE_MAX_RATIO`, default `0.20` / 20%, looked back over
-  `COST_GATE_WINDOW_DAYS`, default 30) - blocks a product once its trailing known scraping cost
-  reaches that percentage of its real margin (`current_price - cost_price`, or `current_price`
-  alone when no cost price is on file). This scales automatically with each product's own value
-  instead of a flat dollar rule, and always **allows** when there isn't yet enough real data to
-  judge (no product record, no cost data, no positive price/margin) - insufficient data is never
-  treated as over budget.
-- **Minimum product price floor** (`COST_GATE_MIN_PRODUCT_PRICE`, default `1.00`) - a hard baseline
-  checked *before* the ratio or the ledger are even queried. Heavy operational, distribution, and
-  team overhead means tracking a product priced (or margined) below this floor can never yield real
-  profit, no matter how cheap the scraping cost is - so the gate blocks it immediately, from day
-  one, with zero ledger rows needed. A product must clear the floor before the ratio is even
-  evaluated. **A sub-floor product is never simply dropped when it belongs to a real product
-  family** (`src/market_scraper/product_families.py`): instead of a blind block, it's routed
-  through family-keyed group cost-sharing - the real scraping cost is amortized across every other
-  active, price-collapse-eligible product in the tenant's catalog sharing its family (the same
-  grouping `select_family_representatives()` already applies at discovery time), lowering the
-  effective per-item cost and keeping the family trackable and profitable instead of losing the
-  data outright. A genuinely solo low-value product with no real family still falls back to the
-  hard floor block.
-
-Per-collector costs are configured per paid vendor via `SCRAPE_COST_PER_REQUEST_<COLLECTOR>` env
-vars with no baked-in defaults (an unconfigured collector's ledger rows record `cost_amount = NULL`
-- honestly unknown, never a fabricated `$0.00`). Server/hardware depreciation, electricity, and
-marketing spend are deliberately excluded from this formula - they're real costs, but period costs
-and (for marketing) customer-acquisition cost, not per-request cost-of-service, so they belong in a
-separate periodic margin report rather than a live per-scrape gate. Full details, the env var list,
-and the underlying reasoning live in
-[`src/market_scraper/README.md`](src/market_scraper/README.md#scraping-cost-ledger-and-the-dynamic-cost-to-margin-gate-cost_ledgerpy).
+Structured application errors preserve stable codes; worker logs summarize durable job states. Do not log access tokens, store credentials, full URLs containing passwords, document text or customer data. API `/health` is liveness only. For production compile `dist`, run one admin migration deployment job and start `node dist/server.js` under a restricted account; independently supervise the processes in [Workers](../docs/WORKERS.md).

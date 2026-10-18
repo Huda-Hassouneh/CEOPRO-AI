@@ -31,8 +31,8 @@ export default function Tooltip({
 
   const tooltipStyle = {
     position: 'absolute',
-    backgroundColor: 'var(--apex-text)',
-    color: 'var(--apex-text-inverse)',
+    backgroundColor: 'var(--ceopro-text-primary)',
+    color: 'var(--ceopro-surface)',
     padding: '4px 8px',
     borderRadius: '4px',
     fontSize: '12px',

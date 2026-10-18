@@ -1,0 +1,73 @@
+/* Pricing presentation uses the site's existing tokens; all scrolling stays in page flow. */
+.pricing-recommendations-panel { min-width: 0; }
+.pricing-recommendations-panel .market-main-panel__header { align-items: flex-start; gap: 20px; margin-block-end: 20px; }
+.pricing-recommendations-panel .market-main-panel__header h2 { font-size: var(--ceopro-font-size-h3); }
+.pricing-recommendations-panel .market-main-panel__header p { font-size: var(--ceopro-font-size-secondary-body); line-height: 1.6; max-width: 55ch; }
+.pricing-recommendations-panel .market-main-panel__actions { flex-wrap: wrap; gap: 12px; }
+.pricing-recommendations-panel .ceopro-button,
+.pricing-recommendations-panel .market-main-export { min-height: 44px; }
+.pricing-recommendation { display: grid; gap: 18px; color: var(--ceopro-text-primary); text-align: start; font-size: var(--ceopro-font-size-body); line-height: 1.6; }
+.pricing-recommendation p, .pricing-recommendation h3, .pricing-recommendation h4 { margin: 0; }
+.pricing-recommendation svg { flex-shrink: 0; }
+.pricing-recommendation__toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; padding-block-end: 16px; border-block-end: 1px solid var(--ceopro-border); }
+.pricing-recommendation__credits { color: var(--ceopro-text-secondary); font-size: var(--ceopro-font-size-secondary-body); font-variant-numeric: tabular-nums; }
+.pricing-recommendation__history { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; min-width: 0; max-width: 100%; font-size: var(--ceopro-font-size-label); color: var(--ceopro-text-secondary); }
+.pricing-recommendation__history .market-main-select { min-height: 44px; width: auto; max-width: 100%; min-width: 0; font-size: var(--ceopro-font-size-secondary-body); }
+.pricing-recommendation__identity { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px 20px; }
+.pricing-recommendation h3 { font-size: var(--ceopro-font-size-h3); line-height: 1.5; overflow-wrap: anywhere; }
+.pricing-recommendation__identity p { display: flex; align-items: center; gap: 6px; color: var(--ceopro-text-secondary); font-size: var(--ceopro-font-size-label); }
+.pricing-recommendation__result { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: center; }
+.pricing-recommendation__prices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--ceopro-border); border-radius: var(--ceopro-radius-md); overflow: hidden; }
+.pricing-recommendation__price { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; margin: 0; padding: 22px 18px; min-width: 0; }
+.pricing-recommendation__price dt { color: var(--ceopro-text-secondary); font-size: var(--ceopro-font-size-label); }
+.pricing-recommendation__price dd { margin: 0; font-size: clamp(20px, 2vw, 28px); font-weight: 700; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; max-width: 100%; }
+.pricing-recommendation__price.is-suggested { background: var(--ceopro-primary-light); border-inline-start: 1px solid var(--ceopro-border); }
+.pricing-recommendation__price.is-suggested dd { color: var(--ceopro-primary); }
+.pricing-recommendation__action { color: var(--ceopro-primary-dark); font-size: var(--ceopro-font-size-label); font-weight: 600; }
+.pricing-recommendation h4 { font-size: var(--ceopro-font-size-body); font-weight: 600; }
+.pricing-recommendation__reason { display: grid; gap: 8px; }
+.pricing-recommendation__reason p { overflow-wrap: anywhere; }
+.pricing-recommendation__reason small { color: var(--ceopro-text-secondary); font-size: var(--ceopro-font-size-label); }
+.pricing-recommendation__notice { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 1px solid var(--ceopro-border); border-radius: var(--ceopro-radius-md); background: var(--ceopro-surface-subtle); font-size: var(--ceopro-font-size-secondary-body); }
+.pricing-recommendation__notice > svg { margin-block-start: 3px; }
+.pricing-recommendation__notice > p, .pricing-recommendation__notice > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pricing-recommendation__notice.is-error { border-inline-start: 3px solid var(--ceopro-error); background: var(--ceopro-surface); }
+.pricing-recommendation__notice.is-error > svg { color: var(--ceopro-error); }
+.pricing-recommendation__empty { display: flex; align-items: flex-start; gap: 16px; background: var(--ceopro-surface-soft); padding: 24px; border-radius: var(--ceopro-radius-md); }
+.pricing-recommendation__icon { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: var(--ceopro-radius-md); color: var(--ceopro-primary); background: var(--ceopro-surface); }
+.pricing-recommendation__empty > div { display: grid; gap: 8px; min-width: 0; }
+.pricing-recommendation__empty p { color: var(--ceopro-text-secondary); max-width: 80ch; overflow-wrap: anywhere; }
+.pricing-recommendation__starting-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 0; }
+.pricing-recommendation__starting-price dt { color: var(--ceopro-text-secondary); font-size: var(--ceopro-font-size-secondary-body); }
+.pricing-recommendation__starting-price dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pricing-recommendation__details { border-block-start: 1px solid var(--ceopro-border); }
+.pricing-recommendation__details summary { min-height: 44px; padding-block: 12px; color: var(--ceopro-primary-dark); cursor: pointer; font-weight: 600; font-size: var(--ceopro-font-size-secondary-body); }
+.pricing-recommendation__details summary:hover { color: var(--ceopro-primary); }
+.pricing-recommendation__details > p { color: var(--ceopro-text-secondary); font-size: var(--ceopro-font-size-secondary-body); margin-block: 0 12px; }
+.pricing-recommendation__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 14px 24px; margin: 6px 0 16px; }
+.pricing-recommendation__stats dt { font-size: var(--ceopro-font-size-label); color: var(--ceopro-text-secondary); }
+.pricing-recommendation__stats dd { margin: 4px 0 0; font-size: var(--ceopro-font-size-body); font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pricing-recommendation__sources { display: grid; gap: 0; padding: 0; margin: 0 0 12px; list-style: none; }
+.pricing-recommendation__sources li { padding-block: 12px; border-block-end: 1px solid var(--ceopro-border); overflow-wrap: anywhere; }
+.pricing-recommendation__sources li:last-child { border-block-end: 0; }
+.pricing-recommendation__sources li > div { display: flex; flex-wrap: wrap; gap: 4px 20px; justify-content: space-between; }
+.pricing-recommendation__sources small { display: block; margin-block-start: 4px; color: var(--ceopro-text-secondary); font-size: var(--ceopro-font-size-label); }
+.pricing-recommendation__policy { display: flex; align-items: flex-start; gap: 8px; color: var(--ceopro-text-secondary); font-size: var(--ceopro-font-size-label); }
+.pricing-recommendation__policy svg { margin-block-start: 2px; }
+.pricing-recommendation__progress { color: var(--ceopro-primary-dark); font-size: var(--ceopro-font-size-secondary-body); }
+.pricing-recommendation__skeleton { display: grid; gap: 16px; }
+.pricing-recommendation__skeleton > div { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pricing-recommendations-panel :is(button, select, summary):focus-visible { outline: 2px solid var(--ceopro-primary); outline-offset: 3px; }
+@media (max-width: 1100px) {
+  .pricing-recommendation__result { grid-template-columns: 1fr; gap: 20px; }
+}
+@media (max-width: 600px) {
+  .pricing-recommendations-panel .market-main-panel__actions { width: 100%; justify-content: flex-start; }
+  .pricing-recommendations-panel .market-main-panel__actions > .ceopro-button { width: 100%; }
+  .pricing-recommendation__history { width: 100%; align-items: stretch; flex-direction: column; }
+  .pricing-recommendation__history .market-main-select { width: 100%; }
+  .pricing-recommendation__price { padding: 16px 12px; }
+  .pricing-recommendation__empty { padding: 18px 14px; gap: 12px; }
+  .pricing-recommendation__notice { flex-wrap: wrap; }
+  .pricing-recommendation__notice .ceopro-button { margin-inline-start: 28px; }
+}

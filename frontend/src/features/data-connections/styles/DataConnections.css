@@ -12,17 +12,20 @@
   align-items: center;
   justify-content: center;
   padding: 22px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #dad7ea;
   border-radius: 9px;
-  background: var(--apex-glass);
+  background: #fff;
   box-shadow: var(--ceopro-shadow-sm);
   text-align: center;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .ceopro-data-source-card:hover,
 .ceopro-data-source-card:focus-within {
-  border-color: var(--apex-accent-border);
+  border-color: #aaa3f5;
   box-shadow: 0 12px 28px -20px rgba(47, 43, 206, 0.42);
   transform: translateY(-2px);
 }
@@ -67,25 +70,25 @@
   inset-inline-end: 12px;
   padding: 4px 7px;
   border-radius: 999px;
-  background: var(--apex-glass);
+  background: #f1f0f7;
   color: var(--ceopro-text-muted);
   font-size: 9px;
   font-weight: 700;
 }
 
 .ceopro-data-source-card__status.is-connected {
-  background: var(--apex-glass);
-  color: var(--apex-success);
+  background: #dcfce7;
+  color: #15803d;
 }
 
 .ceopro-data-source-card__status.is-connecting {
-  background: var(--apex-glass);
+  background: #eef2ff;
   color: var(--ceopro-primary);
 }
 
 .ceopro-data-source-card__status.is-error {
-  background: var(--apex-glass);
-  color: var(--apex-danger);
+  background: #fff1f2;
+  color: #be123c;
 }
 
 .ceopro-data-source-card__error {
@@ -100,7 +103,7 @@
   width: min(310px, 100%);
   min-height: 36px;
   padding: 0 10px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #dfddeb;
   border-radius: 5px;
   color: var(--ceopro-text-primary);
   font: inherit;
@@ -109,9 +112,9 @@
 
 .ceopro-database-panel {
   padding: 22px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e6e3ef;
   border-radius: 10px;
-  background: var(--apex-glass);
+  background: rgba(255, 255, 255, 0.88);
   box-shadow: var(--ceopro-shadow-sm);
 }
 
@@ -132,14 +135,17 @@
   align-items: center;
   min-height: 95px;
   padding: 13px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e2dfec;
   border-radius: 8px;
-  background: var(--apex-glass);
+  background: #fff;
   color: var(--ceopro-text-primary);
   cursor: pointer;
   font: inherit;
   text-align: start;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .ceopro-database-provider:hover,
@@ -157,7 +163,7 @@
   height: 38px;
   place-items: center;
   border-radius: 8px;
-  background: var(--apex-glass);
+  background: #f8f7fc;
 }
 
 .ceopro-database-provider__mark img {
@@ -166,11 +172,21 @@
   object-fit: contain;
 }
 
-.ceopro-database-provider__mark--mysql { color: var(--apex-info); }
-.ceopro-database-provider__mark--postgresql { color: var(--apex-info); }
-.ceopro-database-provider__mark--sqlServer { color: var(--apex-danger); }
-.ceopro-database-provider__mark--mongodb { color: var(--apex-success); }
-.ceopro-database-provider__mark--oracle { color: var(--apex-danger); }
+.ceopro-database-provider__mark--mysql {
+  color: #16718f;
+}
+.ceopro-database-provider__mark--postgresql {
+  color: #336791;
+}
+.ceopro-database-provider__mark--sqlServer {
+  color: #c7363d;
+}
+.ceopro-database-provider__mark--mongodb {
+  color: #168b45;
+}
+.ceopro-database-provider__mark--oracle {
+  color: #e11920;
+}
 
 .ceopro-database-provider > span:nth-child(2) {
   display: grid;
@@ -245,3 +261,5 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.ceopro-data-source-card__status.is-configured { background: #eef2ff; color: var(--ceopro-primary); }

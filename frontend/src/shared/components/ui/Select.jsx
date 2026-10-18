@@ -1,4 +1,4 @@
-import { forwardRef, useId } from 'react';
+import React, { forwardRef, useId } from 'react';
 
 const Select = forwardRef(({ 
   label,
@@ -23,7 +23,7 @@ const Select = forwardRef(({
     padding: 'var(--ceopro-space-2) var(--ceopro-space-3)',
     border: `1px solid ${error ? 'var(--ceopro-error)' : 'var(--ceopro-border)'}`,
     borderRadius: 'var(--ceopro-radius-sm)',
-    background: 'var(--apex-glass-solid)',
+    background: 'var(--ceopro-surface)',
     color: 'var(--ceopro-text-primary)',
     fontFamily: 'var(--ceopro-font-family)',
     fontSize: '14px',

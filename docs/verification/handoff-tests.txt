@@ -1,0 +1,10 @@
+✔ development helper rejects production before connecting and never exposes credentials (76.79664ms)
+✔ fresh compatibility roles support every migration; existing DB init refuses and password alignment retains restricted privileges (2525.002987ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2749.381847

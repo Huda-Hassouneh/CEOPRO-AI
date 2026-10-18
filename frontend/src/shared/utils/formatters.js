@@ -1,0 +1,1 @@
+export const currency = (value) => String(value);\nexport const date = (value) => String(value);\n

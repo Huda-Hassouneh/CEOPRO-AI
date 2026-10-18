@@ -1,13 +1,16 @@
-import { useState, useId } from 'react';
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import React, { useState, useId } from 'react';
 
 export default function Tabs({ 
   tabs = [], 
   activeTab,
   onChange,
-  ariaLabel = 'Tabs',
+  ariaLabel,
   className = '',
   ...props 
 }) {
+  const { t } = useI18n();
+  ariaLabel ??= t("interfaceCopy.tabs");
   const [internalTab, setInternalTab] = useState(tabs[0]?.id);
   const currentTab = activeTab !== undefined ? activeTab : internalTab;
   const tabRootId = useId().replace(/:/g, '');
@@ -32,7 +35,7 @@ export default function Tabs({
   return (
     <div className={`ceopro-tabs-container ${className}`.trim()} {...props}>
       <div role="tablist" style={containerStyle} aria-label={ariaLabel}>
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const isActive = currentTab === tab.id;
           const tabPanelId = `${tabRootId}-panel-${tab.id}`;
           const tabButtonId = `${tabRootId}-tab-${tab.id}`;

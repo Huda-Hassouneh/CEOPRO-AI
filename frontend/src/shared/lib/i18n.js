@@ -1,11 +1,12 @@
-import en from '../../assets/locales/en.json';
-import ar from '../../assets/locales/ar.json';
-import landingEn from '../../features/landing/locales/en.json';
-import landingAr from '../../features/landing/locales/ar.json';
+import en from '../../assets/locales/en.json' with { type: 'json' };
+import ar from '../../assets/locales/ar.json' with { type: 'json' };
+import landingEn from '../../features/landing/locales/en.json' with { type: 'json' };
+import landingAr from '../../features/landing/locales/ar.json' with { type: 'json' };
+import { en as adminEn, ar as adminAr } from '../../features/platform-admin/locales/messages.js';
 
 export const DEFAULT_LOCALE = 'en';
 export const SUPPORTED_LOCALES = Object.freeze(['en', 'ar']);
-export const translations = Object.freeze({ en: { ...en, landing: landingEn }, ar: { ...ar, landing: landingAr } });
+export const translations = Object.freeze({ en: { ...en, landing: landingEn, platformAdmin: adminEn }, ar: { ...ar, landing: landingAr, platformAdmin: adminAr } });
 
 export const getLocaleDirection = (locale) => locale === 'ar' ? 'rtl' : 'ltr';
 
@@ -25,4 +26,14 @@ export function translate(locale, key, values = {}) {
     ?? key;
 
   return interpolate(message, values);
+}
+
+/** Translate frontend-owned messages outside React (API adapters and validation). */
+export function translateCurrent(key, values = {}) {
+  let locale = DEFAULT_LOCALE;
+  try {
+    locale = globalThis.document?.documentElement?.lang
+      || globalThis.localStorage?.getItem('ceopro_locale') || DEFAULT_LOCALE;
+  } catch { /* Storage can be disabled; use the document language or English. */ }
+  return translate(locale, key, values);
 }

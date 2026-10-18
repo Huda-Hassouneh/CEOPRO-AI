@@ -1,15 +1,15 @@
 .ceopro-upload-panel {
   padding: 25px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e7e4f0;
   border-radius: 10px;
-  background: var(--apex-glass);
+  background: rgba(255, 255, 255, 0.92);
   box-shadow: var(--ceopro-shadow-sm);
 }
 
 .ceopro-upload-step + .ceopro-upload-step {
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid var(--apex-glass-border);
+  border-top: 1px solid #eceaf3;
 }
 
 .ceopro-upload-step__heading {
@@ -38,7 +38,7 @@
 }
 
 .ceopro-upload-step__heading h2 {
-  color: var(--apex-text);
+  color: #24263b;
   font-size: 13px;
 }
 
@@ -63,10 +63,10 @@
   gap: 2px 9px;
   min-width: 0;
   padding: 11px 12px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e2dfed;
   border-radius: 8px;
-  background: var(--apex-glass);
-  color: var(--apex-text);
+  background: #fff;
+  color: #24263b;
   cursor: pointer;
   font: inherit;
   text-align: start;
@@ -117,9 +117,9 @@
   align-items: center;
   justify-content: center;
   padding: 22px;
-  border: 2px dashed var(--apex-glass-border);
+  border: 2px dashed #d5d0ea;
   border-radius: 8px;
-  background: var(--apex-glass);
+  background: #fdfcff;
   color: var(--ceopro-primary);
   text-align: center;
   transition: border-color 150ms ease, background 150ms ease;
@@ -132,7 +132,7 @@
 
 .ceopro-file-dropzone strong {
   margin-top: 10px;
-  color: var(--apex-text);
+  color: #282a40;
   font-size: 12px;
 }
 
@@ -195,9 +195,9 @@
   align-items: center;
   gap: 9px;
   padding: 9px 10px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e5e2ec;
   border-radius: 6px;
-  background: var(--apex-glass);
+  background: #fff;
 }
 
 .ceopro-uploaded-file__icon {
@@ -206,8 +206,8 @@
   height: 31px;
   place-items: center;
   border-radius: 5px;
-  background: var(--apex-glass);
-  color: var(--apex-danger);
+  background: #fff0f2;
+  color: #dc4251;
 }
 
 .ceopro-uploaded-file__icon img {
@@ -217,8 +217,8 @@
 }
 
 .ceopro-uploaded-file__icon.is-sheet {
-  background: var(--apex-glass);
-  color: var(--apex-success);
+  background: #e7f8ef;
+  color: #15945b;
 }
 
 .ceopro-uploaded-file__copy {

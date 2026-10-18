@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
 
 * {
   box-sizing: border-box;
@@ -159,6 +159,48 @@ body {
   background: var(--ceopro-surface-soft);
 }
 
+.sidebar {
+  width: 260px;
+  background: var(--ceopro-surface);
+  border-right: 1px solid var(--ceopro-border);
+  padding: var(--ceopro-space-6);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar .brand {
+  color: var(--ceopro-primary);
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ceopro-space-2);
+  margin-top: var(--ceopro-space-8);
+}
+
+.sidebar nav a {
+  color: var(--ceopro-text-secondary);
+  text-decoration: none;
+  padding: var(--ceopro-space-3) var(--ceopro-space-4);
+  border-radius: var(--ceopro-radius-sm);
+  font-weight: 500;
+  transition: all 150ms ease;
+}
+
+.sidebar nav a:hover {
+  background: var(--ceopro-surface-soft);
+  color: var(--ceopro-text-primary);
+}
+
+.sidebar nav a.active {
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+  border-left: 3px solid var(--ceopro-primary);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 .dashboard-content {
   flex: 1;
   padding: var(--ceopro-space-8);
@@ -210,7 +252,7 @@ body {
 }
 
 .ceopro-auth-brand {
-  color: var(--apex-info);
+  color: #3428c7;
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -220,7 +262,7 @@ body {
 .ceopro-auth-shell {
   width: 100%;
   background: var(--ceopro-surface);
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #ebe9f4;
   border-radius: 12px;
   box-shadow: 0 18px 38px rgba(68, 53, 142, 0.1);
   overflow: hidden;
@@ -228,7 +270,7 @@ body {
 
 .ceopro-auth-topbar {
   height: 5px;
-  background: linear-gradient(90deg, var(--apex-blue), var(--apex-blue));
+  background: linear-gradient(90deg, #3023cf, #5144e7);
 }
 
 .ceopro-auth-shape {
@@ -304,23 +346,23 @@ body {
 }
 
 .ceopro-button--primary {
-  background: linear-gradient(135deg, var(--apex-blue), var(--apex-blue));
+  background: linear-gradient(135deg, #2f2bce, #3d42d0);
   color: var(--ceopro-surface);
   box-shadow: 0 8px 18px rgba(47, 43, 206, 0.18);
 }
 
 .ceopro-button--primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--apex-blue), var(--apex-blue));
+  background: linear-gradient(135deg, #261ec0, #352fc5);
 }
 
 .ceopro-button--secondary {
-  background: var(--apex-glass);
+  background: #f5f1ff;
   color: var(--ceopro-primary);
-  border-color: var(--apex-glass-border);
+  border-color: #e4ddff;
 }
 
 .ceopro-button--secondary:hover:not(:disabled) {
-  background: var(--apex-accent-tint);
+  background: #efe9ff;
 }
 
 .ceopro-button--outline {
@@ -373,17 +415,13 @@ body {
   display: flex;
   align-items: center;
   background: var(--ceopro-surface);
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e3e5f2;
   border-radius: 10px;
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.ceopro-input-shell--icon-start .ceopro-input {
-  padding-inline-start: 42px;
-}
-
-.ceopro-input-shell--icon-end .ceopro-input {
-  padding-inline-end: 42px;
+.ceopro-input-shell--with-icon .ceopro-input {
+  padding-inline: 42px;
 }
 
 .ceopro-input-shell--error {
@@ -421,7 +459,7 @@ body {
 }
 
 .ceopro-input::placeholder {
-  color: var(--apex-text-3);
+  color: #9aa0b5;
 }
 
 .ceopro-input:focus {
@@ -507,17 +545,17 @@ html[lang='ar'] .ceopro-auth-title {
   width: 100%;
   min-height: 46px;
   padding: 0 var(--ceopro-space-5);
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e3e5f2;
   border-radius: 10px;
   background: var(--ceopro-surface);
-  color: var(--apex-text);
+  color: #1f2335;
   font-weight: 600;
   cursor: pointer;
   transition: all 150ms ease;
 }
 
 .ceopro-google-button:hover {
-  background: var(--apex-glass);
+  background: #f6f4ff;
 }
 
 .ceopro-google-mark {
@@ -536,7 +574,7 @@ html[lang='ar'] .ceopro-auth-title {
 .ceopro-verification-input {
   width: 100%;
   min-height: 54px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e3e5f2;
   border-radius: 10px;
   background: var(--ceopro-surface);
   text-align: center;
@@ -577,11 +615,11 @@ html[lang='ar'] .ceopro-auth-title {
 .ceopro-password-strength__bar {
   height: 7px;
   border-radius: 999px;
-  background: var(--apex-accent-tint);
+  background: #edeafc;
 }
 
 .ceopro-password-strength__bar.is-active {
-  background: var(--apex-gradient);
+  background: var(--ceopro-primary);
 }
 
 .ceopro-password-strength__bar.is-warning {
@@ -708,13 +746,13 @@ html[lang='ar'] .ceopro-auth-title {
   inset-inline-end: 50%;
   width: 100%;
   height: 2px;
-  background: var(--apex-accent-tint);
+  background: #e7e4f7;
   content: '';
 }
 
 .ceopro-stepper__item.is-completed::before,
 .ceopro-stepper__item.is-current::before {
-  background: var(--apex-gradient);
+  background: var(--ceopro-primary);
 }
 
 .ceopro-stepper__marker {
@@ -724,10 +762,10 @@ html[lang='ar'] .ceopro-auth-title {
   width: 26px;
   height: 26px;
   place-items: center;
-  border: 2px solid var(--apex-glass-border);
+  border: 2px solid #e7e4f7;
   border-radius: 50%;
-  background: var(--apex-glass);
-  color: var(--apex-text-3);
+  background: #f0eefb;
+  color: #9795a9;
   font-size: 11px;
   font-weight: 700;
 }
@@ -735,7 +773,7 @@ html[lang='ar'] .ceopro-auth-title {
 .ceopro-stepper__item.is-completed .ceopro-stepper__marker,
 .ceopro-stepper__item.is-current .ceopro-stepper__marker {
   border-color: var(--ceopro-primary);
-  background: var(--apex-gradient);
+  background: var(--ceopro-primary);
   color: #fff;
 }
 
@@ -761,7 +799,7 @@ html[lang='ar'] .ceopro-auth-title {
   align-items: center;
   min-height: 92px;
   padding: 18px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e5e3ef;
   border-top: 3px solid transparent;
   border-radius: var(--ceopro-radius-sm);
   background: var(--ceopro-surface);
@@ -771,7 +809,7 @@ html[lang='ar'] .ceopro-auth-title {
 }
 
 .ceopro-selectable-card:hover {
-  border-color: var(--apex-accent-border);
+  border-color: #bab3ff;
   box-shadow: var(--ceopro-shadow);
   transform: translateY(-2px);
 }
@@ -836,7 +874,7 @@ html[lang='ar'] .ceopro-auth-title {
   height: 20px;
   margin-inline-start: auto;
   place-items: center;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #d8d7e5;
   border-radius: 50%;
   color: #fff;
   font-size: 11px;
@@ -844,14 +882,14 @@ html[lang='ar'] .ceopro-auth-title {
 
 .ceopro-selectable-card.is-selected .ceopro-selectable-card__indicator {
   border-color: var(--ceopro-primary);
-  background: var(--apex-gradient);
+  background: var(--ceopro-primary);
 }
 
 .ceopro-segmented-control {
   display: inline-flex;
   margin: 0;
   padding: 3px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e4e1f1;
   border-radius: 9px;
   background: var(--ceopro-surface);
 }
@@ -871,7 +909,7 @@ html[lang='ar'] .ceopro-auth-title {
 }
 
 .ceopro-segmented-control__option.is-selected {
-  background: var(--apex-gradient);
+  background: var(--ceopro-primary);
   color: #fff;
 }
 
@@ -890,7 +928,7 @@ html[lang='ar'] .ceopro-auth-title {
 .ceopro-range-field {
   min-width: 0;
   padding: 16px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #ebe9f4;
   border-radius: var(--ceopro-radius-sm);
   background: var(--ceopro-surface);
 }
@@ -930,7 +968,7 @@ html[lang='ar'] .ceopro-auth-title {
   min-width: 58px;
   margin-inline-start: auto;
   padding: 6px 8px;
-  border: 1px solid var(--apex-glass-border);
+  border: 1px solid #e3e1ed;
   border-radius: 6px;
   color: var(--ceopro-text-primary);
   font-size: 12px;

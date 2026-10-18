@@ -1,10 +1,16 @@
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import React from 'react';
 
-export default function PasswordStrength({ score = 0, title = 'Password strength', label = 'Weak', hint = 'Use 8+ characters with a mix of letters, numbers, and symbols.' }) {
+export default function PasswordStrength({ score = 0, title, label, hint }) {
+  const { t: copyT } = useI18n();
+  title ??= copyT("interfaceCopy.passwordStrength");
+  label ??= copyT("interfaceCopy.weak");
+  hint ??= copyT("interfaceCopy.use8CharactersWithAMixOfLettersNumbersAndSymbols");
   const levels = [
-    { key: 'weak', label: 'Weak' },
-    { key: 'fair', label: 'Fair' },
-    { key: 'good', label: 'Good' },
-    { key: 'strong', label: 'Strong' },
+    { key: 'weak', label: copyT("interfaceCopy.weak") },
+    { key: 'fair', label: copyT("interfaceCopy.fair") },
+    { key: 'good', label: copyT("interfaceCopy.good") },
+    { key: 'strong', label: copyT("interfaceCopy.strong") },
   ];
 
   return (

@@ -1,19 +1,18 @@
-// backend/src/ai/routers/settings.py - every flag below now has a real,
-// mounted endpoint behind it, except listInvitations (no GET endpoint
-// exists to list pending invitations, only POST to create one).
+import { translateCurrent } from '../../../shared/lib/i18n.js';
+// Enable only after a verified service contract and authorization are integrated.
 export const settingsCapabilities = Object.freeze({
-  updateProfile: true,
-  updateCompany: true,
-  listMembers: true,
+  updateProfile: false,
+  updateCompany: false,
+  listMembers: false,
   listInvitations: false,
-  invite: true,
-  changeRole: true,
-  removeMember: true,
-  changePassword: true,
+  invite: false,
+  changeRole: false,
+  removeMember: false,
+  changePassword: false,
 });
 
 export async function unsupportedSettingsAction() {
-  const error = new Error('This settings action is not available.');
+  const error = new Error(translateCurrent("interfaceCopy.settingUnavailable"));
   error.code = 'SETTINGS_UNAVAILABLE';
   throw error;
 }

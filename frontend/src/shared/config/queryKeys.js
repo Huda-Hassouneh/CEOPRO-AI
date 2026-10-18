@@ -1,0 +1,1 @@
+export const queryKeys = { auth: ['auth'] };\n

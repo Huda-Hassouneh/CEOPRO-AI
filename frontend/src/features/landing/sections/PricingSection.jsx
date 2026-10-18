@@ -1,24 +1,117 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { routePaths } from '../../../app/router/routePaths.js';
-import { PlanSelector } from '../../billing/components/PlanSelector.jsx';
-import { SectionHeading, useLanding } from '../components/LandingPrimitives.jsx';
-import '../../billing/styles/Billing.css';
-
-const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || '';
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import useSWR from "swr";
+import { routePaths } from "../../../app/router/routePaths.js";
+import { PlanSelector } from "../../billing/components/PlanSelector.jsx";
+import { billingApi } from "../../billing/api/billingApi.js";
+import { useOnboardingStore } from "../../onboarding/store/onboardingStore.js";
+import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import {
+  SectionHeading,
+  useLanding
+} from "../components/LandingPrimitives.jsx";
+import "../../billing/styles/Billing.css";
 
 export function PricingSection() {
   const { t } = useLanding();
+  const { locale } = useI18n();
   const navigate = useNavigate();
-  const [period, setPeriod] = useState('monthly');
-  // Every new company starts on the free trial; the plan is chosen in
-  // Billing once they've seen the product with their own data.
-  const choose = (plan) => {
-    if (!plan.selfServe) {
-      if (SUPPORT_EMAIL) window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('KEEL Custom plan')}`;
+
+  const {
+    data: response,
+    error,
+    isLoading
+  } = useSWR("subscription-plans", billingApi.getPlans);
+
+  const rawPlans = response?.data ?? [];
+
+  const plans = useMemo(() => {
+    if (!rawPlans.length) return [];
+
+    return [...rawPlans]
+      .sort((a, b) => (a.tier_level || 0) - (b.tier_level || 0))
+      .map((plan) => ({
+        ...plan,
+        displayName: locale === "ar" && plan.name_ar ? plan.name_ar : plan.name,
+        displayDescription:
+          locale === "ar" && plan.description_ar
+            ? plan.description_ar
+            : plan.description
+      }));
+  }, [rawPlans, locale]);
+
+  const setPlanChoice = useOnboardingStore((state) => state.setPlanChoice);
+  const setBillingPeriod = useOnboardingStore(
+    (state) => state.setBillingPeriod
+  );
+  const [period, setPeriod] = useState("monthly");
+
+  useEffect(() => {
+    const firstPeriod = plans[0]?.pricingOptions?.[0]?.period;
+    if (firstPeriod) {
+      setPeriod((current) =>
+        plans[0].pricingOptions.some((option) => option.period === current)
+          ? current
+          : firstPeriod
+      );
+    }
+  }, [plans]);
+
+  const choose = (planId) => {
+    if (planId === "custom") {
+      setPlanChoice("custom", "paid");
+      setBillingPeriod(period);
+      navigate(routePaths.welcome);
       return;
     }
-    navigate(routePaths.welcome);
+
+    const selectedPlan = plans.find((p) => p.id === planId);
+
+    if (selectedPlan) {
+      const hasTrial =
+        selectedPlan.trialPeriodValue && selectedPlan.trialPeriodValue > 0;
+
+      setPlanChoice(selectedPlan.id, hasTrial ? "trial" : "paid");
+      setBillingPeriod(period);
+      navigate(routePaths.welcome);
+    }
   };
-  return <section className="lp-section lp-tinted" id="pricing"><div className="lp-container"><SectionHeading section="pricing" centered /><PlanSelector billingPeriod={period} onPeriodChange={setPeriod} onPlanSelect={choose} /><p className="lp-fineprint lp-centered">{t('pricing.note')}</p></div></section>;
+
+  return (
+    <section className="lp-section lp-tinted" id="pricing">
+      <div className="lp-container">
+        <SectionHeading section="pricing" centered />
+
+        {isLoading && (
+          <p className="lp-centered" style={{ padding: "2rem 0" }}>
+            {t("pricing.loading")}
+          </p>
+        )}
+
+        {error && (
+          <p
+            className="lp-centered"
+            style={{ padding: "2rem 0", color: "var(--color-danger, red)" }}
+          >
+            {t("pricing.error")}
+          </p>
+        )}
+
+        {!isLoading && !error && (
+          <PlanSelector
+            plans={plans}
+            billingPeriod={period}
+            onPeriodChange={setPeriod}
+            onPlanSelect={choose}
+            onBuildCustom={() => choose("custom")}
+            showCustomPlan
+          />
+        )}
+
+        <p className="lp-fineprint lp-centered">
+          {t("pricing.note")}
+        </p>
+      </div>
+    </section>
+  );
 }

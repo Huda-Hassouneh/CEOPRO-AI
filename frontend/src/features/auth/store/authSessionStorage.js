@@ -24,10 +24,20 @@ const safeParse = (value) => {
 };
 
 export function normalizeAuthSession(session = {}) {
+  const roleKey = session.roleKey ?? session.role ?? (Array.isArray(session.roles) ? session.roles[0] : null) ?? null;
+  const roles = Array.isArray(session.roles)
+    ? session.roles
+    : roleKey
+      ? [roleKey]
+      : [];
+
   return {
     user: session.user ?? null,
     tenantId: session.tenantId ?? null,
-    roles: Array.isArray(session.roles) ? session.roles : [],
+    roleKey,
+    // Kept as a compatibility view for existing tenant UI guards/settings.
+    // Canonical authorization identity is roleKey from TenantUser.
+    roles,
     accessToken: session.accessToken ?? null,
     refreshToken: session.refreshToken ?? null,
   };
@@ -71,7 +81,6 @@ export function readPersistedAuthSession() {
       storage.removeItem(AUTH_SESSION_STORAGE_KEY);
     }
 
-    // One-time compatibility migration from the previous split session/token keys.
     const legacySession = safeParse(storage.getItem(LEGACY_SESSION_KEY));
     const legacyAccessToken = storage.getItem(LEGACY_TOKEN_KEY);
     if (!legacySession && !legacyAccessToken) return null;
@@ -79,6 +88,7 @@ export function readPersistedAuthSession() {
     const migratedSession = normalizeAuthSession({
       ...legacySession,
       accessToken: legacySession?.accessToken ?? legacyAccessToken ?? null,
+      roleKey: legacySession?.roleKey ?? legacySession?.role ?? null,
       roles: legacySession?.roles ?? (legacySession?.role ? [legacySession.role] : []),
     });
     persistAuthSession(migratedSession);

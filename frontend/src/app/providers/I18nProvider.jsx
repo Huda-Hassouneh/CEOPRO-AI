@@ -1,6 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { configureHttpClientLanguage } from '../../shared/lib/httpClient.js';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
   DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
@@ -24,19 +22,6 @@ const readInitialLocale = () => {
 export function I18nProvider({ children }) {
   const [locale, setLocaleState] = useState(readInitialLocale);
   const dir = getLocaleDirection(locale);
-  const queryClient = useQueryClient();
-  const previousLocale = useRef(locale);
-
-  // Every API call carries the interface language, so names come back in it.
-  configureHttpClientLanguage(() => locale);
-
-  useEffect(() => {
-    // Data already loaded holds names in the previous language: refetch it.
-    if (previousLocale.current !== locale) {
-      previousLocale.current = locale;
-      queryClient.invalidateQueries();
-    }
-  }, [locale, queryClient]);
 
   useEffect(() => {
     try {

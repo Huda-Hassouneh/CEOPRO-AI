@@ -1,172 +1,265 @@
-import { useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ExternalLink, Globe, MapPin, Phone, Star, StarOff, Store, UserPlus } from 'lucide-react';
-import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { DashboardLayout } from '../../../app/layouts/DashboardLayout.jsx';
-import { routePaths } from '../../../app/router/routePaths.js';
-import BusinessPageContainer from '../../../shared/components/layout/BusinessPageContainer.jsx';
-import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
-import { ApexButton, Meter, Panel, Pill, Stat, StateBlock } from '../../../shared/components/apex/Apex.jsx';
-import { discoveryApi } from '../api/discoveryApi.js';
-import { competitorTraits } from '../api/competitorsApi.js';
-import { useCompetitorProfile } from '../hooks/useCompetitorProfile.js';
-import { useTrackCompetitor } from '../hooks/useDiscovery.js';
-import { RecordCompetitorPrice } from '../components/RecordCompetitorPrice.jsx';
-import { CompetitorIntel } from '../components/CompetitorIntel.jsx';
-import { DataCompleteness } from '../components/DataCompleteness.jsx';
-import { CompetitorComments } from '../components/CompetitorComments.jsx';
-import { useCompetitorDataStatus } from '../hooks/useCompetitorData.js';
-import '../styles/MarketIntelligence.css';
-
-function reasonText(t, number, reason) {
-  switch (reason.code) {
-    case 'distance': return t('discovery.reasons.distance', { km: number.format(reason.km) });
-    case 'branches': return t('discovery.reasons.branches', { count: reason.count });
-    case 'reviews': return t('discovery.reasons.reviews', { rating: reason.rating == null ? '—' : number.format(reason.rating), count: number.format(reason.count) });
-    case 'sources': return t('discovery.reasons.sources', { count: reason.count });
-    default: return t(`discovery.reasons.${reason.code}`);
-  }
-}
-
-// One competitor: who they are and where that information comes from, why
-// it was matched, and - once tracked - how its prices compare with yours.
-// "instagram.com/olive.jo" -> "Instagram"; the full address is in the link.
-const PROFILE_SITES = { 'instagram.com': 'Instagram', 'facebook.com': 'Facebook', 'tiktok.com': 'TikTok', 'x.com': 'X', 'twitter.com': 'X', 'linkedin.com': 'LinkedIn', 'youtube.com': 'YouTube' };
-function profileLabel(link) {
-  try {
-    const host = new URL(link).hostname.replace(/^www\./, '').replace(/^m\./, '');
-    return PROFILE_SITES[host] || host;
-  } catch {
-    return link;
-  }
-}
+import {COMPETITOR_AI_ACTIONS_ENABLED} from '../config/competitorCapabilities.js';
+import {collectionState} from '../utils/collectionStatus.js';
+import {CompetitorProductLinks} from '../components/CompetitorProductLinks.jsx';
+import {DiscoveryCoverage} from '../components/DiscoveryCoverage.jsx';
+import {CompetitorSourceReviews} from '../components/CompetitorSourceReviews.jsx';
+import {discoveryState} from '../utils/discoveryStatus.js';
+import Button from '../../../shared/components/ui/Button.jsx';
+import Input from '../../../shared/components/ui/Input.jsx';
+import { PauseCircle, PlayCircle, Clock3, Info, ExternalLink, Package, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { CompetitorConfirmation } from '../components/CompetitorConfirmation.jsx';
+import { useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { competitorsApi } from '../api/competitorsApi.js';
+import { useAuthStore } from '../../auth/store/authStore.js';
+import { useNavigate, useParams } from "react-router-dom";
+import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
+import { DashboardLayout } from "../../../app/layouts/DashboardLayout.jsx";
+import RecordSummary from '../../../shared/components/ui/RecordSummary.jsx';
+import '../styles/CompetitorDirectory.css';
+import Card from "../../../shared/components/ui/Card.jsx";
+import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
+import EmptyState from "../../../shared/components/ui/EmptyState.jsx";
+import { CompetitorDetailHeader } from "../components/CompetitorDetailSections.jsx";
+import { useCompetitorProfile } from "../hooks/useCompetitorProfile.js";
+import "../styles/MarketIntelligence.css";
 
 export function CompetitorProfileDetailPage() {
   const { t, locale } = useI18n();
   const navigate = useNavigate();
   const { competitorId } = useParams();
-  const query = useQuery({ queryKey: ['discovery-competitor', competitorId], queryFn: () => discoveryApi.competitor(competitorId), enabled: Boolean(competitorId) });
-  const tracked = query.data?.is_tracked;
-  const profile = useCompetitorProfile(tracked ? competitorId : null);
-  const track = useTrackCompetitor();
-  const dataStatus = useCompetitorDataStatus(competitorId, Boolean(tracked));
-  const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }), [locale]);
-  const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
-  const money = (value, currency) => { try { return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value); } catch { return `${value} ${currency}`; } };
-  const back = <ApexButton variant="ghost" icon={ArrowLeft} onClick={() => navigate(routePaths.market)}>{t('market.detail.back')}</ApexButton>;
+  const tenantId = useAuthStore(state => state.tenantId);
+  const cache = useQueryClient();
+  const [alias,setAlias] = useState('');
+  const [notice,setNotice] = useState('');
+  const [confirmation,setConfirmation] = useState(null);
+  const mutation=useMutation({mutationFn: async action => {
+    if (action.type==='cancelDiscovery') return competitorsApi.cancelDiscovery(competitorId,action.eventId);
+    if (action.type==='alias') return competitorsApi.update(competitorId,action.alias || null);
+    if (action.type==='tracking') return competitorsApi.track(competitorId,action.tracked);
+    if (action.type==='mapping') return competitorsApi.confirm(competitorId,action.mappingId,action.confirmed);
+    return competitorsApi.schedule(competitorId);
+  },onSuccess: async (result,_action) => {
+    if (_action.type==='schedule') setNotice(result.reason ? t(`competitorManagement.${result.reason}`) : t(result.configured?'competitorManagement.scheduleQueued':'competitorManagement.scheduleAwaitingSetup',{count:result.updatedSources,queued:result.queuedSources ?? 0}));
+    await Promise.all([cache.invalidateQueries({queryKey:['competitors',tenantId]}),cache.invalidateQueries({queryKey:['competitor-profile',tenantId,competitorId]}),cache.invalidateQueries({queryKey:['subscription','usage']})]);
+    setConfirmation(null);
+  }});
+  useEffect(()=>{setConfirmation(null);setAlias('');setNotice('');mutation.reset();},[tenantId,competitorId]);
 
-  if (query.isPending) return <DashboardLayout><BusinessPageContainer><Panel><StateBlock kind="loading" title={t('common.loading')} /></Panel></BusinessPageContainer></DashboardLayout>;
-  if (query.isError) return <DashboardLayout><BusinessPageContainer><Panel><StateBlock kind="error" title={t('market.empty.detailErrorTitle')} description={t('market.empty.detailErrorDescription')} onRetry={() => query.refetch()} retryLabel={t('demandApex.actions.retry')} /></Panel></BusinessPageContainer></DashboardLayout>;
-  const c = query.data;
-  if (!c) return <DashboardLayout><BusinessPageContainer><Panel><StateBlock title={t('market.empty.detailNotFoundTitle')} description={t('market.empty.detailNotFoundDescription')} action={back} /></Panel></BusinessPageContainer></DashboardLayout>;
+  const {
+    data: detail,
+    isLoading,
+    isError,
+    error
+  } = useCompetitorProfile(competitorId);
 
-  const isArabic = locale?.startsWith('ar');
-  const detail = profile.data?.competitor;
-  const comparisons = detail?.price_comparisons || [];
-  const strengths = detail ? competitorTraits(t, detail.strength_codes, detail.strengths) : [];
-  const weaknesses = detail ? competitorTraits(t, detail.weakness_codes, detail.weaknesses) : [];
-  const toggle = () => track.mutate({ id: c.competitor_id, track: !c.is_tracked }, { onSuccess: () => query.refetch() });
+  useEffect(()=>{setAlias(detail?.alias ?? detail?.name ?? '');},[detail?.alias,detail?.name]);
+  const run = action => {setNotice('');mutation.mutate(action);};
+  const formatDate = (dateString) => {
+    if (!dateString || !Number.isFinite(new Date(dateString).getTime())) return '—';
+    return new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }).format(new Date(dateString));
+  };
+
+  const getLocalizedName = (nameObj) =>
+    typeof nameObj === "string" ? nameObj : nameObj?.[locale] || nameObj?.en || "—";
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="market-page competitor-detail-page">
+          <Skeleton height="150px" variant="rectangular" />
+          <Skeleton
+            height="300px"
+            variant="rectangular"
+            style={{ marginTop: "1rem" }}
+          />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (isError || !detail) {
+    return (
+      <DashboardLayout>
+        <EmptyState
+          title={t("market.detail.loadErrorTitle", "Could not load competitor")}
+          description={getApiErrorMessage(error, t)}
+          action={
+            <Button variant="outline" onClick={() => navigate("/market/competitors")}>
+              {t("market.detail.back")}
+            </Button>
+          }
+        />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <BusinessPageContainer>
-        <PageHeader
-          title={isArabic && c.name_ar ? c.name_ar : c.name}
-          subtitle={[c.industry, c.city].filter(Boolean).join(' · ') || t('discovery.detail.subtitle')}
-          actions={(
-            <>
-              {back}
-              <ApexButton variant={c.is_tracked ? 'ghost' : 'primary'} icon={c.is_tracked ? StarOff : UserPlus} loading={track.isPending} onClick={toggle}>
-                {c.is_tracked ? t('discovery.list.untrack') : t('discovery.list.track')}
-              </ApexButton>
-            </>
-          )}
+      <div className="market-page competitor-detail-page">
+        <CompetitorDetailHeader
+          t={t}
+          detail={detail}
+          onBack={() => navigate("/market/competitors")}
         />
-        {track.isError && <p className="market-scan__note is-error" role="alert">{track.error?.response?.status === 402 ? t('discovery.list.limitReached') : t('discovery.list.trackFailed')}</p>}
-        <div className="apex-page">
-          <div className="apex-grid apex-grid--stats">
-            <Stat label={t('discovery.detail.distance')} value={c.distance_km != null ? t('discovery.list.km', { km: number.format(c.distance_km) }) : '—'} icon={MapPin} />
-            <Stat label={t('discovery.detail.rating')} value={c.rating != null ? `${number.format(c.rating)} / 5` : '—'} hint={c.review_count ? t('discovery.detail.reviews', { count: number.format(c.review_count) }) : t('discovery.detail.noReviews')} icon={Star} tone="warning" />
-            <Stat label={t('discovery.detail.branches')} value={number.format(Math.max(c.branch_count || 0, 1))} icon={Store} tone="violet" />
-            <Stat label={t('discovery.list.relevance')} value={c.relevance != null ? `${Math.round(c.relevance * 100)}%` : '—'} hint={c.confidence != null ? t(`discovery.confidence.${c.confidence >= 0.75 ? 'high' : c.confidence >= 0.5 ? 'medium' : 'low'}`) : t('discovery.origin.manual')} icon={Globe} tone="success" />
+
+        <RecordSummary items={[
+          {label:t('directoryUx.mappedProducts'),value:detail.mappedProducts.length,icon:<Package size={21} />,hint:t('directoryUx.mappingsHint')},
+          ...(COMPETITOR_AI_ACTIONS_ENABLED ? [{label:t('directoryUx.confirmedProducts'),value:detail.mappedProducts.filter(item=>item.comparisonConfirmed).length,icon:<CheckCircle2 size={21} />,hint:t('directoryUx.confirmedHint')},
+          {label:t('directoryUx.approvedSources'),value:(detail.sources ?? []).filter(source=>source.isActive && source.policyStatus==='ALLOWED').length,icon:<ShieldCheck size={21} />,hint:t('directoryUx.approvalHint')}] : [])
+        ]} />
+
+        {detail.canEdit && <section className="market-panel competitor-management-panel">
+          <div className="competitor-management-panel__heading"><h2>{t('competitorManagement.settings')}</h2><p>{t('competitorManagement.settingsHint')}</p></div>
+          <div className="competitor-management-panel__body">
+            <form className="competitor-alias-form" onSubmit={event=>{event.preventDefault();run({type:'alias',alias:alias.trim()});}}>
+              <Input label={t('competitorManagement.alias')} value={alias} maxLength={255} onChange={event=>setAlias(event.target.value)} disabled={mutation.isPending} />
+              <Button type="submit" disabled={mutation.isPending}>{t('competitorManagement.saveAlias')}</Button>
+            </form>
+            {COMPETITOR_AI_ACTIONS_ENABLED && <div className="competitor-management-actions">
+              <Button variant="outline" className={detail.isTracked ? 'competitor-button--danger-outline' : ''} disabled={mutation.isPending}
+                leadingIcon={detail.isTracked ? <PauseCircle size={17} /> : <PlayCircle size={17} />}
+                onClick={()=>{mutation.reset();setConfirmation({type:'tracking',tracked:!detail.isTracked});}}>{t(detail.isTracked?'competitorManagement.untrack':'competitorManagement.reactivate')}</Button>
+              {detail.isTracked && <Button variant="outline" disabled={mutation.isPending} leadingIcon={<Clock3 size={17} />} onClick={()=>run({type:'schedule'})}>{t('competitorManagement.applySchedule')}</Button>}
+            </div>}
+          </div>
+        </section>}
+        <CompetitorConfirmation open={Boolean(confirmation)} t={t} locale={locale} name={detail.name}
+          message={t(confirmation?.type==='mapping'?'competitorManagement.confirmMapping':confirmation?.tracked?'competitorManagement.confirmReactivate':'competitorManagement.confirmUntrack')}
+          destructive={confirmation?.type==='tracking' && !confirmation?.tracked} busy={mutation.isPending}
+          error={mutation.error && getApiErrorMessage(mutation.error,t)}
+          onCancel={()=>setConfirmation(null)} onConfirm={()=>run(confirmation)} />
+        {mutation.error && !confirmation && <p className="competitor-feedback competitor-feedback--error" role="alert">{getApiErrorMessage(mutation.error,t)}</p>}
+        {notice && <p className="competitor-feedback competitor-feedback--success" role="status">{notice}</p>}
+        {COMPETITOR_AI_ACTIONS_ENABLED && detail.trackingIntegration && <section className="market-panel competitor-pipeline-status">
+          <h2>{t('competitorManagement.pipelineTitle')}</h2>
+          <p>{t(detail.trackingIntegration.configured?'competitorManagement.pipelineConfigured':'competitorManagement.pipelineNotConfigured')}</p>
+          <p>{t('competitorManagement.discoveryScopeNotice')}</p>
+          {detail.trackingIntegration.events.map((event,index)=><div className="competitor-pipeline-event" key={`${event.created_at}-${index}`}>
+            <strong>{t(event.kind==='DISCOVERY'?(event.competitor_id?'competitorManagement.competitorDiscoveryJob':'competitorManagement.discoveryJob'):'competitorManagement.collectionJob')}</strong>
+            <span>{event.kind==='DISCOVERY'?t(`competitorManagement.discoveryStates.${discoveryState(event)}`):t(`collectionTracking.states.${collectionState(event)}`)}</span>
+            {event.kind==='DISCOVERY' && event.worker_result?.stage && discoveryState(event)==='RUNNING' && <small>{t('competitorManagement.currentStep',{step:event.worker_result.stage})}</small>}
+            {event.kind==='DISCOVERY' && event.worker_result && Number.isInteger(event.worker_result.product_level_candidates) && <small>{t('competitorManagement.discoveryResults',{products:event.worker_result.product_level_candidates,domains:event.worker_result.domain_level_candidates ?? 0,sources:event.worker_result.enqueued_source_ids?.length ?? 0})}</small>}
+            {detail.canEdit && event.kind==='DISCOVERY' && ['QUEUED','RUNNING','INTERRUPTED'].includes(discoveryState(event)) && <Button variant="secondary" disabled={mutation.isPending} onClick={()=>run({type:'cancelDiscovery',eventId:event.event_id})}>{t('competitorManagement.cancelDiscovery')}</Button>}
+            <small>{formatDate(event.created_at)}</small>
+            {event.kind==='DISCOVERY' && event.worker_result?.access_issues?.slice(0,3).map((issue,i)=><small key={`access-${i}`}>{issue.host}: {t(`competitorManagement.workerErrors.${issue.code}`)}{issue.http_status ? ` (HTTP ${issue.http_status})` : ''}</small>)}
+            {event.kind==='DISCOVERY' && <DiscoveryCoverage result={event.worker_result} t={t} />}
+            {event.kind==='DISCOVERY' && event.worker_error_code && <small>{t(`competitorManagement.workerErrors.${event.worker_error_code}`)}</small>}
+            {event.kind==='COLLECTION' && event.worker_error_code && <small>{t(`collectionTracking.errors.${event.worker_error_code}`)}</small>}
+            {event.last_error_code && <small>{t(`competitorManagement.bridgeErrors.${event.last_error_code}`)}</small>}
+          </div>)}
+        </section>}
+        <CompetitorProductLinks key={`links:${tenantId}:${competitorId}`} detail={detail} tenantId={tenantId} competitorId={competitorId} t={t} locale={locale} />
+        <CompetitorSourceReviews key={`${tenantId}:${competitorId}`} detail={detail} tenantId={tenantId} competitorId={competitorId} t={t} locale={locale} formatDate={formatDate} />
+        {COMPETITOR_AI_ACTIONS_ENABLED && <div className="competitor-info-note"><Info size={18} aria-hidden="true" /><p>{t('competitorManagement.addNotice')}</p></div>}
+
+        <section
+          className="market-panel competitor-products"
+          id="competitor-products"
+
+        >
+          <div className="market-panel__header">
+            <div>
+              <h2>{t("market.detail.productsTitle", "Mapped Products")}</h2>
+              <p>
+                {t(
+                  "market.detail.productsSubtitle",
+                  "Your products tracked against this competitor"
+                )}
+              </p>
+            </div>
           </div>
 
-          <div className="apex-grid apex-grid--2">
-            <Panel eyebrow={t('discovery.detail.profileEyebrow')} title={t('discovery.detail.profile')}>
-              <dl className="competitor-facts">
-                {c.address && <div><dt>{t('discovery.detail.address')}</dt><dd dir="auto">{c.address}</dd></div>}
-                {c.phone && <div><dt>{t('discovery.detail.phone')}</dt><dd><a href={`tel:${c.phone.replace(/\s/g, '')}`} dir="ltr"><Phone size={12} aria-hidden="true" /> {c.phone}</a></dd></div>}
-                {c.website_url && <div><dt>{t('market.detail.website')}</dt><dd><a href={c.website_url} target="_blank" rel="noreferrer noopener" dir="ltr">{c.website_url.replace(/^https?:\/\/(www\.)?/, '')} <ExternalLink size={11} aria-hidden="true" /></a></dd></div>}
-                {c.categories.length > 0 && <div><dt>{t('discovery.detail.categories')}</dt><dd className="competitor-facts__chips">{c.categories.slice(0, 6).map((cat) => <Pill key={cat}>{cat.replace(/^[a-z]+=/, '').replace(/_/g, ' ')}</Pill>)}</dd></div>}
-                {c.first_seen_at && <div><dt>{t('discovery.detail.firstSeen')}</dt><dd>{date.format(new Date(c.first_seen_at))}</dd></div>}
-                {c.last_seen_at && <div><dt>{t('discovery.detail.lastSeen')}</dt><dd>{date.format(new Date(c.last_seen_at))}</dd></div>}
-              </dl>
-              {c.reasons.length > 0 && (
-                <>
-                  <h3 className="competitor-facts__heading">{t('discovery.detail.why')}</h3>
-                  <ul className="competitor-reasons">{c.reasons.map((r) => <li key={r.code}>{reasonText(t, number, r)}</li>)}</ul>
-                </>
-              )}
-              {c.relevance != null && <Meter value={Math.round(c.relevance * 100)} max={100} label={t('discovery.list.relevance')} />}
-            </Panel>
+          <div className="market-table-wrap">
+            <table className="market-table">
+              <thead>
+                <tr>
+                  <th>{t("market.detail.productName", "Product")}</th>
+                  <th>{t("market.detail.ourPrice", "Our Price")}</th>
+                  <th>
+                    {t("market.detail.competitorPrice", "Competitor Price")}
+                  </th>
+                  <th>{t("market.detail.lastUpdated", "Last Checked")}</th>
+                  <th>{t('competitorManagement.comparisonStatus')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.mappedProducts.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      style={{ textAlign: "center", padding: "2rem" }}
+                    >
+                      {t("competitorManagement.noMappings")}
+                    </td>
+                  </tr>
+                ) : (
+                  detail.mappedProducts.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>{getLocalizedName(item.name)}</strong>
+                      </td>
+                      <td>
+                        {item.ourPrice == null ? '—' : `${item.ourPrice} ${item.currency}`} 
+                      </td>
+                      <td>
+                        {item.competitorPrice == null ? "—" : `${item.competitorPrice} ${item.currency}`}
+                        {item.collectedPrice && item.reason && <small className="competitor-source-meta">{t('competitorWorkflow.lastCollected')}: {item.collectedPrice.amount} {item.collectedPrice.currency} · {formatDate(item.collectedPrice.observedAt)}</small>}
+                      </td>
+                      <td>{formatDate(item.lastUpdated)}
+                        {COMPETITOR_AI_ACTIONS_ENABLED && item.monitoring && <small className="competitor-source-meta">{t('competitorManagement.monitoring',{minutes:item.monitoring.frequencyMinutes ?? '—'})}<br />{t('competitorManagement.lastSync')}: {formatDate(item.monitoring.lastSyncedAt)}{item.monitoring.latestJob && <><br />{t('competitorManagement.collectionJob')}: {t(`competitorManagement.jobs.${['QUEUED','PROCESSING','COMPLETED','FAILED','PARTIAL','EXTRACTING','EXTRACTED','PENDING'].includes(item.monitoring.latestJob.status) ? item.monitoring.latestJob.status : 'UNKNOWN'}`)}</>}</small>}
+                      </td>
+                      <td><span className={`competitor-comparison-state ${item.reason ? 'is-unavailable' : 'is-available'}`}>{t(item.reason ? `competitorManagement.${item.reason}` : 'competitorManagement.available')}</span>
+                        {Number.isFinite(item.priceDifference) && <small className="competitor-price-difference">{t('competitorManagement.difference')}: {item.priceDifference.toFixed(4)} {item.currency}{Number.isFinite(item.priceDifferencePercent) ? ` (${item.priceDifferencePercent.toFixed(1)}%)` : ''}</small>}
+                        {COMPETITOR_AI_ACTIONS_ENABLED && detail.canEdit && detail.isTracked && <label className="competitor-mapping-confirmation"><input type="checkbox" checked={item.comparisonConfirmed} disabled={mutation.isPending}
+                          onChange={event=>event.target.checked ? (mutation.reset(),setConfirmation({type:'mapping',mappingId:item.mappingId,confirmed:true})) : run({type:'mapping',mappingId:item.mappingId,confirmed:false})} />{t('competitorManagement.mappingConfirmation')}</label>}
+                        {item.url && <a className="competitor-product-link" href={item.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} aria-hidden="true" />{t('market.modal.website')}</a>}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-            <Panel eyebrow={t('discovery.detail.sourcesEyebrow')} title={t('discovery.detail.sources')} subtitle={t('discovery.detail.sourcesHint')}>
-              {c.source_records?.length ? (
-                <ul className="competitor-source-list">
-                  {c.source_records.map((s, index) => (
-                    <li key={`${s.source}-${index}`}>
-                      <div>
-                        <strong>{t(`discovery.sources.${s.source}`)}</strong>
-                        {s.name && <span className="apex-muted" dir="auto"> · {s.name}</span>}
-                        {s.address && <div className="apex-muted" dir="auto">{s.address}</div>}
-                        {s.description && <p className="competitor-source-list__about" dir="auto">{s.description}</p>}
-                        <div className="apex-muted">{t('discovery.detail.seen', { date: date.format(new Date(s.last_seen_at)) })}</div>
-                      </div>
-                      {s.url && <a className="apex-chip" href={s.url} target="_blank" rel="noreferrer noopener">{t('discovery.detail.open')} <ExternalLink size={11} aria-hidden="true" /></a>}
-                    </li>
-                  ))}
-                </ul>
-              ) : <StateBlock compact title={t('discovery.detail.addedByYou')} />}
-              {c.profiles?.length > 0 && (
-                <div className="competitor-profiles">
-                  <strong>{t('discovery.detail.profiles')}</strong>
-                  <div>
-                    {c.profiles.map((link) => (
-                      <a key={link} className="apex-chip" href={link} target="_blank" rel="noreferrer noopener">
-                        {profileLabel(link)} <ExternalLink size={11} aria-hidden="true" />
-                      </a>
-                    ))}
+        <section
+          className="competitor-activity-section"
+        >
+          <Card className="market-panel">
+            <div className="market-panel__header">
+              <h2>
+                {t("market.detail.recentActivity", "Recent Price Changes")}
+              </h2>
+            </div>
+            <div className="strategic-moves">
+              {detail.activity.length === 0 ? (
+                <p style={{ padding: "1rem 0" }}>
+                  {t("competitorManagement.noActivity")}
+                </p>
+              ) : (
+                detail.activity.map((item) => (
+                  <div key={item.id} className="competitor-activity-row">
+                    <span className={`competitor-activity-dot ${item.newPrice > item.previousPrice ? 'is-up' : 'is-down'}`} aria-hidden="true" />
+                    <strong className="competitor-activity-product">
+                      {getLocalizedName(item.productName)}
+                      <small>
+                        {t("competitorManagement.priceChanged",{old:item.previousPrice,new:item.newPrice,currency:item.currency})}
+                      </small>
+                    </strong>
+                    <small className="competitor-activity-date">{formatDate(item.date)}</small>
                   </div>
-                </div>
+                ))
               )}
-            </Panel>
-          </div>
-
-          <CompetitorIntel competitor={c} t={t} locale={locale} />
-
-          {c.is_tracked && <DataCompleteness completeness={dataStatus.data} competitorId={competitorId} queued={Boolean(dataStatus.data?.queued)} />}
-          {c.is_tracked && <CompetitorComments competitorId={competitorId} />}
-
-          {c.is_tracked && (
-            <Panel eyebrow={t('discovery.detail.pricesEyebrow')} title={t('market.detail.priceComparison')} subtitle={t('market.detail.priceComparisonSubtitle')} bodyClassName="is-flush">
-              {profile.isPending ? <StateBlock kind="loading" compact title={t('common.loading')} /> : comparisons.length ? (
-                <div className="apex-table-wrap"><table className="apex-table"><thead><tr><th>{t('market.detail.productName')}</th><th className="apex-table__num">{t('market.detail.yourPrice')}</th><th className="apex-table__num">{t('market.detail.theirPrice')}</th></tr></thead>
-                  <tbody>{comparisons.map((row) => <tr key={row.product_name}><td>{row.product_name}</td><td className="apex-table__num">{money(row.your_price, row.currency)}</td><td className="apex-table__num">{money(row.their_price, row.currency)}</td></tr>)}</tbody></table></div>
-              ) : <StateBlock compact title={t('market.empty.priceComparisonTitle')} description={t('market.empty.priceComparisonDescription')} />}
-              {(strengths.length > 0 || weaknesses.length > 0) && (
-                <div className="competitor-traits">
-                  {strengths.length > 0 && <div><h3>{t('market.detail.strengths')}</h3><ul>{strengths.map((s) => <li key={s}>{s}</li>)}</ul></div>}
-                  {weaknesses.length > 0 && <div><h3>{t('market.detail.weaknesses')}</h3><ul>{weaknesses.map((s) => <li key={s}>{s}</li>)}</ul></div>}
-                </div>
-              )}
-            </Panel>
-          )}
-          {c.is_tracked && <RecordCompetitorPrice competitorId={competitorId} t={t} />}
-        </div>
-      </BusinessPageContainer>
+            </div>
+          </Card>
+        </section>
+      </div>
     </DashboardLayout>
   );
 }
-
-export default CompetitorProfileDetailPage;

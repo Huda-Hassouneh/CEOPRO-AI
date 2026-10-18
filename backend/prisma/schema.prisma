@@ -1,0 +1,1967 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AppConfig {
+  key       String   @id @db.VarChar(100)
+  value     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("app_config")
+}
+
+model Company {
+  business_recommendations business_recommendations[]
+  business_recommendation_runs business_recommendation_runs[]
+  pricing_requests pricing_requests[]
+  id                            String                       @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_id") @db.Uuid
+  businessName                  String                       @map("business_name") @db.VarChar(255)
+  businessType                  String?                      @map("business_type") @db.VarChar(100)
+  countryCode                   String                       @map("country_code") @db.VarChar(2)
+  operatingCountries            String[]                     @default([]) @map("operating_countries")
+  primaryCurrency               String                       @map("primary_currency") @db.VarChar(3)
+  supportedCurrencies           String[]                     @default(["JOD"]) @map("supported_currencies")
+  timezone                      String                       @default("Asia/Amman") @db.VarChar(64)
+  preferredLanguage             String                       @default("en") @map("preferred_language") @db.VarChar(5)
+  supportedLanguages            String[]                     @default(["en"]) @map("supported_languages")
+  createdAt                     DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime?                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                     DateTime?                    @map("deleted_at") @db.Timestamptz(6)
+  platformStatus                String                       @default("active") @map("platform_status") @db.VarChar(20)
+  platformNotes                 String?                      @map("platform_notes") @db.VarChar(2000)
+  city                          String?                      @db.VarChar(150)
+  latitude                      Float?
+  longitude                     Float?
+  defaultSearchRadiusKm         Int?                         @map("default_search_radius_km")
+  searchScopeLevel              String                       @default("PROVINCE") @map("search_scope_level")
+  targetMarkets                 company_target_markets[]
+  authSessions                  AuthSession[]
+  campaigns                     campaigns[]
+  customPlanQuotes              CustomPlanQuote[]
+  market_tracking_outbox        market_tracking_outbox[]
+  data_sources                  data_sources[]
+  business_import_drafts        business_import_drafts[]
+  demand_forecasts              demand_forecasts[]
+  extracted_entity              extracted_entity[]
+  global_competitors            global_competitors[]
+  inventory                     inventory[]
+  invoices                      invoices[]
+  market_alert_events           market_alert_events[]
+  market_events                 market_events[]
+  news_record                   news_record[]
+  customPlans                   Plan[]
+  platformInvitations           PlatformInvitation[]
+  products                      products[]
+  rag_documents_metadata        rag_documents_metadata[]
+  recommendation_outcomes       recommendation_outcomes[]
+  reviews                       reviews[]
+  social_mention                social_mention[]
+  subscriptions                 Subscription[]
+  system_alerts                 system_alerts[]
+  tenant_competitors            tenant_competitors[]
+  tenantUsers                   TenantUser[]
+  transactions                  transactions[]
+  platformNotificationsReceived PlatformNotification[]       @relation("PlatformNotificationPlatformTenant")
+  platformNotificationsSourced  PlatformNotification[]       @relation("PlatformNotificationSourceTenant")
+  platformNotificationOutbox    PlatformNotificationOutbox[]
+  tenantNotifications           TenantNotification[]
+  tenantNotificationOutbox      TenantNotificationOutbox[]
+  onboarding                    Onboarding?
+  emailVerificationGrants       EmailVerificationGrant[]
+
+  @@map("companies")
+}
+
+model Onboarding {
+  tenantId             String    @id @map("tenant_id") @db.Uuid
+  currentStep          Int       @default(1) @map("current_step") @db.SmallInt
+  highestCompletedStep Int       @default(0) @map("highest_completed_step") @db.SmallInt
+  industry             String?   @db.VarChar(50)
+  businessSize         String?   @map("business_size") @db.VarChar(20)
+  annualRevenue        String?   @map("annual_revenue") @db.VarChar(20)
+  city                 String?   @db.VarChar(100)
+  objectives           String[]  @default([])
+  selectedPlan         String?   @map("selected_plan") @db.VarChar(50)
+  checkoutMode         String    @default("trial") @map("checkout_mode") @db.VarChar(10)
+  billingPeriod        String    @default("monthly") @map("billing_period") @db.VarChar(20)
+  customPlan           Json      @default("{}") @map("custom_plan")
+  sourceStatuses       Json      @default("{}") @map("source_statuses")
+  websiteUrl           String?   @map("website_url") @db.VarChar(2048)
+  databaseProvider     String?   @map("database_provider") @db.VarChar(50)
+  downloadedTemplates  String[]  @default([]) @map("downloaded_templates")
+  isComplete           Boolean   @default(false) @map("is_complete")
+  completedAt          DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  tenant               Company   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("onboarding")
+}
+
+/// Signup data is held here until the email owner confirms the address.
+/// No User, Company, TenantUser, or AuthSession is created before confirmation.
+model PendingSignup {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                String    @unique @db.VarChar(255)
+  passwordHash         String    @map("password_hash")
+  fullName             String?   @map("full_name") @db.VarChar(150)
+  preferredLanguage    String    @default("en") @map("preferred_language") @db.VarChar(5)
+  businessName         String    @map("business_name") @db.VarChar(255)
+  businessType         String?   @map("business_type") @db.VarChar(100)
+  countryCode          String    @default("JO") @map("country_code") @db.VarChar(2)
+  primaryCurrency      String    @default("JOD") @map("primary_currency") @db.VarChar(3)
+  timezone             String    @default("Asia/Amman") @db.VarChar(64)
+  tokenHash            String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt            DateTime  @map("expires_at") @db.Timestamptz(6)
+  lastEmailSentAt      DateTime? @map("last_email_sent_at") @db.Timestamptz(6)
+  consumedAt           DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("pending_signups")
+}
+
+/// Short-lived, single-use bridge from email confirmation to the SPA session.
+model EmailVerificationGrant {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokenHash   String    @unique @map("token_hash") @db.VarChar(64)
+  userId      String    @map("user_id") @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  tenant      Company   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt, consumedAt])
+  @@map("email_verification_grants")
+}
+
+model Plan {
+  id                       String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                     String             @db.VarChar(50)
+  name_ar                  String             @db.VarChar(50)
+  tierLevel                Int?               @map("tier_level")
+  planType                 PlanType           @default(standard) @map("plan_type")
+  tenantId                 String?            @map("tenant_id") @db.Uuid
+  description              String?
+  description_ar           String?
+  price                    Decimal            @db.Decimal(10, 2)
+  currency                 String             @default("JOD") @db.VarChar(3)
+  billingIntervalValue     Int                @map("billing_interval_value")
+  billingIntervalUnit      String             @map("billing_interval_unit") @db.VarChar(10)
+  trialPeriodValue         Int                @default(0) @map("trial_period_value")
+  paymentProviderProductId String?            @map("payment_provider_product_id") @db.VarChar(255)
+  paymentProviderPlanId    String?            @unique @map("payment_provider_plan_id") @db.VarChar(255)
+  billingOptions           Json?              @map("billing_options")
+  isActive                 Boolean            @default(true) @map("is_active")
+  createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sourceQuote              CustomPlanQuote?   @relation("QuoteCreatedPlan")
+  planFeatures             PlanFeature[]
+  tenant                   Company?           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  promoCodes               PromoCodePlan[]
+  activeSubscriptions      Subscription[]     @relation("ActivePlan")
+  scheduledSubscriptions   Subscription[]     @relation("ScheduledPlan")
+  priceVersions            PlanPriceVersion[]
+
+  @@index([tenantId])
+  @@index([planType, isActive])
+  @@map("plans")
+}
+
+// A Stripe Price remains the source of truth for its subscribers even after the
+// owner edits or removes the option from the public plan catalog.
+model PlanPriceVersion {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId        String    @map("plan_id") @db.Uuid
+  stripePriceId String    @unique @map("stripe_price_id") @db.VarChar(255)
+  periodCode    String    @map("period_code") @db.VarChar(100)
+  intervalUnit  String?   @map("interval_unit") @db.VarChar(10)
+  intervalCount Int?      @map("interval_count")
+  amount        Decimal?  @db.Decimal(10, 2)
+  currency      String    @db.VarChar(3)
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan          Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planId, retiredAt])
+  @@map("plan_price_versions")
+}
+
+model PromoCode {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                  String                @unique @db.VarChar(50)
+  discountType          String                @map("discount_type") @db.VarChar(20)
+  discountValue         Decimal               @map("discount_value") @db.Decimal(10, 2)
+  maxUses               Int                   @map("max_uses")
+  paymentProviderCoupon String                @map("payment_provider_coupon_id")
+  usedCount             Int                   @default(0) @map("used_count")
+  maxUsesPerUser        Int                   @default(1) @map("max_uses_per_user")
+  startsAt              DateTime              @map("starts_at") @db.Timestamptz(6)
+  expiresAt             DateTime              @map("expires_at") @db.Timestamptz(6)
+  isActive              Boolean               @default(true) @map("is_active")
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  redemptions           PromoCodeRedemption[]
+  plans                 PromoCodePlan[]
+
+  @@map("promo_codes")
+}
+
+model PromoCodePlan {
+  promoCodeId String    @map("promo_code_id") @db.Uuid
+  planId      String    @map("plan_id") @db.Uuid
+  plan        Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+
+  @@id([promoCodeId, planId])
+  @@map("promo_codes_plans")
+}
+
+model Subscription {
+  id                            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                      String                @map("tenant_id") @db.Uuid
+  planId                        String                @map("plan_id") @db.Uuid
+  scheduledPlanId               String?               @map("scheduled_plan_id") @db.Uuid
+  paymentProvider               String                @map("payment_provider") @db.VarChar(50)
+  paymentProviderCustomerId     String?               @map("payment_provider_customer_id") @db.VarChar(255)
+  paymentProviderSubscriptionId String?               @unique @map("payment_provider_subscription_id") @db.VarChar(255)
+  paymentProviderPriceId        String?               @map("payment_provider_price_id")
+  billingPeriod                 String?               @map("billing_period")
+  status                        String                @db.VarChar(30)
+  currentPeriodStart            DateTime              @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd              DateTime              @map("current_period_end") @db.Timestamptz(6)
+  cancelAtPeriodEnd             Boolean               @default(false) @map("cancel_at_period_end")
+  cancelledAt                   DateTime?             @map("cancelled_at") @db.Timestamptz(6)
+  createdAt                     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime              @default(now()) @map("updated_at") @db.Timestamptz(6)
+  scheduledBillingPeriod        String?               @map("scheduled_billing_period")
+  paymentTransactions           PaymentTransaction[]
+  promoCodeRedemptions          PromoCodeRedemption[]
+  subscriptionUsages            SubscriptionUsage[]
+  plan                          Plan                  @relation("ActivePlan", fields: [planId], references: [id])
+  scheduledPlan                 Plan?                 @relation("ScheduledPlan", fields: [scheduledPlanId], references: [id])
+  tenant                        Company               @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "subscriptions_owner_portal_latest_idx")
+  @@map("subscriptions")
+}
+
+model PaymentTransaction {
+  id                              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionId                  String       @map("subscription_id") @db.Uuid
+  payment_providerPaymentIntentId String?      @unique @map("payment_intent_id") @db.VarChar(255)
+  payment_providerInvoiceId       String?      @map("payment_provider_invoice_id") @db.VarChar(255)
+  idempotencyKey                  String?      @unique @map("idempotency_key") @db.VarChar(320)
+  amount                          Decimal      @db.Decimal(12, 2)
+  currency                        String       @db.VarChar(3)
+  status                          String       @default("pending") @db.VarChar(20)
+  paidAt                          DateTime?    @map("paid_at") @db.Timestamptz(6)
+  failureReason                   String?      @map("failure_reason")
+  createdAt                       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime     @default(now()) @updatedAt @map("updated_at")
+  subscription                    Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@map("payment_transactions")
+}
+
+model PromoCodeRedemption {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  promoCodeId    String       @map("promo_code_id") @db.Uuid
+  subscriptionId String       @map("subscription_id") @db.Uuid
+  redeemedAt     DateTime     @default(now()) @map("redeemed_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  promoCode      PromoCode    @relation(fields: [promoCodeId], references: [id])
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([promoCodeId, subscriptionId])
+  @@map("promo_code_redemptions")
+}
+
+model payment_providerWebhookEvent {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_providerEventId String    @unique @map("payment_provider_event_id") @db.VarChar(255)
+  eventType               String    @map("event_type") @db.VarChar(100)
+  processed               Boolean   @default(false)
+  processedAt             DateTime? @map("processed_at") @db.Timestamptz(6)
+  payload                 Json
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("payment_provider_webhook_events")
+}
+
+model Feature {
+  id                  String                   @id @default(dbgenerated("gen_random_uuid()")) @map("feature_id") @db.Uuid
+  code                String                   @unique @map("feature_code")
+  name                String                   @map("feature_name")
+  name_ar             String                   @map("feature_name_ar")
+  type                FeatureType              @map("feature_type")
+  description         String?
+  description_ar      String?
+  unit                String?                  @db.VarChar(50)
+  unit_ar             String?                  @db.VarChar(50)
+  aggregationType     AggregationType          @default(sum) @map("aggregation_type")
+  resetCycle          ResetCycle               @default(billing_period) @map("reset_cycle")
+  created_at          DateTime                 @default(now())
+  updated_at          DateTime                 @default(now()) @updatedAt
+  customQuoteFeatures CustomPlanQuoteFeature[]
+  plan_features       PlanFeature[]
+  subscription_usage  SubscriptionUsage[]
+  vendorRates         VendorRate[]
+  infrastructureRates InfrastructureRate[]
+
+  @@map("features")
+}
+
+model PlanFeature {
+  plan_id     String  @db.Uuid
+  feature_id  String  @db.Uuid
+  limit_value Int?
+  metadata    Json?
+  feature     Feature @relation(fields: [feature_id], references: [id], onDelete: Cascade)
+  plan        Plan    @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+
+  @@id([plan_id, feature_id])
+  @@map("plan_features")
+}
+
+model SubscriptionUsage {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscription_id String       @db.Uuid
+  feature_id      String       @db.Uuid
+  current_usage   Int          @default(0)
+  period_start    DateTime     @db.Timestamptz(6)
+  period_end      DateTime     @db.Timestamptz(6)
+  updated_at      DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
+  feature         Feature      @relation(fields: [feature_id], references: [id], onDelete: Cascade)
+  subscription    Subscription @relation(fields: [subscription_id], references: [id], onDelete: Cascade)
+  rag_token_reservations rag_token_reservations[]
+  pricing_requests pricing_requests[]
+
+  @@unique([subscription_id, feature_id, period_start])
+  @@map("subscription_usage")
+}
+
+model VendorRate {
+  id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  featureId             String?                      @map("feature_id") @db.Uuid
+  vendor                String                       @db.VarChar(100)
+  service               String                       @db.VarChar(150)
+  billingUnit           String                       @map("billing_unit") @db.VarChar(80)
+  unitCost              Decimal                      @map("unit_cost") @db.Decimal(14, 6)
+  currency              String                       @db.VarChar(3)
+  operationalMultiplier Decimal                      @default(1) @map("operational_multiplier") @db.Decimal(8, 4)
+  variabilityReserve    Decimal                      @default(1) @map("variability_reserve") @db.Decimal(8, 4)
+  effectiveFrom         DateTime                     @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo           DateTime?                    @map("effective_to") @db.Timestamptz(6)
+  verificationStatus    VendorRateVerificationStatus @default(unconfirmed) @map("verification_status")
+  source                String?
+  metadata              Json?
+  createdAt             DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  feature               Feature?                     @relation(fields: [featureId], references: [id])
+
+  @@index([featureId, effectiveFrom])
+  @@index([vendor, service])
+  @@map("vendor_rates")
+}
+
+model InfrastructureRate {
+  id                         String                               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  featureId                  String?                              @map("feature_id") @db.Uuid
+  costDriver                 String                               @map("cost_driver") @db.VarChar(100)
+  usageBasis                 InfrastructureRateUsageBasis         @default(estimated_usage) @map("usage_basis")
+  billingUnit                String                               @map("billing_unit") @db.VarChar(80)
+  billingUnitsPerFeatureUnit Decimal                              @default(1) @map("billing_units_per_feature_unit") @db.Decimal(18, 10)
+  unitCost                   Decimal                              @map("unit_cost") @db.Decimal(14, 6)
+  currency                   String                               @db.VarChar(3)
+  operationalMultiplier      Decimal                              @default(1) @map("operational_multiplier") @db.Decimal(8, 4)
+  variabilityReserve         Decimal                              @default(1) @map("variability_reserve") @db.Decimal(8, 4)
+  effectiveFrom              DateTime                             @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo                DateTime?                            @map("effective_to") @db.Timestamptz(6)
+  verificationStatus         InfrastructureRateVerificationStatus @default(unconfirmed) @map("verification_status")
+  source                     String?
+  metadata                   Json?
+  createdAt                  DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  feature                    Feature?                             @relation(fields: [featureId], references: [id])
+
+  @@index([featureId, effectiveFrom])
+  @@index([costDriver, effectiveFrom])
+  @@index([verificationStatus])
+  @@map("infrastructure_rates")
+}
+
+model CustomPlanQuote {
+  id                          String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                    String                   @map("tenant_id") @db.Uuid
+  name                        String                   @db.VarChar(50)
+  nameAr                      String                   @map("name_ar") @db.VarChar(50)
+  description                 String?
+  descriptionAr               String?                  @map("description_ar")
+  status                      CustomPlanQuoteStatus    @default(draft)
+  currency                    String                   @default("JOD") @db.VarChar(3)
+  billingIntervalValue        Int                      @default(1) @map("billing_interval_value")
+  billingIntervalUnit         String                   @default("month") @map("billing_interval_unit") @db.VarChar(10)
+  trialPeriodValue            Int                      @default(0) @map("trial_period_value")
+  billingOptions              Json                     @map("billing_options")
+  estimatedVendorCost         Decimal                  @default(0) @map("estimated_vendor_cost") @db.Decimal(12, 2)
+  estimatedInfrastructureCost Decimal                  @default(0) @map("estimated_infrastructure_cost") @db.Decimal(12, 2)
+  estimatedOtherCost          Decimal                  @default(0) @map("estimated_other_cost") @db.Decimal(12, 2)
+  estimatedTotalCost          Decimal                  @default(0) @map("estimated_total_cost") @db.Decimal(12, 2)
+  targetGrossMargin           Decimal                  @default(0.2) @map("target_gross_margin") @db.Decimal(7, 6)
+  maxVendorCostRevenueRatio   Decimal                  @default(0.2) @map("max_vendor_cost_revenue_ratio") @db.Decimal(7, 6)
+  grossMarginFloor            Decimal                  @default(0) @map("gross_margin_floor") @db.Decimal(12, 2)
+  vendorCostRatioFloor        Decimal                  @default(0) @map("vendor_cost_ratio_floor") @db.Decimal(12, 2)
+  minimumSafePrice            Decimal                  @default(0) @map("minimum_safe_price") @db.Decimal(12, 2)
+  finalPrice                  Decimal?                 @map("final_price") @db.Decimal(12, 2)
+  fxRate                      Decimal?                 @map("fx_rate") @db.Decimal(18, 8)
+  fxSourceCurrency            String?                  @map("fx_source_currency") @db.VarChar(3)
+  fxTargetCurrency            String?                  @map("fx_target_currency") @db.VarChar(3)
+  fxSource                    String?                  @map("fx_source") @db.VarChar(255)
+  fxRateAt                    DateTime?                @map("fx_rate_at") @db.Timestamptz(6)
+  pricingInputs               Json?                    @map("pricing_inputs")
+  pricingSnapshot             Json?                    @map("pricing_snapshot")
+  overrideReason              String?                  @map("override_reason")
+  createdBy                   String?                  @map("created_by") @db.Uuid
+  approvedBy                  String?                  @map("approved_by") @db.Uuid
+  createdPlanId               String?                  @unique @map("created_plan_id") @db.Uuid
+  expiresAt                   DateTime?                @map("expires_at") @db.Timestamptz(6)
+  acceptedAt                  DateTime?                @map("accepted_at") @db.Timestamptz(6)
+  createdAt                   DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  quoteFeatures               CustomPlanQuoteFeature[]
+  createdPlan                 Plan?                    @relation("QuoteCreatedPlan", fields: [createdPlanId], references: [id])
+  tenant                      Company                  @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([createdAt])
+  @@map("custom_plan_quotes")
+}
+
+model CustomPlanQuoteFeature {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quoteId        String          @map("quote_id") @db.Uuid
+  featureId      String          @map("feature_id") @db.Uuid
+  limitValue     Int?            @map("limit_value")
+  estimatedUsage Decimal         @default(0) @map("estimated_usage") @db.Decimal(14, 4)
+  metadata       Json?
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  feature        Feature         @relation(fields: [featureId], references: [id])
+  quote          CustomPlanQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@unique([quoteId, featureId])
+  @@index([featureId])
+  @@map("custom_plan_quote_features")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model User {
+  userId                       String                        @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  email                        String                        @db.VarChar(255)
+  passwordHash                 String                        @map("password_hash")
+  fullName                     String?                       @map("full_name") @db.VarChar(150)
+  preferredLanguage            String?                       @default("en") @map("preferred_language") @db.VarChar(5)
+  createdAt                    DateTime?                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime?                     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  sessionVersion               Int                           @default(0) @map("session_version")
+  authSessions                 AuthSession[]
+  emailVerificationGrants      EmailVerificationGrant[]
+  sentPlatformInvitations      PlatformInvitation[]
+  tenantUsers                  TenantUser[]
+  platformNotificationReceipts PlatformNotificationReceipt[]
+
+  @@map("users")
+}
+
+model SystemRole {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @map("role_id") @db.Uuid
+  roleKey     String       @unique @map("role_key") @db.VarChar(50)
+  roleName    String       @map("role_name") @db.VarChar(100)
+  permissions Json         @default("{}")
+  createdAt   DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenantUsers TenantUser[]
+
+  @@map("system_roles")
+}
+
+model TenantUser {
+  store_oauth_states store_oauth_states[]
+  store_connections store_connections[]
+  id                                                           String                      @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_user_id") @db.Uuid
+  tenantId                                                     String                      @map("tenant_id") @db.Uuid
+  userId                                                       String                      @map("user_id") @db.Uuid
+  roleKey                                                      String                      @map("role_key") @db.VarChar(50)
+  removedAt                                                    DateTime?                   @map("removed_at") @db.Timestamptz(6)
+  joinedAt                                                     DateTime?                   @default(now()) @map("joined_at") @db.Timestamptz(6)
+  platformStatus                                               String                      @default("active") @map("platform_status") @db.VarChar(20)
+  invoices                                                     invoices[]
+  product_price_history                                        product_price_history[]
+  products_products_tenant_id_created_by_user_idTotenant_users products[]                  @relation("products_tenant_id_created_by_user_idTotenant_users")
+  products_products_tenant_id_updated_by_user_idTotenant_users products[]                  @relation("products_tenant_id_updated_by_user_idTotenant_users")
+  rag_documents_metadata                                       rag_documents_metadata[]
+  rag_chat_sessions rag_chat_sessions[]
+  rag_token_reservations rag_token_reservations[]
+  role                                                         SystemRole                  @relation(fields: [roleKey], references: [roleKey], onDelete: NoAction, onUpdate: NoAction)
+  tenant                                                       Company                     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                                                         User                        @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction)
+  tenantNotificationReceipts                                   TenantNotificationReceipt[]
+
+  @@unique([tenantId, userId], map: "uq_tenant_user_composite_perimeter")
+  @@map("tenant_users")
+}
+
+model PlatformInvitation {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  email      String    @db.VarChar(255)
+  roleKey    String    @map("role_key") @db.VarChar(50)
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(64)
+  invitedBy  String    @map("invited_by") @db.Uuid
+  status     String    @default("pending") @db.VarChar(20)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(6)
+  inviter    User      @relation(fields: [invitedBy], references: [userId], onDelete: Cascade)
+  tenant     Company   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, email])
+  @@map("platform_invitations")
+}
+
+model AuthSession {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  device     String    @db.VarChar(255)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastActive DateTime  @default(now()) @map("last_active") @db.Timestamptz(6)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  tenant     Company   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@map("auth_sessions")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model audit_logs {
+  audit_id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  user_id           String?   @db.Uuid
+  action_type       String    @db.VarChar(50)
+  target_table      String    @db.VarChar(100)
+  record_id         String?   @db.Uuid
+  changed_data_json Json?
+  ip_address        String?   @db.VarChar(45)
+  user_agent        String?
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([tenant_id, created_at(sort: Desc)], map: "idx_audit_logs_compliance")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model competitor_prices {
+  competitor_price_id         String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                      @db.Uuid
+  mapping_id                  String                      @db.Uuid
+  scraped_price               Decimal                     @db.Decimal(12, 4)
+  currency                    String                      @db.VarChar(3)
+  is_available                Boolean                     @default(true)
+  observed_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  source_status               String                      @default("ALLOWED") @db.VarChar(20)
+  is_exact_data               Boolean                     @default(true)
+  competitor_product_mappings competitor_product_mappings @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_competitor_prices_mapping_isolated")
+
+  @@index([tenant_id, observed_at(sort: Desc)], map: "idx_competitor_prices_lookup")
+  @@index([tenant_id, mapping_id], map: "idx_competitor_prices_mapping")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model competitor_product_mappings {
+  tracking_paused            Boolean                      @default(false)
+  comparison_confirmed       Boolean                      @default(false)
+  mapping_id                 String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                  String                       @db.Uuid
+  global_competitor_id       String                       @db.Uuid
+  product_id                 String                       @db.Uuid
+  competitor_product_url     String?
+  competitor_product_sku     String?                      @db.VarChar(100)
+  is_active                  Boolean                      @default(true)
+  created_at                 DateTime?                    @default(now()) @db.Timestamptz(6)
+  source_id                  String?                      @db.Uuid
+  competitor_prices          competitor_prices[]
+  products                   products                     @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mapping_product_isolated")
+  data_sources               data_sources?                @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onUpdate: NoAction, map: "fk_mapping_source_isolated")
+  tenant_competitors         tenant_competitors           @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mapping_tenant_competitor")
+  market_events              market_events[]
+  market_observation_staging market_observation_staging[]
+  market_observations        market_observations[]
+
+  @@unique([tenant_id, global_competitor_id, product_id], map: "uq_tenant_competitor_product", where: raw("(is_active OR tracking_paused)"))
+  @@unique([tenant_id, mapping_id], map: "uq_tenant_mapping_perimeter")
+  @@index([tenant_id, product_id], map: "idx_mappings_tenant_product")
+  @@index([tenant_id, source_id, is_active], map: "idx_mappings_collection_source")
+  scraping_cost_ledger scraping_cost_ledger[]
+
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model currency_rates {
+  rate_id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  from_currency String    @db.VarChar(3)
+  to_currency   String    @db.VarChar(3)
+  exchange_rate Decimal   @db.Decimal(12, 6)
+  last_fetched  DateTime? @default(now()) @db.Timestamptz(6)
+  source        String?   @db.VarChar(100)
+
+  @@unique([from_currency, to_currency], map: "uq_currency_pair")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model data_sources {
+  store_connection store_connections[]
+  source_id                    String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                    String                        @db.Uuid
+  source_name                  String                        @db.VarChar(100)
+  source_type                  String                        @db.VarChar(50)
+  connection_credentials_vault String?
+  sync_frequency_minutes       Int?                          @default(1440)
+  is_active                    Boolean                       @default(true)
+  created_at                   DateTime?                     @default(now()) @db.Timestamptz(6)
+  source_url                   String?
+  collection_method            String?                       @db.VarChar(32)
+  policy_status                String                        @default("RESTRICTED") @db.VarChar(20)
+  collection_justification     String?
+  technical_restrictions       Json                          @default("{}")
+  rate_limit_per_minute        Int                           @default(30)
+  policy_checked_at            DateTime?                     @db.Timestamptz(6)
+  last_synced_at               DateTime?                     @db.Timestamptz(6)
+  collector_key                String?                       @db.VarChar(64)
+  render_javascript            Boolean                       @default(false)
+  collector_config             Json                          @default("{}")
+  approval_reference           String?
+  approved_by                  String?                       @db.Uuid
+  approved_at                  DateTime?                     @db.Timestamptz(6)
+  privacy_reviewed_at          DateTime?                     @db.Timestamptz(6)
+  retention_days               Int                           @default(90)
+  contains_personal_data       Boolean                       @default(false)
+  competitor_product_mappings  competitor_product_mappings[]
+  companies                    Company                       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  ingestion_jobs               ingestion_jobs[]
+  market_events                market_events[]
+  market_observation_staging   market_observation_staging[]
+  market_observations          market_observations[]
+
+  @@unique([tenant_id, source_id], map: "uq_tenant_source_perimeter")
+  @@index([tenant_id, policy_status, is_active], map: "idx_data_sources_collection_policy")
+  market_tracking_outbox        market_tracking_outbox[]
+
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model demand_forecasts {
+  forecast_id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id               String                    @db.Uuid
+  product_id              String                    @db.Uuid
+  forecast_start_date     DateTime?                 @db.Date
+  forecast_end_date       DateTime?                 @db.Date
+  expected_demand         Int
+  confidence_range_lower  Decimal?                  @db.Decimal(12, 2)
+  confidence_range_upper  Decimal?                  @db.Decimal(12, 2)
+  model_version           String                    @db.VarChar(50)
+  features_used           Json?                     @default("{}")
+  created_at              DateTime?                 @default(now()) @db.Timestamptz(6)
+  forecast_target_date    DateTime?                 @db.Date
+  companies               Company                   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products                products                  @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_forecast_product_isolated")
+  evidence_records        evidence_records[]
+  recommendation_outcomes recommendation_outcomes[]
+
+  @@unique([tenant_id, forecast_id], map: "uq_tenant_forecast_perimeter")
+  @@index([tenant_id, product_id, forecast_start_date], map: "idx_forecasts_lookup")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model evidence_records {
+  business_recommendations business_recommendations[]
+  evidence_id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id               String                    @db.Uuid
+  forecast_id             String?                   @db.Uuid
+  metric_name             String?                   @db.VarChar(100)
+  metric_value_json       Json?
+  contribution_weight     Decimal?                  @db.Decimal(5, 4)
+  category                String?                   @db.VarChar(20)
+  source_module           String?                   @db.VarChar(100)
+  source_record_ids       Json?
+  confidence_score        Decimal?                  @db.Decimal(5, 2)
+  explanation_text        String?
+  model_version           String?                   @db.VarChar(50)
+  country_context         String?                   @db.VarChar(2)
+  generated_at            DateTime?                 @default(now()) @db.Timestamptz(6)
+  demand_forecasts        demand_forecasts?         @relation(fields: [tenant_id, forecast_id], references: [tenant_id, forecast_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_evidence_forecast_isolated")
+  recommendation_outcomes recommendation_outcomes[]
+
+  @@unique([tenant_id, evidence_id], map: "uq_tenant_evidence_perimeter")
+  @@index([tenant_id, forecast_id], map: "idx_evidence_tenant_forecast")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model global_competitors {
+  global_competitor_id String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  competitor_name      String               @db.VarChar(255)
+  website_url          String?
+  industry_sector      String?              @db.VarChar(150)
+  visibility           String               @default("GLOBAL") @db.VarChar(10)
+  added_by_tenant_id   String?              @db.Uuid
+  created_at           DateTime?            @default(now()) @db.Timestamptz(6)
+  country_code         String?              @db.VarChar(2)
+  is_manufacturer      Boolean              @default(false)
+  website_identity_key String?
+  companies            Company?             @relation(fields: [added_by_tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenant_competitors   tenant_competitors[]
+
+  @@unique([added_by_tenant_id, website_identity_key], map: "uq_competitor_private_identity", where: raw("(((visibility)::text = 'PRIVATE'::text) AND (website_identity_key IS NOT NULL))"))
+  city String? @db.VarChar(150)
+  latitude Float?
+  longitude Float?
+
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model import_staging_rows {
+  staging_row_id      BigInt         @id @default(autoincrement())
+  tenant_id           String         @db.Uuid
+  job_id              String         @db.Uuid
+  raw_payload_json    Json
+  validation_status   String         @default("PENDING") @db.VarChar(20)
+  validation_errors   String?
+  committed_record_id String?        @db.Uuid
+  committed_table     String?
+  created_at          DateTime?      @default(now()) @db.Timestamptz(6)
+  ingestion_jobs      ingestion_jobs @relation(fields: [tenant_id, job_id], references: [tenant_id, job_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_staging_job_isolated")
+
+  @@index([tenant_id, job_id, validation_status], map: "idx_staging_validation_lookup")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ingestion_jobs {
+  store_connections store_connections[]
+  job_id                     String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                  String                       @db.Uuid
+  source_id                  String                       @db.Uuid
+  market_event_id String? @db.Uuid
+  market_event market_tracking_outbox? @relation(fields:[tenant_id,market_event_id],references:[tenant_id,event_id],onDelete:NoAction,onUpdate:NoAction,map:"ingestion_market_event_fk")
+  job_status                 String                       @default("QUEUED") @db.VarChar(20)
+  rows_processed             Int?                         @default(0)
+  rows_failed                Int?                         @default(0)
+  error_log                  String?
+  started_at                 DateTime?                    @db.Timestamptz(6)
+  ended_at                   DateTime?                    @db.Timestamptz(6)
+  created_at                 DateTime?                    @default(now()) @db.Timestamptz(6)
+  heartbeat_at               DateTime?                    @db.Timestamptz(6)
+  rows_quarantined           Int                          @default(0)
+  rows_partial               Int?                         @default(0)
+  processing_attempts        Int                          @default(0)
+  next_attempt_at            DateTime                     @default(now()) @db.Timestamptz(6)
+  import_staging_rows        import_staging_rows[]
+  data_sources               data_sources                 @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_jobs_source_isolated")
+  market_observation_staging market_observation_staging[]
+  market_observations        market_observations[]
+
+  @@index([tenant_id,source_id,created_at(sort:Desc),job_id(sort:Desc)],map:"ingestion_source_latest")
+  @@index([tenant_id,market_event_id,created_at(sort:Desc)],map:"ingestion_market_event")
+  @@unique([tenant_id, job_id], map: "uq_tenant_job_perimeter")
+  @@index([tenant_id, source_id, heartbeat_at], map: "idx_ingestion_jobs_stale_market", where: raw("((job_status)::text = 'PROCESSING'::text)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model inventory {
+  store_inventory_locations store_inventory_locations[]
+  store_inventory_links store_inventory_links[]
+  inventory_id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id          String    @db.Uuid
+  product_id         String    @db.Uuid
+  stock_quantity     Int       @default(0)
+  reorder_level      Int       @default(10)
+  safety_stock       Int?      @default(5)
+  warehouse_location String?   @db.VarChar(150)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  products           products  @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_inventory_product_isolated")
+  companies          Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tenant_id, inventory_id], map: "uq_tenant_inventory_perimeter")
+  @@index([tenant_id, product_id], map: "idx_inventory_tenant_product")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model invoice_items {
+  rounding_adjustment Decimal @default(0) @db.Decimal(12,4)
+  store_order_item_links store_order_item_links[]
+
+  @@unique([tenant_id,invoice_id,invoice_item_id], map:"uq_tenant_invoice_item_perimeter")
+  invoice_item_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id       String   @db.Uuid
+  invoice_id      String   @db.Uuid
+  product_id      String   @db.Uuid
+  quantity        Int
+  unit_price      Decimal  @db.Decimal(12, 4)
+  total_price     Decimal  @db.Decimal(12, 4)
+  invoices        invoices @relation(fields: [tenant_id, invoice_id], references: [tenant_id, invoice_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_invoice_items_invoice")
+  products        products @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onUpdate: NoAction, map: "fk_invoice_items_product")
+
+  @@index([tenant_id, invoice_id], map: "idx_invoice_items_tenant_invoice")
+  @@index([tenant_id, product_id], map: "idx_invoice_items_tenant_product")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model invoices {
+  store_order_links store_order_links[]
+  invoice_id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id          String          @db.Uuid
+  invoice_number     String          @db.VarChar(100)
+  customer_name      String?         @db.VarChar(255)
+  issue_date         DateTime        @default(now()) @db.Timestamptz(6)
+  due_date           DateTime?       @db.Timestamptz(6)
+  subtotal           Decimal         @default(0.0000) @db.Decimal(12, 4)
+  tax_amount         Decimal         @default(0.0000) @db.Decimal(12, 4)
+  total_amount       Decimal         @default(0.0000) @db.Decimal(12, 4)
+  currency           String          @db.VarChar(3)
+  payment_status     String          @default("UNPAID") @db.VarChar(20)
+  created_by_user_id String?         @db.Uuid
+  created_at         DateTime?       @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?       @default(now()) @db.Timestamptz(6)
+  invoice_items      invoice_items[]
+  tenant_users       TenantUser?     @relation(fields: [tenant_id, created_by_user_id], references: [tenantId, userId], onDelete: SetNull, onUpdate: NoAction, map: "fk_invoices_creator")
+  companies          Company         @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tenant_id, invoice_number], map: "uq_tenant_invoice_number")
+  @@unique([tenant_id, invoice_id], map: "uq_tenant_invoice_perimeter")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model product_price_history {
+  price_history_id   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id         String      @db.Uuid
+  tenant_id          String      @db.Uuid
+  old_price          Decimal?    @db.Decimal(12, 4)
+  old_currency       String?     @db.VarChar(3)
+  new_price          Decimal     @db.Decimal(12, 4)
+  currency           String      @db.VarChar(3)
+  changed_by_user_id String?     @db.Uuid
+  changed_at         DateTime?   @default(now()) @db.Timestamptz(6)
+  products           products    @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_price_history_product_isolated")
+  tenant_users       TenantUser? @relation(fields: [tenant_id, changed_by_user_id], references: [tenantId, userId], onDelete: SetNull, onUpdate: NoAction, map: "fk_price_history_user_isolated")
+
+  @@index([tenant_id, product_id, changed_at(sort: Desc)], map: "idx_price_history_tenant_product")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model products {
+  store_product_links store_product_links[]
+  competitor_candidates competitor_product_candidates[]
+  gtin String? @db.VarChar(14)
+  product_id                                                       String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                                                        String                        @db.Uuid
+  product_name                                                     Json
+  version                                                          Int                           @default(1)
+  sku                                                              String?                       @db.VarChar(100)
+  brand                                                            Json?
+  category                                                         Json?
+  description                                                      Json?
+  current_price                                                    Decimal                       @db.Decimal(12, 4)
+  cost_price                                                       Decimal?                      @db.Decimal(12, 4)
+  currency                                                         String                        @db.VarChar(3)
+  source                                                           String                        @default("MANUAL") @db.VarChar(20)
+  metadata                                                         Json?                         @default("{}")
+  created_by_user_id                                               String?                       @db.Uuid
+  updated_by_user_id                                               String?                       @db.Uuid
+  created_at                                                       DateTime?                     @default(now()) @db.Timestamptz(6)
+  updated_at                                                       DateTime?                     @default(now()) @db.Timestamptz(6)
+  deleted_at                                                       DateTime?                     @db.Timestamptz(6)
+  campaigns                                                        campaigns[]
+  competitor_product_mappings                                      competitor_product_mappings[]
+  demand_forecasts                                                 demand_forecasts[]
+  inventory                                                        inventory[]
+  invoice_items                                                    invoice_items[]
+  product_price_history                                            product_price_history[]
+  tenant_users_products_tenant_id_created_by_user_idTotenant_users TenantUser?                   @relation("products_tenant_id_created_by_user_idTotenant_users", fields: [tenant_id, created_by_user_id], references: [tenantId, userId], onDelete: SetNull, onUpdate: NoAction, map: "fk_products_creator")
+  tenant_users_products_tenant_id_updated_by_user_idTotenant_users TenantUser?                   @relation("products_tenant_id_updated_by_user_idTotenant_users", fields: [tenant_id, updated_by_user_id], references: [tenantId, userId], onDelete: SetNull, onUpdate: NoAction, map: "fk_products_updater")
+  companies                                                        Company                       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reviews                                                          reviews[]
+  transactions                                                     transactions[]
+
+  @@unique([tenant_id, product_id], map: "uq_tenant_product_perimeter")
+  @@index([product_name], map: "idx_products_name_gin", type: Gin)
+  @@index([tenant_id, deleted_at], map: "idx_products_tenant_deleted", where: raw("(deleted_at IS NULL)"))
+}
+
+/// Temporary, tenant- and user-bound file previews. A committed draft retains
+/// only its result for idempotent confirmations; the uploaded bytes are removed.
+model business_import_drafts {
+  draft_id    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  user_id     String    @db.Uuid
+  kind        String    @db.VarChar(20)
+  file_name   String    @db.VarChar(255)
+  file_bytes  Bytes?    @db.ByteA
+  sha256      String    @db.Char(64)
+  status      String    @default("PREVIEW") @db.VarChar(20)
+  result      Json?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at  DateTime  @db.Timestamptz(6)
+  companies   Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id, user_id, expires_at], map: "business_import_drafts_owner_expiry")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model rag_document_chunks {
+  chunk_id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id               String                 @db.Uuid
+  document_id             String                 @db.Uuid
+  chunk_index             Int
+  chunk_text_content      String
+  created_at              DateTime?              @default(now()) @db.Timestamptz(6)
+  embedding               Unsupported("vector")?
+  embedding_model_version String?                @db.VarChar(100)
+  rag_documents_metadata  rag_documents_metadata @relation(fields: [tenant_id, document_id], references: [tenant_id, document_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_chunks_document_isolated")
+
+  @@unique([tenant_id, document_id, chunk_index], map: "uq_tenant_chunk_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model rag_documents_metadata {
+  document_id         String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id           String                @db.Uuid
+  file_name           String                @db.VarChar(255)
+  storage_bucket_path String
+  file_size_bytes     BigInt
+  source_file_content Bytes?                @db.ByteA
+  content_type        String?               @db.VarChar(100)
+  uploaded_by_user_id String?               @db.Uuid
+  uploaded_at         DateTime?             @default(now()) @db.Timestamptz(6)
+  processed_status    String                @default("Pending") @db.VarChar(20)
+  rag_document_chunks rag_document_chunks[]
+  search_index        rag_document_search?
+  tenant_users        TenantUser?           @relation(fields: [tenant_id, uploaded_by_user_id], references: [tenantId, userId], onDelete: SetNull, onUpdate: NoAction, map: "fk_rag_doc_user_isolated")
+  companies           Company               @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tenant_id, document_id], map: "uq_tenant_document_perimeter")
+  @@index([tenant_id, processed_status], map: "idx_rag_documents_status_lookup")
+}
+
+/// Tenant-scoped derived search index. RLS and invalidation triggers are SQL-managed.
+model rag_document_search {
+  tenant_id     String @db.Uuid
+  document_id   String @db.Uuid
+  index_version Int
+  content_state String
+  source_text String @default("")
+  source_revision String @default("")
+  indexed_at    DateTime @default(now()) @db.Timestamptz(6)
+  document      rag_documents_metadata @relation(fields: [tenant_id, document_id], references: [tenant_id, document_id], onDelete: Cascade, onUpdate: NoAction)
+  passages      rag_document_search_passages[]
+
+  @@id([tenant_id, document_id])
+}
+
+/// Private chat history, protected by both tenant and current-user RLS.
+model pricing_requests {
+  tenant_id String @db.Uuid
+  user_id String @db.Uuid
+  request_id String @db.Uuid
+  product_id String @db.Uuid
+  usage_record_id String @db.Uuid
+  status String
+  charged Boolean @default(false)
+  response Json?
+  failure_code String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  expires_at DateTime @default(dbgenerated("(now() + '00:10:00'::interval)")) @db.Timestamptz(6)
+  completed_at DateTime? @db.Timestamptz(6)
+  company Company @relation(fields:[tenant_id],references:[id],onDelete:Cascade,onUpdate:NoAction)
+  usage SubscriptionUsage @relation(fields:[usage_record_id],references:[id],onDelete:Cascade,onUpdate:NoAction)
+  @@id([tenant_id,user_id,request_id])
+  @@index([tenant_id,product_id,created_at(sort:Desc)],map:"idx_pricing_history")
+  @@index([tenant_id,expires_at],map:"idx_pricing_expiry",where:raw("(status = 'pending'::text)"))
+  @@unique([tenant_id,product_id],map:"uq_pricing_pending_product",where:raw("(status = 'pending'::text)"))
+}
+
+model rag_chat_sessions {
+  tenant_id String @db.Uuid
+  user_id String @db.Uuid
+  session_id String @db.Uuid
+  title String @db.VarChar(100)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  member TenantUser @relation(fields:[tenant_id,user_id],references:[tenantId,userId],onDelete:Cascade,onUpdate:NoAction)
+  requests rag_chat_requests[]
+  @@id([tenant_id,user_id,session_id])
+}
+
+/// Tenant accounting metadata; contains no prompts or answers.
+model rag_token_reservations {
+  tenant_id String @db.Uuid
+  user_id String @db.Uuid
+  request_id String @db.Uuid
+  usage_record_id String @db.Uuid
+  reserved_tokens Int
+  allocation_limit Int?
+  billed_tokens Int @default(0)
+  status String
+  expires_at DateTime @db.Timestamptz(6)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  member TenantUser @relation(fields:[tenant_id,user_id],references:[tenantId,userId],onDelete:Cascade,onUpdate:NoAction)
+  usage SubscriptionUsage @relation(fields:[usage_record_id],references:[id],onDelete:Cascade,onUpdate:NoAction)
+  request rag_chat_requests?
+  @@id([tenant_id,user_id,request_id])
+  @@index([tenant_id,expires_at],map:"idx_rag_reservation_expiry",where:raw("(status = 'pending'::text)"))
+}
+
+model rag_chat_requests {
+  tenant_id String @db.Uuid
+  user_id String @db.Uuid
+  request_id String @db.Uuid
+  session_id String @db.Uuid
+  request_hash String @db.Char(64)
+  question String
+  status String
+  response Json?
+  failure_code String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  session rag_chat_sessions @relation(fields:[tenant_id,user_id,session_id],references:[tenant_id,user_id,session_id],onDelete:Cascade,onUpdate:NoAction)
+  reservation rag_token_reservations @relation(fields:[tenant_id,user_id,request_id],references:[tenant_id,user_id,request_id],onDelete:Cascade,onUpdate:NoAction)
+  @@id([tenant_id,user_id,request_id])
+  @@index([tenant_id,user_id,session_id,created_at],map:"idx_rag_chat_session_turns")
+}
+
+/// Generated tsvector is created by the forward SQL migration, not application code.
+model rag_document_search_passages {
+  tenant_id     String @db.Uuid
+  document_id   String @db.Uuid
+  passage_index Int
+  search_text   String
+  search_vector Unsupported("tsvector")? @default(dbgenerated())
+  document      rag_document_search @relation(fields: [tenant_id, document_id], references: [tenant_id, document_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([tenant_id, document_id, passage_index])
+  @@index([search_vector], type: Gin, map: "idx_rag_search_passages_vector")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model recommendation_outcomes {
+  recommendation_id    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String            @db.Uuid
+  forecast_id          String?           @db.Uuid
+  recommended_action   String?
+  expected_impact_json Json?             @default("{}")
+  user_decision        String            @default("PENDING") @db.VarChar(30)
+  actual_outcome_json  Json?             @default("{}")
+  created_at           DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?         @default(now()) @db.Timestamptz(6)
+  evidence_id          String?           @db.Uuid
+  demand_forecasts     demand_forecasts? @relation(fields: [tenant_id, forecast_id], references: [tenant_id, forecast_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rec_forecast_isolated")
+  evidence_records     evidence_records? @relation(fields: [tenant_id, evidence_id], references: [tenant_id, evidence_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rec_outcome_evidence_isolated")
+  companies            Company           @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model reviews {
+  review_id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id          String              @db.Uuid
+  product_id         String?             @db.Uuid
+  source_platform    String              @db.VarChar(50)
+  reviewer_name      String?             @db.VarChar(150)
+  review_text        String
+  review_rating      Decimal?            @db.Decimal(3, 2)
+  review_date        DateTime            @default(now()) @db.Timestamptz(6)
+  created_at         DateTime?           @default(now()) @db.Timestamptz(6)
+  subject_type       String              @default("PRODUCT") @db.VarChar(20)
+  competitor_id      String?             @db.Uuid
+  source_status      String              @default("ALLOWED") @db.VarChar(20)
+  collection_method  String              @default("MANUAL") @db.VarChar(50)
+  review_language    String?             @db.VarChar(5)
+  source_id          String?             @db.Uuid
+  external_review_id String?
+  safety_status      String              @default("SAFE") @db.VarChar(20)
+  safety_flags       Json                @default("[]")
+  like_count         Int?
+  reply_count        Int?
+  tenant_competitors tenant_competitors? @relation(fields: [tenant_id, competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_competitor_isolated")
+  products           products?           @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reviews_product_isolated")
+  companies          Company             @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sentiment_results  sentiment_results?
+
+  @@unique([tenant_id, review_id], map: "uq_tenant_review_perimeter")
+  @@unique([tenant_id, source_id, external_review_id], map: "uq_reviews_external_source", where: raw("((source_id IS NOT NULL) AND (external_review_id IS NOT NULL))"))
+  @@index([tenant_id, product_id], map: "idx_reviews_tenant_product")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model sentiment_results {
+  sentiment_id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  review_id            String    @unique @db.Uuid
+  sentiment_score      Decimal   @db.Decimal(5, 4)
+  sentiment_label      String    @db.VarChar(20)
+  extracted_keywords   Json?     @default("[]")
+  model_version        String    @db.VarChar(50)
+  processed_at         DateTime? @default(now()) @db.Timestamptz(6)
+  positive_probability Decimal?  @db.Decimal(5, 4)
+  neutral_probability  Decimal?  @db.Decimal(5, 4)
+  negative_probability Decimal?  @db.Decimal(5, 4)
+  confidence           Decimal?  @db.Decimal(5, 4)
+  reviews              reviews   @relation(fields: [tenant_id, review_id], references: [tenant_id, review_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sentiment_review_isolated")
+
+  @@unique([tenant_id, review_id], map: "uq_sentiment_tenant_review")
+  @@index([tenant_id, sentiment_label], map: "idx_sentiment_tenant_label")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model system_alerts {
+  alert_id    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id   String    @db.Uuid
+  alert_type  String    @db.VarChar(50)
+  severity    String    @db.VarChar(20)
+  message     String
+  is_resolved Boolean   @default(false)
+  resolved_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  companies   Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id, is_resolved], map: "idx_alerts_tenant_unresolved", where: raw("(is_resolved = false)"))
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tenant_competitors {
+  product_candidates competitor_product_candidates[]
+  discovery_jobs market_tracking_outbox[]
+  tenant_id                   String                        @db.Uuid
+  global_competitor_id        String                        @db.Uuid
+  custom_alias                String?                       @db.VarChar(255)
+  is_tracked                  Boolean                       @default(true)
+  added_at                    DateTime?                     @default(now()) @db.Timestamptz(6)
+  product_match_rate          Decimal?                      @db.Decimal(5, 4)
+  is_confirmed_competitor     Boolean                       @default(false)
+  classified_at               DateTime?                     @db.Timestamptz(6)
+  tier                        String                        @default("CANDIDATE")
+  competitor_product_mappings competitor_product_mappings[]
+  competitor_score_snapshots  competitor_score_snapshots[]
+  market_alert_rules          market_alert_rules[]
+  market_events               market_events[]
+  reviews                     reviews[]
+  global_competitors          global_competitors            @relation(fields: [global_competitor_id], references: [global_competitor_id], onDelete: Cascade, onUpdate: NoAction)
+  companies                   Company                       @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([tenant_id, global_competitor_id])
+  distance_km Float?
+  competitor_scope String?
+  discovery_method String?
+
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model campaigns {
+  campaign_id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id           String    @db.Uuid
+  product_id          String?   @db.Uuid
+  campaign_brief      String
+  generated_image_key String?   @db.VarChar(512)
+  status              String?   @default("Pending") @db.VarChar(50)
+  requested_at        DateTime? @default(now()) @db.Timestamptz(6)
+  completed_at        DateTime? @db.Timestamptz(6)
+  companies           Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products            products? @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: SetNull, onUpdate: NoAction, map: "fk_campaigns_product_isolated")
+
+  @@unique([tenant_id, campaign_id], map: "uq_tenant_campaign_perimeter")
+  @@index([tenant_id], map: "idx_campaigns_tenant")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model competitor_score_snapshots {
+  score_id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id             String             @db.Uuid
+  global_competitor_id  String             @db.Uuid
+  price_score           Decimal?           @db.Decimal(5, 2)
+  sentiment_score       Decimal?           @db.Decimal(5, 2)
+  market_activity_score Decimal?           @db.Decimal(5, 2)
+  relevance_score       Decimal?           @db.Decimal(5, 2)
+  composite_score       Decimal            @db.Decimal(5, 2)
+  missing_factors       Json               @default("[]")
+  evidence              Json               @default("{}")
+  calculated_at         DateTime           @default(now()) @db.Timestamptz(6)
+  tenant_competitors    tenant_competitors @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_score_competitor")
+
+  @@index([tenant_id, composite_score(sort: Desc), calculated_at(sort: Desc)], map: "idx_competitor_scores_leaderboard")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model extracted_entity {
+  entity_id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id        String    @db.Uuid
+  source_table     String    @db.VarChar(50)
+  source_record_id String    @db.Uuid
+  entity_type      String    @db.VarChar(100)
+  entity_value     String    @db.VarChar(512)
+  confidence_score Decimal?  @db.Decimal(4, 3)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  companies        Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([source_table, source_record_id], map: "idx_extracted_entity_source")
+  @@index([tenant_id], map: "idx_extracted_entity_tenant")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_alert_events {
+  trigger_facts Json @default("{}")
+  resolved_at DateTime? @db.Timestamptz(6)
+  acknowledged_by String? @db.Uuid
+  resolved_by String? @db.Uuid
+  dedupe_key String?
+
+  alert_event_id     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id          String             @db.Uuid
+  alert_rule_id      String             @db.Uuid
+  market_event_id    String?            @db.Uuid
+  observed_value     Decimal            @db.Decimal(12, 4)
+  message            String
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  acknowledged_at    DateTime?          @db.Timestamptz(6)
+  market_alert_rules market_alert_rules @relation(fields: [alert_rule_id], references: [alert_rule_id], onDelete: Cascade, onUpdate: NoAction)
+  market_events      market_events?     @relation(fields: [market_event_id], references: [event_id], onUpdate: NoAction)
+  companies          Company            @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id, created_at(sort: Desc)], map: "idx_market_alert_events_unread", where: raw("(acknowledged_at IS NULL)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_alert_rules {
+  name String @default("Price change") @db.VarChar(120)
+  cooldown_minutes Int @default(60)
+
+  alert_rule_id        String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String                @db.Uuid
+  global_competitor_id String                @db.Uuid
+  metric               String                @db.VarChar(32)
+  operator             String                @db.VarChar(4)
+  threshold            Decimal               @db.Decimal(12, 4)
+  is_active            Boolean               @default(true)
+  created_at           DateTime              @default(now()) @db.Timestamptz(6)
+  market_alert_events  market_alert_events[]
+  tenant_competitors   tenant_competitors    @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_alert_competitor")
+
+  @@unique([tenant_id, alert_rule_id], map: "uq_market_alert_rule_tenant")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_events {
+  @@unique([tenant_id,event_id], map: "uq_market_event_tenant")
+  event_id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                       @db.Uuid
+  global_competitor_id        String                       @db.Uuid
+  mapping_id                  String?                      @db.Uuid
+  source_id                   String?                      @db.Uuid
+  event_type                  String                       @db.VarChar(32)
+  old_value                   Json?
+  new_value                   Json
+  source_url                  String?
+  occurred_at                 DateTime                     @db.Timestamptz(6)
+  collected_at                DateTime                     @default(now()) @db.Timestamptz(6)
+  market_alert_events         market_alert_events[]
+  tenant_competitors          tenant_competitors           @relation(fields: [tenant_id, global_competitor_id], references: [tenant_id, global_competitor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_event_competitor")
+  competitor_product_mappings competitor_product_mappings? @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_event_mapping")
+  data_sources                data_sources?                @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onUpdate: NoAction, map: "fk_market_event_source")
+  companies                   Company                      @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id, global_competitor_id, occurred_at(sort: Desc)], map: "idx_market_events_timeline")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_observation_staging {
+  staging_id                  String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                      @db.Uuid
+  source_id                   String                      @db.Uuid
+  job_id                      String                      @db.Uuid
+  mapping_id                  String                      @db.Uuid
+  raw_payload                 Json
+  content_hash                String                      @db.Char(64)
+  validation_status           String                      @default("PENDING") @db.VarChar(20)
+  validation_errors           Json                        @default("[]")
+  safety_flags                Json                        @default("[]")
+  staged_at                   DateTime                    @default(now()) @db.Timestamptz(6)
+  resolved_at                 DateTime?                   @db.Timestamptz(6)
+  ingestion_jobs              ingestion_jobs              @relation(fields: [tenant_id, job_id], references: [tenant_id, job_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_stage_job")
+  competitor_product_mappings competitor_product_mappings @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_stage_mapping")
+  data_sources                data_sources                @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_stage_source")
+
+  @@unique([tenant_id, job_id, mapping_id, content_hash], map: "uq_market_stage_job_content")
+  @@index([tenant_id, validation_status, staged_at(sort: Desc)], map: "idx_market_stage_review")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model market_observations {
+  observation_id              String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                   String                      @db.Uuid
+  source_id                   String                      @db.Uuid
+  job_id                      String                      @db.Uuid
+  mapping_id                  String                      @db.Uuid
+  product_name                String
+  category                    String?
+  description                 String?
+  canonical_url               String
+  image_url                   String?
+  external_id                 String?
+  rating                      Decimal?                    @db.Decimal(3, 2)
+  review_count                Int?
+  stock_quantity              Int?
+  match_score                 Decimal                     @db.Decimal(5, 4)
+  match_method                String                      @db.VarChar(20)
+  page_text                   String?
+  safety_status               String                      @default("SAFE") @db.VarChar(20)
+  safety_flags                Json                        @default("[]")
+  content_hash                String                      @db.Char(64)
+  raw_payload                 Json                        @default("{}")
+  observed_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  like_count                  Int?
+  share_count                 Int?
+  view_count                  Int?
+  creator_handle              String?
+  content_date                DateTime?                   @db.Timestamptz(6)
+  ingestion_jobs              ingestion_jobs              @relation(fields: [tenant_id, job_id], references: [tenant_id, job_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_observation_job")
+  competitor_product_mappings competitor_product_mappings @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_observation_mapping")
+  data_sources                data_sources                @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_market_observation_source")
+
+  @@unique([tenant_id, mapping_id, content_hash, observed_at], map: "uq_market_observation_content")
+  @@index([tenant_id, mapping_id, observed_at(sort: Desc)], map: "idx_market_observations_timeline")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model model_versions {
+  model_version_id String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  model_name       String    @db.VarChar(100)
+  version          String    @db.VarChar(50)
+  status           String    @default("development") @db.VarChar(20)
+  trained_at       DateTime? @db.Timestamptz(6)
+  metrics          Json?
+  artifact_path    String?   @db.VarChar(500)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model news_record {
+  news_id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  source_url        String    @db.VarChar(1024)
+  headline          String    @db.VarChar(512)
+  body_text         String?
+  published_at      DateTime? @db.Timestamptz(6)
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  extraction_status String?   @default("Pending") @db.VarChar(50)
+  companies         Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id], map: "idx_news_record_tenant")
+}
+
+model search_quota_usage {
+  usage_date  DateTime @id @db.Date
+  query_count Int      @default(0)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model social_mention {
+  mention_id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  platform          String    @db.VarChar(50)
+  author_handle     String?   @db.VarChar(255)
+  mention_text      String
+  posted_at         DateTime? @db.Timestamptz(6)
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  extraction_status String?   @default("Pending") @db.VarChar(50)
+  companies         Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id], map: "idx_social_mention_tenant")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model transactions {
+  store_sale_links store_sale_links[]
+  transaction_id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id            String    @db.Uuid
+  product_id           String    @db.Uuid
+  quantity_sold        Int
+  unit_price           Decimal   @db.Decimal(12, 4)
+  total_price          Decimal   @db.Decimal(12, 4)
+  original_currency    String    @db.VarChar(3)
+  converted_amount     Decimal?  @db.Decimal(12, 4)
+  converted_currency   String?   @db.VarChar(3)
+  exchange_rate        Decimal?  @db.Decimal(18, 8)
+  conversion_source    String?   @db.VarChar(100)
+  conversion_timestamp DateTime? @db.Timestamptz(6)
+  sale_source          String    @default("POS") @db.VarChar(50)
+  transaction_date     DateTime  @db.Timestamptz(6)
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+  products             products  @relation(fields: [tenant_id, product_id], references: [tenant_id, product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transactions_product_isolated")
+  companies            Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  import_sale_identities import_sale_identities[]
+
+  @@unique([tenant_id, transaction_id], map: "uq_tenant_transaction_perimeter")
+  @@index([tenant_id, transaction_date], map: "idx_transactions_tenant_date")
+  @@index([tenant_id, product_id], map: "idx_transactions_tenant_product")
+}
+
+model web_search_cache {
+  cache_key    String   @id
+  results_json Json
+  cached_at    DateTime @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime @db.Timestamptz(6)
+
+  @@index([expires_at], map: "idx_web_search_cache_expires_at")
+}
+
+model PlatformNotification {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  platformTenantId String  @map("platform_tenant_id") @db.Uuid
+  sourceTenantId   String? @map("source_tenant_id") @db.Uuid
+
+  eventType String @map("event_type") @db.VarChar(80)
+  severity  String @db.VarChar(20)
+
+  titleKey String @map("title_key") @db.VarChar(120)
+  bodyKey  String @map("body_key") @db.VarChar(120)
+
+  payload Json @default("{}")
+
+  resourceType String? @map("resource_type") @db.VarChar(80)
+  resourceId   String? @map("resource_id") @db.Uuid
+
+  dedupeKey String @map("dedupe_key") @db.VarChar(255)
+
+  occurredAt DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  platformTenant Company  @relation("PlatformNotificationPlatformTenant", fields: [platformTenantId], references: [id], onDelete: Restrict)
+  sourceTenant   Company? @relation("PlatformNotificationSourceTenant", fields: [sourceTenantId], references: [id], onDelete: SetNull)
+
+  receipts PlatformNotificationReceipt[]
+
+  @@unique([platformTenantId, dedupeKey], map: "platform_notifications_platform_dedupe_key")
+  @@unique([platformTenantId, id], map: "platform_notifications_platform_id_key")
+  @@map("platform_notifications")
+}
+
+model PlatformNotificationReceipt {
+  notificationId   String @map("notification_id") @db.Uuid
+  platformTenantId String @map("platform_tenant_id") @db.Uuid
+  recipientUserId  String @map("recipient_user_id") @db.Uuid
+
+  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  notification PlatformNotification @relation(fields: [platformTenantId, notificationId], references: [platformTenantId, id], onDelete: Cascade)
+  recipient    User                 @relation(fields: [recipientUserId], references: [userId], onDelete: Cascade)
+
+  @@id([notificationId, recipientUserId])
+  @@index([recipientUserId, platformTenantId, archivedAt, readAt, notificationId], map: "platform_notification_receipts_inbox_idx")
+  @@map("platform_notification_receipts")
+}
+
+model PlatformNotificationOutbox {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  eventType String @map("event_type") @db.VarChar(80)
+  dedupeKey String @map("dedupe_key") @db.VarChar(255)
+
+  payload Json @default("{}")
+
+  status   String @default("pending") @db.VarChar(20)
+  attempts Int    @default(0)
+
+  occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(6)
+  lastErrorCode String?   @map("last_error_code") @db.VarChar(100)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Company @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, dedupeKey], map: "platform_notification_outbox_tenant_dedupe_key")
+  @@map("platform_notification_outbox")
+}
+
+model TenantNotification {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  eventType String @map("event_type") @db.VarChar(80)
+  severity  String @db.VarChar(20)
+
+  titleKey String @map("title_key") @db.VarChar(120)
+  bodyKey  String @map("body_key") @db.VarChar(120)
+
+  payload Json @default("{}")
+
+  resourceType String? @map("resource_type") @db.VarChar(80)
+  resourceId   String? @map("resource_id") @db.Uuid
+
+  dedupeKey String @map("dedupe_key") @db.VarChar(255)
+
+  occurredAt DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  tenant   Company                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  receipts TenantNotificationReceipt[]
+
+  @@unique([tenantId, dedupeKey], map: "tenant_notifications_tenant_dedupe_key")
+  @@unique([tenantId, id], map: "tenant_notifications_tenant_id_key")
+  @@map("tenant_notifications")
+}
+
+model TenantNotificationReceipt {
+  notificationId  String @map("notification_id") @db.Uuid
+  tenantId        String @map("tenant_id") @db.Uuid
+  recipientUserId String @map("recipient_user_id") @db.Uuid
+
+  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  notification        TenantNotification @relation(fields: [tenantId, notificationId], references: [tenantId, id], onDelete: Cascade)
+  recipientMembership TenantUser         @relation(fields: [tenantId, recipientUserId], references: [tenantId, userId], onDelete: Cascade)
+
+  @@id([notificationId, recipientUserId])
+  @@index([recipientUserId, tenantId, archivedAt, readAt, notificationId], map: "tenant_notification_receipts_inbox_idx")
+  @@map("tenant_notification_receipts")
+}
+
+model TenantNotificationOutbox {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  eventType String @map("event_type") @db.VarChar(80)
+  dedupeKey String @map("dedupe_key") @db.VarChar(255)
+
+  payload Json @default("{}")
+
+  status   String @default("pending") @db.VarChar(20)
+  attempts Int    @default(0)
+
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(6)
+  lastErrorCode String?   @map("last_error_code") @db.VarChar(100)
+
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Company @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, dedupeKey], map: "tenant_notification_outbox_tenant_dedupe_key")
+  @@map("tenant_notification_outbox")
+}
+
+enum FeatureType {
+  limit
+  boolean
+
+  @@map("feature_type_enum")
+}
+
+enum AggregationType {
+  sum
+  max
+
+  @@map("aggregation_type_enum")
+}
+
+enum ResetCycle {
+  billing_period
+  lifetime
+
+  @@map("reset_cycle_enum")
+}
+
+enum PlanType {
+  standard
+  custom
+
+  @@map("plan_type_enum")
+}
+
+enum CustomPlanQuoteStatus {
+  draft
+  calculated
+  approved
+  sent
+  accepted
+  rejected
+  expired
+
+  @@map("custom_plan_quote_status_enum")
+}
+
+enum VendorRateVerificationStatus {
+  confirmed
+  estimated
+  unconfirmed
+  deprecated
+
+  @@map("vendor_rate_verification_status_enum")
+}
+
+enum InfrastructureRateUsageBasis {
+  limit_value
+  estimated_usage
+  enabled_feature
+
+  @@map("infrastructure_rate_usage_basis_enum")
+}
+
+enum InfrastructureRateVerificationStatus {
+  confirmed
+  estimated
+  unconfirmed
+  deprecated
+
+  @@map("infrastructure_rate_verification_status_enum")
+}
+
+/// Durable delivery and discovery execution state. Tenant RLS is migration-owned.
+model market_tracking_outbox {
+  event_id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id         String    @db.Uuid
+  kind              String
+  source_id         String?   @db.Uuid
+  competitor_id String? @db.Uuid
+  worker_status String @default("QUEUED")
+  worker_attempts Int @default(0)
+  retry_of_event_id String? @db.Uuid
+  retry_parent market_tracking_outbox? @relation("CollectionRetries", fields:[tenant_id,retry_of_event_id], references:[tenant_id,event_id], onDelete:NoAction,onUpdate:NoAction,map:"market_collection_retry_parent")
+  retries market_tracking_outbox[] @relation("CollectionRetries")
+  collection_jobs ingestion_jobs[]
+  worker_started_at DateTime? @db.Timestamptz(6)
+  worker_heartbeat_at DateTime? @db.Timestamptz(6)
+  worker_finished_at DateTime? @db.Timestamptz(6)
+  worker_run_token String? @db.Uuid
+  worker_result Json?
+  worker_error_code String?
+  competitor tenant_competitors? @relation(fields: [tenant_id, competitor_id], references: [tenant_id, global_competitor_id], onDelete: NoAction, onUpdate: NoAction, map: "market_tracking_competitor_tenant_fk")
+  dedupe_key        String
+  status            String    @default("PENDING")
+  attempts          Int       @default(0)
+  next_attempt_at   DateTime  @default(now()) @db.Timestamptz(6)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  published_at      DateTime? @db.Timestamptz(6)
+  stream_message_id String?
+  last_error_code   String?
+  companies         Company   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "market_tracking_outbox_tenant_id_fkey")
+  data_sources      data_sources? @relation(fields: [tenant_id, source_id], references: [tenant_id, source_id], onDelete: Cascade, onUpdate: NoAction, map: "market_tracking_outbox_tenant_id_source_id_fkey")
+
+  @@index([tenant_id,source_id,created_at(sort:Desc),event_id(sort:Desc)],map:"market_collection_latest",where:raw("(kind = 'COLLECTION'::text)"))
+  @@unique([tenant_id,event_id],map:"market_tracking_tenant_event_unique")
+  @@unique([tenant_id,retry_of_event_id],map:"market_collection_one_retry",where:raw("(retry_of_event_id IS NOT NULL)"))
+  @@index([tenant_id, competitor_id, created_at(sort: Desc)], map: "market_tracking_competitor_jobs")
+  @@unique([tenant_id, dedupe_key], map: "market_tracking_outbox_tenant_id_dedupe_key_key")
+  @@index([next_attempt_at, created_at], map: "market_tracking_pending", where: raw("(status = 'PENDING'::text)"))
+}
+
+model scraping_cost_ledger {
+  cost_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id String @db.Uuid
+  mapping_id String @db.Uuid
+  collector_key String @db.VarChar(64)
+  cost_amount Decimal? @db.Decimal(12, 6)
+  currency String @default("USD") @db.VarChar(3)
+  observed_at DateTime @default(now()) @db.Timestamptz(6)
+  mapping competitor_product_mappings @relation(fields: [tenant_id, mapping_id], references: [tenant_id, mapping_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cost_ledger_mapping_isolated")
+  @@index([tenant_id, mapping_id, observed_at(sort: Desc)], map: "idx_cost_ledger_mapping_time")
+}
+
+model company_target_markets {
+  target_market_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id String @db.Uuid
+  country_code String? @db.VarChar(2)
+  market_type String @default("COUNTRY") @db.VarChar(10)
+  region_name String? @db.VarChar(100)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  company Company @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  @@index([tenant_id], map: "idx_company_target_markets_tenant")
+  // COUNTRY/REGION/GLOBAL partial unique indexes and shape checks are managed in SQL.
+}
+
+/// External sale-line keys are tenant-private and worker-write-only (RLS in migration).
+model import_sale_identities {
+  tenant_id String @db.Uuid
+  source_system String @db.VarChar(100)
+  sale_id String @db.VarChar(200)
+  transaction_id String @db.Uuid
+  payload_sha256 String @db.Char(64)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  transaction transactions @relation(fields: [tenant_id, transaction_id], references: [tenant_id, transaction_id], onDelete: Cascade, onUpdate: NoAction)
+  @@id([tenant_id, source_system, sale_id])
+}
+
+model business_recommendation_runs {
+ tenant_id String @db.Uuid
+ user_id String @db.Uuid
+ request_id String @db.Uuid
+ status String
+ response Json?
+ created_at DateTime @default(now()) @db.Timestamptz(6)
+ expires_at DateTime @default(dbgenerated("(now() + '00:05:00'::interval)")) @db.Timestamptz(6)
+ company Company @relation(fields:[tenant_id],references:[id],onDelete:Cascade,onUpdate:NoAction)
+ @@id([tenant_id,user_id,request_id])
+ @@unique([tenant_id],map:"uq_business_recommendation_pending",where:raw("(status = 'pending'::text)"))
+}
+model business_recommendations {
+ tenant_id String @db.Uuid
+ recommendation_id String @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+ logical_key String @db.Uuid
+ episode_id String @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+ product_id String? @db.Uuid
+ rule_id String
+ category String
+ priority String
+ state String @default("active")
+ body Json
+ source_fingerprint String @db.Char(64)
+ evidence_id String @db.Uuid
+ created_at DateTime @default(now()) @db.Timestamptz(6)
+ last_seen_at DateTime @default(now()) @db.Timestamptz(6)
+ updated_at DateTime @default(now()) @db.Timestamptz(6)
+ company Company @relation(fields:[tenant_id],references:[id],onDelete:Cascade,onUpdate:NoAction)
+ evidence evidence_records @relation(fields:[tenant_id,evidence_id],references:[tenant_id,evidence_id],onDelete:Restrict,onUpdate:NoAction)
+ @@id([tenant_id,recommendation_id])
+ @@unique([tenant_id,logical_key])
+ @@index([tenant_id,state,updated_at(sort:Desc)],map:"idx_business_recommendation_feed")
+}
+
+/// Forward SQL migration owns the tenant/member foreign key and RLS policies.
+model tenant_notification_preferences {
+  tenant_id String @db.Uuid
+  user_id String @db.Uuid
+  category String
+  enabled Boolean @default(true)
+  @@id([tenant_id,user_id,category])
+}
+
+/// Candidate alternatives are tenant scoped. Approval and identity evidence are
+/// separate; discovery scores never imply a verified product match.
+model competitor_product_candidates {
+  candidate_id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id String @db.Uuid
+  global_competitor_id String @db.Uuid
+  product_id String @db.Uuid
+  product_url String
+  title String @default("")
+  discovery_score Decimal @default(0) @db.Decimal(6,5)
+  status String @default("DISCOVERED")
+  evidence Json?
+  checked_at DateTime? @db.Timestamptz(6)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  last_seen_at DateTime @default(now()) @db.Timestamptz(6)
+  product products @relation(fields:[tenant_id,product_id],references:[tenant_id,product_id],onDelete:Cascade,onUpdate:NoAction,map:"candidate_tenant_product")
+  competitor tenant_competitors @relation(fields:[tenant_id,global_competitor_id],references:[tenant_id,global_competitor_id],onDelete:Cascade,onUpdate:NoAction,map:"candidate_tenant_competitor")
+  @@unique([tenant_id,global_competitor_id,product_id,product_url],map:"candidate_unique_url")
+  @@index([tenant_id,global_competitor_id,product_id,last_seen_at(sort:Desc)],map:"candidate_product_lookup")
+}
+
+
+model store_connections {
+  store_oauth_states store_oauth_states[]
+  shopify_privacy_reports shopify_privacy_reports[]
+  store_order_exclusions store_order_exclusions[]
+  provider String @default("woocommerce")
+  shop_domain String?
+  provider_shop_id String?
+  history_access String @default("all")
+  sync_requested Boolean @default(false)
+  mapping_version Int @default(1) @db.SmallInt
+  store_order_links store_order_links[]
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ actor_id String @db.Uuid
+ version String @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+ credentials String?
+ status String @default("QUEUED")
+ currency String @db.VarChar(3)
+ next_run_at DateTime @default(now()) @db.Timestamptz(6)
+ last_success_at DateTime? @db.Timestamptz(6)
+ last_error String?
+ progress Json @default("{}")
+ lease_token String? @db.Uuid
+ lease_until DateTime? @db.Timestamptz(6)
+ attempts Int @default(0)
+ job_id String? @db.Uuid
+ source data_sources @relation(fields:[tenant_id,source_id],references:[tenant_id,source_id],onDelete:Cascade,onUpdate:NoAction)
+ actor TenantUser @relation(fields:[tenant_id,actor_id],references:[tenantId,userId],onDelete:NoAction,onUpdate:NoAction)
+ job ingestion_jobs? @relation(fields:[tenant_id,job_id],references:[tenant_id,job_id],onDelete:NoAction,onUpdate:NoAction)
+ products store_product_links[]
+ sales store_sale_links[]
+ @@id([tenant_id,source_id])
+ @@unique([tenant_id,provider,provider_shop_id],map:"store_shop_identity",where:raw("(provider_shop_id IS NOT NULL)"))
+ @@unique([tenant_id,shop_domain],map:"store_shop_domain",where:raw("(shop_domain IS NOT NULL)"))
+ @@index([next_run_at],map:"store_next_run",where:raw("(status = ANY (ARRAY['QUEUED'::text, 'CONNECTED'::text, 'ERROR'::text, 'SYNCING'::text]))"))
+}
+model store_product_links {
+ parent_external_id String?
+  store_inventory_locations store_inventory_locations[]
+  store_inventory_links store_inventory_links[]
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ external_id String
+ product_id String @db.Uuid
+ owns_product Boolean
+ source store_connections @relation(fields:[tenant_id,source_id],references:[tenant_id,source_id],onDelete:Cascade,onUpdate:NoAction)
+ product products @relation(fields:[tenant_id,product_id],references:[tenant_id,product_id],onDelete:NoAction,onUpdate:NoAction)
+ @@id([tenant_id,source_id,external_id])
+ @@unique([tenant_id,source_id,product_id])
+}
+model store_sale_links {
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ order_id String
+ line_id String
+ transaction_id String @db.Uuid
+ source store_connections @relation(fields:[tenant_id,source_id],references:[tenant_id,source_id],onDelete:Cascade,onUpdate:NoAction)
+ transaction transactions @relation(fields:[tenant_id,transaction_id],references:[tenant_id,transaction_id],onDelete:NoAction,onUpdate:NoAction)
+ @@id([tenant_id,source_id,order_id,line_id])
+ @@unique([tenant_id,transaction_id])
+}
+
+model store_inventory_links {
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ external_id String
+ inventory_id String? @db.Uuid
+ stock_state String
+ stock_status String?
+ low_stock_threshold Int?
+ stock_owner_external_id String?
+ observed_at DateTime @default(now()) @db.Timestamptz(6)
+ product_link store_product_links @relation(fields:[tenant_id,source_id,external_id],references:[tenant_id,source_id,external_id],onDelete:NoAction,onUpdate:NoAction)
+ inventory inventory? @relation(fields:[tenant_id,inventory_id],references:[tenant_id,inventory_id],onDelete:NoAction,onUpdate:NoAction)
+ @@id([tenant_id,source_id,external_id])
+ @@unique([tenant_id,inventory_id])
+}
+model store_order_links {
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ order_id String
+ invoice_id String @db.Uuid
+ order_status String
+ source_modified_at DateTime @db.Timestamptz(6)
+ paid_at DateTime? @db.Timestamptz(6)
+ accounting Json
+ connection store_connections @relation(fields:[tenant_id,source_id],references:[tenant_id,source_id],onDelete:NoAction,onUpdate:NoAction)
+ invoice invoices @relation(fields:[tenant_id,invoice_id],references:[tenant_id,invoice_id],onDelete:NoAction,onUpdate:NoAction)
+ items store_order_item_links[]
+ @@id([tenant_id,source_id,order_id])
+ @@unique([tenant_id,invoice_id])
+ @@unique([tenant_id,source_id,order_id,invoice_id])
+}
+model store_order_item_links {
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ order_id String
+ line_id String
+ invoice_id String @db.Uuid
+ invoice_item_id String @db.Uuid
+ order_link store_order_links @relation(fields:[tenant_id,source_id,order_id,invoice_id],references:[tenant_id,source_id,order_id,invoice_id],onDelete:NoAction,onUpdate:NoAction)
+ item invoice_items @relation(fields:[tenant_id,invoice_id,invoice_item_id],references:[tenant_id,invoice_id,invoice_item_id],onDelete:NoAction,onUpdate:NoAction)
+ @@id([tenant_id,source_id,order_id,line_id])
+ @@unique([tenant_id,invoice_item_id])
+}
+
+model store_oauth_states {
+ tenant_id String @db.Uuid
+ user_id String @db.Uuid
+ state_hash String
+ shop_domain String
+ source_id String? @db.Uuid
+ sync_minutes Int
+ expires_at DateTime @db.Timestamptz(6)
+ consumed_at DateTime? @db.Timestamptz(6)
+ actor TenantUser @relation(fields:[tenant_id,user_id],references:[tenantId,userId],onDelete:NoAction,onUpdate:NoAction)
+ source store_connections? @relation(fields:[tenant_id,source_id],references:[tenant_id,source_id],onDelete:NoAction,onUpdate:NoAction)
+ @@id([tenant_id,state_hash])
+}
+model store_inventory_locations {
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ external_id String
+ location_id String
+ inventory_id String? @db.Uuid
+ observed_at DateTime @default(now()) @db.Timestamptz(6)
+ product_link store_product_links @relation(fields:[tenant_id,source_id,external_id],references:[tenant_id,source_id,external_id],onDelete:NoAction,onUpdate:NoAction)
+ inventory inventory? @relation(fields:[tenant_id,inventory_id],references:[tenant_id,inventory_id],onDelete:NoAction,onUpdate:NoAction)
+ @@id([tenant_id,source_id,external_id,location_id])
+ @@unique([tenant_id,inventory_id])
+}
+model shopify_privacy_reports {
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ event_id String
+ report Json
+ created_at DateTime @default(now()) @db.Timestamptz(6)
+ source store_connections @relation(fields:[tenant_id,source_id],references:[tenant_id,source_id],onDelete:NoAction,onUpdate:NoAction)
+ @@id([tenant_id,source_id,event_id])
+}
+model store_order_exclusions {
+ tenant_id String @db.Uuid
+ source_id String @db.Uuid
+ order_hash String
+ source store_connections @relation(fields:[tenant_id,source_id],references:[tenant_id,source_id],onDelete:NoAction,onUpdate:NoAction)
+ @@id([tenant_id,source_id,order_hash])
+}
+model shopify_webhook_deliveries {
+ shop_hash String
+ event_id String
+ topic String
+ received_at DateTime @default(now()) @db.Timestamptz(6)
+ @@id([shop_hash,event_id,topic])
+}

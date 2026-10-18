@@ -1,0 +1,15 @@
+DOCUMENT STORAGE PACKAGE PLACEMENT
+
+Extract this ZIP at the repository root. The ZIP paths are repository-relative.
+
+backend/package.json                                  -> backend/package.json
+backend/tests/README.md                               -> backend/tests/README.md
+backend/tests/runners/run-all-feature-tests.mjs      -> backend/tests/runners/run-all-feature-tests.mjs
+backend/tests/runners/run-document-storage-tests.mjs -> backend/tests/runners/run-document-storage-tests.mjs
+backend/tests/document-storage/README.md              -> backend/tests/document-storage/README.md
+backend/tests/document-storage/TEST_RESULTS.md        -> backend/tests/document-storage/TEST_RESULTS.md
+backend/tests/document-storage/TEST_RESULTS.json      -> backend/tests/document-storage/TEST_RESULTS.json
+backend/tests/document-storage/document-storage-contract.test.mjs -> backend/tests/document-storage/document-storage-contract.test.mjs
+backend/tests/e2e/document-storage/document-storage.spec.ts -> backend/tests/e2e/document-storage/document-storage.spec.ts
+
+Overwrite the listed existing files when prompted. No production source files are changed by this diagnostics package.

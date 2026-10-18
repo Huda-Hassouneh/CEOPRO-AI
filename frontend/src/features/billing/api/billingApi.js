@@ -1,95 +1,258 @@
-import httpClient from '../../../shared/lib/httpClient.js';
+import { translateCurrent } from '../../../shared/lib/i18n.js';
+import httpClient from "../../../shared/lib/httpClient.js";
+import { UI_TESTING_MODE } from "../../../shared/config/uiTestingMode.js";
+import { previewList, previewSubscription, previewUsage, testingFeatures, testingPlans, testingPlanFeatureLinks } from "./uiTestingBillingData.js";
+import { getApiError as parseApiError, getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
 
-// Real billing: the plan catalog, the company's subscription and usage come
-// from the backend (/billing/*); payment happens on Stripe-hosted pages.
-
-// Backend feature codes -> the keys the usage and plan screens render (the
-// same plan terms as routers/billing.py's _PAGE_KEYS). Competitors have no
-// fixed count (Data Credits limit discovery), and the assistant's token cap
-// is an internal safety limit, so neither is listed.
-export const LIMIT_KEYS = Object.freeze({
-  tracked_products: ['products', 1],
-  monthly_reports: ['reports', 1],
-  team_seats: ['teamSeats', 1],
-  data_credits: ['dataCredits', 1],
-  ai_credits: ['aiCredits', 1],
-  marketing_image_generation: ['imageGenerations', 1],
-  document_storage_mb: ['storageGb', 1 / 1024],
-  document_extraction: ['documentProcessingMb', 1 / 1024],
-  sentiment_analysis: ['sentimentRecords', 1],
-  connected_data_sources: ['dataSources', 1],
+const endpoints = Object.freeze({
+  plans: "/subscription/plans",
+  subscriptions: "/subscription",
+  currentSubscription: "/subscription/current",
+  recovery: "/subscription/current/recovery",
+  checkout: "/subscription/checkout",
+  currentPlan: "/subscription/current/plan",
+  cancel: "/subscription/current/cancel",
+  undoCancel: "/subscription/current/cancel/undo",
+  usage: "/subscriptions/current/usage",
+  invoices: "/subscription/invoices",
+  promoCodes: "/subscription/promo-codes",
+  features: "/features",
+  customPlans: "/subscription/custom-plans",
+  customPlanQuotes: "/subscription/custom-plans/quotes",
+  customPlanConfigurator: "/subscription/custom-plans/configurator",
+  customPlanPreview: "/subscription/custom-plans/preview",
+  customPlanManualReview: "/subscription/custom-plans/manual-review",
+  customPlanCheckout: "/subscription/custom-plans/checkout",
+  customPlanPricingPolicy: "/subscription/custom-plans/pricing-policy",
+  vendorRates: "/subscription/custom-plans/vendor-rates",
+  scheduledPlanChange: "/subscription/current/plan/scheduled"
 });
 
-// Plan modules (backend usage_plan_entitlements) shown on the plan cards.
-export const PLAN_MODULES = Object.freeze(['market_intelligence', 'demand_prediction', 'competitor_management']);
+const unwrap = (request) => request.then((response) => response.data);
+const unwrapData = (response) => response?.data ?? response;
 
-export const BILLING_PERIODS = Object.freeze([
-  { value: 'monthly', months: 1 },
-  { value: 'three-months', months: 3 },
-  { value: 'six-months', months: 6 },
-]);
-
-export function mapPlan(plan) {
-  const toKeys = (raw) => {
-    const out = {};
-    for (const [code, value] of Object.entries(raw || {})) {
-      // Only the plan terms customers see; internal budgets (e.g. web_searches) are skipped.
-      if (!LIMIT_KEYS[code]) continue;
-      const [key, factor] = LIMIT_KEYS[code];
-      out[key] = value === null ? null : Math.round(value * factor * 1000) / 1000;
-    }
-    return out;
-  };
-  const limits = toKeys(plan.limits);
-  const prices = Object.fromEntries((plan.prices || []).map((price) => [price.period_code, {
-    amount: price.amount,
-    currency: price.currency,
-    months: price.interval_months,
-    discountPercent: price.discount_percent,
-    monthlyEquivalent: Math.round((price.amount / price.interval_months) * 100) / 100,
-    purchasable: price.purchasable,
-  }]));
+export const getApiError = (error) => {
+  const parsed = parseApiError(error);
   return {
-    id: plan.plan_key,
-    name: plan.name,
-    monthlyPrice: plan.monthly_price,
-    currency: plan.currency,
-    trialDays: plan.trial_days,
-    tier: plan.tier_level,
-    selfServe: plan.self_serve,
-    featured: plan.plan_key === 'growth',
-    limits,
-    trialLimits: toKeys(plan.trial_limits),
-    entitlements: plan.entitlements || [],
-    prices,
+    ...parsed,
+    message: getApiErrorMessage(error),
+    payload: parsed.payload
   };
-}
+};
 
-const SUBSCRIPTION_STATUS = Object.freeze({
-  trialing: 'trial', active: 'active', past_due: 'failed', payment_failed: 'failed', pending: 'failed',
-  paused: 'failed', expired: 'expired', cancelled: 'expired',
-});
+export const isForbiddenBillingError = (error) => {
+  const apiError = getApiError(error);
+  return apiError.status === 403 || apiError.code === "FORBIDDEN";
+};
 
-export function errorReason(error) {
-  return error?.response?.data?.detail?.reason || null;
-}
+const normalizeUsage = (response) => {
+  const data = unwrapData(response);
+  if (!data?.plan) return null;
+
+  const usage = {};
+  const limits = {};
+  const features = {};
+
+  for (const entitlement of data.entitlements ?? []) {
+    const key = entitlement.feature_code;
+    if (!key) continue;
+
+    usage[key] = Number(entitlement.current_usage ?? 0);
+    limits[key] = entitlement.limit ?? null;
+    features[key] = {
+      name: entitlement.name ?? key,
+      name_ar: entitlement.name_ar,
+      description: entitlement.description,
+      description_ar: entitlement.description_ar,
+      unit: entitlement.unit,
+      unit_ar: entitlement.unit_ar,
+      type: entitlement.type,
+      aggregation_type: entitlement.aggregation_type,
+      reset_cycle: entitlement.reset_cycle
+    };
+  }
+
+  return {
+    planId: data.plan.id,
+    planName: data.plan.name,
+    status: data.plan.status,
+    periodStart: data.plan.period_start,
+    renewsAt: data.plan.period_end,
+    usage,
+    limits,
+    features,
+    entitlements: data.entitlements ?? [],
+    raw: data
+  };
+};
+
+const unsupported = (capability) => {
+  const error = new Error(translateCurrent("interfaceCopy.backendUnavailable", { capability }));
+  error.code = "BACKEND_CAPABILITY_UNAVAILABLE";
+  return Promise.reject(error);
+};
 
 export const billingApi = Object.freeze({
-  getPlans: async () => {
-    const { data } = await httpClient.get('/billing/plans');
-    return { plans: (data.plans || []).map(mapPlan), paymentsEnabled: Boolean(data.payments_enabled) };
-  },
-  getSubscription: async () => {
-    const { data } = await httpClient.get('/billing/subscription');
-    return { ...data, status: SUBSCRIPTION_STATUS[data.status] || 'failed', billingStatus: data.status };
-  },
-  getInvoices: async () => (await httpClient.get('/billing/invoices')).data.invoices || [],
-  checkout: async ({ planId, billingPeriod }) => (await httpClient.post('/billing/checkout', { plan_key: planId, period_code: billingPeriod })).data,
-  openPortal: async () => (await httpClient.post('/billing/portal')).data,
-  changePlan: async ({ planId, billingPeriod }) => (await httpClient.post('/billing/change-plan', { plan_key: planId, period_code: billingPeriod })).data,
-  cancelScheduledChange: async () => (await httpClient.delete('/billing/scheduled-change')).data,
-  cancel: async () => (await httpClient.post('/billing/cancel')).data,
-  resume: async () => (await httpClient.post('/billing/resume')).data,
-  getUsageHistory: async () => (await httpClient.get('/billing/usage-history')).data.items || [],
-  startTrial: async ({ planId }) => (await httpClient.post('/billing/trial', { plan_key: planId })).data,
+  getPlans: () => UI_TESTING_MODE ? previewList(testingPlans) : unwrap(httpClient.get(endpoints.plans)),
+  cancelScheduledPlanChange: () =>
+    unwrap(httpClient.delete(endpoints.scheduledPlanChange)),
+  createPlan: (payload) => unwrap(httpClient.post(endpoints.plans, payload)),
+  updatePlan: (planId, payload) =>
+    unwrap(
+      httpClient.patch(
+        `${endpoints.plans}/${encodeURIComponent(planId)}`,
+        payload
+      )
+    ),
+
+  getSubscription: () => UI_TESTING_MODE ? previewSubscription() : unwrap(httpClient.get(endpoints.currentSubscription)),
+  createSubscriptionRecovery: () => unwrap(httpClient.post(endpoints.recovery)),
+  getSubscriptionUsage: async () =>
+    UI_TESTING_MODE ? previewUsage() : normalizeUsage(await unwrap(httpClient.get(endpoints.usage))),
+  createCheckout: (payload) =>
+    unwrap(httpClient.post(endpoints.checkout, payload)),
+  changePlan: (payload) =>
+    unwrap(httpClient.patch(endpoints.currentPlan, payload)),
+  cancelSubscription: () => unwrap(httpClient.patch(endpoints.cancel)),
+  resumeSubscription: () => unwrap(httpClient.patch(endpoints.undoCancel)),
+
+  getInvoices: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.invoices)),
+
+  validateCoupon: (payload) =>
+    unwrap(httpClient.post(`${endpoints.promoCodes}/validate`, payload)),
+  getPromoCodes: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.promoCodes)),
+  createPromoCode: (payload) =>
+    unwrap(httpClient.post(endpoints.promoCodes, payload)),
+  updatePromoCode: (promoCodeId, payload) =>
+    unwrap(
+      httpClient.patch(
+        `${endpoints.promoCodes}/${encodeURIComponent(promoCodeId)}`,
+        payload
+      )
+    ),
+  linkPromoCodeToPlan: ({ promoCodeId, planId }) =>
+    unwrap(
+      httpClient.post(
+        `${endpoints.promoCodes}/${encodeURIComponent(promoCodeId)}/plans/${encodeURIComponent(planId)}`
+      )
+    ),
+
+  getFeatures: () => UI_TESTING_MODE ? previewList(testingFeatures) : unwrap(httpClient.get(endpoints.features)),
+  getFeature: (featureId) =>
+    unwrap(
+      httpClient.get(`${endpoints.features}/${encodeURIComponent(featureId)}`)
+    ),
+  createFeature: (payload) =>
+    unwrap(httpClient.post(endpoints.features, payload)),
+  updateFeature: (featureId, payload) =>
+    unwrap(
+      httpClient.patch(
+        `${endpoints.features}/${encodeURIComponent(featureId)}`,
+        payload
+      )
+    ),
+  getPlanFeatures: (planId) =>
+    UI_TESTING_MODE ? previewList(testingPlanFeatureLinks(planId)) : unwrap(httpClient.get(`/plans/${encodeURIComponent(planId)}/features`)),
+  linkFeatureToPlan: (planId, payload) =>
+    unwrap(
+      httpClient.post(`/plans/${encodeURIComponent(planId)}/features`, payload)
+    ),
+  unlinkFeatureFromPlan: ({ planId, featureId }) =>
+    unwrap(
+      httpClient.delete(
+        `/plans/${encodeURIComponent(planId)}/features/${encodeURIComponent(featureId)}`
+      )
+    ),
+  updatePlanFeatureLimit: ({ planId, featureId, limitValue }) =>
+    unwrap(
+      httpClient.patch(
+        `/plans/${encodeURIComponent(planId)}/features/${encodeURIComponent(featureId)}`,
+        { limit_value: limitValue }
+      )
+    ),
+
+  getCustomPlans: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.customPlans)),
+  getCustomPlanConfigurator: () =>
+    UI_TESTING_MODE ? Promise.resolve({
+      data: { features: testingFeatures.map(feature => ({ ...feature, type: "boolean" })), billingOptions: testingPlans[0].pricingOptions, preview: true },
+      preview: true,
+    }) : unwrap(httpClient.get(endpoints.customPlanConfigurator)),
+  previewCustomPlan: (payload) =>
+    unwrap(httpClient.post(endpoints.customPlanPreview, payload)),
+  requestCustomPlanManualReview: (payload) =>
+    unwrap(httpClient.post(endpoints.customPlanManualReview, payload)),
+  checkoutCustomPlan: (payload) =>
+    unwrap(httpClient.post(endpoints.customPlanCheckout, payload)),
+  getCustomPlanPricingPolicy: () =>
+    UI_TESTING_MODE ? Promise.resolve({ data: { currency: "USD", featureLimits: {}, monitoringCadences: [] }, preview: true }) : unwrap(httpClient.get(endpoints.customPlanPricingPolicy)),
+  updateCustomPlanPricingPolicy: (payload) =>
+    unwrap(httpClient.patch(endpoints.customPlanPricingPolicy, payload)),
+  getCustomPlanQuotes: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.customPlanQuotes)),
+  getCustomPlanQuote: (quoteId) =>
+    unwrap(
+      httpClient.get(
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}`
+      )
+    ),
+  getCustomPlanOffer: (quoteId) =>
+    unwrap(
+      httpClient.get(
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/offer`
+      )
+    ),
+  createCustomPlanQuote: (payload) =>
+    unwrap(httpClient.post(endpoints.customPlanQuotes, payload)),
+  updateCustomPlanQuote: (quoteId, payload) =>
+    unwrap(
+      httpClient.patch(
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}`,
+        payload
+      )
+    ),
+  calculateCustomPlanQuote: (quoteId) =>
+    unwrap(
+      httpClient.post(
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/calculate`
+      )
+    ),
+  approveCustomPlanQuote: (quoteId, payload) =>
+    unwrap(
+      httpClient.post(
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/approve`,
+        payload
+      )
+    ),
+  sendCustomPlanQuote: (quoteId) =>
+    unwrap(
+      httpClient.post(
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/send`
+      )
+    ),
+  rejectCustomPlanQuote: (quoteId) =>
+    unwrap(
+      httpClient.post(
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/reject`
+      )
+    ),
+  acceptCustomPlanQuote: (quoteId) =>
+    unwrap(
+      httpClient.post(
+        `${endpoints.customPlanQuotes}/${encodeURIComponent(quoteId)}/accept`
+      )
+    ),
+  getVendorRates: () => UI_TESTING_MODE ? previewList() : unwrap(httpClient.get(endpoints.vendorRates)),
+  createVendorRate: (payload) =>
+    unwrap(httpClient.post(endpoints.vendorRates, payload)),
+  updateVendorRate: (rateId, payload) =>
+    unwrap(
+      httpClient.patch(
+        `${endpoints.vendorRates}/${encodeURIComponent(rateId)}`,
+        payload
+      )
+    ),
+
+  // No matching backend contracts exist for these legacy preview flows.
+  calculateTax: () => unsupported("tax calculation"),
+  paymentWebhookStatus: () => unsupported("payment webhook status polling"),
+  createUpgradeCheckout: () => unsupported("separate upgrade checkout")
 });

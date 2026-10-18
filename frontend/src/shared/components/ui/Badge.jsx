@@ -1,3 +1,4 @@
+import React from 'react';
 
 export default function Badge({ 
   children,
@@ -8,18 +9,18 @@ export default function Badge({
   const getVariantStyles = () => {
     switch (variant) {
       case 'success':
-        return { backgroundColor: 'var(--apex-success-bg)', color: 'var(--apex-success)' };
+        return { backgroundColor: 'var(--ceopro-success)', color: 'var(--ceopro-surface)' };
       case 'warning':
-        return { backgroundColor: 'var(--apex-warning-bg)', color: 'var(--apex-warning)' };
+        return { backgroundColor: 'var(--ceopro-warning)', color: 'var(--ceopro-surface)' };
       case 'error':
-        return { backgroundColor: 'var(--apex-danger-bg)', color: 'var(--apex-danger)' };
+        return { backgroundColor: 'var(--ceopro-error)', color: 'var(--ceopro-surface)' };
       case 'light-success':
-        return { backgroundColor: 'var(--apex-success-bg)', color: 'var(--apex-success)' };
+        return { backgroundColor: '#d1fae5', color: '#065f46' };
       case 'neutral':
-        return { backgroundColor: 'var(--apex-glass-strong)', color: 'var(--apex-text-2)' };
+        return { backgroundColor: 'var(--ceopro-surface-soft)', color: 'var(--ceopro-text-secondary)' };
       case 'primary':
       default:
-        return { backgroundColor: 'var(--apex-info-bg)', color: 'var(--apex-info)' };
+        return { backgroundColor: 'var(--ceopro-primary)', color: 'var(--ceopro-surface)' };
     }
   };
 

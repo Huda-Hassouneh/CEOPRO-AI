@@ -1,0 +1,53 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-frontend@0.1.0 test:i18n:render
+> node --import ./scripts/register-jsx-tests.mjs --test tests/i18n-render.test.mjs tests/shopify-connection-render.test.mjs tests/store-connection-render.test.mjs tests/pricing-evidence-render.test.mjs tests/business-evidence-render.test.mjs tests/rag-citations-render.test.mjs tests/connect-data-i18n-render.test.mjs tests/pricing-recommendation-render.test.mjs tests/rag-session-header-render.test.mjs
+
+✔ en: recommendation evidence renders actual ledger, target day and escaped competitor text (57.682563ms)
+✔ ar: recommendation evidence renders actual ledger, target day and escaped competitor text (4.982831ms)
+✔ en: Connect Data renders real dynamic actions, activity types and names without unresolved keys (37.129387ms)
+✔ en: job details and staged validation errors use locale messages (3.013482ms)
+✔ en: import review translates template sheet names while retaining product names (1.700282ms)
+✔ en: future enums and unknown errors have translated fallbacks; user content is preserved (1.474228ms)
+✔ ar: Connect Data renders real dynamic actions, activity types and names without unresolved keys (14.280047ms)
+✔ ar: job details and staged validation errors use locale messages (1.838616ms)
+✔ ar: import review translates template sheet names while retaining product names (1.134626ms)
+✔ ar: future enums and unknown errors have translated fallbacks; user content is preserved (0.329216ms)
+✔ en: shared controls resolve their translated accessibility and empty-state defaults (12.100829ms)
+✔ en: Shopify labels and unknown store errors never expose translation keys (1.773941ms)
+✔ en: Smart Alerts retains actions and localized status labels (11.242711ms)
+✔ ar: shared controls resolve their translated accessibility and empty-state defaults (4.002654ms)
+✔ ar: Shopify labels and unknown store errors never expose translation keys (0.818659ms)
+✔ ar: Smart Alerts retains actions and localized status labels (2.17268ms)
+✔ en: real evidence rendering labels converted references separately and escapes source content (19.385237ms)
+✔ ar: real evidence rendering labels converted references separately and escapes source content (10.339876ms)
+✔ en: result distinguishes real prices, explanation and action without inventing confidence (36.740602ms)
+✔ en: unavailable result never reveals unsafe suggestion or action (1.863333ms)
+✔ en: initial market data, loading and durable errors stay distinct (23.043366ms)
+✔ en: saved history is labelled, localised and locked while generating; stale price is clearly historical (4.450385ms)
+✔ ar: result distinguishes real prices, explanation and action without inventing confidence (1.347311ms)
+✔ ar: unavailable result never reveals unsafe suggestion or action (9.967726ms)
+✔ ar: initial market data, loading and durable errors stay distinct (15.670292ms)
+✔ ar: saved history is labelled, localised and locked while generating; stale price is clearly historical (1.843474ms)
+✔ real citation rendering shows filename/quote and never executes source HTML (30.820637ms)
+✔ assistant source instructions and markup render as text, never executable HTML (0.452449ms)
+✔ en: empty history explains how to begin and keeps New conversation available (34.477078ms)
+✔ en: selected saved conversation is identifiable and titles are safe (2.384293ms)
+✔ en: active session remains named before the refreshed list includes it (5.503732ms)
+✔ en: loading and failed switches explain what happened and allow retry (12.90639ms)
+✔ ar: empty history explains how to begin and keeps New conversation available (2.722752ms)
+✔ ar: selected saved conversation is identifiable and titles are safe (2.170707ms)
+✔ ar: active session remains named before the refreshed list includes it (14.144357ms)
+✔ ar: loading and failed switches explain what happened and allow retry (12.407561ms)
+✔ en: Shopify authorization uses scoped consent, canonical domain and explicit test-order opt-in (14.964915ms)
+✔ ar: Shopify authorization uses scoped consent, canonical domain and explicit test-order opt-in (3.047433ms)
+✔ en: real store authorization fields require consent and explain import scope (12.338889ms)
+✔ ar: real store authorization fields require consent and explain import scope (3.043396ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2488.958326

@@ -70,8 +70,6 @@ export function ResetPasswordPage() {
       ...(touched.password ? { password: validateField('password', values) } : {}),
       ...(touched.confirmPassword ? { confirmPassword: validateField('confirmPassword', values) } : {}),
     }));
-  // Re-translate visible errors when the language changes only; typing re-validates on its own.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
   const submit = (event) => {

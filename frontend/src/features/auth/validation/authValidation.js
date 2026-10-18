@@ -76,12 +76,6 @@ export function validateConfirmPassword(password, confirmation, { requiredKey = 
   return result(password === confirmation ? [] : [error('auth.validation.passwordMismatch')]);
 }
 
-export function validateCurrency(value, { requiredKey = 'auth.validation.currencyRequired' } = {}) {
-  const required = validateRequired(value, { messageKey: requiredKey });
-  if (!required.valid) return required;
-  return result(/^[A-Za-z]{3}$/.test(String(value).trim()) ? [] : [error('auth.validation.currency')]);
-}
-
 export function validateVerificationCode(code, { length = AUTH_VERIFICATION_CODE_LENGTH } = {}) {
   const normalizedCode = String(code ?? '').replace(/\D/g, '');
   return result(normalizedCode.length === length

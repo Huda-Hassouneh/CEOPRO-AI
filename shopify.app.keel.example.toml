@@ -1,0 +1,23 @@
+# Copy to shopify.app.toml and configure in Shopify Dev Dashboard / Shopify CLI.
+# This is an installation template, not a deployed Shopify app registration.
+client_id = "REPLACE_WITH_SHOPIFY_CLIENT_ID"
+name = "KEEL"
+application_url = "https://YOUR_KEEL_PUBLIC_HOST/connect-data"
+embedded = false
+
+[access_scopes]
+scopes = "read_products,read_orders,read_inventory,read_locations"
+
+[auth]
+redirect_urls = ["https://YOUR_KEEL_PUBLIC_HOST/integrations/shopify/callback"]
+
+[webhooks]
+api_version = "2026-10"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled", "products/create", "products/update", "products/delete", "orders/create", "orders/updated", "orders/paid", "orders/cancelled", "refunds/create", "inventory_levels/update"]
+uri = "https://YOUR_KEEL_PUBLIC_HOST/integrations/shopify/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://YOUR_KEEL_PUBLIC_HOST/integrations/shopify/webhooks"

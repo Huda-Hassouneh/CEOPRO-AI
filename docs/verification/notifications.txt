@@ -1,0 +1,43 @@
+✔ BUSINESS_RECOMMENDATION_READY has an explicit tenant domain permission (1.872595ms)
+✔ MARKET_ALERT_TRIGGERED has an explicit tenant domain permission (0.271682ms)
+✔ IMPORT_COMPLETED has an explicit tenant domain permission (0.120077ms)
+✔ IMPORT_FAILED has an explicit tenant domain permission (0.111204ms)
+✔ SUBSCRIPTION_CHANGED has an explicit tenant domain permission (0.192204ms)
+✔ TENANT_REGISTERED has a platform-only definition (0.215148ms)
+✔ IMPORT_FAILED has a platform-only definition (0.146977ms)
+✔ SUBSCRIPTION_CHANGED has a platform-only definition (0.100509ms)
+✔ malformed resource identifiers fail closed (0.417557ms)
+✔ PAYMENT_FAILED maps to a CRITICAL billing notification (1.989448ms)
+✔ PAYMENT_FAILED accepts a null paymentIntentId (0.233104ms)
+✔ PAYMENT_FAILED rejects malformed payloads instead of producing a bad notification (0.532837ms)
+✔ unsupported platform notification events fail closed (0.257691ms)
+✔ platform notification storage enforces tenant-scoped dedupe and FORCE RLS (8.932792ms)
+✔ dedicated worker role is non-superuser, non-BYPASSRLS, and narrowly granted (2.976456ms)
+✔ paymentFailed writes a tenant-scoped idempotent outbox event (2.043979ms)
+✔ paymentFailed refuses to create dedupe keys with an empty Stripe event id (0.701155ms)
+✔ Stripe invoice.payment_failed propagates Stripe event.id to the handler (14.943729ms)
+✔ failed payment persistence and notification outbox write share one transaction (6.163026ms)
+✔ notification HTTP routes expose the five recipient-scoped operations (2.057662ms)
+✔ dispatcher uses the dedicated worker Prisma client (1.345687ms)
+✔ worker connection is sourced only from NOTIFICATION_WORKER_DATABASE_URL (1.131011ms)
+✔ CUSTOM_PLAN_OFFER_READY maps to an INFO billing notification (2.543977ms)
+✔ CUSTOM_PLAN_OFFER_READY rejects malformed payloads (0.500089ms)
+✔ unsupported tenant notification events fail closed (0.24378ms)
+✔ tenant notification storage uses composite tenant membership and FORCE RLS (6.369406ms)
+✔ tenant worker access stays narrow and the platform producer uses ceopro_app, not the worker identity (1.929319ms)
+✔ customPlanOfferReady writes a tenant-scoped idempotent outbox event (1.756955ms)
+✔ customPlanOfferReady refuses an empty quote id (0.591824ms)
+✔ sending a custom plan quote and enqueueing its notification share one transaction (6.06044ms)
+✔ tenant notification HTTP routes expose list, unread, read-all, read and archive (1.101397ms)
+✔ tenant notification API is mounted at /notifications (1.065514ms)
+✔ dispatcher and worker persistence use the dedicated notification worker Prisma client (0.924085ms)
+✔ CUSTOM_PLAN_OFFER_READY recipients are selected by tenant manage_billing permission (1.003342ms)
+✔ active customer custom-plan acceptance route uses manage_billing (1.336573ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 412.066672

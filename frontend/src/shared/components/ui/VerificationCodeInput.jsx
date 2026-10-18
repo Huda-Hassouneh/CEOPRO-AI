@@ -1,4 +1,5 @@
-import { useId, useRef } from 'react';
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import React, { useId, useRef } from 'react';
 import FormError from '../forms/FormError.jsx';
 
 export default function VerificationCodeInput({
@@ -6,9 +7,11 @@ export default function VerificationCodeInput({
   onChange,
   length = 6,
   disabled = false,
-  ariaLabel = 'Verification code',
+  ariaLabel,
   error,
 }) {
+  const { t: copyT } = useI18n();
+  ariaLabel ??= copyT("interfaceCopy.verificationCode");
   const refs = useRef([]);
   const errorId = useId();
 

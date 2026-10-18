@@ -1,0 +1,1 @@
+export default function setupTests() { return null; }\n

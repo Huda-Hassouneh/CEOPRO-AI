@@ -1,129 +1,215 @@
-import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import Button from '../../../shared/components/ui/Button.jsx';
-import VerificationCodeInput from '../../../shared/components/ui/VerificationCodeInput.jsx';
-import { routePaths } from '../../../app/router/routePaths.js';
-import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { signOut } from '../../../shared/components/layout/signOut.js';
-import { authHttpAdapter } from '../api/authHttpAdapter.js';
-import { useResendVerificationMutation } from '../hooks/useResendVerificationMutation.js';
-import { useVerifyEmailMutation } from '../hooks/useVerifyEmailMutation.js';
-import { useResendCooldown } from '../hooks/useResendCooldown.js';
-import { needsEmailVerification } from '../sessionKeeper.js';
-import { selectIsAuthenticated, useAuthStore } from '../store/authStore.js';
-import { getAuthErrorTranslationKey } from '../utils/authErrors.js';
-import { firstValidationError, validateVerificationCode } from '../validation/authValidation.js';
-import { AuthPanel } from '../components/AuthPanel.jsx';
-import { AuthStatusMessage } from '../components/AuthStatusMessage.jsx';
-import '../styles/AuthForms.css';
+import React from "react";
+import { Mail } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import Button from "../../../shared/components/ui/Button.jsx";
+import { routePaths } from "../../../app/router/routePaths.js";
+import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { useResendVerificationMutation } from "../hooks/useResendVerificationMutation.js";
+import { useVerifyEmailMutation } from "../hooks/useVerifyEmailMutation.js";
+import { useResendCooldown } from "../hooks/useResendCooldown.js";
+import { getAuthErrorTranslationKey } from "../utils/authErrors.js";
+import { useAuthStore } from "../store/authStore.js";
+import { useOnboardingStore } from "../../onboarding/store/onboardingStore.js";
+import { AuthPanel } from "../components/AuthPanel.jsx";
+import { AuthStatusMessage } from "../components/AuthStatusMessage.jsx";
+import "../styles/AuthForms.css";
 
-// Confirms the email address with the 6-digit code sent at sign-up. While
-// confirmation is required (backend REQUIRE_EMAIL_VERIFICATION) the app sends
-// unconfirmed sign-ins here; otherwise it can be skipped and done later.
+const ALREADY_REGISTERED_CODE = "EMAIL_ALREADY_REGISTERED";
+const INVALID_VERIFICATION_CODES = new Set([
+  "EMAIL_VERIFICATION_INVALID",
+  "EMAIL_VERIFICATION_EXPIRED"
+]);
+
+function getVerificationQueryState(search) {
+  const query = new URLSearchParams(search);
+  const rawExchangeCode = query.get("code");
+  const explicitError = query.get("error") || query.get("errorCode");
+
+  // Some redirect handlers put errors in "code". Recognize known error codes
+  // before treating that query value as the one-time exchange code.
+  const queryCodeIsKnownError =
+    rawExchangeCode === ALREADY_REGISTERED_CODE ||
+    INVALID_VERIFICATION_CODES.has(rawExchangeCode);
+
+  return {
+    exchangeCode: queryCodeIsKnownError ? null : rawExchangeCode,
+    errorCode:
+      explicitError || (queryCodeIsKnownError ? rawExchangeCode : null),
+    token: query.get("token")
+  };
+}
+
 export function VerifyEmailPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { locale, t } = useI18n();
-  const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  const required = useAuthStore((state) => state.emailVerificationBlocked || needsEmailVerification(state.accessToken));
-  const email = location.state?.email || useAuthStore.getState().user?.email || '';
-  const [code, setCode] = React.useState('');
-  const [error, setError] = React.useState('');
+  const { t } = useI18n();
+  const email = location.state?.email || "";
+  const { exchangeCode, errorCode, token } = getVerificationQueryState(
+    location.search
+  );
+  const validToken =
+    !errorCode && typeof token === "string" && /^[a-f0-9]{64}$/i.test(token);
+  const apiBaseUrl = (
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"
+  ).replace(/\/$/, "");
+  const setSession = useAuthStore((state) => state.setSession);
   const [requestMessage, setRequestMessage] = React.useState(null);
-  const { isCoolingDown, remainingSeconds, startCooldown } = useResendCooldown(30);
-
-  const finish = async () => {
-    if (!isAuthenticated) {
-      navigate(routePaths.login, { replace: true, state: { authNotice: 'email-verified' } });
-      return;
-    }
-    // A fresh token carries the confirmed state, so the app opens straight away.
-    try {
-      useAuthStore.getState().setAccessToken(await authHttpAdapter.refresh());
-    } catch {
-      // The next renewal picks it up; nothing is blocked once confirmed.
-    }
-    navigate(routePaths.dashboard, { replace: true });
-  };
+  const exchangeStarted = React.useRef(null);
+  const { isCoolingDown, remainingSeconds, startCooldown } =
+    useResendCooldown(30);
 
   const verifyMutation = useVerifyEmailMutation({
-    onSuccess: finish,
-    onError: (requestFailure) => setRequestMessage({
-      tone: 'error',
-      key: getAuthErrorTranslationKey(requestFailure, { fallbackKey: 'auth.errors.invalidCode' }),
-    }),
+    onSuccess: (response) => {
+      if (!response?.session) {
+        setRequestMessage({
+          tone: "error",
+          key: "auth.errors.verificationFailed"
+        });
+        return;
+      }
+      useOnboardingStore.getState().resetOnboarding();
+      setSession(response.session);
+      navigate(routePaths.onboardingWelcome, { replace: true });
+    },
+    onError: (requestFailure) =>
+      setRequestMessage({
+        tone: "error",
+        key: getAuthErrorTranslationKey(requestFailure, {
+          fallbackKey: "auth.errors.verificationFailed"
+        })
+      })
   });
+
   const resendMutation = useResendVerificationMutation({
     onSuccess: () => {
       startCooldown();
-      setRequestMessage({ tone: 'success', key: 'auth.success.codeResent' });
+      setRequestMessage({
+        tone: "success",
+        key: "auth.success.verificationResent"
+      });
     },
-    onError: (requestFailure) => setRequestMessage({
-      tone: 'error',
-      key: getAuthErrorTranslationKey(requestFailure, { fallbackKey: 'auth.errors.resendFailed' }),
-    }),
+    onError: (requestFailure) =>
+      setRequestMessage({
+        tone: "error",
+        key: getAuthErrorTranslationKey(requestFailure, {
+          fallbackKey: "auth.errors.resendFailed"
+        })
+      })
   });
 
-  const validate = (value) => {
-    const validationError = firstValidationError(validateVerificationCode(value));
-    return validationError ? t(validationError.key, validationError.params) : '';
-  };
+  React.useEffect(() => {
+    if (!errorCode) return;
+
+    if (errorCode === ALREADY_REGISTERED_CODE) {
+      const key = "auth.errors.emailAlreadyRegistered";
+      const translated = t(key);
+
+
+      setRequestMessage({
+        tone: "error",
+        text: translated
+      });
+      return;
+    }
+
+    setRequestMessage({
+      tone: "error",
+      key: "auth.errors.verificationFailed"
+    });
+  }, [errorCode, t]);
 
   React.useEffect(() => {
-    if (error) setError(validate(code));
-  // Re-translate visible errors when the language changes only; typing re-validates on its own.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale]);
-
-  const updateCode = (value) => {
-    setCode(value);
-    setRequestMessage(null);
-    if (error) setError(validate(value));
-  };
-
-  const verify = (event) => {
-    event.preventDefault();
-    const nextError = validate(code);
-    setError(nextError);
-    setRequestMessage(null);
-    if (!nextError) verifyMutation.mutate({ email, code });
-  };
+    if (!exchangeCode || errorCode || exchangeStarted.current === exchangeCode)
+      return;
+    exchangeStarted.current = exchangeCode;
+    verifyMutation.mutate({ code: exchangeCode });
+  }, [exchangeCode, errorCode]);
 
   const resend = () => {
-    if (isCoolingDown || resendMutation.isPending || !email) return;
+    if (isCoolingDown || resendMutation.isPending) return;
     setRequestMessage(null);
-    resendMutation.mutate({ email });
+    resendMutation.mutate(email ? { email } : {});
   };
 
-  const busy = verifyMutation.isPending || resendMutation.isPending;
   return (
-    <AuthPanel
-      title={t('auth.verifyEmail.title')}
-      subtitle={<>{email ? <>{t('auth.verifyEmail.subtitlePrefix')} <bdi dir="ltr">{email}</bdi>.</> : t('auth.verifyEmail.subtitleGeneric')}{required ? <><br />{t('auth.verifyEmail.required')}</> : null}</>}
-      className="ceopro-auth-body--narrow"
-    >
-      <AuthStatusMessage tone={requestMessage?.tone}>{requestMessage?.key ? t(requestMessage.key) : ''}</AuthStatusMessage>
-      <form onSubmit={verify} noValidate>
-        <div className="ceopro-auth-code-copy">
-          <VerificationCodeInput value={code} onChange={updateCode} ariaLabel={t('auth.verifyEmail.inputLabel')} error={error} disabled={verifyMutation.isPending} />
-          <p className="ceopro-auth-resend">
-            {t('auth.verifyEmail.notReceived')}{' '}
-            {isCoolingDown
-              ? <span className="ceopro-auth-resend__cooldown" role="status">{t('auth.verifyEmail.resendIn', { seconds: remainingSeconds })}</span>
-              : <button type="button" className="ceopro-auth-link ceopro-auth-text-button" onClick={resend} disabled={busy || !email}>{resendMutation.isPending ? t('auth.loading.resending') : t('auth.verifyEmail.resend')}</button>}
-          </p>
-        </div>
-        <div className="ceopro-auth-code-actions"><Button type="submit" variant="primary" fullWidth loading={verifyMutation.isPending} disabled={resendMutation.isPending} loadingLabel={t('auth.loading.verifying')}>{t('auth.verifyEmail.submit')}</Button></div>
-      </form>
-      {isAuthenticated && !required
-        ? <button type="button" className="ceopro-auth-link ceopro-auth-link--change-email ceopro-auth-text-button" onClick={() => navigate(routePaths.dashboard, { replace: true })}>{t('auth.verifyEmail.later')}</button>
-        : null}
-      {isAuthenticated && required
-        ? <button type="button" className="ceopro-auth-link ceopro-auth-link--change-email ceopro-auth-text-button" onClick={() => signOut(useAuthStore.getState().clearSession, navigate)}>{t('auth.verifyEmail.signOut')}</button>
-        : null}
-      {!isAuthenticated
-        ? <button type="button" className="ceopro-auth-link ceopro-auth-link--change-email ceopro-auth-text-button" onClick={() => navigate(routePaths.login)}>{t('auth.verifyEmail.backToLogin')}</button>
-        : null}
+    <AuthPanel className="ceopro-auth-body--narrow ceopro-auth-notice">
+      <div className="ceopro-auth-notice-icon" aria-hidden="true">
+        <Mail />
+      </div>
+      <header className="ceopro-auth-header">
+        <h1 className="ceopro-auth-title">
+          {exchangeCode
+            ? t("auth.verifyEmail.confirming")
+            : validToken
+              ? t("auth.verifyEmail.confirmTitle")
+              : t("auth.verifyEmail.title")}
+        </h1>
+        <p className="ceopro-auth-subtitle">
+          {exchangeCode ? (
+            t("auth.verifyEmail.confirmingDescription")
+          ) : validToken ? (
+            t("auth.verifyEmail.confirmDescription")
+          ) : (
+            <>
+              {email ? (
+                <>
+                  {t("auth.verifyEmail.subtitlePrefix")} <bdi>{email}</bdi>.
+                </>
+              ) : (
+                t("auth.verifyEmail.subtitleLine1")
+              )}
+              <br />
+              {t("auth.verifyEmail.subtitleLine2")}
+            </>
+          )}
+        </p>
+      </header>
+      <AuthStatusMessage tone={requestMessage?.tone}>
+        {requestMessage?.key
+          ? t(requestMessage.key)
+          : requestMessage?.text || ""}
+      </AuthStatusMessage>
+      {validToken && !exchangeCode && (
+        <form method="post" action={`${apiBaseUrl}/auth/verify-email/confirm`}>
+          <input type="hidden" name="token" value={token} />
+          <Button
+            type="submit"
+            variant="primary"
+            fullWidth
+            leadingIcon={<Mail size={18} aria-hidden="true" />}
+          >
+            {t("auth.verifyEmail.confirmButton")}
+          </Button>
+        </form>
+      )}
+      {!errorCode && !exchangeCode && !token && (
+        <Button
+          variant="primary"
+          fullWidth
+          leadingIcon={<Mail size={18} aria-hidden="true" />}
+          loading={resendMutation.isPending}
+          disabled={isCoolingDown}
+          loadingLabel={t("auth.loading.resending")}
+          onClick={resend}
+        >
+          {isCoolingDown
+            ? t("auth.verifyEmail.resendIn", { seconds: remainingSeconds })
+            : t("auth.verifyEmail.resend")}
+        </Button>
+      )}
+      {!errorCode && !exchangeCode && !token && (
+        <button
+          type="button"
+          className="ceopro-auth-link ceopro-auth-link--change-email ceopro-auth-text-button"
+          onClick={() =>
+            navigate(routePaths.signup, {
+              state: email ? { email } : undefined
+            })
+          }
+        >
+          {t("auth.verifyEmail.changeEmail")}
+        </button>
+      )}
     </AuthPanel>
   );
 }

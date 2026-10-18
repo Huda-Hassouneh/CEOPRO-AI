@@ -1,0 +1,16 @@
+import { Router } from "express";
+import { authenticateUser, requireTenant, requirePermission } from "../../../middleware/validators/validateUser.js";
+import { requireFeatureAccess } from "../../../middleware/validators/validateFeatures.js";
+import { handleProducts } from "../controller/products.controller.js";
+import {gtinFile,handleGtinImport} from '../controller/gtin-import.controller.js';
+const router = Router();
+router.use(authenticateUser, requireTenant, requireFeatureAccess("product_management"));
+router.get("/", handleProducts("list"));
+router.post('/gtin-import/preview', requirePermission('products.write'), gtinFile, handleGtinImport('preview'));
+router.post('/gtin-import/apply', requirePermission('products.write'), handleGtinImport('apply'));
+router.get("/:productId", handleProducts("get"));
+router.post("/", requirePermission("products.write"), handleProducts("create"));
+router.patch("/:productId", requirePermission("products.write"), handleProducts("update"));
+router.delete("/:productId", requirePermission("products.write"), handleProducts("archive"));
+router.post("/:productId/restore", requirePermission("products.write"), handleProducts("restore"));
+export default router;

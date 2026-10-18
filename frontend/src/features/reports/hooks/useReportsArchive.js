@@ -1,0 +1,1 @@
+import { useQuery } from '@tanstack/react-query';\nimport { reportsApi } from '../api/reportsApi.js';\n\nexport function useReportsArchive() {\n  return useQuery({\n    queryKey: ['reports-archive'],\n    queryFn: reportsApi.listReports,\n  });\n}\n

@@ -1,17 +1,27 @@
-import { createContext, useContext, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import TopNav from './TopNav.jsx';
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { createContext, useContext, useEffect, useState } from 'react';
+import Sidebar from './Sidebar.jsx';
+import Topbar from './Topbar.jsx';
 
 const ShellContext = createContext(false);
 
 export function BusinessAppShell({ children }) {
-  const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
+  const { t: copyT } = useI18n();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Keyed by path so each screen plays the entrance transition.
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [sidebarOpen]);
+
   return <ShellContext.Provider value><div className="business-app-shell">
-    <TopNav />
-    <main className="business-app-shell__main" id="main-content"><div className="apex-route" key={pathname}>{children}</div></main>
+    <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    {sidebarOpen && <button type="button" className="business-shell-backdrop" onClick={() => setSidebarOpen(false)} aria-label={copyT("interfaceCopy.closeNavigation")} />}
+    <div className="business-app-shell__body"><Topbar onMenuClick={() => setSidebarOpen(true)} /><main className="business-app-shell__main">{children}</main></div>
   </div></ShellContext.Provider>;
 }
 

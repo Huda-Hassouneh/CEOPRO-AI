@@ -1,94 +1,122 @@
-import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
-import { routePaths } from './routePaths.js';
-import { page } from './lazyPage.jsx';
-import { ProtectedRoute } from './ProtectedRoute.jsx';
-import { GuestRoute } from './GuestRoute.jsx';
-import { PublicLayout } from '../layouts/PublicLayout.jsx';
-import { AuthLayout } from '../layouts/AuthLayout.jsx';
-import { DashboardLayout } from '../layouts/DashboardLayout.jsx';
-import { AppErrorPage } from '../../shared/components/feedback/ErrorBoundary.jsx';
+import {COMPETITOR_AI_ACTIONS_ENABLED} from '../../features/market-intelligence/config/competitorCapabilities.js';
+import {SmartAlertsPage} from "../../features/smart-alerts/SmartAlertsPage.jsx";
+import {BusinessRecommendationsPage} from "../../features/business-recommendations/BusinessRecommendationsPage.jsx";
+import { createBrowserRouter, Navigate, useParams } from "react-router-dom";
+import { routePaths } from "./routePaths.js";
+import { ProtectedRoute } from "./ProtectedRoute.jsx";
+import { GuestRoute } from "./GuestRoute.jsx";
+import { OnboardingGuard } from "./OnboardingGuard.jsx";
+import { PublicLayout } from "../layouts/PublicLayout.jsx";
+import { AuthLayout } from "../layouts/AuthLayout.jsx";
+import { OnboardingLayout } from "../layouts/OnboardingLayout.jsx";
+import { DashboardLayout } from "../layouts/DashboardLayout.jsx";
+import { platformAdminRoute } from "../../features/platform-admin/routes.jsx";
 
-import { LoginPage } from '../../features/auth/pages/LoginPage.jsx';
-import { SignupPage } from '../../features/auth/pages/SignupPage.jsx';
-import { ForgotPasswordPage } from '../../features/auth/pages/ForgotPasswordPage.jsx';
-import { ResetPasswordPage } from '../../features/auth/pages/ResetPasswordPage.jsx';
-import { VerifyEmailPage } from '../../features/auth/pages/VerifyEmailPage.jsx';
-import { VerificationCodePage } from '../../features/auth/pages/VerificationCodePage.jsx';
+import { LoginPage } from "../../features/auth/pages/LoginPage.jsx";
+import { SignupPage } from "../../features/auth/pages/SignupPage.jsx";
+import { ForgotPasswordPage } from "../../features/auth/pages/ForgotPasswordPage.jsx";
+import { ResetPasswordPage } from "../../features/auth/pages/ResetPasswordPage.jsx";
+import { VerifyEmailPage } from "../../features/auth/pages/VerifyEmailPage.jsx";
+import { VerificationCodePage } from "../../features/auth/pages/VerificationCodePage.jsx";
+import { InvitationPage } from "../../features/auth/pages/InvitationPage.jsx";
 
+import WelcomePage from "../../features/system/pages/WelcomePage.jsx";
 
+import { OnboardingWelcomePage } from "../../features/onboarding/pages/OnboardingWelcomePage.jsx";
+import { OnboardingIndustryPage } from "../../features/onboarding/pages/OnboardingIndustryPage.jsx";
+import { OnboardingBusinessSizePage } from "../../features/onboarding/pages/OnboardingBusinessSizePage.jsx";
+import { OnboardingRegionalPreferencesPage } from "../../features/onboarding/pages/OnboardingRegionalPreferencesPage.jsx";
+import { OnboardingDataSourcesPage } from "../../features/onboarding/pages/OnboardingDataSourcesPage.jsx";
+import { OnboardingBusinessSystemPage } from "../../features/onboarding/pages/OnboardingBusinessSystemPage.jsx";
+import { OnboardingBusinessSystemPlaceholderPage } from "../../features/onboarding/pages/OnboardingBusinessSystemPlaceholderPage.jsx";
+import { OnboardingConnectDatabasePage } from "../../features/onboarding/pages/OnboardingConnectDatabasePage.jsx";
+import { OnboardingUploadDocumentsPage } from "../../features/onboarding/pages/OnboardingUploadDocumentsPage.jsx";
+import { OnboardingGoalsPage } from "../../features/onboarding/pages/OnboardingGoalsPage.jsx";
+import { OnboardingPlanSelectionPage } from "../../features/onboarding/pages/OnboardingPlanSelectionPage.jsx";
+import { OnboardingCustomPlanPage } from "../../features/onboarding/pages/OnboardingCustomPlanPage.jsx";
+import { OnboardingPaymentPage } from "../../features/onboarding/pages/OnboardingPaymentPage.jsx";
+import { OnboardingSubscriptionSuccessPage } from "../../features/onboarding/pages/OnboardingSubscriptionSuccessPage.jsx";
+import { OnboardingSubscriptionFailedPage } from "../../features/onboarding/pages/OnboardingSubscriptionFailedPage.jsx";
 
+import { DashboardHomePage } from "../../features/dashboard/pages/DashboardHomePage.jsx";
+import { CatalogPage } from "../../features/products/pages/CatalogPage.jsx";
+import { CatalogProductPage } from "../../features/products/pages/CatalogProductPage.jsx";
+import { ProductDetailPage } from "../../features/products/pages/ProductDetailPage.jsx";
+import { MarketIntelligenceOverviewPage } from "../../features/market-intelligence/pages/MarketIntelligenceOverviewPage.jsx";
+import { CompetitorsPage } from "../../features/market-intelligence/pages/CompetitorsPage.jsx";
+import { AddCompetitorPage } from "../../features/market-intelligence/pages/AddCompetitorPage.jsx";
+import { IndustryMarketTrendsPage } from "../../features/market-intelligence/pages/IndustryMarketTrendsPage.jsx";
+import { MarketIntelligenceReportsPage } from "../../features/market-intelligence/pages/MarketIntelligenceReportsPage.jsx";
+import { CompetitorProfileDetailPage } from "../../features/market-intelligence/pages/CompetitorProfileDetailPage.jsx";
+import {
+  MarketOpportunitiesPage,
+  OpportunityDetailPage
+} from "../../features/market-intelligence/pages/MarketOpportunitiesPage.jsx";
+import { MarketLeaderboardPage } from "../../features/market-intelligence/pages/MarketLeaderboardPage.jsx";
+import { DemandPredictionOverviewPage } from "../../features/forecasting/pages/DemandPredictionOverviewPage.jsx";
+import { ForecastDeepDivePage } from "../../features/forecasting/pages/ForecastDeepDivePage.jsx";
+import { ProductForecastsListPage } from "../../features/forecasting/pages/ProductForecastsListPage.jsx";
+import { ProductForecastDetailPage } from "../../features/forecasting/pages/ProductForecastDetailPage.jsx";
+import { InventoryRecommendationsPage } from "../../features/forecasting/pages/InventoryRecommendationsPage.jsx";
+import { DemandPredictionEmptyPage } from "../../features/forecasting/pages/DemandPredictionEmptyPage.jsx";
+import { ModelAccuracyPage } from "../../features/forecasting/pages/ModelAccuracyPage.jsx";
+import { RagKnowledgeBasePage } from "../../features/knowledge-base/pages/RagKnowledgeBasePage.jsx";
+import { RagAssistantPage } from "../../features/knowledge-base/pages/RagAssistantPage.jsx";
+import MarketingStudioPage from "../../features/marketing/pages/MarketingStudioPage.jsx";
+import SettingsPage from "../../features/settings/pages/SettingsPage.jsx";
+import { ConnectDataPage } from "../../features/data-connections/pages/ConnectDataPage.jsx";
+import UnifiedReportsCenterPage from "../../features/reports/pages/UnifiedReportsCenterPage.jsx";
+import DesignSystemPage from "../../features/design-system/pages/DesignSystemPage.jsx";
 
-
-const SetupPage = page(() => import('../../features/onboarding/pages/SetupPage.jsx').then((m) => ({ default: m.SetupPage })));
-const CreateWorkspacePage = page(() => import('../../features/workspaces/pages/CreateWorkspacePage.jsx').then((m) => ({ default: m.CreateWorkspacePage })));
-const InvitationPage = page(() => import('../../features/auth/pages/InvitationPage.jsx').then((m) => ({ default: m.InvitationPage })));
-const WelcomePage = page(() => import('../../features/system/pages/WelcomePage.jsx'));
-const CommandCenterPage = page(() => import('../../features/dashboard/pages/CommandCenterPage.jsx').then((m) => ({ default: m.CommandCenterPage })));
-const ProductsListPage = page(() => import('../../features/products/pages/ProductsListPage.jsx').then((m) => ({ default: m.ProductsListPage })));
-const ProductFormPage = page(() => import('../../features/products/pages/ProductFormPage.jsx').then((m) => ({ default: m.ProductFormPage })));
-const PricingPage = page(() => import('../../features/pricing/pages/PricingPage.jsx').then((m) => ({ default: m.PricingPage })));
-const ProductDetailPage = page(() => import('../../features/products/pages/ProductDetailPage.jsx').then((m) => ({ default: m.ProductDetailPage })));
-const ProductHubPage = page(() => import('../../features/products/pages/ProductHubPage.jsx').then((m) => ({ default: m.ProductHubPage })));
-const CompetitorLandscapePage = page(() => import('../../features/market-intelligence/pages/CompetitorLandscapePage.jsx').then((m) => ({ default: m.CompetitorLandscapePage })));
-const AddCompetitorPage = page(() => import('../../features/market-intelligence/pages/AddCompetitorPage.jsx').then((m) => ({ default: m.AddCompetitorPage })));
-const SearchScopePage = page(() => import('../../features/market-intelligence/pages/SearchScopePage.jsx').then((m) => ({ default: m.SearchScopePage })));
-const PendingSourcesPage = page(() => import('../../features/market-intelligence/pages/PendingSourcesPage.jsx').then((m) => ({ default: m.PendingSourcesPage })));
-const IndustryMarketTrendsPage = page(() => import('../../features/market-intelligence/pages/IndustryMarketTrendsPage.jsx').then((m) => ({ default: m.IndustryMarketTrendsPage })));
-const CompetitorProfileDetailPage = page(() => import('../../features/market-intelligence/pages/CompetitorProfileDetailPage.jsx').then((m) => ({ default: m.CompetitorProfileDetailPage })));
-const MarketLeaderboardPage = page(() => import('../../features/market-intelligence/pages/MarketLeaderboardPage.jsx').then((m) => ({ default: m.MarketLeaderboardPage })));
-const DemandPredictionOverviewPage = page(() => import('../../features/forecasting/pages/DemandPredictionOverviewPage.jsx').then((m) => ({ default: m.DemandPredictionOverviewPage })));
-const RagAssistantPage = page(() => import('../../features/knowledge-base/pages/RagAssistantPage.jsx').then((m) => ({ default: m.RagAssistantPage })));
-const MarketingStudioPage = page(() => import('../../features/marketing/pages/MarketingStudioPage.jsx'));
-const SettingsPage = page(() => import('../../features/settings/pages/SettingsPage.jsx'));
-const ConnectDataPage = page(() => import('../../features/data-connections/pages/ConnectDataPage.jsx').then((m) => ({ default: m.ConnectDataPage })));
-const UnifiedReportsCenterPage = page(() => import('../../features/reports/pages/UnifiedReportsCenterPage.jsx'));
-const PlansSubscriptionPage = page(() => import('../../features/billing/pages/PlansSubscriptionPage.jsx').then((m) => ({ default: m.PlansSubscriptionPage })));
+import { ChoosePlanPage } from "../../features/billing/pages/ChoosePlanPage.jsx";
+import { CheckoutPage } from "../../features/billing/pages/CheckoutPage.jsx";
+import { PaymentSuccessPage } from "../../features/billing/pages/PaymentSuccessPage.jsx";
+import { PaymentFailedPage } from "../../features/billing/pages/PaymentFailedPage.jsx";
+import { PlansSubscriptionPage } from "../../features/billing/pages/PlansSubscriptionPage.jsx";
+import { BillingCheckoutPage } from "../../features/billing/pages/BillingCheckoutPage.jsx";
+import { BillingCustomPlanPage } from "../../features/billing/pages/BillingCustomPlanPage.jsx";
+import { CustomPlanOfferPage } from "../../features/billing/pages/CustomPlanOfferPage.jsx";
+import { FeatureRouteGuard } from "../../features/billing/components/FeatureRouteGuard.jsx";
 
 const LegacyForecastProductRedirect = () => {
   const { productId } = useParams();
-  return <Navigate to={`/products/${productId}`} replace />;
+  return <Navigate to={`/demand/products/${productId}`} replace />;
 };
 
-const ProductPageRedirect = () => {
-  const { productId } = useParams();
-  return <Navigate to={`/products/${productId}`} replace />;
-};
-
-const routes = [
-  // Old billing and onboarding-plan addresses: payment now happens on
-  // Stripe-hosted Checkout from Billing.
-  ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/billing/checkout', '/onboarding/*']
-    .map((path) => ({ path, element: <Navigate to={path.startsWith('/onboarding') ? '/onboarding' : '/billing'} replace /> })),
-  { path: '/admin/*', element: <Navigate to={routePaths.landing} replace /> },
+export const router = createBrowserRouter([
+  platformAdminRoute,
   {
     path: routePaths.welcome,
     element: (
       <PublicLayout hideHeader>
         <WelcomePage />
       </PublicLayout>
-    ),
+    )
   },
   {
-    path: routePaths.terms,
-    lazy: async () => { const { LegalPage } = await import('../../features/legal/pages/LegalPage.jsx'); return { Component: () => <LegalPage kind="terms" /> }; },
-  },
-  {
-    path: routePaths.privacy,
-    lazy: async () => { const { LegalPage } = await import('../../features/legal/pages/LegalPage.jsx'); return { Component: () => <LegalPage kind="privacy" /> }; },
+    path: routePaths.designSystem,
+    element: (
+      <PublicLayout>
+        <DesignSystemPage />
+      </PublicLayout>
+    )
   },
   {
     path: routePaths.landing,
-    lazy: async () => ({ Component: (await import('../../features/landing/pages/LandingPage.jsx')).default }),
+    lazy: async () => ({
+      Component: (await import("../../features/landing/pages/LandingPage.jsx"))
+        .default
+    })
   },
   {
     path: routePaths.login,
     element: (
       <GuestRoute>
-        <AuthLayout brand>
+        <AuthLayout brand brandLabel="KEEL">
           <LoginPage />
         </AuthLayout>
       </GuestRoute>
-    ),
+    )
   },
   {
     path: routePaths.signup,
@@ -98,15 +126,21 @@ const routes = [
           <SignupPage />
         </AuthLayout>
       </GuestRoute>
-    ),
+    )
   },
   {
     path: routePaths.createAccount,
-    element: <Navigate to={routePaths.signup} replace />,
+    element: <Navigate to={routePaths.signup} replace />
   },
   {
     path: routePaths.completeRegistrationGoogle,
-    element: <Navigate to={routePaths.signup} replace />,
+    element: (
+      <Navigate
+        to={routePaths.signup}
+        replace
+        state={{ authIntent: "google-registration" }}
+      />
+    )
   },
   {
     path: routePaths.forgotPassword,
@@ -114,7 +148,7 @@ const routes = [
       <AuthLayout brand>
         <ForgotPasswordPage />
       </AuthLayout>
-    ),
+    )
   },
   {
     path: routePaths.verifyCode,
@@ -122,7 +156,7 @@ const routes = [
       <AuthLayout brand>
         <VerificationCodePage />
       </AuthLayout>
-    ),
+    )
   },
   {
     path: routePaths.resetPassword,
@@ -130,7 +164,7 @@ const routes = [
       <AuthLayout brand>
         <ResetPasswordPage />
       </AuthLayout>
-    ),
+    )
   },
   {
     path: routePaths.verifyEmail,
@@ -138,23 +172,51 @@ const routes = [
       <AuthLayout brand>
         <VerifyEmailPage />
       </AuthLayout>
-    ),
+    )
   },
   {
     path: routePaths.invitation,
     element: (
-      <AuthLayout brand wide>
+      <AuthLayout brand brandLabel="KEEL" wide>
         <InvitationPage />
       </AuthLayout>
-    ),
+    )
   },
   {
-    path: routePaths.onboarding,
-    element: <ProtectedRoute><SetupPage /></ProtectedRoute>,
+    path: routePaths.choosePlan,
+    element: (
+      <PublicLayout>
+        <ChoosePlanPage />
+      </PublicLayout>
+    )
   },
   {
-    path: routePaths.newWorkspace,
-    element: <ProtectedRoute><CreateWorkspacePage /></ProtectedRoute>,
+    path: routePaths.checkout,
+    element: (
+      <AuthLayout>
+        <CheckoutPage />
+      </AuthLayout>
+    )
+  },
+  {
+    path: routePaths.paymentSuccess,
+    element: (
+      <AuthLayout>
+        <OnboardingSubscriptionSuccessPage />
+      </AuthLayout>
+    )
+  },
+  {
+    path: routePaths.paymentFailed,
+    element: (
+      <AuthLayout>
+        <OnboardingSubscriptionFailedPage />
+      </AuthLayout>
+    )
+  },
+  {
+    path: routePaths.onboardingWelcome,
+    element: <OnboardingWelcomePage />
   },
   {
     path: routePaths.billing,
@@ -164,225 +226,495 @@ const routes = [
           <PlansSubscriptionPage />
         </DashboardLayout>
       </ProtectedRoute>
-    ),
+    )
+  },
+  {
+    path: routePaths.billingPlans,
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout>
+          <ChoosePlanPage />
+        </DashboardLayout>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: routePaths.billingCheckout,
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout>
+          <BillingCheckoutPage />
+        </DashboardLayout>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: routePaths.billingCustomPlan,
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout>
+          <BillingCustomPlanPage />
+        </DashboardLayout>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: routePaths.billingCatalog,
+    element: <Navigate to={routePaths.platformBilling} replace />
+  },
+  {
+    path: routePaths.customPlanOffer,
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout>
+          <CustomPlanOfferPage />
+        </DashboardLayout>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: routePaths.onboardingRegion,
+    element: (
+      <OnboardingGuard requiredStep={1}>
+        <OnboardingLayout>
+          <OnboardingRegionalPreferencesPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingIndustry,
+    element: (
+      <OnboardingGuard requiredStep={2}>
+        <OnboardingLayout>
+          <OnboardingIndustryPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingBusiness,
+    element: (
+      <OnboardingGuard requiredStep={3}>
+        <OnboardingLayout>
+          <OnboardingBusinessSizePage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingObjectives,
+    element: (
+      <OnboardingGuard requiredStep={4}>
+        <OnboardingLayout>
+          <OnboardingGoalsPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingPlan,
+    element: (
+      <OnboardingGuard requiredStep={5}>
+        <OnboardingLayout>
+          <OnboardingPlanSelectionPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingPlanCustom,
+    element: (
+      <OnboardingGuard requiredStep={5}>
+        <OnboardingLayout>
+          <OnboardingCustomPlanPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingPlanPayment,
+    element: (
+      <OnboardingGuard requiredStep={5}>
+        <OnboardingLayout>
+          <OnboardingPaymentPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingPlanSuccess,
+    element: (
+      <OnboardingGuard requiredStep={5}>
+        <OnboardingLayout>
+          <OnboardingSubscriptionSuccessPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingPlanFailed,
+    element: (
+      <OnboardingGuard requiredStep={5}>
+        <OnboardingLayout>
+          <OnboardingSubscriptionFailedPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingConnectData,
+    element: (
+      <OnboardingGuard requiredStep={6}>
+        <OnboardingLayout>
+          <OnboardingDataSourcesPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingConnectDataUpload,
+    element: (
+      <OnboardingGuard requiredStep={6}>
+        <OnboardingLayout>
+          <OnboardingUploadDocumentsPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingConnectDataBusinessSystem,
+    element: (
+      <OnboardingGuard requiredStep={6}>
+        <OnboardingLayout>
+          <OnboardingBusinessSystemPage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingConnectDataDatabase,
+    element: (
+      <OnboardingGuard requiredStep={6}>
+        <OnboardingLayout>
+          <OnboardingConnectDatabasePage />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingConnectDataPos,
+    element: (
+      <OnboardingGuard requiredStep={6}>
+        <OnboardingLayout>
+          <OnboardingBusinessSystemPlaceholderPage system="pos" />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
+  },
+  {
+    path: routePaths.onboardingConnectDataErp,
+    element: (
+      <OnboardingGuard requiredStep={6}>
+        <OnboardingLayout>
+          <OnboardingBusinessSystemPlaceholderPage system="erp" />
+        </OnboardingLayout>
+      </OnboardingGuard>
+    )
   },
   {
     path: routePaths.dashboard,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <CommandCenterPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="dashboard_analytics">
+          <DashboardLayout>
+            <DashboardHomePage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.products,
-    element: <ProtectedRoute><ProductsListPage /></ProtectedRoute>,
-  },
-  {
-    path: routePaths.productNew,
-    element: <ProtectedRoute><ProductFormPage /></ProtectedRoute>,
-  },
-  {
-    path: routePaths.productEdit,
-    element: <ProtectedRoute><ProductFormPage /></ProtectedRoute>,
-  },
-  {
-    // Sales live with each product (its page) and "Record sale" on Products.
-    path: routePaths.sales,
-    element: <Navigate to={routePaths.products} replace />,
+    element: <ProtectedRoute><FeatureRouteGuard featureCodes="product_management"><DashboardLayout><CatalogPage /></DashboardLayout></FeatureRouteGuard></ProtectedRoute>
   },
   {
     path: routePaths.productDetail,
-    element: <ProtectedRoute><ProductHubPage /></ProtectedRoute>,
-  },
-  {
-    path: routePaths.pricing,
-    element: <ProtectedRoute><PricingPage /></ProtectedRoute>,
+    element: <ProtectedRoute><FeatureRouteGuard featureCodes="product_management"><DashboardLayout><CatalogProductPage /></DashboardLayout></FeatureRouteGuard></ProtectedRoute>
   },
   {
     path: routePaths.market,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <CompetitorLandscapePage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="market_intelligence">
+          <DashboardLayout>
+            <MarketIntelligenceOverviewPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
-    // One Competitors screen: the landscape lists every competitor.
     path: routePaths.marketCompetitors,
-    element: <Navigate to={routePaths.market} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes={["market_intelligence", "competitor_management"]}>
+          <DashboardLayout>
+            <CompetitorsPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
     path: routePaths.marketCompetitorDetail,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <CompetitorProfileDetailPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes={["market_intelligence", "competitor_management"]}>
+          <DashboardLayout>
+            <CompetitorProfileDetailPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.marketCompetitorProductDetail,
-    element: <ProtectedRoute><ProductDetailPage /></ProtectedRoute>,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="market_intelligence">
+          <ProductDetailPage />
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
     path: routePaths.marketAddCompetitor,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <AddCompetitorPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes={["market_intelligence", "competitor_management"]}>
+          <DashboardLayout>
+            <AddCompetitorPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
-    path: routePaths.marketSearchScope,
-    element: <ProtectedRoute><SearchScopePage /></ProtectedRoute>,
-  },
-  {
-    path: routePaths.marketPendingSources,
-    element: <ProtectedRoute><PendingSourcesPage /></ProtectedRoute>,
-  },
-  {
-    // Opportunity analysis isn't built (no market-size or demand-growth
-    // data); the old screen only said so. Back to Competitors.
     path: routePaths.marketOpportunities,
-    element: <Navigate to={routePaths.market} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="market_intelligence">
+          <MarketOpportunitiesPage />
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
     path: routePaths.marketOpportunityDetail,
-    element: <Navigate to={routePaths.market} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="market_intelligence">
+          <OpportunityDetailPage />
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
     path: routePaths.marketLeaderboard,
-    element: <ProtectedRoute><MarketLeaderboardPage /></ProtectedRoute>,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="market_intelligence">
+          <MarketLeaderboardPage />
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
     path: routePaths.marketTrends,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <IndustryMarketTrendsPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="market_intelligence">
+          <DashboardLayout>
+            <IndustryMarketTrendsPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
-    // Reports live in Reports.
     path: routePaths.marketReports,
-    element: <Navigate to={routePaths.reports} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="market_intelligence">
+          <DashboardLayout>
+            <MarketIntelligenceReportsPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
     path: routePaths.forecasts,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <DemandPredictionOverviewPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="demand_prediction">
+          <DashboardLayout>
+            <DemandPredictionOverviewPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
-    // Preview/stub page (fixed demo products or a placeholder) - real
-    // forecasts and restock advice live on /demand.
     path: routePaths.forecastDeepDive,
-    element: <Navigate to={routePaths.forecasts} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="demand_prediction">
+          <DashboardLayout>
+            <ForecastDeepDivePage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
-    // Preview/stub page (fixed demo products or a placeholder) - real
-    // forecasts and restock advice live on /demand.
     path: routePaths.forecastProducts,
-    element: <Navigate to={routePaths.forecasts} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="demand_prediction">
+          <DashboardLayout>
+            <ProductForecastsListPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
-    // A product's forecast is part of its page now.
     path: routePaths.forecastProductDetail,
-    element: <ProductPageRedirect />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="demand_prediction">
+          <DashboardLayout>
+            <ProductForecastDetailPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
-    // Preview/stub page (fixed demo products or a placeholder) - real
-    // forecasts and restock advice live on /demand.
     path: routePaths.forecastInventory,
-    element: <Navigate to={routePaths.forecasts} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes={["demand_prediction", "inventory_intelligence"]}>
+          <DashboardLayout>
+            <InventoryRecommendationsPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
-    // Preview/stub page (fixed demo products or a placeholder) - real
-    // forecasts and restock advice live on /demand.
     path: routePaths.forecastEmpty,
-    element: <Navigate to={routePaths.forecasts} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="demand_prediction">
+          <DashboardLayout>
+            <DemandPredictionEmptyPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
-    // Preview/stub page (fixed demo products or a placeholder) - real
-    // forecasts and restock advice live on /demand.
     path: routePaths.forecastAccuracy,
-    element: <Navigate to={routePaths.forecasts} replace />,
+    element: (
+      <ProtectedRoute>
+        <FeatureRouteGuard featureCodes="demand_prediction">
+          <DashboardLayout>
+            <ModelAccuracyPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
+      </ProtectedRoute>
+    )
   },
   {
     path: routePaths.legacyForecasts,
-    element: <Navigate to={routePaths.forecasts} replace />,
+    element: <Navigate to={routePaths.forecasts} replace />
   },
   {
     path: routePaths.legacyForecastProducts,
-    element: <Navigate to={routePaths.forecasts} replace />,
+    element: <Navigate to={routePaths.forecastProducts} replace />
   },
   {
     path: routePaths.legacyForecastProductDetail,
-    element: <LegacyForecastProductRedirect />,
+    element: <LegacyForecastProductRedirect />
   },
+  {
+    path: routePaths.knowledgeDocuments,
+    element: <ProtectedRoute><DashboardLayout><RagKnowledgeBasePage /></DashboardLayout></ProtectedRoute>
+  },
+  {path:routePaths.smartAlerts,element:<ProtectedRoute><FeatureRouteGuard featureCodes="system_alerts"><DashboardLayout>{COMPETITOR_AI_ACTIONS_ENABLED ? <SmartAlertsPage/> : <Navigate to={routePaths.market} replace/>}</DashboardLayout></FeatureRouteGuard></ProtectedRoute>},
+  {path:routePaths.businessRecommendations,element:<ProtectedRoute><FeatureRouteGuard featureCodes="business_recommendations"><DashboardLayout><BusinessRecommendationsPage/></DashboardLayout></FeatureRouteGuard></ProtectedRoute>},
   {
     path: routePaths.aiAdvisor,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <RagAssistantPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="rag_assistant">
+          <DashboardLayout>
+            <RagAssistantPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.aiAdvisorChat,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <RagAssistantPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="rag_assistant">
+          <DashboardLayout>
+            <RagAssistantPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.connectData,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <ConnectDataPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="data_integration">
+          <DashboardLayout>
+            <ConnectDataPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.marketing,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <MarketingStudioPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="marketing_image_generation">
+          <DashboardLayout>
+            <MarketingStudioPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.reports,
     element: (
       <ProtectedRoute>
-        <DashboardLayout>
-          <UnifiedReportsCenterPage />
-        </DashboardLayout>
+        <FeatureRouteGuard featureCodes="report_generation">
+          <DashboardLayout>
+            <UnifiedReportsCenterPage />
+          </DashboardLayout>
+        </FeatureRouteGuard>
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.settings,
@@ -392,7 +724,7 @@ const routes = [
           <SettingsPage />
         </DashboardLayout>
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.settingsSecurity,
@@ -400,7 +732,7 @@ const routes = [
       <ProtectedRoute>
         <Navigate to={`${routePaths.settings}?tab=security`} replace />
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.settingsTeam,
@@ -408,7 +740,7 @@ const routes = [
       <ProtectedRoute>
         <Navigate to={`${routePaths.settings}?tab=team`} replace />
       </ProtectedRoute>
-    ),
+    )
   },
   {
     path: routePaths.settingsIntegrations,
@@ -416,14 +748,10 @@ const routes = [
       <ProtectedRoute>
         <Navigate to={`${routePaths.settings}?tab=company`} replace />
       </ProtectedRoute>
-    ),
+    )
   },
   {
-    path: '*',
-    element: <AppErrorPage notFound />,
-  },
-];
-
-// One root route so every screen shares the same error screen instead of
-// React Router's developer error page.
-export const router = createBrowserRouter([{ errorElement: <AppErrorPage />, children: routes }]);
+    path: "*",
+    element: <Navigate to={routePaths.dashboard} replace />
+  }
+]);

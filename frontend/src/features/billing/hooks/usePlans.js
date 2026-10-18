@@ -2,5 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { billingApi } from '../api/billingApi.js';
 
 export function usePlans() {
-  return useQuery({ queryKey: ['billing-plans'], queryFn: billingApi.getPlans, staleTime: 5 * 60 * 1000 });
+  return useQuery({
+    queryKey: ['plans'],
+    queryFn: billingApi.getPlans,
+  });
 }

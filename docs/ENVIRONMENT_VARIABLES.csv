@@ -1,0 +1,351 @@
+area,variable,static_consumers
+root,COMPOSE_PROJECT_NAME,Docker Compose project selection
+root,KEEL_PYTHON,scripts/keel.mjs:9
+root,POSTGRES_DB,docker-compose.yml
+root,POSTGRES_PASSWORD,docker-compose.yml
+root,POSTGRES_USER,docker-compose.yml
+backend,AI_SERVICE_URL,backend/src/modules/features/client/features-ai.client.ts:12; backend/src/modules/pricing/client/ingestion.client.ts:8
+backend,AI_SERVICE_USE_MOCKS,backend/src/modules/features/client/features-ai.client.ts:14
+backend,BOOTSTRAP_DATABASE_URL,backend/src/config/bootstrap-useer-database.ts:6
+backend,BUSINESS_INSIGHTS_API_URL,backend/src/modules/business-recommendations/client.ts:10
+backend,CORS_ORIGINS,backend/src/config/env.ts:19; backend/src/modules/auth/controller/auth.controller.ts:11
+backend,DATABASE_URL,backend/src/config/database.ts:6
+backend,DOTENV_CONFIG_PATH,backend/src/config/env.ts:4; backend/src/config/env.ts:5
+backend,EMAIL_DELIVERY_PROVIDER,backend/src/integrations/email/email.service.ts:19
+backend,EMAIL_SERVICE_PROVIDER_API_KEY,backend/src/integrations/email/resend.client.ts:14
+backend,EMAIL_SERVICE_PROVIDER_FROM_EMAIL,backend/src/integrations/email/resend.client.ts:22
+backend,FAILED_SUBSCRIPTION_URL,backend/src/modules/subscription/service/subscription.service.ts:39
+backend,FORECASTING_MAX_SOURCE_AGE_DAYS,backend/src/modules/forecasting/service/forecasting.policy.ts:24
+backend,FRONTEND_URL,backend/src/integrations/email/verification-email.content.ts:18; backend/src/modules/auth/controller/auth.controller.ts:10; backend/src/modules/dataconnection/store/shopify/domain.ts:15
+backend,GMAIL_SMTP_APP_PASSWORD,backend/src/integrations/email/gmail-smtp.client.ts:148
+backend,GMAIL_SMTP_USER,backend/src/integrations/email/gmail-smtp.client.ts:147
+backend,INGESTION_WORKER_DATABASE_URL,backend/src/config/ingestion-worker-database.ts:6
+backend,JSON_BODY_LIMIT,backend/src/app.ts:61
+backend,JWT_ACCESS_EXPIRES_IN,backend/src/utils/token.ts:27
+backend,JWT_REFRESH_EXPIRES_IN,backend/src/utils/token.ts:35
+backend,JWT_SECRET,backend/src/middleware/validators/validateUser.ts:20; backend/src/modules/business-recommendations/client.ts:13
+backend,MARKET_AI_CODEBASE_PATH,backend/src/modules/competitors/client/market-cost-guard.client.ts:7; backend/src/modules/competitors/client/product-preview.client.ts:7; backend/src/modules/competitors/client/source-review.client.ts:7
+backend,MARKET_AI_PYTHON,backend/src/modules/competitors/client/market-cost-guard.client.ts:10; backend/src/modules/competitors/client/product-preview.client.ts:9; backend/src/modules/competitors/client/source-review.client.ts:10
+backend,MARKET_DISCOVERY_STREAM_KEY,backend/src/modules/competitors/repo/market-dispatcher.repo.ts:60
+backend,MARKET_DISPATCHER_DATABASE_URL,backend/src/config/market-dispatcher-database.ts:4
+backend,MARKET_INTELLIGENCE_MAX_SOURCE_AGE_DAYS,backend/src/modules/competitors/repo/competitors.repo.ts:15; backend/src/modules/market-intelligence/repo/market-int.repo.ts:203
+backend,MARKET_REDIS_URL,backend/src/workers/market-tracking.worker.ts:13
+backend,MARKET_SCRAPER_STREAM_KEY,backend/src/modules/competitors/repo/market-dispatcher.repo.ts:60
+backend,MARKET_TRACKING_ENABLED,backend/src/workers/market-tracking.worker.ts:9
+backend,MAX_UPLOAD_BYTES,backend/src/modules/dataconnection/types/dataconnection.validation.ts:12
+backend,NODE_ENV,backend/src/workers/data-ingestion.worker.ts:183
+backend,NOTIFICATION_WORKER_DATABASE_URL,backend/src/config/notification-worker-database.ts:6
+backend,PAYPAL_BASE_URL,backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:12; backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:159; backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:95; backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:12; backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:159; backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:95
+backend,PAYPAL_CLIENT_ID,backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:10; backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:10
+backend,PAYPAL_CLIENT_SECRET,backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:11; backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:11
+backend,PORT,backend/src/server.ts:4
+backend,PROMO_FIXED_AMOUNT_CURRENCY,backend/src/modules/subscription/service/promocodes.service.ts:106; backend/src/modules/subscription/service/promocodes.service.ts:81
+backend,SHOPIFY_CLIENT_ID,backend/src/modules/dataconnection/store/shopify/domain.ts:14
+backend,SHOPIFY_CLIENT_SECRET,backend/src/modules/dataconnection/store/shopify/domain.ts:14; backend/src/modules/dataconnection/store/shopify/public.routes.ts:14
+backend,SHOPIFY_REDIRECT_URI,backend/src/modules/dataconnection/store/shopify/domain.ts:15
+backend,SHOPIFY_REQUEST_ALL_ORDERS,backend/src/modules/dataconnection/store/shopify/oauth.ts:26
+backend,STORE_CONNECTOR_API_URL,backend/src/modules/dataconnection/store/provider.client.ts:5
+backend,STORE_CONNECTOR_ENCRYPTION_KEY,backend/src/modules/dataconnection/store/vault.ts:4
+backend,STORE_CONNECTOR_SERVICE_SECRET,backend/src/modules/dataconnection/store/provider.client.ts:6
+backend,STRIPE_SECRET_KEY,backend/src/modules/subscription/External Services/Payment providers/stripe/stripeService.ts:20; backend/src/modules/subscription/client/payment-providers/stripe/stripe.client.ts:22
+backend,STRIPE_SECRET_WEBHOOK,backend/src/middleware/validators/validateWebhook.ts:17
+backend,STRIPE_TEST_CLOCK_ID,backend/src/modules/subscription/service/subscription.service.ts:459
+backend,STRIPE_USE_TEST_CLOCK,backend/src/modules/subscription/service/subscription.service.ts:456
+backend,SUBSCRIPTION_RECOVERY_RETURN_URL,backend/src/modules/subscription/service/subscription.service.ts:43
+backend,SUCCESS_SUBSCRIPTION_URL,backend/src/modules/subscription/service/subscription.service.ts:37
+frontend,VITE_API_BASE_URL,frontend/src/features/auth/pages/VerifyEmailPage.jsx:53; frontend/src/shared/config/env.js:1; frontend/src/shared/lib/httpClient.js:15
+frontend,VITE_AUTH_API_MODE,frontend/src/features/auth/api/authApi.js:8
+frontend,VITE_ENABLE_AUTH_PREVIEW,frontend/src/app/router/ProtectedRoute.jsx:10; frontend/src/shared/components/layout/Topbar.jsx:57
+frontend,VITE_ENABLE_ONBOARDING_PREVIEW,frontend/src/app/router/OnboardingGuard.jsx:13; frontend/src/features/onboarding/pages/OnboardingWelcomePage.jsx:9
+frontend,VITE_ENABLE_UI_TESTING_MODE,frontend/src/shared/config/uiTestingMode.js:8
+frontend,VITE_WS_URL,frontend/src/shared/lib/websocketClient.js:2
+ai,ADVISOR_MAX_TOKENS,ai/src/ai/rag/advisor.py:48
+ai,AI_FORECAST_CLAIM_IDLE_MS,ai/src/ai/forecasting/consumer.py:38
+ai,AI_FORECAST_DEAD_STREAM_KEY,ai/src/ai/forecasting/consumer.py:36
+ai,AI_FORECAST_MAX_ATTEMPTS,ai/src/ai/forecasting/consumer.py:37
+ai,AI_REQUESTS_PER_MINUTE_PER_COMPANY,ai/src/ai/core/usage.py:45
+ai,AI_SERVICE_ACTOR_USER_ID,ai/src/ai/forecasting/consumer.py:59; ai/src/market_scraper/competitor_enrichment.py:467; ai/src/market_scraper/competitor_enrichment.py:745
+ai,AI_SERVICE_URL,ai/src/ai/rag/chat_cli.py:60
+ai,AI_TENANT_ID,ai/src/ai/rag/chat_cli.py:62
+ai,AI_TEST_DATABASE_URL,ai/src/ai/rag/eval/run_eval.py:158; ai/src/ai/rag/eval/run_eval.py:271
+ai,AI_USER_ID,ai/src/ai/rag/chat_cli.py:63
+ai,ALERT_WEBHOOK_URL,ai/src/infrastructure/monitoring/watchdog.py:27
+ai,ANALYSIS_CLAIM_IDLE_MS,ai/src/market_scraper/analysis_worker.py:24
+ai,ANALYSIS_DEAD_STREAM_KEY,ai/src/market_scraper/analysis_worker.py:22
+ai,ANALYSIS_MAX_ATTEMPTS,ai/src/market_scraper/analysis_worker.py:23
+ai,APIFY_API_TOKEN,ai/src/market_scraper/competitor_enrichment.py:483; ai/src/market_scraper/market_discovery/providers/apify_maps.py:23
+ai,APIFY_MAPS_ACTOR,ai/src/market_scraper/competitor_mentions.py:53; ai/src/market_scraper/market_discovery/providers/apify_maps.py:17
+ai,APIFY_MAX_PLACES_PER_SEARCH,ai/src/market_scraper/market_discovery/providers/apify_maps.py:19
+ai,APIFY_REVIEWS_MAX,ai/src/market_scraper/competitor_enrichment.py:546
+ai,APIFY_TOKEN,ai/src/market_scraper/competitor_enrichment.py:483; ai/src/market_scraper/market_discovery/providers/apify_maps.py:23
+ai,APP_BASE_URL,ai/src/ai/billing/config.py:23
+ai,APP_DB_PASSWORD,ai/src/ai/db.py:52; ai/src/ai/rag/eval/run_eval.py:159
+ai,APP_DB_POOL_MAX_SIZE,ai/src/ai/db.py:82
+ai,APP_DB_POOL_MIN_SIZE,ai/src/ai/db.py:81
+ai,APP_DB_POOL_WAIT_SECONDS,ai/src/infrastructure/db_pool.py:241
+ai,AUTH_CODE_MAX_FAILURES,ai/src/ai/core/auth_throttle.py:32
+ai,AUTH_CODE_SENDS_PER_WINDOW,ai/src/ai/core/auth_throttle.py:35
+ai,AUTH_LOGIN_MAX_FAILURES,ai/src/ai/core/auth_throttle.py:31
+ai,AUTH_THROTTLE_WINDOW_SECONDS,ai/src/ai/core/auth_throttle.py:30
+ai,AWS_KMS_KEY_ID,ai/src/market_scraper/credential_vault.py:153
+ai,BILLING_MAINTENANCE_ENABLED,ai/src/ai/billing/maintenance.py:50
+ai,BILLING_MAINTENANCE_SECONDS,ai/src/ai/billing/maintenance.py:17
+ai,BRAVE_SEARCH_API_KEY,ai/src/market_scraper/web_search.py:103; ai/src/market_scraper/web_search.py:136
+ai,CLOUDFLARE_ACCOUNT_ID,ai/src/ai/marketing/image_generation.py:217; ai/src/ai/marketing/image_generation.py:218; ai/src/ai/marketing/image_generation.py:330
+ai,CLOUDFLARE_AI_URL,ai/src/ai/marketing/image_generation.py:306
+ai,CLOUDFLARE_API_TOKEN,ai/src/ai/marketing/image_generation.py:217; ai/src/ai/marketing/image_generation.py:218; ai/src/ai/marketing/image_generation.py:330
+ai,CLOUDFLARE_IMAGE_MODEL,ai/src/ai/marketing/image_generation.py:309
+ai,CONNECTORS_ALLOW_PRIVATE_HOSTS,ai/src/market_scraper/network_security.py:47
+ai,CONNECTOR_WORKER_POLL_INTERVAL_SECONDS,ai/src/market_scraper/connector_worker.py:122
+ai,CORS_ALLOWED_ORIGINS,ai/src/ai/main.py:107
+ai,COST_GATE_MAX_RATIO,ai/src/market_scraper/cost_ledger.py:76
+ai,COST_GATE_MIN_PRODUCT_PRICE,ai/src/market_scraper/cost_ledger.py:85
+ai,COST_GATE_WINDOW_DAYS,ai/src/market_scraper/cost_ledger.py:70
+ai,CREDENTIAL_VAULT_KMS_BACKEND,ai/src/market_scraper/credential_vault.py:184
+ai,CREDENTIAL_VAULT_MASTER_KEY,ai/src/market_scraper/credential_vault.py:117
+ai,CREDENTIAL_VAULT_PREVIOUS_KEYS,ai/src/market_scraper/credential_vault.py:81
+ai,DATABASE_URL,ai/src/ai/db.py:45; ai/src/infrastructure/database/seed_demo_data.py:35; ai/src/infrastructure/messaging/ai_consumer.py:35; ai/src/infrastructure/monitoring/watchdog.py:21; ai/src/market_scraper/data_access.py:27
+ai,DEFAULT_PLAN_KEY,ai/src/ai/core/usage.py:40
+ai,DISCOVERY_AI_HINTS,ai/src/market_scraper/market_discovery/relevance.py:51
+ai,DISCOVERY_AUTO_TRACK_MAX,ai/src/market_scraper/market_discovery/pipeline.py:37
+ai,DISCOVERY_CACHE_TTL_SECONDS,ai/src/market_scraper/market_discovery/http.py:16
+ai,DISCOVERY_CLAIM_IDLE_MS,ai/src/market_scraper/discovery_worker.py:52
+ai,DISCOVERY_DEAD_STREAM_KEY,ai/src/market_scraper/discovery_worker.py:50
+ai,DISCOVERY_DISABLE_NEWS,ai/src/market_scraper/market_discovery/news.py:43
+ai,DISCOVERY_DISABLE_OSM,ai/src/market_scraper/market_discovery/providers/osm.py:39
+ai,DISCOVERY_DISABLE_OVERTURE,ai/src/market_scraper/market_discovery/providers/overture.py:59
+ai,DISCOVERY_DISABLE_PLACE_SEARCH,ai/src/market_scraper/market_discovery/providers/place_search.py:43
+ai,DISCOVERY_DISABLE_WIKIDATA,ai/src/market_scraper/market_discovery/providers/wikidata.py:69
+ai,DISCOVERY_ENRICH_MAX_SITES,ai/src/market_scraper/market_discovery/enrich.py:41
+ai,DISCOVERY_ENRICH_TIMEOUT_SECONDS,ai/src/market_scraper/market_discovery/enrich.py:42
+ai,DISCOVERY_INTEL_MAX_ITEMS,ai/src/market_scraper/market_discovery/intel.py:51
+ai,DISCOVERY_INTEL_MAX_PAGES,ai/src/market_scraper/market_discovery/intel.py:49
+ai,DISCOVERY_INTEL_MAX_SITES,ai/src/ai/market_inputs/competitor_intel.py:16
+ai,DISCOVERY_INTEL_PAGE_DELAY_SECONDS,ai/src/market_scraper/market_discovery/intel.py:53
+ai,DISCOVERY_INTEL_WORKERS,ai/src/ai/market_inputs/competitor_intel.py:17
+ai,DISCOVERY_MAX_ATTEMPTS,ai/src/market_scraper/discovery_worker.py:51
+ai,DISCOVERY_MAX_RESULTS,ai/src/market_scraper/market_discovery/models.py:43
+ai,DISCOVERY_NEWS_TIMESPAN,ai/src/market_scraper/market_discovery/news.py:29
+ai,DISCOVERY_REFRESH_BATCH,ai/src/market_scraper/market_discovery/refresh.py:29
+ai,DISCOVERY_REFRESH_CHECK_SECONDS,ai/src/market_scraper/market_discovery/refresh.py:28
+ai,DISCOVERY_REFRESH_DAYS,ai/src/market_scraper/market_discovery/refresh.py:27
+ai,DISCOVERY_REFRESH_ENABLED,ai/src/market_scraper/market_discovery/refresh.py:126
+ai,DISCOVERY_REFRESH_FIRST_DELAY_SECONDS,ai/src/market_scraper/market_discovery/refresh.py:30
+ai,DISCOVERY_RENDER_JS,ai/src/market_scraper/market_discovery/intel.py:54
+ai,DISCOVERY_RETRY_UNPRICED_AFTER_DAYS,ai/src/market_scraper/tenant_discovery.py:88
+ai,DISCOVERY_STREAM_KEY,ai/src/ai/routers/extraction.py:84; ai/src/market_scraper/discovery_worker.py:48
+ai,EMAIL_FROM_ADDRESS,ai/src/ai/core/notifications.py:38
+ai,EMAIL_LOG_UNSENT_BODIES,ai/src/ai/core/notifications.py:42
+ai,EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES,ai/src/ai/core/security.py:232
+ai,ENRICHMENT_CLAIM_IDLE_MS,ai/src/market_scraper/enrichment_worker.py:34
+ai,ENRICHMENT_DEAD_STREAM_KEY,ai/src/market_scraper/enrichment_queue.py:16
+ai,ENRICHMENT_DEDUPE_SECONDS,ai/src/market_scraper/enrichment_queue.py:17
+ai,ENRICHMENT_MAX_ATTEMPTS,ai/src/market_scraper/enrichment_worker.py:33
+ai,ENRICHMENT_MAX_BULK,ai/src/market_scraper/competitor_enrichment.py:867
+ai,ENRICHMENT_MIN_RETRY_SECONDS,ai/src/market_scraper/competitor_enrichment.py:107
+ai,ENRICHMENT_RETRY_AFTER_HOURS,ai/src/market_scraper/competitor_enrichment.py:104
+ai,ENRICHMENT_STREAM_KEY,ai/src/market_scraper/enrichment_queue.py:15
+ai,ENRICHMENT_SWEEP_INTERVAL_SECONDS,ai/src/market_scraper/enrichment_worker.py:35
+ai,ENTITLEMENT_CACHE_SECONDS,ai/src/ai/core/entitlements.py:22
+ai,EXTERNAL_COMMENTS_APPROVAL_REFERENCE,ai/src/market_scraper/competitor_enrichment.py:741
+ai,EXTRACTION_COMMIT_EVERY,ai/src/ai/routers/extraction.py:41
+ai,EXTRACTION_CURRENCY_CODES,ai/src/ai/extraction/regex_patterns.py:19
+ai,EXTRACTION_DATE_DAY_FIRST,ai/src/ai/extraction/regex_patterns.py:53
+ai,EXTRACTION_DECIMAL_STYLE,ai/src/ai/extraction/numerals.py:29
+ai,FORECAST_AUTO_REFRESH,ai/src/ai/forecasting/refresh.py:43
+ai,FORECAST_MIN_HISTORY_DAYS,ai/src/ai/forecasting/cold_start.py:16
+ai,FORECAST_MIN_VALIDATION_FOLDS,ai/src/ai/forecasting/cold_start.py:17
+ai,FORECAST_REFRESH_LOCK_SECONDS,ai/src/ai/forecasting/refresh.py:35
+ai,FORECAST_REFRESH_MAX_PRODUCTS,ai/src/ai/forecasting/refresh.py:36
+ai,FORECAST_STALE_AFTER_HOURS,ai/src/ai/forecasting/refresh.py:34
+ai,FRONTEND_BASE_URL,ai/src/ai/core/notifications.py:106; ai/src/ai/notification_digest.py:191
+ai,GDELT_DOC_API_URL,ai/src/market_scraper/market_discovery/news.py:28
+ai,GEMINI_IMAGE_MODEL,ai/src/ai/marketing/image_generation.py:377
+ai,GEMINI_URL,ai/src/ai/marketing/image_generation.py:369
+ai,GOOGLE_CUSTOM_SEARCH_API_KEY,ai/src/market_scraper/social_cross_reference.py:92; ai/src/market_scraper/web_product_discovery.py:146; ai/src/market_scraper/web_search.py:88
+ai,GOOGLE_CUSTOM_SEARCH_CX,ai/src/market_scraper/social_cross_reference.py:93; ai/src/market_scraper/web_product_discovery.py:147; ai/src/market_scraper/web_search.py:88
+ai,GOOGLE_MAPS_API_KEY,ai/src/market_scraper/market_discovery/geocode.py:20; ai/src/market_scraper/market_discovery/providers/google_places.py:29
+ai,GOOGLE_PLACES_API_KEY,ai/src/market_scraper/competitor_enrichment.py:796; ai/src/market_scraper/discovery_worker.py:96; ai/src/market_scraper/market_discovery/geocode.py:20; ai/src/market_scraper/market_discovery/providers/google_places.py:29; ai/src/market_scraper/places_discovery.py:92; ai/src/market_scraper/tenant_discovery.py:382
+ai,GOOGLE_PLACES_MAX_CALLS_PER_RUN,ai/src/market_scraper/market_discovery/providers/google_places.py:25
+ai,GROQ_API_KEY,ai/src/ai/rag/llm_client.py:137; ai/src/ai/rag/llm_client.py:654
+ai,GROQ_CIRCUIT_BREAKER_COOLDOWN_SECONDS,ai/src/ai/rag/llm_client.py:225
+ai,GROQ_CIRCUIT_BREAKER_THRESHOLD,ai/src/ai/rag/llm_client.py:224
+ai,GROQ_MAX_RETRIES,ai/src/ai/rag/llm_client.py:184
+ai,GROQ_MAX_TOKENS,ai/src/ai/rag/llm_client.py:164
+ai,GROQ_MAX_TOKENS_ON_RETRY,ai/src/ai/rag/llm_client.py:171
+ai,GROQ_MODEL,ai/src/ai/rag/llm_client.py:109
+ai,GROQ_RATE_LIMIT_MAX_WAIT_SECONDS,ai/src/ai/rag/llm_client.py:222
+ai,GROQ_REASONING_EFFORT,ai/src/ai/rag/llm_client.py:170
+ai,GROQ_RETRY_BACKOFF_SECONDS,ai/src/ai/rag/llm_client.py:185
+ai,GROQ_RETRY_JITTER_FRACTION,ai/src/ai/rag/llm_client.py:196
+ai,GROQ_TIMEOUT_SECONDS,ai/src/ai/rag/llm_client.py:111
+ai,HF_ENDPOINT,ai/src/ai/core/ml_runtime.py:65
+ai,HF_HUB_OFFLINE,ai/src/ai/core/ml_runtime.py:60
+ai,HUGGINGFACE_API_TOKEN,ai/src/ai/marketing/image_generation.py:261; ai/src/ai/rag/llm_client.py:139; ai/src/ai/rag/llm_client.py:649
+ai,HUGGINGFACE_INFERENCE_URL,ai/src/ai/marketing/image_generation.py:119
+ai,HUGGINGFACE_LLM_MODEL,ai/src/ai/rag/llm_client.py:104
+ai,HUGGINGFACE_LLM_TIMEOUT_SECONDS,ai/src/ai/rag/llm_client.py:118
+ai,INSIGHTS_FORECAST_TREND_THRESHOLD_PCT,ai/src/ai/insights/cross_signal.py:48
+ai,INSIGHTS_PRICE_GAP_THRESHOLD_PCT,ai/src/ai/insights/cross_signal.py:43
+ai,INSIGHTS_SALES_TREND_THRESHOLD_PCT,ai/src/ai/insights/cross_signal.py:47
+ai,INSIGHTS_SENTIMENT_THRESHOLD,ai/src/ai/insights/cross_signal.py:52
+ai,JWT_EXPIRE_MINUTES,ai/src/ai/core/security.py:44
+ai,JWT_SECRET,ai/src/ai/core/rate_limit.py:48; ai/src/ai/core/security.py:36; ai/src/ai/insights/api.py:25; ai/src/ai/rag/chat_cli.py:61; ai/src/infrastructure/messaging/token_rotator.py:24; ai/src/infrastructure/security.py:11
+ai,KEEL_CHROMIUM_PATH,ai/src/market_scraper/market_discovery/intel.py:659
+ai,KEEL_TEST_DISABLE_METERING,ai/src/ai/billing/credits.py:270
+ai,KEEL_WORKERS,ai/src/market_scraper/supervisor.py:122
+ai,LIVE_LLM_CALL_SPACING_SECONDS,ai/src/ai/rag/eval/run_eval.py:66
+ai,LOCAL_LLM_BASE_URL,ai/src/ai/rag/llm_client.py:75
+ai,LOCAL_LLM_TIMEOUT_SECONDS,ai/src/ai/rag/llm_client.py:149
+ai,LOG_LEVEL,ai/src/ai/main.py:86
+ai,MARKETING_AI_HORDE_MAX_WAIT_SECONDS,ai/src/ai/marketing/image_generation.py:403
+ai,MARKETING_BACKGROUND_REMOVAL_PROVIDER,ai/src/ai/marketing/background_removal.py:118; ai/src/ai/marketing/background_removal.py:148; ai/src/ai/routers/marketing.py:624; ai/src/ai/routers/marketing.py:629
+ai,MARKETING_FONT_PATH,ai/src/ai/marketing/designed_poster.py:161
+ai,MARKETING_IMAGE_HEIGHT,ai/src/ai/marketing/image_generation.py:109
+ai,MARKETING_IMAGE_KEYLESS,ai/src/ai/marketing/image_generation.py:567
+ai,MARKETING_IMAGE_PROVIDER,ai/src/ai/marketing/image_generation.py:558
+ai,MARKETING_IMAGE_PROVIDERS,ai/src/ai/marketing/image_generation.py:557
+ai,MARKETING_IMAGE_TIMEOUT_SECONDS,ai/src/ai/marketing/image_generation.py:124
+ai,MARKETING_IMAGE_TOTAL_SECONDS,ai/src/ai/marketing/image_generation.py:526
+ai,MARKETING_IMAGE_WIDTH,ai/src/ai/marketing/image_generation.py:108
+ai,MARKETING_TOKEN_RESERVATION,ai/src/ai/routers/marketing.py:67
+ai,MARKET_RESEARCH_USER_AGENT,ai/src/market_scraper/competitor_mentions.py:48; ai/src/market_scraper/market_discovery/http.py:12; ai/src/market_scraper/market_discovery/providers/overture.py:107; ai/src/market_scraper/price_lookup/providers.py:42; ai/src/market_scraper/web_search.py:36
+ai,MAX_MARKETING_IMAGE_BYTES,ai/src/ai/marketing/background_removal.py:67; ai/src/ai/routers/marketing.py:71
+ai,MAX_OFFICE_UNPACKED_MB,ai/src/ai/core/office_files.py:17
+ai,MAX_UPLOAD_SIZE_BYTES,ai/src/ai/routers/extraction.py:34
+ai,MENTIONS_TIMEOUT_SECONDS,ai/src/market_scraper/competitor_mentions.py:45
+ai,MINIO_ACCESS_KEY,ai/src/ai/db.py:177
+ai,MINIO_ENDPOINT,ai/src/ai/db.py:176; ai/src/infrastructure/check_connectivity.py:22
+ai,MINIO_ROOT_PASSWORD,ai/src/ai/db.py:183
+ai,MINIO_ROOT_USER,ai/src/ai/db.py:182
+ai,MINIO_SECRET_KEY,ai/src/ai/db.py:178
+ai,MPI_MIN_SAMPLE_SIZE,ai/src/ai/mpi/cold_start.py:14
+ai,MPI_MIN_VOLUME_FOR_FULL_CONFIDENCE,ai/src/ai/mpi/scoring.py:36
+ai,MPI_RECENCY_HALF_LIFE_DAYS,ai/src/ai/mpi/scoring.py:31
+ai,NEWS_MAX_AGE_DAYS,ai/src/market_scraper/competitor_mentions.py:46
+ai,NOMINATIM_URL,ai/src/market_scraper/market_discovery/geocode.py:14; ai/src/market_scraper/market_discovery/providers/place_search.py:31
+ai,NOTIFICATION_DIGEST_CHECK_SECONDS,ai/src/ai/notification_digest.py:30
+ai,NOTIFICATION_DIGEST_ENABLED,ai/src/ai/notification_digest.py:250
+ai,NOTIFICATION_DIGEST_FIRST_DELAY_SECONDS,ai/src/ai/notification_digest.py:31
+ai,NOTIFICATION_DIGEST_HOUR,ai/src/ai/notification_digest.py:29
+ai,OVERPASS_API_URL,ai/src/market_scraper/market_discovery/providers/osm.py:32
+ai,OVERPASS_API_URLS,ai/src/market_scraper/market_discovery/providers/osm.py:32
+ai,OVERTURE_BASE_URL,ai/src/market_scraper/market_discovery/providers/overture.py:41
+ai,OVERTURE_CACHE_DIR,ai/src/market_scraper/market_discovery/providers/overture.py:42
+ai,OVERTURE_MAX_CANDIDATES,ai/src/market_scraper/market_discovery/providers/overture.py:45
+ai,OVERTURE_MIN_CONFIDENCE,ai/src/market_scraper/market_discovery/providers/overture.py:44
+ai,OVERTURE_RELEASE,ai/src/market_scraper/market_discovery/providers/overture.py:129
+ai,PAID_LLM_API_KEY,ai/src/ai/rag/llm_client.py:92
+ai,PAID_LLM_BASE_URL,ai/src/ai/rag/llm_client.py:91
+ai,PAID_LLM_MODEL,ai/src/ai/rag/llm_client.py:93
+ai,PAID_LLM_TIMEOUT_SECONDS,ai/src/ai/rag/llm_client.py:116
+ai,PASSWORD_RESET_CODE_EXPIRE_MINUTES,ai/src/ai/core/security.py:231
+ai,PHOTON_URL,ai/src/market_scraper/market_discovery/geocode.py:15; ai/src/market_scraper/market_discovery/providers/place_search.py:32
+ai,PLACES_TERMS_APPROVAL_REFERENCE,ai/src/market_scraper/competitor_enrichment.py:460
+ai,PLACE_SEARCH_MAX_QUERIES,ai/src/market_scraper/market_discovery/providers/place_search.py:33
+ai,POLLINATIONS_BASE_URL,ai/src/ai/marketing/image_generation.py:107
+ai,POLLINATIONS_MODEL,ai/src/ai/marketing/image_generation.py:241
+ai,POSTGRES_DB,ai/src/infrastructure/check_connectivity.py:15; ai/src/infrastructure/database/backup_verifier.py:28
+ai,POSTGRES_HOST,ai/src/infrastructure/check_connectivity.py:13; ai/src/infrastructure/database/backup_verifier.py:29
+ai,POSTGRES_PASSWORD,ai/src/infrastructure/check_connectivity.py:17; ai/src/infrastructure/database/backup_verifier.py:27
+ai,POSTGRES_PORT,ai/src/infrastructure/check_connectivity.py:14; ai/src/infrastructure/database/backup_verifier.py:30
+ai,POSTGRES_USER,ai/src/infrastructure/check_connectivity.py:16; ai/src/infrastructure/database/backup_verifier.py:26
+ai,PRICE_LOOKUP_ALL_PROVIDERS,ai/src/market_scraper/price_lookup/pipeline.py:169
+ai,PRICE_LOOKUP_AUTO,ai/src/market_scraper/discovery_worker.py:130
+ai,PRICE_LOOKUP_MAX_AGE_DAYS,ai/src/market_scraper/price_lookup/providers.py:102
+ai,PRICE_LOOKUP_MAX_PER_RUN,ai/src/market_scraper/price_lookup/pipeline.py:166
+ai,PRICE_LOOKUP_PROVIDERS,ai/src/market_scraper/price_lookup/providers.py:345
+ai,PRICE_LOOKUP_RETRY_DAYS,ai/src/market_scraper/price_lookup/pipeline.py:36
+ai,PRICE_LOOKUP_TIMEOUT_SECONDS,ai/src/market_scraper/price_lookup/providers.py:41
+ai,PRICE_STALE_AFTER_DAYS,ai/src/market_scraper/price_coverage.py:42
+ai,PRICING_COMPETITIVENESS_THRESHOLD_PCT,ai/src/ai/pricing/recommendation.py:18
+ai,PRICING_DEFAULT_REGIONAL_FACTOR,ai/src/ai/pricing/estimation.py:44
+ai,PRICING_MAX_CHANGE_PCT,ai/src/ai/pricing/guardrails.py:21
+ai,PRICING_MAX_PRICE_AGE_DAYS,ai/src/ai/pricing/data_access.py:24
+ai,PRICING_MIN_COMPETITORS_FOR_CONFIDENCE,ai/src/ai/pricing/recommendation.py:22
+ai,PRICING_MIN_MARGIN_PCT,ai/src/ai/pricing/guardrails.py:22
+ai,RAG_CHUNK_OVERLAP_WORDS,ai/src/ai/rag/chunking.py:13
+ai,RAG_CHUNK_SIZE_WORDS,ai/src/ai/rag/chunking.py:12
+ai,RAG_EMBEDDING_BACKEND,ai/src/ai/rag/embeddings.py:52
+ai,RAG_EMBEDDING_MAX_SEQ_LENGTH,ai/src/ai/rag/embeddings.py:69
+ai,RAG_EMBEDDING_MODEL,ai/src/ai/rag/embeddings.py:33
+ai,RAG_EMBEDDING_ONNX_FILE,ai/src/ai/rag/embeddings.py:62
+ai,RAG_EMBEDDING_ONNX_THREADS,ai/src/ai/rag/embeddings.py:64
+ai,RAG_EMBEDDING_RETRY_SECONDS,ai/src/ai/rag/embeddings.py:79
+ai,RAG_MAX_HISTORY_JSON_LENGTH,ai/src/ai/routers/rag.py:46
+ai,RAG_MAX_HISTORY_MESSAGES,ai/src/ai/rag/llm_client.py:244
+ai,RAG_MAX_QUERY_TEXT_LENGTH,ai/src/ai/routers/rag.py:37
+ai,RAG_MIN_CONFIDENCE_SCORE,ai/src/ai/rag/pipeline.py:80
+ai,RAG_RERANKER_ENABLED,ai/src/ai/rag/pipeline.py:74
+ai,RAG_RERANKER_MODEL,ai/src/ai/rag/reranking.py:30
+ai,RAG_SEMANTIC_MARGIN,ai/src/ai/rag/advisor.py:225
+ai,RAG_SEMANTIC_MIN_SIMILARITY,ai/src/ai/rag/advisor.py:224
+ai,RAG_STATIC_EMBEDDING_DIM,ai/src/ai/rag/embeddings.py:55
+ai,RAG_STATIC_EMBEDDING_DIR,ai/src/ai/rag/embeddings.py:56
+ai,RAG_STATIC_EMBEDDING_MODEL,ai/src/ai/rag/embeddings.py:54
+ai,RAG_TOKEN_RESERVATION,ai/src/ai/core/usage.py:71
+ai,REDIS_HOST,ai/src/ai/core/redis_client.py:38; ai/src/infrastructure/check_connectivity.py:19; ai/src/infrastructure/init_broker.py:8; ai/src/infrastructure/messaging/ai_consumer.py:15; ai/src/infrastructure/messaging/app_consumer.py:21; ai/src/infrastructure/messaging/producer.py:33; ai/src/infrastructure/messaging/token_rotator.py:19; ai/src/infrastructure/monitoring/watchdog.py:25
+ai,REDIS_PASSWORD,ai/src/ai/core/redis_client.py:40
+ai,REDIS_PORT,ai/src/ai/core/redis_client.py:39; ai/src/infrastructure/check_connectivity.py:20; ai/src/infrastructure/init_broker.py:9; ai/src/infrastructure/messaging/ai_consumer.py:16; ai/src/infrastructure/messaging/app_consumer.py:22; ai/src/infrastructure/messaging/producer.py:34; ai/src/infrastructure/messaging/token_rotator.py:20; ai/src/infrastructure/monitoring/watchdog.py:26
+ai,REDIS_TLS,ai/src/ai/core/redis_client.py:41
+ai,REDIS_URL,ai/src/ai/core/redis_client.py:30; ai/src/market_scraper/analysis_worker.py:110; ai/src/market_scraper/discovery_worker.py:193; ai/src/market_scraper/enqueue.py:80; ai/src/market_scraper/enrichment_worker.py:137; ai/src/market_scraper/persistence.py:97; ai/src/market_scraper/worker.py:86
+ai,REMBG_MODEL,ai/src/ai/marketing/background_removal.py:65
+ai,RENDER_GIT_COMMIT,ai/src/infrastructure/monitoring/error_tracking.py:57
+ai,REQUIRE_EMAIL_VERIFICATION,ai/src/ai/core/security.py:57
+ai,RESEARCH_DAILY_SEARCH_LIMIT,ai/src/ai/research/research.py:43
+ai,RESEARCH_MAX_PAGES,ai/src/ai/research/research.py:47
+ai,RESEARCH_PAGE_MAX_BYTES,ai/src/ai/research/page_reader.py:39
+ai,RESEARCH_PAGE_RETENTION_DAYS,ai/src/ai/research/research.py:50
+ai,RESEARCH_PAGE_TIMEOUT_SECONDS,ai/src/ai/research/page_reader.py:38
+ai,RESEARCH_TENANT_DAILY_SEARCH_LIMIT,ai/src/ai/research/research.py:44
+ai,RESEARCH_USER_AGENT,ai/src/ai/research/page_reader.py:37
+ai,RETAILER_INTERNATIONAL_DOMAINS,ai/src/market_scraper/retailer_geo.py:28
+ai,SCRAPER_ACTOR_USER_ID,ai/src/market_scraper/competitor_enrichment.py:467; ai/src/market_scraper/competitor_enrichment.py:745; ai/src/market_scraper/data_access.py:44; ai/src/market_scraper/discovery_worker.py:86
+ai,SCRAPER_CLAIM_IDLE_MS,ai/src/market_scraper/worker.py:22
+ai,SCRAPER_DATABASE_URL,ai/src/market_scraper/data_access.py:27; ai/src/market_scraper/maintenance.py:46
+ai,SCRAPER_DB_POOL_MAX_SIZE,ai/src/market_scraper/data_access.py:31
+ai,SCRAPER_DB_POOL_MIN_SIZE,ai/src/market_scraper/data_access.py:30
+ai,SCRAPER_DEAD_STREAM_KEY,ai/src/market_scraper/worker.py:19
+ai,SCRAPER_MAINTENANCE_INTERVAL_SECONDS,ai/src/market_scraper/maintenance.py:50
+ai,SCRAPER_MAINTENANCE_METRICS_PORT,ai/src/market_scraper/maintenance.py:51
+ai,SCRAPER_MAX_ATTEMPTS,ai/src/market_scraper/worker.py:21
+ai,SCRAPER_METRICS_PORT,ai/src/market_scraper/worker.py:84
+ai,SCRAPER_STALE_JOB_MINUTES,ai/src/market_scraper/cli.py:18; ai/src/market_scraper/maintenance.py:49
+ai,SCRAPER_STREAM_KEY,ai/src/market_scraper/enqueue.py:83; ai/src/market_scraper/worker.py:18
+ai,SCRAPER_USER_AGENT,ai/src/market_scraper/settings.py:10
+ai,SEARXNG_INSTANCE_URL,ai/src/market_scraper/searxng_discovery.py:59; ai/src/market_scraper/web_search.py:114; ai/src/market_scraper/web_search.py:147
+ai,SENTIMENT_BATCH_SIZE,ai/src/ai/sentiment/model.py:28
+ai,SENTIMENT_MAX_TOKENS,ai/src/ai/sentiment/model.py:29
+ai,SENTIMENT_MIN_SAMPLE_SIZE,ai/src/ai/sentiment/cold_start.py:14
+ai,SENTIMENT_MODEL,ai/src/ai/sentiment/model.py:27
+ai,SENTIMENT_MODEL_RETRY_SECONDS,ai/src/ai/sentiment/model.py:36
+ai,SENTRY_DSN,ai/src/infrastructure/monitoring/error_tracking.py:46
+ai,SENTRY_ENVIRONMENT,ai/src/infrastructure/monitoring/error_tracking.py:56
+ai,SENTRY_RELEASE,ai/src/infrastructure/monitoring/error_tracking.py:57
+ai,SENTRY_TRACES_SAMPLE_RATE,ai/src/infrastructure/monitoring/error_tracking.py:59
+ai,SERPAPI_API_KEY,ai/src/market_scraper/price_lookup/providers.py:315; ai/src/market_scraper/price_lookup/providers.py:318
+ai,SESSION_MAX_HOURS,ai/src/ai/core/security.py:47
+ai,SMTP_HOST,ai/src/ai/core/notifications.py:33
+ai,SMTP_PASSWORD,ai/src/ai/core/notifications.py:36
+ai,SMTP_PORT,ai/src/ai/core/notifications.py:34
+ai,SMTP_USERNAME,ai/src/ai/core/notifications.py:35
+ai,SMTP_USE_TLS,ai/src/ai/core/notifications.py:37
+ai,STORE_CONNECTOR_SERVICE_SECRET,ai/src/ai/connectors/app.py:65
+ai,STRIPE_AUTOMATIC_TAX,ai/src/ai/billing/config.py:31
+ai,STRIPE_SECRET_KEY,ai/src/ai/billing/config.py:11
+ai,STRIPE_WEBHOOK_SECRET,ai/src/ai/billing/config.py:15
+ai,TAVILY_API_KEY,ai/src/market_scraper/web_search.py:109; ai/src/market_scraper/web_search.py:142
+ai,TEAM_INVITATION_EXPIRE_MINUTES,ai/src/ai/core/security.py:233
+ai,TENANT_CACHE_MAX_ENTRIES,ai/src/ai/core/tenant_cache.py:33
+ai,TENANT_CACHE_TTL_SECONDS,ai/src/ai/core/tenant_cache.py:32
+ai,TENANT_TIMEZONE_TTL_SECONDS,ai/src/infrastructure/db_pool.py:79
+ai,TOGETHER_IMAGE_MODEL,ai/src/ai/marketing/image_generation.py:413
+ai,TOGETHER_URL,ai/src/ai/marketing/image_generation.py:400
+ai,TRIAL_PLAN_KEY,ai/src/ai/billing/config.py:27
+ai,UNASSIGNED_PLAN_ACCESS,ai/src/ai/core/usage.py:136
+ai,WEB_SEARCH_MAX_QUERIES_PER_RUN,ai/src/market_scraper/market_discovery/providers/web_search.py:22
+ai,WEB_SEARCH_PROVIDERS,ai/src/market_scraper/web_search.py:166
+ai,WEB_SEARCH_TIMEOUT_SECONDS,ai/src/market_scraper/web_search.py:35
+ai,WIKIDATA_API_URL,ai/src/market_scraper/market_discovery/providers/wikidata.py:28
+ai,WIKIDATA_MAX_QUERIES,ai/src/market_scraper/market_discovery/providers/wikidata.py:29
+ai,YOUTUBE_API_KEY,ai/src/market_scraper/competitor_enrichment.py:738

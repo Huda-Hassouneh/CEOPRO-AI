@@ -1,16 +1,15 @@
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import React from 'react';
 
 export default function Table({ 
   columns = [],
   data = [],
   className = '',
   ariaLabel,
-  emptyMessage,
   ...props
 }) {
-  const { t } = useI18n();
-  const empty = emptyMessage || t('common.noData');
-  const label = ariaLabel || t('common.dataTable');
+  const { t: copyT } = useI18n();
+  ariaLabel ??= copyT("interfaceCopy.dataTable");
   const tableStyle = {
     width: '100%',
     borderCollapse: 'collapse',
@@ -37,9 +36,8 @@ export default function Table({
   };
 
   return (
-    // Focusable so keyboard users can scroll a table that is wider than the screen.
-    <div tabIndex={0} role="region" aria-label={label} style={{ width: '100%', overflowX: 'auto', background: 'var(--ceopro-surface)', borderRadius: 'var(--ceopro-radius-md)', border: '1px solid var(--ceopro-border)' }}>
-      <table className={`ceopro-table ${className}`.trim()} style={tableStyle} aria-label={label} {...props}>
+    <div style={{ width: '100%', overflowX: 'auto', background: 'var(--ceopro-surface)', borderRadius: 'var(--ceopro-radius-md)', border: '1px solid var(--ceopro-border)' }}>
+      <table className={`ceopro-table ${className}`.trim()} style={tableStyle} aria-label={ariaLabel} {...props}>
         <thead>
           <tr>
             {columns.map((col, index) => (
@@ -65,9 +63,7 @@ export default function Table({
             ))
           ) : (
             <tr>
-              <td colSpan={columns.length} role="status" aria-label={empty} style={{ textAlign: 'center', padding: 'var(--ceopro-space-6)', color: 'var(--ceopro-text-muted)' }}>
-                {empty}
-              </td>
+              <td colSpan={columns.length} role="status" aria-label={copyT("interfaceCopy.noDataAvailable")} style={{ textAlign: 'center', padding: 'var(--ceopro-space-6)', color: 'var(--ceopro-text-muted)' }}>{copyT("interfaceCopy.noDataAvailable")}</td>
             </tr>
           )}
         </tbody>

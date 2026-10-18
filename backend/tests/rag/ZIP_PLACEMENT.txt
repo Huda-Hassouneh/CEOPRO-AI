@@ -1,0 +1,27 @@
+CEOPRO RAG Assistant test package — placement guide
+
+The ZIP keeps the repository-relative `backend/` prefix. Extract it into the CEOPRO repository root so the included `backend/...` paths line up.
+
+Replace or merge these files:
+- backend/package.json — contains the added RAG test scripts and aggregate test wiring. If your package.json has later unrelated edits, merge the added `test:rag-assistant*` scripts and the two aggregate-script entries instead of overwriting those edits.
+- backend/tests/README.md — updated test index.
+- backend/tests/rag/README.md — RAG test index.
+- backend/tests/runners/run-all-feature-tests.mjs — includes RAG contracts and diagnostics in the all-feature runner.
+
+Add these files and directories:
+- backend/tests/runners/run-rag-assistant-tests.mjs
+- backend/tests/runners/run-rag-assistant-ai-unit-tests.mjs
+- backend/tests/rag/rag-assistant-contract.test.mjs
+- backend/tests/rag/rag-assistant-client.test.ts
+- backend/tests/rag/RAG_ASSISTANT_TESTING.md
+- backend/tests/rag/ZIP_PLACEMENT.txt
+- backend/tests/rag/fixtures/ — fictional TXT, Markdown, PDF, DOCX, XLSX, Arabic, prompt-injection, and evaluation-case fixtures.
+- backend/tests/e2e/rag-assistant/ — safe blocked diagnostics and separately gated local live-path specs.
+- backend/tests/reports/rag-assistant/ — the recorded result for this run.
+
+After extraction, run from `backend/`:
+  npm run test:rag-assistant:provider-contract
+  npm run test:rag-assistant:source-contract
+  npm run test:rag-assistant:e2e
+
+The source-contract command exits nonzero for the 13 known product regressions listed in `backend/tests/reports/rag-assistant/TEST_RESULTS.md`. The E2E scenarios remain blocked until dedicated safe local fixtures are configured. No production app code is included in this ZIP.

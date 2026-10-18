@@ -1,0 +1,1 @@
+export const integrationsApi = {\n  listIntegrations: async () => ({ integrations: [] }),\n};\n

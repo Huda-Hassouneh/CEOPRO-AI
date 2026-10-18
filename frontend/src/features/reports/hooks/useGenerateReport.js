@@ -1,0 +1,1 @@
+import { useMutation } from '@tanstack/react-query';\nimport { reportsApi } from '../api/reportsApi.js';\n\nexport function useGenerateReport() {\n  return useMutation({\n    mutationFn: reportsApi.generateReport,\n  });\n}\n

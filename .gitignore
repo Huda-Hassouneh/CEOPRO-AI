@@ -1,1 +1,35 @@
-dump.rdb
+# Local secrets; safe examples remain committable.
+.env
+.env.*
+!.env.example
+!.env.*.example
+!*.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+# Dependencies / compiled output
+node_modules/
+dist/
+build/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+# Local runtime data, database backups and browser credentials
+*.log
+*.dump
+*.sql.gz
+*.sqlite*
+playwright/.auth/
+storage-state*.json
+test-results/
+playwright-report/
+tests/reports/
+coverage/
+# Editor / operating-system state
+.DS_Store
+Thumbs.db
+.idea/

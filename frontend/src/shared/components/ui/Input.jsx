@@ -1,4 +1,4 @@
-import { forwardRef, useId } from 'react';
+import React, { forwardRef, useId } from 'react';
 import FormError from '../forms/FormError.jsx';
 
 const Input = forwardRef(({
@@ -29,7 +29,7 @@ const Input = forwardRef(({
         </label>
       )}
 
-      <div className={`ceopro-input-shell ${hasIcon ? 'ceopro-input-shell--with-icon' : ''} ${leftIcon ? 'ceopro-input-shell--icon-start' : ''} ${rightIcon ? 'ceopro-input-shell--icon-end' : ''} ${error ? 'ceopro-input-shell--error' : ''}`.trim()}>
+      <div className={`ceopro-input-shell ${hasIcon ? 'ceopro-input-shell--with-icon' : ''} ${error ? 'ceopro-input-shell--error' : ''}`.trim()}>
         {leftIcon && <span className="ceopro-input-icon ceopro-input-icon--left" aria-hidden="true">{leftIcon}</span>}
 
         <input

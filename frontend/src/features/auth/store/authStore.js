@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { queryClient } from '../../../shared/lib/queryClient.js';
 import {
   authSessionStorage,
   normalizeAuthSession,
@@ -13,6 +14,7 @@ export const AUTH_STATUS = Object.freeze({
 const emptySessionState = {
   user: null,
   tenantId: null,
+  roleKey: null,
   roles: [],
   accessToken: null,
   refreshToken: null,
@@ -26,10 +28,6 @@ export const useAuthStore = create((set, get) => ({
   ...emptySessionState,
   status: AUTH_STATUS.INITIALIZING,
   isHydrated: false,
-  // Set when the API refuses a request until the email address is confirmed.
-  emailVerificationBlocked: false,
-
-  setEmailVerificationBlocked: (blocked) => set({ emailVerificationBlocked: Boolean(blocked) }),
 
   initialize: () => {
     if (get().isHydrated) return;
@@ -45,6 +43,10 @@ export const useAuthStore = create((set, get) => ({
   },
 
   setSession: (session) => {
+    // Never carry tenant/platform query data across authenticated sessions.
+    // This is especially important for /platform-admin/me because a cached
+    // platform principal must not be reusable by a later customer-tenant user.
+    queryClient.clear();
     const normalizedSession = normalizeAuthSession(session);
     authSessionStorage.write(normalizedSession);
     set({
@@ -53,38 +55,18 @@ export const useAuthStore = create((set, get) => ({
         ? AUTH_STATUS.AUTHENTICATED
         : AUTH_STATUS.UNAUTHENTICATED,
       isHydrated: true,
-      emailVerificationBlocked: false,
     });
   },
 
   clearSession: () => {
+    // Authentication boundaries are also query-cache boundaries.
+    queryClient.clear();
     authSessionStorage.clear();
     set({
       ...emptySessionState,
       status: AUTH_STATUS.UNAUTHENTICATED,
       isHydrated: true,
-      emailVerificationBlocked: false,
     });
-  },
-
-  // Takes on a session another tab saved (a renewed token, or a sign-out)
-  // without writing it back to storage.
-  adoptSession: (session) => {
-    const normalizedSession = normalizeAuthSession(session ?? {});
-    set({
-      ...normalizedSession,
-      status: isAuthenticatedSession(normalizedSession)
-        ? AUTH_STATUS.AUTHENTICATED
-        : AUTH_STATUS.UNAUTHENTICATED,
-      isHydrated: true,
-    });
-  },
-
-  // Swaps in a renewed access token, keeping everything else.
-  setAccessToken: (accessToken) => {
-    const nextSession = normalizeAuthSession({ ...get(), accessToken });
-    authSessionStorage.write(nextSession);
-    set({ accessToken, emailVerificationBlocked: false });
   },
 
   setUser: (user) => {

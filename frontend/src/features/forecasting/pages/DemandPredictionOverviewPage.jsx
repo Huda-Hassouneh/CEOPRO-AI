@@ -1,220 +1,312 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Boxes, CalendarRange, Coins, RefreshCw, TrendingDown, TrendingUp, Upload, Info } from 'lucide-react';
-import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { routePaths } from '../../../app/router/routePaths.js';
-import BusinessPageContainer from '../../../shared/components/layout/BusinessPageContainer.jsx';
-import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
-import { ApexButton, Delta, Meter, Pager, Panel, Pill, Stat, StateBlock } from '../../../shared/components/apex/Apex.jsx';
-import ForecastChart from '../../../shared/components/charts/ForecastChart.jsx';
-import { useDemandOverview, useRefreshForecasts } from '../hooks/useDemandOverview.js';
-
-const TREND_TONE = { increasing: 'success', decreasing: 'danger', stable: 'neutral', not_forecast: 'neutral', no_sales: 'neutral' };
-const ACTION_TONE = { restock: 'warning', reduce: 'violet', monitor: 'neutral', none: 'neutral' };
-const FILTERS = ['all', 'increasing', 'decreasing', 'restock'];
-const PAGE_SIZE = 50;
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+import { getApiErrorMessage } from "../../../shared/lib/apiErrors.js";
+import { routePaths } from "../../../app/router/routePaths.js";
+import { useAuthStore } from "../../auth/store/authStore.js";
+import BusinessPageContainer from "../../../shared/components/layout/BusinessPageContainer.jsx";
+import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
+import Button from "../../../shared/components/ui/Button.jsx";
+import EmptyState from "../../../shared/components/ui/EmptyState.jsx";
+import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
+import Toast from "../../../shared/components/ui/Toast.jsx";
+import { DemandPredictionTabs } from "../components/DemandPredictionTabs.jsx";
+import { ForecastGenerationPanel } from "../components/ForecastGenerationPanel.jsx";
+import { ForecastRefreshNotice } from "../components/ForecastRefreshNotice.jsx";
+import { isForecastRefreshBusy } from "../utils/forecastRefresh.js";
+import { ForecastCoverage } from "../components/ForecastCoverage.jsx";
+import { DemandDataSection } from "../components/DemandDataSection.jsx";
+import { DemandForecastChart } from "../components/DemandForecastChart.jsx";
+import { DemandForecastTable } from "../components/DemandForecastTable.jsx";
+import { DemandMetricCard } from "../components/DemandMetricCard.jsx";
+import { DemandStatusBadge } from "../components/DemandStatusBadge.jsx";
+import { useDemandPdfExport } from "../hooks/useDemandPdfExport.js";
+import { useDemandPrediction } from "../hooks/useDemandPrediction.js";
+import {
+  forecastFormatters,
+  localize
+} from "../utils/forecastFormatters.js";
+import "../styles/DemandPrediction.css";
 
 export function DemandPredictionOverviewPage() {
   const { t, locale, dir } = useI18n();
   const navigate = useNavigate();
-  const [productId, setProductId] = useState('all');
-  const [filter, setFilter] = useState('all');
-  const [sort, setSort] = useState({ key: 'forecast_next_30', desc: true });
-  const query = useDemandOverview({ productId });
-  const refresh = useRefreshForecasts();
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const [productId, setProductId] = useState("all");
+  const [periodDays, setPeriodDays] = useState(30);
+  const query = useDemandPrediction({ productId, periodDays });
   const data = query.data;
 
-  const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
-  const money = (amount, currency) => (amount == null || !currency ? '—' : new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount));
-  const units = (value) => (value == null ? '—' : number.format(value));
-
-  const rows = useMemo(() => {
-    const products = data?.products ?? [];
-    const visible = products.filter((p) => (productId === 'all' || p.product_id === productId) && (
-      filter === 'all' ? true : filter === 'restock' ? p.stock_action === 'restock' : p.trend === filter));
-    const value = (p) => p[sort.key] ?? (sort.desc ? -Infinity : Infinity);
-    return [...visible].sort((a, b) => {
-      const av = value(a);
-      const bv = value(b);
-      if (typeof av === 'string') return sort.desc ? String(bv).localeCompare(av, locale) : String(av).localeCompare(String(bv), locale);
-      return sort.desc ? bv - av : av - bv;
-    });
-  }, [data, productId, filter, sort, locale]);
-
-  // The overview carries every product (the totals need them all); the
-  // table shows them a page at a time.
-  const [page, setPage] = useState(0);
-  useEffect(() => setPage(0), [productId, filter, sort]);
-  const pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  const sortBy = (key) => setSort((current) => ({ key, desc: current.key === key ? !current.desc : key !== 'name' }));
-  const sortState = (key) => (sort.key === key ? (sort.desc ? 'descending' : 'ascending') : 'none');
-
-  const header = (
-    <PageHeader
-      title={t('demandApex.title')}
-      subtitle={t('demandApex.subtitle')}
-      actions={data?.products?.length ? (
-        <>
-          <label className="apex-field demand-product-filter">
-            <span className="sr-only">{t('demandApex.filters.product')}</span>
-            <select className="apex-select" value={productId} onChange={(event) => setProductId(event.target.value)} aria-label={t('demandApex.filters.product')}>
-              <option value="all">{t('demandApex.filters.allProducts')}</option>
-              {data.products.map((p) => <option key={p.product_id} value={p.product_id}>{p.name}</option>)}
-            </select>
-          </label>
-          <ApexButton variant="secondary" icon={RefreshCw} loading={refresh.isPending} disabled={data?.refresh?.state === 'running'} onClick={() => refresh.mutate()}>
-            {t('demandApex.actions.refresh')}
-          </ApexButton>
-        </>
-      ) : null}
-    />
+  const { formatNumber, formatDate, formatRange } = useMemo(
+    () => forecastFormatters(locale),
+    [locale]
   );
 
+  const canExport = Boolean(
+    data &&
+      !query.isFetching &&
+      !query.isError &&
+      !query.isPlaceholderData &&
+      data.filters?.productId === productId &&
+      data.filters?.periodDays === periodDays
+  );
+
+  const {
+    exporting,
+    exportError,
+    clearExportError,
+    requestExport
+  } = useDemandPdfExport({
+    data,
+    locale,
+    scope: `${tenantId}:${productId}:${periodDays}:overview`,
+    enabled: canExport
+  });
+
   if (query.isPending) {
-    return <BusinessPageContainer>{header}<div className="apex-page"><div className="apex-grid apex-grid--stats">{[0, 1, 2, 3].map((i) => <Panel key={i}><StateBlock kind="loading" compact title={t('common.loading')} /></Panel>)}</div><Panel><StateBlock kind="loading" title={t('common.loading')} /></Panel></div></BusinessPageContainer>;
-  }
-
-  if (query.isError) {
-    return <BusinessPageContainer>{header}<Panel><StateBlock kind="error" title={t('demandApex.error.title')} description={t('demandApex.error.description')} onRetry={() => query.refetch()} retryLabel={t('demandApex.actions.retry')} /></Panel></BusinessPageContainer>;
-  }
-
-  const totals = data.totals;
-  const refreshing = data.refresh?.state === 'running';
-  const allProducts = data.products;
-  const noProducts = allProducts.length === 0;
-  const noSales = !noProducts && allProducts.every((p) => !p.last_sale_at);
-  const today = data.as_of;
-
-  if (noProducts || noSales) {
     return (
-      <BusinessPageContainer>
-        {header}
-        <Panel>
-          <StateBlock
-            kind="empty"
-            title={noProducts ? t('demandApex.empty.noProductsTitle') : t('demandApex.empty.noSalesTitle')}
-            description={noProducts ? t('demandApex.empty.noProductsDescription') : t('demandApex.empty.noSalesDescription')}
-            action={noProducts
-              ? <ApexButton onClick={() => navigate(routePaths.productNew)}>{t('demandApex.actions.addProduct')}</ApexButton>
-              : <><ApexButton icon={Upload} onClick={() => navigate(routePaths.connectData)}>{t('demandApex.actions.importSales')}</ApexButton><ApexButton variant="secondary" onClick={() => navigate(routePaths.products)}>{t('demandApex.actions.recordSale')}</ApexButton></>}
-          />
-        </Panel>
-      </BusinessPageContainer>
+      <div className="demand-approved-loading" aria-busy="true">
+        <Skeleton height="70px" variant="rectangular" />
+        <div>
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton key={index} height="120px" variant="rectangular" />
+          ))}
+        </div>
+        <Skeleton height="300px" variant="rectangular" />
+      </div>
     );
   }
 
-  const progress = data.refresh;
+  if (query.isError && !isForecastRefreshBusy(query)) {
+    const accessDenied = query.error?.response?.status === 403;
+    return (
+      <EmptyState
+        title={t("demandApproved.error.title")}
+        description={accessDenied ? t("demandApproved.error.access") : getApiErrorMessage(query.error, t)}
+        action={
+          <Button size="sm" variant="outline" onClick={() => query.refetch()}>
+            {t("demandApproved.actions.retry")}
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (!data?.products?.length) {
+    return (
+      <EmptyState
+        title={t("demandApproved.empty.productsTitle")}
+        description={t("demandApproved.empty.productsDescription")}
+      />
+    );
+  }
+
+  const selectedRow = data.forecasts?.find((row) => row.id === productId);
+  const columns = [
+    {
+      key: "name",
+      label: t("demandApproved.table.product"),
+      render: (row) => localize(row.name, locale)
+    },
+    {
+      key: "category",
+      label: t("demandApproved.table.category"),
+      render: (row) => localize(row.category, locale)
+    },
+    {
+      key: "currentStock",
+      label: t("demandApproved.table.currentStock"),
+      render: (row) => formatNumber(row.currentStock)
+    },
+    {
+      key: "expectedDemand",
+      label: t("demandApproved.table.expectedDemand"),
+      render: (row) => formatNumber(row.expectedDemand)
+    },
+    {
+      key: "targetDate",
+      label: t("demandApproved.table.targetDate"),
+      render: (row) => formatDate(row.targetDate)
+    },
+    {
+      key: "confidenceRange",
+      label: t("demandApproved.table.confidenceRange"),
+      render: (row) => formatRange(row.confidenceRange)
+    },
+    {
+      key: "trend",
+      label: t("demandApproved.table.trend"),
+      render: (row) => (
+        <DemandStatusBadge
+          value={row.trend}
+          namespace="demandApproved.trends"
+          t={t}
+        />
+      )
+    },
+    {
+      key: "recommendedAction",
+      label: t("demandApproved.table.recommendedAction"),
+      render: (row) => (
+        <DemandStatusBadge
+          value={row.recommendedAction}
+          namespace="demandApproved.recommendations"
+          t={t}
+        />
+      )
+    },
+    { key: "coverage", label: t("demandApproved.coverage.label"), render: (row) => <ForecastCoverage coverage={row.coverage} periodDays={periodDays} t={t} /> },
+    { key: "generatedAt", label: t("demandApproved.history.generatedAt"), render: (row) => formatDate(row.forecastGeneratedAt) },
+    {
+      key: "actions",
+      label: t("demandApproved.table.actions"),
+      render: (row) => (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() =>
+            navigate(
+              `${routePaths.forecastProductDetail.replace(
+                ":productId",
+                encodeURIComponent(row.id)
+              )}?periodDays=${periodDays}`
+            )
+          }
+        >
+          {t("demandApproved.actions.viewDetails")}
+        </Button>
+      )
+    }
+  ].filter((column) => column.key !== "recommendedAction" || data.featureAccess?.inventoryIntelligence === true);
+
   return (
-    <BusinessPageContainer>
-      {header}
-      <div className="apex-page" dir={dir}>
-        {(refreshing || refresh.isError || progress?.state === 'failed') && (
-          <div className={`apex-notice ${refresh.isError || progress?.state === 'failed' ? 'apex-notice--danger' : 'apex-notice--info'}`} role="status" aria-live="polite">
-            {refresh.isError || progress?.state === 'failed' ? <AlertTriangle size={16} /> : <RefreshCw size={16} className="apex-rotating" />}
-            <div style={{ flex: 1 }}>
-              <strong>{refresh.isError || progress?.state === 'failed' ? t('demandApex.refresh.failed') : t('demandApex.refresh.running', { done: progress?.done ?? 0, total: progress?.total ?? progress?.pending_products ?? '…' })}</strong>
-              {refreshing && progress?.total ? <div style={{ marginTop: 8 }}><Meter value={progress.done ?? 0} max={progress.total} label={t('demandApex.refresh.label')} /></div> : null}
-            </div>
-          </div>
+    <BusinessPageContainer wide className="demand-approved-page" dir={dir}>
+      <ForecastRefreshNotice query={query} t={t} />
+      <PageHeader
+        title={t("demandApproved.page.title")}
+        subtitle={t("demandApproved.page.subtitle")}
+        actions={
+          <>
+            <select
+              className="demand-approved-select"
+              aria-label={t("demandApproved.filters.product")}
+              value={productId}
+              onChange={(event) => setProductId(event.target.value)}
+            >
+              <option value="all">
+                {t("demandApproved.filters.allProducts")}
+              </option>
+              {data.products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {localize(product.name, locale)}
+                </option>
+              ))}
+            </select>
+            <select
+              className="demand-approved-select is-period"
+              aria-label={t("demandApproved.filters.period")}
+              value={periodDays}
+              onChange={(event) => setPeriodDays(Number(event.target.value))}
+            >
+              {data.availablePeriods.map((period) => (
+                <option key={period} value={period}>
+                  {t(`demandApproved.filters.last${period}`)}
+                </option>
+              ))}
+            </select>
+          </>
+        }
+      />
+
+      <DemandPredictionTabs t={t} inventoryAllowed={data.featureAccess?.inventoryIntelligence === true} />
+      <ForecastGenerationPanel key={`${tenantId}:${productId}:${periodDays}`} productId={productId} periodDays={periodDays}
+        coverage={selectedRow?.coverage} latestPrediction={selectedRow?.latestPrediction}
+        generatedAt={selectedRow?.forecastGeneratedAt} locale={locale} t={t} refreshBlocked={isForecastRefreshBusy(query)} />
+      <p className="forecast-coverage-note">{t("demandApproved.coverage.productCount", {
+        covered: data.forecasts?.filter((row) => row.coverage?.status === "complete").length ?? 0,
+        total: data.forecasts?.length ?? 0
+      })} {t("demandApproved.coverage.note")}</p>
+      <section
+        className="demand-approved-metrics"
+        aria-label={t("demandApproved.metrics.label")}
+      >
+        {data.metrics.map((metric) => {
+          const label =
+            metric.id === "next30Forecast"
+              ? t("demandApproved.metrics.selectedForecast", {
+                  days: periodDays
+                })
+              : t(`demandApproved.metrics.${metric.id}`);
+          const value =
+            metric.id === "next30Forecast" && metric.value != null
+              ? `${formatNumber(metric.value)} ${t(
+                  "demandApproved.common.units"
+                )}`
+              : formatNumber(metric.value);
+
+          return (
+            <DemandMetricCard
+              key={metric.id}
+              metric={metric}
+              label={label}
+              value={value}
+            />
+          );
+        })}
+      </section>
+
+      <p className="forecast-coverage-note">{t("demandApproved.coverage.chartNote")}</p>
+      <DemandDataSection
+        title={t("demandApproved.chart.totalTitle")}
+        subtitle={t("demandApproved.chart.totalSubtitle", {
+          days: formatNumber(periodDays)
+        })}
+        dataStatus={data.totalForecast?.dataStatus}
+        className="demand-approved-chart-panel"
+      >
+        <DemandForecastChart
+          points={data.totalForecast?.points ?? []}
+          t={t}
+          formatDate={formatDate}
+          formatNumber={formatNumber}
+        />
+      </DemandDataSection>
+
+      <DemandDataSection
+        title={t("demandApproved.forecasts.title")}
+        subtitle={t("demandApproved.forecasts.subtitle")}
+        dataStatus={data.sectionStatuses?.forecasts}
+        exportLabel={t(
+          exporting
+            ? "demandApproved.export.loading"
+            : "demandApproved.actions.exportPdf"
         )}
+        exportDisabled={!canExport}
+        exporting={exporting}
+        onExport={requestExport}
+      >
+        <DemandForecastTable
+          className="is-main"
+          columns={columns}
+          rows={data.forecasts ?? []}
+          emptyState={
+            <EmptyState
+              title={t("demandApproved.empty.forecastsTitle")}
+              description={t("demandApproved.empty.forecastsDescription")}
+            />
+          }
+        />
+      </DemandDataSection>
 
-        <div className="apex-grid apex-grid--stats">
-          <Stat
-            label={t('demandApex.stats.forecast')}
-            value={totals.forecasted ? units(totals.forecast_next_30) : '—'}
-            delta={totals.change_pct}
-            deltaLabel={t('demandApex.stats.vsLast30')}
-            hint={totals.forecasted ? null : t('demandApex.stats.calculating')}
-            icon={CalendarRange}
+      {exportError && (
+        <div className="demand-approved-toast">
+          <Toast
+            variant="error"
+            message={t("demandApproved.export.failed")}
+            onClose={clearExportError}
           />
-          <Stat label={t('demandApex.stats.revenue')} value={money(totals.expected_revenue, totals.currency)} hint={t('demandApex.stats.revenueHint')} icon={Coins} tone="violet" />
-          <Stat label={t('demandApex.stats.rising')} value={number.format(totals.increasing)} hint={t('demandApex.stats.ofForecasted', { count: totals.forecasted })} icon={TrendingUp} tone="success" />
-          <Stat label={t('demandApex.stats.falling')} value={number.format(totals.decreasing)} hint={t('demandApex.stats.stable', { count: totals.stable })} icon={TrendingDown} tone="danger" />
-          <Stat label={t('demandApex.stats.restock')} value={number.format(totals.restock)} hint={t('demandApex.stats.restockHint')} icon={Boxes} tone="warning" />
         </div>
-
-        <Panel
-          eyebrow={t('demandApex.chart.eyebrow')}
-          title={productId === 'all' ? t('demandApex.chart.titleAll') : t('demandApex.chart.titleOne', { name: allProducts.find((p) => p.product_id === productId)?.name ?? '' })}
-          subtitle={t('demandApex.chart.subtitle')}
-        >
-          {data.series.some((p) => p.actual || p.forecast) ? (
-            <ForecastChart points={data.series} locale={locale} todayDate={today} labels={{ actual: t('demandApex.chart.actual'), forecast: t('demandApex.chart.forecast'), today: t('demandApex.chart.today') }} />
-          ) : (
-            <StateBlock compact title={t('demandApex.chart.emptyTitle')} description={t('demandApex.chart.emptyDescription')} />
-          )}
-        </Panel>
-
-        <Panel
-          eyebrow={t('demandApex.table.eyebrow')}
-          title={t('demandApex.table.title')}
-          subtitle={t('demandApex.table.subtitle', { band: data.trend_band_pct })}
-          actions={(
-            <div className="apex-segmented" role="group" aria-label={t('demandApex.filters.label')}>
-              {FILTERS.map((key) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}>{t(`demandApex.filters.${key}`)}</button>)}
-            </div>
-          )}
-          bodyClassName="is-flush"
-        >
-          {rows.length === 0 ? (
-            <StateBlock compact title={t('demandApex.table.noMatch')} />
-          ) : (
-            <div className="apex-table-wrap">
-              <table className="apex-table">
-                <thead>
-                  <tr>
-                    <th aria-sort={sortState('name')}><button type="button" className="demand-sort" onClick={() => sortBy('name')}>{t('demandApex.table.product')}</button></th>
-                    <th className="apex-table__num" aria-sort={sortState('sold_last_30')}><button type="button" className="demand-sort" onClick={() => sortBy('sold_last_30')}>{t('demandApex.table.sold')}</button></th>
-                    <th className="apex-table__num" aria-sort={sortState('forecast_next_30')}><button type="button" className="demand-sort" onClick={() => sortBy('forecast_next_30')}>{t('demandApex.table.forecast')}</button></th>
-                    <th aria-sort={sortState('trend_change_pct')}><button type="button" className="demand-sort" onClick={() => sortBy('trend_change_pct')}>{t('demandApex.table.trend')}</button></th>
-                    <th className="apex-table__num" aria-sort={sortState('current_stock')}><button type="button" className="demand-sort" onClick={() => sortBy('current_stock')}>{t('demandApex.table.stock')}</button></th>
-                    <th className="apex-table__num" aria-sort={sortState('stock_days_of_cover')}><button type="button" className="demand-sort" onClick={() => sortBy('stock_days_of_cover')}>{t('demandApex.table.cover')}</button></th>
-                    <th>{t('demandApex.table.advice')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageRows.map((p) => (
-                    <tr key={p.product_id}>
-                      <td>
-                        <button type="button" className="apex-table__link" onClick={() => navigate(`/products/${p.product_id}`)}>{p.name}</button>
-                        {p.category && <div className="apex-muted" style={{ fontSize: 12, marginTop: 2 }}>{p.category}</div>}
-                      </td>
-                      <td className="apex-table__num">{units(p.sold_last_30)}</td>
-                      <td className="apex-table__num apex-table__primary">
-                        {p.forecast_next_30 == null ? <span className="apex-muted">{refreshing ? t('demandApex.table.calculating') : t('demandApex.table.noForecast')}</span> : units(p.forecast_next_30)}
-                        {p.forecast_lower != null && p.forecast_upper != null && <div className="apex-muted" style={{ fontSize: 11.5, fontWeight: 500 }} dir="ltr">{units(p.forecast_lower)}–{units(p.forecast_upper)}</div>}
-                      </td>
-                      <td>
-                        {p.forecast_next_30 == null ? <span className="apex-muted">—</span> : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                            <Pill tone={TREND_TONE[p.trend]}>{t(`demandApex.trend.${p.trend}`)}</Pill>
-                            {p.trend_change_pct != null && <Delta value={p.trend_change_pct} />}
-                          </span>
-                        )}
-                      </td>
-                      <td className="apex-table__num">{p.current_stock == null ? <span className="apex-muted">{t('demandApex.table.notTracked')}</span> : units(p.current_stock)}</td>
-                      <td className="apex-table__num">{p.stock_days_of_cover == null ? '—' : t('demandApex.table.days', { count: number.format(Math.round(p.stock_days_of_cover)) })}</td>
-                      <td>
-                        {p.stock_action && p.stock_action !== 'none' && p.forecast_next_30 != null ? (
-                          <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 4 }}>
-                            <Pill tone={ACTION_TONE[p.stock_action]} icon={p.stock_priority === 'high' ? AlertTriangle : undefined}>{t(`demandApex.action.${p.stock_action}`)}</Pill>
-                            {p.stock_suggested_qty > 0 && <span className="apex-muted" style={{ fontSize: 12 }}>{t(`demandApex.action.${p.stock_action}Qty`, { qty: number.format(p.stock_suggested_qty) })}</span>}
-                          </span>
-                        ) : <span className="apex-muted">—</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <Pager page={page} pageSize={PAGE_SIZE} total={rows.length} onChange={setPage} t={t} dir={dir} number={number} />
-            </div>
-          )}
-          <p className="apex-source" style={{ padding: '0 22px 18px' }}><Info size={13} aria-hidden="true" />{t('demandApex.method')}</p>
-        </Panel>
-      </div>
+      )}
     </BusinessPageContainer>
   );
 }
-
-export default DemandPredictionOverviewPage;

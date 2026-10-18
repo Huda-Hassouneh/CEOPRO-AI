@@ -1,0 +1,94 @@
+import test,{mock} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomBytes,randomUUID} from 'node:crypto';
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import {isolatedDatabase,tenantFixture} from '../isolated/database.mjs';
+function normalizeOrder(order){
+ const total=order.lines.reduce((n,line)=>n+Number(line.total),0).toFixed(4);
+ return {...order,status:'completed',invoice:{currency:'JOD',issuedAt:'2026-10-10T10:00:00Z',paidAt:null,paymentStatus:'UNPAID',subtotal:total,tax:'0',total,merchandise:total,shipping:'0',fees:'0',discount:'0',originalTotal:total,refundedTotal:'0',items:order.lines}};
+}
+let orders=[],products=[],failure=false,hook=null,calls=0,paged=false;
+mock.module('../../src/modules/dataconnection/store/provider.client.ts',{namedExports:{storeProvider:async(_tenant,input)=>{
+ calls++;if(hook)await hook();if(failure)throw Error('private upstream diagnostic must not leak');
+ if(input.action==='detect')return {supported:true,provider:'woocommerce',url:input.url};
+ if(input.action==='verify')return {contractVersion:2,verified:true,currency:'JOD'};
+ if(input.action==='orders'&&paged){const next=input.exclude?.includes('900');return {contractVersion:2,items:[normalizeOrder({...orders[0],externalId:next?'901':'900',modifiedAt:new Date(Date.now()-60000).toISOString()})],hasMore:!next};}
+ return {contractVersion:2,items:input.action==='products'?products.map(product=>({...product,inventory:{state:'unmanaged',quantity:null,stockStatus:'instock',lowStockThreshold:null,stockOwnerExternalId:null}})):orders.map(order=>normalizeOrder({...order,modifiedAt:new Date(Date.now()-60000).toISOString()})),hasMore:false};
+}}});
+test('restricted runtime: store connect, sync, idempotency, corrections, cancellation, isolation and secret protection',async()=>{
+ const f=await isolatedDatabase('ceopro_app',{maxConnections:10});let prisma,server;
+ try{
+  await f.db.exec("SET TIME ZONE 'UTC'");
+  const a=await tenantFixture(f.db),b=await tenantFixture(f.db);
+  await f.db.exec(`INSERT INTO features(feature_code,feature_name,feature_name_ar,feature_type,aggregation_type,reset_cycle) VALUES('connected_data_sources','Sources','Sources','limit','max','lifetime') ON CONFLICT DO NOTHING;
+   INSERT INTO features(feature_code,feature_name,feature_name_ar,feature_type) VALUES('data_integration','Data','Data','boolean') ON CONFLICT DO NOTHING;`);
+  for(const t of [a,b])await f.db.query(`INSERT INTO plan_features(plan_id,feature_id,limit_value) SELECT $1,feature_id,1 FROM features WHERE feature_code IN ('connected_data_sources','data_integration') ON CONFLICT(plan_id,feature_id) DO UPDATE SET limit_value=EXCLUDED.limit_value`,[t.planId]);
+  await f.db.query("UPDATE products SET sku='TEA001' WHERE product_id=$1",[a.productId]);
+  const manual=randomUUID();await f.db.query("INSERT INTO transactions(transaction_id,tenant_id,product_id,quantity_sold,unit_price,total_price,original_currency,transaction_date) VALUES($1,$2,$3,1,10,10,'JOD',now())",[manual,a.tenantId,a.productId]);
+  await f.role('ceopro_app');process.env.DATABASE_URL=f.url;
+  process.env.STORE_CONNECTOR_ENCRYPTION_KEY=randomBytes(32).toString('hex');
+  ({prisma}=await import('../../src/config/database.ts'));
+  const {storeConnections:c}=await import('../../src/modules/dataconnection/store/connections.repo.ts');
+  const {syncStorePage}=await import('../../src/modules/dataconnection/store/sync.repo.ts');
+  const {openCredentials}=await import('../../src/modules/dataconnection/store/vault.ts');
+  const scope=t=>({tenantId:t.tenantId,userId:t.userId});
+  const input={url:'https://store.example.test',consumerKey:'ck_'+'a'.repeat(40),consumerSecret:'cs_'+'b'.repeat(40),consent:true,syncFrequencyMinutes:60};
+  const {dataManagementRepo}=await import('../../src/modules/dataconnection/repo/dataconnection.repo.ts');
+  const saved=await dataManagementRepo.createPersistentSource({tenantId:a.tenantId,userId:a.userId,name:'Saved store',sourceType:'website',sourceUrl:input.url,syncFrequencyMinutes:60,metadata:{}});
+  const configured=await dataManagementRepo.getDataConnectionsOverview(a.tenantId,a.userId);assert.equal(configured.sourceCapacity.remaining,0);assert.ok(configured.connectedSources[0].actions.includes('connectStore'));
+  const connection=await c.connect(scope(a),input);assert.equal(connection.connectionStatus,'connected');
+  assert.equal(connection.id,saved.source_id,'Upgrade an existing URL-only source without consuming a second connection slot');
+  await assert.rejects(c.connect(scope(a),{...input,url:'https://other.example.test'}),/STORE_SOURCE_LIMIT/);
+  await assert.rejects(c.detect(scope(a),'https://127.0.0.1'),/INVALID_STORE_URL/);
+  process.env.JWT_SECRET=randomBytes(32).toString('hex');
+  const {default:routes}=await import('../../src/modules/dataconnection/route/dataconnection.route.ts');
+  const app=express();app.use(express.json());app.use('/data-connection',routes);
+  server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});
+  const base=`http://127.0.0.1:${server.address().port}/data-connection`;
+  const headers=t=>({'Content-Type':'application/json',Authorization:'Bearer '+jwt.sign({id:t.userId,user_id:t.userId,email:`${t.userId}@example.test`,tenant_id:t.tenantId},process.env.JWT_SECRET,{expiresIn:300})});
+  assert.equal((await fetch(base+'/store/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:input.url})})).status,401);
+  const invalid=await fetch(base+'/store/connect',{method:'POST',headers:headers(a),body:JSON.stringify({...input,consumerSecret:'dont-echo-this',tenantId:b.tenantId})});
+  assert.equal(invalid.status,400);assert.ok(!(await invalid.text()).includes('dont-echo-this'));
+  assert.equal((await fetch(base+`/store/${connection.id}`,{headers:headers(b)})).status,404);
+  assert.equal((await fetch(base+'/store/detect',{method:'POST',headers:headers(a),body:JSON.stringify({url:input.url})})).status,200);
+
+  const context=async t=>f.db.query("SELECT set_config('app.current_tenant_id',$1,false),set_config('app.current_user_id',$2,false)",[t.tenantId,t.userId]);
+  await context(a);
+  const encrypted=(await f.db.query('SELECT credentials FROM store_connections WHERE source_id=$1',[connection.id])).rows[0].credentials;
+  assert.ok(!encrypted.includes(input.consumerSecret));assert.equal(openCredentials(encrypted,a.tenantId,connection.id).secret,input.consumerSecret);
+  assert.throws(()=>openCredentials(encrypted,b.tenantId,connection.id),/STORE_CREDENTIALS_UNAVAILABLE/);
+  await assert.rejects(c.sync(scope(b),connection.id),/STORE_NOT_FOUND/);
+  await context(b);assert.equal((await f.db.query('SELECT * FROM store_connections WHERE tenant_id=$1',[a.tenantId])).rows.length,0);
+  products=[{externalId:'101',name:'Tea',sku:'TEA001',price:'2.5000',currency:'JOD'},{externalId:'202',name:'Shirt — Blue',sku:null,price:'6.0000',currency:'JOD'}];
+  const line={externalId:'1',productExternalId:'101',name:'Tea',sku:'TEA001',quantity:2,unitPrice:'2.0000',total:'4.0000',currency:'JOD',date:'2026-10-10T10:00:00Z'};
+  orders=[{externalId:'900',lines:[line,{...line,externalId:'2',productExternalId:'202',name:'Shirt — Blue',sku:null,quantity:1,unitPrice:'6.0000',total:'6.0000'}]}];
+  assert.equal((await syncStorePage(scope(a),connection.id)).status,'COMMITTED');assert.equal((await syncStorePage(scope(a),connection.id)).status,'COMMITTED');
+  await context(a);
+  assert.equal((await f.db.query('SELECT count(*)::int n FROM transactions WHERE tenant_id=$1',[a.tenantId])).rows[0].n,3);
+  assert.equal(Number((await f.db.query('SELECT current_price FROM products WHERE product_id=$1',[a.productId])).rows[0].current_price),10,'Do not overwrite a preexisting manual product price');
+  const overview=await (await fetch(base,{headers:headers(a)})).json();assert.equal(overview.data.connectedSources[0].provider,'woocommerce');assert.equal(overview.data.connectedSources[0].recordCount,5);
+  const first=(await c.status(scope(a),connection.id))[0];assert.equal(first.status,'CONNECTED');assert.ok(first.last_success_at);
+  const initialIds=(await f.db.query('SELECT transaction_id FROM store_sale_links WHERE tenant_id=$1 ORDER BY line_id',[a.tenantId])).rows.map(r=>r.transaction_id);
+  await c.sync(scope(a),connection.id);await syncStorePage(scope(a),connection.id);await syncStorePage(scope(a),connection.id);
+  await context(a);assert.deepEqual((await f.db.query('SELECT transaction_id FROM store_sale_links WHERE tenant_id=$1 ORDER BY line_id',[a.tenantId])).rows.map(r=>r.transaction_id),initialIds,'Repeat sync must reuse canonical sales');
+  orders=[{externalId:'900',lines:[{...line,quantity:1,total:'2.0000'}]}];
+  await c.sync(scope(a),connection.id);await syncStorePage(scope(a),connection.id);await syncStorePage(scope(a),connection.id);
+  await context(a);assert.equal((await f.db.query('SELECT count(*)::int n FROM transactions WHERE tenant_id=$1',[a.tenantId])).rows[0].n,2,'Removed/refunded lines are reconciled, manual sales retained');
+  orders=[{externalId:'900',lines:[]}];await c.sync(scope(a),connection.id);await syncStorePage(scope(a),connection.id);await syncStorePage(scope(a),connection.id);
+  await context(a);assert.deepEqual((await f.db.query('SELECT transaction_id FROM transactions WHERE tenant_id=$1',[a.tenantId])).rows.map(r=>r.transaction_id),[manual]);
+  orders=[{externalId:'900',lines:[line]}];paged=true;await c.sync(scope(a),connection.id);
+  for(let i=0;i<3;i++)assert.equal((await syncStorePage(scope(a),connection.id)).status,'COMMITTED');
+  await context(a);assert.equal((await f.db.query('SELECT count(*)::int n FROM store_sale_links WHERE tenant_id=$1',[a.tenantId])).rows[0].n,2,'First remaining page plus tie exclusions consumes each order once');paged=false;
+  const last=(await c.status(scope(a),connection.id))[0].last_success_at;
+  failure=true;await c.sync(scope(a),connection.id);assert.equal((await syncStorePage(scope(a),connection.id)).status,'ERROR');failure=false;
+  const failed=(await c.status(scope(a),connection.id))[0];assert.equal(failed.last_error,'STORE_SYNC_FAILED');assert.equal(failed.last_success_at.getTime(),last.getTime());
+  await c.sync(scope(a),connection.id);hook=async()=>{hook=null;await c.disconnect(scope(a),connection.id);};
+  assert.equal((await syncStorePage(scope(a),connection.id)).status,'ERROR');
+  await context(a);const disconnected=(await f.db.query('SELECT status,credentials FROM store_connections WHERE source_id=$1',[connection.id])).rows[0];assert.equal(disconnected.status,'DISCONNECTED');assert.equal(disconnected.credentials,null);
+  assert.equal((await syncStorePage(scope(a),connection.id)).status,'IDLE');
+  await f.role('ceopro_market_dispatcher');
+  assert.ok((await f.db.query('SELECT source_id,actor_id FROM store_connections')).rows.length>0);
+  await assert.rejects(f.db.query('SELECT credentials FROM store_connections'),e=>e.code==='42501');
+ }finally{if(server)await new Promise(r=>server.close(r));if(prisma)await prisma.$disconnect();await f.close();}
+});

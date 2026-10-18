@@ -1,0 +1,1 @@
+Handoff checks passed: 24 integrated Markdown files (imported reference documentation excluded), relative links, four environment examples and delegated scripts.

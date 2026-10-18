@@ -39,7 +39,7 @@ export default function Dropdown({
     [align === 'right' ? 'right' : 'left']: 0,
     marginTop: 'var(--ceopro-space-2)',
     minWidth: '200px',
-    backgroundColor: 'var(--apex-glass-solid)',
+    backgroundColor: 'var(--ceopro-surface)',
     border: '1px solid var(--ceopro-border)',
     borderRadius: 'var(--ceopro-radius-md)',
     boxShadow: 'var(--ceopro-shadow-lg)',

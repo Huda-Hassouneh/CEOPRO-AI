@@ -1,0 +1,32 @@
+{
+  "note": "Template only. Replace with approved production business values before implementing bootstrap:plans. Do not treat these placeholders as real CEOPRO plans.",
+  "plans": [
+    {
+      "name": "<approved English plan name>",
+      "name_ar": "<approved Arabic plan name>",
+      "tierLevel": 1,
+      "description": "<approved description>",
+      "description_ar": "<approved Arabic description>",
+      "price": "<approved base price>",
+      "currency": "<approved ISO-4217 code>",
+      "billingIntervalValue": 1,
+      "billingIntervalUnit": "month",
+      "trialPeriodValue": "<approved trial days>",
+      "isActive": true,
+      "billingOptions": [
+        {
+          "period": "monthly",
+          "months": 1,
+          "discountPercent": 0
+        }
+      ],
+      "features": [
+        {
+          "code": "<existing feature code>",
+          "limitValue": "<approved limit or null for boolean>",
+          "configuration": {}
+        }
+      ]
+    }
+  ]
+}
