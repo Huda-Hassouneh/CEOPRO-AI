@@ -33,3 +33,4 @@ coverage/
 .DS_Store
 Thumbs.db
 .idea/
+MANIFEST.json
