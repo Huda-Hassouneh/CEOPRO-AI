@@ -155,19 +155,52 @@ def test_a_campaign_is_created_with_its_image_edited_reloaded_paged_and_deleted(
 
 
 def test_an_image_that_cant_be_made_leaves_a_complete_campaign(setup, monkeypatch):
-    from src.ai.marketing import image_generation
+    """No AI image AND the local poster failing too: the campaign is still complete, with an honest image status."""
+    from src.ai.marketing import designed_poster, image_generation
 
     client, calls, company = setup
     _session, headers = company()
 
     def fail(prompt, **kwargs):
-        error = image_generation.ImageGenerationError("PROVIDER_ERROR", "No image provider produced an image (pollinations: busy).")
-        error.attempts = [{"provider": "pollinations", "reason": "busy"}]
+        error = image_generation.ImageGenerationError("PROVIDER_ERROR", "No image provider produced an image (aihorde: busy).")
+        error.attempts = [{"provider": "aihorde", "reason": "busy"}]
         raise error
 
+    def poster_fails(*args, **kwargs):
+        raise RuntimeError("render failed")
+
     monkeypatch.setattr(image_generation, "generate_campaign_image", fail)
+    monkeypatch.setattr(designed_poster, "render_designed_poster", poster_fails)
     campaign = client.post("/marketing/campaigns", json={"text": "Kunafa", "strategy_type": "SALES_DRIVEN", "generate_image": True},
                            headers=headers).json()
     assert campaign["status"] == "COMPLETED" and campaign["content"]
     assert campaign["image_generation_status"] == "PROVIDER_ERROR"
-    assert campaign["image_generation_attempts"] == [{"provider": "pollinations", "reason": "busy"}]
+    assert "image_generation_attempts" not in campaign  # provider details stay in the server log
+
+
+def test_when_no_ai_image_can_be_made_a_designed_poster_is_stored_instead(setup, monkeypatch):
+    """The fallback path end to end against the real database: a finished image, labelled as designed."""
+    from unittest.mock import MagicMock
+
+    from src.ai.marketing import image_generation, image_storage
+    from src.ai.routers import marketing as marketing_router
+
+    client, calls, company = setup
+    _session, headers = company()
+    stored = {}
+
+    def fail(prompt, **kwargs):
+        raise image_generation.ImageGenerationError("PROVIDER_ERROR", "No image provider produced an image (aihorde: busy).")
+
+    def fake_upload(client_, content, content_type, tenant_id, campaign_id):
+        stored["content"] = content
+        return f"{tenant_id}/{campaign_id}/generated.png"
+
+    monkeypatch.setattr(image_generation, "generate_campaign_image", fail)
+    monkeypatch.setattr(marketing_router.db, "minio_client", lambda: MagicMock())
+    monkeypatch.setattr(image_storage, "upload_generated_image", fake_upload)
+    campaign = client.post("/marketing/campaigns", json={"text": "Kunafa", "strategy_type": "SALES_DRIVEN", "generate_image": True},
+                           headers=headers).json()
+    assert campaign["status"] == "COMPLETED"
+    assert campaign["image_generation_status"] == "COMPLETED" and campaign["image_generation_provider"] == "designed"
+    assert stored["content"][:8] == b"\x89PNG\r\n\x1a\n"
