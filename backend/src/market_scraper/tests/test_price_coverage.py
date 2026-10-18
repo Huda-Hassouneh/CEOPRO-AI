@@ -1,11 +1,11 @@
 """Offline tests for price_coverage.py: reason classification, summary over all
 products, paging, and that covered products are hidden unless asked for."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 from src.market_scraper import price_coverage as pc
 
-NOW = datetime(2026, 10, 18, tzinfo=timezone.utc)
+NOW = datetime.now(timezone.utc)
 
 
 def _conn(rows):
@@ -14,8 +14,10 @@ def _conn(rows):
     return conn
 
 
-def _row(pid, name, mappings=0, prices=0, allowed=0, restricted=None, last=None, reference=0, lookup=None, barcode=False):
-    return (pid, name, 10, "JOD", mappings, prices, allowed, restricted or [], last, reference, lookup, NOW if lookup else None, barcode)
+def _row(pid, name, mappings=0, prices=0, allowed=0, restricted=None, last=None, reference=0, lookup=None, barcode=False,
+         foreign=0, foreign_reference=0, last_reference=None, inactive=0):
+    return (pid, name, 10, "JOD", mappings, prices, allowed, restricted or [], last, reference, lookup, NOW if lookup else None,
+            barcode, foreign, foreign_reference, last_reference, inactive)
 
 
 ROWS = [
@@ -34,6 +36,8 @@ def test_summary_counts_every_product_and_every_reason():
         "with_competitor_price": 1, "with_reference_price_only": 0, "coverage_pct": 20.0,
         "products_without_barcode": 5, "gaps_without_barcode": 4,
         "gaps_by_reason": {pc.REASON_NO_MAPPING: 1, pc.REASON_TERMS: 1, pc.REASON_ROBOTS: 1, pc.REASON_NO_DATA: 1},
+        "stale_prices": 0, "currency_mismatches": 0, "inactive_mappings": 0, "needs_attention": 4,
+        "stale_after_days": pc.STALE_AFTER_DAYS,
     }
 
 
@@ -105,3 +109,49 @@ def test_barcode_summary_counts_products_with_a_barcode():
     assert pc.get_barcode_summary(conn, "t1") == {"products": 8, "with_barcode": 2, "coverage_pct": 25.0}
     conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (0, 0)
     assert pc.get_barcode_summary(conn, "t1")["coverage_pct"] is None
+
+
+def test_each_gap_carries_the_next_step_that_resolves_it():
+    items = {i["product_id"]: i for i in pc.get_price_coverage(_conn(ROWS), "t1")["products"]}
+    assert items["p2"]["next_action"] == "add_barcode"  # nobody matched and no barcode
+    assert items["p3"]["next_action"] == "review_source"
+    assert items["p4"]["next_action"] == "enter_price"
+    assert items["p5"]["next_action"] == "check_collection"
+    with_barcode = pc.get_price_coverage(_conn([_row("p9", "Has barcode", barcode=True)]), "t1")["products"][0]
+    assert with_barcode["next_action"] == "add_competitor"
+
+
+def test_an_old_price_is_covered_but_stale_and_listed_for_refresh():
+    old = NOW - timedelta(days=pc.STALE_AFTER_DAYS + 5)
+    rows = [_row("p1", "Old price", mappings=1, prices=1, allowed=1, last=old), _row("p2", "Fresh", mappings=1, prices=1, allowed=1, last=NOW)]
+    result = pc.get_price_coverage(_conn(rows), "t1", now=NOW)
+    assert result["summary"]["with_market_price"] == 2 and result["summary"]["stale_prices"] == 1
+    assert [i["product_id"] for i in result["products"]] == ["p1"]  # fresh and fine: not listed
+    item = result["products"][0]
+    assert item["has_market_price"] is True and item["issues"] == [pc.ISSUE_STALE]
+    assert item["price_age_days"] == pc.STALE_AFTER_DAYS + 5 and item["next_action"] == "refresh_prices"
+
+
+def test_the_newest_of_competitor_and_reference_prices_decides_staleness():
+    old = NOW - timedelta(days=pc.STALE_AFTER_DAYS + 40)
+    row = _row("p1", "Recent reference", mappings=1, prices=1, allowed=1, last=old, reference=1, last_reference=NOW)
+    item = pc.get_price_coverage(_conn([row]), "t1", include_covered=True, now=NOW)["products"][0]
+    assert item["issues"] == [] and item["price_age_days"] == 0
+
+
+def test_prices_in_another_currency_are_flagged_not_hidden():
+    rows = [_row("p1", "Priced in USD", mappings=1, prices=2, allowed=1, last=NOW, foreign=2)]
+    result = pc.get_price_coverage(_conn(rows), "t1", now=NOW)
+    assert result["summary"]["currency_mismatches"] == 1 and result["summary"]["with_market_price"] == 1
+    item = result["products"][0]
+    assert item["issues"] == [pc.ISSUE_CURRENCY] and item["foreign_currency_prices"] == 2
+    assert item["next_action"] == "check_currency"
+
+
+def test_a_switched_off_competitor_mapping_is_reported_with_the_gap():
+    rows = [_row("p1", "Mapping off", inactive=1, barcode=True)]
+    result = pc.get_price_coverage(_conn(rows), "t1", now=NOW)
+    item = result["products"][0]
+    assert result["summary"]["inactive_mappings"] == 1 and result["summary"]["needs_attention"] == 1
+    assert item["reason_code"] == pc.REASON_NO_MAPPING and item["inactive_mappings"] == 1
+    assert item["next_action"] == "review_mappings"

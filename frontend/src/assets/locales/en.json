@@ -3451,6 +3451,43 @@
       "basis": {
         "competitor": "Competitor price",
         "market_reference": "Public listing"
+      },
+      "headline": "{{covered}} of {{total}} products have a source-backed market price",
+      "honesty": "Only prices KEEL actually collected or that you entered count. A product without one shows why, never an estimate.",
+      "filtersLabel": "Show products by status",
+      "filters": {
+        "all": "Needs attention",
+        "missing": "No market price",
+        "approval": "Awaiting source approval",
+        "stale": "Stale prices",
+        "currency": "Other currency",
+        "inactive": "Inactive matches"
+      },
+      "noneInFilter": "No product is in this group right now.",
+      "statusColumn": "Status",
+      "why": "Why",
+      "nextStep": "Next step",
+      "status": {
+        "missing": "No market price"
+      },
+      "badge": {
+        "stale": "Stale · {{days}} days",
+        "currency_mismatch": "Other currency",
+        "inactive_mapping": "Match switched off"
+      },
+      "issueText": {
+        "stale": "Newest price is {{days}} days old - prices older than {{limit}} days need refreshing.",
+        "currency_mismatch": "Prices in a currency other than {{currency}}: {{count}}. They are kept but not compared with yours.",
+        "inactive_mapping": "Competitor matches switched off or no longer tracked: {{count}}."
+      },
+      "actions": {
+        "review_source": "Review the source",
+        "add_competitor": "Add a competitor",
+        "enter_price": "Enter a price",
+        "check_collection": "Check collection",
+        "refresh_prices": "Refresh prices",
+        "check_currency": "Check currencies",
+        "review_mappings": "Review matches"
       }
     },
     "barcode": {
