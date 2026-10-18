@@ -42,6 +42,10 @@ RUN apt-get update \
 COPY --from=ai-builder /root/.local /home/ceopro/.local
 COPY --chown=ceopro:ceoprogroup src/ai ./src/ai
 COPY --chown=ceopro:ceoprogroup templates ./templates
+# src/ai imports src.infrastructure (db_pool, security) and src.market_scraper
+# (scoring, geo, connectors) - without them uvicorn dies on import.
+COPY --chown=ceopro:ceoprogroup src/infrastructure ./src/infrastructure
+COPY --chown=ceopro:ceoprogroup src/market_scraper ./src/market_scraper
 USER ceopro
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
