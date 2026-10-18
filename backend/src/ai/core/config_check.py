@@ -41,8 +41,8 @@ PAID_INTEGRATIONS: Dict[str, Tuple[Tuple[str, ...], str, str, Optional[str], Tup
     "Tavily": (("TAVILY_API_KEY",), "data", "tavily", "search", ("request",)),
     "SerpAPI": (("SERPAPI_API_KEY",), "data", "serpapi", "search", ("request",)),
     "Apify": (("APIFY_API_TOKEN", "APIFY_TOKEN"), "data", "apify", "actor_run", ("record",)),
-    "Cloudflare images": (("CLOUDFLARE_API_TOKEN",), "ai", "cloudflare", "image_generation", ("image",)),
-    "Hugging Face images": (("HUGGINGFACE_API_TOKEN",), "ai", "huggingface", "image_generation", ("image",)),
+    "Cloudflare images": (("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNTS"), "ai", "cloudflare", "image_generation", ("image",)),
+    "Hugging Face images": (("HUGGINGFACE_API_TOKEN", "HUGGINGFACE_API_TOKENS"), "ai", "huggingface", "image_generation", ("image",)),
 }
 
 
