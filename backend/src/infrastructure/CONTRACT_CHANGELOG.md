@@ -107,3 +107,14 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - Storing YouTube comments, and the deeper Google reviews, needs the operator's recorded approval (`EXTERNAL_COMMENTS_APPROVAL_REFERENCE`; Google reviews keep using `PLACES_TERMS_APPROVAL_REFERENCE`).
 - Completeness scores are out of seven facets (was five).
 
+
+## - 2026-10-18 (pricing never reports "no data")
+### Changed (behaviour — consumers should know)
+- **API** — `POST /pricing/recommend` no longer returns `status: "UNKNOWN"` for a product without tracked in-region competitor prices. Every product now gets `status: "OK"` and an `action` (`raise` / `lower` / `hold`). New response field `data_basis`: `LOCAL_MARKET` (measured in-region competitor prices; unchanged behaviour) | `MARKET_REFERENCE` (plausible `market_price_observations` for the product, same currency) | `REGIONAL_ESTIMATE` (out-of-region prices converted to the tenant currency and scaled by a regional factor learned from the tenant's own catalog) | `PEER_ESTIMATE` (cost x the market-to-cost multiple of comparable products) | `INTERNAL_ONLY` (own cost/margin only; `market` is `null`). Estimates carry a capped `confidence_score` (<= 0.50 / 0.45 / 0.30 / 0.15) and an explanation prefixed with the basis. Spec S19's "no currency conversion alone" rule is met by the learned regional factor; the original amount/currency of every converted price stays in the explanation (S9). Evidence records gain `market_observation_ids` and `data_basis`.
+- Competitor price freshness window: 30 -> 1095 days (`PRICING_MAX_PRICE_AGE_DAYS`); each competitor's latest price is still the only one used. Data older than 90 days is disclosed in the explanation.
+- Competitors excluded only for being out of region (`tenant_competitors.classification_reason LIKE 'excluded: competitor country%'`; never manufacturers) are now scraped (`load_scrape_targets`) and used as regional-estimate references. They stay `is_tracked = FALSE` and remain out of every other consumer.
+- Discovery: a product with no find in the tenant's region is searched again without the region restriction (`widen_out_of_region`, default on; result rows carry `out_of_region_search`). A mapped product with no price after 7 days (`DISCOVERY_RETRY_UNPRICED_AFTER_DAYS`) is re-searched by `skip_already_discovered` runs.
+### Added (all additive; no DB change)
+- **API** — `POST /pricing/recommend-all`: a decision for every active product; one failure does not stop the batch.
+- Env: `PRICING_DEFAULT_REGIONAL_FACTOR` (default `1.0`, used only when no product has prices in both markets to learn the factor from); `SEARXNG_SECRET` (passed to the SearXNG container from `backend/.env`).
+- Frontend: the price recommendation modal states what an estimate is based on (`pricing.modal.estimate.*`, en/ar).

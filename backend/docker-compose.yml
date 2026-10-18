@@ -54,6 +54,9 @@ services:
     container_name: ceopro_searxng
     environment:
       SEARXNG_BASE_URL: http://localhost:8080/
+      # Signing secret for this instance: set SEARXNG_SECRET in backend/.env (git-ignored).
+      # SearXNG gives this variable priority over server.secret_key in settings.yml.
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-}
       # The official image bakes in GRANIAN_HOST=:: (dual-stack IPv6
       # wildcard bind) - fails hard with "Address family not supported by
       # protocol (os error 97)" on any Docker network without IPv6 enabled,
