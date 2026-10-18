@@ -19,6 +19,10 @@ pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AI_TEST_DATABASE_URL n
 def conn():
     connection = psycopg2.connect(DATABASE_URL)
     connection.autocommit = False
+    # Other tests in a full run legitimately commit quota rows for today (discovery, research). Start from an
+    # empty day *inside this transaction*: the delete is rolled back with the rest, so nothing persists.
+    with connection.cursor() as cursor:
+        cursor.execute("DELETE FROM search_quota_usage WHERE usage_date = (NOW() AT TIME ZONE 'UTC')::date;")
     yield connection
     connection.rollback()
     connection.close()
