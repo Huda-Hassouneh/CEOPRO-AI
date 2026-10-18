@@ -1,0 +1,392 @@
+{
+ "started_at": "2026-10-09T13:48:42.470352+00:00",
+ "api": "http://127.0.0.1:8000",
+ "accounts": 5,
+ "cpu_count": 4,
+ "phases": {
+  "endpoints": {
+   "result": {
+    "/dashboard/command-center": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 257,
+     "p95_ms": 291,
+     "max_ms": 294
+    },
+    "/products": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 9,
+     "p95_ms": 11,
+     "max_ms": 13
+    },
+    "/reports/sales": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 120,
+     "p95_ms": 144,
+     "max_ms": 153
+    },
+    "/reports/financial-summary": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 36,
+     "p95_ms": 43,
+     "max_ms": 44
+    },
+    "/dashboard/metrics": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 58,
+     "p95_ms": 74,
+     "max_ms": 75
+    },
+    "/competitors": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 15,
+     "p95_ms": 17,
+     "max_ms": 17
+    },
+    "/forecasting/overview": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 145,
+     "p95_ms": 171,
+     "max_ms": 176
+    },
+    "/discovery/competitors": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 11,
+     "p95_ms": 16,
+     "max_ms": 16
+    },
+    "/alerts": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 265,
+     "p95_ms": 299,
+     "max_ms": 308
+    },
+    "/settings/company": {
+     "n": 20,
+     "errors": 0,
+     "p50_ms": 7,
+     "p95_ms": 9,
+     "max_ms": 9
+    }
+   },
+   "process": {
+    "rss_mb_peak": 322,
+    "rss_mb_end": 322,
+    "cpu_pct_mean": 8,
+    "cpu_pct_peak": 28,
+    "processes_peak": 1,
+    "db_connections_peak": 1
+   },
+   "wall_seconds": 18.5,
+   "top_queries": [
+    {
+     "calls": 60,
+     "total_ms": 2764.5,
+     "mean_ms": 46.07,
+     "query": "WITH sales AS ( SELECT ii.product_id, COALESCE(SUM(ii.quantity) FILTER (WHERE i.issue_date >= $1::date), $2) AS recent, "
+    },
+    {
+     "calls": 60,
+     "total_ms": 2293.0,
+     "mean_ms": 38.22,
+     "query": "SELECT i.issue_date::date, SUM(ii.quantity) FROM invoice_items ii JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id"
+    },
+    {
+     "calls": 40,
+     "total_ms": 1737.3,
+     "mean_ms": 43.43,
+     "query": "SELECT ii.product_id, localized_text(p.product_name), COALESCE(SUM(ii.total_price) FILTER (WHERE i.issue_date >= $1::date), $2) AS revenue, "
+    },
+    {
+     "calls": 20,
+     "total_ms": 1480.6,
+     "mean_ms": 74.03,
+     "query": "SELECT i.invoice_id, i.invoice_number, i.issue_date, i.customer_name, i.currency, i.payment_status, p.product_id, localized_text(p.produ"
+    },
+    {
+     "calls": 60,
+     "total_ms": 1397.4,
+     "mean_ms": 23.29,
+     "query": "SELECT COALESCE(SUM(CASE WHEN i.issue_date >= $1::date THEN ii.quantity ELSE $2 END), $3) AS recent_units, COALESCE(SUM(CASE WHE"
+    },
+    {
+     "calls": 60,
+     "total_ms": 881.3,
+     "mean_ms": 14.69,
+     "query": "SELECT COALESCE(SUM(CASE WHEN issue_date >= $1::date THEN total_amount ELSE $2 END), $3) AS recent_revenue, COALESCE(SUM(CASE WH"
+    },
+    {
+     "calls": 40,
+     "total_ms": 865.6,
+     "mean_ms": 21.64,
+     "query": "SELECT i.issue_date::date AS day, SUM(ii.quantity) AS units FROM invoice_items ii JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.in"
+    },
+    {
+     "calls": 20,
+     "total_ms": 859.9,
+     "mean_ms": 43.0,
+     "query": "WITH sold AS ( SELECT ii.product_id, MAX(i.created_at) AS last_recorded FROM invoice_items ii JOIN invoices i ON"
+    }
+   ]
+  },
+  "assistant": {
+   "result": {
+    "en": {
+     "n": 4,
+     "errors": 0,
+     "p50_ms": 17136,
+     "p95_ms": 40009,
+     "max_ms": 40009,
+     "tokens_mean": 4370
+    },
+    "ar": {
+     "n": 4,
+     "errors": 0,
+     "p50_ms": 19454,
+     "p95_ms": 26925,
+     "max_ms": 26925,
+     "tokens_mean": 2837
+    }
+   },
+   "process": {
+    "rss_mb_peak": 322,
+    "rss_mb_end": 322,
+    "cpu_pct_mean": 1,
+    "cpu_pct_peak": 79,
+    "processes_peak": 1,
+    "db_connections_peak": 1
+   },
+   "wall_seconds": 160.6,
+   "top_queries": [
+    {
+     "calls": 8,
+     "total_ms": 294.2,
+     "mean_ms": 36.78,
+     "query": "SELECT ii.product_id, i.issue_date::date AS sale_date, SUM(ii.quantity) AS units FROM invoice_items ii JOIN invoices i ON i.tenant_id = "
+    },
+    {
+     "calls": 8,
+     "total_ms": 282.0,
+     "mean_ms": 35.25,
+     "query": "SELECT localized_text(p.product_name) AS name, i.currency, SUM(ii.quantity) AS units, SUM(ii.total_price) AS revenue FROM invoice"
+    },
+    {
+     "calls": 2,
+     "total_ms": 226.1,
+     "mean_ms": 113.06,
+     "query": "SELECT localized_text(p.product_name, $1) AS name, COALESCE(p.product_name->>$2, p.product_name::text) AS en_name, SUM(inv.stock_quantity), M"
+    },
+    {
+     "calls": 8,
+     "total_ms": 202.8,
+     "mean_ms": 25.35,
+     "query": "SELECT ii.product_id, SUM(CASE WHEN i.issue_date >= $1::date THEN ii.quantity ELSE $2 END) AS recent_units, SUM(CASE WHEN i.issu"
+    },
+    {
+     "calls": 8,
+     "total_ms": 112.5,
+     "mean_ms": 14.07,
+     "query": "SELECT currency, COALESCE(SUM(total_amount) FILTER (WHERE issue_date >= $1::date), $2), COUNT(*) FILTER (WHERE issue_date "
+    },
+    {
+     "calls": 2,
+     "total_ms": 75.8,
+     "mean_ms": 37.92,
+     "query": "SELECT p.product_id, localized_text(p.product_name) AS product_name, p.cost_price IS NOT NULL AS has_cost_data, "
+    },
+    {
+     "calls": 1,
+     "total_ms": 49.8,
+     "mean_ms": 49.83,
+     "query": "SELECT COALESCE(SUM(CASE WHEN i.issue_date >= $1::date THEN ii.total_price ELSE $2 END), $3) AS recent_revenue, "
+    },
+    {
+     "calls": 1,
+     "total_ms": 43.0,
+     "mean_ms": 43.01,
+     "query": "SELECT localized_text(p.product_name, $1) AS name, i.currency, COALESCE(SUM(ii.quantity) FILTER (WHERE i.issue_date >= $2::date), $3), "
+    }
+   ]
+  },
+  "files": {
+   "result": {
+    "upload_xlsx_2000_rows": {
+     "n": 4,
+     "errors": 0,
+     "p50_ms": 700,
+     "p95_ms": 811,
+     "max_ms": 811
+    },
+    "upload_csv_10000_rows": {
+     "n": 4,
+     "errors": 0,
+     "p50_ms": 2413,
+     "p95_ms": 4413,
+     "max_ms": 4413
+    },
+    "report_export_pdf": {
+     "n": 4,
+     "errors": 0,
+     "p50_ms": 599,
+     "p95_ms": 646,
+     "max_ms": 646
+    },
+    "report_export_csv": {
+     "n": 4,
+     "errors": 0,
+     "p50_ms": 2882,
+     "p95_ms": 3084,
+     "max_ms": 3084
+    }
+   },
+   "process": {
+    "rss_mb_peak": 332,
+    "rss_mb_end": 331,
+    "cpu_pct_mean": 30,
+    "cpu_pct_peak": 95,
+    "processes_peak": 1,
+    "db_connections_peak": 2
+   },
+   "wall_seconds": 28.2,
+   "top_queries": [
+    {
+     "calls": 104,
+     "total_ms": 8460.0,
+     "mean_ms": 81.35,
+     "query": "SELECT i.invoice_id, i.invoice_number, i.issue_date, i.customer_name, i.currency, i.payment_status, p.product_id, localized_text(p.produ"
+    },
+    {
+     "calls": 480,
+     "total_ms": 3842.0,
+     "mean_ms": 8.0,
+     "query": "UPDATE import_staging_rows AS s SET validation_status = v.status, validation_errors = v.errors FROM (VALUES ($1, $2, $3),($4, $5, $6),($"
+    },
+    {
+     "calls": 2,
+     "total_ms": 2517.4,
+     "mean_ms": 1258.69,
+     "query": "SELECT COALESCE(p.product_name->>$1, p.product_name->>$2, p.product_name::text) AS name, SUM(ii.quantity) AS units_sold, SUM(ii.total_price) "
+    },
+    {
+     "calls": 480,
+     "total_ms": 1019.0,
+     "mean_ms": 2.12,
+     "query": "INSERT INTO import_staging_rows (tenant_id, job_id, raw_payload_json, validation_status) VALUES ($1, $2, $3, $4),($5, $6, $7, $8),($9, $10, $11, $12"
+    },
+    {
+     "calls": 120,
+     "total_ms": 690.0,
+     "mean_ms": 5.75,
+     "query": "UPDATE import_staging_rows AS s SET committed_table = $1, committed_record_id = v.transaction_id::uuid, validation_status = $2 "
+    },
+    {
+     "calls": 4,
+     "total_ms": 665.5,
+     "mean_ms": 166.37,
+     "query": "SELECT localized_text(p.product_name), i.currency, SUM(ii.quantity), SUM(ii.total_price), SUM(CASE WHEN p.cost_price IS NOT NULL THEN (ii.unit_price - p.cost_pr"
+    },
+    {
+     "calls": 120,
+     "total_ms": 543.6,
+     "mean_ms": 4.53,
+     "query": "INSERT INTO invoices (tenant_id, invoice_number, issue_date, subtotal, total_amount, currency, payment_status, created_by_user_"
+    },
+    {
+     "calls": 120,
+     "total_ms": 493.1,
+     "mean_ms": 4.11,
+     "query": "INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price) VALUES ($1, $2, $3, $4, $5, $6),($7, $8, $9, $10, $"
+    }
+   ]
+  },
+  "forecast": {
+   "result": {
+    "seconds": 15.33,
+    "state": "finished",
+    "products": 68,
+    "failed": 0,
+    "started": {
+     "state": "running",
+     "done": 0,
+     "total": 68,
+     "failed": 0,
+     "started_at": "2026-10-09T13:52:10.326009+00:00",
+     "finished_at": null,
+     "pending_products": 68,
+     "started": true
+    }
+   },
+   "process": {
+    "rss_mb_peak": 338,
+    "rss_mb_end": 338,
+    "cpu_pct_mean": 207,
+    "cpu_pct_peak": 278,
+    "processes_peak": 1,
+    "db_connections_peak": 2
+   },
+   "wall_seconds": 15.3,
+   "top_queries": [
+    {
+     "calls": 68,
+     "total_ms": 317.4,
+     "mean_ms": 4.67,
+     "query": "SELECT i.issue_date::date AS sale_date, SUM(ii.quantity) AS quantity, AVG(ii.unit_price) AS avg_unit_price FROM invo"
+    },
+    {
+     "calls": 1,
+     "total_ms": 48.5,
+     "mean_ms": 48.52,
+     "query": "SELECT COALESCE(p.product_name->>$1, p.product_name->>$2, p.product_name::text) AS name, SUM(ii.quantity) AS units_sold, SUM(ii.total_price) "
+    },
+    {
+     "calls": 1,
+     "total_ms": 33.7,
+     "mean_ms": 33.73,
+     "query": "WITH sold AS ( SELECT ii.product_id, MAX(i.created_at) AS last_recorded FROM invoice_items ii JOIN invoices i ON"
+    },
+    {
+     "calls": 68,
+     "total_ms": 21.4,
+     "mean_ms": 0.32,
+     "query": "INSERT INTO demand_forecasts (tenant_id, product_id, expected_demand, confidence_range_lower, confidence_range_upper, forecast_target_d"
+    },
+    {
+     "calls": 1,
+     "total_ms": 14.7,
+     "mean_ms": 14.75,
+     "query": "SELECT COUNT(DISTINCT i.invoice_id), COALESCE(SUM(i.total_amount), $1) FROM invoices i WHERE i.tenant_id = $2 AND i.issue_date >= $3::ti"
+    },
+    {
+     "calls": 69,
+     "total_ms": 11.5,
+     "mean_ms": 0.17,
+     "query": "INSERT INTO evidence_records (tenant_id, category, source_module, source_record_ids, confidence_score, explanation_text, model_version,"
+    },
+    {
+     "calls": 68,
+     "total_ms": 7.9,
+     "mean_ms": 0.12,
+     "query": "SELECT p.current_price, p.category, i.stock_quantity, c.country_code FROM products p JOIN companies c ON c.tenant_id = p.tenant_id LEFT "
+    },
+    {
+     "calls": 370,
+     "total_ms": 5.6,
+     "mean_ms": 0.02,
+     "query": "NOT EXISTS ( SELECT 1 FROM tenant_users WHERE tenant_users.tenant_id = tenant_uuid AND tenant_users.user_id = user_uuid AND "
+    }
+   ]
+  }
+ },
+ "perf_company": {
+  "email": "perf+737e8c8f@keel-test.example",
+  "tenant_id": "fd61c68b-ca63-4f4e-a7d9-312b78b12d50"
+ }
+}

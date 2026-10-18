@@ -1,0 +1,614 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: ceopro_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ceopro_core_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ceopro_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ceopro_core_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # The real free fallback src/market_scraper/searxng_discovery.py already
+  # calls when Google Custom Search is unconfigured/over budget/erroring
+  # (see web_product_discovery.py) - genuinely free, self-hosted, no API
+  # key, official image (github.com/searxng/searxng). Not started by
+  # `docker compose up` with no args - like market-scraper/market-discovery-
+  # worker/the observability stack, it's an optional service you bring up
+  # explicitly with `docker compose up -d searxng` (see
+  # CODESPACES_DEVELOPMENT.md's "Optional services" section).
+  #
+  # src/infrastructure/searxng/settings.yml is mounted over the image's own
+  # default settings.yml and uses `use_default_settings: true` (SearXNG's
+  # own documented override pattern) to patch in the one thing searxng_
+  # discovery.py's `format=json` request actually needs - JSON output,
+  # disabled by default upstream since it's a scraping vector for a PUBLIC
+  # instance, safe to enable here since this instance is private and
+  # Codespace-local.
+  searxng:
+    image: searxng/searxng:latest
+    container_name: ceopro_searxng
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8080/
+      # Signing secret for this instance: set SEARXNG_SECRET in backend/.env (git-ignored).
+      # SearXNG gives this variable priority over server.secret_key in settings.yml.
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-}
+      # The official image bakes in GRANIAN_HOST=:: (dual-stack IPv6
+      # wildcard bind) - fails hard with "Address family not supported by
+      # protocol (os error 97)" on any Docker network without IPv6 enabled,
+      # which is the common default (confirmed live: this container
+      # exited immediately with that exact error until this override was
+      # added). IPv4-only bind works on every Docker network unconditionally.
+      GRANIAN_HOST: 0.0.0.0
+    volumes:
+      - ./src/infrastructure/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - ceopro_core_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- 'http://localhost:8080/search?q=test&format=json' >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0-alpine
+    container_name: ceopro_redis_exporter
+    environment:
+      - REDIS_ADDR=redis://ceopro_redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - ceopro_core_net
+      - ceopro_telemetry_net
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: ceopro_prometheus
+    mem_limit: 512m
+    volumes:
+      - ./src/infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./src/infrastructure/monitoring/market-scraper-alerts.yml:/etc/prometheus/market-scraper-alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - ceopro_core_net
+      - ceopro_telemetry_net
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: ceopro_loki
+    mem_limit: 512m
+    volumes:
+      - ./src/infrastructure/monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/tmp/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "3100:3100"
+    networks:
+      - ceopro_telemetry_net
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: ceopro_promtail
+    mem_limit: 256m
+    volumes:
+      - ./src/infrastructure/monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/promtail-config.yml
+    networks:
+      - ceopro_telemetry_net
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: ceopro_grafana
+    mem_limit: 256m
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./src/infrastructure/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./src/infrastructure/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./src/infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    networks:
+      - ceopro_telemetry_net
+    depends_on:
+      prometheus:
+        condition: service_started
+
+  minio:
+    # MinIO archived its community/open-source edition and removed
+    # minio/minio from Docker Hub entirely, then locked down
+    # quay.io/minio/minio too (~Sep 24 2026 - "the token endpoint still
+    # issues a token, but it carries no pull scope") - confirmed failing
+    # the same way from a real GitHub Codespace, not just this repo's own
+    # dev sandbox. The archived repo's own README now states: "The MinIO
+    # community edition is now distributed as source code only." Building
+    # from source (Dockerfile.minio, `go install` pinned to the exact
+    # pseudo-version @latest resolved to on 2026-09-27) is the project-
+    # supported path MinIO itself documents now - not a workaround, and
+    # not a different storage engine/architecture, just building the same
+    # open-source MinIO server this repo has always run instead of
+    # pulling an image neither registry serves anymore.
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.minio
+    container_name: ceopro_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - ceopro_core_net
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # One-shot job, not a long-running service - always invoke this with
+  # `docker compose run --rm migrate` (what .devcontainer/start-services.sh
+  # does), never `docker compose up migrate`/`up -d migrate`. `run --rm`
+  # always creates a fresh, uniquely-named container and removes it on
+  # exit; `up` may instead reuse whatever `ceopro_migrate` container
+  # already exists, including a leftover one whose bind mount was
+  # resolved against an earlier, no-longer-current workspace path - that
+  # surfaces as "python: can't open file '/app/scripts/apply_
+  # migrations.py'" even though the file is right there in the current
+  # checkout. If you already have a stuck `ceopro_migrate` container from
+  # before this comment existed, `docker compose up -d --force-recreate
+  # migrate` (or `docker rm -f ceopro_migrate`) clears it once.
+  migrate:
+    image: python:3.11-slim
+    container_name: ceopro_migrate
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    command: sh -c "pip install --no-cache-dir psycopg2-binary && python scripts/apply_migrations.py"
+    networks:
+      - ceopro_core_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  market-scraper:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      # src/infrastructure/db_pool.py connection pool sizing for this
+      # process's ceopro_app connections - see .env.example.
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      REDIS_URL: redis://redis:6379/0
+      SCRAPER_STREAM_KEY: ${SCRAPER_STREAM_KEY:-market.scrape.requested}
+      SCRAPER_DEAD_STREAM_KEY: ${SCRAPER_DEAD_STREAM_KEY:-market.scrape.dead}
+      SCRAPER_MAX_ATTEMPTS: ${SCRAPER_MAX_ATTEMPTS:-3}
+      SCRAPER_CLAIM_IDLE_MS: ${SCRAPER_CLAIM_IDLE_MS:-300000}
+      SCRAPER_STALE_JOB_MINUTES: ${SCRAPER_STALE_JOB_MINUTES:-30}
+      SCRAPER_METRICS_PORT: 9108
+      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-KEEL-MarketResearchBot/1.0}
+    expose:
+      - "9108"
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  market-analysis-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-analysis
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.analysis_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      REDIS_URL: redis://redis:6379/0
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Consumes market.discovery.requested, published by src/ai/main.py's
+  # POST /extraction/upload right after real new products are persisted -
+  # runs tenant_discovery.py's full competitor discovery (see
+  # discovery_worker.py's own module docstring for the gap this closes).
+  # Uses the market-scraper image, not market-analysis: this worker only
+  # ever imports from src/market_scraper/, never src/ai/.
+  market-discovery-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.discovery_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      REDIS_URL: redis://redis:6379/0
+      DISCOVERY_STREAM_KEY: ${DISCOVERY_STREAM_KEY:-market.discovery.requested}
+      DISCOVERY_DEAD_STREAM_KEY: ${DISCOVERY_DEAD_STREAM_KEY:-market.discovery.dead}
+      DISCOVERY_MAX_ATTEMPTS: ${DISCOVERY_MAX_ATTEMPTS:-3}
+      DISCOVERY_CLAIM_IDLE_MS: ${DISCOVERY_CLAIM_IDLE_MS:-300000}
+      # Real gap fixed here: this is the one process that actually calls
+      # web_product_discovery.py/social_cross_reference.py/places_discovery.py
+      # (via tenant_discovery.py) - none of their provider credentials were
+      # ever passed into this container before, so setting them in .env
+      # alone did nothing for a docker-compose deployment (only a bare
+      # `python -m src.market_scraper.discovery_worker` run directly on the
+      # host, inheriting the shell's own env, ever saw them). SEARXNG_
+      # INSTANCE_URL defaults to the new searxng service below, so the
+      # fallback works with no .env edit; override it to point at a
+      # different instance instead.
+      GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
+      GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      SEARXNG_INSTANCE_URL: ${SEARXNG_INSTANCE_URL:-http://searxng:8080}
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Consumes market.enrichment.requested (per-competitor Retry with
+  # ?background=true, "retry all failed", and this worker's own hourly sweep
+  # of never-attempted / due-for-retry competitors). See enrichment_worker.py.
+  market-enrichment-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.enrichment_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      REDIS_URL: redis://redis:6379/0
+      ENRICHMENT_STREAM_KEY: ${ENRICHMENT_STREAM_KEY:-market.enrichment.requested}
+      ENRICHMENT_DEAD_STREAM_KEY: ${ENRICHMENT_DEAD_STREAM_KEY:-market.enrichment.dead}
+      ENRICHMENT_MAX_ATTEMPTS: ${ENRICHMENT_MAX_ATTEMPTS:-3}
+      ENRICHMENT_CLAIM_IDLE_MS: ${ENRICHMENT_CLAIM_IDLE_MS:-300000}
+      ENRICHMENT_SWEEP_INTERVAL_SECONDS: ${ENRICHMENT_SWEEP_INTERVAL_SECONDS:-3600}
+      ENRICHMENT_DEDUPE_SECONDS: ${ENRICHMENT_DEDUPE_SECONDS:-600}
+      ENRICHMENT_MAX_PER_RUN: ${ENRICHMENT_MAX_PER_RUN:-50}
+      ENRICHMENT_MAX_BULK: ${ENRICHMENT_MAX_BULK:-200}
+      ENRICHMENT_RETRY_AFTER_HOURS: ${ENRICHMENT_RETRY_AFTER_HOURS:-6}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      # Operator's recorded approval to store Google Places reviews (Google's
+      # terms govern stored Places content). Unset = reviews stay BLOCKED.
+      PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
+      # More competitor sources: news (own-site feeds + the news mode of Brave/Tavily/SearXNG above),
+      # YouTube comments with likes, deeper Google reviews with likes (Apify).
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      # One name everywhere: APIFY_API_TOKEN (APIFY_TOKEN, the older name, still works).
+      APIFY_API_TOKEN: ${APIFY_API_TOKEN:-}
+      APIFY_TOKEN: ${APIFY_TOKEN:-}
+      EXTERNAL_COMMENTS_APPROVAL_REFERENCE: ${EXTERNAL_COMMENTS_APPROVAL_REFERENCE:-}
+      NEWS_MAX_AGE_DAYS: ${NEWS_MAX_AGE_DAYS:-180}
+      APIFY_REVIEWS_MAX: ${APIFY_REVIEWS_MAX:-100}
+      # Market reference-price lookup (price_lookup/), run by this worker for POST /pricing/market-coverage/fill.
+      PRICE_LOOKUP_PROVIDERS: ${PRICE_LOOKUP_PROVIDERS:-open_prices,web_offers,serpapi_shopping}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      PRICE_LOOKUP_MAX_PER_RUN: ${PRICE_LOOKUP_MAX_PER_RUN:-20}
+      PRICE_LOOKUP_RETRY_DAYS: ${PRICE_LOOKUP_RETRY_DAYS:-7}
+      GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
+      GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
+      SEARXNG_INSTANCE_URL: ${SEARXNG_INSTANCE_URL:-http://searxng:8080}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+    networks:
+      - ceopro_core_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Scheduled polling for both connector types - direct-database
+  # (connector_sync.py) and generic POS/ERP/API (api_connector_sync.py).
+  # Neither had ever been wired into a running process before this
+  # worker existed - see connector_worker.py's own module docstring.
+  # Not event-driven (no Redis dependency): a client's own database or
+  # API doesn't publish an event when it changes, so this polls instead.
+  market-connector-worker:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.connector_worker"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
+      SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
+      SCRAPER_DB_POOL_MAX_SIZE: ${SCRAPER_DB_POOL_MAX_SIZE:-10}
+      CONNECTOR_WORKER_POLL_INTERVAL_SECONDS: ${CONNECTOR_WORKER_POLL_INTERVAL_SECONDS:-300}
+      # Decrypts the connector credentials the API stored: same key as the API.
+      CREDENTIAL_VAULT_KMS_BACKEND: ${CREDENTIAL_VAULT_KMS_BACKEND:-local}
+      CREDENTIAL_VAULT_MASTER_KEY: ${CREDENTIAL_VAULT_MASTER_KEY:-}
+      CREDENTIAL_VAULT_PREVIOUS_KEYS: ${CREDENTIAL_VAULT_PREVIOUS_KEYS:-}
+      AWS_KMS_KEY_ID: ${AWS_KMS_KEY_ID:-}
+    networks:
+      - ceopro_core_net
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  market-maintenance:
+    build:
+      context: .
+      dockerfile: src/infrastructure/Dockerfile.market-scraper
+    restart: unless-stopped
+    command: ["python", "-m", "src.market_scraper.maintenance"]
+    environment:
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_STALE_JOB_MINUTES: ${SCRAPER_STALE_JOB_MINUTES:-30}
+      SCRAPER_MAINTENANCE_INTERVAL_SECONDS: ${SCRAPER_MAINTENANCE_INTERVAL_SECONDS:-300}
+      SCRAPER_MAINTENANCE_METRICS_PORT: 9109
+    expose:
+      - "9109"
+    networks:
+      - ceopro_core_net
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # PENDING_ACTIONS.md #2/#25 - the first service that ever connects to
+  # Postgres as the restricted ceopro_app role (via src/ai/db.py) instead of
+  # the superuser ceopro_admin every other DB-touching path in this file
+  # uses. DATABASE_URL below is still the superuser connection string, same
+  # as `migrate` - src/ai/db.py derives the ceopro_app connection from it at
+  # request time, it's never used directly for app traffic.
+  ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    container_name: ceopro_ai
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      # src/infrastructure/db_pool.py connection pool sizing for this
+      # process's ceopro_app connections - see .env.example.
+      APP_DB_POOL_MIN_SIZE: ${APP_DB_POOL_MIN_SIZE:-1}
+      APP_DB_POOL_MAX_SIZE: ${APP_DB_POOL_MAX_SIZE:-10}
+      JWT_SECRET: ${JWT_SECRET}
+      # POST /auth/login token lifetime + real browser origins allowed to
+      # call this API - see .env.example for the full reasoning on each.
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-720}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      # Password-reset/email-verification/team-invitation token lifetimes +
+      # outbound email (core/notifications.py) - optional. This compose file
+      # is local development only, so an unsent email's code/link is logged
+      # (EMAIL_LOG_UNSENT_BODIES) when SMTP_HOST is unset. See .env.example.
+      EMAIL_LOG_UNSENT_BODIES: ${EMAIL_LOG_UNSENT_BODIES:-true}
+      PASSWORD_RESET_CODE_EXPIRE_MINUTES: ${PASSWORD_RESET_CODE_EXPIRE_MINUTES:-30}
+      EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES: ${EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES:-60}
+      TEAM_INVITATION_EXPIRE_MINUTES: ${TEAM_INVITATION_EXPIRE_MINUTES:-20160}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-no-reply@keel.ai}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # RAG chat's LLM provider (src/ai/rag/llm_client.py) - previously never
+      # wired through here at all, so /rag/query would always fail with
+      # "GROQ_API_KEY is not set" in a real docker-compose deployment despite
+      # working when run outside Docker with the var exported directly.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-1500}
+      # Retrieval models (src/ai/rag/embeddings.py, pipeline.py): torch
+      # (default, ~2 GB peak with the re-ranker), onnx (~830 MB, no torch),
+      # static (static multilingual model, ~350 MB) or none (keyword search
+      # only, ~300 MB) - see render.yaml for the numbers.
+      RAG_EMBEDDING_BACKEND: ${RAG_EMBEDDING_BACKEND:-torch}
+      RAG_RERANKER_ENABLED: ${RAG_RERANKER_ENABLED:-true}
+      # Set to route generation at the llm-local service below (or any other
+      # OpenAI-compatible endpoint) instead of Groq - leave blank for Groq,
+      # the unchanged default. From inside this container, the llm-local
+      # service's own address is http://llm-local:8080/v1/chat/completions -
+      # NOT 127.0.0.1:8090, which only resolves from the host machine.
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-}
+      LOCAL_LLM_TIMEOUT_SECONDS: ${LOCAL_LLM_TIMEOUT_SECONDS:-90}
+      # Optional - market_scraper/places_discovery.py and
+      # social_cross_reference.py degrade to returning [] when unset.
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      GOOGLE_CUSTOM_SEARCH_API_KEY: ${GOOGLE_CUSTOM_SEARCH_API_KEY:-}
+      GOOGLE_CUSTOM_SEARCH_CX: ${GOOGLE_CUSTOM_SEARCH_CX:-}
+      # Optional - the Apify Google Maps source of competitor discovery
+      # (market_discovery/providers/apify_maps.py), which runs in this
+      # service. Unset = skipped. Each run is billed to the Apify account.
+      APIFY_API_TOKEN: ${APIFY_API_TOKEN:-}
+      APIFY_MAX_PLACES_PER_SEARCH: ${APIFY_MAX_PLACES_PER_SEARCH:-40}
+      # Optional - src/market_scraper/searxng_discovery.py's own fallback,
+      # and the assistant's public research (src/ai/research/) both
+      # degrade to "not set up" when no search provider is configured.
+      SEARXNG_INSTANCE_URL: ${SEARXNG_INSTANCE_URL:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      RESEARCH_DAILY_SEARCH_LIMIT: ${RESEARCH_DAILY_SEARCH_LIMIT:-30}
+      # Published by POST /extraction/upload right after new products are
+      # persisted; consumed by the market-discovery-worker service below -
+      # must match that service's own DISCOVERY_STREAM_KEY.
+      DISCOVERY_STREAM_KEY: ${DISCOVERY_STREAM_KEY:-market.discovery.requested}
+      # Must match market-enrichment-worker (same defaults) so a queued Retry reaches it.
+      ENRICHMENT_STREAM_KEY: ${ENRICHMENT_STREAM_KEY:-market.enrichment.requested}
+      ENRICHMENT_DEDUPE_SECONDS: ${ENRICHMENT_DEDUPE_SECONDS:-600}
+      # Enables the REVIEWS facet for a synchronous Retry served by this API.
+      PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
+      # A synchronous per-competitor Retry served by this API also reads news and video comments.
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      # One name everywhere: APIFY_API_TOKEN (APIFY_TOKEN, the older name, still works).
+      APIFY_TOKEN: ${APIFY_TOKEN:-}
+      EXTERNAL_COMMENTS_APPROVAL_REFERENCE: ${EXTERNAL_COMMENTS_APPROVAL_REFERENCE:-}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      # Billing (Stripe's return pages, plan access, credit upkeep).
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      UNASSIGNED_PLAN_ACCESS: ${UNASSIGNED_PLAN_ACCESS:-none}
+      BILLING_MAINTENANCE_ENABLED: ${BILLING_MAINTENANCE_ENABLED:-true}
+      # Connector credentials (onboarding refuses to store them without a key).
+      CREDENTIAL_VAULT_KMS_BACKEND: ${CREDENTIAL_VAULT_KMS_BACKEND:-local}
+      CREDENTIAL_VAULT_MASTER_KEY: ${CREDENTIAL_VAULT_MASTER_KEY:-}
+      CREDENTIAL_VAULT_PREVIOUS_KEYS: ${CREDENTIAL_VAULT_PREVIOUS_KEYS:-}
+      AWS_KMS_KEY_ID: ${AWS_KMS_KEY_ID:-}
+      # File storage: the minio service on this network.
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # Marketing images (paid ones stay refused until priced).
+      MARKETING_IMAGE_PROVIDERS: ${MARKETING_IMAGE_PROVIDERS:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      HUGGINGFACE_API_TOKEN: ${HUGGINGFACE_API_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    ports:
+      - "8001:8000"
+    networks:
+      - ceopro_core_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Zero-cost, fully local alternative to Groq for RAG chat generation - the
+  # official llama.cpp server image (https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md),
+  # CPU-only build, no GPU required. NOT started by default (`docker compose
+  # up` skips it) - it only runs when explicitly requested via
+  # `docker compose --profile local-llm up`, since it needs a real model file
+  # in ./models/ first (run `python scripts/download_local_llm_model.py`
+  # once) and most deployments will use Groq instead. Live-verified
+  # 2026-09-06 with Qwen2.5-3B-Instruct (Q5_K_M): ~6 tokens/sec generation on
+  # a 4-core/8-thread CPU - real and usable, genuinely slower than Groq's
+  # hardware-accelerated hosting. Point the `ai` service's LOCAL_LLM_BASE_URL
+  # at http://llm-local:8080/v1/chat/completions to actually use it.
+  llm-local:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: ceopro_llm_local
+    profiles: ["local-llm"]
+    volumes:
+      - ./models:/models
+    command: >
+      -m /models/qwen2.5-3b-instruct-q5_k_m.gguf
+      --host 0.0.0.0 --port 8080 -t 4 -c 4096
+    ports:
+      - "8090:8080"
+    networks:
+      - ceopro_core_net
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  loki_data:
+  grafana_data:
+  minio_data:
+
+networks:
+  ceopro_core_net:
+    driver: bridge
+  ceopro_telemetry_net:
+    driver: bridge
