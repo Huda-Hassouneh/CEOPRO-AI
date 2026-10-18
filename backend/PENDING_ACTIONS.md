@@ -108,6 +108,50 @@ All 26 commits sharing the `Update <filename>` / author=Huda-Hassouneh / committ
 
 **What git metadata cannot answer**: whether these commits were made by the account holder directly through github.com's browser editor, or by an automated script/integration using that account's credentials or an API token. Both produce identical author/committer/GPG signatures. The PowerShell-artifact commits (#15, #20) are the strongest evidence pointing toward local script automation specifically (a human pasting into a browser text box is unlikely to include `[System.IO.File]::WriteAllText(...)` boilerplate), but this is inference, not proof. The only source that could resolve this definitively is GitHub's organization/repository **Audit Log** (Settings → Audit log), which records actual originating session type (web / OAuth App / PAT name) and IP — this session has no access to it.
 
+## Subscriptions & billing — staging go-live (added 2026-10-18)
+
+Everything the AI/code side could do for Standard / Plus / Pro billing is on `KEEL_Test` (plans, Data and AI
+Credits ledger, trials, seats/reports/products limits, Stripe checkout + webhooks, repeatable catalog sync).
+What follows is only what it **could not** do: it needs an account, a login, a secret typed into a form, a real
+card page, or a business decision. Step-by-step instructions: `docs/STAGING_BILLING_RUNBOOK.md`. Live payments and
+production stay **disabled** until every 🔴 below is closed.
+
+### Blocking — needs a human with account access
+
+| # | Item | Owner | Blocks | Status |
+|---|---|---|---|---|
+| 51 | **Staging is not deployed.** `keel-ai-staging.onrender.com` and `keel-frontend-staging.onrender.com` answer `x-render-routing: no-server` (re-checked 2026-10-18). Create the Render Blueprint from branch `KEEL_Test` (`render.yaml`; skip `keel-workers-staging`, it is a paid plan). The assistant has no Render CLI/API key/login. | Render account owner | Every live check below; Stripe webhooks currently deliver to nothing | 🔴 Open |
+| 52 | **Secrets must be entered into Render by a person** (the assistant may not type secrets into web forms): `DATABASE_URL` (Neon **direct** URL — host without `-pooler`), `APP_DB_PASSWORD` (new; the app re-syncs the `ceopro_app` role to it on every boot), `CREDENTIAL_VAULT_MASTER_KEY` (new; `backend/scripts/vault_key.py`), `STRIPE_SECRET_KEY` (**test** key), `STRIPE_WEBHOOK_SECRET`, `GROQ_API_KEY`. | Render account owner | #51 | 🔴 Open |
+| 53 | **Confirm the real Render hostname.** If it is not `keel-ai-staging.onrender.com`, update the webhook URL in Stripe to `https://<backend>/billing/webhook` and the four URL variables (`CORS_ALLOWED_ORIGINS`, `FRONTEND_BASE_URL`, `APP_BASE_URL`, `VITE_API_BASE_URL`). | Render + Stripe account owner | Webhooks, checkout return URLs, CORS | 🔴 Open |
+| 54 | **Send a Stripe test event and see HTTP 200** (Stripe → Developers → Webhooks → endpoint → Send test webhook). Also the only way to prove the `whsec_…` stored in Render belongs to the registered endpoint — Stripe never reveals an existing endpoint's secret via API, and staging was down, so it is **unverified**. 400 = wrong secret, 503 = not configured. | Stripe account owner | Trusting any paid activation | 🔴 Open |
+| 55 | **Hosted Checkout test purchase** (test mode, card `4242 4242 4242 4242`). The assistant may not enter card details on Stripe's hosted page. Verified instead (test mode, real Stripe API): Checkout session creation, a paid subscription via Stripe's test PaymentMethod token, signed webhooks, duplicates, cancel/resume, upgrade — `test_stripe_test_mode_e2e_db.py`. | Anyone with the staging app | "Checkout works end to end in a browser" | 🔴 Open |
+| 56 | **Real provider prices are unset on purpose.** Groq (AI) and every paid data source (Google Places/Geocoding/Custom Search, Apify, Brave, Tavily) and Hugging Face / Cloudflare image generation are refused (`COST_NOT_CONFIGURED`) until an operator records the real price: `python -m scripts.billing_admin set-price …` (needs `--source`, `--verified-on`, `--by`, `--reason`). Take prices from each provider's pricing page or invoice — nothing is invented. Also set monthly caps with `set-control`. | Ops / finance with provider invoices | The AI assistant and paid discovery on staging | 🔴 Open |
+| 57 | **Cloudflare R2 bucket + `MINIO_ENDPOINT`/`MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`** (R2 needs a card on file). Not needed for billing — the backend boots and passes health/webhook checks without them — but file upload, RAG ingestion and marketing assets do not work on staging until set. | Cloudflare account owner | Uploads, RAG documents, marketing images on staging | 🟠 Open (not billing-critical) |
+| 58 | **Catalog sync must be re-run if staging uses a database other than the Neon one already synced.** `python -m scripts.stripe_sync_catalog --dry-run` must show 9 × ADOPT, 0 × CREATE; it is safely repeatable (reconciles with Stripe first, no reliance on expiring idempotency keys). Done 2026-10-17 against the Neon database provided: 9 linked, Stripe still 1 product / 9 prices. | Whoever provisions the staging DB | Plan prices resolving to Stripe | 🟡 Done for Neon; repeat for any other DB |
+
+### Needs a decision
+
+| # | Item | Owner | Why it matters | Status |
+|---|---|---|---|---|
+| 59 | **Data/AI Credit amounts** (Standard 436, Plus 1111, Pro 2780 each; trial 43/111/278) are the cost model's output, not measured usage. Compare against real provider invoices before launch; the 70 % margin target is a planning assumption, not a guarantee. | Product + finance | Profitability of every plan | 🟠 Open |
+| 60 | **3-, 6-month prices exist beyond the spec** (10 % and 20 % off: 148.50/264, 378/672, 945/1680 USD). Keep or retire. | Product | What customers are offered | 🟠 Open |
+| 61 | **Custom plan defaults** (60 reports, 60 seats, Pro-sized credits) are placeholders until an approved contract sets them via `billing_admin`. Confirm that is the intended default. | Product / sales | What an unapproved Custom tenant can use | 🟠 Open |
+| 62 | **Signed-out tokens fail open**: if Redis is unreachable, `is_token_revoked()` treats a revoked token as valid (`core/security.py`, documented trade-off). Decide whether billing/admin routes should fail closed. | Security owner | Sign-out guarantee during a Redis outage | 🟠 Open |
+| 63 | **Post-call overspend is not capped**: a call whose measured cost exceeds its reserved estimate can push a balance slightly past its limit (later calls are blocked). Decide whether to cap or accept the variance. | Product + finance | Hard budget ceilings | 🟠 Open |
+
+### Security — needs a human with account access
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 64 | **Rotate every credential that was committed or pasted.** `backend/KEYS_AND_ACCOUNTS_NEEDED.md` carried real-looking values on `origin/KEEL_Test` (commits `3e85b93`, `cf03a55`, `9aa7187`, `8e98623`, `4cd97fe`, `e89cbd3`; blanked at the branch tip since, **still in history**): JWT secret, Postgres/app-DB/MinIO/Grafana passwords, credential-vault key, Groq, Hugging Face, Gemini, Together, Pollinations, Horde and Cloudflare values, Brevo SMTP login, and the Stripe test restricted key + webhook secret. A Groq key was also committed in the tracked template `backend/.env.example` (commits `1f43ec3`, `ecf8b70`; blanked by the PR that adds this section, **still in history**). The Neon password was also pasted into a chat on 2026-10-17. Rotate first (changing the vault key makes saved connector credentials unreadable — plan that), then purge history / delete the branch. The assistant cannot rotate third-party credentials or rewrite shared history. | Repo + account owners | 🔴 Open |
+| 65 | **Live payments / production remain OFF and need business sign-off**: Stripe live-account verification, tax setting (`STRIPE_AUTOMATIC_TAX`), refund/cancellation policy text, terms acceptance, and a rehearsed rollback (`rollback/20261021000000_…down.sql`, `20261020000000_…down.sql`). | Business owner | 🔴 Open |
+
+### Verification gaps — could not be run in the assistant's environment
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 66 | **Run the full suite in real CI.** Locally (2026-10-17/18, throwaway Postgres 15 + Neon Postgres 18 smoke): billing/credits/plans/limits/usage suites 105 passed; full backend 2,998 passed, 19 failed, 63 skipped. The 18 ML failures come from libraries stubbed locally (torch, faiss, xgboost, sentiment/embedding models); 1 was a flaky local Docker connection (`invalid response to GSSAPI negotiation` on `localhost` ::1 — probably also what caused a one-off `ACCOUNTING_UNAVAILABLE` in the provider-pricing test, trace not captured; the assertion now prints the cause). Skipped for lack of services: MinIO-backed, live-Redis and model-download tests. | CI owner | 🟠 Open |
+
 ## Waiting on documents / approvals (not code)
 
 | # | Item | Owner | Status |
