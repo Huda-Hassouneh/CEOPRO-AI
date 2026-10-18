@@ -1,5 +1,9 @@
 import os
 
+# Live-DB tests connect to localhost over TCP; libpq's GSSAPI probe occasionally gets garbage back through
+# container port proxies ("invalid response to GSSAPI negotiation") and fails an otherwise good connection.
+os.environ.setdefault("PGGSSENCMODE", "disable")
+
 # One JWT secret for the whole run: core/security.py reads it once at import,
 # so every test file must sign tokens with this same value.
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
