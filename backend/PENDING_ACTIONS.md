@@ -169,6 +169,22 @@ production stay **disabled** until every 🔴 below is closed.
 | 12 | `MASTER_SPEC_v4.md` and `AI_PLAN_AND_CONTRACT_UPDATES.md` are staged locally / pushed to `noorhassouneh-patch-1` but not yet merged to `main` (reported as pending approval, pusher lacks `main` permissions) | Whoever holds merge rights on `main` | 🟡 Open, PR raised 2026-08-27 — during a triage of the open PR list (9 PRs, most conflicting against `main`), confirmed these two files still weren't on `main` and nothing else open carried just them cleanly. Opened [PR #18](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/18) with exactly these two files (byte-identical to `noorhassouneh-patch-1`'s copies), isolated from the rest of PR #1's now-stale infra content. Still needs an actual merge from someone with `main` permissions. |
 | 13 | Orange infrastructure environment (CPU/GPU availability, on-prem vs. cloud) not yet confirmed (spec §28) | Whoever owns the Orange deployment relationship | ⚪ Deferred — confirmed CPU-only / no GPU "for now" for this track; revisit if/when GPU becomes available |
 
+## Competitor data, pricing and release (needs a human)
+
+Added 2026-10-18 after the full verification run (backend 3087 passed / 0 failed / 18 skipped; frontend 83 passed, lint and build clean).
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 67 | Apply the new migrations, in order, to staging and production: `20261018000000_add_competitor_enrichment`, `20261018010000_add_enrichment_sweep_function`, `20261018020000_add_market_price_observations`, `20261019000000_add_competitor_news_and_comment_facets`, `20261019010000_add_comment_retention`, `20261020000000_keel_subscriptions_and_credits`, `20261021000000_pro_plan_limits_500_products_50_seats`. A database without the last two fails about 120 tests and the billing/credits endpoints. | Whoever runs the migration runner on each environment | 🟠 Open |
+| 68 | Storing Google reviews and external comments is off until a human records the terms decision: `PLACES_TERMS_APPROVAL_REFERENCE` and `EXTERNAL_COMMENTS_APPROVAL_REFERENCE` (a ticket or document reference, not a secret). This is a legal/terms call, not a code one. | Product / legal owner | 🟠 Open |
+| 69 | Provider keys for the new competitor sources: `YOUTUBE_API_KEY`, `APIFY_API_TOKEN` (older name `APIFY_TOKEN` still works), and one of `BRAVE_SEARCH_API_KEY` / `TAVILY_API_KEY` / `SEARXNG_INSTANCE_URL` for news. Paid ones need a confirmed price (see `KEYS_AND_ACCOUNTS_NEEDED.md`). | Whoever holds the provider accounts | 🟠 Open |
+| 70 | First live run of the sources that only follow vendor documentation so far: YouTube comments, Apify deeper Google reviews, Brave/Tavily/SearXNG news, the Places reviews path, social comments. Run one competitor end to end with real keys and check the field names. Open Prices barcode lookup was verified live; the rest were not. | Whoever has the keys (after #69) | 🟠 Open |
+| 71 | Arabic text added for competitor data, price coverage and barcodes (`competitorData.*` in `ar.json`) needs a native-speaker review. | Product / localisation | 🟠 Open |
+| 72 | A hex value labelled `SEARXNG_SECRET` was committed at the end of `KEYS_AND_ACCOUNTS_NEEDED.md` (commit `f91b0f2`). The line is removed from the file, but it stays in git history, so treat it as exposed: if it is a real SearXNG secret, set a new one in `backend/.env` and any hosted environment (related: #52, #64). | Whoever runs the SearXNG instance | 🟠 Open — file cleaned 2026-10-18, rotation not done |
+| 73 | Tests that need model downloads or paid accounts never ran here (embeddings, reranking, sentiment: 16 tests; Stripe test-mode e2e; live provider smoke). Run them once in CI or on a machine with the `AI_TEST_EMBEDDINGS`, `AI_TEST_RERANKING`, `AI_TEST_SENTIMENT` and Stripe test keys set. | CI owner | 🟠 Open |
+| 74 | `KEEL_Test` history was rewritten by someone between 2026-10-17 and 2026-10-18 (same commits, new hashes). Anyone with an older local clone should re-fetch and not push from it. | Whole team | ⚪ Informational |
+| 75 | **A Groq API key (`gsk_...`) was committed in `backend/.env.example`** (commit `1f43ec3`, 2026-10-18) on the public repository. The value is blanked in the file, but it stays in git history: revoke it at console.groq.com, create a new one, and put it only in `backend/.env` / the host's secret store. Check Groq usage for the period since 2026-10-18. | Whoever owns the Groq account | 🔴 Open — **do first**; file cleaned (also blanked upstream), key not revoked (see #64) |
+
 ---
 
 ## How to update this file
