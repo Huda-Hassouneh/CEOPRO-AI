@@ -27,12 +27,17 @@ export function PriceRecommendationModal({ open, product, onClose, currencyForma
   if (!product) return null;
   const result = mutation.data;
   const number = (value) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(Number(value ?? 0));
+  // The freshness window is years long now (3 years): say "3 years", not "1095 days".
+  const windowDays = Number(result?.max_price_age_days ?? 30);
+  const period = windowDays >= 365
+    ? new Intl.NumberFormat(locale, { style: 'unit', unit: 'year', unitDisplay: 'long' }).format(Math.round(windowDays / 365))
+    : new Intl.NumberFormat(locale, { style: 'unit', unit: 'day', unitDisplay: 'long' }).format(windowDays);
 
   return <Modal isOpen={open} onClose={onClose} title={t('pricing.modal.title', { name: product.product_name })} closeLabel={t('common.close')} maxWidth="520px">
     {mutation.isPending && <Skeleton height="180px" variant="rectangular" />}
     {mutation.isError && <EmptyState title={t('pricing.modal.errorTitle')} description={t('pricing.modal.errorDescription')} action={<Button size="sm" variant="outline" onClick={() => mutation.mutate(product.product_id)}>{t('pricing.modal.retry')}</Button>} />}
 
-    {result?.status === 'UNKNOWN' && <EmptyState title={t('pricing.modal.unknownTitle')} description={t('pricing.modal.unknownDescription', { days: result.max_price_age_days ?? 30 })} />}
+    {result?.status === 'UNKNOWN' && <EmptyState title={t('pricing.modal.unknownTitle')} description={t('pricing.modal.unknownDescription', { period })} />}
 
     {result?.status === 'OK' && <div className="pricing-recommendation-result">
       <div className="pricing-recommendation-headline">
@@ -51,7 +56,7 @@ export function PriceRecommendationModal({ open, product, onClose, currencyForma
       {/* Never a bare "no data": a decision backed by an estimate says what it is estimated from. */}
       {result.data_basis && result.data_basis !== 'LOCAL_MARKET'
         ? <p className="pricing-recommendation-explanation pricing-recommendation-explanation--strong">{t(`pricing.modal.estimate.${result.data_basis}`)}</p>
-        : <p className="pricing-recommendation-explanation">{t('pricing.modal.basis', { count: result.matched_competitor_count, days: result.max_price_age_days ?? 30 })}</p>}
+        : <p className="pricing-recommendation-explanation">{t('pricing.modal.basis', { count: result.matched_competitor_count, period })}</p>}
       {/* The reasoning, built from the numbers so it reads in the interface language. */}
       {result.market && <p className="pricing-recommendation-explanation">{t(`pricing.reason.market.${result.market_action || result.action}`, {
         price: currencyFormatter(result.current_price, product.currency),
