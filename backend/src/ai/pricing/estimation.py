@@ -4,7 +4,6 @@ KEEL - Market Price Estimation Fallbacks.
 Product policy: a product must never end up with "no market data". When no
 in-region (same-currency, tracked) competitor price exists, the decision is
 still made, from the best evidence available, in this order:
-
   MARKET_REFERENCE   same-currency market reference prices (price_lookup/:
                      a seller's public page, a public price database, a
                      shopping search) - used as found, no adjustment.
