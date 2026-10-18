@@ -1,0 +1,161 @@
+{
+  "run_id": "20260901T144942Z",
+  "mock_file": "C:\\CEO PRO\\CEOPRO-AI\\.claude\\worktrees\\competitors-market-sentiment-a0ba02\\mocks\\e2e_pipeline_demo.csv",
+  "stages": [
+    {
+      "stage": "1_extraction",
+      "status": "OK",
+      "duration_seconds": 0.391,
+      "details": {
+        "job_id": "d17fe492-e99e-4ac0-b1ea-9d73701ce6ab",
+        "template_mode": "TEMPLATE_COMPLIANT",
+        "is_template_compliant": true,
+        "rows_processed": 63,
+        "rows_partial": 0,
+        "rows_failed": 0,
+        "data_loss_pct": 0.0
+      },
+      "errors": []
+    },
+    {
+      "stage": "2_promotion",
+      "status": "OK",
+      "duration_seconds": 0.058,
+      "details": {
+        "rows_promoted": 63,
+        "rows_skipped_incomplete": 0,
+        "rows_failed": 0,
+        "products_created": 3,
+        "promotion_errors": [],
+        "promoted_products": [
+          {
+            "product_id": "3d000e4d-107b-477d-8a0f-fea7ca91ffe6",
+            "product_name": "A Light in the Attic"
+          },
+          {
+            "product_id": "ac9cefdd-98fa-45f5-bf3e-855f6f17aa8f",
+            "product_name": "Ceramic Coffee Mug"
+          },
+          {
+            "product_id": "ad4b0658-ac90-40d8-a724-16ba417e619a",
+            "product_name": "Wireless Mouse Pro"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "stage": "3_competitor_scraping",
+      "status": "OK",
+      "duration_seconds": 6.496,
+      "details": {
+        "source_id": "edcb93ce-79fb-40b9-8c9e-9b5c484cd0dd",
+        "mapped_url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+        "subprocess_returncode": 0,
+        "subprocess_stdout_tail": "",
+        "subprocess_stderr_tail": "leware',\n 'scrapy.spidermiddlewares.urllength.UrlLengthMiddleware',\n 'scrapy.spidermiddlewares.depth.DepthMiddleware',\n 'scrapy.spidermiddlewares.metacopy.MetaCopyDetectionMiddleware']\n2026-09-01 17:49:45 [scrapy.middleware] INFO: Enabled item pipelines:\n['src.market_scraper.staging.PostgresMarketStagingPipeline',\n 'src.market_scraper.pipelines.ValidateMarketRecordPipeline',\n 'src.market_scraper.pipelines.DeduplicateMarketRecordPipeline',\n 'src.market_scraper.persistence.PostgresPricePipeline']\n2026-09-01 17:49:45 [scrapy.core.engine] INFO: Spider opened\n2026-09-01 17:49:46 [scrapy.extensions.logstats] INFO: Crawled 0 pages (at 0 pages/min), scraped 0 items (at 0 items/min)\n2026-09-01 17:49:49 [scrapy.core.engine] INFO: Closing spider (finished)\n2026-09-01 17:49:49 [src.market_scraper.persistence] INFO: scrape job 3ec85b67-1a8e-42e1-854b-30a6a16569e8 closed as COMPLETED\n2026-09-01 17:49:49 [scrapy.statscollectors] INFO: Dumping Scrapy stats:\n{'downloader/request_bytes': 594,\n 'downloader/request_count': 2,\n 'downloader/request_method_count/GET': 2,\n 'downloader/response_bytes': 2912,\n 'downloader/response_count': 2,\n 'downloader/response_status_count/200': 1,\n 'downloader/response_status_count/404': 1,\n 'elapsed_time_seconds': 3.0712161999999807,\n 'finish_reason': 'finished',\n 'finish_time': datetime.datetime(2026, 9, 1, 14, 49, 49, 84204, tzinfo=datetime.timezone.utc),\n 'httpcompression/response_bytes': 9432,\n 'httpcompression/response_count': 2,\n 'item_scraped_count': 1,\n 'items_per_minute': 20.0,\n 'log_count/INFO': 2,\n 'response_received_count': 2,\n 'responses_per_minute': 40.0,\n 'robotstxt/request_count': 1,\n 'robotstxt/response_count': 1,\n 'robotstxt/response_status_count/404': 1,\n 'scheduler/dequeued': 1,\n 'scheduler/dequeued/memory': 1,\n 'scheduler/enqueued': 1,\n 'scheduler/enqueued/memory': 1,\n 'start_time': datetime.datetime(2026, 9, 1, 14, 49, 46, 12987, tzinfo=datetime.timezone.utc)}\n2026-09-01 17:49:49 [scrapy.core.engine] INFO: Spider closed (finished)\n",
+        "competitor_prices_rows": 1
+      },
+      "errors": []
+    },
+    {
+      "stage": "4_forecasting",
+      "status": "OK",
+      "duration_seconds": 0.187,
+      "details": {
+        "per_product": {
+          "3d000e4d-107b-477d-8a0f-fea7ca91ffe6": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "f0fab129-327f-4171-8908-bb1ff30fabd2",
+            "evidence_id": "e6c7c56e-6495-41ad-b6b4-1e8bec84aaed",
+            "expected_demand": 2.2857142857142856,
+            "forecast_target_date": "2026-08-28",
+            "confidence_score": 0.2,
+            "data_sufficiency": {
+              "sufficient": false,
+              "available_days": 21,
+              "minimum_required": 30,
+              "confidence_status": "BUILDING"
+            }
+          },
+          "ac9cefdd-98fa-45f5-bf3e-855f6f17aa8f": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "116e9e9f-c720-4607-aa4b-f3dd89ae5d41",
+            "evidence_id": "07a043d4-bb59-4226-b4d0-45d03a8c69f7",
+            "expected_demand": 5.571428571428571,
+            "forecast_target_date": "2026-08-28",
+            "confidence_score": 0.2,
+            "data_sufficiency": {
+              "sufficient": false,
+              "available_days": 21,
+              "minimum_required": 30,
+              "confidence_status": "BUILDING"
+            }
+          },
+          "ad4b0658-ac90-40d8-a724-16ba417e619a": {
+            "status": "OK",
+            "source": "baseline",
+            "forecast_id": "9d37084b-673a-4380-b98c-327eca16de29",
+            "evidence_id": "22ddf8bc-ad73-43c1-b3da-4c56a9fad5e2",
+            "expected_demand": 8.0,
+            "forecast_target_date": "2026-08-28",
+            "confidence_score": 0.2,
+            "data_sufficiency": {
+              "sufficient": false,
+              "available_days": 21,
+              "minimum_required": 30,
+              "confidence_status": "BUILDING"
+            }
+          }
+        }
+      },
+      "errors": []
+    },
+    {
+      "stage": "5_pricing",
+      "status": "OK",
+      "duration_seconds": 0.08,
+      "details": {
+        "per_product": {
+          "3d000e4d-107b-477d-8a0f-fea7ca91ffe6": {
+            "status": "UNKNOWN",
+            "evidence_id": "d0fd6012-3134-4eba-bcc8-792217bb6647"
+          },
+          "ac9cefdd-98fa-45f5-bf3e-855f6f17aa8f": {
+            "status": "UNKNOWN",
+            "evidence_id": "0032df27-73ca-4a5e-950f-ea3c974e3696"
+          },
+          "ad4b0658-ac90-40d8-a724-16ba417e619a": {
+            "status": "UNKNOWN",
+            "evidence_id": "18b4ebc3-72ad-4551-9e48-3f635a79a8ab"
+          }
+        }
+      },
+      "errors": []
+    },
+    {
+      "stage": "6_rag_grounding",
+      "status": "OK",
+      "duration_seconds": 8.883,
+      "details": {
+        "object_key": "343abc99-94b4-43be-9aa2-db1ba01255e7/e2e-pipeline-summary-cb0e8027-9660-4abc-9c7f-dffa37492e55.txt",
+        "documents_ingested": 1
+      },
+      "errors": []
+    },
+    {
+      "stage": "7_rag_chat_verification",
+      "status": "PARTIAL",
+      "duration_seconds": 9.044,
+      "details": {},
+      "errors": [
+        "Retrieval succeeded but the LLM call failed (expected without GROQ_API_KEY set): GROQ_API_KEY is not set - cannot call the LLM provider."
+      ]
+    }
+  ],
+  "tenant_id": "343abc99-94b4-43be-9aa2-db1ba01255e7",
+  "user_id": "cc90f0ae-7ac7-4474-ab8a-8c178177ded6",
+  "overall_status": "PARTIAL"
+}

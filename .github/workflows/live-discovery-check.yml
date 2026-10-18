@@ -1,0 +1,178 @@
+name: Live competitor discovery check
+
+# Real competitor scans with normal internet access, one per company in the
+# matrix below (different business types, cities and countries): each job
+# starts KEEL's API and frontend with a fresh database, signs up the company
+# (city only, no map pin), starts a scan exactly like the Competitors page's
+# "Refresh scan" does, and reports what each live public source answered
+# and every competitor found with its source links (step summary, log and
+# the uploaded result + screenshot of the Competitors page). Nothing is
+# seeded or invented: every competitor listed came back from the sources.
+#
+# Zero-cost: GitHub-hosted runner and free public sources. Web search is
+# used only when the repository has a TAVILY_API_KEY / BRAVE_SEARCH_API_KEY
+# secret (each provider's free tier).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/dreamy-allen-huyq8o]
+    paths:
+      - backend/src/market_scraper/market_discovery/**
+      - backend/src/ai/routers/discovery.py
+      - backend/scripts/live_discovery_check.py
+      - .github/workflows/live-discovery-check.yml
+
+jobs:
+  live-scan:
+    name: "${{ matrix.case.business_type }} - ${{ matrix.case.city }}, ${{ matrix.case.country }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        # MENA first: different kinds of business, cities and countries
+        # through the same code - listed industries, types outside KEEL's
+        # list, a business type written in Arabic, and Arabic-script listings.
+        # Nothing here is special-cased in the code.
+        case:
+          - {business_type: Restaurant, industry: restaurant, city: Amman, country: JO, currency: JOD, products: "Mansaf:6.5,Shawarma plate:3,Hummus:1.5,Falafel sandwich:0.5,Zinger burger:3.5,Margherita pizza:6"}
+          - {business_type: "مطعم مشاوي", industry: "", city: "إربد", country: JO, currency: JOD, products: "Mixed grill:7,Shish tawook:4,Hummus:1.25"}
+          - {business_type: Cafe, industry: "", city: Kuwait City, country: KW, currency: KWD, products: "Spanish latte:1.75,Croissant:0.9,Americano:1.25,Cappuccino:1.5"}
+          - {business_type: Pharmacy, industry: "", city: Riyadh, country: SA, currency: SAR, products: "Panadol:12,Vitamin C:45,Sunscreen:85"}
+          - {business_type: Bakery and Arabic sweets, industry: "", city: Madaba, country: JO, currency: JOD, products: "Kunafa:2,Baklava:8"}
+          - {business_type: Supermarket, industry: "", city: Cairo, country: EG, currency: EGP, products: "Rice 5kg:150,Sunflower oil:120"}
+          - {business_type: Hotel, industry: "", city: Irbid, country: JO, currency: JOD, products: "Double room:45"}
+          - {business_type: Software company, industry: "", city: Dubai, country: AE, currency: AED, products: "Accounting software:299"}
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: ceopro_admin
+          POSTGRES_PASSWORD: ci_live_admin_password
+          POSTGRES_DB: ceopro_platform
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Throwaway values for this one ephemeral job, not secrets.
+      DATABASE_URL: postgresql://ceopro_admin:ci_live_admin_password@localhost:5432/ceopro_platform
+      APP_DB_PASSWORD: ci_live_app_password
+      JWT_SECRET: ci-live-jwt-secret-never-used-outside-this-job
+      REDIS_URL: redis://localhost:6379/0
+      REDIS_HOST: localhost
+      DISCOVERY_REFRESH_ENABLED: "false"
+      NOTIFICATION_DIGEST_ENABLED: "false"
+      KEEL_CHROMIUM_PATH: /usr/bin/google-chrome
+      MARKET_RESEARCH_USER_AGENT: "KEEL-MarketResearch/1.0 (+https://github.com/Huda-Hassouneh/360-Radar; competitor discovery check)"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+
+      - name: Install backend dependencies (CPU-only torch)
+        working-directory: backend
+        run: |
+          pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
+          pip install --no-cache-dir -r src/ai/requirements.txt
+          # Optional: renders pages that only show content after JavaScript (Chrome is preinstalled).
+          pip install --no-cache-dir "playwright==1.47.0"
+
+      - name: Which public sources answer from here
+        run: |
+          for u in "https://overpass-api.de/api/status" "https://overpass.private.coffee/api/status" \
+                   "https://nominatim.openstreetmap.org/status" "https://photon.komoot.io/api/?q=Amman&limit=1" \
+                   "https://www.wikidata.org/w/api.php?action=query&meta=siteinfo&format=json" \
+                   "https://api.gdeltproject.org/api/v2/doc/doc?query=bakery&mode=ArtList&format=json&maxrecords=1" \
+                   "https://api.tavily.com/" "https://keel-ai-staging.onrender.com/health"; do
+            echo "$(curl -s -o /dev/null -w '%{http_code}' -m 20 -A "$MARKET_RESEARCH_USER_AGENT" "$u") $u"
+          done
+
+      - name: Apply database migrations
+        working-directory: backend
+        run: python scripts/apply_migrations.py
+
+      - name: Start the API
+        working-directory: backend
+        env:
+          # Optional web search source; a repository secret, never printed.
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+        run: |
+          for name in TAVILY_API_KEY BRAVE_SEARCH_API_KEY; do
+            if [ -n "${!name}" ]; then echo "$name: set for the KEEL API"; else echo "$name: not set (repository secret missing)"; unset "$name"; fi
+          done
+          export CREDENTIAL_VAULT_MASTER_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+          nohup uvicorn src.ai.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/api.log" 2>&1 &
+          for i in $(seq 1 120); do curl -sf http://localhost:8000/health && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/api.log"; exit 1
+
+      - name: Real competitor scan through KEEL's API
+        id: scan
+        working-directory: backend
+        run: |
+          python -m scripts.live_discovery_check --api http://localhost:8000 \
+            --city "${{ matrix.case.city }}" --country "${{ matrix.case.country }}" \
+            --industry "${{ matrix.case.industry }}" --currency "${{ matrix.case.currency }}" \
+            --business-type "${{ matrix.case.business_type }}" \
+            --products "${{ matrix.case.products }}" --out "$RUNNER_TEMP/live-discovery.json" \
+            --email live-check@keel-ci.example
+
+      - name: Build and serve the frontend
+        if: always()
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: http://localhost:8000
+        run: |
+          npm ci
+          npm run build
+          nohup npx vite preview --host localhost --port 5173 --strictPort > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:5173/login && exit 0; sleep 1; done
+          exit 1
+
+      - name: Screenshot the Competitors page after a fresh sign-in
+        if: always()
+        working-directory: frontend
+        run: |
+          cat > "$RUNNER_TEMP/shot.mjs" <<'EOF'
+          import { chromium } from 'playwright-core';
+          const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+          const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
+          await page.goto('http://localhost:5173/login');
+          await page.fill('input[type="email"]', 'live-check@keel-ci.example');
+          await page.fill('input[type="password"]', 'Live!Discovery-Check-2026');
+          await page.click('button[type="submit"]');
+          await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30000 });
+          console.log('landed on', new URL(page.url()).pathname);
+          await page.goto('http://localhost:5173/market');
+          await page.waitForTimeout(5000);
+          await page.screenshot({ path: process.env.RUNNER_TEMP + '/competitors-page.png', fullPage: true });
+          const text = await page.locator('main').innerText();
+          console.log(text.slice(0, 4000));
+          await browser.close();
+          EOF
+          cp "$RUNNER_TEMP/shot.mjs" ./.shot.mjs && node ./.shot.mjs
+
+      - name: Upload the scan result and screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-discovery-${{ strategy.job-index }}
+          path: |
+            ${{ runner.temp }}/live-discovery.json
+            ${{ runner.temp }}/competitors-page.png
+            ${{ runner.temp }}/api.log
+
+      - name: Discovery log lines
+        if: always()
+        run: grep -iE "discovery|overpass|place search|wikidata|news|geocod" "$RUNNER_TEMP/api.log" | tail -n 80 || true
