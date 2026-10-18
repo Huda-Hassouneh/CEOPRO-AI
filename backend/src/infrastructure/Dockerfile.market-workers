@@ -1,0 +1,22 @@
+# All five market background workers in one image, run together by
+# src/market_scraper/supervisor.py (one container instead of five paid
+# services). Playwright's image provides the headless browser the price
+# collector uses for JavaScript-rendered pages; the AI requirements cover
+# the analysis worker's sentiment models.
+FROM mcr.microsoft.com/playwright/python:v1.55.0-noble
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+COPY src/ai/requirements.txt /tmp/ai-requirements.txt
+COPY src/market_scraper/requirements.txt /tmp/scraper-requirements.txt
+RUN pip install -r /tmp/ai-requirements.txt -r /tmp/scraper-requirements.txt \
+    && playwright install chromium
+
+COPY . /app
+RUN useradd --create-home --uid 10003 worker && chown -R worker:worker /app
+USER worker
+
+CMD ["python", "-m", "src.market_scraper.supervisor"]

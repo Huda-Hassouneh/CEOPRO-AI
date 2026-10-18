@@ -1,4 +1,4 @@
-﻿## CEOPRO AI - Pull Request Template
+﻿## KEEL - Pull Request Template
 
 ### Description
 Provide a concise description of the architectural or feature changes introduced.

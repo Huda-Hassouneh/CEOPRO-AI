@@ -1,0 +1,250 @@
+"""
+KEEL - Typed-Column Row Parsing (Track One Pipeline Strategy).
+Optimizes structured document ingestion by isolating pre-mapped column cell values. 
+Bypasses unconstrained regex heuristics to preserve structural data types, while 
+gracefully falling back to a lower-confidence regex tier for unmapped headers.
+"""
+import re
+from datetime import date
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+
+from src.ai.core.barcode import parse_barcode_cell
+from src.ai.extraction.numerals import normalize_number_string, to_ascii_digits
+from src.ai.extraction.regex_patterns import ExtractedEntity, extract_email, normalize_slash_date, extract_all
+
+_CURRENCY_CODE_RE = re.compile(r"^[A-Z]{3}$")
+
+# Sanity bound for transaction_date, not a business-rule cutoff - catches
+# an obviously-wrong parse (e.g. a 2-digit year read the wrong way round,
+# or a spreadsheet's placeholder date like 1900-01-01) without rejecting
+# any date a real invoice could plausibly carry.
+MIN_PLAUSIBLE_YEAR = 2000
+MAX_PLAUSIBLE_YEAR_AHEAD = 1  # today's year + this, to tolerate forward-dated invoices
+
+FIELD_PARSERS = {
+    "amount_raw": "money",
+    "unit_price": "money",
+    "quantity": "quantity",
+    "discount_pct": "percent",
+    "transaction_date": "date",
+    "email": "text",
+    "phone": "text",
+    "product_name": "text",
+    "competitor_name": "text",
+    "invoice_id": "text",
+    "order_id": "text",
+    # Added for template_contract.py's canonical template: a plain 3-letter
+    # ISO code, kept separate from unit_price/amount_raw's cells rather than
+    # combined ("24.50 JOD") - normalize_number_string() has no currency-
+    # symbol handling, so a combined cell would be a real, avoidable source
+    # of parse failure for a template KEEL controls the shape of.
+    "currency": "currency_code",
+    # EAN/UPC/GTIN, optional. Exact key for market price lookup (price_lookup/).
+    "barcode": "barcode",
+}
+
+
+@dataclass
+class RowParseResult:
+    tenant_id: str
+    typed_fields: Dict[str, Optional[str]] = field(default_factory=dict)
+    field_confidence: Dict[str, float] = field(default_factory=dict)
+    # Provenance: the untouched cell text behind each typed_fields entry,
+    # keyed the same way. Kept alongside the normalized value so a value
+    # can always be traced back to what the source file actually said -
+    # normalization (money/date/integer parsing) is lossy by nature and
+    # the normalized value alone can't answer "what did the cell say".
+    raw_fields: Dict[str, str] = field(default_factory=dict)
+    # Provenance: the exact source column header (as uploaded, e.g. "الكمية"
+    # or "Qty") behind each typed_fields entry, keyed the same way. Without
+    # this, a value can be traced to "what it said" (raw_fields) but not to
+    # "which column of the original file it came from" - both are needed
+    # for the full original-file -> row/column -> normalized-value chain.
+    header_mapping: Dict[str, str] = field(default_factory=dict)
+    fallback_entities: List[ExtractedEntity] = field(default_factory=list)
+    unmapped_columns: List[str] = field(default_factory=list)
+
+
+def parse_mapped_row(
+    row: Dict[str, object],
+    header_mapping: Dict[str, str],
+    tenant_id: str,
+    decimal_style: Optional[str] = None,
+    day_first: Optional[bool] = None,
+) -> RowParseResult:
+    """
+    Parses a cellular database or spreadsheet row. Employs direct programmatic type casting 
+    for known mappings, preventing loss of precision on numbers or ambiguous locale strings.
+
+    decimal_style/day_first override the global env-var defaults for this
+    call only - pass the caller's resolved per-tenant locale (see
+    locale_config.py) when known. Both default to None, which preserves
+    existing global behavior exactly for any caller that doesn't pass them.
+    """
+    result = RowParseResult(tenant_id=tenant_id)
+    for source_header, cell_value in row.items():
+        if cell_value is None or str(cell_value).strip() == "":
+            continue
+        canonical_field = header_mapping.get(source_header)
+        if canonical_field and canonical_field in FIELD_PARSERS:
+            parsed, confidence = _parse_typed_cell(
+                canonical_field, cell_value, decimal_style, day_first
+            )
+            if parsed is not None:
+                result.typed_fields[canonical_field] = parsed
+                result.field_confidence[canonical_field] = confidence
+                result.raw_fields[canonical_field] = str(cell_value).strip()
+                result.header_mapping[canonical_field] = source_header
+                continue
+        result.unmapped_columns.append(source_header)
+        cell_text = str(cell_value)
+        for entity in extract_all(cell_text, decimal_style, day_first):
+            result.fallback_entities.append(entity)
+            result.field_confidence[f"{source_header}:{entity.entity_type}"] = 0.5
+    return result
+
+
+def _parse_typed_cell(
+    canonical_field: str,
+    cell_value: object,
+    decimal_style: Optional[str] = None,
+    day_first: Optional[bool] = None,
+) -> Tuple[Optional[str], float]:
+    """
+    Returns (normalized_value, confidence). Confidence is 1.0 for a clean,
+    unambiguous parse and lower when the parse required a judgment call
+    the source data didn't make explicit - callers should treat anything
+    below 1.0 as worth surfacing for review, not as a fully-verified field.
+    """
+    field_type = FIELD_PARSERS[canonical_field]
+    raw = str(cell_value).strip()
+
+    if field_type == "money":
+        return normalize_number_string(raw, decimal_style), 1.0
+
+    if field_type == "percent":
+        # A cell in a column already identified as discount_pct routinely
+        # carries its own literal '%' ("10%", not "10") - Excel/Sheets
+        # write it that way when a column is percent-formatted, and a
+        # human typing a discount naturally does too. normalize_number_string()
+        # has no reason to know that stripping it is safe here (it's a
+        # generic numeral normalizer, not percent-specific), so float("10%")
+        # would fail and this cell would silently fall through to
+        # unmapped/fallback extraction despite already being correctly
+        # identified as a typed percent column. extract_percent()'s regex
+        # path already avoids this (its capture group excludes the '%') -
+        # this mirrors that here.
+        return normalize_number_string(raw.rstrip("%").strip(), decimal_style), 1.0
+
+    if field_type == "quantity":
+        # Fractional quantities are real sales (2.5 kg, 1.5 hours, 12.75 m),
+        # parsed with the same locale-aware rules as money ("2,5" in a
+        # comma-decimal locale) and stored exactly - never rounded. Found
+        # live: this used to round 2.5 -> 2 and 12.75 -> 13 on import.
+        return normalize_number_string(raw, decimal_style), 1.0
+
+    if field_type == "integer":
+        ascii_raw = to_ascii_digits(raw)
+        # Try an exact integer parse first - the common, unambiguous case.
+        try:
+            return str(int(ascii_raw)), 1.0
+        except ValueError:
+            pass
+        # Falls back to float only for non-integer-looking input (e.g. a
+        # quantity cell that actually contains "1.5"). Previously this
+        # went through int(float(ascii_raw)), which silently truncated
+        # 1.5 -> 1 with no signal anything was lost. Rounding instead of
+        # truncating is still an approximation, so it's flagged with
+        # reduced confidence rather than presented as a clean parse - the
+        # untouched "1.5" survives separately in raw_fields regardless.
+        try:
+            as_float = float(ascii_raw)
+        except ValueError:
+            return None, 0.0
+        return str(round(as_float)), 0.7
+
+    if field_type == "date":
+        if "/" in raw:
+            return normalize_slash_date(raw, day_first), 1.0
+        return to_ascii_digits(raw), 1.0
+
+    if field_type == "text":
+        return raw, 1.0
+
+    if field_type == "barcode":
+        # A cell that is not a valid barcode (bad check digit, a SKU in the wrong column) is
+        # left out, like a bad email - it never blocks the sales row it sits on.
+        code = parse_barcode_cell(raw)
+        return (code, 1.0) if code else (None, 0.0)
+
+    if field_type == "currency_code":
+        code = to_ascii_digits(raw).strip().upper()
+        if _CURRENCY_CODE_RE.match(code):
+            return code, 1.0
+        return None, 0.0
+
+    return None, 0.0
+
+
+# Fields where a negative typed value can never be correct, independent of
+# locale/currency - spec S12's "Validate values" step, distinct from
+# _parse_typed_cell()'s job (turn text into a number at all). A cell can
+# parse cleanly (a valid number) and still be semantically wrong (a
+# negative price, a zero-or-negative quantity) - that's exactly the gap
+# this closes, since parse success alone was previously treated as "valid."
+_NON_NEGATIVE_FIELDS = {"amount_raw", "unit_price", "discount_pct", "quantity"}
+
+
+def validate_typed_fields(result: RowParseResult, today: Optional[date] = None) -> Dict[str, str]:
+    """
+    Runs semantic sanity checks against result.typed_fields, returning
+    {field_name: error_message} for only the fields that failed (empty
+    dict = no issues found). Only checks fields that actually parsed
+    (result.typed_fields) - fields that failed to parse at all already
+    surface as unmapped_columns/fallback_entities, a separate and
+    already-handled concern. This function only rejects values a
+    *successful* parse still shouldn't be trusted with.
+
+    Field-level, not row-level, by design: the caller (ingestion_pipeline.py)
+    drops only the specific field(s) named here from typed_fields and keeps
+    processing the rest of the row - a single bad field (e.g. a negative
+    price on an otherwise-clean row) no longer costs the whole row. Returns
+    a dict keyed by field name (not a list of strings) specifically so the
+    caller can do that per-field removal directly, without re-parsing which
+    field each message was about out of free text.
+    """
+    errors: Dict[str, str] = {}
+    today = today or date.today()
+
+    for field_name, value in result.typed_fields.items():
+        if field_name in _NON_NEGATIVE_FIELDS:
+            try:
+                if float(value) < 0:
+                    errors[field_name] = f"negative value '{value}' is not valid"
+            except (TypeError, ValueError):
+                pass  # not actually numeric - a different bug, not this check's job
+
+        if field_name == "quantity":
+            try:
+                if float(value) == 0:
+                    errors[field_name] = "zero quantity is not a valid sale/transaction row"
+            except (TypeError, ValueError):
+                pass
+
+        if field_name == "transaction_date" and value:
+            try:
+                year = int(str(value)[:4])
+                if year < MIN_PLAUSIBLE_YEAR or year > today.year + MAX_PLAUSIBLE_YEAR_AHEAD:
+                    errors[field_name] = (
+                        f"year {year} is outside the plausible range "
+                        f"({MIN_PLAUSIBLE_YEAR}-{today.year + MAX_PLAUSIBLE_YEAR_AHEAD}) - likely a bad parse"
+                    )
+            except (TypeError, ValueError):
+                errors[field_name] = f"'{value}' doesn't start with a 4-digit year"
+
+        if field_name == "email" and value:
+            if not extract_email(str(value)):
+                errors[field_name] = f"'{value}' doesn't look like a valid email address"
+
+    return errors
