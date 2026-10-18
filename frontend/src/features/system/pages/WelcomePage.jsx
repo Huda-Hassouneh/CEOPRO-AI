@@ -123,7 +123,7 @@ export default function WelcomePage() {
           <ul className="kw-insights">
             {INSIGHTS.map(({ key, Icon }, index) => (
               <li key={key} className={`kw-insight-slot kw-insight-slot--${key} kw-enter`} style={{ '--kw-delay': `${640 + index * 120}ms` }}>
-                <div className="kw-insight" style={{ '--kw-float': `${index * -1.7}s` }}>
+                <div className="kw-insight kw-glass" style={{ '--kw-float': `${index * -1.7}s` }}>
                   <span className="kw-insight-icon" aria-hidden="true"><Icon size={18} /></span>
                   <span className="kw-insight-text">
                     <strong>{t(`auth.welcome.insights.${key}.title`)}</strong>

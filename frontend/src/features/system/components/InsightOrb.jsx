@@ -31,13 +31,13 @@ export const InsightOrb = memo(function InsightOrb({ animate }) {
           </linearGradient>
           <linearGradient id="kw-wave-stroke" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#6ee7f9" stopOpacity="0" />
-            <stop offset=".5" stopColor="#7dd3fc" stopOpacity=".7" />
+            <stop offset=".5" stopColor="#6fb5e8" stopOpacity=".7" />
             <stop offset="1" stopColor="#a78bfa" stopOpacity="0" />
           </linearGradient>
           <radialGradient id="kw-particle" cx="50%" cy="50%" r="50%">
             <stop offset="0" stopColor="#ffffff" />
-            <stop offset=".35" stopColor="#bfe9ff" />
-            <stop offset="1" stopColor="#7dd3fc" stopOpacity="0" />
+            <stop offset=".35" stopColor="#a3b4ff" />
+            <stop offset="1" stopColor="#6fd9cc" stopOpacity="0" />
           </radialGradient>
         </defs>
 
@@ -62,7 +62,7 @@ export const InsightOrb = memo(function InsightOrb({ animate }) {
         {animate && ORBITS.flatMap((orbit) => orbit.dots.map((offset) => (
           <g key={`${orbit.id}-${offset}`} className="kw-orb-particle">
             <circle r="9" fill="url(#kw-particle)" opacity=".55" />
-            <circle r="2.4" fill="#ffffff" />
+            <circle r="2.6" fill="#7f95f3" />
             <animateMotion dur={`${orbit.dur}s`} repeatCount="indefinite" begin={`-${orbit.dur * offset}s`}
               keyPoints="0;1" keyTimes="0;1" calcMode="linear">
               <mpath href={`#${orbit.id}`} />
