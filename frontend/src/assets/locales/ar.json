@@ -1,5 +1,7 @@
 {
   "common": {
+    "noData": "لا توجد بيانات متاحة بعد.",
+    "dataTable": "جدول بيانات",
     "brand": "KEEL",
     "loading": "جارٍ التحميل...",
     "languageSwitch": "تغيير اللغة",

@@ -1,40 +1,46 @@
 import { useId } from 'react';
 
-// The KEEL symbol: a "K" built from three glass bars - a slanted stem and two
-// arms that open to the right, like insight spreading outward. Drawn as
-// liquid glass: each bar a translucent gradient with a light rim, a top sheen
-// and, at larger sizes, an iridescent edge.
+// The KEEL symbol: a "K" whose arms are ribbons - a slanted stem, an upper arm
+// rising to the right, and a lower arm that folds out of the stem with a soft
+// highlight on the turn. Stem in periwinkle-to-violet, arms in blue easing to
+// aqua at the tips.
 //
-// Colours come from the --keel-logo-* tokens (styles/apex-theme.css), so the
-// palette is one place to change. "tile" is the app-icon form used on the
-// gradient squares in the navigation, sign-in pages and landing page;
-// "plain" is for light or dark backgrounds.
-export const KEEL_STEM = 'M24 56 Q24 50 29.5 47 L50 36 Q56 33 56 40 L56 164 Q56 171 50 168 L29.5 157 Q24 154 24 148 Z';
-export const KEEL_ARM_UPPER = 'M131 32 L170 32 Q177 32 172.5 37.4 L116 98.6 Q113.5 101 110 101 L71 101 Q64 101 68.5 95.6 L125 34.4 Q127.5 32 131 32 Z';
-export const KEEL_ARM_LOWER = 'M71 107 L110 107 Q113.5 107 116 109.4 L172.5 170.6 Q177 176 170 176 L131 176 Q127.5 176 125 173.6 L68.5 112.4 Q64 107 71 107 Z';
+// Colours come from the --keel-logo-* tokens (styles/apex-theme.css), with
+// light and dark values, so the palette is one place to change. "tile" is the
+// app-icon form on the brand squares (navigation, sign-in, landing); "plain"
+// is for open backgrounds.
+export const KEEL_STEM = 'M16 58 Q13 60 13 64 L13 256 Q13 261 17 264 L96 318 Q103 322 103 314 L103 16 Q103 8 96 12 Z';
+export const KEEL_ARM_UPPER = 'M122 104 L236 33 Q250 24 264 29 L302 44 Q313 50 302 56 L130 148 Q122 152 122 144 Z';
+export const KEEL_ARM_LOWER = 'M110 172 Q128 166 146 177 L302 265 Q313 271 302 277 L262 300 Q251 306 240 300 L105 222 Q103 220 103 216 L103 178 Q103 174 110 172 Z';
+export const KEEL_FOLD = 'M13 236 Q48 180 122 175 Q132 175 140 179 L136 197 Q76 199 13 272 Z';
 
 export default function KeelMark({ size = 22, title, variant = 'tile' }) {
   const id = useId().replace(/:/g, '');
   const token = (part) => `var(--keel-logo-${variant}-${part})`;
-  const width = Math.round(size * (168 / 158) * 100) / 100;
-  const detailed = size >= 28;
+  const width = Math.round(size * (310 / 320) * 100) / 100;
   return (
-    <svg className={`keel-mark keel-mark--${variant}`} width={width} height={size} viewBox="16 25 168 158" fill="none"
+    <svg className={`keel-mark keel-mark--${variant}`} width={width} height={size} viewBox="8 5 310 320" fill="none"
       role={title ? 'img' : undefined} aria-hidden={title ? undefined : 'true'} aria-label={title}>
       <defs>
-        <linearGradient id={`${id}s`} x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stopColor={token('keel-top')} /><stop offset="1" stopColor={token('keel-bottom')} /></linearGradient>
-        <linearGradient id={`${id}u`} x1="1" y1="0" x2="0" y2="1"><stop offset="0" stopColor={token('hull-top')} /><stop offset="1" stopColor={token('hull-bottom')} /></linearGradient>
-        <linearGradient id={`${id}l`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={token('bulb-light')} /><stop offset="1" stopColor={token('bulb-dark')} /></linearGradient>
-        <linearGradient id={`${id}g`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".7" /><stop offset=".42" stopColor="#fff" stopOpacity=".1" /><stop offset=".55" stopColor="#fff" stopOpacity="0" /></linearGradient>
-        <linearGradient id={`${id}i`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#bdf4ff" /><stop offset=".5" stopColor="#ffffff" /><stop offset="1" stopColor="#d8c8ff" /></linearGradient>
+        <linearGradient id={`${id}s`} x1="0" y1="0" x2=".25" y2="1">
+          <stop offset="0" stopColor={token('stem-top')} />
+          <stop offset="1" stopColor={token('stem-bottom')} />
+        </linearGradient>
+        <linearGradient id={`${id}a`} gradientUnits="userSpaceOnUse" x1="110" y1="0" x2="312" y2="0">
+          <stop offset="0" stopColor={token('arm')} />
+          <stop offset=".55" stopColor={token('arm')} />
+          <stop offset="1" stopColor={token('tip')} />
+        </linearGradient>
+        <linearGradient id={`${id}f`} gradientUnits="userSpaceOnUse" x1="15" y1="250" x2="150" y2="172">
+          <stop offset="0" stopColor={token('tip')} stopOpacity=".05" />
+          <stop offset=".5" stopColor={token('tip')} stopOpacity=".6" />
+          <stop offset="1" stopColor={token('fold')} stopOpacity=".95" />
+        </linearGradient>
       </defs>
-      {[[KEEL_STEM, 's'], [KEEL_ARM_UPPER, 'u'], [KEEL_ARM_LOWER, 'l']].map(([d, fill]) => (
-        <g key={fill}>
-          <path d={d} fill={`url(#${id}${fill})`} fillOpacity=".9" stroke={token('rim')} strokeWidth="2.2" strokeLinejoin="round" />
-          <path d={d} fill={`url(#${id}g)`} />
-          {detailed ? <path d={d} stroke={`url(#${id}i)`} strokeWidth="1" strokeLinejoin="round" opacity=".55" /> : null}
-        </g>
-      ))}
+      <path d={KEEL_STEM} fill={`url(#${id}s)`} />
+      <path d={KEEL_ARM_UPPER} fill={`url(#${id}a)`} />
+      <path d={KEEL_ARM_LOWER} fill={`url(#${id}a)`} />
+      <path d={KEEL_FOLD} fill={`url(#${id}f)`} />
     </svg>
   );
 }
