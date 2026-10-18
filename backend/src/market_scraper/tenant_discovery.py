@@ -66,7 +66,9 @@ from urllib.parse import urlsplit
 from src.ai.billing import credits
 from src.market_scraper.category_taxonomy import categorize_catalog, search_keyword_for_path
 from src.market_scraper.company_geo_profile import get_tenant_search_scope
-from src.market_scraper.direct_search import retailer_domains_for, search_product_across_retailers
+from src.market_scraper.direct_search import (
+    RETAILER_DOMAINS_BY_VERTICAL, retailer_domains_for, search_product_across_retailers,
+)
 from src.market_scraper.discovery import (
     DiscoveryDecision, evaluate_candidate, register_domain_level_competitor, register_tenant_scoped_competitor,
 )
@@ -79,6 +81,11 @@ from src.market_scraper.sitemap_discovery import SITEMAP_DOMAINS_BY_VERTICAL, di
 from src.market_scraper.web_product_discovery import (
     discover_industry_candidates, discover_product_candidates, discover_social_profile_candidates,
 )
+
+
+# A mapped product that has produced no price after this many days is
+# searched again by skip_already_discovered runs.
+RETRY_UNPRICED_AFTER_DAYS = int(os.getenv("DISCOVERY_RETRY_UNPRICED_AFTER_DAYS", "7"))
 
 
 def _load_active_tenant_products(conn, tenant_id: str, skip_already_discovered: bool = True) -> List[dict]:
@@ -105,14 +112,23 @@ def _load_active_tenant_products(conn, tenant_id: str, skip_already_discovered: 
     that's shown up since).
     """
     query = "SELECT product_id, product_name FROM products WHERE tenant_id = %s AND deleted_at IS NULL"
+    params = [tenant_id]
     if skip_already_discovered:
+        # Skip only products that are actually covered: an active mapping
+        # created recently (collection may still be pending) or any real
+        # price observation. A mapping that never produced a price within
+        # the retry window is searched again - otherwise a product mapped
+        # once to a blocked/dead page is never retried and stays uncovered.
         query += (
             " AND product_id NOT IN ("
-            "SELECT DISTINCT product_id FROM competitor_product_mappings WHERE tenant_id = %s"
-            ")"
+            "SELECT m.product_id FROM competitor_product_mappings m WHERE m.tenant_id = %s AND ("
+            "EXISTS (SELECT 1 FROM competitor_prices cp WHERE cp.tenant_id = m.tenant_id AND cp.mapping_id = m.mapping_id)"
+            " OR (m.is_active AND m.created_at >= NOW() - (%s || ' days')::interval)"
+            "))"
         )
+        params += [tenant_id, str(RETRY_UNPRICED_AFTER_DAYS)]
     with conn.cursor() as cursor:
-        cursor.execute(query + ";", (tenant_id, tenant_id) if skip_already_discovered else (tenant_id,))
+        cursor.execute(query + ";", tuple(params))
         rows = cursor.fetchall()
     products = []
     for product_id, product_name in rows:
@@ -133,7 +149,7 @@ def discover_competitors_for_tenant(
     geo_scope: Optional[str] = None, max_products: Optional[int] = None,
     candidates_per_product: int = 5, include_social_only: bool = True,
     group_by_family: bool = True, skip_already_discovered: bool = True,
-    daily_query_limit: Optional[int] = 100,
+    daily_query_limit: Optional[int] = 100, widen_out_of_region: bool = True,
 ) -> List[dict]:
     """
     Runs real discovery for every active product in this tenant's own
@@ -184,6 +200,11 @@ def discover_competitors_for_tenant(
     free-tier cap) is passed straight through to web_product_discovery.py
     - see its own docstring for the pacer's full reasoning.
 
+    widen_out_of_region (default True): a product for which the in-region
+    pass found nothing is searched again without the region restriction (see
+    the "Deeper pass" comment below) - the out-of-region find is registered
+    like any other and marked out_of_region_search=True.
+
     Returns one result dict per registered candidate (register_tenant_
     scoped_competitor()'s own return shape, with product_id/product_name
     added) - every found candidate is registered for every family member
@@ -218,36 +239,67 @@ def discover_competitors_for_tenant(
         search_units = [{**product, "family_members": [product]} for product in products]
 
     results = []
+    unfound_units = []
     for unit in search_units:
-        candidates = list(discover_product_candidates(
-            unit["product_name"], resolved_geo_scope, max_results=candidates_per_product, conn=conn,
-            daily_query_limit=daily_query_limit,
-        ))
-        if include_social_only:
-            candidates.extend(discover_social_profile_candidates(
-                unit["product_name"], conn=conn, daily_query_limit=daily_query_limit,
-            ))
-        if seeded_domains:
-            candidates.extend(search_product_across_retailers(
-                unit["product_name"], seeded_domains, per_domain_limit=2,
-            ))
-        for domain in sitemap_domains:
-            candidates.extend(discover_products_via_sitemap(domain, unit["product_name"], limit=2))
+        found = _discover_and_register_unit(
+            conn, tenant_id, actor_user_id, unit, resolved_geo_scope, seeded_domains, sitemap_domains,
+            candidates_per_product, include_social_only, daily_query_limit,
+        )
+        results.extend(found)
+        if not found:
+            unfound_units.append(unit)
 
-        # Evaluated ONCE per candidate (real robots.txt fetch included),
-        # then reused for every family member - this is the actual cost
-        # saving, not just the search query above.
-        decisions = [evaluate_candidate(candidate) for candidate in candidates]
-        for member in unit["family_members"]:
-            for decision in decisions:
-                registered = register_tenant_scoped_competitor(
-                    conn, tenant_id, actor_user_id, decision, member["product_id"],
-                )
-                results.append({
-                    **registered,
-                    "product_id": member["product_id"],
-                    "product_name": member["product_name"],
-                })
+    # Deeper pass: a product nothing was found for in the tenant's region is
+    # searched again WITHOUT the region restriction, with more results per
+    # query and every seeded retailer for the vertical. A product must always
+    # end up with some market reference; out-of-region prices are converted
+    # and adjusted for the local market by ai/pricing/estimation.py.
+    if widen_out_of_region and unfound_units:
+        all_seeded_domains = RETAILER_DOMAINS_BY_VERTICAL.get(vertical, [])
+        for unit in unfound_units:
+            results.extend(_discover_and_register_unit(
+                conn, tenant_id, actor_user_id, unit, "", all_seeded_domains, sitemap_domains,
+                candidates_per_product * 2, False, daily_query_limit, out_of_region=True,
+            ))
+    return results
+
+
+def _discover_and_register_unit(
+    conn, tenant_id: str, actor_user_id: str, unit: dict, geo_scope: str,
+    seeded_domains: list, sitemap_domains: list, candidates_per_product: int,
+    include_social_only: bool, daily_query_limit: Optional[int], out_of_region: bool = False,
+) -> List[dict]:
+    candidates = list(discover_product_candidates(
+        unit["product_name"], geo_scope, max_results=candidates_per_product, conn=conn,
+        daily_query_limit=daily_query_limit,
+    ))
+    if include_social_only:
+        candidates.extend(discover_social_profile_candidates(
+            unit["product_name"], conn=conn, daily_query_limit=daily_query_limit,
+        ))
+    if seeded_domains:
+        candidates.extend(search_product_across_retailers(
+            unit["product_name"], seeded_domains, per_domain_limit=2,
+        ))
+    for domain in sitemap_domains:
+        candidates.extend(discover_products_via_sitemap(domain, unit["product_name"], limit=2))
+
+    # Evaluated ONCE per candidate (real robots.txt fetch included),
+    # then reused for every family member - this is the actual cost
+    # saving, not just the search query above.
+    decisions = [evaluate_candidate(candidate) for candidate in candidates]
+    results = []
+    for member in unit["family_members"]:
+        for decision in decisions:
+            registered = register_tenant_scoped_competitor(
+                conn, tenant_id, actor_user_id, decision, member["product_id"],
+            )
+            results.append({
+                **registered,
+                "product_id": member["product_id"],
+                "product_name": member["product_name"],
+                "out_of_region_search": out_of_region,
+            })
     return results
 
 

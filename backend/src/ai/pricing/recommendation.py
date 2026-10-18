@@ -35,6 +35,9 @@ class PriceRecommendation:
     confidence_score: float
     explanation: str
     source_record_ids: List[str] = field(default_factory=list)
+    # LOCAL_MARKET = measured in-region competitor prices; every other value
+    # is an estimate (see estimation.py) and is labelled as such everywhere.
+    basis: str = "LOCAL_MARKET"
 
     def as_dict(self) -> dict:
         return {
@@ -48,6 +51,7 @@ class PriceRecommendation:
             "matched_competitor_count": self.matched_competitor_count,
             "confidence_score": self.confidence_score,
             "explanation": self.explanation,
+            "basis": self.basis,
         }
 
 
@@ -114,5 +118,32 @@ def build_recommendation(
         matched_competitor_count=len(prices),
         confidence_score=_confidence_for_sample_size(len(prices)),
         explanation=explanation,
-        source_record_ids=[c["price_entry_id"] for c in matched_competitors],
+        source_record_ids=[c["price_entry_id"] for c in matched_competitors if c.get("price_entry_id")],
+    )
+
+
+def build_internal_recommendation(
+    current_price: float, cost: Optional[float], min_margin_pct: float, currency: Optional[str] = None
+) -> PriceRecommendation:
+    """
+    Last-resort decision when no market evidence of any kind exists: judged on
+    the tenant's own margin only. Raises a price below the minimum-margin
+    floor; otherwise holds. Never "lower" - without market evidence there is
+    no basis to cut a price.
+    """
+    money = lambda amount: format_money(amount, currency)  # noqa: E731
+    floor = round_money(cost * (1 + min_margin_pct), currency) if cost else None
+    if floor is not None and current_price < floor:
+        action, suggested = "raise", floor
+        explanation = (
+            f"Current price {money(current_price)} is below the minimum-margin floor {money(floor)} "
+            f"({min_margin_pct:.0%} over cost {money(cost)}); suggesting the floor."
+        )
+    else:
+        action, suggested = "hold", current_price
+        explanation = f"Current price {money(current_price)} meets the minimum margin; no change suggested."
+    return PriceRecommendation(
+        action=action, current_price=current_price, raw_suggested_price=round_money(suggested, currency),
+        market_min=current_price, market_max=current_price, market_avg=current_price, market_median=current_price,
+        matched_competitor_count=0, confidence_score=0.0, explanation=explanation, basis="INTERNAL_ONLY",
     )
