@@ -161,6 +161,18 @@ production stay **disabled** until every 🔴 below is closed.
 |---|---|---|---|
 | 66 | **Run the suite in the project's real CI.** Verified 2026-10-18 on the real stack (the `Dockerfile.ai` image: Python 3.11 + pinned dependencies, with throwaway Postgres 15 + Redis + MinIO; Neon Postgres 18 smoke separately): backend **3,099 passed, 0 failed, 9 skipped**; billing/credits/plans/limits/usage suites incl. the real-Stripe test-mode e2e **120 passed**; frontend **83/83**, production build OK, lint clean. Still skipped everywhere: 7 sentiment-model tests and 1 reranker test (`AI_TEST_SENTIMENT` / `AI_TEST_RERANKING` download large models), and the live Groq provider smoke test (needs `KEEL_LIVE_PROVIDER_SMOKE`, `GROQ_API_KEY` and confirmed per-token prices — row 56). Nothing in the repo runs these suites automatically against a database + Redis + MinIO yet; wire the same set-up into CI. (Earlier local flakes — `invalid response to GSSAPI negotiation` on `localhost` — are fixed in `src/ai/tests/conftest.py` via `PGGSSENCMODE=disable`; the search-quota tests are now hermetic.) | CI owner | 🟡 Verified locally; CI wiring open |
 
+## Follow-ups from the 2026-10-18 stale-checkout reconciliation
+
+A pre-restructure checkout (`src/...` layout, 181 commits behind `KEEL_Test`) held uncommitted work. Everything in it that `KEEL_Test` lacked was reviewed; the rest was already there in a newer form.
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 67 | **Decide the marketing design.** Two implementations exist; `MARKETING_DESIGN_COMPARISON.md` compares them and recommends keeping KEEL_Test's and porting four pieces (composer, free-provider image pool, builtin background remover, optional worker) as separate PRs. The older migration `20261017000000_add_marketing_campaign_pipeline_columns.sql` must **not** be applied as-is (overlapping columns, new status CHECK). | Product + whoever owns Marketing | 🟡 Open - needs a decision |
+| 68 | **Retire the pre-restructure checkout.** Its uncommitted work is preserved as the local ref `refs/backup/stale-checkout-2026-10-18` (43 files) in `/Users/hebah/Downloads/GitHub/CEOPRO-AI`; other sessions were still editing it, so it was not reset. Once #67 is decided, delete the ref and stop using that checkout. | Repo owner | 🟡 Open |
+| 69 | **Measure the real pricing data gap.** `scripts/pricing_data_gap_report.py` (new, read-only) prints coverage, gap causes, cost and barcode coverage and recorded outcomes per tenant. It was verified only against a throwaway database: no local volume holds real tenant data (the biggest hold thousands of test-run companies), and reading existing volumes was declined in the session. Run it against staging/production with an owner connection. | Whoever has database access | 🔴 Open - nothing real measured yet |
+| 70 | **Learned pricing stays off.** `recommendation_outcomes.user_decision` is `PENDING` for every recorded outcome seen; spec S19 needs accepted/rejected history first. Expect low confidence until users act on recommendations. | Product | ⚪ Deferred - by design |
+| 71 | **`price_coverage` SQL had no live-DB test on KEEL_Test** (`test_price_coverage.py` feeds canned rows). Added `src/ai/tests/test_price_coverage_integration_db.py`; passes against Postgres 15 + pgvector with all 75 migrations applied. | - | ✅ Resolved 2026-10-18 |
+
 ## Waiting on documents / approvals (not code)
 
 | # | Item | Owner | Status |
