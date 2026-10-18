@@ -720,14 +720,33 @@
       "backToLogin": "Back to Login"
     },
     "welcome": {
-      "title": "Welcome to KEEL",
-      "tagline": "Stop using. Start knowing.",
-      "descriptionLine1": "Your AI-powered business intelligence platform",
-      "descriptionLine2": "for smarter decisions and real growth.",
-      "login": "Log In →",
-      "signup": "Sign Up →",
-      "newTo": "New to KEEL?",
-      "imageAlt": "Business growth illustration"
+      "eyebrow": "AI business intelligence",
+      "title": "See Beyond",
+      "titleAccent": "the Obvious.",
+      "tagline": "Turn your business data into your next smart move.",
+      "description": "KEEL brings your sales, your market and your customers into one intelligent view, so you can spot what matters, read the signals early and decide with confidence.",
+      "getStarted": "Get Started",
+      "login": "Log In",
+      "note": "Built for English and Arabic",
+      "insightsLabel": "What KEEL helps you see",
+      "insights": {
+        "market": {
+          "title": "Market Signals",
+          "text": "Discover what is changing."
+        },
+        "demand": {
+          "title": "Demand Insights",
+          "text": "Anticipate what comes next."
+        },
+        "pricing": {
+          "title": "Pricing Intelligence",
+          "text": "Make more informed pricing decisions."
+        },
+        "ai": {
+          "title": "AI-Powered Insights",
+          "text": "Turn information into action."
+        }
+      }
     },
     "login": {
       "title": "Welcome Back",
