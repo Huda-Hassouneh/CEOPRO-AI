@@ -51,7 +51,7 @@
   transition: transform 500ms var(--apex-ease-spring);
 }
 .apex-topnav__brand:hover .apex-topnav__mark { transform: rotate(-8deg) scale(1.06); }
-.apex-topnav__wordmark { font: 600 22px/1 var(--keel-font-wordmark); letter-spacing: 0.14em; }
+.apex-topnav__wordmark { color: var(--keel-wordmark); font: 700 22px/1 var(--keel-font-wordmark); letter-spacing: 0.05em; }
 
 /* Tabs */
 .apex-topnav__tabs { flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; }

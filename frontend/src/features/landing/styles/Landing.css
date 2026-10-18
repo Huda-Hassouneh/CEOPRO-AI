@@ -477,7 +477,7 @@
 .ceopro-landing .lp-nav-cta, .ceopro-landing .lp-nav-cta:hover { color: #fff !important; border-radius: 999px; box-shadow: 0 12px 24px -12px rgba(91, 97, 240, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
 .ceopro-landing .lp-brand { gap: 10px; }
 .ceopro-landing .lp-brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--apex-gradient); color: #fff; box-shadow: 0 10px 22px -10px rgba(91, 97, 240, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
-.ceopro-landing .lp-brand-word { font: 600 23px/1 var(--keel-font-wordmark); letter-spacing: 0.14em; color: var(--apex-text); }
+.ceopro-landing .lp-brand-word { font: 700 23px/1 var(--keel-font-wordmark); letter-spacing: 0.05em; color: var(--keel-wordmark); }
 
 /* Hero: drifting aurora behind glass. */
 .ceopro-landing .lp-hero { position: relative; isolation: isolate; overflow: hidden; background: transparent; padding-block: 88px 116px; }
