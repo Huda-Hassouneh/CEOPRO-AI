@@ -21,7 +21,16 @@ Gap reasons:
                         terms review (source_ids says which to review)
   ROBOTS_DISALLOWED     matched, but every source forbids automated collection
   NO_DATA_COLLECTED     a source is approved but has produced no price yet
+
+A covered product can still need attention, and says why:
+  stale                 its newest price is older than PRICE_STALE_AFTER_DAYS
+  currency_mismatch     some of its prices are in another currency than its own,
+                        so they can't be compared as they are
+  inactive_mapping      a competitor matched to it is switched off or untracked
+next_action is the one step that resolves the product's most important issue.
 """
+import os
+from datetime import datetime, timezone
 from typing import Optional
 
 REASON_NO_MAPPING = "NO_COMPETITOR_MAPPED"
@@ -29,10 +38,12 @@ REASON_TERMS = "TERMS_UNREVIEWED"
 REASON_ROBOTS = "ROBOTS_DISALLOWED"
 REASON_NO_DATA = "NO_DATA_COLLECTED"
 REASONS = (REASON_NO_MAPPING, REASON_TERMS, REASON_ROBOTS, REASON_NO_DATA)
+ISSUE_STALE, ISSUE_CURRENCY, ISSUE_INACTIVE = "stale", "currency_mismatch", "inactive_mapping"
+STALE_AFTER_DAYS = int(os.getenv("PRICE_STALE_AFTER_DAYS", "30"))
 
 _QUERY = """
     SELECT p.product_id,
-           COALESCE(p.product_name->>'en', p.product_name->>'ar', p.product_name::text) AS product_name,
+           localized_text(p.product_name) AS product_name,  -- in the reader's language (app.lang)
            p.current_price, p.currency,
            COUNT(DISTINCT m.mapping_id) AS mappings,
            COUNT(DISTINCT cpr.competitor_price_id) AS prices,
@@ -42,7 +53,17 @@ _QUERY = """
            (SELECT COUNT(*) FROM market_price_observations o
              WHERE o.tenant_id = p.tenant_id AND o.product_id = p.product_id AND o.plausible IS NOT FALSE) AS reference_prices,
            l.outcome AS lookup_outcome, l.last_attempt_at AS lookup_at,
-           (p.metadata->>'barcode') IS NOT NULL AS has_barcode
+           (p.metadata->>'barcode') IS NOT NULL AS has_barcode,
+           COUNT(DISTINCT cpr.competitor_price_id) FILTER (WHERE cpr.currency <> p.currency) AS foreign_prices,
+           (SELECT COUNT(*) FROM market_price_observations o
+             WHERE o.tenant_id = p.tenant_id AND o.product_id = p.product_id AND o.plausible IS NOT FALSE
+               AND o.currency <> p.currency) AS foreign_reference_prices,
+           (SELECT MAX(o.observed_at) FROM market_price_observations o
+             WHERE o.tenant_id = p.tenant_id AND o.product_id = p.product_id AND o.plausible IS NOT FALSE) AS last_reference_at,
+           (SELECT COUNT(*) FROM competitor_product_mappings mi
+              LEFT JOIN tenant_competitors tci ON tci.tenant_id = mi.tenant_id AND tci.global_competitor_id = mi.global_competitor_id
+             WHERE mi.tenant_id = p.tenant_id AND mi.product_id = p.product_id
+               AND (mi.is_active = FALSE OR tci.is_tracked IS DISTINCT FROM TRUE)) AS inactive_mappings
     FROM products p
     LEFT JOIN (competitor_product_mappings m
                JOIN tenant_competitors tc ON tc.tenant_id = m.tenant_id
@@ -67,6 +88,27 @@ def _reason(mappings: int, allowed: int, restricted: list) -> str:
     return REASON_ROBOTS
 
 
+def _next_action(reason: Optional[str], issues: list, has_barcode: bool) -> Optional[str]:
+    """The one step that resolves the product's most important issue."""
+    if reason == REASON_NO_MAPPING:
+        if ISSUE_INACTIVE in issues:
+            return "review_mappings"
+        return "add_barcode" if not has_barcode else "add_competitor"
+    if reason == REASON_TERMS:
+        return "review_source"
+    if reason == REASON_ROBOTS:
+        return "enter_price"
+    if reason == REASON_NO_DATA:
+        return "check_collection"
+    if ISSUE_STALE in issues:
+        return "refresh_prices"
+    if ISSUE_CURRENCY in issues:
+        return "check_currency"
+    if ISSUE_INACTIVE in issues:
+        return "review_mappings"
+    return None
+
+
 def get_barcode_summary(conn, tenant_id: str) -> dict:
     """{"products", "with_barcode", "coverage_pct"}: how many active products carry a barcode.
     A barcode is the exact key for the open price databases, so this is the number the owner
@@ -86,7 +128,7 @@ def get_barcode_summary(conn, tenant_id: str) -> dict:
 
 def get_price_coverage(
     conn, tenant_id: str, include_covered: bool = False, limit: Optional[int] = 100, offset: int = 0,
-    missing_barcode: bool = False, product_id: Optional[str] = None,
+    missing_barcode: bool = False, product_id: Optional[str] = None, now: Optional[datetime] = None,
 ) -> dict:
     """{"summary": {...}, "products": [...]}. The summary always covers EVERY
     product; `products` lists the gaps (plus covered products when
@@ -94,7 +136,10 @@ def get_price_coverage(
     every product without a barcode, price gaps first - the owner's worklist for
     entering barcodes (PATCH /products/{id} {"barcode": ...}). Each product says
     has_barcode, and a gap without one carries suggestion "add_barcode". product_id
-    narrows everything (summary included) to that one product."""
+    narrows everything (summary included) to that one product. Covered products
+    with an issue (stale, currency_mismatch, inactive_mapping) are listed with the
+    gaps; every listed product carries its issues and next_action."""
+    now = now or datetime.now(timezone.utc)
     with conn.cursor() as cursor:
         cursor.execute(_QUERY, (tenant_id, product_id, product_id))
         rows = cursor.fetchall()
@@ -102,11 +147,27 @@ def get_price_coverage(
     by_reason = {reason: 0 for reason in REASONS}
     items = []
     competitor_priced = reference_only = without_barcode = gaps_without_barcode = 0
+    by_issue = {ISSUE_STALE: 0, ISSUE_CURRENCY: 0, ISSUE_INACTIVE: 0}
+    needs_attention = 0
     for (product_id, name, current_price, currency, mappings, prices, allowed, restricted, last_price_at,
-         reference_prices, lookup_outcome, lookup_at, has_barcode) in rows:
+         reference_prices, lookup_outcome, lookup_at, has_barcode, foreign_prices, foreign_reference_prices,
+         last_reference_at, inactive_mappings) in rows:
         has_price = prices > 0 or reference_prices > 0
         basis = "competitor" if prices > 0 else "market_reference" if reference_prices > 0 else None
         reason = None if has_price else _reason(mappings, allowed, restricted or [])
+        latest = max((t for t in (last_price_at, last_reference_at) if t), default=None)
+        age_days = (now - latest).days if latest else None
+        issues = []
+        if has_price and age_days is not None and age_days > STALE_AFTER_DAYS:
+            issues.append(ISSUE_STALE)
+        if (foreign_prices or 0) + (foreign_reference_prices or 0) > 0:
+            issues.append(ISSUE_CURRENCY)
+        if inactive_mappings:
+            issues.append(ISSUE_INACTIVE)
+        for issue in issues:
+            by_issue[issue] += 1
+        if not has_price or issues:
+            needs_attention += 1
         if basis == "competitor":
             competitor_priced += 1
         elif basis == "market_reference":
@@ -120,7 +181,7 @@ def get_price_coverage(
         if missing_barcode:
             if has_barcode:
                 continue
-        elif has_price and not include_covered:
+        elif has_price and not issues and not include_covered:
             continue
         items.append({
             "product_id": str(product_id), "product_name": name,
@@ -136,6 +197,10 @@ def get_price_coverage(
             # The one thing the owner can add that makes the open price databases exact.
             "suggestion": "add_barcode" if not has_barcode and not has_price else None,
             "market_lookup": {"outcome": lookup_outcome, "last_attempt_at": lookup_at.isoformat()} if lookup_outcome else None,
+            "latest_price_at": latest.isoformat() if latest else None, "price_age_days": age_days,
+            "issues": issues, "foreign_currency_prices": int(foreign_prices or 0) + int(foreign_reference_prices or 0),
+            "inactive_mappings": int(inactive_mappings or 0),
+            "next_action": _next_action(reason, issues, has_barcode),
         })
 
     if missing_barcode:
@@ -149,6 +214,9 @@ def get_price_coverage(
             "with_competitor_price": competitor_priced, "with_reference_price_only": reference_only,
             "coverage_pct": round(covered / total * 100, 1) if total else None, "gaps_by_reason": by_reason,
             "products_without_barcode": without_barcode, "gaps_without_barcode": gaps_without_barcode,
+            "stale_prices": by_issue[ISSUE_STALE], "currency_mismatches": by_issue[ISSUE_CURRENCY],
+            "inactive_mappings": by_issue[ISSUE_INACTIVE], "needs_attention": needs_attention,
+            "stale_after_days": STALE_AFTER_DAYS,
         },
         "products": page,
     }
