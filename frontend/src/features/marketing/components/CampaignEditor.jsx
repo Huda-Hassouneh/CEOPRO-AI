@@ -96,6 +96,9 @@ export function CampaignEditor({ campaign, capability, t, locale, onDeleted, onR
                 : imageStatus === 'NOT_CONFIGURED' || !capability?.available ? t('studio.imageOff') : t('studio.noImageYet')}</p>
         </div>
       )}
+      {hasImage && (regenerate.data?.image_generation_provider || campaign.image_generation_provider) === 'designed' && (
+        <p className="studio-image__note">{t('studio.imageDesigned')}</p>
+      )}
       {campaign.image_generation_blocked && !hasImage && <MarketingErrorMessage error={{ response: { status: 402, data: { detail: campaign.image_generation_blocked } } }} action="image" t={t} />}
       {regenerate.isError && <MarketingErrorMessage error={regenerate.error} action="image" t={t} />}
       {regenerate.data?.image_generation_status === 'PROVIDER_ERROR' && <p className="marketing-inline-error" role="alert">{t('studio.imageFailed')}</p>}

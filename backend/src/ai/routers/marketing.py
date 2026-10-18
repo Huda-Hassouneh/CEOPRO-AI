@@ -773,10 +773,10 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) 
             client, generated.content, generated.content_type, ctx.tenant_id, campaign_id,
         )
         previous = campaign.get("generated_image_key")
-        # Which free model served it is never stored or shown (operators see it in the server log).
+        # Only "ai" or "designed" is stored/shown; which free model served it is not (server log only).
         logger.info("Campaign %s image served by %s", campaign_id, generated.provider)
         data_access.save_generated_image(
-            conn, ctx.tenant_id, campaign_id, provider="ai", image_key=image_key,
+            conn, ctx.tenant_id, campaign_id, provider=generated.mode, image_key=image_key,
             used_reference=generated.used_reference, reference_note=generated.reference_note,
         )
         storage_ledger.record(conn, ctx.tenant_id, image_storage.GENERATED_IMAGES_BUCKET, image_key,
@@ -793,7 +793,7 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) 
                 logger.exception("Could not delete the replaced image (tenant=%s campaign=%s)", ctx.tenant_id, campaign_id)
         return {
             "campaign_id": campaign_id, "image_generation_status": "COMPLETED",
-            "image_generation_provider": "ai", "image_generation_mode": generated.mode,
+            "image_generation_provider": generated.mode, "image_generation_mode": generated.mode,
             "generated_image_key": image_key,
             "image_generation_used_reference": generated.used_reference,
             "image_generation_reference_note": generated.reference_note,

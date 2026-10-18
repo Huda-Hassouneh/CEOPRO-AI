@@ -521,9 +521,9 @@ def test_no_ai_image_falls_back_to_a_designed_poster_never_an_error():
         response = client.post("/marketing/campaigns/c1/generate-image", headers=_auth())
     body = response.json()
     assert response.status_code == 200 and body["image_generation_status"] == "COMPLETED"
-    assert body["image_generation_mode"] == "designed" and body["image_generation_provider"] == "ai"
+    assert body["image_generation_mode"] == "designed" and body["image_generation_provider"] == "designed"
     assert mock_upload.call_args.args[1][:8] == b"\x89PNG\r\n\x1a\n"   # a real PNG, not a placeholder
-    assert mock_save.call_args.kwargs["provider"] == "ai"
+    assert mock_save.call_args.kwargs["provider"] == "designed"
 
 
 def test_generate_image_success_stores_and_returns_completed(monkeypatch):
