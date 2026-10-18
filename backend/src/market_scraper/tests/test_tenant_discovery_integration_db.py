@@ -182,7 +182,7 @@ def test_group_by_family_false_searches_every_product_individually(conn):
 
     with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
          patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
-        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), group_by_family=False)
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), group_by_family=False, widen_out_of_region=False)
 
     assert mocked_search.call_count == 2  # same family, but grouping turned off
 
@@ -197,7 +197,7 @@ def test_products_above_the_price_threshold_are_never_collapsed_even_with_groupi
 
     with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
          patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
-        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), widen_out_of_region=False)
 
     assert mocked_search.call_count == 2  # priced above threshold - individual precision, not a family search
 
@@ -237,7 +237,7 @@ def test_max_products_caps_how_many_catalog_products_are_searched(conn):
     with patch(
         "src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[],
     ) as mocked:
-        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), max_products=1)
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), max_products=1, widen_out_of_region=False)
 
     assert mocked.call_count == 1
 
@@ -307,7 +307,7 @@ def test_skip_already_discovered_excludes_a_product_with_an_existing_mapping(con
 
     with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
          patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
-        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), widen_out_of_region=False)
 
     # "Jordan", not the bare code "JO" - resolve_tenant_geo_scope() now
     # resolves a human-readable country name (iso_countries.py), since a
@@ -342,7 +342,7 @@ def test_skip_already_discovered_false_searches_everything_regardless(conn):
 
     with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
          patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
-        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), skip_already_discovered=False)
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), skip_already_discovered=False, widen_out_of_region=False)
 
     mocked_search.assert_called_once()  # the already-mapped product is searched again
 
@@ -517,3 +517,65 @@ def test_register_tenant_scoped_competitor_leaves_country_code_null_for_a_generi
             (tenant_id, "%some-shop.com%"),
         )
         assert cursor.fetchone()[0] is None
+
+
+def test_deeper_pass_searches_outside_the_region_only_for_products_nothing_was_found_for(conn):
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "Rare Widget")
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    assert mocked_search.call_count == 2
+    in_region, out_of_region = mocked_search.call_args_list
+    assert in_region.args[1] == "Jordan"
+    assert out_of_region.args[1] == ""  # no region restriction
+    assert out_of_region.kwargs["max_results"] == 10  # twice the in-region breadth
+
+
+def test_deeper_pass_is_skipped_when_the_in_region_search_found_something(conn):
+    tenant_id = _insert_company(conn)
+    _insert_product(conn, tenant_id, "Espresso Machine")
+    candidate = [CandidateSource("Espresso Machine", "https://shop.example/espresso-machine", "Espresso Machine")]
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=candidate) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        results = discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()))
+
+    assert mocked_search.call_count == 1
+    assert all(r["out_of_region_search"] is False for r in results)
+
+
+def test_mapped_product_that_never_produced_a_price_is_searched_again_after_the_retry_window(conn):
+    tenant_id = _insert_company(conn)
+    stale_unpriced = _insert_product(conn, tenant_id, "Espresso Machine")
+    priced = _insert_product(conn, tenant_id, "Pour Over Kettle")
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (competitor_name, website_url, visibility, added_by_tenant_id) "
+            "VALUES ('Existing Competitor', 'https://existing.example', 'PRIVATE', %s) RETURNING global_competitor_id;",
+            (tenant_id,),
+        )
+        competitor_id = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s);", (tenant_id, competitor_id))
+        for product_id in (stale_unpriced, priced):
+            cursor.execute(
+                "INSERT INTO competitor_product_mappings (tenant_id, global_competitor_id, product_id, created_at) "
+                "VALUES (%s, %s, %s, NOW() - INTERVAL '30 days') RETURNING mapping_id;",
+                (tenant_id, competitor_id, product_id),
+            )
+            mapping_id = cursor.fetchone()[0]
+            if product_id == priced:
+                cursor.execute(
+                    "INSERT INTO competitor_prices (tenant_id, mapping_id, scraped_price, currency) VALUES (%s, %s, 5, 'JOD');",
+                    (tenant_id, mapping_id),
+                )
+
+    with patch("src.market_scraper.tenant_discovery.discover_product_candidates", return_value=[]) as mocked_search, \
+         patch("src.market_scraper.tenant_discovery.discover_social_profile_candidates", return_value=[]):
+        discover_competitors_for_tenant(conn, tenant_id, actor_user_id=str(uuid.uuid4()), widen_out_of_region=False)
+
+    mocked_search.assert_called_once()
+    assert mocked_search.call_args.args[0] == "Espresso Machine"

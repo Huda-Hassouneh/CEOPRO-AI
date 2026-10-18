@@ -17,9 +17,11 @@ docstring) - load_competitor_prices() below takes product_id directly.
 import os
 from typing import Optional
 
-# Stale competitor price data is worse than none - an old price silently
-# treated as current would violate spec S19's "Date of collection" requirement.
-MAX_PRICE_AGE_DAYS = int(os.getenv("PRICING_MAX_PRICE_AGE_DAYS", "30"))
+# Every product needs a market reference, so an old price is better than none:
+# the window is 3 years. Only each competitor's latest price is used (see
+# _load_competitor_prices), and the pipeline discloses the collection date of
+# old data (spec S19's "Date of collection" requirement).
+MAX_PRICE_AGE_DAYS = int(os.getenv("PRICING_MAX_PRICE_AGE_DAYS", "1095"))
 
 
 def _representative_name(product_name) -> str:
@@ -127,3 +129,124 @@ def load_cross_currency_competitor_prices(
     """
     max_age_days = MAX_PRICE_AGE_DAYS if max_age_days is None else max_age_days
     return _load_competitor_prices(conn, tenant_id, product_id, exclude_currency, "!=", max_age_days)
+
+
+# Competitors excluded only because they sit outside the tenant's operating
+# region (see competitor_classification.py) are still valid market references
+# when nothing local exists - estimation.py adjusts their prices for the
+# regional difference before use. Manufacturers/wholesalers never qualify.
+OUT_OF_REGION_REASON_PREFIX = "excluded: competitor country"
+
+
+def load_reference_competitor_prices(conn, tenant_id: str, product_id: str, max_age_days: int = None) -> list:
+    """
+    Latest usable price per competitor for this product in ANY currency, from
+    competitors that are tracked OR were excluded only for being out of
+    region; plus the product's market reference prices (price_lookup/:
+    market_price_observations, plausible ones only). Each record carries
+    `source` ("competitor" | "market_reference").
+    """
+    max_age_days = MAX_PRICE_AGE_DAYS if max_age_days is None else max_age_days
+    competitor_query = """
+        SELECT DISTINCT ON (tc.global_competitor_id)
+               cp.competitor_price_id, gc.competitor_name, cp.scraped_price, cp.currency, cp.observed_at
+        FROM competitor_prices cp
+        JOIN competitor_product_mappings cpm ON cpm.mapping_id = cp.mapping_id AND cpm.tenant_id = cp.tenant_id
+        JOIN tenant_competitors tc ON tc.tenant_id = cpm.tenant_id AND tc.global_competitor_id = cpm.global_competitor_id
+        JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
+        WHERE cp.tenant_id = %s
+          AND cpm.product_id = %s
+          AND cp.is_exact_data = TRUE
+          AND cp.source_status = 'ALLOWED'
+          AND cp.is_available = TRUE
+          AND cpm.is_active = TRUE
+          AND gc.is_manufacturer = FALSE
+          AND (tc.is_tracked = TRUE OR tc.classification_reason LIKE %s)
+          AND cp.observed_at >= NOW() - (%s || ' days')::interval
+        ORDER BY tc.global_competitor_id, cp.observed_at DESC;
+    """
+    observation_query = """
+        SELECT DISTINCT ON (COALESCE(seller_name, provider))
+               observation_id, COALESCE(seller_name, provider), price, currency, observed_at
+        FROM market_price_observations
+        WHERE tenant_id = %s AND product_id = %s AND plausible IS NOT FALSE
+          AND observed_at >= NOW() - (%s || ' days')::interval
+        ORDER BY COALESCE(seller_name, provider), observed_at DESC;
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(competitor_query, (tenant_id, product_id, OUT_OF_REGION_REASON_PREFIX + "%", str(max_age_days)))
+        competitor_rows = cursor.fetchall()
+        cursor.execute(observation_query, (tenant_id, product_id, str(max_age_days)))
+        observation_rows = cursor.fetchall()
+    return [
+        {"price_entry_id": str(r[0]), "competitor_name": r[1], "price_found": float(r[2]), "currency": r[3],
+         "captured_at": r[4], "source": source}
+        for source, rows in (("competitor", competitor_rows), ("market_reference", observation_rows))
+        for r in rows
+    ]
+
+
+def load_tenant_market_snapshot(conn, tenant_id: str, max_age_days: int = None) -> list:
+    """
+    One entry per active product: {product_id, category, cost, current_price,
+    currency, prices: [(price, currency)]} using each competitor's latest
+    usable price plus plausible market reference prices. Calibration input
+    for estimation.py (regional factor, peer markup); includes products with
+    no prices (empty list).
+    """
+    max_age_days = MAX_PRICE_AGE_DAYS if max_age_days is None else max_age_days
+    products_query = """
+        SELECT product_id, category, cost_price, current_price, currency
+        FROM products WHERE tenant_id = %s AND deleted_at IS NULL;
+    """
+    competitor_query = """
+        SELECT DISTINCT ON (cpm.product_id, tc.global_competitor_id)
+               cpm.product_id, cp.scraped_price, cp.currency
+        FROM competitor_prices cp
+        JOIN competitor_product_mappings cpm ON cpm.mapping_id = cp.mapping_id AND cpm.tenant_id = cp.tenant_id
+        JOIN tenant_competitors tc ON tc.tenant_id = cpm.tenant_id AND tc.global_competitor_id = cpm.global_competitor_id
+        JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
+        WHERE cp.tenant_id = %s
+          AND cp.is_exact_data = TRUE AND cp.source_status = 'ALLOWED' AND cp.is_available = TRUE
+          AND cpm.is_active = TRUE AND gc.is_manufacturer = FALSE
+          AND (tc.is_tracked = TRUE OR tc.classification_reason LIKE %s)
+          AND cp.observed_at >= NOW() - (%s || ' days')::interval
+        ORDER BY cpm.product_id, tc.global_competitor_id, cp.observed_at DESC;
+    """
+    observation_query = """
+        SELECT DISTINCT ON (product_id, COALESCE(seller_name, provider)) product_id, price, currency
+        FROM market_price_observations
+        WHERE tenant_id = %s AND plausible IS NOT FALSE AND observed_at >= NOW() - (%s || ' days')::interval
+        ORDER BY product_id, COALESCE(seller_name, provider), observed_at DESC;
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(products_query, (tenant_id,))
+        product_rows = cursor.fetchall()
+        cursor.execute(competitor_query, (tenant_id, OUT_OF_REGION_REASON_PREFIX + "%", str(max_age_days)))
+        competitor_rows = cursor.fetchall()
+        cursor.execute(observation_query, (tenant_id, str(max_age_days)))
+        observation_rows = cursor.fetchall()
+
+    products = {
+        str(r[0]): {
+            "product_id": str(r[0]),
+            "category": _category_key(r[1]),
+            "cost": float(r[2]) if r[2] is not None else None,
+            "current_price": float(r[3]),
+            "currency": r[4],
+            "prices": [],
+        }
+        for r in product_rows
+    }
+    for product_id, price, price_currency in [*competitor_rows, *observation_rows]:
+        if str(product_id) in products:
+            products[str(product_id)]["prices"].append((float(price), price_currency))
+    return list(products.values())
+
+
+def _category_key(category) -> Optional[str]:
+    if isinstance(category, dict):
+        text = category.get("en") or next((v for v in category.values() if isinstance(v, str) and v), None)
+    else:
+        text = category
+    return text.strip().lower() if isinstance(text, str) and text.strip() else None

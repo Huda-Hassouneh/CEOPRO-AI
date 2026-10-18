@@ -319,25 +319,126 @@ def test_run_price_recommendation_includes_cross_currency_reference_against_real
 
     result = pipeline.run_price_recommendation(conn, tenant_id, product_id)
 
-    assert result["status"] == "UNKNOWN"  # no same-currency competitors matched
+    # No same-currency competitor: decided from the out-of-region price instead.
+    assert result["status"] == "OK"
+    assert result["data_basis"] == "REGIONAL_ESTIMATE"
     with conn.cursor() as cursor:
         cursor.execute("SELECT explanation_text FROM evidence_records WHERE evidence_id = %s;", (result["evidence_id"],))
         explanation = cursor.fetchone()[0]
-        assert "reference only" in explanation
+        assert "[REGIONAL_ESTIMATE]" in explanation
         assert "75.00 SAR" in explanation
         assert "71.250 JOD" in explanation  # 75.00 * 0.95, JOD has 3 decimals
 
 
-def test_run_price_recommendation_with_no_competitor_data_writes_unknown_evidence(conn):
+def test_run_price_recommendation_with_no_competitor_data_still_decides(conn):
     tenant_id = _insert_company(conn, "No Competitors Co")
     product_id = _insert_product(conn, tenant_id, "Rare Widget", 40.00)
     conn.commit()
 
     result = pipeline.run_price_recommendation(conn, tenant_id, product_id)
 
-    assert result["status"] == "UNKNOWN"
+    assert result["status"] == "OK"
+    assert result["action"] in ("raise", "lower", "hold")
+    assert result["data_basis"] == "INTERNAL_ONLY"
     with conn.cursor() as cursor:
         cursor.execute("SELECT category FROM evidence_records WHERE evidence_id = %s;", (result["evidence_id"],))
-        assert cursor.fetchone()[0] == "UNKNOWN"
+        assert cursor.fetchone()[0] == "RECOMMENDATION"
         cursor.execute("SELECT COUNT(*) FROM recommendation_outcomes WHERE tenant_id = %s;", (tenant_id,))
-        assert cursor.fetchone()[0] == 0  # no outcome row when there's no recommendation
+        assert cursor.fetchone()[0] == 1  # every decision is tracked
+
+
+def test_only_the_latest_price_per_competitor_is_used(conn):
+    tenant_id = _insert_company(conn, "Latest Price Co")
+    product_id = _insert_product(conn, tenant_id, "Sunscreen SPF 50", 30.00)
+    _insert_competitor_price(conn, tenant_id, product_id, "Rival Pharmacy", 10.00)
+    _insert_competitor_price(conn, tenant_id, product_id, "Rival Pharmacy", 20.00)  # newer observation
+    conn.commit()
+
+    records = data_access.load_competitor_prices(conn, tenant_id, product_id, "JOD")
+
+    assert [r["price_found"] for r in records] == [20.00]
+
+
+def test_prices_up_to_three_years_old_are_still_used(conn):
+    tenant_id = _insert_company(conn, "Old Price Co")
+    product_id = _insert_product(conn, tenant_id, "Sunscreen SPF 50", 30.00)
+    _insert_competitor_price(conn, tenant_id, product_id, "Rival Pharmacy", 20.00)
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE competitor_prices SET observed_at = NOW() - INTERVAL '2 years' WHERE tenant_id = %s;", (tenant_id,))
+    conn.commit()
+
+    result = pipeline.run_price_recommendation(conn, tenant_id, product_id)
+
+    assert result["data_basis"] == "LOCAL_MARKET"
+    assert result["action"] == "lower"
+
+
+def _exclude_as_out_of_region(conn, tenant_id, competitor_id):
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE tenant_competitors SET is_tracked = FALSE, classification_reason = %s "
+            "WHERE tenant_id = %s AND global_competitor_id = %s;",
+            ("excluded: competitor country 'US' is outside the tenant's operating region", tenant_id, competitor_id),
+        )
+
+
+def test_foreign_currency_competitor_excluded_for_region_is_converted_as_a_regional_estimate(conn):
+    tenant_id = _insert_company(conn, "Out Of Region Co")
+    product_id = _insert_product(conn, tenant_id, "Sunscreen SPF 50", 30.00)
+    competitor_id = _insert_competitor_price(conn, tenant_id, product_id, "Foreign Pharmacy", 20.00, currency_code="USD")
+    _exclude_as_out_of_region(conn, tenant_id, competitor_id)
+    conn.commit()
+    _upsert_currency_rate(conn, "USD", "JOD", 0.7100, date(2026, 8, 1), "test_feed")
+
+    assert data_access.load_competitor_prices(conn, tenant_id, product_id, "JOD") == []  # not a local reference
+    result = pipeline.run_price_recommendation(conn, tenant_id, product_id)
+
+    assert result["data_basis"] == "REGIONAL_ESTIMATE"
+    assert result["action"] == "lower"  # 20 USD = 14.2 JOD, far below 30
+
+
+def test_same_currency_competitor_excluded_for_region_is_a_market_reference(conn):
+    tenant_id = _insert_company(conn, "Out Of Region Same Currency Co")
+    product_id = _insert_product(conn, tenant_id, "Sunscreen SPF 50", 30.00)
+    competitor_id = _insert_competitor_price(conn, tenant_id, product_id, "Neighbour Pharmacy", 20.00)
+    _exclude_as_out_of_region(conn, tenant_id, competitor_id)
+    conn.commit()
+
+    result = pipeline.run_price_recommendation(conn, tenant_id, product_id)
+
+    assert result["data_basis"] == "MARKET_REFERENCE"
+    assert result["action"] == "lower"
+
+
+def test_manufacturer_prices_are_never_used_even_as_a_regional_estimate(conn):
+    tenant_id = _insert_company(conn, "Manufacturer Co")
+    product_id = _insert_product(conn, tenant_id, "Sunscreen SPF 50", 30.00)
+    competitor_id = _insert_competitor_price(conn, tenant_id, product_id, "Big Factory", 5.00)
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE global_competitors SET is_manufacturer = TRUE WHERE global_competitor_id = %s;", (competitor_id,))
+        cursor.execute(
+            "UPDATE tenant_competitors SET is_tracked = FALSE, classification_reason = 'excluded: manufacturer/wholesaler' "
+            "WHERE tenant_id = %s;",
+            (tenant_id,),
+        )
+    conn.commit()
+
+    assert data_access.load_reference_competitor_prices(conn, tenant_id, product_id) == []
+
+
+def test_market_reference_price_is_used_when_no_competitor_price_exists(conn):
+    tenant_id = _insert_company(conn, "Reference Price Co")
+    product_id = _insert_product(conn, tenant_id, "Sunscreen SPF 50", 30.00)
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO market_price_observations "
+            "(tenant_id, product_id, provider, seller_name, price, currency, match_score, plausible, dedupe_key) "
+            "VALUES (%s, %s, 'test', 'Public Shop', 20.00, 'JOD', 0.9, TRUE, 'k1');",
+            (tenant_id, product_id),
+        )
+    conn.commit()
+
+    result = pipeline.run_price_recommendation(conn, tenant_id, product_id)
+
+    assert result["data_basis"] == "MARKET_REFERENCE"
+    assert result["action"] == "lower"
