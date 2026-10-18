@@ -1,7 +1,6 @@
 ﻿# KEEL - Infrastructure Contract Changelog
 
 All breaking changes, database constraint adjustments, and API/Event contract modifications between Web-App, Ingestion, and AI/ML teams are strictly tracked here.
-
 ## - 2026-07-27
 ### Added
 - Initialized core relational multi-tenancy database schema (`init_schema.sql`).
