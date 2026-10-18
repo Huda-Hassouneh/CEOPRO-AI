@@ -3451,6 +3451,43 @@
       "basis": {
         "competitor": "سعر منافس",
         "market_reference": "قائمة عامة"
+      },
+      "headline": "{{covered}} من أصل {{total}} منتجاً لها سعر سوقي موثّق المصدر",
+      "honesty": "لا تُحتسب إلا الأسعار التي جمعها KEEL فعلاً أو أدخلتها بنفسك. المنتج الذي لا سعر له يُظهر السبب، ولا يُعرض له سعر تقديري أبداً.",
+      "filtersLabel": "عرض المنتجات حسب الحالة",
+      "filters": {
+        "all": "بحاجة إلى متابعة",
+        "missing": "بلا سعر سوقي",
+        "approval": "بانتظار اعتماد المصدر",
+        "stale": "أسعار قديمة",
+        "currency": "عملة مختلفة",
+        "inactive": "مطابقات غير نشطة"
+      },
+      "noneInFilter": "لا توجد منتجات في هذه المجموعة حالياً.",
+      "statusColumn": "الحالة",
+      "why": "السبب",
+      "nextStep": "الخطوة التالية",
+      "status": {
+        "missing": "بلا سعر سوقي"
+      },
+      "badge": {
+        "stale": "قديم · {{days}} يوماً",
+        "currency_mismatch": "عملة مختلفة",
+        "inactive_mapping": "المطابقة متوقفة"
+      },
+      "issueText": {
+        "stale": "أحدث سعر عمره {{days}} يوماً، والأسعار الأقدم من {{limit}} يوماً تحتاج إلى تحديث.",
+        "currency_mismatch": "يوجد {{count}} من الأسعار بعملة غير عملة منتجك ({{currency}})، وهي محفوظة ولكنها لا تُقارن بسعرك.",
+        "inactive_mapping": "مطابقات منافسين متوقفة أو لم تعد متابَعة: {{count}}."
+      },
+      "actions": {
+        "review_source": "مراجعة المصدر",
+        "add_competitor": "إضافة منافس",
+        "enter_price": "إدخال سعر",
+        "check_collection": "التحقق من الجمع",
+        "refresh_prices": "تحديث الأسعار",
+        "check_currency": "التحقق من العملات",
+        "review_mappings": "مراجعة المطابقات"
       }
     },
     "barcode": {
