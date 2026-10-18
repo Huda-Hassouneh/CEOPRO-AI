@@ -286,3 +286,78 @@ configured) runs entirely locally in this service's own process - the
 uploaded image is never sent to any third party for background removal.
 No uploaded image or generated prompt is sent anywhere unless a provider
 is explicitly configured via the env vars above.
+
+## 1b. Free multi-account provider pool (2026-10-17)
+
+Five free providers are tried per request, **one chain entry per account**
+(`huggingface#1`, `huggingface#2`, `cloudflare#1`, `together#1`, then the
+keyless `aihorde` and `pollinations`). Keyed accounts are shuffled so load and
+free daily allowance spread evenly; an account that is out of allowance, rate
+limited, or rejected is set aside (Redis, per account) for its Retry-After
+while the others keep serving. Each extra free account is more free images per
+day - list them comma-separated in `HUGGINGFACE_API_TOKENS`,
+`CLOUDFLARE_ACCOUNTS` (`account_id:token`), `TOGETHER_API_KEYS`,
+`HORDE_API_KEYS`, `POLLINATIONS_API_KEYS`. The older single-account variables
+still work.
+
+**Which provider made an image is never exposed.** The API returns
+`image_generation_provider: "ai"`, `/marketing/options` reports
+`provider: "ai"`, and the per-attempt list is not returned. The real name is
+only in the server log.
+
+**Verified live 2026-10-17 (this sandbox's network was open):**
+- AI Horde, anonymous key: accepts jobs and returns real images, but the queue
+  was ~75s once and over 240s another time. It is a last-resort fallback, not
+  something to rely on. Sizes must be multiples of 64 or it answers HTTP 400.
+- Pollinations keyless: HTTP 402 at first, later served images - but with a
+  visible "pollinations.ai" watermark and garbled text, which exposes the
+  provider and is not shippable. It is therefore **never used without a key**
+  (free key: enter.pollinations.ai); 402/429 are treated as "busy" for 15 min.
+- AI Horde also answered HTTP 403 after many rapid anonymous test jobs
+  (throttling); the chain falls through to the next account/provider.
+- Hugging Face, Cloudflare, Together: endpoints reachable (401 without a key);
+  generation with a real key is covered by mocked tests only - no key was
+  available to test live.
+
+**What "works with nothing to configure" honestly means:** with no keys the
+Studio still tries AI Horde and says plainly if it cannot produce an image. For
+reliable, fast generation add at least one free Hugging Face token and one
+Cloudflare account (about five minutes, no card) in Render's dashboard.
+
+## 1c. Volume guarantee, watermarks, and what cannot be automated (2026-10-17)
+
+**No visible watermark, ever.** Hugging Face, Cloudflare, Together and Horde
+images are clean; Gemini images carry only Google's invisible SynthID mark.
+Keyless Pollinations (which stamps a visible "pollinations.ai" logo) is never
+used without a key.
+
+**The weekly volume does not depend on any provider.** If no AI provider can
+serve a request (allowances used up, outage, none configured) the Studio now
+returns a *designed* poster instead of an error: a locally drawn style-matched
+backdrop (from the campaign's creative theme) with the campaign's own headline
+and call to action, and the tenant's selected product photo on it
+(`marketing/designed_poster.py`). It is unlimited, free, watermark-free and
+Arabic-capable (arabic-reshaper + python-bidi + DejaVu). It is not AI-generated
+and the response says so: `image_generation_mode` is `"ai"` or `"designed"`.
+Provider names are still never exposed.
+
+**More models.** Cloudflare accounts try FLUX.1-schnell then SDXL-Lightning
+(`CLOUDFLARE_IMAGE_MODELS` to change); Hugging Face accounts try FLUX.1-schnell
+then SDXL-base (`HUGGINGFACE_IMAGE_MODELS`); Gemini (`GEMINI_API_KEYS`), Together
+and Horde add more. A quota error (402/429) stops at that account instead of
+burning its second model.
+
+**Capacity - estimates, not measurements.** 250 AI images/week is about 36/day.
+Cloudflare Workers AI's free tier is a daily allowance of "neurons" and, by
+Cloudflare's published pricing, a 1024x1024 FLUX.1-schnell image costs on the
+order of tens of neurons against a 10,000/day allowance - so one account should
+cover that comfortably, and several accounts multiply it. Hugging Face's free
+monthly credit covers only a few dozen images. No key was available in this
+sandbox, so none of these numbers were measured; check the first week's
+`image provider ... busy` log lines to see which accounts run dry.
+
+**Not automatable here (needs the owner, once):** creating the Hugging Face /
+Cloudflare / Gemini / Together accounts and pasting their tokens into Render's
+environment. Account creation and credential entry were deliberately not done
+by the assistant. Until then every image is the designed poster (or a slow,
+unreliable keyless AI Horde image).
