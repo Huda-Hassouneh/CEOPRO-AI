@@ -198,6 +198,51 @@ def test_price_coverage_reports_each_product_with_its_real_reason(conn):
     assert next(i for i in result["products"] if i["reason_code"] == REASON_TERMS)["source_ids"] == [str(source_id)]
 
 
+def test_price_coverage_flags_stale_foreign_currency_and_switched_off_mappings_from_real_rows(conn):
+    from src.market_scraper import price_coverage as pc
+    tenant_id = _insert_company(conn)
+    first = _register(conn, tenant_id, url="https://first.example", title="First")
+    second = _register(conn, tenant_id, url="https://second.example", title="Second")
+    products = {}
+    with conn.cursor() as cursor:
+        cursor.execute("INSERT INTO data_sources (tenant_id, source_name, source_type, policy_status) VALUES (%s, 'x', 'WEB_SCRAPE', 'RESTRICTED') RETURNING source_id;", (tenant_id,))
+        source_id = cursor.fetchone()[0]
+        for name in ("Old price", "Priced in USD", "Mapping off"):
+            cursor.execute(
+                "INSERT INTO products (tenant_id, product_name, current_price, currency) VALUES (%s, %s::jsonb, 5, 'JOD') RETURNING product_id;",
+                (tenant_id, '{"en": "%s"}' % name),
+            )
+            products[name] = cursor.fetchone()[0]
+        mappings = {}
+        for name, competitor, active in (("Old price", first, True), ("Priced in USD", first, True), ("Mapping off", second, False)):
+            cursor.execute(
+                "INSERT INTO competitor_product_mappings (tenant_id, global_competitor_id, product_id, competitor_product_url, source_id, is_active) "
+                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING mapping_id;",
+                (tenant_id, competitor, products[name], f"https://x.example/{name.replace(' ', '-')}", source_id, active),
+            )
+            mappings[name] = cursor.fetchone()[0]
+        cursor.execute(
+            "INSERT INTO competitor_prices (tenant_id, mapping_id, scraped_price, currency, observed_at) VALUES (%s, %s, 4.5, 'JOD', NOW() - make_interval(days => %s));",
+            (tenant_id, mappings["Old price"], pc.STALE_AFTER_DAYS + 10),
+        )
+        cursor.execute(
+            "INSERT INTO competitor_prices (tenant_id, mapping_id, scraped_price, currency) VALUES (%s, %s, 7.1, 'USD');",
+            (tenant_id, mappings["Priced in USD"]),
+        )
+    conn.commit()
+
+    result = pc.get_price_coverage(conn, tenant_id)
+    items = {i["product_name"]: i for i in result["products"]}
+    assert items["Old price"]["issues"] == [pc.ISSUE_STALE] and items["Old price"]["next_action"] == "refresh_prices"
+    assert items["Old price"]["price_age_days"] == pc.STALE_AFTER_DAYS + 10
+    assert items["Priced in USD"]["issues"] == [pc.ISSUE_CURRENCY] and items["Priced in USD"]["foreign_currency_prices"] == 1
+    assert items["Mapping off"]["has_market_price"] is False and items["Mapping off"]["inactive_mappings"] == 1
+    assert items["Mapping off"]["next_action"] == "review_mappings"
+    summary = result["summary"]
+    assert (summary["stale_prices"], summary["currency_mismatches"], summary["inactive_mappings"]) == (1, 1, 1)
+    assert summary["with_market_price"] == 2 and summary["needs_attention"] == 3
+
+
 def test_price_lookup_picks_only_unpriced_products_stores_a_quote_and_skips_recent_lookups(conn):
     from src.market_scraper.price_lookup import pipeline
     from src.market_scraper.price_lookup.models import PriceQuote
