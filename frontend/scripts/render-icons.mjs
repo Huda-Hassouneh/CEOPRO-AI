@@ -9,7 +9,7 @@ const page = await browser.newPage();
 for (const [name, size, pad] of [['apple-touch-icon.png', 180, 0], ['icon-192.png', 192, 0], ['icon-512.png', 512, 0], ['og-image.png', 0, 0]]) {
   if (name === 'og-image.png') {
     await page.setViewportSize({ width: 1200, height: 630 });
-    await page.setContent(`<html><body style="margin:0;width:1200px;height:630px;display:grid;place-items:center;background:radial-gradient(70% 60% at 50% 20%,#fff,rgba(255,255,255,0) 70%),linear-gradient(160deg,#f5f6fd,#e8eaf8);font-family:Georgia,serif"><div style="display:flex;align-items:center;gap:44px"><div style="width:200px;height:200px">${svg.replace('<svg ', '<svg width="200" height="200" ')}</div><div><div style="font-size:120px;font-weight:600;letter-spacing:.08em;color:#3b2f9a">KEEL</div><div style="font:500 22px system-ui,sans-serif;letter-spacing:.32em;color:#5d63a8;margin-top:8px">INTELLIGENCE. IN CONTROL.</div></div></div></body></html>`);
+    await page.setContent(`<html><body style="margin:0;width:1200px;height:630px;display:grid;place-items:center;background:radial-gradient(70% 60% at 50% 20%,#fff,rgba(255,255,255,0) 70%),linear-gradient(160deg,#f5f6fd,#e8eaf8);font-family:Sora,Inter,system-ui,sans-serif"><div style="display:flex;align-items:center;gap:44px"><div style="width:200px;height:200px">${svg.replace('<svg ', '<svg width="200" height="200" ')}</div><div><div style="font-size:120px;font-weight:600;letter-spacing:.3em;color:#1b1e3a">KEEL</div><div style="font:500 22px system-ui,sans-serif;letter-spacing:.32em;color:#5d63a8;margin-top:8px">INTELLIGENCE FOR BIGGER DECISIONS</div></div></div></body></html>`);
     await page.screenshot({ path: out + name });
     continue;
   }
