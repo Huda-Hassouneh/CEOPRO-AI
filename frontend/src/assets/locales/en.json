@@ -3251,6 +3251,7 @@
     "imageAlt": "Campaign image for {{title}}",
     "imageOff": "Image creation is turned off on this server.",
     "imageFailed": "The image couldn't be created this time - the free image services didn't answer. Try again in a minute.",
+    "imageDesigned": "This image is a designed layout built from your campaign text and photo (not AI-generated). Try again later for an AI image.",
     "imageBlocked": "No image was created: your plan's images for this period are used up.",
     "noImageYet": "No image yet.",
     "regenerateImage": "New image",
