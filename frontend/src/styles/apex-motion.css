@@ -1,0 +1,122 @@
+/*
+ * KEEL motion. Purposeful and quiet: content rises into place in a short
+ * stagger, glass responds to the pointer with depth and light, numbers count
+ * up, charts draw in. Everything is disabled under prefers-reduced-motion.
+ */
+
+@keyframes apex-rise { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes apex-sheen { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+@keyframes apex-iridescent-flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes apex-breathe { 0%, 100% { opacity: 0.75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
+
+/* Staggered entrance for the building blocks of every screen. */
+.apex-route .apex-page > *,
+.apex-route .apex-grid > *,
+.apex-route .business-page-header,
+.apex-route .ceopro-card,
+.apex-route .dashboard-card {
+  animation: apex-rise 640ms var(--apex-ease) both;
+}
+.apex-route .apex-page > *:nth-child(2), .apex-route .apex-grid > *:nth-child(2) { animation-delay: 60ms; }
+.apex-route .apex-page > *:nth-child(3), .apex-route .apex-grid > *:nth-child(3) { animation-delay: 120ms; }
+.apex-route .apex-page > *:nth-child(4), .apex-route .apex-grid > *:nth-child(4) { animation-delay: 180ms; }
+.apex-route .apex-page > *:nth-child(5), .apex-route .apex-grid > *:nth-child(5) { animation-delay: 240ms; }
+.apex-route .apex-page > *:nth-child(6), .apex-route .apex-grid > *:nth-child(6) { animation-delay: 290ms; }
+.apex-route .apex-page > *:nth-child(n+7), .apex-route .apex-grid > *:nth-child(n+7) { animation-delay: 330ms; }
+/* Nested grids inherit their parent's moment instead of re-staggering. */
+.apex-route .apex-grid .apex-grid > * { animation: none; }
+
+/* Glass depth on hover */
+.apex-panel, .apex-stat, html .ceopro-card {
+  transition: transform 420ms var(--apex-ease), box-shadow 420ms var(--apex-ease), border-color 420ms var(--apex-ease), background 420ms var(--apex-ease);
+}
+.apex-panel:hover { box-shadow: var(--apex-glass-highlight), var(--apex-shadow-hover); }
+.apex-stat:hover { transform: translateY(-3px); box-shadow: var(--apex-glass-highlight), var(--apex-shadow-hover); }
+.apex-stat::after { transition: transform 700ms var(--apex-ease), opacity 700ms var(--apex-ease); }
+.apex-stat:hover::after { transform: scale(1.35); }
+.apex-stat::before {
+  /* light sweep across the glass on hover */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.45) 50%, transparent 65%);
+  background-size: 250% 100%;
+  background-position: 160% 0;
+  opacity: 0;
+  pointer-events: none;
+}
+:root[data-theme="dark"] .apex-stat::before { background-image: linear-gradient(110deg, transparent 35%, rgba(180, 200, 255, 0.14) 50%, transparent 65%); }
+.apex-stat:hover::before { opacity: 1; animation: apex-sheen 1100ms var(--apex-ease) both; }
+.apex-stat__value { display: inline-block; }
+
+/* Featured (hero) panels: the iridescent edge flows slowly. */
+.apex-panel--hero::after { background-size: 300% 300%; animation: apex-iridescent-flow 14s ease-in-out infinite; }
+
+/* Buttons: lift, press, and a light sweep on primary actions. */
+.apex-btn, html .ceopro-button { position: relative; overflow: hidden; transition: transform 220ms var(--apex-ease), box-shadow 260ms var(--apex-ease), filter 220ms ease, background 220ms ease, border-color 220ms ease, color 220ms ease; }
+.apex-btn:hover:not(:disabled), html .ceopro-button:hover:not(:disabled) { transform: translateY(-1px); }
+.apex-btn:active:not(:disabled), html .ceopro-button:active:not(:disabled) { transform: translateY(0) scale(0.97); transition-duration: 90ms; }
+.apex-btn--primary::after, html .ceopro-button--primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.38) 50%, transparent 65%);
+  background-size: 250% 100%;
+  background-position: 160% 0;
+  pointer-events: none;
+}
+.apex-btn--primary:hover:not(:disabled)::after, html .ceopro-button--primary:hover:not(:disabled)::after { animation: apex-sheen 900ms var(--apex-ease) both; }
+.apex-btn--primary:hover:not(:disabled), html .ceopro-button--primary:hover:not(:disabled) { box-shadow: 0 18px 34px -12px rgba(91, 97, 240, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+
+/* Chips, segmented controls and choices respond softly. */
+.apex-chip, .apex-segmented button, .apex-choice, .apex-check, .mk-style, .mk-product, .mk-occasion {
+  transition: transform 260ms var(--apex-ease-spring), background 220ms ease, border-color 220ms ease, color 220ms ease, box-shadow 260ms ease;
+}
+.apex-chip:active, .apex-segmented button:active, .apex-choice:active, .apex-check:active, .mk-style:active, .mk-product:active, .mk-occasion:active { transform: scale(0.97); }
+.mk-style:hover, .apex-choice:hover { transform: translateY(-2px); }
+
+/* Table rows highlight with a soft glass wash. */
+html .apex-table tbody tr, html table tbody tr { transition: background 200ms ease; }
+
+/* Meters grow into their value. */
+.apex-meter > span { transform-origin: left center; animation: apex-meter-grow 1000ms var(--apex-ease) both; animation-delay: 200ms; }
+[dir="rtl"] .apex-meter > span { transform-origin: right center; }
+@keyframes apex-meter-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Modals and menus scale in from glass. */
+html .ceopro-modal, html [role="dialog"] .ceopro-modal__panel { animation: apex-palette-in 360ms var(--apex-ease) both; }
+html .ceopro-dropdown-menu, .apex-menu__list { animation: apex-pop 240ms var(--apex-ease) both; }
+@keyframes apex-palette-in { from { opacity: 0; transform: translateY(-12px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes apex-pop { from { opacity: 0; transform: translateY(-6px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+/* Status dots breathe. */
+.apex-live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--apex-success); box-shadow: 0 0 0 4px var(--apex-success-bg); animation: apex-breathe 2.6s ease-in-out infinite; }
+
+/* Loading skeleton: a glassy shimmer. */
+.apex-skeleton { background: linear-gradient(90deg, var(--apex-glass) 0%, var(--apex-glass-hover) 45%, var(--apex-glass) 90%); background-size: 220% 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .apex-route .apex-page > *, .apex-route .apex-grid > *, .apex-route .business-page-header, .apex-route .ceopro-card, .apex-route .dashboard-card,
+  .apex-panel--hero::after, .apex-meter > span, html .ceopro-modal, html [role="dialog"] .ceopro-modal__panel, html .ceopro-dropdown-menu, .apex-menu__list, .apex-live-dot { animation: none; }
+  .apex-stat:hover, .apex-btn:hover:not(:disabled), html .ceopro-button:hover:not(:disabled), .mk-style:hover, .apex-choice:hover { transform: none; }
+  .apex-stat:hover::before, .apex-btn--primary:hover:not(:disabled)::after, html .ceopro-button--primary:hover:not(:disabled)::after { animation: none; }
+}
+
+/* Sign-in / sign-up: glass card floating over drifting aurora light. */
+html .ceopro-auth-page { isolation: isolate; overflow: hidden; }
+html .ceopro-auth-shape { z-index: -1; filter: blur(60px); opacity: 0.9; }
+html .ceopro-auth-shape--one { width: 520px; height: 520px; background: conic-gradient(from 90deg, rgba(103, 232, 249, 0.55), rgba(129, 140, 248, 0.6), rgba(216, 180, 254, 0.5), rgba(103, 232, 249, 0.55)); animation: apex-aurora-spin 26s linear infinite; }
+html .ceopro-auth-shape--two { width: 440px; height: 440px; background: radial-gradient(circle, rgba(167, 243, 228, 0.7), rgba(165, 180, 252, 0.25) 60%, transparent 72%); animation: apex-aurora-drift 18s ease-in-out infinite alternate; }
+html .ceopro-auth-shape--three { width: 300px; height: 300px; background: radial-gradient(circle, rgba(251, 207, 232, 0.7), transparent 70%); animation: apex-aurora-drift 22s ease-in-out infinite alternate-reverse; }
+:root[data-theme="dark"] .ceopro-auth-shape { opacity: 0.5; }
+html .ceopro-auth-shell { border-radius: 28px; animation: apex-auth-in 900ms var(--apex-ease) both; }
+html .ceopro-auth-brand { animation: apex-rise 700ms var(--apex-ease) both; }
+html .ceopro-auth-topbar { height: 3px; background: var(--apex-iridescent); background-size: 300% 100%; animation: apex-iridescent-flow 10s ease-in-out infinite; }
+@keyframes apex-aurora-spin { to { transform: rotate(360deg); } }
+@keyframes apex-aurora-drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(60px, -50px, 0) scale(1.18); } }
+@keyframes apex-auth-in { from { opacity: 0; transform: translateY(22px) scale(0.97); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@media (prefers-reduced-motion: reduce) {
+  html .ceopro-auth-shape, html .ceopro-auth-shell, html .ceopro-auth-brand, html .ceopro-auth-topbar { animation: none; }
+}
+html .ceopro-auth-theme { position: absolute; z-index: 2; top: 14px; inset-inline-start: 18px; }

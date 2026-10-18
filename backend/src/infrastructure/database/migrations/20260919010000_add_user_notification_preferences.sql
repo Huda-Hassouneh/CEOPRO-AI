@@ -1,0 +1,16 @@
+-- CEOPRO AI - Per-user notification preferences (GET/PATCH
+-- /settings/notifications, routers/settings.py).
+--
+-- Real gap this closes: routers/settings.py's notification-preferences
+-- endpoints had no column to read or write - `users` had no place to hold
+-- "email me on X", "notify me when Y" style toggles at all. A single JSONB
+-- column, not one boolean column per preference: the actual set of
+-- preferences (email digest frequency, low-stock alerts, price-change
+-- alerts, etc.) is a frontend/product decision this migration doesn't
+-- freeze into the schema - PATCH /settings/notifications shallow-merges
+-- whatever keys the caller sends into this object (see that endpoint's own
+-- docstring), so new preference keys can be introduced later with zero
+-- schema change. Defaults to '{}'::jsonb (not NULL) so every existing user
+-- already has a real, readable value the moment this migration runs,
+-- rather than every caller needing a NULL-coalescing branch.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_preferences JSONB NOT NULL DEFAULT '{}'::jsonb;

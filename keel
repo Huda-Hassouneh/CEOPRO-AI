@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+# KEEL developer command - one entry point for running the product locally
+# or in a Codespace. Uses the same scripts the Codespace runs automatically
+# (.devcontainer/), so both ways of running behave the same.
+#
+#   ./keel setup     one time: .env files, Python venv, npm packages
+#   ./keel start     databases + backend + frontend, all logs in this terminal
+#                    (Ctrl+C stops the backend and frontend)
+#   ./keel stop      stop the databases (data is kept in Docker volumes)
+#   ./keel status    is everything up?
+#   ./keel workers   the background workers (price collection, analysis,
+#                    discovery, connector sync, maintenance) - needs ./keel start
+#   ./keel seed      load the seven demo companies (asks for a password)
+#   ./keel test      backend and frontend test suites, lint and production build
+#   ./keel llm-check the assistant's LLM provider: credential, price, model;
+#                    --tenant <id> adds one real, metered request
+#   ./keel check     settings vs backend/KEYS_AND_ACCOUNTS_NEEDED.md (names only)
+#   ./keel rag-check the assistant end to end on the running app (needs ./keel
+#                    start): a new test company, PDF upload, embeddings, Arabic
+#                    questions, AI-written cited answers, tenant isolation
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+
+BACKEND_PORT="${KEEL_BACKEND_PORT:-8000}"
+FRONTEND_PORT="${KEEL_FRONTEND_PORT:-5173}"
+bold() { printf '\033[1m%s\033[0m\n' "$*"; }
+fail() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
+
+need_setup() {
+  [ -f backend/.env ] && [ -x backend/.venv/bin/python ] && [ -d frontend/node_modules ] \
+    || fail "KEEL isn't set up yet. Run: ./keel setup"
+}
+
+backend_env() {
+  # shellcheck disable=SC1091
+  source backend/.venv/bin/activate
+  # A name left empty in backend/.env (GROQ_API_KEY= and the other secret
+  # placeholders) keeps the value the environment already has - a Codespaces
+  # or CI secret. A value written in the file still wins over the environment.
+  local preset=() key value
+  while IFS='=' read -r key value; do
+    [[ $key =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    [[ -z $value || $value == '""' || $value == "''" ]] && [ -n "${!key:-}" ] && preset+=("$key=${!key}")
+  done < backend/.env
+  set -a; source backend/.env; set +a
+  for key in "${preset[@]}"; do export "$key"; done
+}
+
+wait_for() {  # wait_for <url> <name> <seconds>
+  for _ in $(seq 1 "$3"); do
+    curl -fsS -o /dev/null "$1" 2>/dev/null && return 0
+    sleep 1
+  done
+  fail "$2 did not start - see the log lines above."
+}
+
+cmd_setup() {
+  bash .devcontainer/setup.sh
+  bold "Setup done. API credentials come from Codespaces secrets (docs/SECRETS.md); then run: ./keel start"
+}
+
+cmd_services() {
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    bash .devcontainer/start-services.sh
+  else
+    # No Docker (e.g. Postgres/Redis/MinIO installed directly): just check they answer.
+    bold "Docker isn't available - using already-running Postgres, Redis and MinIO."
+    (backend_env && python - <<'PY') || fail "Postgres isn't reachable with backend/.env's DATABASE_URL."
+import os, psycopg2
+psycopg2.connect(os.environ["DATABASE_URL"].replace("+asyncpg", "")).close()
+PY
+    (backend_env && cd backend && python scripts/apply_migrations.py) >/dev/null 2>&1 \
+      || bold "Migrations could not be applied automatically - see RUNNING_LOCALLY.md."
+  fi
+}
+
+cmd_start() {
+  need_setup
+  cmd_services
+  pids=()
+  kill_tree() {  # a process and everything it started
+    local child
+    for child in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$child"; done
+    kill -TERM "$1" 2>/dev/null || true
+  }
+  cleanup() {
+    trap - EXIT INT TERM
+    for pid in "${pids[@]}"; do kill_tree "$pid"; done
+    wait 2>/dev/null || true
+  }
+  trap cleanup EXIT INT TERM
+
+  bold "Starting the backend on :$BACKEND_PORT"
+  (backend_env && cd backend && uvicorn src.ai.main:app --host 0.0.0.0 --port "$BACKEND_PORT" 2>&1 | sed -u 's/^/[backend]  /') &
+  pids+=($!)
+  wait_for "http://localhost:$BACKEND_PORT/health" "The backend" 180
+
+  bold "Starting the frontend on :$FRONTEND_PORT"
+  (cd frontend && npx vite --host 0.0.0.0 --port "$FRONTEND_PORT" --strictPort 2>&1 | sed -u 's/^/[frontend] /') &
+  pids+=($!)
+  wait_for "http://localhost:$FRONTEND_PORT" "The frontend" 60
+
+  echo
+  bold "KEEL is running."
+  if [ -n "${CODESPACE_NAME:-}" ]; then
+    echo "  Open: https://${CODESPACE_NAME}-${FRONTEND_PORT}.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}"
+  else
+    echo "  Open:     http://localhost:$FRONTEND_PORT"
+    echo "  API docs: http://localhost:$BACKEND_PORT/docs"
+  fi
+  echo "  Press Ctrl+C to stop."
+  wait
+}
+
+cmd_stop() {
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    (cd backend && docker compose stop)
+  fi
+  bold "Stopped. Your data is kept."
+}
+
+cmd_status() {
+  check() { if curl -fsS -o /dev/null "$1" 2>/dev/null; then echo "  ✓ $2"; else echo "  ✗ $2 ($1)"; fi; }
+  bold "KEEL status"
+  check "http://localhost:$BACKEND_PORT/health" "backend"
+  check "http://localhost:$FRONTEND_PORT" "frontend"
+  if [ -f backend/.env ] && [ -x backend/.venv/bin/python ]; then
+    (backend_env && python - <<'PY') || true
+import os
+try:
+    import psycopg2; psycopg2.connect(os.environ["DATABASE_URL"].replace("+asyncpg", "")).close(); print("  ✓ database")
+except Exception as exc: print(f"  ✗ database ({type(exc).__name__})")
+try:
+    import redis; redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=int(os.getenv("REDIS_PORT", "6379"))).ping(); print("  ✓ redis")
+except Exception as exc: print(f"  ✗ redis ({type(exc).__name__})")
+import sys; sys.path.insert(0, "backend")
+from src.ai.rag import llm_client
+provider = llm_client.active_provider()
+print(f"  ✓ AI assistant provider {provider}: credential available (prove it with ./keel llm-check)"
+      if llm_client.provider_configured() else f"  - AI assistant provider {provider}: credential not set (docs/SECRETS.md)")
+PY
+  fi
+}
+
+cmd_check() {
+  need_setup
+  backend_env
+  cd backend
+  exec python -m scripts.check_config --db
+}
+
+cmd_llm_check() {
+  need_setup
+  backend_env
+  cd backend
+  exec python -m scripts.llm_provider_check "$@"
+}
+
+cmd_rag_check() {
+  need_setup
+  # Through the frontend's /api proxy when it is up (the browser's own path),
+  # otherwise straight to the backend.
+  local api="http://localhost:$BACKEND_PORT"
+  curl -fsS -o /dev/null "$api/health" || fail "Start KEEL first: ./keel start (in another terminal)"
+  curl -fsS -o /dev/null "http://localhost:$FRONTEND_PORT/api/health" 2>/dev/null && api="http://localhost:$FRONTEND_PORT/api"
+  # A fresh test company each run; its password exists only in this shell.
+  local email="rag-check-$(date +%s)@keel-check.example"
+  local password
+  password="Rc-$(python3 -c 'import secrets; print(secrets.token_urlsafe(18))')"
+  backend_env
+  cd backend
+  python -m scripts.llm_provider_check
+  python -m scripts.ci_smoke_account --api "$api" --email "$email" --password "$password"
+  exec python -m scripts.rag_e2e_check --api "$api" --email "$email" --password "$password"
+}
+
+cmd_workers() {
+  need_setup
+  backend_env
+  export SCRAPER_ACTOR_USER_ID="${SCRAPER_ACTOR_USER_ID:-00000000-0000-0000-0000-000000000000}"
+  cd backend
+  exec python -m src.market_scraper.supervisor
+}
+
+cmd_seed() {
+  need_setup
+  curl -fsS -o /dev/null "http://localhost:$BACKEND_PORT/health" || fail "Start KEEL first: ./keel start (in another terminal)"
+  if [ -z "${KEEL_DEMO_PASSWORD:-}" ]; then
+    read -r -s -p "Password for the demo sign-ins (12+ characters): " KEEL_DEMO_PASSWORD; echo
+  fi
+  [ "${#KEEL_DEMO_PASSWORD}" -ge 12 ] || fail "Use at least 12 characters."
+  data_dir="$(mktemp -d)"
+  backend_env
+  cd backend
+  python -m scripts.demo_companies.generate --out-dir "$data_dir" --end "$(date +%F)"
+  python -m scripts.demo_companies.seed --api "http://localhost:$BACKEND_PORT" --data-dir "$data_dir" --password "$KEEL_DEMO_PASSWORD"
+  python -m scripts.demo_companies.verify --api "http://localhost:$BACKEND_PORT" --data-dir "$data_dir" --password "$KEEL_DEMO_PASSWORD"
+  rm -rf "$data_dir"
+  bold "Demo companies loaded. Sign-ins are listed in RUNNING_LOCALLY.md."
+}
+
+cmd_test() {
+  need_setup
+  bold "Backend tests"
+  (backend_env \
+    && export AI_TEST_DATABASE_URL="${AI_TEST_DATABASE_URL:-${DATABASE_URL/+asyncpg/}}" \
+    && cd backend && python -m pytest -q src/)
+  bold "Frontend lint, tests and production build"
+  (cd frontend && npx eslint src tests && npm test && npx vite build)
+  bold "All checks passed."
+}
+
+case "${1:-help}" in
+  setup) cmd_setup ;;
+  start) cmd_start ;;
+  stop) cmd_stop ;;
+  status) cmd_status ;;
+  workers) cmd_workers ;;
+  seed) cmd_seed ;;
+  test) cmd_test ;;
+  llm-check) shift; cmd_llm_check "$@" ;;
+  check) cmd_check ;;
+  rag-check) cmd_rag_check ;;
+  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' ;;
+esac

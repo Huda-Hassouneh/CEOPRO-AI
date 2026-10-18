@@ -1,0 +1,269 @@
+name: RAG runtime check
+# The assistant's retrieval with the real models (downloaded from the
+# Hugging Face hub), a real migrated database and, when the GROQ_API_KEY
+# repository secret is set, real Groq answers - plus the memory each stage
+# needs, so hosting limits are checked against measured numbers. The unit
+# tests mock the models, and the sandbox this repo is often developed in
+# can't download them. See backend/scripts/rag_runtime_check.py.
+#
+# Runs on pushes to KEEL_Test that touch the assistant, and by hand once
+# this file is on the default branch. Public-repo Actions minutes are free;
+# with the Groq secret set it makes two LLM calls on Groq's free tier.
+on:
+  push:
+    branches: [KEEL_Test]
+    paths:
+      - backend/src/ai/rag/**
+      - backend/src/ai/core/ml_runtime.py
+      - backend/Dockerfile.ai
+      - backend/src/ai/requirements.txt
+      - backend/scripts/rag_runtime_check.py
+      - backend/scripts/rag_e2e_check.py
+      - backend/scripts/llm_provider_check.py
+      - backend/scripts/billing_admin.py
+      - backend/src/ai/billing/**
+      - .github/workflows/rag-runtime-check.yml
+  workflow_dispatch:
+
+jobs:
+  rag-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: ceopro_admin
+          POSTGRES_PASSWORD: rag_check_admin_password
+          POSTGRES_DB: ceopro_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway values for this job's own ephemeral database only.
+      DATABASE_URL: postgresql://ceopro_admin:rag_check_admin_password@localhost:5432/ceopro_platform
+      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:rag_check_admin_password@localhost:5432/ceopro_platform
+      APP_DB_PASSWORD: rag_check_app_password
+      JWT_SECRET: rag-check-jwt-secret-never-used-outside-this-job
+      # Empty when the repository secret isn't set: the LLM part is then skipped, not faked.
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # torch's default wheel bundles a ~4.6 GB CUDA stack; same disk fix as pr-checks.yml.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+          sudo docker image prune -a -f
+          df -h /
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --no-cache-dir -r src/ai/requirements.txt
+
+      - name: Apply database migrations
+        working-directory: backend
+        run: python scripts/apply_migrations.py
+
+      # Paid models start unpriced and every call to one is refused
+      # (COST_NOT_CONFIGURED) until an operator records its price - the same
+      # step as on a real server (docs/SUBSCRIPTIONS_AND_CREDITS.md section 4).
+      - name: Record the Groq model's price (operator step)
+        working-directory: backend
+        run: |
+          for price in "input_token 0.075" "output_token 0.30"; do
+            set -- $price
+            python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \
+              --unit "$1" --usd-per-million "$2" --source "Groq Supported Models page (console.groq.com/docs/models)" \
+              --verified-on 2026-10-17 --by "CI" --reason "Groq list price, this job's own database"
+          done
+
+      - name: Default stack - torch embedder and re-ranker (plus ONNX comparison)
+        working-directory: backend
+        run: python -m scripts.rag_runtime_check --compare-onnx
+
+      # Semantic search without torch, for a 2 GB host (measured ~830 MB).
+      - name: ONNX embedder, no re-ranker - within 1 GB
+        if: always()
+        working-directory: backend
+        env:
+          RAG_EMBEDDING_BACKEND: onnx
+          RAG_RERANKER_ENABLED: "false"
+        run: python -m scripts.rag_runtime_check --max-peak-mb 1024
+
+      # What keel-ai-staging runs on Render's 512 MB free plan (render.yaml):
+      # semantic search with the static multilingual model, in-process, no torch.
+      - name: Free-plan stack - static multilingual embeddings - within 512 MB
+        if: always()
+        working-directory: backend
+        env:
+          RAG_EMBEDDING_BACKEND: static
+          RAG_RERANKER_ENABLED: "false"
+        run: |
+          python -c "from src.ai.rag import embeddings; print(embeddings.prepare_static())"
+          python -m scripts.rag_runtime_check --max-peak-mb 512
+
+      # The fallback when no embedding model can be used at all.
+      - name: Keyword search only - within 512 MB
+        if: always()
+        working-directory: backend
+        env:
+          RAG_EMBEDDING_BACKEND: none
+          RAG_RERANKER_ENABLED: "false"
+        run: python -m scripts.rag_runtime_check --max-peak-mb 512
+
+      # One real request to each provider whose repository secret is set
+      # (fixed prompt, no company data); a provider without its secret is
+      # reported as skipped, never as passing.
+      - name: LLM providers - one real request each
+        if: always()
+        working-directory: backend
+        env:
+          HUGGINGFACE_API_TOKEN: ${{ secrets.HUGGINGFACE_API_TOKEN }}
+          HF_LLM_MODEL: ${{ vars.HUGGINGFACE_LLM_MODEL || 'openai/gpt-oss-20b' }}
+        run: |
+          status=0
+          if [ -n "$GROQ_API_KEY" ]; then
+            python -m scripts.llm_provider_check || status=1
+          else
+            echo "Groq: skipped - no GROQ_API_KEY Actions secret"
+          fi
+          if [ -n "$HUGGINGFACE_API_TOKEN" ]; then
+            HUGGINGFACE_LLM_MODEL="$HF_LLM_MODEL" python -m scripts.llm_provider_check || status=1
+          else
+            echo "Hugging Face Inference Providers: skipped - no HUGGINGFACE_API_TOKEN Actions secret"
+          fi
+          exit $status
+
+  # The running API end to end, as the frontend uses it: sign-up/sign-in,
+  # PDF upload through /extraction/upload into object storage (MinIO),
+  # ingestion and stored vectors, /rag/query with Arabic questions about
+  # English documents, a company-data question, and tenant isolation - with
+  # the free-plan settings render.yaml gives keel-ai-staging.
+  app-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: ceopro_admin
+          POSTGRES_PASSWORD: rag_check_admin_password
+          POSTGRES_DB: ceopro_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    env:
+      # Throwaway values for this job's own ephemeral services only.
+      DATABASE_URL: postgresql://ceopro_admin:rag_check_admin_password@localhost:5432/ceopro_platform
+      APP_DB_PASSWORD: rag_check_app_password
+      JWT_SECRET: rag-e2e-jwt-secret-never-used-outside-this-job
+      REDIS_URL: redis://localhost:6379/0
+      REDIS_HOST: localhost
+      MINIO_ENDPOINT: http://localhost:9000
+      MINIO_ROOT_USER: rag-e2e-minio
+      MINIO_ROOT_PASSWORD: rag-e2e-minio-password
+      DISCOVERY_REFRESH_ENABLED: "false"
+      NOTIFICATION_DIGEST_ENABLED: "false"
+      API_RATE_LIMIT_ENABLED: "false"
+      RAG_EMBEDDING_BACKEND: static
+      RAG_RERANKER_ENABLED: "false"
+      # Empty when the repository secret isn't set: answers then come in the
+      # assistant's evidence mode, with the same cited sources. With a key,
+      # an evidence-mode fallback fails the check.
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      # Answers through Hugging Face Inference Providers instead, only when
+      # the HUGGINGFACE_LLM_MODEL repository variable names a model.
+      HUGGINGFACE_API_TOKEN: ${{ secrets.HUGGINGFACE_API_TOKEN }}
+      HUGGINGFACE_LLM_MODEL: ${{ vars.HUGGINGFACE_LLM_MODEL }}
+      E2E_EMAIL: rag-e2e@keel-ci.example
+      E2E_PASSWORD: Rag!E2E-Only-2026
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+          df -h /
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+
+      - name: Object storage (MinIO)
+        # MinIO's community edition ships as source only now (no images, and
+        # dl.min.io answers 410): the same pinned build as
+        # src/infrastructure/Dockerfile.minio.
+        run: |
+          GOBIN="$RUNNER_TEMP" go install github.com/minio/minio@v0.0.0-20260212201848-7aac2a2c5b7c
+          mkdir -p "$RUNNER_TEMP/minio-data"
+          nohup "$RUNNER_TEMP/minio" server "$RUNNER_TEMP/minio-data" --address :9000 > "$RUNNER_TEMP/minio.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:9000/minio/health/live && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/minio.log"; exit 1
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --no-cache-dir -r src/ai/requirements.txt
+
+      - name: Apply database migrations
+        working-directory: backend
+        run: python scripts/apply_migrations.py
+
+      # Paid models start unpriced and every call to one is refused
+      # (COST_NOT_CONFIGURED) until an operator records its price - the same
+      # step as on a real server (docs/SUBSCRIPTIONS_AND_CREDITS.md section 4).
+      - name: Record the Groq model's price (operator step)
+        working-directory: backend
+        run: |
+          for price in "input_token 0.075" "output_token 0.30"; do
+            set -- $price
+            python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \
+              --unit "$1" --usd-per-million "$2" --source "Groq Supported Models page (console.groq.com/docs/models)" \
+              --verified-on 2026-10-17 --by "CI" --reason "Groq list price, this job's own database"
+          done
+
+      - name: Prepare the static embedding model (as Dockerfile.ai does)
+        working-directory: backend
+        run: python -c "from src.ai.rag import embeddings; print(embeddings.prepare_static())" && rm -rf ~/.cache/huggingface
+
+      - name: Start the API
+        working-directory: backend
+        run: |
+          export CREDENTIAL_VAULT_MASTER_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+          nohup uvicorn src.ai.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo "API_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 90); do curl -sf http://localhost:8000/health && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/api.log"; exit 1
+
+      - name: Create the test company
+        working-directory: backend
+        run: python -m scripts.ci_smoke_account --api http://localhost:8000 --email "$E2E_EMAIL" --password "$E2E_PASSWORD"
+
+      - name: Documents, Arabic questions, company data, isolation - over HTTP
+        working-directory: backend
+        run: python -m scripts.rag_e2e_check --api http://localhost:8000 --email "$E2E_EMAIL" --password "$E2E_PASSWORD" --api-pid "$API_PID" --max-peak-mb 512
+
+      - name: API log
+        if: always()
+        run: grep -v -E '" 200 OK$' "$RUNNER_TEMP/api.log" | tail -n 80
