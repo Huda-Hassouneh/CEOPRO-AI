@@ -4,7 +4,6 @@ Orchestrates: load own product -> load same-currency competitor prices ->
 rule-based recommendation -> price-change guardrail -> margin guardrail ->
 persist evidence + recommendation_outcomes. Only module here that writes to
 the database.
-
 No name-matching step anymore (matching.py is no longer used in this path) -
 Final_schema.sql's competitor_product_mappings resolves a competitor price to
 a specific product_id at mapping-creation time, not query time, so
