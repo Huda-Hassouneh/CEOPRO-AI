@@ -157,7 +157,7 @@ def load_scrape_targets(conn, tenant_id: str, source_id: str) -> list[dict]:
             WHERE cpm.tenant_id = %s
               AND cpm.source_id = %s
               AND cpm.is_active = TRUE
-              AND tc.is_tracked = TRUE
+              AND (tc.is_tracked = TRUE OR tc.classification_reason LIKE 'excluded: competitor country%%')
               AND ds.is_active = TRUE
               AND ds.policy_status = 'ALLOWED'
               AND ds.collection_method IN ('OFFICIAL_API', 'RSS', 'STRUCTURED_DATA', 'WEB_SCRAPE')

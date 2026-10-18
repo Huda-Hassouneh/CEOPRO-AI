@@ -43,20 +43,105 @@ def test_missing_product_raises(fake_conn):
             pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
 
 
-def test_no_matched_competitors_records_unknown_evidence(fake_conn):
-    own = _own_product(20.0)
+def _no_local_data(own, references=None, snapshot=None):
+    """Patches for a product with no tracked in-region competitor price."""
+    return (
+        patch.object(pipeline.data_access, "load_own_product", return_value=own),
+        patch.object(pipeline.data_access, "load_competitor_prices", return_value=[]),
+        patch.object(pipeline.data_access, "load_reference_competitor_prices", return_value=references or []),
+        patch.object(pipeline.data_access, "load_tenant_market_snapshot", return_value=snapshot or []),
+    )
 
-    with patch.object(pipeline.data_access, "load_own_product", return_value=own), \
-         patch.object(pipeline.data_access, "load_competitor_prices", return_value=[]), \
-         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
+
+def _run_without_local_data(fake_conn, own, references=None, snapshot=None, convert=None):
+    patches = list(_no_local_data(own, references, snapshot))
+    if convert is not None:
+        patches.append(patch.object(pipeline.estimation, "convert_amount", side_effect=convert))
+    evidence_patch = patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1")
+    outcome_patch = patch.object(pipeline.evidence, "insert_recommendation_outcome", return_value="outcome-1")
+    from contextlib import ExitStack
+    with ExitStack() as stack:
+        for p in patches:
+            stack.enter_context(p)
+        mock_evidence = stack.enter_context(evidence_patch)
+        stack.enter_context(outcome_patch)
+        return pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1"), mock_evidence
+
+
+def test_no_data_anywhere_still_returns_a_decision_never_unknown(fake_conn):
+    result, mock_evidence = _run_without_local_data(fake_conn, _own_product(20.0))  # no cost either
+
+    assert result["status"] == "OK"
+    assert result["action"] == "hold"
+    assert result["data_basis"] == "INTERNAL_ONLY"
+    assert result["market"] is None  # there is no market figure to show
+    assert mock_evidence.call_args.args[2] == "RECOMMENDATION"
+    fake_conn.commit.assert_called_once()
+
+
+def test_internal_only_raises_a_price_below_the_margin_floor(fake_conn):
+    result, _ = _run_without_local_data(fake_conn, _own_product(10.0, cost=10.0))
+
+    assert result["action"] == "raise"
+    assert result["suggested_price"] == 11.0  # cost 10 + 10% minimum margin
+
+
+def test_out_of_region_price_is_converted_adjusted_and_labelled(fake_conn):
+    foreign = [{**_competitor_price("f1", "c9", 40.0, currency="USD"), "source": "competitor"}]
+
+    result, mock_evidence = _run_without_local_data(
+        fake_conn, _own_product(30.0), references=foreign, convert=lambda conn, amount, f, t: 28.0,
+    )
+
+    assert result["status"] == "OK"
+    assert result["data_basis"] == "REGIONAL_ESTIMATE"
+    assert result["action"] == "lower"  # 30 is ~7% above the converted 28 (default regional factor 1.0)
+    assert result["confidence_score"] <= 0.30
+    assert "[REGIONAL_ESTIMATE]" in mock_evidence.call_args.args[6]
+
+
+def test_same_currency_market_reference_price_is_used_without_adjustment(fake_conn):
+    reference = [{**_competitor_price("o1", None, 20.0), "source": "market_reference"}]
+
+    result, mock_evidence = _run_without_local_data(fake_conn, _own_product(30.0), references=reference)
+
+    assert result["data_basis"] == "MARKET_REFERENCE"
+    assert result["action"] == "lower"
+    assert mock_evidence.call_args.args[5] <= 0.50  # confidence is capped for a reference price
+    assert mock_evidence.call_args.args[4]["market_observation_ids"] == ["o1"]
+
+
+def test_old_competitor_price_still_produces_recommendation_with_date_note(fake_conn):
+    from datetime import datetime, timedelta, timezone
+
+    old = datetime.now(timezone.utc) - timedelta(days=2 * 365)
+    competitor_prices = [{**_competitor_price("p1", "c1", 20.0), "captured_at": old}]
+
+    with patch.object(pipeline.data_access, "load_own_product", return_value=_own_product(30.0)), \
+         patch.object(pipeline.data_access, "load_competitor_prices", return_value=competitor_prices), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence, \
+         patch.object(pipeline.evidence, "insert_recommendation_outcome", return_value="outcome-1"):
         result = pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
 
-    assert result["status"] == "UNKNOWN"
-    assert result["evidence_id"] == "evidence-1"
-    assert "No competitor prices for 'Sunscreen SPF 50' in JOD were recorded in the last 30 days" in result["explanation"]
-    assert result["max_price_age_days"] == pipeline.data_access.MAX_PRICE_AGE_DAYS
-    assert mock_evidence.call_args.args[2] == "UNKNOWN"
-    fake_conn.commit.assert_called_once()
+    assert result["status"] == "OK"
+    assert result["data_basis"] == "LOCAL_MARKET"
+    assert old.date().isoformat() in mock_evidence.call_args.args[6]
+
+
+def test_recommend_all_decides_every_product_and_continues_past_a_failure(fake_conn):
+    fake_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("p1",), ("p2",), ("p3",)]
+
+    def fake_run(conn, tenant_id, product_id):
+        if product_id == "p2":
+            raise RuntimeError("boom")
+        return {"status": "OK", "action": "hold", "data_basis": "INTERNAL_ONLY"}
+
+    with patch.object(pipeline, "run_price_recommendation", side_effect=fake_run):
+        summary = pipeline.run_price_recommendations_for_all(fake_conn, "tenant-1")
+
+    assert summary["total"] == 3 and summary["decided"] == 2
+    assert summary["by_data_basis"] == {"INTERNAL_ONLY": 2}
+    assert summary["failed"] == [{"product_id": "p2", "error": "boom"}]
 
 
 def test_matched_competitors_produce_recommendation_and_outcome_row(fake_conn):
