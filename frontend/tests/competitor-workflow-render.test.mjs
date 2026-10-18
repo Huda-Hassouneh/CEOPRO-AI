@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {readFileSync} from 'node:fs';
+import {ProductIdentityEvidence} from '../src/features/market-intelligence/components/ProductIdentityEvidence.jsx';
+import {DiscoveryCoverage} from '../src/features/market-intelligence/components/DiscoveryCoverage.jsx';
+globalThis.React=React;
+for(const locale of ['en','ar'])test(`${locale}: identity evidence and bounded discovery render truthful, escaped data`,()=>{
+ const messages=JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`,import.meta.url)));
+ const t=(key,args={})=>Object.entries(args).reduce((s,[k,v])=>s.replaceAll('{{'+k+'}}',String(v)),key.split('.').reduce((v,k)=>v?.[k],messages));
+ const identity={name:{en:'Tea 500g',ar:'شاي'},gtin:'00012345678905'};
+ let html=renderToStaticMarkup(React.createElement(ProductIdentityEvidence,{identity,t,locale}));
+ assert.ok(html.includes(t('competitorWorkflow.notChecked')));
+ html=renderToStaticMarkup(React.createElement(ProductIdentityEvidence,{identity,t,locale,preview:{reason:'IDENTITY_NOT_VERIFIED',name:'<img src=x>',observed:[{conflicts:['SIZE_CONFLICT'],attributes:{sizes:[['mass',250]],pack_count:2}}]}}));
+ assert.ok(html.includes('&lt;img'));assert.ok(!html.includes('<img'));
+ assert.ok(html.includes(t('competitorWorkflow.reasons.SIZE_CONFLICT')));assert.ok(html.includes('250 '+t('common.units.grams')));
+ const products=Array.from({length:12},(_,i)=>({product_id:String(i),product_name:`Item ${i}`,outcome:i===0?'NOT_CHECKED':'NO_CANDIDATES',candidate_count:0}));
+ html=renderToStaticMarkup(React.createElement(DiscoveryCoverage,{t,result:{coverage:'LIMITED',products}}));
+ assert.ok(html.includes(t('competitorWorkflow.coverage')));assert.ok(html.includes('Item 9'));assert.ok(!html.includes('Item 10'));
+ assert.ok(!html.includes('overflow-y'));assert.ok(!html.includes('competitorWorkflow.'));
+});

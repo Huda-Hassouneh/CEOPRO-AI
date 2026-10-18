@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from '../../../shared/lib/apiErrors.js';
 import { settingsCapabilities } from '../api/settingsCapabilities.js';
 import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
@@ -32,7 +33,7 @@ export function SecuritySettings({ t, onNotice }) {
       if (!result.changed) return onNotice('info', t('settings.security.passwordUnavailable'));
       setValues({ currentPassword: '', newPassword: '', confirmPassword: '' });
       onNotice('success', t('settings.security.passwordChanged'));
-    } catch { onNotice('error', t('settings.security.passwordFailed')); }
+    } catch (error) { onNotice('error', getApiErrorMessage(error, t)); }
   };
   const update = (key) => (event) => { setValues({ ...values, [key]: event.target.value }); setErrors({ ...errors, [key]: '' }); };
   const passwordLabels = { showPasswordLabel: t('auth.common.showPassword'), hidePasswordLabel: t('auth.common.hidePassword') };

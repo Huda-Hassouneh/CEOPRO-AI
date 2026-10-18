@@ -1,0 +1,39 @@
+Replayed 60 unchanged migrations; PostgreSQL 17.5 on wasm32-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit
+REPRODUCED 42P17 on users before repair
+REPRODUCED 42P17 on tenant_users before repair
+REPRODUCED 42P17 on companies before repair
+PASS restricted runtime identity and FORCE RLS
+PASS new signup email lookup returns no row
+PASS existing signup email and case-insensitive login lookup
+PASS login membership function with valid email
+PASS signup INSERT RETURNING user, company and first membership
+PASS session create, refresh and logout persistence
+PASS tenant owner/admin reads own users and memberships
+PASS standard tenant cannot read another tenant or platform directory
+PASS platform owner/admin customer list reads and overview
+PASS unauthorized, removed and suspended platform memberships denied
+PASS cross-tenant writes remain denied for platform administrators
+PASS helper ownership, fixed search_path, private execute ACLs and no role switching
+AUDIT 47 RLS tables in anonymous, customer and platform contexts
+PASS every app-readable RLS table plans reads, updates and deletes without cycles
+Fixture transaction rolled back; no test accounts retained
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+PASS real Prisma runtime current_user/session_user=ceopro_app
+PASS real registration, confirmation, one-time exchange and existing-email signup
+[login] user found: true
+[login] password valid: true
+{ userId: '853658ba-b1a6-4949-9f0e-a8fcb4c26ca3' }
+{ userId: '853658ba-b1a6-4949-9f0e-a8fcb4c26ca3' }
+[login] user found: true
+[login] password valid: false
+PASS real HTTP login, session revalidation, logout, revoked-session and bad-password rejection
+NOTE refresh-token endpoint is not implemented in the current Node API; refreshToken remains null
+✔ actual migration history reproduces 42P17; forward migration repairs restricted-role workflows (5722.179236ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7095.877587

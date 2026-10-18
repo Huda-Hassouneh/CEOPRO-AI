@@ -1,0 +1,127 @@
+{
+  "input": {
+    "reviews": [
+      {
+        "text": "Great selection and the staff were really helpful",
+        "review_date": "2026-09-30",
+        "collection_method": "PUBLIC_API"
+      },
+      {
+        "text": "الأسعار مرتفعة مقارنة بالمحلات الأخرى",
+        "review_date": "2026-09-22",
+        "collection_method": "PUBLIC_API"
+      },
+      {
+        "text": "Fast delivery, product arrived well packaged",
+        "review_date": "2026-09-15",
+        "collection_method": "PUBLIC_FEED"
+      },
+      {
+        "text": "خدمة العملاء ممتازة وسريعة في الرد",
+        "review_date": "2026-08-30",
+        "collection_method": "PUBLIC_API"
+      },
+      {
+        "text": "The store was crowded and checkout took forever",
+        "review_date": "2026-08-12",
+        "collection_method": "MANUAL"
+      },
+      {
+        "text": "Good quality olive oil, will buy again",
+        "review_date": "2026-07-25",
+        "collection_method": "PUBLIC_FEED"
+      }
+    ],
+    "subjectType": "BUSINESS",
+    "subjectId": null,
+    "countryCode": "JO",
+    "asOf": "2026-10-12"
+  },
+  "response": {
+    "sentiment_model": "cardiffnlp/twitter-xlm-roberta-base-sentiment",
+    "sentiment_model_revision": "f2f1202b1bdeb07342385c3f807f9c07cd8f5cf8",
+    "classification": {
+      "status": "OK",
+      "analyzed_count": 6,
+      "failed_count": 0
+    },
+    "reviews": [
+      {
+        "review_id": "review-1",
+        "text": "Great selection and the staff were really helpful",
+        "label": "POSITIVE",
+        "sentiment_score": 0.8795,
+        "confidence": 0.9052
+      },
+      {
+        "review_id": "review-2",
+        "text": "الأسعار مرتفعة مقارنة بالمحلات الأخرى",
+        "label": "NEGATIVE",
+        "sentiment_score": -0.4931,
+        "confidence": 0.5471
+      },
+      {
+        "review_id": "review-3",
+        "text": "Fast delivery, product arrived well packaged",
+        "label": "POSITIVE",
+        "sentiment_score": 0.7182,
+        "confidence": 0.746
+      },
+      {
+        "review_id": "review-4",
+        "text": "خدمة العملاء ممتازة وسريعة في الرد",
+        "label": "POSITIVE",
+        "sentiment_score": 0.8147,
+        "confidence": 0.8346
+      },
+      {
+        "review_id": "review-5",
+        "text": "The store was crowded and checkout took forever",
+        "label": "NEGATIVE",
+        "sentiment_score": -0.7413,
+        "confidence": 0.7686
+      },
+      {
+        "review_id": "review-6",
+        "text": "Good quality olive oil, will buy again",
+        "label": "POSITIVE",
+        "sentiment_score": 0.8643,
+        "confidence": 0.8867
+      }
+    ],
+    "mpi": {
+      "status": "OK",
+      "evidence_id": "3170975e-24c8-4a6d-b192-60d6c561ee9b",
+      "mpi": 55.91,
+      "sample_size": {
+        "sufficient": true,
+        "analyzed_count": 6,
+        "minimum_required": 5,
+        "status": "OK"
+      },
+      "weighted_sentiment_score": 0.394,
+      "volume_confidence": 0.3,
+      "review_count": 6,
+      "avg_recency_weight": 0.7448,
+      "avg_reliability_weight": 0.8833,
+      "label_counts": {
+        "positive": 4,
+        "neutral": 0,
+        "negative": 2
+      }
+    },
+    "evidence_record": {
+      "table": "evidence_records",
+      "id": "3170975e-24c8-4a6d-b192-60d6c561ee9b",
+      "tenant_id": "public-demo-tenant",
+      "category": "FACT",
+      "source_module": "ai.mpi",
+      "source_record_ids": "{\"subject_type\":\"BUSINESS\",\"subject_id\":null,\"mpi\":55.91,\"weighted_sentiment_score\":0.394,\"volume_confidence\":0.3,\"review_count\":6,\"avg_recency_weight\":0.7448,\"avg_reliability_weight\":0.8833,\"label_counts\":{\"positive\":4,\"neutral\":0,\"negative\":2}}",
+      "confidence_score": 0.57,
+      "explanation_text": "MPI=55.91 from 6 analyzed reviews (weighted sentiment=0.394, volume confidence=0.3, avg recency weight=0.7448, avg source-reliability weight=0.8833: 4 positive, 0 neutral, 2 negative).",
+      "model_version": null,
+      "country_context": "JO"
+    }
+  }
+}
+

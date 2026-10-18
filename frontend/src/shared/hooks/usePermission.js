@@ -1,0 +1,1 @@
+export function usePermission() {\n  return true;\n}\n

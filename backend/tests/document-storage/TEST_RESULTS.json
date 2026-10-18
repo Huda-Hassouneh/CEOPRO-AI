@@ -1,0 +1,25 @@
+{
+  "feature": "Document Storage",
+  "generated_at": "2026-10-11",
+  "source_contracts": {
+    "passed": 7,
+    "failed_regressions": 6,
+    "status": "confirmed source-level gaps"
+  },
+  "playwright": {
+    "blocked_or_skipped": 9,
+    "status": "no disposable DB/API/tenant fixtures/MinIO endpoint configured"
+  },
+  "verified_findings": [
+    "RAG originals are stored in PostgreSQL BYTEA and accounted as binary MiB from tenant RAG metadata.",
+    "RAG UI, API client, and backend disagree on maximum upload size and accepted file types.",
+    "RAG list API mapping discards persisted processing status.",
+    "Storage quota check is separate from persistence and has no atomic reservation.",
+    "No RAG document delete route/UI is present to reclaim retained capacity.",
+    "Storage uses binary MiB while displayed unit is MB.",
+    "Business-upload capacity check counts transient bytes although storage aggregation only counts RAG metadata.",
+    "Generated structured summary MinIO object key omits tenant ID.",
+    "AI MinIO configuration uses root credentials; restricted identity is absent in checked source."
+  ],
+  "live_execution": "Not performed; no safe database/API/MinIO environment was configured."
+}

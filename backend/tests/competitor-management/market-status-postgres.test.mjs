@@ -1,0 +1,54 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {randomUUID} from 'node:crypto';
+import {isolatedDatabase,tenantFixture} from '../isolated/database.mjs';
+const oldSql=readFileSync(new URL('../../prisma/migrations/20261013200000_market_tracking_dispatch/migration.sql',import.meta.url),'utf8');
+const begin=oldSql.indexOf('CREATE OR REPLACE FUNCTION public.queue_market_tracking(');
+const original=oldSql.slice(begin,oldSql.indexOf('\nEND $$;',begin)+'\nEND $$;'.length);
+const repair=readFileSync(new URL('../../prisma/migrations/20261016000000_fix_market_tracking_status_ambiguity/migration.sql',import.meta.url),'utf8');
+test('reproduce 42702, repair forward, and exercise real restricted-role competitor/discovery/collection paths',async()=>{
+ const f=await isolatedDatabase('ceopro_app');let prisma;
+ try{
+ const a=await tenantFixture(f.db),b=await tenantFixture(f.db),missing=await tenantFixture(f.db);
+ await f.db.exec(`INSERT INTO features(feature_code,feature_name,feature_name_ar,feature_type) VALUES('competitor_management','Competitors','Competitors','boolean') ON CONFLICT DO NOTHING;
+ INSERT INTO features(feature_code,feature_name,feature_name_ar,feature_type,aggregation_type,reset_cycle) VALUES('tracked_competitors','Tracked','Tracked','limit','max','lifetime'),('connected_data_sources','Sources','Sources','limit','max','lifetime') ON CONFLICT DO NOTHING;`);
+ for(const t of [a,b])await f.db.query(`INSERT INTO plan_features(plan_id,feature_id,limit_value) SELECT $1,feature_id,10 FROM features WHERE feature_code IN ('competitor_management','tracked_competitors','connected_data_sources')`,[t.planId]);
+ const metadata=async()=> (await f.db.query(`SELECT proowner,proacl::text,prosecdef,proconfig FROM pg_proc WHERE oid='public.queue_market_tracking(uuid,text,uuid,text)'::regprocedure`)).rows[0];
+ await f.db.exec(original);const before=await metadata();
+ const context=async t=>f.db.query(`SELECT set_config('app.current_tenant_id',$1,false),set_config('app.current_user_id',$2,false)`,[t.tenantId,t.userId]);
+ const queue=(tenant,kind,source,key)=>f.db.query('SELECT * FROM public.queue_market_tracking($1::uuid,$2::text,$3::uuid,$4::text)',[tenant,kind,source,key]);
+ await f.role('ceopro_app');await context(a);
+ await assert.rejects(queue(a.tenantId,'DISCOVERY',null,'original-bug'),e=>e.code==='42702'&&e.message.includes('status'));
+ console.log('REPRODUCED original SQLSTATE 42702 for status as ceopro_app');
+ await f.role('postgres');await f.db.exec(repair);assert.deepEqual(await metadata(),before,'Owner, grants, SECURITY DEFINER and search_path are preserved');
+ await f.db.exec(repair);assert.deepEqual(await metadata(),before,'Repair is safely repeatable');
+ await f.role('ceopro_app');await context(a);
+ const first=(await queue(a.tenantId,'DISCOVERY',null,'fixed-discovery')).rows;assert.equal(first.length,1);assert.equal(first[0].status,'PENDING');
+ assert.deepEqual((await queue(a.tenantId,'DISCOVERY',null,'fixed-discovery')).rows,first);
+ assert.equal((await f.db.query(`SELECT current_setting('app.current_tenant_id') AS tenant,current_setting('app.current_user_id') AS actor`)).rows[0].actor,a.userId);
+ await assert.rejects(queue(b.tenantId,'DISCOVERY',null,'foreign-request'),e=>e.code==='23514'&&e.message.includes('MARKET_TENANT_REQUIRED'));
+ await context(missing);assert.equal((await queue(missing.tenantId,'DISCOVERY',null,'not-entitled')).rows.length,0);
+ await context(a);
+ process.env.DATABASE_URL=f.url;({prisma}=await import('../../src/config/database.ts'));
+ const {competitorsRepo:repo}=await import('../../src/modules/competitors/repo/competitors.repo.ts');
+ const scope={tenantId:a.tenantId,userId:a.userId};
+ const competitor=await repo.create(scope,{name:'Status regression competitor',website:'https://status-regression.example.test'});
+ assert.equal(competitor.isTracked,true);assert.equal(competitor.discovery.status,'PENDING');
+ const catalog=(await repo.list(scope)).competitors;assert.ok(catalog.some(c=>c.id===competitor.id));
+ assert.equal((await repo.discover(scope)).status,'PENDING');
+ assert.equal((await repo.track(scope,competitor.id,false)).isTracked,false);
+ assert.equal((await repo.track(scope,competitor.id,true)).discovery.status,'PENDING');
+ // Both discovery and collection enter the same previously ambiguous entitlement query.
+ await f.role('postgres');const source=randomUUID();
+ await f.db.query(`INSERT INTO data_sources(source_id,tenant_id,source_name,source_type,source_url,collection_method,collector_key,policy_status,approval_reference,approved_by,approved_at,privacy_reviewed_at) VALUES($1,$2,'Status fixture','website','https://status-regression.example.test','STRUCTURED_DATA','standards','ALLOWED','isolated test',$3,now(),now())`,[source,a.tenantId,a.userId]);
+ await f.db.query(`INSERT INTO competitor_product_mappings(tenant_id,global_competitor_id,product_id,source_id,competitor_product_url,comparison_confirmed) VALUES($1,$2,$3,$4,'https://status-regression.example.test/tea',true)`,[a.tenantId,competitor.id,a.productId,source]);
+ await f.role('ceopro_app');await context(a);
+ const collection=(await queue(a.tenantId,'COLLECTION',source,'collection-first')).rows;
+ assert.equal(collection.length,1);assert.equal(collection[0].status,'PENDING');
+ assert.deepEqual((await queue(a.tenantId,'COLLECTION',source,'collection-second')).rows,collection,'Pending source request is reused');
+ await f.db.query('UPDATE data_sources SET is_active=false WHERE tenant_id=$1 AND source_id=$2',[a.tenantId,source]);
+ assert.equal((await queue(a.tenantId,'COLLECTION',source,'inactive-source')).rows.length,0);
+ console.log('PASS actual competitor create/reactivate/discover, queue dedupe, collection eligibility, tenant denial, access denial and function metadata preservation');
+ }finally{if(prisma)await prisma.$disconnect();await f.close();}
+});

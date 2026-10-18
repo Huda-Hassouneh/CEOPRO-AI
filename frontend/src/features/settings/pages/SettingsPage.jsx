@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useAuthStore } from '../../auth/store/authStore.js';
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
@@ -37,11 +37,11 @@ export default function SettingsPage() {
   const showNotice = (variant, message) => setNotice({ variant, message });
   const tabs = [
     { id: 'profile', label: t('settings.tabs.profile'), content: <ProfileForm query={profileQuery} t={t} onNotice={showNotice} /> },
-    { id: 'company', label: t('settings.tabs.company'), content: <CompanySettings query={companyQuery} permissions={permissions} t={t} onNotice={showNotice} /> },
+    { id: 'company', label: t('settings.tabs.company'), content: <CompanySettings query={companyQuery} permissions={permissions} t={t} /> },
     { id: 'team', label: t('settings.tabs.team'), content: <TeamSettings query={teamQuery} permissions={permissions} companyId={companyId} locale={locale} t={t} onNotice={showNotice} /> },
-    { id: 'notifications', label: t('settings.tabs.notifications'), content: <NotificationSettings query={notificationQuery} companyId={companyId} t={t} onNotice={showNotice} /> },
+    { id: 'notifications', label: t('settings.tabs.notifications'), content: <NotificationSettings query={notificationQuery} t={t} /> },
     { id: 'preferences', label: t('settings.tabs.preferences'), content: <PreferenceSettings locale={locale} setLocale={setLocale} t={t} /> },
     { id: 'security', label: t('settings.tabs.security'), content: <SecuritySettings t={t} onNotice={showNotice} /> },
   ];
-  return <div className="settings-workspace" dir={dir}><PageHeader title={t('settings.page.title')} subtitle={t('settings.page.subtitle')} /><Tabs className="settings-workspace-tabs" tabs={tabs} activeTab={activeTab} onChange={(tab) => setParams((previous) => { const next = new URLSearchParams(previous); next.set('tab', tab); return next; })} ariaLabel={t('settings.tabs.label')} />{notice && <div className="settings-toast"><Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} /></div>}</div>;
+  return <div className="settings-workspace" dir={dir}><PageHeader title={t('settings.page.title')} subtitle={t('settings.page.subtitle')} actions={<Link to="/settings/documents">{t('ragAssistant.knowledge.title')}</Link>} /><Tabs className="settings-workspace-tabs" tabs={tabs} activeTab={activeTab} onChange={(tab) => setParams((previous) => { const next = new URLSearchParams(previous); next.set('tab', tab); return next; })} ariaLabel={t('settings.tabs.label')} />{notice && <div className="settings-toast"><Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} /></div>}</div>;
 }

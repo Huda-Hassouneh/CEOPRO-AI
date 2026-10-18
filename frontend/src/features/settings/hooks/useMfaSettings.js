@@ -1,0 +1,1 @@
+import { useQuery } from '@tanstack/react-query';\nimport { securityApi } from '../api/securityApi.js';\n\nexport function useMfaSettings() {\n  return useQuery({\n    queryKey: ['mfa-settings'],\n    queryFn: securityApi.getMfa,\n  });\n}\n

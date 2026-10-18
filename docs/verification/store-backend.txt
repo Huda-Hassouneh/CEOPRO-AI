@@ -1,0 +1,50 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-backend@1.0.0 test:store-connectors
+> node --import tsx --experimental-test-module-mocks --test tests/store-connectors/*.test.*
+
+✔ store input rejects private/non-HTTPS endpoints, credentials in URLs and scope injection (18.015695ms)
+✔ credential encryption authenticates source scope, detects tampering and uses a new nonce on every write (2.016679ms)
+✔ v2 accounting validates payment evidence and exact totals at the Node boundary (123.764002ms)
+✔ Shopify canonical host rejects credentials, paths, suffix tricks, private hosts and ports (1.254754ms)
+✔ Shopify callback HMAC rejects tampering, stale timestamps and duplicate query keys (8.842844ms)
+✔ Shopify webhook HMAC uses exact raw bytes and never accepts a reserialized payload (0.298671ms)
+✔ Shopify encrypted offline credentials remain source/tenant-bound and do not change Woo v1 decoding (1.844345ms)
+✔ Provider boundary requires Shopify variant identities and complete location snapshots (0.547449ms)
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '06beed3c-e298-4527-9447-8a9e1945d126' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+{ userId: '9efd0477-4378-4792-b425-0b021a2a5a5e' }
+✔ Shopify real Node/Python transport + restricted DB: OAuth, cursor sync, accounting, token rotation, lifecycle, RLS and privacy (11040.87822ms)
+(node:34) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+✔ restricted store accounting: stock ownership, paid invoices, rounding, refunds, replay, rollback and RLS (8025.782473ms)
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+✔ Node → authenticated Python service → WooCommerce adapter → restricted canonical database, repeated without duplicate sales (6462.67728ms)
+(node:41) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+{ userId: 'd355edca-986e-4d29-b149-fc869c0d8cd0' }
+{ userId: 'f2dc51e1-6c63-4b40-88ea-f18d5093c655' }
+{ userId: 'd355edca-986e-4d29-b149-fc869c0d8cd0' }
+{ userId: 'd355edca-986e-4d29-b149-fc869c0d8cd0' }
+✔ restricted runtime: store connect, sync, idempotency, corrections, cancellation, isolation and secret protection (8071.913409ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11744.79928

@@ -1,0 +1,1 @@
+import { useQuery } from '@tanstack/react-query';\nimport { integrationsApi } from '../api/integrationsApi.js';\n\nexport function useIntegrations() {\n  return useQuery({\n    queryKey: ['integrations'],\n    queryFn: integrationsApi.listIntegrations,\n  });\n}\n

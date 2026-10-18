@@ -1,8 +1,9 @@
-import { useMutation } from '@tanstack/react-query';
-import { knowledgeBaseApi } from '../api/knowledgeBaseApi.js';
-
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { knowledgeBaseApi } from "../api/knowledgeBaseApi.js";
 export function useDocumentUpload() {
-  return useMutation({
-    mutationFn: knowledgeBaseApi.uploadDocument,
-  });
+  const client=useQueryClient();
+  return useMutation({mutationFn:knowledgeBaseApi.uploadDocument,onSettled:async()=>{
+    await client.invalidateQueries({queryKey:["knowledge-documents"]});
+    await client.invalidateQueries({queryKey:["subscription","usage"]});
+  }});
 }

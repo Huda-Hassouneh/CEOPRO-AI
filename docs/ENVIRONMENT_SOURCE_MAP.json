@@ -1,0 +1,1167 @@
+{
+  "root": {
+    "COMPOSE_PROJECT_NAME": [
+      "Docker Compose project selection"
+    ],
+    "KEEL_PYTHON": [
+      "scripts/keel.mjs:9"
+    ],
+    "POSTGRES_DB": [
+      "docker-compose.yml"
+    ],
+    "POSTGRES_PASSWORD": [
+      "docker-compose.yml"
+    ],
+    "POSTGRES_USER": [
+      "docker-compose.yml"
+    ]
+  },
+  "backend": {
+    "AI_SERVICE_URL": [
+      "backend/src/modules/features/client/features-ai.client.ts:12",
+      "backend/src/modules/pricing/client/ingestion.client.ts:8"
+    ],
+    "AI_SERVICE_USE_MOCKS": [
+      "backend/src/modules/features/client/features-ai.client.ts:14"
+    ],
+    "BOOTSTRAP_DATABASE_URL": [
+      "backend/src/config/bootstrap-useer-database.ts:6"
+    ],
+    "BUSINESS_INSIGHTS_API_URL": [
+      "backend/src/modules/business-recommendations/client.ts:10"
+    ],
+    "CORS_ORIGINS": [
+      "backend/src/config/env.ts:19",
+      "backend/src/modules/auth/controller/auth.controller.ts:11"
+    ],
+    "DATABASE_URL": [
+      "backend/src/config/database.ts:6"
+    ],
+    "DOTENV_CONFIG_PATH": [
+      "backend/src/config/env.ts:4",
+      "backend/src/config/env.ts:5"
+    ],
+    "EMAIL_DELIVERY_PROVIDER": [
+      "backend/src/integrations/email/email.service.ts:19"
+    ],
+    "EMAIL_SERVICE_PROVIDER_API_KEY": [
+      "backend/src/integrations/email/resend.client.ts:14"
+    ],
+    "EMAIL_SERVICE_PROVIDER_FROM_EMAIL": [
+      "backend/src/integrations/email/resend.client.ts:22"
+    ],
+    "FAILED_SUBSCRIPTION_URL": [
+      "backend/src/modules/subscription/service/subscription.service.ts:39"
+    ],
+    "FORECASTING_MAX_SOURCE_AGE_DAYS": [
+      "backend/src/modules/forecasting/service/forecasting.policy.ts:24"
+    ],
+    "FRONTEND_URL": [
+      "backend/src/integrations/email/verification-email.content.ts:18",
+      "backend/src/modules/auth/controller/auth.controller.ts:10",
+      "backend/src/modules/dataconnection/store/shopify/domain.ts:15"
+    ],
+    "GMAIL_SMTP_APP_PASSWORD": [
+      "backend/src/integrations/email/gmail-smtp.client.ts:148"
+    ],
+    "GMAIL_SMTP_USER": [
+      "backend/src/integrations/email/gmail-smtp.client.ts:147"
+    ],
+    "INGESTION_WORKER_DATABASE_URL": [
+      "backend/src/config/ingestion-worker-database.ts:6"
+    ],
+    "JSON_BODY_LIMIT": [
+      "backend/src/app.ts:61"
+    ],
+    "JWT_ACCESS_EXPIRES_IN": [
+      "backend/src/utils/token.ts:27"
+    ],
+    "JWT_REFRESH_EXPIRES_IN": [
+      "backend/src/utils/token.ts:35"
+    ],
+    "JWT_SECRET": [
+      "backend/src/middleware/validators/validateUser.ts:20",
+      "backend/src/modules/business-recommendations/client.ts:13"
+    ],
+    "MARKET_AI_CODEBASE_PATH": [
+      "backend/src/modules/competitors/client/market-cost-guard.client.ts:7",
+      "backend/src/modules/competitors/client/product-preview.client.ts:7",
+      "backend/src/modules/competitors/client/source-review.client.ts:7"
+    ],
+    "MARKET_AI_PYTHON": [
+      "backend/src/modules/competitors/client/market-cost-guard.client.ts:10",
+      "backend/src/modules/competitors/client/product-preview.client.ts:9",
+      "backend/src/modules/competitors/client/source-review.client.ts:10"
+    ],
+    "MARKET_DISCOVERY_STREAM_KEY": [
+      "backend/src/modules/competitors/repo/market-dispatcher.repo.ts:60"
+    ],
+    "MARKET_DISPATCHER_DATABASE_URL": [
+      "backend/src/config/market-dispatcher-database.ts:4"
+    ],
+    "MARKET_INTELLIGENCE_MAX_SOURCE_AGE_DAYS": [
+      "backend/src/modules/competitors/repo/competitors.repo.ts:15",
+      "backend/src/modules/market-intelligence/repo/market-int.repo.ts:203"
+    ],
+    "MARKET_REDIS_URL": [
+      "backend/src/workers/market-tracking.worker.ts:13"
+    ],
+    "MARKET_SCRAPER_STREAM_KEY": [
+      "backend/src/modules/competitors/repo/market-dispatcher.repo.ts:60"
+    ],
+    "MARKET_TRACKING_ENABLED": [
+      "backend/src/workers/market-tracking.worker.ts:9"
+    ],
+    "MAX_UPLOAD_BYTES": [
+      "backend/src/modules/dataconnection/types/dataconnection.validation.ts:12"
+    ],
+    "NODE_ENV": [
+      "backend/src/workers/data-ingestion.worker.ts:183"
+    ],
+    "NOTIFICATION_WORKER_DATABASE_URL": [
+      "backend/src/config/notification-worker-database.ts:6"
+    ],
+    "PAYPAL_BASE_URL": [
+      "backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:12",
+      "backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:159",
+      "backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:95",
+      "backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:12",
+      "backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:159",
+      "backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:95"
+    ],
+    "PAYPAL_CLIENT_ID": [
+      "backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:10",
+      "backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:10"
+    ],
+    "PAYPAL_CLIENT_SECRET": [
+      "backend/src/modules/subscription/External Services/Payment providers/paypal/paypal.ts:11",
+      "backend/src/modules/subscription/client/payment-providers/paypal/paypal.client.ts:11"
+    ],
+    "PORT": [
+      "backend/src/server.ts:4"
+    ],
+    "PROMO_FIXED_AMOUNT_CURRENCY": [
+      "backend/src/modules/subscription/service/promocodes.service.ts:106",
+      "backend/src/modules/subscription/service/promocodes.service.ts:81"
+    ],
+    "SHOPIFY_CLIENT_ID": [
+      "backend/src/modules/dataconnection/store/shopify/domain.ts:14"
+    ],
+    "SHOPIFY_CLIENT_SECRET": [
+      "backend/src/modules/dataconnection/store/shopify/domain.ts:14",
+      "backend/src/modules/dataconnection/store/shopify/public.routes.ts:14"
+    ],
+    "SHOPIFY_REDIRECT_URI": [
+      "backend/src/modules/dataconnection/store/shopify/domain.ts:15"
+    ],
+    "SHOPIFY_REQUEST_ALL_ORDERS": [
+      "backend/src/modules/dataconnection/store/shopify/oauth.ts:26"
+    ],
+    "STORE_CONNECTOR_API_URL": [
+      "backend/src/modules/dataconnection/store/provider.client.ts:5"
+    ],
+    "STORE_CONNECTOR_ENCRYPTION_KEY": [
+      "backend/src/modules/dataconnection/store/vault.ts:4"
+    ],
+    "STORE_CONNECTOR_SERVICE_SECRET": [
+      "backend/src/modules/dataconnection/store/provider.client.ts:6"
+    ],
+    "STRIPE_SECRET_KEY": [
+      "backend/src/modules/subscription/External Services/Payment providers/stripe/stripeService.ts:20",
+      "backend/src/modules/subscription/client/payment-providers/stripe/stripe.client.ts:22"
+    ],
+    "STRIPE_SECRET_WEBHOOK": [
+      "backend/src/middleware/validators/validateWebhook.ts:17"
+    ],
+    "STRIPE_TEST_CLOCK_ID": [
+      "backend/src/modules/subscription/service/subscription.service.ts:459"
+    ],
+    "STRIPE_USE_TEST_CLOCK": [
+      "backend/src/modules/subscription/service/subscription.service.ts:456"
+    ],
+    "SUBSCRIPTION_RECOVERY_RETURN_URL": [
+      "backend/src/modules/subscription/service/subscription.service.ts:43"
+    ],
+    "SUCCESS_SUBSCRIPTION_URL": [
+      "backend/src/modules/subscription/service/subscription.service.ts:37"
+    ]
+  },
+  "frontend": {
+    "VITE_API_BASE_URL": [
+      "frontend/src/features/auth/pages/VerifyEmailPage.jsx:53",
+      "frontend/src/shared/config/env.js:1",
+      "frontend/src/shared/lib/httpClient.js:15"
+    ],
+    "VITE_AUTH_API_MODE": [
+      "frontend/src/features/auth/api/authApi.js:8"
+    ],
+    "VITE_ENABLE_AUTH_PREVIEW": [
+      "frontend/src/app/router/ProtectedRoute.jsx:10",
+      "frontend/src/shared/components/layout/Topbar.jsx:57"
+    ],
+    "VITE_ENABLE_ONBOARDING_PREVIEW": [
+      "frontend/src/app/router/OnboardingGuard.jsx:13",
+      "frontend/src/features/onboarding/pages/OnboardingWelcomePage.jsx:9"
+    ],
+    "VITE_ENABLE_UI_TESTING_MODE": [
+      "frontend/src/shared/config/uiTestingMode.js:8"
+    ],
+    "VITE_WS_URL": [
+      "frontend/src/shared/lib/websocketClient.js:2"
+    ]
+  },
+  "ai": {
+    "ADVISOR_MAX_TOKENS": [
+      "ai/src/ai/rag/advisor.py:48"
+    ],
+    "AI_FORECAST_CLAIM_IDLE_MS": [
+      "ai/src/ai/forecasting/consumer.py:38"
+    ],
+    "AI_FORECAST_DEAD_STREAM_KEY": [
+      "ai/src/ai/forecasting/consumer.py:36"
+    ],
+    "AI_FORECAST_MAX_ATTEMPTS": [
+      "ai/src/ai/forecasting/consumer.py:37"
+    ],
+    "AI_REQUESTS_PER_MINUTE_PER_COMPANY": [
+      "ai/src/ai/core/usage.py:45"
+    ],
+    "AI_SERVICE_ACTOR_USER_ID": [
+      "ai/src/ai/forecasting/consumer.py:59",
+      "ai/src/market_scraper/competitor_enrichment.py:467",
+      "ai/src/market_scraper/competitor_enrichment.py:745"
+    ],
+    "AI_SERVICE_URL": [
+      "ai/src/ai/rag/chat_cli.py:60"
+    ],
+    "AI_TENANT_ID": [
+      "ai/src/ai/rag/chat_cli.py:62"
+    ],
+    "AI_TEST_DATABASE_URL": [
+      "ai/src/ai/rag/eval/run_eval.py:158",
+      "ai/src/ai/rag/eval/run_eval.py:271"
+    ],
+    "AI_USER_ID": [
+      "ai/src/ai/rag/chat_cli.py:63"
+    ],
+    "ALERT_WEBHOOK_URL": [
+      "ai/src/infrastructure/monitoring/watchdog.py:27"
+    ],
+    "ANALYSIS_CLAIM_IDLE_MS": [
+      "ai/src/market_scraper/analysis_worker.py:24"
+    ],
+    "ANALYSIS_DEAD_STREAM_KEY": [
+      "ai/src/market_scraper/analysis_worker.py:22"
+    ],
+    "ANALYSIS_MAX_ATTEMPTS": [
+      "ai/src/market_scraper/analysis_worker.py:23"
+    ],
+    "APIFY_API_TOKEN": [
+      "ai/src/market_scraper/competitor_enrichment.py:483",
+      "ai/src/market_scraper/market_discovery/providers/apify_maps.py:23"
+    ],
+    "APIFY_MAPS_ACTOR": [
+      "ai/src/market_scraper/competitor_mentions.py:53",
+      "ai/src/market_scraper/market_discovery/providers/apify_maps.py:17"
+    ],
+    "APIFY_MAX_PLACES_PER_SEARCH": [
+      "ai/src/market_scraper/market_discovery/providers/apify_maps.py:19"
+    ],
+    "APIFY_REVIEWS_MAX": [
+      "ai/src/market_scraper/competitor_enrichment.py:546"
+    ],
+    "APIFY_TOKEN": [
+      "ai/src/market_scraper/competitor_enrichment.py:483",
+      "ai/src/market_scraper/market_discovery/providers/apify_maps.py:23"
+    ],
+    "APP_BASE_URL": [
+      "ai/src/ai/billing/config.py:23"
+    ],
+    "APP_DB_PASSWORD": [
+      "ai/src/ai/db.py:52",
+      "ai/src/ai/rag/eval/run_eval.py:159"
+    ],
+    "APP_DB_POOL_MAX_SIZE": [
+      "ai/src/ai/db.py:82"
+    ],
+    "APP_DB_POOL_MIN_SIZE": [
+      "ai/src/ai/db.py:81"
+    ],
+    "APP_DB_POOL_WAIT_SECONDS": [
+      "ai/src/infrastructure/db_pool.py:241"
+    ],
+    "AUTH_CODE_MAX_FAILURES": [
+      "ai/src/ai/core/auth_throttle.py:32"
+    ],
+    "AUTH_CODE_SENDS_PER_WINDOW": [
+      "ai/src/ai/core/auth_throttle.py:35"
+    ],
+    "AUTH_LOGIN_MAX_FAILURES": [
+      "ai/src/ai/core/auth_throttle.py:31"
+    ],
+    "AUTH_THROTTLE_WINDOW_SECONDS": [
+      "ai/src/ai/core/auth_throttle.py:30"
+    ],
+    "AWS_KMS_KEY_ID": [
+      "ai/src/market_scraper/credential_vault.py:153"
+    ],
+    "BILLING_MAINTENANCE_ENABLED": [
+      "ai/src/ai/billing/maintenance.py:50"
+    ],
+    "BILLING_MAINTENANCE_SECONDS": [
+      "ai/src/ai/billing/maintenance.py:17"
+    ],
+    "BRAVE_SEARCH_API_KEY": [
+      "ai/src/market_scraper/web_search.py:103",
+      "ai/src/market_scraper/web_search.py:136"
+    ],
+    "CLOUDFLARE_ACCOUNT_ID": [
+      "ai/src/ai/marketing/image_generation.py:217",
+      "ai/src/ai/marketing/image_generation.py:218",
+      "ai/src/ai/marketing/image_generation.py:330"
+    ],
+    "CLOUDFLARE_AI_URL": [
+      "ai/src/ai/marketing/image_generation.py:306"
+    ],
+    "CLOUDFLARE_API_TOKEN": [
+      "ai/src/ai/marketing/image_generation.py:217",
+      "ai/src/ai/marketing/image_generation.py:218",
+      "ai/src/ai/marketing/image_generation.py:330"
+    ],
+    "CLOUDFLARE_IMAGE_MODEL": [
+      "ai/src/ai/marketing/image_generation.py:309"
+    ],
+    "CONNECTORS_ALLOW_PRIVATE_HOSTS": [
+      "ai/src/market_scraper/network_security.py:47"
+    ],
+    "CONNECTOR_WORKER_POLL_INTERVAL_SECONDS": [
+      "ai/src/market_scraper/connector_worker.py:122"
+    ],
+    "CORS_ALLOWED_ORIGINS": [
+      "ai/src/ai/main.py:107"
+    ],
+    "COST_GATE_MAX_RATIO": [
+      "ai/src/market_scraper/cost_ledger.py:76"
+    ],
+    "COST_GATE_MIN_PRODUCT_PRICE": [
+      "ai/src/market_scraper/cost_ledger.py:85"
+    ],
+    "COST_GATE_WINDOW_DAYS": [
+      "ai/src/market_scraper/cost_ledger.py:70"
+    ],
+    "CREDENTIAL_VAULT_KMS_BACKEND": [
+      "ai/src/market_scraper/credential_vault.py:184"
+    ],
+    "CREDENTIAL_VAULT_MASTER_KEY": [
+      "ai/src/market_scraper/credential_vault.py:117"
+    ],
+    "CREDENTIAL_VAULT_PREVIOUS_KEYS": [
+      "ai/src/market_scraper/credential_vault.py:81"
+    ],
+    "DATABASE_URL": [
+      "ai/src/ai/db.py:45",
+      "ai/src/infrastructure/database/seed_demo_data.py:35",
+      "ai/src/infrastructure/messaging/ai_consumer.py:35",
+      "ai/src/infrastructure/monitoring/watchdog.py:21",
+      "ai/src/market_scraper/data_access.py:27"
+    ],
+    "DEFAULT_PLAN_KEY": [
+      "ai/src/ai/core/usage.py:40"
+    ],
+    "DISCOVERY_AI_HINTS": [
+      "ai/src/market_scraper/market_discovery/relevance.py:51"
+    ],
+    "DISCOVERY_AUTO_TRACK_MAX": [
+      "ai/src/market_scraper/market_discovery/pipeline.py:37"
+    ],
+    "DISCOVERY_CACHE_TTL_SECONDS": [
+      "ai/src/market_scraper/market_discovery/http.py:16"
+    ],
+    "DISCOVERY_CLAIM_IDLE_MS": [
+      "ai/src/market_scraper/discovery_worker.py:52"
+    ],
+    "DISCOVERY_DEAD_STREAM_KEY": [
+      "ai/src/market_scraper/discovery_worker.py:50"
+    ],
+    "DISCOVERY_DISABLE_NEWS": [
+      "ai/src/market_scraper/market_discovery/news.py:43"
+    ],
+    "DISCOVERY_DISABLE_OSM": [
+      "ai/src/market_scraper/market_discovery/providers/osm.py:39"
+    ],
+    "DISCOVERY_DISABLE_OVERTURE": [
+      "ai/src/market_scraper/market_discovery/providers/overture.py:59"
+    ],
+    "DISCOVERY_DISABLE_PLACE_SEARCH": [
+      "ai/src/market_scraper/market_discovery/providers/place_search.py:43"
+    ],
+    "DISCOVERY_DISABLE_WIKIDATA": [
+      "ai/src/market_scraper/market_discovery/providers/wikidata.py:69"
+    ],
+    "DISCOVERY_ENRICH_MAX_SITES": [
+      "ai/src/market_scraper/market_discovery/enrich.py:41"
+    ],
+    "DISCOVERY_ENRICH_TIMEOUT_SECONDS": [
+      "ai/src/market_scraper/market_discovery/enrich.py:42"
+    ],
+    "DISCOVERY_INTEL_MAX_ITEMS": [
+      "ai/src/market_scraper/market_discovery/intel.py:51"
+    ],
+    "DISCOVERY_INTEL_MAX_PAGES": [
+      "ai/src/market_scraper/market_discovery/intel.py:49"
+    ],
+    "DISCOVERY_INTEL_MAX_SITES": [
+      "ai/src/ai/market_inputs/competitor_intel.py:16"
+    ],
+    "DISCOVERY_INTEL_PAGE_DELAY_SECONDS": [
+      "ai/src/market_scraper/market_discovery/intel.py:53"
+    ],
+    "DISCOVERY_INTEL_WORKERS": [
+      "ai/src/ai/market_inputs/competitor_intel.py:17"
+    ],
+    "DISCOVERY_MAX_ATTEMPTS": [
+      "ai/src/market_scraper/discovery_worker.py:51"
+    ],
+    "DISCOVERY_MAX_RESULTS": [
+      "ai/src/market_scraper/market_discovery/models.py:43"
+    ],
+    "DISCOVERY_NEWS_TIMESPAN": [
+      "ai/src/market_scraper/market_discovery/news.py:29"
+    ],
+    "DISCOVERY_REFRESH_BATCH": [
+      "ai/src/market_scraper/market_discovery/refresh.py:29"
+    ],
+    "DISCOVERY_REFRESH_CHECK_SECONDS": [
+      "ai/src/market_scraper/market_discovery/refresh.py:28"
+    ],
+    "DISCOVERY_REFRESH_DAYS": [
+      "ai/src/market_scraper/market_discovery/refresh.py:27"
+    ],
+    "DISCOVERY_REFRESH_ENABLED": [
+      "ai/src/market_scraper/market_discovery/refresh.py:126"
+    ],
+    "DISCOVERY_REFRESH_FIRST_DELAY_SECONDS": [
+      "ai/src/market_scraper/market_discovery/refresh.py:30"
+    ],
+    "DISCOVERY_RENDER_JS": [
+      "ai/src/market_scraper/market_discovery/intel.py:54"
+    ],
+    "DISCOVERY_RETRY_UNPRICED_AFTER_DAYS": [
+      "ai/src/market_scraper/tenant_discovery.py:88"
+    ],
+    "DISCOVERY_STREAM_KEY": [
+      "ai/src/ai/routers/extraction.py:84",
+      "ai/src/market_scraper/discovery_worker.py:48"
+    ],
+    "EMAIL_FROM_ADDRESS": [
+      "ai/src/ai/core/notifications.py:38"
+    ],
+    "EMAIL_LOG_UNSENT_BODIES": [
+      "ai/src/ai/core/notifications.py:42"
+    ],
+    "EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES": [
+      "ai/src/ai/core/security.py:232"
+    ],
+    "ENRICHMENT_CLAIM_IDLE_MS": [
+      "ai/src/market_scraper/enrichment_worker.py:34"
+    ],
+    "ENRICHMENT_DEAD_STREAM_KEY": [
+      "ai/src/market_scraper/enrichment_queue.py:16"
+    ],
+    "ENRICHMENT_DEDUPE_SECONDS": [
+      "ai/src/market_scraper/enrichment_queue.py:17"
+    ],
+    "ENRICHMENT_MAX_ATTEMPTS": [
+      "ai/src/market_scraper/enrichment_worker.py:33"
+    ],
+    "ENRICHMENT_MAX_BULK": [
+      "ai/src/market_scraper/competitor_enrichment.py:867"
+    ],
+    "ENRICHMENT_MIN_RETRY_SECONDS": [
+      "ai/src/market_scraper/competitor_enrichment.py:107"
+    ],
+    "ENRICHMENT_RETRY_AFTER_HOURS": [
+      "ai/src/market_scraper/competitor_enrichment.py:104"
+    ],
+    "ENRICHMENT_STREAM_KEY": [
+      "ai/src/market_scraper/enrichment_queue.py:15"
+    ],
+    "ENRICHMENT_SWEEP_INTERVAL_SECONDS": [
+      "ai/src/market_scraper/enrichment_worker.py:35"
+    ],
+    "ENTITLEMENT_CACHE_SECONDS": [
+      "ai/src/ai/core/entitlements.py:22"
+    ],
+    "EXTERNAL_COMMENTS_APPROVAL_REFERENCE": [
+      "ai/src/market_scraper/competitor_enrichment.py:741"
+    ],
+    "EXTRACTION_COMMIT_EVERY": [
+      "ai/src/ai/routers/extraction.py:41"
+    ],
+    "EXTRACTION_CURRENCY_CODES": [
+      "ai/src/ai/extraction/regex_patterns.py:19"
+    ],
+    "EXTRACTION_DATE_DAY_FIRST": [
+      "ai/src/ai/extraction/regex_patterns.py:53"
+    ],
+    "EXTRACTION_DECIMAL_STYLE": [
+      "ai/src/ai/extraction/numerals.py:29"
+    ],
+    "FORECAST_AUTO_REFRESH": [
+      "ai/src/ai/forecasting/refresh.py:43"
+    ],
+    "FORECAST_MIN_HISTORY_DAYS": [
+      "ai/src/ai/forecasting/cold_start.py:16"
+    ],
+    "FORECAST_MIN_VALIDATION_FOLDS": [
+      "ai/src/ai/forecasting/cold_start.py:17"
+    ],
+    "FORECAST_REFRESH_LOCK_SECONDS": [
+      "ai/src/ai/forecasting/refresh.py:35"
+    ],
+    "FORECAST_REFRESH_MAX_PRODUCTS": [
+      "ai/src/ai/forecasting/refresh.py:36"
+    ],
+    "FORECAST_STALE_AFTER_HOURS": [
+      "ai/src/ai/forecasting/refresh.py:34"
+    ],
+    "FRONTEND_BASE_URL": [
+      "ai/src/ai/core/notifications.py:106",
+      "ai/src/ai/notification_digest.py:191"
+    ],
+    "GDELT_DOC_API_URL": [
+      "ai/src/market_scraper/market_discovery/news.py:28"
+    ],
+    "GEMINI_IMAGE_MODEL": [
+      "ai/src/ai/marketing/image_generation.py:377"
+    ],
+    "GEMINI_URL": [
+      "ai/src/ai/marketing/image_generation.py:369"
+    ],
+    "GOOGLE_CUSTOM_SEARCH_API_KEY": [
+      "ai/src/market_scraper/social_cross_reference.py:92",
+      "ai/src/market_scraper/web_product_discovery.py:146",
+      "ai/src/market_scraper/web_search.py:88"
+    ],
+    "GOOGLE_CUSTOM_SEARCH_CX": [
+      "ai/src/market_scraper/social_cross_reference.py:93",
+      "ai/src/market_scraper/web_product_discovery.py:147",
+      "ai/src/market_scraper/web_search.py:88"
+    ],
+    "GOOGLE_MAPS_API_KEY": [
+      "ai/src/market_scraper/market_discovery/geocode.py:20",
+      "ai/src/market_scraper/market_discovery/providers/google_places.py:29"
+    ],
+    "GOOGLE_PLACES_API_KEY": [
+      "ai/src/market_scraper/competitor_enrichment.py:796",
+      "ai/src/market_scraper/discovery_worker.py:96",
+      "ai/src/market_scraper/market_discovery/geocode.py:20",
+      "ai/src/market_scraper/market_discovery/providers/google_places.py:29",
+      "ai/src/market_scraper/places_discovery.py:92",
+      "ai/src/market_scraper/tenant_discovery.py:382"
+    ],
+    "GOOGLE_PLACES_MAX_CALLS_PER_RUN": [
+      "ai/src/market_scraper/market_discovery/providers/google_places.py:25"
+    ],
+    "GROQ_API_KEY": [
+      "ai/src/ai/rag/llm_client.py:137",
+      "ai/src/ai/rag/llm_client.py:654"
+    ],
+    "GROQ_CIRCUIT_BREAKER_COOLDOWN_SECONDS": [
+      "ai/src/ai/rag/llm_client.py:225"
+    ],
+    "GROQ_CIRCUIT_BREAKER_THRESHOLD": [
+      "ai/src/ai/rag/llm_client.py:224"
+    ],
+    "GROQ_MAX_RETRIES": [
+      "ai/src/ai/rag/llm_client.py:184"
+    ],
+    "GROQ_MAX_TOKENS": [
+      "ai/src/ai/rag/llm_client.py:164"
+    ],
+    "GROQ_MAX_TOKENS_ON_RETRY": [
+      "ai/src/ai/rag/llm_client.py:171"
+    ],
+    "GROQ_MODEL": [
+      "ai/src/ai/rag/llm_client.py:109"
+    ],
+    "GROQ_RATE_LIMIT_MAX_WAIT_SECONDS": [
+      "ai/src/ai/rag/llm_client.py:222"
+    ],
+    "GROQ_REASONING_EFFORT": [
+      "ai/src/ai/rag/llm_client.py:170"
+    ],
+    "GROQ_RETRY_BACKOFF_SECONDS": [
+      "ai/src/ai/rag/llm_client.py:185"
+    ],
+    "GROQ_RETRY_JITTER_FRACTION": [
+      "ai/src/ai/rag/llm_client.py:196"
+    ],
+    "GROQ_TIMEOUT_SECONDS": [
+      "ai/src/ai/rag/llm_client.py:111"
+    ],
+    "HF_ENDPOINT": [
+      "ai/src/ai/core/ml_runtime.py:65"
+    ],
+    "HF_HUB_OFFLINE": [
+      "ai/src/ai/core/ml_runtime.py:60"
+    ],
+    "HUGGINGFACE_API_TOKEN": [
+      "ai/src/ai/marketing/image_generation.py:261",
+      "ai/src/ai/rag/llm_client.py:139",
+      "ai/src/ai/rag/llm_client.py:649"
+    ],
+    "HUGGINGFACE_INFERENCE_URL": [
+      "ai/src/ai/marketing/image_generation.py:119"
+    ],
+    "HUGGINGFACE_LLM_MODEL": [
+      "ai/src/ai/rag/llm_client.py:104"
+    ],
+    "HUGGINGFACE_LLM_TIMEOUT_SECONDS": [
+      "ai/src/ai/rag/llm_client.py:118"
+    ],
+    "INSIGHTS_FORECAST_TREND_THRESHOLD_PCT": [
+      "ai/src/ai/insights/cross_signal.py:48"
+    ],
+    "INSIGHTS_PRICE_GAP_THRESHOLD_PCT": [
+      "ai/src/ai/insights/cross_signal.py:43"
+    ],
+    "INSIGHTS_SALES_TREND_THRESHOLD_PCT": [
+      "ai/src/ai/insights/cross_signal.py:47"
+    ],
+    "INSIGHTS_SENTIMENT_THRESHOLD": [
+      "ai/src/ai/insights/cross_signal.py:52"
+    ],
+    "JWT_EXPIRE_MINUTES": [
+      "ai/src/ai/core/security.py:44"
+    ],
+    "JWT_SECRET": [
+      "ai/src/ai/core/rate_limit.py:48",
+      "ai/src/ai/core/security.py:36",
+      "ai/src/ai/insights/api.py:25",
+      "ai/src/ai/rag/chat_cli.py:61",
+      "ai/src/infrastructure/messaging/token_rotator.py:24",
+      "ai/src/infrastructure/security.py:11"
+    ],
+    "KEEL_CHROMIUM_PATH": [
+      "ai/src/market_scraper/market_discovery/intel.py:659"
+    ],
+    "KEEL_TEST_DISABLE_METERING": [
+      "ai/src/ai/billing/credits.py:270"
+    ],
+    "KEEL_WORKERS": [
+      "ai/src/market_scraper/supervisor.py:122"
+    ],
+    "LIVE_LLM_CALL_SPACING_SECONDS": [
+      "ai/src/ai/rag/eval/run_eval.py:66"
+    ],
+    "LOCAL_LLM_BASE_URL": [
+      "ai/src/ai/rag/llm_client.py:75"
+    ],
+    "LOCAL_LLM_TIMEOUT_SECONDS": [
+      "ai/src/ai/rag/llm_client.py:149"
+    ],
+    "LOG_LEVEL": [
+      "ai/src/ai/main.py:86"
+    ],
+    "MARKETING_AI_HORDE_MAX_WAIT_SECONDS": [
+      "ai/src/ai/marketing/image_generation.py:403"
+    ],
+    "MARKETING_BACKGROUND_REMOVAL_PROVIDER": [
+      "ai/src/ai/marketing/background_removal.py:118",
+      "ai/src/ai/marketing/background_removal.py:148",
+      "ai/src/ai/routers/marketing.py:624",
+      "ai/src/ai/routers/marketing.py:629"
+    ],
+    "MARKETING_FONT_PATH": [
+      "ai/src/ai/marketing/designed_poster.py:161"
+    ],
+    "MARKETING_IMAGE_HEIGHT": [
+      "ai/src/ai/marketing/image_generation.py:109"
+    ],
+    "MARKETING_IMAGE_KEYLESS": [
+      "ai/src/ai/marketing/image_generation.py:567"
+    ],
+    "MARKETING_IMAGE_PROVIDER": [
+      "ai/src/ai/marketing/image_generation.py:558"
+    ],
+    "MARKETING_IMAGE_PROVIDERS": [
+      "ai/src/ai/marketing/image_generation.py:557"
+    ],
+    "MARKETING_IMAGE_TIMEOUT_SECONDS": [
+      "ai/src/ai/marketing/image_generation.py:124"
+    ],
+    "MARKETING_IMAGE_TOTAL_SECONDS": [
+      "ai/src/ai/marketing/image_generation.py:526"
+    ],
+    "MARKETING_IMAGE_WIDTH": [
+      "ai/src/ai/marketing/image_generation.py:108"
+    ],
+    "MARKETING_TOKEN_RESERVATION": [
+      "ai/src/ai/routers/marketing.py:67"
+    ],
+    "MARKET_RESEARCH_USER_AGENT": [
+      "ai/src/market_scraper/competitor_mentions.py:48",
+      "ai/src/market_scraper/market_discovery/http.py:12",
+      "ai/src/market_scraper/market_discovery/providers/overture.py:107",
+      "ai/src/market_scraper/price_lookup/providers.py:42",
+      "ai/src/market_scraper/web_search.py:36"
+    ],
+    "MAX_MARKETING_IMAGE_BYTES": [
+      "ai/src/ai/marketing/background_removal.py:67",
+      "ai/src/ai/routers/marketing.py:71"
+    ],
+    "MAX_OFFICE_UNPACKED_MB": [
+      "ai/src/ai/core/office_files.py:17"
+    ],
+    "MAX_UPLOAD_SIZE_BYTES": [
+      "ai/src/ai/routers/extraction.py:34"
+    ],
+    "MENTIONS_TIMEOUT_SECONDS": [
+      "ai/src/market_scraper/competitor_mentions.py:45"
+    ],
+    "MINIO_ACCESS_KEY": [
+      "ai/src/ai/db.py:177"
+    ],
+    "MINIO_ENDPOINT": [
+      "ai/src/ai/db.py:176",
+      "ai/src/infrastructure/check_connectivity.py:22"
+    ],
+    "MINIO_ROOT_PASSWORD": [
+      "ai/src/ai/db.py:183"
+    ],
+    "MINIO_ROOT_USER": [
+      "ai/src/ai/db.py:182"
+    ],
+    "MINIO_SECRET_KEY": [
+      "ai/src/ai/db.py:178"
+    ],
+    "MPI_MIN_SAMPLE_SIZE": [
+      "ai/src/ai/mpi/cold_start.py:14"
+    ],
+    "MPI_MIN_VOLUME_FOR_FULL_CONFIDENCE": [
+      "ai/src/ai/mpi/scoring.py:36"
+    ],
+    "MPI_RECENCY_HALF_LIFE_DAYS": [
+      "ai/src/ai/mpi/scoring.py:31"
+    ],
+    "NEWS_MAX_AGE_DAYS": [
+      "ai/src/market_scraper/competitor_mentions.py:46"
+    ],
+    "NOMINATIM_URL": [
+      "ai/src/market_scraper/market_discovery/geocode.py:14",
+      "ai/src/market_scraper/market_discovery/providers/place_search.py:31"
+    ],
+    "NOTIFICATION_DIGEST_CHECK_SECONDS": [
+      "ai/src/ai/notification_digest.py:30"
+    ],
+    "NOTIFICATION_DIGEST_ENABLED": [
+      "ai/src/ai/notification_digest.py:250"
+    ],
+    "NOTIFICATION_DIGEST_FIRST_DELAY_SECONDS": [
+      "ai/src/ai/notification_digest.py:31"
+    ],
+    "NOTIFICATION_DIGEST_HOUR": [
+      "ai/src/ai/notification_digest.py:29"
+    ],
+    "OVERPASS_API_URL": [
+      "ai/src/market_scraper/market_discovery/providers/osm.py:32"
+    ],
+    "OVERPASS_API_URLS": [
+      "ai/src/market_scraper/market_discovery/providers/osm.py:32"
+    ],
+    "OVERTURE_BASE_URL": [
+      "ai/src/market_scraper/market_discovery/providers/overture.py:41"
+    ],
+    "OVERTURE_CACHE_DIR": [
+      "ai/src/market_scraper/market_discovery/providers/overture.py:42"
+    ],
+    "OVERTURE_MAX_CANDIDATES": [
+      "ai/src/market_scraper/market_discovery/providers/overture.py:45"
+    ],
+    "OVERTURE_MIN_CONFIDENCE": [
+      "ai/src/market_scraper/market_discovery/providers/overture.py:44"
+    ],
+    "OVERTURE_RELEASE": [
+      "ai/src/market_scraper/market_discovery/providers/overture.py:129"
+    ],
+    "PAID_LLM_API_KEY": [
+      "ai/src/ai/rag/llm_client.py:92"
+    ],
+    "PAID_LLM_BASE_URL": [
+      "ai/src/ai/rag/llm_client.py:91"
+    ],
+    "PAID_LLM_MODEL": [
+      "ai/src/ai/rag/llm_client.py:93"
+    ],
+    "PAID_LLM_TIMEOUT_SECONDS": [
+      "ai/src/ai/rag/llm_client.py:116"
+    ],
+    "PASSWORD_RESET_CODE_EXPIRE_MINUTES": [
+      "ai/src/ai/core/security.py:231"
+    ],
+    "PHOTON_URL": [
+      "ai/src/market_scraper/market_discovery/geocode.py:15",
+      "ai/src/market_scraper/market_discovery/providers/place_search.py:32"
+    ],
+    "PLACES_TERMS_APPROVAL_REFERENCE": [
+      "ai/src/market_scraper/competitor_enrichment.py:460"
+    ],
+    "PLACE_SEARCH_MAX_QUERIES": [
+      "ai/src/market_scraper/market_discovery/providers/place_search.py:33"
+    ],
+    "POLLINATIONS_BASE_URL": [
+      "ai/src/ai/marketing/image_generation.py:107"
+    ],
+    "POLLINATIONS_MODEL": [
+      "ai/src/ai/marketing/image_generation.py:241"
+    ],
+    "POSTGRES_DB": [
+      "ai/src/infrastructure/check_connectivity.py:15",
+      "ai/src/infrastructure/database/backup_verifier.py:28"
+    ],
+    "POSTGRES_HOST": [
+      "ai/src/infrastructure/check_connectivity.py:13",
+      "ai/src/infrastructure/database/backup_verifier.py:29"
+    ],
+    "POSTGRES_PASSWORD": [
+      "ai/src/infrastructure/check_connectivity.py:17",
+      "ai/src/infrastructure/database/backup_verifier.py:27"
+    ],
+    "POSTGRES_PORT": [
+      "ai/src/infrastructure/check_connectivity.py:14",
+      "ai/src/infrastructure/database/backup_verifier.py:30"
+    ],
+    "POSTGRES_USER": [
+      "ai/src/infrastructure/check_connectivity.py:16",
+      "ai/src/infrastructure/database/backup_verifier.py:26"
+    ],
+    "PRICE_LOOKUP_ALL_PROVIDERS": [
+      "ai/src/market_scraper/price_lookup/pipeline.py:169"
+    ],
+    "PRICE_LOOKUP_AUTO": [
+      "ai/src/market_scraper/discovery_worker.py:130"
+    ],
+    "PRICE_LOOKUP_MAX_AGE_DAYS": [
+      "ai/src/market_scraper/price_lookup/providers.py:102"
+    ],
+    "PRICE_LOOKUP_MAX_PER_RUN": [
+      "ai/src/market_scraper/price_lookup/pipeline.py:166"
+    ],
+    "PRICE_LOOKUP_PROVIDERS": [
+      "ai/src/market_scraper/price_lookup/providers.py:345"
+    ],
+    "PRICE_LOOKUP_RETRY_DAYS": [
+      "ai/src/market_scraper/price_lookup/pipeline.py:36"
+    ],
+    "PRICE_LOOKUP_TIMEOUT_SECONDS": [
+      "ai/src/market_scraper/price_lookup/providers.py:41"
+    ],
+    "PRICE_STALE_AFTER_DAYS": [
+      "ai/src/market_scraper/price_coverage.py:42"
+    ],
+    "PRICING_COMPETITIVENESS_THRESHOLD_PCT": [
+      "ai/src/ai/pricing/recommendation.py:18"
+    ],
+    "PRICING_DEFAULT_REGIONAL_FACTOR": [
+      "ai/src/ai/pricing/estimation.py:44"
+    ],
+    "PRICING_MAX_CHANGE_PCT": [
+      "ai/src/ai/pricing/guardrails.py:21"
+    ],
+    "PRICING_MAX_PRICE_AGE_DAYS": [
+      "ai/src/ai/pricing/data_access.py:24"
+    ],
+    "PRICING_MIN_COMPETITORS_FOR_CONFIDENCE": [
+      "ai/src/ai/pricing/recommendation.py:22"
+    ],
+    "PRICING_MIN_MARGIN_PCT": [
+      "ai/src/ai/pricing/guardrails.py:22"
+    ],
+    "RAG_CHUNK_OVERLAP_WORDS": [
+      "ai/src/ai/rag/chunking.py:13"
+    ],
+    "RAG_CHUNK_SIZE_WORDS": [
+      "ai/src/ai/rag/chunking.py:12"
+    ],
+    "RAG_EMBEDDING_BACKEND": [
+      "ai/src/ai/rag/embeddings.py:52"
+    ],
+    "RAG_EMBEDDING_MAX_SEQ_LENGTH": [
+      "ai/src/ai/rag/embeddings.py:69"
+    ],
+    "RAG_EMBEDDING_MODEL": [
+      "ai/src/ai/rag/embeddings.py:33"
+    ],
+    "RAG_EMBEDDING_ONNX_FILE": [
+      "ai/src/ai/rag/embeddings.py:62"
+    ],
+    "RAG_EMBEDDING_ONNX_THREADS": [
+      "ai/src/ai/rag/embeddings.py:64"
+    ],
+    "RAG_EMBEDDING_RETRY_SECONDS": [
+      "ai/src/ai/rag/embeddings.py:79"
+    ],
+    "RAG_MAX_HISTORY_JSON_LENGTH": [
+      "ai/src/ai/routers/rag.py:46"
+    ],
+    "RAG_MAX_HISTORY_MESSAGES": [
+      "ai/src/ai/rag/llm_client.py:244"
+    ],
+    "RAG_MAX_QUERY_TEXT_LENGTH": [
+      "ai/src/ai/routers/rag.py:37"
+    ],
+    "RAG_MIN_CONFIDENCE_SCORE": [
+      "ai/src/ai/rag/pipeline.py:80"
+    ],
+    "RAG_RERANKER_ENABLED": [
+      "ai/src/ai/rag/pipeline.py:74"
+    ],
+    "RAG_RERANKER_MODEL": [
+      "ai/src/ai/rag/reranking.py:30"
+    ],
+    "RAG_SEMANTIC_MARGIN": [
+      "ai/src/ai/rag/advisor.py:225"
+    ],
+    "RAG_SEMANTIC_MIN_SIMILARITY": [
+      "ai/src/ai/rag/advisor.py:224"
+    ],
+    "RAG_STATIC_EMBEDDING_DIM": [
+      "ai/src/ai/rag/embeddings.py:55"
+    ],
+    "RAG_STATIC_EMBEDDING_DIR": [
+      "ai/src/ai/rag/embeddings.py:56"
+    ],
+    "RAG_STATIC_EMBEDDING_MODEL": [
+      "ai/src/ai/rag/embeddings.py:54"
+    ],
+    "RAG_TOKEN_RESERVATION": [
+      "ai/src/ai/core/usage.py:71"
+    ],
+    "REDIS_HOST": [
+      "ai/src/ai/core/redis_client.py:38",
+      "ai/src/infrastructure/check_connectivity.py:19",
+      "ai/src/infrastructure/init_broker.py:8",
+      "ai/src/infrastructure/messaging/ai_consumer.py:15",
+      "ai/src/infrastructure/messaging/app_consumer.py:21",
+      "ai/src/infrastructure/messaging/producer.py:33",
+      "ai/src/infrastructure/messaging/token_rotator.py:19",
+      "ai/src/infrastructure/monitoring/watchdog.py:25"
+    ],
+    "REDIS_PASSWORD": [
+      "ai/src/ai/core/redis_client.py:40"
+    ],
+    "REDIS_PORT": [
+      "ai/src/ai/core/redis_client.py:39",
+      "ai/src/infrastructure/check_connectivity.py:20",
+      "ai/src/infrastructure/init_broker.py:9",
+      "ai/src/infrastructure/messaging/ai_consumer.py:16",
+      "ai/src/infrastructure/messaging/app_consumer.py:22",
+      "ai/src/infrastructure/messaging/producer.py:34",
+      "ai/src/infrastructure/messaging/token_rotator.py:20",
+      "ai/src/infrastructure/monitoring/watchdog.py:26"
+    ],
+    "REDIS_TLS": [
+      "ai/src/ai/core/redis_client.py:41"
+    ],
+    "REDIS_URL": [
+      "ai/src/ai/core/redis_client.py:30",
+      "ai/src/market_scraper/analysis_worker.py:110",
+      "ai/src/market_scraper/discovery_worker.py:193",
+      "ai/src/market_scraper/enqueue.py:80",
+      "ai/src/market_scraper/enrichment_worker.py:137",
+      "ai/src/market_scraper/persistence.py:97",
+      "ai/src/market_scraper/worker.py:86"
+    ],
+    "REMBG_MODEL": [
+      "ai/src/ai/marketing/background_removal.py:65"
+    ],
+    "RENDER_GIT_COMMIT": [
+      "ai/src/infrastructure/monitoring/error_tracking.py:57"
+    ],
+    "REQUIRE_EMAIL_VERIFICATION": [
+      "ai/src/ai/core/security.py:57"
+    ],
+    "RESEARCH_DAILY_SEARCH_LIMIT": [
+      "ai/src/ai/research/research.py:43"
+    ],
+    "RESEARCH_MAX_PAGES": [
+      "ai/src/ai/research/research.py:47"
+    ],
+    "RESEARCH_PAGE_MAX_BYTES": [
+      "ai/src/ai/research/page_reader.py:39"
+    ],
+    "RESEARCH_PAGE_RETENTION_DAYS": [
+      "ai/src/ai/research/research.py:50"
+    ],
+    "RESEARCH_PAGE_TIMEOUT_SECONDS": [
+      "ai/src/ai/research/page_reader.py:38"
+    ],
+    "RESEARCH_TENANT_DAILY_SEARCH_LIMIT": [
+      "ai/src/ai/research/research.py:44"
+    ],
+    "RESEARCH_USER_AGENT": [
+      "ai/src/ai/research/page_reader.py:37"
+    ],
+    "RETAILER_INTERNATIONAL_DOMAINS": [
+      "ai/src/market_scraper/retailer_geo.py:28"
+    ],
+    "SCRAPER_ACTOR_USER_ID": [
+      "ai/src/market_scraper/competitor_enrichment.py:467",
+      "ai/src/market_scraper/competitor_enrichment.py:745",
+      "ai/src/market_scraper/data_access.py:44",
+      "ai/src/market_scraper/discovery_worker.py:86"
+    ],
+    "SCRAPER_CLAIM_IDLE_MS": [
+      "ai/src/market_scraper/worker.py:22"
+    ],
+    "SCRAPER_DATABASE_URL": [
+      "ai/src/market_scraper/data_access.py:27",
+      "ai/src/market_scraper/maintenance.py:46"
+    ],
+    "SCRAPER_DB_POOL_MAX_SIZE": [
+      "ai/src/market_scraper/data_access.py:31"
+    ],
+    "SCRAPER_DB_POOL_MIN_SIZE": [
+      "ai/src/market_scraper/data_access.py:30"
+    ],
+    "SCRAPER_DEAD_STREAM_KEY": [
+      "ai/src/market_scraper/worker.py:19"
+    ],
+    "SCRAPER_MAINTENANCE_INTERVAL_SECONDS": [
+      "ai/src/market_scraper/maintenance.py:50"
+    ],
+    "SCRAPER_MAINTENANCE_METRICS_PORT": [
+      "ai/src/market_scraper/maintenance.py:51"
+    ],
+    "SCRAPER_MAX_ATTEMPTS": [
+      "ai/src/market_scraper/worker.py:21"
+    ],
+    "SCRAPER_METRICS_PORT": [
+      "ai/src/market_scraper/worker.py:84"
+    ],
+    "SCRAPER_STALE_JOB_MINUTES": [
+      "ai/src/market_scraper/cli.py:18",
+      "ai/src/market_scraper/maintenance.py:49"
+    ],
+    "SCRAPER_STREAM_KEY": [
+      "ai/src/market_scraper/enqueue.py:83",
+      "ai/src/market_scraper/worker.py:18"
+    ],
+    "SCRAPER_USER_AGENT": [
+      "ai/src/market_scraper/settings.py:10"
+    ],
+    "SEARXNG_INSTANCE_URL": [
+      "ai/src/market_scraper/searxng_discovery.py:59",
+      "ai/src/market_scraper/web_search.py:114",
+      "ai/src/market_scraper/web_search.py:147"
+    ],
+    "SENTIMENT_BATCH_SIZE": [
+      "ai/src/ai/sentiment/model.py:28"
+    ],
+    "SENTIMENT_MAX_TOKENS": [
+      "ai/src/ai/sentiment/model.py:29"
+    ],
+    "SENTIMENT_MIN_SAMPLE_SIZE": [
+      "ai/src/ai/sentiment/cold_start.py:14"
+    ],
+    "SENTIMENT_MODEL": [
+      "ai/src/ai/sentiment/model.py:27"
+    ],
+    "SENTIMENT_MODEL_RETRY_SECONDS": [
+      "ai/src/ai/sentiment/model.py:36"
+    ],
+    "SENTRY_DSN": [
+      "ai/src/infrastructure/monitoring/error_tracking.py:46"
+    ],
+    "SENTRY_ENVIRONMENT": [
+      "ai/src/infrastructure/monitoring/error_tracking.py:56"
+    ],
+    "SENTRY_RELEASE": [
+      "ai/src/infrastructure/monitoring/error_tracking.py:57"
+    ],
+    "SENTRY_TRACES_SAMPLE_RATE": [
+      "ai/src/infrastructure/monitoring/error_tracking.py:59"
+    ],
+    "SERPAPI_API_KEY": [
+      "ai/src/market_scraper/price_lookup/providers.py:315",
+      "ai/src/market_scraper/price_lookup/providers.py:318"
+    ],
+    "SESSION_MAX_HOURS": [
+      "ai/src/ai/core/security.py:47"
+    ],
+    "SMTP_HOST": [
+      "ai/src/ai/core/notifications.py:33"
+    ],
+    "SMTP_PASSWORD": [
+      "ai/src/ai/core/notifications.py:36"
+    ],
+    "SMTP_PORT": [
+      "ai/src/ai/core/notifications.py:34"
+    ],
+    "SMTP_USERNAME": [
+      "ai/src/ai/core/notifications.py:35"
+    ],
+    "SMTP_USE_TLS": [
+      "ai/src/ai/core/notifications.py:37"
+    ],
+    "STORE_CONNECTOR_SERVICE_SECRET": [
+      "ai/src/ai/connectors/app.py:65"
+    ],
+    "STRIPE_AUTOMATIC_TAX": [
+      "ai/src/ai/billing/config.py:31"
+    ],
+    "STRIPE_SECRET_KEY": [
+      "ai/src/ai/billing/config.py:11"
+    ],
+    "STRIPE_WEBHOOK_SECRET": [
+      "ai/src/ai/billing/config.py:15"
+    ],
+    "TAVILY_API_KEY": [
+      "ai/src/market_scraper/web_search.py:109",
+      "ai/src/market_scraper/web_search.py:142"
+    ],
+    "TEAM_INVITATION_EXPIRE_MINUTES": [
+      "ai/src/ai/core/security.py:233"
+    ],
+    "TENANT_CACHE_MAX_ENTRIES": [
+      "ai/src/ai/core/tenant_cache.py:33"
+    ],
+    "TENANT_CACHE_TTL_SECONDS": [
+      "ai/src/ai/core/tenant_cache.py:32"
+    ],
+    "TENANT_TIMEZONE_TTL_SECONDS": [
+      "ai/src/infrastructure/db_pool.py:79"
+    ],
+    "TOGETHER_IMAGE_MODEL": [
+      "ai/src/ai/marketing/image_generation.py:413"
+    ],
+    "TOGETHER_URL": [
+      "ai/src/ai/marketing/image_generation.py:400"
+    ],
+    "TRIAL_PLAN_KEY": [
+      "ai/src/ai/billing/config.py:27"
+    ],
+    "UNASSIGNED_PLAN_ACCESS": [
+      "ai/src/ai/core/usage.py:136"
+    ],
+    "WEB_SEARCH_MAX_QUERIES_PER_RUN": [
+      "ai/src/market_scraper/market_discovery/providers/web_search.py:22"
+    ],
+    "WEB_SEARCH_PROVIDERS": [
+      "ai/src/market_scraper/web_search.py:166"
+    ],
+    "WEB_SEARCH_TIMEOUT_SECONDS": [
+      "ai/src/market_scraper/web_search.py:35"
+    ],
+    "WIKIDATA_API_URL": [
+      "ai/src/market_scraper/market_discovery/providers/wikidata.py:28"
+    ],
+    "WIKIDATA_MAX_QUERIES": [
+      "ai/src/market_scraper/market_discovery/providers/wikidata.py:29"
+    ],
+    "YOUTUBE_API_KEY": [
+      "ai/src/market_scraper/competitor_enrichment.py:738"
+    ]
+  }
+}

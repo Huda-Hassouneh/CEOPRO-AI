@@ -1,28 +1,14 @@
-import { FileText, RotateCw } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { FileText, Trash2,RefreshCw } from 'lucide-react';
 import { DocumentStatusBadge } from './DocumentStatusBadge.jsx';
-import { knowledgeBaseApi } from '../api/knowledgeBaseApi.js';
 
-// A failed document (e.g. uploaded while search indexing was unavailable)
-// can be processed again with Retry.
-export function KnowledgeBaseDocumentRow({ document, t, formatDate, formatSize }) {
-  const queryClient = useQueryClient();
-  const retry = useMutation({
-    mutationFn: () => knowledgeBaseApi.retryDocument(document.id),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['knowledge-documents'] }),
-  });
+export function KnowledgeBaseDocumentRow({ document, t, formatDate, formatSize, actions = [], onDelete, deleting = false,onReindex,reindexing=false }) {
   return <li className="rag-document-row">
     <span className="rag-document-row__icon"><FileText size={18} aria-hidden="true" /></span>
-    <div className="rag-document-row__copy">
-      <strong title={document.name}>{document.name}</strong>
-      <span>{[document.uploadedAt && formatDate(document.uploadedAt), document.size != null && formatSize(document.size)].filter(Boolean).join(' · ')}</span>
-      <DocumentStatusBadge status={retry.isPending ? 'processing' : document.status} t={t} />
-      {retry.isError && <small className="apex-field-error">{t('ragAssistant.documents.retryFailed')}</small>}
+    <div className="rag-document-row__copy"><strong title={document.name}>{document.name}</strong><span>{[document.uploadedAt && formatDate(document.uploadedAt), document.size != null && formatSize(document.size)].filter(Boolean).join(' · ')}</span><DocumentStatusBadge status={document.status} t={t} />
+      {document.searchState&&<small>{t(`ragAssistant.search.${document.searchState}`)}</small>}
     </div>
-    {document.status === 'failed' && (
-      <button type="button" className="rag-document-row__menu" onClick={() => retry.mutate()} disabled={retry.isPending} aria-label={t('ragAssistant.documents.retry', { name: document.name })} title={t('ragAssistant.documents.retry', { name: document.name })}>
-        <RotateCw size={16} className={retry.isPending ? 'apex-rotating' : ''} />
-      </button>
-    )}
+    {document.canDelete&&onReindex&&<button type="button" className="rag-document-row__menu" disabled={deleting||reindexing} onClick={()=>onReindex(document)} aria-label={t('ragAssistant.search.reindex',{name:document.name})}><RefreshCw size={17}/></button>}
+    {document.canDelete && onDelete && <button type="button" className="rag-document-row__menu" disabled={deleting}
+      onClick={() => onDelete(document)} aria-label={t('ragAssistant.documents.delete', {name:document.name})}><Trash2 size={17} /></button>}
   </li>;
 }

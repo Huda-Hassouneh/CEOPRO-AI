@@ -1,4 +1,5 @@
-import { useId, useState } from 'react';
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import React, { useId, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import Input from './Input.jsx';
 
@@ -10,10 +11,13 @@ export default function PasswordInput({
   className = '',
   inputClassName = '',
   disabled = false,
-  showPasswordLabel = 'Show password',
-  hidePasswordLabel = 'Hide password',
+  showPasswordLabel,
+  hidePasswordLabel,
   ...props
 }) {
+  const { t: copyT } = useI18n();
+  showPasswordLabel ??= copyT("auth.common.showPassword");
+  hidePasswordLabel ??= copyT("auth.common.hidePassword");
   const generatedId = useId();
   const inputId = id || `ceopro-password-${generatedId.replace(/:/g, '')}`;
   const [showPassword, setShowPassword] = useState(false);

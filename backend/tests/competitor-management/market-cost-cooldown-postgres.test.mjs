@@ -1,0 +1,40 @@
+import test,{mock} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {PrismaPg} from '@prisma/adapter-pg';
+import {PrismaClient} from '../../src/generated/prisma/client.ts';
+import {isolatedDatabase,tenantFixture} from '../isolated/database.mjs';
+let publishes=0;
+mock.module('../../src/modules/competitors/client/market-cost-guard.client.ts',{namedExports:{collectionCostDecision:async()=>({allowed:false,reason:'Product margin 0.65 is below the 1.00 floor'})}});
+mock.module('../../src/modules/competitors/client/market-redis.client.ts',{namedExports:{publishMarketEvent:async()=>{publishes++;return 'test-1';}}});
+const {scheduleMarketSources,dispatchMarketEvent}=await import('../../src/modules/competitors/repo/market-dispatcher.repo.ts');
+test('restricted dispatcher retains cost denial evidence and waits for cadence; other cancellations do not block restored sources',async()=>{
+ const f=await isolatedDatabase('ceopro_market_dispatcher');let prisma;
+ try {
+  const a=await tenantFixture(f.db),competitor=randomUUID(),source=randomUUID();
+  await f.db.exec(`INSERT INTO features(feature_code,feature_name,feature_name_ar,feature_type) VALUES('competitor_management','Competitors','Competitors','boolean') ON CONFLICT DO NOTHING`);
+  await f.db.exec(`INSERT INTO features(feature_code,feature_name,feature_name_ar,feature_type,aggregation_type,reset_cycle) VALUES('tracked_competitors','Tracked','Tracked','limit','max','lifetime'),('connected_data_sources','Sources','Sources','limit','max','lifetime') ON CONFLICT DO NOTHING`);
+  await f.db.query(`INSERT INTO plan_features(plan_id,feature_id,metadata) SELECT $1,feature_id,'{"configuration":{"monitoringFrequencyMinutes":60}}' FROM features WHERE feature_code='competitor_management'`,[a.planId]);
+  await f.db.query(`INSERT INTO plan_features(plan_id,feature_id,limit_value) SELECT $1,feature_id,10 FROM features WHERE feature_code IN ('tracked_competitors','connected_data_sources')`,[a.planId]);
+  await f.db.query("INSERT INTO global_competitors(global_competitor_id,competitor_name) VALUES($1,'Cost fixture')",[competitor]);
+  await f.db.query('INSERT INTO tenant_competitors(tenant_id,global_competitor_id) VALUES($1,$2)',[a.tenantId,competitor]);
+  await f.db.query(`INSERT INTO data_sources(source_id,tenant_id,source_name,source_type,source_url,collection_method,collector_key,policy_status,approval_reference,approved_by,approved_at,privacy_reviewed_at) VALUES($1,$2,'Cost fixture','website','https://cost.example.test/tea','STRUCTURED_DATA','standards','ALLOWED','isolated permission',$3,now(),now())`,[source,a.tenantId,a.userId]);
+  await f.db.query(`INSERT INTO competitor_product_mappings(tenant_id,global_competitor_id,product_id,source_id,competitor_product_url,comparison_confirmed) VALUES($1,$2,$3,$4,'https://cost.example.test/tea',true)`,[a.tenantId,competitor,a.productId,source]);
+  await f.role('ceopro_market_dispatcher');
+  prisma=new PrismaClient({adapter:new PrismaPg({connectionString:f.url})});
+  assert.equal(await scheduleMarketSources(prisma),1);
+  const denied=await dispatchMarketEvent(prisma,'redis://unused');
+  assert.equal(denied.errorCode,'COST_MARGIN_BLOCKED');assert.equal(denied.sourceId,source);assert.match(denied.reason,/margin 0.65/);assert.equal(publishes,0);
+  const stored=(await f.db.query('SELECT worker_result FROM market_tracking_outbox WHERE event_id=$1',[denied.eventId])).rows[0];
+  assert.equal(stored.worker_result.cost_guard_reason,denied.reason);
+  assert.equal(await scheduleMarketSources(prisma),0,'Do not recreate a recently cost-denied automatic request');
+  assert.equal(await dispatchMarketEvent(prisma,'redis://unused'),null);
+  const {requestCollection}=await import('../../src/modules/competitors/repo/market-tracking.requests.ts');
+  assert.equal(await prisma.$transaction(tx=>requestCollection(tx,a.tenantId,source,60,true,'race-cost-check')),null,'Request-time check also respects cooldown');
+  await f.db.query("UPDATE market_tracking_outbox SET created_at=now()-interval '61 minutes',dedupe_key=dedupe_key||':past-interval' WHERE event_id=$1",[denied.eventId]);
+  assert.equal(await scheduleMarketSources(prisma),1,'Reevaluate cost when the monitoring interval expires');
+  const second=await dispatchMarketEvent(prisma,'redis://unused');assert.equal(second.errorCode,'COST_MARGIN_BLOCKED');
+  await f.db.query("UPDATE market_tracking_outbox SET last_error_code='NO_LONGER_ELIGIBLE',dedupe_key=dedupe_key||':old' WHERE event_id=$1",[second.eventId]);
+  assert.equal(await scheduleMarketSources(prisma),1,'An eligibility cancellation does not keep a restored source blocked');
+ } finally {if(prisma)await prisma.$disconnect();await f.close();}
+});

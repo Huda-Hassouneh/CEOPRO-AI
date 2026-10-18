@@ -1,0 +1,47 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel@0.1.0 test:competitor-boundary
+> npm --prefix backend run test:competitor-boundary && npm --prefix frontend run test:competitor-boundary && node scripts/verify-team-competitors.mjs
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-backend@1.0.0 test:competitor-boundary
+> node --import tsx --experimental-test-module-mocks --test tests/competitor-management/bridge-*.test.mjs
+
+✔ disabled producers and dispatcher perform no DB or Redis work even with old env enabled (1.635987ms)
+✔ both root launchers and direct dispatcher exit before loading runtime DB configuration (296.844326ms)
+✔ forward migration stops automatic imports from queuing custom work, retains data and tenant RLS (2555.838663ms)
+(node:40) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ every dependent service and authenticated HTTP operation rejects before repository calls (2.015787ms)
+✔ directory reads and alias editing retain their existing HTTP contracts (1.86143ms)
+(node:46) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:46) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ hidden market notifications are excluded before pagination and unread count without filtering other categories (1.459536ms)
+✔ old market outbox events finish without creating a visible notification (0.247005ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3179.886762
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-frontend@0.1.0 test:competitor-boundary
+> node --import ./scripts/register-jsx-tests.mjs --test tests/competitor-bridge-disabled-render.test.mjs
+
+✔ withdrawn worker interfaces render nothing without mounting query hooks (3.80567ms)
+✔ direct frontend mutation attempts reject before invoking HTTP (1.217749ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 562.580541
+Team competitor parity verified: 170 byte-identical files; no custom scraper files remain.

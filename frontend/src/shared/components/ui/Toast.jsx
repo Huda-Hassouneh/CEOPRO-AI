@@ -1,3 +1,5 @@
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import React from 'react';
 
 export default function Toast({ 
   message,
@@ -6,17 +8,18 @@ export default function Toast({
   className = '',
   ...props
 }) {
+  const { t: copyT } = useI18n();
   const getVariantStyles = () => {
     switch (variant) {
       case 'error':
-        return { backgroundColor: 'var(--apex-glass-solid)', color: 'var(--apex-text)', borderInlineStart: '4px solid var(--apex-danger)' };
+        return { backgroundColor: 'var(--ceopro-error)', color: 'var(--ceopro-surface)' };
       case 'warning':
-        return { backgroundColor: 'var(--apex-glass-solid)', color: 'var(--apex-text)', borderInlineStart: '4px solid var(--apex-warning)' };
+        return { backgroundColor: 'var(--ceopro-warning)', color: 'var(--ceopro-surface)' };
       case 'info':
-        return { backgroundColor: 'var(--apex-glass-solid)', color: 'var(--apex-text)', borderInlineStart: '4px solid var(--apex-info)' };
+        return { backgroundColor: 'var(--ceopro-info)', color: 'var(--ceopro-surface)' };
       case 'success':
       default:
-        return { backgroundColor: 'var(--apex-glass-solid)', color: 'var(--apex-text)', borderInlineStart: '4px solid var(--apex-success)' };
+        return { backgroundColor: 'var(--ceopro-success)', color: 'var(--ceopro-surface)' };
     }
   };
 
@@ -26,10 +29,7 @@ export default function Toast({
     justifyContent: 'space-between',
     padding: 'var(--ceopro-space-3) var(--ceopro-space-4)',
     borderRadius: 'var(--ceopro-radius-sm)',
-    boxShadow: 'var(--apex-glass-highlight), var(--apex-shadow-hover)',
-    backdropFilter: 'var(--apex-blur)',
-    border: '1px solid var(--apex-glass-border-strong)',
-    animation: 'apex-pop 320ms var(--apex-ease) both',
+    boxShadow: 'var(--ceopro-shadow-lg)',
     fontFamily: 'var(--ceopro-font-family)',
     fontSize: '14px',
     fontWeight: '500',
@@ -48,7 +48,7 @@ export default function Toast({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Dismiss notification"
+          aria-label={copyT("interfaceCopy.dismissNotification")}
           style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '16px', marginInlineStart: 'var(--ceopro-space-3)', padding: 0 }}
         >
           &times;

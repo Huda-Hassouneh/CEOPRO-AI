@@ -1,0 +1,75 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel@0.1.0 test:merge
+> npm --prefix frontend run verify:i18n && npm --prefix frontend run test:connected-data-sources && npm run test:competitor-boundary
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-frontend@0.1.0 verify:i18n
+> node scripts/verify-i18n.mjs
+
+Translation check passed: 4333 keys per language; 2864 static calls; matching placeholders.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-frontend@0.1.0 test:connected-data-sources
+> node --test tests/connected-data-sources-feature.test.mjs
+
+✔ connected-source page shows used, remaining, and over-limit capacity (0.945306ms)
+✔ persistent registrations are entitlement-gated while manual uploads bypass source-slot gating (0.437606ms)
+✔ disconnect uses the authenticated API and confirms before clearing credentials (0.17611ms)
+✔ English and Arabic copy explains capacity, downgrade recovery, and credential removal (0.140177ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 113.025974
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel@0.1.0 test:competitor-boundary
+> npm --prefix backend run test:competitor-boundary && npm --prefix frontend run test:competitor-boundary && node scripts/verify-team-competitors.mjs
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-backend@1.0.0 test:competitor-boundary
+> node --import tsx --experimental-test-module-mocks --test tests/competitor-management/bridge-*.test.mjs
+
+✔ disabled producers and dispatcher perform no DB or Redis work even with old env enabled (1.259069ms)
+✔ both root launchers and direct dispatcher exit before loading runtime DB configuration (318.175819ms)
+✔ forward migration stops automatic imports from queuing custom work, retains data and tenant RLS (2258.941751ms)
+(node:122) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:122) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ every dependent service and authenticated HTTP operation rejects before repository calls (2.32204ms)
+✔ directory reads and alias editing retain their existing HTTP contracts (1.996229ms)
+(node:123) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:123) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ hidden market notifications are excluded before pagination and unread count without filtering other categories (1.863302ms)
+✔ old market outbox events finish without creating a visible notification (0.341625ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2918.383862
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-frontend@0.1.0 test:competitor-boundary
+> node --import ./scripts/register-jsx-tests.mjs --test tests/competitor-bridge-disabled-render.test.mjs
+
+✔ withdrawn worker interfaces render nothing without mounting query hooks (4.440523ms)
+✔ direct frontend mutation attempts reject before invoking HTTP (1.20625ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 550.283504
+Team competitor parity verified: 170 byte-identical files; no custom scraper files remain.

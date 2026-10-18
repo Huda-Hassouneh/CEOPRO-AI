@@ -1,0 +1,49 @@
+@font-face {
+  font-family: 'KEEL Sora';
+  src: url('../../../assets/fonts/Sora-ExtraBold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+
+.keel-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--keel-logo-size) * 0.12);
+  flex: 0 0 auto;
+  vertical-align: middle;
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
+.keel-logo__symbol {
+  position: relative;
+  display: inline-block;
+  width: calc(var(--keel-logo-size) * 816 / 849);
+  height: var(--keel-logo-size);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+/* Frame the source PNG's transparent margins without altering its pixels. */
+.keel-logo__symbol img {
+  position: absolute;
+  width: 217.402%;
+  max-width: none;
+  height: auto;
+  left: -62.01%;
+  top: -4.476%;
+}
+
+.keel-logo .keel-logo__wordmark {
+  font-family: 'KEEL Sora', sans-serif;
+  font-size: calc(var(--keel-logo-size) * 0.64);
+  font-style: normal;
+  font-weight: 800;
+  font-synthesis: none;
+  line-height: 1;
+  letter-spacing: 0.025em;
+  color: #435480;
+  transform: translateY(calc(var(--keel-logo-size) * -0.045));
+}

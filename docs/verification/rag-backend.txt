@@ -1,0 +1,232 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-backend@1.0.0 test:rag-integrity
+> node --import tsx --experimental-test-module-mocks --test tests/rag/rag-answer-validation.test.ts tests/rag/rag-integrity-postgres.test.mjs tests/rag/rag-chat-http-postgres.test.mjs && node --test tests/rag/rag-assistant-contract.test.mjs && node --import tsx --test ../frontend/tests/rag-citations-render.test.mjs
+
+✔ provider usage must be positive, finite, integral and internally consistent (1.253502ms)
+✔ evidence validation accepts formatting differences, never fabricated passages (0.337749ms)
+✔ history cannot inject system roles and has bounded messages/context size (3.227068ms)
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+(node:56) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+[login] user found: true
+[login] password valid: true
+[login] user found: true
+[login] password valid: true
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+[RagController] Error [RagServiceError]: Document text could not be read. Check the format, encryption and extraction limits.
+    at createRagServiceError (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:45:17)
+    at uploadRagDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:154:47)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async uploadDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/controller/rag.controller.ts:233:20) {
+  code: 'INVALID_FILE_UPLOAD',
+  detail: undefined
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: {
+    success: true,
+    data: {
+      query_text: 'What does Zephyr delivery cost?',
+      top_k: 5,
+      request_id: 'f210c52e-5ea8-4788-ae19-83f2e2c1249c'
+    }
+  }
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '7f2fa28e-ee9c-4350-bb59-dfb2a8f87628' }
+[RagController] Error [RagServiceError]: Citation chunk not found or access denied.
+    at createRagServiceError (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:45:17)
+    at getRagChunkDetail (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:315:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getChunk (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/controller/rag.controller.ts:301:20) {
+  code: 'NOT_FOUND',
+  detail: undefined
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+[RagController] Error [RagServiceError]: Citation not found.
+    at createRagServiceError (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:45:17)
+    at getRagChunkDetail (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:312:58)
+    at getChunk (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/controller/rag.controller.ts:301:26)
+    at Layer.handleRequest (/workspace/scratch/90c9d609e82f/handoff-work/install-check/node_modules/router/lib/layer.js:152:17)
+    at next (/workspace/scratch/90c9d609e82f/handoff-work/install-check/node_modules/router/lib/route.js:157:13)
+    at <anonymous> (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/middleware/validators/validateFeatures.ts:60:7)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  code: 'NOT_FOUND',
+  detail: undefined
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+[login] user found: true
+[login] password valid: true
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '7f2fa28e-ee9c-4350-bb59-dfb2a8f87628' }
+[RagController] RagChatError: SESSION_NOT_FOUND
+    at <anonymous> (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/repo/rag-chat.repo.ts:65:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Proxy._transactionWithCallback (/workspace/scratch/90c9d609e82f/handoff-work/install-check/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:861:18)
+    at async getSession (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/controller/rag.controller.ts:179:32) {
+  code: 'SESSION_NOT_FOUND'
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: {
+    success: true,
+    data: {
+      query_text: 'What does Zephyr delivery cost?',
+      top_k: 5,
+      session_id: 'dd2b7933-36b6-46f9-8a9f-f94cf03adffa',
+      request_id: '7a55523e-e94f-4280-ad21-8fa4d987a831'
+    }
+  }
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: {
+    success: true,
+    data: {
+      query_text: 'What does Zephyr delivery cost?',
+      top_k: 5,
+      request_id: 'f210c52e-5ea8-4788-ae19-83f2e2c1249c'
+    }
+  }
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: {
+    success: true,
+    data: {
+      query_text: 'What does Zephyr delivery cost?',
+      top_k: 5,
+      request_id: 'ad3b50fd-1398-4040-8995-e90969f6490c'
+    }
+  }
+}
+[RagController] Error [RagServiceError]: RAG token allowance is insufficient.
+    at createRagServiceError (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:45:17)
+    at queryRag (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:248:74)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async queryAssistant (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/controller/rag.controller.ts:262:20) {
+  code: 'USAGE_EXCEEDED',
+  detail: undefined
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '7f2fa28e-ee9c-4350-bb59-dfb2a8f87628' }
+[RagController] Error [RagServiceError]: Document not found or externally managed.
+    at createRagServiceError (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:45:17)
+    at reindexRagDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:330:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async reindexDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/controller/rag.controller.ts:167:32) {
+  code: 'NOT_FOUND',
+  detail: undefined
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: { success: true, data: { search: 'POLICY', sort: 'oldest' } }
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: { success: true, data: { page: 1, type: 'application/pdf' } }
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: { success: true, data: { page: 2, type: 'application/pdf' } }
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: { success: true, data: { page: 3, type: 'application/pdf' } }
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{
+  result: { success: true, data: { page: 4, type: 'application/pdf' } }
+}
+PASS all 12 supplied market PDFs through authenticated multipart upload and restricted-role indexing
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+[RagController] RagDocumentProcessingError: The server could not run its PDF text extractor.
+    at extractSearchContent (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag-search-text.ts:117:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async uploadRagDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:153:25)
+    at async uploadDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/controller/rag.controller.ts:233:20) {
+  [cause]: Error: PDF worker unavailable (regression fixture)
+      at getDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/tests/rag/rag-chat-http-postgres.test.mjs:71:93)
+      at extractSearchContent (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag-search-text.ts:102:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async uploadRagDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/service/rag.service.ts:153:25)
+      at async uploadDocument (/workspace/scratch/90c9d609e82f/competitor-review/revised/keel/backend/src/modules/rag/controller/rag.controller.ts:233:20)
+}
+{ userId: '72b19265-cb92-412e-a3e5-e9e5c8e8b08e' }
+{ result: { success: true, data: {} } }
+PASS actual HTTP authorization, upload/index, private sessions, citation identity/detail, zero-budget idempotent replay, quota rejection, corruption rejection, reindex and deletion
+✔ real HTTP login, multipart upload, saved chat, citations, quota replay and reindex under ceopro_app (7078.171303ms)
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+(node:57) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+PASS actual restricted-role ledger, idempotent replay, private history, forged citations, valid usage, release-on-failure, pending quota contention, late response rejection, original-allocation settlement and removed-source invalidation
+✔ RAG accounting, private history, retries, citations and source lifecycle under the restricted runtime role (5422.313793ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7610.433751
+✔ active web query is Node + hosted Gradio rag_answer, not AI FastAPI indexed RAG (1.043011ms)
+✔ Node query constructs Gradio documents, question, top_k and optional history with bounded timeout (0.164603ms)
+✔ document extraction, retained storage, and RAG token usage are distinct meters (0.336547ms)
+✔ standard plan token entitlements match the approved billing-period allowances (0.521029ms)
+✔ subscription plan feature lookup supplies custom limits and backend authorization (0.261687ms)
+✔ RAG supported extension list and upload byte boundary are explicit (0.229479ms)
+✔ original upload bytes persist in tenant-scoped PostgreSQL BYTEA transactions (0.187267ms)
+✔ citation chunk lookup and persistence are tenant-scoped and transaction-bound (0.226274ms)
+✔ query candidates are tenant-filtered and ranked by relevance before recency (0.251051ms)
+✔ token parser prefers provider totals then floors valid component sums (0.366061ms)
+✔ fictional evaluation corpus covers five answerable questions, abstention, and supported file signatures (1.552413ms)
+✔ AI-team pipeline uses tenant-keyed indexed retrieval, embeddings, hybrid search, and reranking (0.120308ms)
+✔ regression: frontend RAG file-size claims must respect the backend 2 MiB boundary (0.148099ms)
+✔ regression: uploaded documents must not claim indexed readiness before indexing completes (0.175389ms)
+✔ regression: Knowledge Base status UI must show the API processed_status (0.109702ms)
+✔ regression: citations must preserve document ID, chunk ID, real filename, and evidence excerpt (0.116883ms)
+✔ regression: unknown model-generated citations must be rejected instead of returned as evidence (0.110924ms)
+✔ regression: token allowance must be reserved before upstream generation to avoid overspend races (0.143442ms)
+✔ regression: successful answers without provider usage metadata must not be silently unmetered (0.276058ms)
+✔ regression: chat UI must submit supported history or explicitly persist sessions (0.08773ms)
+✔ regression: RAG ranks the eligible corpus before enforcing the provider request limit (0.074651ms)
+✔ regression: upload validation must check file signatures and reject corrupt supported extensions (0.14264ms)
+✔ regression: retained RAG files need a tenant-authorized deletion and reindexing lifecycle (0.086908ms)
+✔ regression: upload persistence and extraction usage charging need one failure-safe transaction (0.124053ms)
+✔ regression: answer generation, citation persistence, and token charging need reconciled failure policy (0.127939ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 91.286521
+✔ real citation rendering shows filename/quote and never executes source HTML (8.653704ms)
+✔ assistant source instructions and markup render as text, never executable HTML (0.649469ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 432.61408

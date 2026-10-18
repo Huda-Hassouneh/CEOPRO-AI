@@ -1,0 +1,34 @@
+{
+  "name": "keel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/keel.mjs setup",
+    "setup:ai": "node scripts/keel.mjs setup-ai",
+    "dev": "node scripts/keel.mjs dev",
+    "dev:backend": "node scripts/keel.mjs backend",
+    "dev:frontend": "node scripts/keel.mjs frontend",
+    "api:store": "node scripts/keel.mjs store-api",
+    "worker:store-sync": "node scripts/keel.mjs store-sync",
+    "workers:market": "node scripts/keel.mjs workers",
+    "worker:dispatch": "node scripts/keel.mjs dispatch",
+    "worker:ingestion": "node scripts/keel.mjs ingestion",
+    "db:init": "node scripts/development-database.mjs init",
+    "db:check": "node scripts/database.mjs check",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "test:merge": "npm --prefix frontend run verify:i18n && npm --prefix frontend run test:connected-data-sources && npm run test:competitor-boundary",
+    "db:migrate": "node scripts/development-database.mjs migrate",
+    "db:roles": "node scripts/development-database.mjs roles",
+    "api:insights": "node scripts/keel.mjs insights-api",
+    "setup:store": "node scripts/keel.mjs setup-store",
+    "worker:platform-notifications": "node scripts/keel.mjs platform-notifications",
+    "worker:tenant-notifications": "node scripts/keel.mjs tenant-notifications",
+    "verify:handoff": "node scripts/verify-handoff.mjs",
+    "test:handoff": "node --test backend/tests/handoff/*.test.mjs",
+    "test:competitor-boundary": "npm --prefix backend run test:competitor-boundary && npm --prefix frontend run test:competitor-boundary && node scripts/verify-team-competitors.mjs"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

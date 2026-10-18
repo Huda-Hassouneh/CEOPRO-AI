@@ -1,0 +1,35 @@
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+[login] user found: true
+[login] password valid: true
+[login] user found: true
+[login] password valid: true
+[login] user found: true
+[login] password valid: true
+{ userId: 'b3238816-37f2-4432-8f0c-05e1f1209c36' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: 'e6801a03-fcb6-43ca-a52a-35e124a5115c' }
+{ userId: 'e6801a03-fcb6-43ca-a52a-35e124a5115c' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+[login] user found: true
+[login] password valid: true
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+[BusinessRecommendations] fetch failed
+{ userId: '382af34a-5dc0-4fae-a13d-0d14e3e803cd' }
+PASS actual Node/Python HTTP, canonical imported sales, single-day forecast, stable refresh, evidence, notification dedupe, cross-tenant denial, persistence, dismissal and outage retention
+✔ real login -> Node -> Python API -> restricted PostgreSQL -> durable business findings, evidence and dismissal (5289.367414ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5736.347618

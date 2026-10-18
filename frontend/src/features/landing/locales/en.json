@@ -31,14 +31,16 @@
     "score": "Score",
     "relevance": "Relevance",
     "usd": "USD",
-    "more": "Explore how it works"
+    "more": "Explore how it works",
+    "arabic": "العربية",
+    "english": "English"
   },
   "hero": {
     "badge": "AI-Powered Business Intelligence",
     "title": "Smarter Decisions.",
     "accent": "Stronger Business Growth.",
     "description": "Your business data. Your market. One clear picture. Turn sales, competitor signals, and customer feedback into informed next steps with KEEL.",
-    "note": "{{days}}-day Pro trial",
+    "note": "Free trials available on eligible plans",
     "bilingual": "Built for English & Arabic",
     "eyebrow": "YOUR BUSINESS, IN FOCUS",
     "overview": "Business overview",
@@ -56,11 +58,11 @@
     "legend": "Sales trend"
   },
   "capabilities": {
-    "market": "Competitors",
+    "market": "Market Intelligence",
     "demand": "Demand Forecasting",
     "pricing": "Pricing Intelligence",
     "sentiment": "Sentiment Analysis",
-    "rag": "AI Business Assistant"
+    "rag": "RAG Business Assistant"
   },
   "features": {
     "eyebrow": "THE BIG PICTURE. THE RIGHT DETAILS.",
@@ -165,7 +167,7 @@
   "rag": {
     "eyebrow": "05 / YOUR BUSINESS KNOWLEDGE, CONNECTED",
     "title": "A better answer starts\nwith your own information.",
-    "description": "Ask a business question in natural language. The assistant brings relevant information from your documents into the answer, with sources you can review.",
+    "description": "Ask a business question in natural language. The RAG assistant brings relevant information from your documents into the answer, with sources you can review.",
     "point1": "Grounded in the business information you provide",
     "point2": "Source documents and relevance, alongside the answer",
     "point3": "A conversation in English or Arabic",
@@ -216,7 +218,7 @@
     "demandText": "Expected demand, uncertainty, and inventory guidance.",
     "market": "Market intelligence scoring",
     "marketText": "Competitiveness, activity, and relevance in context.",
-    "rag": "AI business assistant",
+    "rag": "RAG business assistant",
     "ragText": "Document-grounded answers with relevant source references.",
     "extraction": "Data extraction",
     "extractionText": "Structured information and visible processing outcomes.",
@@ -268,8 +270,10 @@
   "pricing": {
     "eyebrow": "PRICING THAT GROWS WITH YOU",
     "title": "Choose your next step.",
-    "description": "Every plan includes market intelligence, forecasting and competitor tracking. Start with Standard, add capacity with Plus, or scale up with Pro. Competitors are discovered and monitored within your monthly Data Credits, not a fixed count.",
-    "note": "Plan prices and limits below use the same catalog as checkout. Payment is currently a development preview; no real payment is processed."
+    "description": "Start with Starter, unlock forecasting and competitor intelligence with Growth, choose Enterprise for higher workloads, or build a Custom plan.",
+    "note": "Prices and limits are loaded from the live plan catalog. Applicable taxes are calculated at checkout.",
+    "loading": "Loading plans...",
+    "error": "Failed to load pricing plans. Please try again later."
   },
   "trust": {
     "eyebrow": "CLARITY BUILDS CONFIDENCE",
@@ -284,7 +288,7 @@
   "cta": {
     "eyebrow": "YOUR NEXT CHAPTER STARTS WITH CLARITY",
     "title": "See more. Understand more.\nMove forward with KEEL.",
-    "description": "Bring your data and market into focus. Start your {{days}}-day Pro trial and explore a more connected way to make decisions."
+    "description": "Bring your business data and market into focus. Compare the live Starter, Growth, Enterprise, and Custom options to choose the right next step."
   },
   "footer": {
     "description": "Business intelligence for a clearer next move.",

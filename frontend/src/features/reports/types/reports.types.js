@@ -1,0 +1,1 @@
+export const reportsTypes = {\n  reportStatuses: ['Ready', 'Processing', 'Failed'],\n};\n

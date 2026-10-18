@@ -1,0 +1,63 @@
+{
+  "feature": "business_recommendations",
+  "observedAt": "2026-10-11",
+  "productionLogicChanged": false,
+  "findings": [
+    {
+      "id": "RECOMMENDATION_CURRENCY_MISMATCH",
+      "severity": "high",
+      "area": "price_gap",
+      "status": "reproduced_by_source_test",
+      "detail": "Competitor observations are not constrained to the product currency and no FX normalization is present."
+    },
+    {
+      "id": "RECOMMENDATION_PRODUCT_MAPPING_ERROR",
+      "severity": "high",
+      "area": "price_gap",
+      "status": "reproduced_by_source_test",
+      "detail": "The price-gap loader does not filter inactive or untracked mappings."
+    },
+    {
+      "id": "RECOMMENDATION_PRICE_GAP_ERROR",
+      "severity": "high",
+      "area": "price_gap",
+      "status": "reproduced_by_source_test",
+      "detail": "The price-gap loader does not exclude unavailable competitor observations."
+    },
+    {
+      "id": "RECOMMENDATION_SALES_CALCULATION_ERROR",
+      "severity": "high",
+      "area": "sales_trend",
+      "status": "reproduced_by_source_test",
+      "detail": "The sales query does not filter completed/paid invoice state or cap records at the current time."
+    },
+    {
+      "id": "RECOMMENDATION_FORECAST_ERROR",
+      "severity": "medium",
+      "area": "forecast",
+      "status": "reproduced_by_source_test",
+      "detail": "Latest-created forecast selection does not exclude target dates already in the past."
+    },
+    {
+      "id": "SALES_SOURCE_CONTRACT_MISMATCH",
+      "severity": "high",
+      "area": "sales_source",
+      "status": "documented_test_cases_not_executed",
+      "detail": "AI sales trends read invoices and invoice_items while imported transaction rows are a distinct source. Safe PostgreSQL fixtures were added but could not run without pytest and a dedicated test database."
+    },
+    {
+      "id": "RECOMMENDATION_ENTITLEMENT_BYPASS",
+      "severity": "high",
+      "area": "customer_access",
+      "status": "architecture_gap",
+      "detail": "AI JWT authentication exists, but no Node customer route applies business_recommendations entitlement. Direct AI endpoint subscription exposure policy remains unresolved."
+    },
+    {
+      "id": "RECOMMENDATION_FRONTEND_INTEGRATION_MISSING",
+      "severity": "high",
+      "area": "customer_ui",
+      "status": "architecture_gap",
+      "detail": "No customer recommendation API client/page is wired; existing recommendation card contains static sample copy and is not rendered by DashboardHomePage."
+    }
+  ]
+}

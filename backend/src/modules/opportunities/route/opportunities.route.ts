@@ -1,0 +1,15 @@
+import { Router } from "express";
+import * as leaderboardController from "../controller/opportunities.controller.js";
+import {
+  authenticateUser,
+  requireTenant
+} from "../../../middleware/validators/validateUser.js";
+
+const router = Router({ mergeParams: true });
+
+router.use(authenticateUser, requireTenant);
+
+// GET /companies/:companyId/leaderboard/competitors
+router.get("/", leaderboardController.getLeaderboard);
+
+export default router;

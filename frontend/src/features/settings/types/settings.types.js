@@ -1,0 +1,1 @@
+export const settingsTypes = {\n  roles: ['Admin', 'Editor', 'Viewer'],\n};\n

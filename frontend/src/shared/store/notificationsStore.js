@@ -1,0 +1,1 @@
+export const notificationsStore = {\n  notifications: [],\n};\n

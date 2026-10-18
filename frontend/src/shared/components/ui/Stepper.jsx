@@ -1,12 +1,16 @@
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import React from 'react';
 
 export default function Stepper({
   steps = [],
   currentStep = 1,
   className = '',
-  ariaLabel = 'Progress',
+  ariaLabel,
   showLabels = true,
   ...props
 }) {
+  const { t } = useI18n();
+  ariaLabel ??= t("interfaceCopy.progress");
   return (
     <ol
       className={`ceopro-stepper ${showLabels ? '' : 'ceopro-stepper--compact'} ${className}`.trim()}

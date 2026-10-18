@@ -1,0 +1,82 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-backend@1.0.0 test:demand-prediction:unit
+> node --import tsx --experimental-test-module-mocks --test tests/forecasting/forecasting.test.ts tests/forecasting/forecasting-client.test.ts tests/forecasting/forecasting-contract.test.ts tests/forecasting/generation.test.mjs tests/forecasting/policy.test.ts tests/forecasting/repository.test.mjs tests/forecasting/failure-diagnostics.test.mjs
+
+(node:218) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:218) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ forecast failure configuration/FORECAST_AI_TOKEN_MISSING retains safe cause and stage (3.468902ms)
+✔ forecast failure network/FORECAST_AI_CONNECTION_FAILED retains safe cause and stage (0.31772ms)
+✔ forecast failure timeout/FORECAST_AI_TIMEOUT retains safe cause and stage (0.221557ms)
+✔ forecast failure upstream_event/FORECAST_AI_EXECUTION_FAILED retains safe cause and stage (0.189169ms)
+✔ forecast failure malformed_response/FORECAST_AI_INVALID_RESPONSE retains safe cause and stage (0.264961ms)
+✔ forecast failure malformed_response/FORECAST_AI_TARGET_MISMATCH retains safe cause and stage (0.133757ms)
+✔ forecast failure malformed_response/FORECAST_AI_PRODUCT_MISMATCH retains safe cause and stage (0.139075ms)
+✔ forecast failure upstream_http/FORECAST_AI_AUTHENTICATION_FAILED retains safe cause and stage (0.126507ms)
+✔ forecast failure upstream_http/FORECAST_AI_RATE_LIMITED retains safe cause and stage (0.187397ms)
+✔ forecast failure upstream_http/FORECAST_AI_HTTP_ERROR retains safe cause and stage (0.219554ms)
+✔ untrusted upstream messages, credentials and payloads never reach response or logs (0.514019ms)
+✔ Gradio /forecast receives its six-input typed API contract, not the /forecast_ui CSV contract (7.831995ms)
+✔ CSV preserves the selected product, actual currency, zero sales and quoted bilingual names (4.865675ms)
+✔ typed forecast payload preserves optional zero/null context and explicitly selects the product (0.283969ms)
+✔ valid UNKNOWN is unavailable rather than a malformed success or fabricated zero (0.740163ms)
+✔ the supplied hosted baseline example is accepted without treating demo record IDs as tenant persistence (0.452558ms)
+✔ invalid calendar dates, unsupported period semantics and contradictory bounds fail closed (2.083076ms)
+✔ forecast client rejects a horizon outside 1..60 before calling AI (0.564524ms)
+✔ forecast client rejects malformed, missing, negative, and non-finite prediction fields (3.492708ms)
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+Forecast database transaction start timed out. { operation: 'overview', code: 'P2028' }
+Forecast database transaction start timed out. { operation: 'detail', code: 'P2028' }
+Forecast database transaction start timed out. { operation: 'generate', code: 'P2028' }
+✔ strict query validation rejects invalid horizons, arrays and UUIDs (1.697005ms)
+✔ overview/detail share totals, stock aggregation and unknown accuracy; all reads scoped (10.145361ms)
+✔ other-tenant or deleted product IDs never resolve to a product (0.370617ms)
+✔ controller responds with 400 for malformed inputs and 404 for absent products (0.388594ms)
+✔ overview uses the authenticated canonical user ID for transaction-local RLS (0.814863ms)
+✔ database acquisition failures on read/generate return 503 without re-running a transaction or masking other errors (3.272442ms)
+✔ generation controller rejects malformed UUIDs and unsupported horizons before calling the service (0.735416ms)
+✔ every forecasting route is behind authentication, membership and boolean access (0.279373ms)
+✔ boolean entitlement middleware blocks missing subscription/feature and allows inclusion without metering (2.118027ms)
+✔ production catalog includes Demand Prediction in Growth and Enterprise only (0.192374ms)
+✔ advanced inventory recommendations keep the separate inventory_intelligence entitlement (0.268115ms)
+✔ persisted restock uses its own forecast and all warehouses; inconsistent zero-quantity restock is withheld (2.504118ms)
+✔ inventory recommendations are removed from both overview and detail without their separate entitlement (1.778626ms)
+✔ evaluation output requires actual valid metrics and one unambiguous linked model version (2.420363ms)
+✔ seven-day window totals and chronological trend preserve zero (14.515202ms)
+✔ latest revision per period wins once; future-created forecasts excluded (1.237728ms)
+✔ empty and incomplete coverage are unavailable, not zero (0.4202ms)
+✔ period totals are not daily values and cannot be prorated (0.510474ms)
+✔ an exact horizon takes precedence over daily rows without double counting; marginal bounds are not summed (2.207629ms)
+✔ invalid bounds and incomplete periods are rejected (0.299673ms)
+(node:227) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:227) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ generation checks entitlement before accessing model or writing forecasts (1.600033ms)
+✔ missing, invalid and outdated history do not invent values or call AI (1.296775ms)
+✔ target-day output is saved as one day, with genuine baseline provenance (0.527178ms)
+✔ zero demand and real bounds/model version are preserved (0.31798ms)
+✔ a missing recent sales day extends model lookahead without fabricating input sales (1.506834ms)
+✔ model UNKNOWN saves no fabricated forecast and mismatched dates fail validation (0.713523ms)
+✔ concurrent duplicate generation in one process shares a call; failures allow an explicit retry (0.71764ms)
+✔ previous Node target-day rows cannot masquerade as a seven-day total (2.453703ms)
+✔ history requires valid, unique, nonfuture days and nonnegative numeric sales (0.412709ms)
+✔ stored integer rounding cannot erase fractional model demand or invalidate its real bounds (10.169697ms)
+✔ freshness has no invented cutoff; configured stale forecasts and inventory are unavailable (0.789456ms)
+✔ warehouse stock preserves zero and missing/negative safety stock stays unknown (0.310018ms)
+(node:239) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:239) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ forecast and evidence persistence keeps tenant context, one-day meaning, zero and unavailable model metadata (4.330925ms)
+✔ revoked entitlement or deleted product cannot receive a saved model result (1.059885ms)
+✔ generation history uses tenant-scoped daily aggregates, recorded FX and bounded nonfuture records (1.498223ms)
+✔ overview and post-generation detail reads retain tenant RLS and wait for a bounded transaction (0.84613ms)
+✔ only transaction-start P2028 errors are treated as a temporary database wait (0.291751ms)
+ℹ tests 56
+ℹ suites 0
+ℹ pass 56
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 688.601975

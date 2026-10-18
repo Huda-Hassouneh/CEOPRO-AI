@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 export default function Modal({ 
@@ -84,7 +84,7 @@ export default function Modal({
   };
 
   const modalStyle = {
-    background: 'var(--apex-glass-solid)',
+    background: 'var(--ceopro-surface)',
     borderRadius: 'var(--ceopro-radius-md)',
     boxShadow: 'var(--ceopro-shadow-lg)',
     width: '100%',
@@ -127,10 +127,7 @@ export default function Modal({
 
   const bodyStyle = {
     padding: 'var(--ceopro-space-5)',
-    overflowY: 'auto',
-    // A flex child only scrolls if it may shrink below its content.
-    minHeight: 0,
-    flex: '1 1 auto'
+    overflowY: 'auto'
   };
 
   const footerStyle = {

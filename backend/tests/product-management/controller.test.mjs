@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { mock, test } from 'node:test';
+let calls=[],failure;
+const run=async(...args)=>{calls.push(args);if(failure)throw failure;return {product:{id:'product'},products:[]};};
+await mock.module('../../src/modules/products/service/products.service.ts',{namedExports:Object.fromEntries(['listProducts','getProduct','createProduct','updateProduct','archiveProduct'].map(key=>[key,run]))});
+const {handleProducts}=await import('../../src/modules/products/controller/products.controller.ts');
+const {ProductError}=await import('../../src/modules/products/types/products.types.ts');
+const id='11111111-1111-4111-8111-111111111111';
+const request=(body={})=>({user:{id:'canonical-user',tenant_id:'tenant'},tenant_id:'tenant',tenantUser:{role:{permissions:{all:true}}},params:{productId:id},query:{},body});
+const response=()=>({statusCode:0,body:null,status(code){this.statusCode=code;return this;},json(body){this.body=body;return this;}});
+const next=error=>{throw error;};
+test('product controller uses authenticated scope, validates strict payloads and returns stable errors',async()=>{
+ let req=request(),res=response();await handleProducts('get')(req,res,next);assert.equal(res.statusCode,200);assert.deepEqual(calls[0],[{tenantId:'tenant',userId:'canonical-user'},id]);assert.equal(res.body.data.canEdit,true);
+ req=request({expectedVersion:1,price:'0',tenant_id:'attacker'});res=response();await handleProducts('update')(req,res,next);assert.equal(res.statusCode,400);assert.equal(calls.length,1);
+ req=request({expectedVersion:1,price:'0'});res=response();await handleProducts('update')(req,res,next);assert.equal(res.statusCode,200);assert.equal(calls.at(-1)[2].price,'0');
+ req=request();req.user=null;res=response();await handleProducts('get')(req,res,next);assert.equal(res.statusCode,403);
+ req=request();req.params.productId='bad';res=response();await handleProducts('get')(req,res,next);assert.equal(res.statusCode,400);
+ req=request({expectedVersion:1});failure=new ProductError('PRODUCT_STALE_EDIT');res=response();await handleProducts('archive')(req,res,next);assert.equal(res.statusCode,409);assert.equal(res.body.error.code,'PRODUCT_STALE_EDIT');failure=null;
+ req=request();req.tenantUser.role.permissions={};res=response();await handleProducts('get')(req,res,next);assert.equal(res.body.data.canEdit,false);
+});

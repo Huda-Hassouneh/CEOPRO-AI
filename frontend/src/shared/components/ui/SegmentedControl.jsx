@@ -1,3 +1,4 @@
+import React from 'react';
 
 export default function SegmentedControl({ name, value, options = [], onChange, ariaLabel, className = '' }) {
   return (

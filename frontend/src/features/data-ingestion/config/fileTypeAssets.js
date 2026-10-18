@@ -1,13 +1,13 @@
 const BRAND_ASSET_ROOT = '/assets/brands';
 
 const FILE_TYPE_ASSETS = Object.freeze({
-  excel: { src: `${BRAND_ASSET_ROOT}/excel.svg`, className: 'is-excel', label: 'Excel' },
-  csv: { src: `${BRAND_ASSET_ROOT}/csv.svg`, className: 'is-csv', label: 'CSV' },
-  pdf: { src: `${BRAND_ASSET_ROOT}/pdf.svg`, className: 'is-pdf', label: 'PDF' },
-  word: { src: `${BRAND_ASSET_ROOT}/word.svg`, className: 'is-word', label: 'Word' },
-  text: { src: `${BRAND_ASSET_ROOT}/text-file.svg`, className: 'is-text', label: 'Text' },
-  image: { src: `${BRAND_ASSET_ROOT}/image-file.svg`, className: 'is-image', label: 'Image' },
-  generic: { src: `${BRAND_ASSET_ROOT}/text-file.svg`, className: 'is-generic', label: 'File' },
+  excel: { src: `${BRAND_ASSET_ROOT}/excel.svg`, className: 'is-excel', labelKey: 'common.fileTypes.excel' },
+  csv: { src: `${BRAND_ASSET_ROOT}/csv.svg`, className: 'is-csv', labelKey: 'common.fileTypes.csv' },
+  pdf: { src: `${BRAND_ASSET_ROOT}/pdf.svg`, className: 'is-pdf', labelKey: 'common.fileTypes.pdf' },
+  word: { src: `${BRAND_ASSET_ROOT}/word.svg`, className: 'is-word', labelKey: 'common.fileTypes.word' },
+  text: { src: `${BRAND_ASSET_ROOT}/text-file.svg`, className: 'is-text', labelKey: 'common.fileTypes.text' },
+  image: { src: `${BRAND_ASSET_ROOT}/image-file.svg`, className: 'is-image', labelKey: 'common.fileTypes.image' },
+  generic: { src: `${BRAND_ASSET_ROOT}/text-file.svg`, className: 'is-generic', labelKey: 'common.fileTypes.generic' },
 });
 
 export function getFileTypeAsset(fileName = '') {

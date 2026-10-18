@@ -1,15 +1,18 @@
+import KeelLogo from '../../../shared/components/branding/KeelLogo.jsx';
 import { ArrowRight, Check, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import Button from '../../../shared/components/ui/Button.jsx';
-import KeelMark from '../../../shared/components/brand/KeelMark.jsx';
+import { useOnboardingStore } from '../../onboarding/store/onboardingStore.js';
 
 export function useLanding() {
   const { t, locale, ...rest } = useI18n();
   const language = locale === 'ar' ? 'ar-JO' : 'en-US';
   return {
-    ...rest, locale, t: (key, values) => t(`landing.${key}`, values),
+    ...rest,
+    locale,
+    t: (key, values) => t(`landing.${key}`, values),
     n: (value) => new Intl.NumberFormat(language, { maximumFractionDigits: 2 }).format(value),
     percent: (value) => new Intl.NumberFormat(language, { style: 'percent', maximumFractionDigits: 1 }).format(value / 100),
     money: (value) => new Intl.NumberFormat(language, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value),
@@ -17,7 +20,7 @@ export function useLanding() {
 }
 
 export function Brand() {
-  return <Link className="lp-brand" to={routePaths.landing} aria-label="KEEL"><span className="lp-brand-mark" aria-hidden="true"><KeelMark size={20} /></span><span className="lp-brand-word" dir="ltr">KEEL</span></Link>;
+  return <Link className="lp-brand" to={routePaths.landing} aria-label="KEEL"><KeelLogo /></Link>;
 }
 
 export function SectionHeading({ section, centered = false, children }) {
@@ -28,7 +31,11 @@ export function SectionHeading({ section, centered = false, children }) {
 export function TrialButton({ children, className = '' }) {
   const { t } = useLanding();
   const navigate = useNavigate();
+  const setPlanChoice = useOnboardingStore((state) => state.setPlanChoice);
   const startTrial = () => {
+    // Do not persist a hardcoded plan ID from the marketing page. The live
+    // catalog is loaded later and owns which plans/trials are actually valid.
+    setPlanChoice('', 'paid');
     navigate(routePaths.welcome);
   };
   return <Button size="lg" className={className} onClick={startTrial} trailingIcon={<ArrowRight className="lp-arrow" size={18} aria-hidden="true" />}>{children || t('common.trial')}</Button>;

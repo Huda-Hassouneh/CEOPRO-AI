@@ -1,0 +1,69 @@
+import { prisma } from "../../../config/database.js";
+import { COUNTED_CONNECTED_SOURCE_TYPES } from "../../../constants/data-source-types.js";
+
+export const MAX_CAPACITY_FEATURE_CODES = Object.freeze([
+  "tracked_competitors",
+  "tracked_products",
+  "connected_data_sources",
+  "team_members",
+  "document_storage_mb"
+] as const);
+
+export type MaxCapacityFeatureCode =
+  (typeof MAX_CAPACITY_FEATURE_CODES)[number];
+
+export function isMaxCapacityFeatureCode(
+  featureCode: string
+): featureCode is MaxCapacityFeatureCode {
+  return (MAX_CAPACITY_FEATURE_CODES as readonly string[]).includes(
+    featureCode
+  );
+}
+
+export async function getCurrentCapacityUsage(
+  tenantId: string,
+  featureCode: string
+): Promise<number> {
+  switch (featureCode) {
+    case "tracked_competitors":
+      return prisma.tenant_competitors.count({
+        where: { tenant_id: tenantId, is_tracked: true }
+      });
+
+    case "tracked_products":
+      return prisma.products.count({
+        where: { tenant_id: tenantId, deleted_at: null }
+      });
+
+    case "connected_data_sources":
+      return prisma.data_sources.count({
+        where: {
+          tenant_id: tenantId,
+          is_active: true,
+          source_type: { in: [...COUNTED_CONNECTED_SOURCE_TYPES] }
+        }
+      });
+
+    case "team_members":
+      return prisma.tenantUser.count({
+        where: { tenantId, removedAt: null }
+      });
+
+    case "document_storage_mb": {
+      const bytes = await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
+        const rows = await tx.$queryRaw<Array<{ bytes: bigint }>>`SELECT public.retained_document_bytes(${tenantId}::uuid) AS bytes`;
+        return rows[0]?.bytes ?? 0n;
+      });
+
+      if (bytes <= 0n) return 0;
+
+      return Number(bytes) / 1024 ** 2;
+    }
+
+    default:
+      throw new Error(
+        `No authoritative capacity resolver exists for feature '${featureCode}'.`
+      );
+  }
+}

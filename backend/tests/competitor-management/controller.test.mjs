@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {mock,test} from 'node:test';
+let calls=[],failure;
+const service=Object.fromEntries(['discover','list','profile','create','update','track','schedule','confirm'].map(operation=>[operation,async(...args)=>{calls.push({operation,args});if(failure)throw failure;return operation==='list'?{competitors:[],capacity:{limit:10},canEdit:true}:{id:'competitor'};} ]));
+await mock.module('../../src/modules/competitors/service/competitors.service.ts',{namedExports:{competitorsService:service}});
+const {handleCompetitor}=await import('../../src/modules/competitors/controller/competitors.controller.ts');
+const {CompetitorError}=await import('../../src/modules/competitors/types/competitors.types.ts');
+const id='11111111-1111-4111-8111-111111111111';
+const req=body=>({tenant_id:'tenant',user:{id:'user'},params:{competitorId:id,mappingId:id},query:{},body});
+const res=()=>({statusCode:0,body:null,status(code){this.statusCode=code;return this;},json(body){this.body=body;return this;}});
+const next=error=>{throw error;};
+test('controller preserves list array contract, validates inputs and maps safe lifecycle errors',async()=>{
+ let response=res();await handleCompetitor('list')(req({}),response,next);assert.equal(response.statusCode,200);assert.deepEqual(response.body.data,[]);assert.equal(response.body.meta.capacity.limit,10);
+ response=res();await handleCompetitor('create')(req({name:'Store',website:'https://example.com',tenant_id:'other'}),response,next);assert.equal(response.statusCode,400);assert.equal(calls.length,1);
+ response=res();await handleCompetitor('create')(req({name:'Store',website:'https://example.com'}),response,next);assert.equal(response.statusCode,201);assert.deepEqual(calls.at(-1).args[0],{tenantId:'tenant',userId:'user'});
+ let request=req({isTracked:false});request.params.competitorId='bad';response=res();await handleCompetitor('track')(request,response,next);assert.equal(response.statusCode,400);
+ response=res();await handleCompetitor('track')(req({isTracked:'false'}),response,next);assert.equal(response.statusCode,400);
+ response=res();await handleCompetitor('track')(req({isTracked:false}),response,next);assert.equal(calls.at(-1).args[2],false);
+ failure=new CompetitorError('COMPETITOR_CAPACITY_EXCEEDED');response=res();await handleCompetitor('track')(req({isTracked:true}),response,next);assert.equal(response.statusCode,409);assert.equal(response.body.error.code,'COMPETITOR_CAPACITY_EXCEEDED');
+ failure={message:'Database: COMPETITOR_CAPACITY_EXCEEDED'};response=res();await handleCompetitor('create')(req({name:'Store',website:'https://example.com'}),response,next);assert.equal(response.statusCode,409);
+ failure=new CompetitorError('RESOURCE_NOT_FOUND');response=res();await handleCompetitor('profile')(req({}),response,next);assert.equal(response.statusCode,404);
+});

@@ -1,26 +1,41 @@
+import { RAG_ACCEPTED_FILE_TYPES, getInvalidRagUploadFile } from "../../knowledge-base/utils/ragUploadContract.js";
 import { useRef, useState } from 'react';
 import { CloudUpload } from 'lucide-react';
 import Button from '../../../shared/components/ui/Button.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { UploadedFileRow } from './UploadedFileRow.jsx';
-import { ACCEPTED_UPLOAD_FILE_TYPES, getInvalidUploadFile } from '../utils/fileValidation.js';
+import {
+  BUSINESS_UPLOAD_FILE_TYPES,
+  STRUCTURED_BUSINESS_UPLOAD_FILE_TYPES,
+  getInvalidBusinessUploadFile,
+  getInvalidStructuredBusinessUploadFile
+} from '../utils/fileValidation.js';
 
-export function FileUploadDropzone({ files, onFilesChange }) {
+export function FileUploadDropzone({ files, onFilesChange, kind = 'sales', disabled = false }) {
   const { t } = useI18n();
   const inputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState('');
 
   const addFiles = (incoming) => {
+    if (disabled) return;
     const nextFiles = Array.from(incoming);
-    const invalid = getInvalidUploadFile(nextFiles);
+    if (!['sales', 'rag'].includes(kind) && nextFiles.length !== 1) {
+      setError(t('connectData.review.oneFile'));
+      return;
+    }
+    const invalid = kind === 'rag' ? getInvalidRagUploadFile(nextFiles) : kind === 'sales'
+      ? getInvalidBusinessUploadFile(nextFiles)
+      : getInvalidStructuredBusinessUploadFile(nextFiles);
     if (invalid) {
-      setError(t('dataIngestion.invalidFile', { name: invalid.name }));
+      setError(t(kind === 'rag' ? 'ragAssistant.upload.invalidFile' : 'dataIngestion.invalidFile', { name: invalid.name }));
       return;
     }
     setError('');
     const existing = new Set(files.map((file) => `${file.name}-${file.size}`));
-    onFilesChange([...files, ...nextFiles.filter((file) => !existing.has(`${file.name}-${file.size}`))]);
+    onFilesChange(['sales','rag'].includes(kind)
+      ? [...files, ...nextFiles.filter((file) => !existing.has(`${file.name}-${file.size}`))]
+      : nextFiles);
   };
 
   return (
@@ -35,19 +50,18 @@ export function FileUploadDropzone({ files, onFilesChange }) {
         <CloudUpload size={39} aria-hidden="true" />
         <strong>{t('dataIngestion.dropTitle')}</strong>
         <span>{t('dataIngestion.or')}</span>
-        <Button size="sm" onClick={() => inputRef.current?.click()}>{t('dataIngestion.browse')}</Button>
+        <Button size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>{t('dataIngestion.browse')}</Button>
         <input
           ref={inputRef}
           className="ceopro-visually-hidden"
           type="file"
-          aria-label={t('dataIngestion.browse')}
-          tabIndex={-1}
-          multiple
-          accept={ACCEPTED_UPLOAD_FILE_TYPES}
+          multiple={['sales','rag'].includes(kind)}
+          disabled={disabled}
+          accept={kind === 'rag' ? RAG_ACCEPTED_FILE_TYPES : kind === 'sales' ? BUSINESS_UPLOAD_FILE_TYPES : STRUCTURED_BUSINESS_UPLOAD_FILE_TYPES}
           onChange={(event) => { addFiles(event.target.files); event.target.value = ''; }}
         />
-        <small>{t('dataIngestion.supported')}</small>
-        <small>{t('dataIngestion.maxSize')}</small>
+        <small>{kind === 'rag' ? t('ragAssistant.upload.supported') : kind === 'sales' ? t('dataIngestion.supported') : t('connectData.upload.structuredFormats')}</small>
+        <small>{t(kind === 'rag' ? 'ragAssistant.upload.maxSize' : 'dataIngestion.maxSize')}</small>
       </div>
       {error && <p className="ceopro-upload-error" role="alert">{error}</p>}
       {files.length > 0 && (

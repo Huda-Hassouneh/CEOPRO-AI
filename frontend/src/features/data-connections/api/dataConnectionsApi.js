@@ -1,65 +1,49 @@
-import httpClient from '../../../shared/lib/httpClient.js';
-
-const IMPORT_STATUS = { COMPLETED: 'completed', FAILED: 'failed', PROCESSING: 'processing', QUEUED: 'processing' };
-const FILE_TYPE = { csv: 'csv', xlsx: 'xlsx', xlsm: 'xlsx', pdf: 'pdf' };
-const FILE_UPLOAD_SOURCE = Object.freeze({ en: 'File upload', ar: 'رفع ملف' });
-
-// The fields every sales record maps to (backend template_contract.py).
-export const SALES_FIELDS = Object.freeze([
-  { key: 'product_name', required: true },
-  { key: 'quantity', required: true },
-  { key: 'unit_price', required: true },
-  { key: 'currency', required: true },
-  { key: 'transaction_date', required: true },
-  { key: 'invoice_id', required: false },
-  { key: 'discount_pct', required: false },
-]);
-
-// GET /extraction/imports - the company's real file-import history, newest first.
-export function mapRecentImports(response) {
-  return (response?.imports || []).map((item) => ({
-    id: item.job_id,
-    date: item.created_at,
-    source: FILE_UPLOAD_SOURCE,
-    name: item.file_name,
-    type: FILE_TYPE[item.file_type] || 'connection',
-    status: IMPORT_STATUS[item.status] || 'needsAttention',
-  }));
-}
-
-// {their_field: our_field} from the form's {our_field: their_field}.
-function toFieldMapping(mapping) {
-  return Object.fromEntries(Object.entries(mapping).filter(([, theirs]) => theirs && theirs.trim()).map(([ours, theirs]) => [theirs.trim(), ours]));
-}
+import { translateCurrent } from '../../../shared/lib/i18n.js';
+import httpClient from "../../../shared/lib/httpClient.js";
 
 export const dataConnectionsApi = Object.freeze({
-  list: async () => {
-    const [imports, sources] = await Promise.all([httpClient.get('/extraction/imports'), httpClient.get('/onboarding/sources')]);
-    return { connectedSources: sources.data.sources, recentImports: mapRecentImports(imports.data) };
+  storePrivacyReports: async (id) => (await httpClient.get(`/data-connection/store/${encodeURIComponent(id)}/privacy-reports`)).data.data,
+  finishShopify: async (ticket) => (await httpClient.post('/data-connection/store/shopify/complete',{ticket})).data.data,
+  authorizeShopify: async (payload) => (await httpClient.post('/data-connection/store/shopify/authorize',payload)).data.data,
+  detectStore: async (url) => (await httpClient.post('/data-connection/store/detect',{url})).data.data,
+  connectStore: async (payload) => (await httpClient.post('/data-connection/store/connect',payload)).data.data,
+  syncStore: async (sourceId) => (await httpClient.post(`/data-connection/store/${encodeURIComponent(sourceId)}/sync`,{})).data.data,
+  disconnectStore: async (sourceId) => (await httpClient.delete(`/data-connection/store/${encodeURIComponent(sourceId)}`)).data.data,
+  list: async ({ companyId }) => {
+    // Tenant scope comes from the authenticated session, never a query value.
+    void companyId;
+    const response = await httpClient.get("/data-connection");
+    return response?.data?.data;
   },
-  // POST /onboarding/connect/api - the company's own POS/ERP/e-commerce REST API.
-  connectApi: async (form) => (await httpClient.post('/onboarding/connect/api', {
-    source_name: form.name.trim(),
-    base_url: form.baseUrl.trim(),
-    records_path: form.recordsPath.trim() || undefined,
-    page_param: form.pageParam.trim() || undefined,
-    auth_header: form.authHeader.trim() || undefined,
-    auth_scheme: form.authScheme.trim(),
-    credentials: form.token ? { token: form.token } : undefined,
-    field_mapping: toFieldMapping(form.mapping),
-    sync_frequency_minutes: Number(form.frequency),
-  })).data,
-  // POST /onboarding/connect/database - read-only access to the company's own Postgres database.
-  connectDatabase: async (form) => (await httpClient.post('/onboarding/connect/database', {
-    source_name: form.name.trim(),
-    host: form.host.trim(),
-    port: Number(form.port),
-    dbname: form.dbname.trim(),
-    query: form.query.trim(),
-    credentials: { user: form.user.trim(), password: form.password },
-    field_mapping: toFieldMapping(form.mapping),
-    sync_frequency_minutes: Number(form.frequency),
-  })).data,
-  syncNow: async (sourceId) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/sync`)).data,
-  disconnect: async (sourceId) => (await httpClient.delete(`/onboarding/sources/${encodeURIComponent(sourceId)}`)).data,
+
+  configureWebsite: async (payload) => {
+    if (!payload?.url || typeof payload.url !== "string") {
+      throw new Error(translateCurrent("interfaceCopy.websiteUrlRequired"));
+    }
+
+    const url = payload.url.trim();
+    const response = await httpClient.post("/data-connection/sources", {
+      name: payload.name?.trim() || new URL(url).hostname,
+      sourceType: "website",
+      sourceUrl: url,
+      syncFrequencyMinutes: Number(payload.syncFrequencyMinutes) || 1440
+    });
+
+    return response?.data?.data;
+  },
+
+  setActive: async (sourceId, isActive) => {
+    const response = await httpClient.patch(
+      `/data-connection/sources/${encodeURIComponent(sourceId)}`,
+      { isActive }
+    );
+    return response?.data?.data;
+  },
+
+  disconnect: async (sourceId) => {
+    const response = await httpClient.delete(
+      `/data-connection/sources/${encodeURIComponent(sourceId)}/connection`
+    );
+    return response?.data?.data;
+  }
 });

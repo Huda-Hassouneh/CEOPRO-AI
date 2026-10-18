@@ -1,0 +1,127 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> keel-backend@1.0.0 test:ai-pricing:integrity
+> node --import tsx --experimental-test-module-mocks --test tests/ai-pricing/pricing-policy.test.ts tests/ai-pricing/pricing-integrity-postgres.test.mjs tests/ai-pricing/pricing-http-postgres.test.mjs tests/ai-pricing/pricing-evidence-postgres.test.mjs tests/ai-pricing/pricing-gradio-contract.test.ts && node --test tests/ai-pricing/ai-pricing-contract.test.mjs && node --test ../frontend/tests/pricing-integrity.test.mjs ../frontend/tests/market-intelligence-fixes.test.mjs && node --import tsx --test ../frontend/tests/pricing-evidence-render.test.mjs
+
+REPRODUCED 23514/chk_evidence_shape with the original insert shape
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+PASS real Prisma OK, explanation=provided
+PASS real Prisma OK, explanation=missing
+PASS real Prisma OK, explanation=missing
+PASS real Prisma UNKNOWN, explanation=missing
+PASS real Prisma UNKNOWN, explanation=provided
+PASS cross-tenant evidence remains hidden; database constraints and RLS unchanged
+✔ pricing evidence satisfies actual PostgreSQL constraints as ceopro_app for OK and UNKNOWN (3497.642642ms)
+✔ pricing Gradio call serializes the exact three positional inputs and preserves currency metadata (4.921527ms)
+✔ Gradio contract accepts each documented action and UNKNOWN separately (0.852499ms)
+✔ malformed, unsafe, or unsupported Gradio values fail closed (2.422677ms)
+✔ persisted explanation is optional and extracted only from provider persisted records (0.153356ms)
+✔ an explanation without observation identities is not treated as complete provenance (0.238652ms)
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+(node:27) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+[login] user found: true
+[login] password valid: true
+[login] user found: true
+[login] password valid: true
+[login] user found: true
+[login] password valid: true
+{ userId: '2685143f-7205-4e0a-83c9-45ef73927ee0' }
+{ userId: '14ca5eb2-ab24-4e83-8c26-10536dd5c12d' }
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+(node:27) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+[login] user found: true
+[login] password valid: true
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+{ userId: '14ca5eb2-ab24-4e83-8c26-10536dd5c12d' }
+{ userId: '2685143f-7205-4e0a-83c9-45ef73927ee0' }
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+{ userId: '04274cc3-f3a5-4197-8434-c8bb6527d7de' }
+PASS real login, UUID validation, restricted-role generation, zero-credit replay, persisted history after fresh login, missing entitlement, suspension and cross-tenant denial
+✔ authenticated pricing API: quota-safe replay, history, tenant access, disabled allocation and suspended membership (4565.348169ms)
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+(node:34) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+(node:34) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+PASS restricted-role inputs, reference-only FX, guardrails, exact evidence, replay, UNKNOWN/error refunds, rollback, pending contention, period reset, expiry, original-allocation refund and RLS
+✔ pricing generation, quota reservations, evidence and retries under restricted ceopro_app (5305.876971ms)
+✔ only one latest positive, timely observation per competitor; no older fallback behind an invalid latest (11.195992ms)
+✔ FX requires the correct direction, positive fresh rate and known source; originals remain intact (0.719232ms)
+✔ market mean and median use exactly the supplied positive comparison sample (1.604659ms)
+✔ 5% boundaries are inclusive holds, with raise/lower targets outside the band (0.477244ms)
+✔ 15% movement limit and cost floor are independent; floor overrides the cap explicitly (0.721906ms)
+✔ currency rounding respects JOD fils, zero-decimal currencies and strict movement bounds (0.5419ms)
+✔ invalid catalog prices/costs and future/stale timestamps fail closed (0.365761ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5707.296939
+✔ ai_pricing catalog is a SUM recommendation allowance reset each billing period (13.22047ms)
+✔ Starter, Growth, and Enterprise plans do not grant AI Pricing (1.367809ms)
+✔ custom-plan persistence preserves the caller's feature ID and recommendation limit (1.257277ms)
+✔ pricing route enforces the ai_pricing entitlement before invoking the controller (0.924425ms)
+✔ pricing request is server-scoped to authenticated tenant and validates product UUID (1.494557ms)
+✔ effective allocation is reserved or checked before a paid Gradio invocation (0.885268ms)
+✔ missing-usage allocation cannot silently return a successful paid recommendation (0.904095ms)
+✔ recommendation evidence and outcome are committed together under tenant RLS (0.794653ms)
+✔ usage accounting participates in the same durable generation transaction (2.202742ms)
+✔ a request idempotency key prevents duplicate provider work, evidence, outcomes, and charges (1.489259ms)
+✔ Node competitor inputs select only the latest eligible observation per tracked mapping (0.679954ms)
+✔ Node FX rates are validated for positivity and freshness before provider use (1.052434ms)
+✔ Node evidence stores IDs and timestamps for the exact competitor observations used (0.54853ms)
+✔ Node and FastAPI pricing use separate provider and persistence paths (1.137139ms)
+✔ FastAPI recommendation route derives product ownership from the authenticated tenant (0.48763ms)
+✔ FastAPI and Node independently persist tenant-owned observation identities (1.212881ms)
+✔ recommendation generation never updates the catalog selling price (1.775151ms)
+✔ frontend sends only selected product ID and prevents overlapping submissions (1.407709ms)
+✔ pricing UI explains remaining credits and checks feature availability before Generate (1.235263ms)
+✔ frontend recommendation is persisted across reloads rather than held only in component state (1.816923ms)
+✔ AI Pricing action copy exists in English and Arabic and page uses translated keys (6.278681ms)
+✔ standard AI response contract requires bounded confidence and finite nonnegative prices (0.770018ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 142.365493
+✔ ordinary comparison keeps competitor counts but never displays a generated action before AI returns (1.664198ms)
+✔ AI result never relabels JOD fallback prices as USD and UNKNOWN has no action (0.244331ms)
+✔ PDF data is redacted for optional features without altering ordinary prices or the original payload (0.275326ms)
+✔ section status does not depend on the first row (0.199484ms)
+✔ pricing failures use translated quota, missing-feature, and upstream messages (0.333091ms)
+✔ uncertain network/server failures preserve the request identity; definitive failures do not (1.887578ms)
+✔ UNKNOWN cannot resurrect incompatible overview statistics; history exposes localised explanations and stale state (0.350127ms)
+✔ en: pricing-specific errors and all new customer-facing copy are translated (5.543946ms)
+✔ ar: pricing-specific errors and all new customer-facing copy are translated (1.827428ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112.908331
+✔ en: real evidence rendering labels converted references separately and escapes source content (11.259095ms)
+✔ ar: real evidence rendering labels converted references separately and escapes source content (3.648938ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 284.451581

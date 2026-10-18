@@ -1,0 +1,1 @@
+export const EvidenceType = { Verified: 'Verified', Derived: 'Derived', Estimated: 'Estimated' };\n

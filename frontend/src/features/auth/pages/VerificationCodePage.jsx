@@ -53,8 +53,6 @@ export function VerificationCodePage() {
 
   React.useEffect(() => {
     if (error) setError(validate(code));
-  // Re-translate visible errors when the language changes only; typing re-validates on its own.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
   const verify = (event) => {

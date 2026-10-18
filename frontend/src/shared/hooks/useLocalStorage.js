@@ -1,0 +1,1 @@
+export function useLocalStorage() {\n  return null;\n}\n

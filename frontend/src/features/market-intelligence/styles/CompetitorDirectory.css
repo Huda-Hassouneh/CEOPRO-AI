@@ -1,0 +1,48 @@
+/* Scoped directory improvements; reuse the existing market layout. */
+.competitors-page .record-summary{margin:20px 0}
+.competitors-page .competitor-filters{grid-template-columns:minmax(220px,1.6fr) repeat(3,minmax(120px,1fr));gap:16px;padding:20px;background:var(--ceopro-surface);border:1px solid var(--ceopro-border);border-radius:var(--ceopro-radius-md,12px)}
+.competitors-page .competitor-filters .ceopro-select-wrapper,.competitors-page .competitor-filters .ceopro-input-wrapper{margin:0!important;min-width:0}
+.competitors-page .competitor-filters select{font-size:13px;color:var(--ceopro-text-primary)}
+.directory-filter-feedback{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 16px;color:var(--ceopro-text-secondary);font-size:13px}
+.competitors-page .competitor-discovery-controls{background:var(--ceopro-primary-light);border:1px solid var(--ceopro-border);padding:18px;border-radius:12px;align-items:center}
+.competitors-page .competitor-table-wrap{overflow-x:auto;max-height:none;height:auto;max-width:100%}
+.competitors-page .competitor-table td{vertical-align:middle;padding-top:18px;padding-bottom:18px}
+.competitors-page .competitor-table td:first-child{min-width:250px}
+.competitors-page .competitor-table td:first-child>small{overflow-wrap:anywhere;max-width:380px;white-space:normal;line-height:1.6}
+.competitors-page .competitor-table td:last-child{min-width:230px;white-space:normal}
+.competitors-page .competitor-table td:last-child .ceopro-button{margin-inline-end:10px;margin-block:4px}
+.competitors-page .competitor-table td:last-child>button:not(.ceopro-button){font-size:12px;min-height:40px}
+.competitor-name-link{font:650 14px var(--ceopro-font-family);color:var(--ceopro-text-primary);border:0;background:transparent;padding:0;cursor:pointer;text-align:start}
+.competitor-name-link:hover{color:var(--ceopro-primary);text-decoration:underline}
+.competitors-page .competitor-table .ceopro-badge{margin-inline-start:8px}
+.competitors-page .competitor-pagination{gap:16px;flex-wrap:wrap;padding-top:18px;font-size:12px}.competitors-page .competitor-pagination button{min-width:38px;min-height:38px}
+.competitors-page :focus-visible{outline:2px solid var(--ceopro-primary)!important;outline-offset:3px}
+@media(max-width:1000px){.competitors-page .competitor-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.competitors-page .competitor-filters .ceopro-input-wrapper{grid-column:auto}}
+@media(max-width:640px){.competitors-page .competitor-filters{grid-template-columns:1fr;padding:16px}.competitors-page .competitor-pagination{justify-content:center}.competitors-page .competitor-pagination>span{width:100%;text-align:center}.competitors-page .record-summary{grid-template-columns:1fr}}
+.competitors-page .competitor-table td:first-child{grid-template-columns:32px minmax(100px,1fr) auto;column-gap:10px;row-gap:4px}
+.competitors-page .competitor-table td:first-child>small{grid-column:2/-1}
+.competitors-page .competitor-table .market-entity-logo{width:32px;height:32px;grid-row:1/3;background:var(--ceopro-primary)!important}
+.competitor-detail-page .record-summary{margin:20px 0}
+.competitor-detail-page .competitor-detail-header{padding:24px;border:1px solid var(--ceopro-border);border-radius:var(--ceopro-radius-md);background:var(--ceopro-surface)}
+.competitor-detail-page .competitor-title h1{overflow-wrap:anywhere}
+.competitor-detail-page .competitor-pipeline-event{border-inline-start:3px solid var(--ceopro-border);padding-inline-start:14px;line-height:1.6}
+.competitor-detail-page .competitor-source-review{border-radius:12px;background:var(--ceopro-surface);padding:16px}
+.competitor-detail-page .competitor-source-review summary{line-height:1.8;cursor:pointer;overflow-wrap:anywhere}
+.competitor-detail-page .competitor-products .market-table-wrap{max-height:none;overflow-x:auto}
+@media(max-width:640px){.competitor-detail-page .competitor-detail-header{padding:16px}.competitor-detail-page .record-summary{grid-template-columns:1fr}.competitor-detail-page .competitor-identity{align-items:flex-start}.competitor-detail-page .competitor-identity>div{min-width:0}}
+
+.competitor-product-links { padding: var(--ceopro-space-5, 1.25rem); margin-block: 1.25rem; }
+.competitor-product-links > p { color: var(--ceopro-text-secondary); line-height: 1.7; }
+.competitor-product-links form { max-width: 48rem; margin-block: 1.25rem; }
+.competitor-candidate-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .85rem; border-block-end: 1px solid var(--ceopro-border); }
+.competitor-candidate-row > a, .competitor-evidence-row a { overflow-wrap: anywhere; color: var(--ceopro-primary); }
+.competitor-evidence-row { padding-block: 1rem; border-block-end: 1px solid var(--ceopro-border); }
+.competitor-evidence-row summary { cursor: pointer; font-weight: 600; line-height: 1.7; }
+.competitor-evidence-row > button { margin-block: 1rem; display: block; }
+.competitor-identity-evidence { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin-block: 1rem; }
+.competitor-identity-evidence > div { background: var(--ceopro-surface); border: 1px solid var(--ceopro-border); border-radius: var(--ceopro-radius-sm); padding: 1rem; overflow-wrap: anywhere; }
+.competitor-identity-evidence p { line-height: 1.6; margin-block: .4rem; }
+@media(max-width: 640px) {
+ .competitor-identity-evidence { grid-template-columns: 1fr; }
+ .competitor-candidate-row { align-items: stretch; flex-direction: column; }
+}

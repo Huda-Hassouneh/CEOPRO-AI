@@ -1,5 +1,8 @@
 const ERROR_CODE_TRANSLATIONS = Object.freeze({
   INVALID_CREDENTIALS: 'auth.errors.invalidCredentials',
+  EMAIL_VERIFICATION_INVALID: 'auth.errors.invalidCode',
+  EMAIL_DELIVERY_FAILED: 'auth.errors.resendFailed',
+  USER_ALREADY_EXISTS: 'auth.errors.emailInUse',
   EMAIL_IN_USE: 'auth.errors.emailInUse',
   INVALID_CODE: 'auth.errors.invalidCode',
   CODE_EXPIRED: 'auth.errors.expiredCode',
