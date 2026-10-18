@@ -240,3 +240,4 @@ findings at start-up.
 6. Section 10 - the fixed settings.
 
 Everything else is optional; add a confirmed price for each paid provider you turn on.
+SEARXNG_SECRET=608598c11e87455e8a08aa8c0720fcbee97ff66b8a5a4f93a521c422c7f8a8fc
