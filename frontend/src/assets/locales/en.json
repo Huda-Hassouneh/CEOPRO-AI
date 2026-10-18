@@ -179,6 +179,12 @@
       "unknownTitle": "Not enough market data yet",
       "unknownDescription": "No competitor prices for this product were recorded in the last {{days}} days. Record a competitor price under Competitors to get a recommendation.",
       "basis": "Compared with {{count}} competitor price(s) recorded in the last {{days}} days.",
+      "estimate": {
+        "MARKET_REFERENCE": "Estimated from market reference prices found for this product; no tracked competitor price exists for it yet.",
+        "REGIONAL_ESTIMATE": "Estimated from prices found outside your region, converted to your currency and adjusted for your local market.",
+        "PEER_ESTIMATE": "Estimated from this product's cost and how comparable products are priced in your market.",
+        "INTERNAL_ONLY": "No market prices are available for this product yet, so this decision uses your own cost and margin only."
+      },
       "matchedCompetitors": "Matched Competitors",
       "confidence": "Confidence",
       "guardrailApplied": "A pricing guardrail adjusted this recommendation to protect your margin or limit how much the price can change at once."

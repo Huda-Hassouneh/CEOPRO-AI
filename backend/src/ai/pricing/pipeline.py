@@ -13,13 +13,17 @@ competitor prices via a real FK join. See data_access.py's module docstring.
 """
 
 import logging
+from datetime import datetime, timezone
 
 from src.ai.core.money import format_money
-from src.ai.pricing import currency, data_access, evidence, guardrails, recommendation
+from src.ai.pricing import currency, data_access, estimation, evidence, guardrails, recommendation
 
 logger = logging.getLogger("CEOPRO_AI_PRICING_PIPELINE")
 
 SOURCE_MODULE = "ai.pricing"
+
+# Price data older than this is still used, but the explanation says so.
+OLD_DATA_NOTE_AFTER_DAYS = 90
 
 
 def _build_cross_currency_reference(conn, tenant_id: str, product_id: str, own_currency: str) -> str:
@@ -113,22 +117,27 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
     competitor_prices = data_access.load_competitor_prices(conn, tenant_id, product_id, own["currency"])
     cross_currency_note = _build_cross_currency_reference(conn, tenant_id, product_id, own["currency"])
 
-    if not competitor_prices:
-        explanation = (
-            f"No competitor prices for '{own['product_name']}' in {own['currency']} were recorded in the last "
-            f"{data_access.MAX_PRICE_AGE_DAYS} days."
-        ) + cross_currency_note
-        evidence_id = evidence.insert_evidence_record(
-            conn, tenant_id, "UNKNOWN", SOURCE_MODULE, {"product_id": product_id}, None, explanation, None
-        )
-        conn.commit()
-        logger.info(f"No competitor prices for tenant={tenant_id} product={product_id}; evidence={evidence_id}")
-        return {"status": "UNKNOWN", "explanation": explanation, "evidence_id": evidence_id,
-                "max_price_age_days": data_access.MAX_PRICE_AGE_DAYS}
-
     own_currency = own["currency"]
     money = lambda amount: format_money(amount, own_currency)  # noqa: E731
-    rec = recommendation.build_recommendation(own["current_price"], competitor_prices, own_currency)
+    estimate = None
+    if competitor_prices:
+        rec = recommendation.build_recommendation(own["current_price"], competitor_prices, own_currency)
+    else:
+        # Never "no data": widen to market reference / out-of-region prices,
+        # then peer products, then internal margin (see estimation.py).
+        estimate = estimation.build_estimate(conn, tenant_id, product_id, own)
+        if estimate.prices:
+            rec = recommendation.build_recommendation(own["current_price"], estimate.prices, own_currency)
+            rec.confidence_score = min(rec.confidence_score, estimate.confidence_cap)
+            rec.matched_competitor_count = len(estimate.competitor_price_ids) + len(estimate.market_observation_ids)
+        else:
+            rec = recommendation.build_internal_recommendation(
+                own["current_price"], own["cost"], guardrails.MIN_MARGIN_PCT, own_currency
+            )
+            rec.confidence_score = estimate.confidence_cap
+        rec.source_record_ids = estimate.competitor_price_ids
+        rec.basis = estimate.basis
+        rec.explanation = f"[{estimate.basis}] {estimate.note} {rec.explanation}"
     change_guardrail = guardrails.apply_price_change_guardrail(
         own["current_price"], rec.raw_suggested_price, currency=own_currency
     )
@@ -198,14 +207,31 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         action = "hold"
         final_suggested_price = own["current_price"]
 
-    explanation += cross_currency_note
+    evidence_prices = competitor_prices or (estimate.prices if estimate else [])
+    observed = [c["captured_at"] for c in evidence_prices if c.get("captured_at") is not None]
+    newest_observation = max(observed) if observed else None
+    age_days = (datetime.now(timezone.utc) - newest_observation).days if newest_observation else None
+    if age_days is not None and age_days > OLD_DATA_NOTE_AFTER_DAYS:
+        explanation += (
+            f" Note: the most recent price used was collected on {newest_observation.date().isoformat()} "
+            f"({age_days} days ago); treat this as a reference, not a live market price."
+        )
+
+    if estimate is None or estimate.basis != estimation.REGIONAL_ESTIMATE:
+        # A regional estimate already uses (and explains) the converted prices.
+        explanation += cross_currency_note
 
     evidence_id = evidence.insert_evidence_record(
         conn,
         tenant_id,
         "RECOMMENDATION",
         SOURCE_MODULE,
-        {"product_id": product_id, "competitor_price_entry_ids": rec.source_record_ids},
+        {
+            "product_id": product_id,
+            "competitor_price_entry_ids": rec.source_record_ids,
+            "market_observation_ids": estimate.market_observation_ids if estimate else [],
+            "data_basis": rec.basis,
+        },
         rec.confidence_score,
         explanation,
         None,
@@ -229,11 +255,15 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         "suggested_price": final_suggested_price,
         "guardrail_clamped": change_guardrail.clamped,
         "margin_guardrail_clamped": margin_guardrail.clamped if margin_guardrail is not None else None,
+        "data_basis": rec.basis,
         "matched_competitor_count": rec.matched_competitor_count,
         "market_action": market_action,
         "hold_reason": hold_reason,
         "demand": demand,
-        "market": {"average": rec.market_avg, "median": rec.market_median, "min": rec.market_min, "max": rec.market_max},
+        "market": (
+            None if rec.basis == estimation.INTERNAL_ONLY
+            else {"average": rec.market_avg, "median": rec.market_median, "min": rec.market_min, "max": rec.market_max}
+        ),
         "confidence_score": rec.confidence_score,
         "max_price_age_days": data_access.MAX_PRICE_AGE_DAYS,
         # The same real explanation text already persisted to this
@@ -246,3 +276,28 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         "evidence_id": evidence_id,
         "outcome_id": outcome_id,
     }
+
+
+def run_price_recommendations_for_all(conn, tenant_id: str) -> dict:
+    """
+    One decision (raise / lower / hold) for every active product - no product
+    is skipped for lacking market data (see estimation.py). A failure on one
+    product is recorded and the batch continues.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT product_id FROM products WHERE tenant_id = %s AND deleted_at IS NULL;", (tenant_id,))
+        product_ids = [str(row[0]) for row in cursor.fetchall()]
+
+    results, failed = [], []
+    for product_id in product_ids:
+        try:
+            results.append({"product_id": product_id, **run_price_recommendation(conn, tenant_id, product_id)})
+        except Exception as exc:  # noqa: BLE001 - one bad product must not stop the batch
+            conn.rollback()
+            logger.exception(f"Price recommendation failed tenant={tenant_id} product={product_id}")
+            failed.append({"product_id": product_id, "error": str(exc)})
+
+    by_basis = {}
+    for result in results:
+        by_basis[result["data_basis"]] = by_basis.get(result["data_basis"], 0) + 1
+    return {"total": len(product_ids), "decided": len(results), "by_data_basis": by_basis, "failed": failed, "results": results}

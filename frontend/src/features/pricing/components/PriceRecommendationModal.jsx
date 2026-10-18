@@ -48,7 +48,10 @@ export function PriceRecommendationModal({ open, product, onClose, currencyForma
         <div><dt>{t('pricing.modal.confidence')}</dt><dd>{result.confidence_score != null ? `${Math.round(result.confidence_score * 100)}%` : t('products.common.notAvailable')}</dd></div>
       </dl>
       {(result.guardrail_clamped || result.margin_guardrail_clamped) && <p className="pricing-recommendation-guardrail-note">{t('pricing.modal.guardrailApplied')}</p>}
-      <p className="pricing-recommendation-explanation">{t('pricing.modal.basis', { count: result.matched_competitor_count, days: result.max_price_age_days ?? 30 })}</p>
+      {/* Never a bare "no data": a decision backed by an estimate says what it is estimated from. */}
+      {result.data_basis && result.data_basis !== 'LOCAL_MARKET'
+        ? <p className="pricing-recommendation-explanation pricing-recommendation-explanation--strong">{t(`pricing.modal.estimate.${result.data_basis}`)}</p>
+        : <p className="pricing-recommendation-explanation">{t('pricing.modal.basis', { count: result.matched_competitor_count, days: result.max_price_age_days ?? 30 })}</p>}
       {/* The reasoning, built from the numbers so it reads in the interface language. */}
       {result.market && <p className="pricing-recommendation-explanation">{t(`pricing.reason.market.${result.market_action || result.action}`, {
         price: currencyFormatter(result.current_price, product.currency),
