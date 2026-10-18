@@ -1,11 +1,16 @@
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 
 export default function Table({ 
   columns = [],
   data = [],
   className = '',
-  ariaLabel = 'Data table',
+  ariaLabel,
+  emptyMessage,
   ...props
 }) {
+  const { t } = useI18n();
+  const empty = emptyMessage || t('common.noData');
+  const label = ariaLabel || t('common.dataTable');
   const tableStyle = {
     width: '100%',
     borderCollapse: 'collapse',
@@ -33,8 +38,8 @@ export default function Table({
 
   return (
     // Focusable so keyboard users can scroll a table that is wider than the screen.
-    <div tabIndex={0} role={ariaLabel ? 'region' : undefined} aria-label={ariaLabel} style={{ width: '100%', overflowX: 'auto', background: 'var(--ceopro-surface)', borderRadius: 'var(--ceopro-radius-md)', border: '1px solid var(--ceopro-border)' }}>
-      <table className={`ceopro-table ${className}`.trim()} style={tableStyle} aria-label={ariaLabel} {...props}>
+    <div tabIndex={0} role="region" aria-label={label} style={{ width: '100%', overflowX: 'auto', background: 'var(--ceopro-surface)', borderRadius: 'var(--ceopro-radius-md)', border: '1px solid var(--ceopro-border)' }}>
+      <table className={`ceopro-table ${className}`.trim()} style={tableStyle} aria-label={label} {...props}>
         <thead>
           <tr>
             {columns.map((col, index) => (
@@ -60,8 +65,8 @@ export default function Table({
             ))
           ) : (
             <tr>
-              <td colSpan={columns.length} role="status" aria-label="No data available" style={{ textAlign: 'center', padding: 'var(--ceopro-space-6)', color: 'var(--ceopro-text-muted)' }}>
-                No data available
+              <td colSpan={columns.length} role="status" aria-label={empty} style={{ textAlign: 'center', padding: 'var(--ceopro-space-6)', color: 'var(--ceopro-text-muted)' }}>
+                {empty}
               </td>
             </tr>
           )}

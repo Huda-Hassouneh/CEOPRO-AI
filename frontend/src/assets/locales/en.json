@@ -1,5 +1,7 @@
 {
   "common": {
+    "noData": "No data available yet.",
+    "dataTable": "Data table",
     "brand": "KEEL",
     "loading": "Loading...",
     "languageSwitch": "Change language",

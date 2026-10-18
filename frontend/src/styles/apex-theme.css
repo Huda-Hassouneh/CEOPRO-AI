@@ -61,17 +61,16 @@
   --apex-accent-border: rgba(91, 99, 236, 0.38);
   --apex-on-accent: #ffffff;
   --apex-gradient: linear-gradient(180deg, #7e86f8 0%, #5b63ec 100%);
-  /* KEEL logo (shared/components/brand/KeelMark.jsx), blue & purple. The
-     tile is the app-icon square; plain sits on the page background. */
-  --keel-logo-tile-bg: linear-gradient(160deg, #4a6ee0, #4b2fa3);
-  --keel-logo-tile-hull-top: #e3ecff; --keel-logo-tile-hull-bottom: #8fb0ff;
-  --keel-logo-tile-keel-top: #ffffff; --keel-logo-tile-keel-bottom: #d6cbff;
-  --keel-logo-tile-bulb-light: #ffffff; --keel-logo-tile-bulb-dark: #b9a8ff;
-  --keel-logo-tile-rim: rgba(255, 255, 255, 0.85);
-  --keel-logo-plain-hull-top: #9cc0ff; --keel-logo-plain-hull-bottom: #3d6fd9;
-  --keel-logo-plain-keel-top: #8a6cf0; --keel-logo-plain-keel-bottom: #3e2590;
-  --keel-logo-plain-bulb-light: #b8a6ff; --keel-logo-plain-bulb-dark: #5a3fd0;
-  --keel-logo-plain-rim: rgba(255, 255, 255, 0.9);
+  /* KEEL logo (shared/components/brand/KeelMark.jsx): a ribbon "K" - stem
+     periwinkle to violet, arms blue easing to aqua, a soft fold highlight.
+     The tile is the app-icon square (frosted pearl glass); plain sits on the
+     page background. --keel-wordmark is the KEEL lettering beside it. */
+  --keel-logo-tile-bg: radial-gradient(130% 90% at 18% 0%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 55%), linear-gradient(150deg, #f4f6ff 0%, #e4e9ff 45%, #ece4ff 75%, #def5fb 100%);
+  --keel-logo-tile-stem-top: #7f95f3; --keel-logo-tile-stem-bottom: #8a6fe6;
+  --keel-logo-tile-arm: #74a3f3; --keel-logo-tile-tip: #6fd9cc; --keel-logo-tile-fold: #b8f3ef;
+  --keel-logo-plain-stem-top: #7f95f3; --keel-logo-plain-stem-bottom: #8a6fe6;
+  --keel-logo-plain-arm: #74a3f3; --keel-logo-plain-tip: #6fd9cc; --keel-logo-plain-fold: #b8f3ef;
+  --keel-wordmark: #4c5d8a;
   --apex-gradient-mint: linear-gradient(180deg, #a0ead8 0%, #68d2ba 100%);
   --apex-iridescent: linear-gradient(120deg, rgba(249, 168, 212, 0.9), rgba(196, 181, 253, 0.9) 35%, rgba(147, 197, 253, 0.85) 65%, rgba(110, 231, 210, 0.9));
   --apex-gradient-soft: linear-gradient(120deg, rgba(178, 160, 246, 0.18), rgba(128, 186, 246, 0.14) 50%, rgba(104, 210, 186, 0.16));
@@ -101,7 +100,7 @@
   --apex-font: "Inter", "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif;
   --apex-font-display: "Sora", "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif;
   /* The KEEL wordmark's typeface (approved with the logo). */
-  --keel-font-wordmark: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --keel-font-wordmark: "Sora", "Inter", system-ui, sans-serif;
 
   /* Legacy tokens -> KEEL */
   --ceopro-primary: var(--apex-accent);
@@ -176,10 +175,12 @@
   --apex-accent-tint: rgba(143, 149, 255, 0.16);
   --apex-accent-border: rgba(154, 160, 255, 0.42);
   --apex-gradient: linear-gradient(180deg, #7e86f8 0%, #5b63ec 100%);
-  --keel-logo-plain-hull-top: #c3d6ff; --keel-logo-plain-hull-bottom: #5c86f0;
-  --keel-logo-plain-keel-top: #efe9ff; --keel-logo-plain-keel-bottom: #a58cff;
-  --keel-logo-plain-bulb-light: #d9ceff; --keel-logo-plain-bulb-dark: #7a5cf0;
-  --keel-logo-plain-rim: rgba(255, 255, 255, 0.75);
+  --keel-logo-tile-bg: radial-gradient(130% 90% at 18% 0%, rgba(196, 210, 255, 0.3), rgba(255, 255, 255, 0) 55%), linear-gradient(150deg, #2a3070 0%, #1f1a4d 55%, #132a40 100%);
+  --keel-logo-tile-stem-top: #a3b4ff; --keel-logo-tile-stem-bottom: #a78bff;
+  --keel-logo-tile-arm: #92bcff; --keel-logo-tile-tip: #86efe2; --keel-logo-tile-fold: #d4fbf7;
+  --keel-logo-plain-stem-top: #a3b4ff; --keel-logo-plain-stem-bottom: #a78bff;
+  --keel-logo-plain-arm: #92bcff; --keel-logo-plain-tip: #86efe2; --keel-logo-plain-fold: #d4fbf7;
+  --keel-wordmark: #e3e9ff;
   --apex-gradient-soft: linear-gradient(120deg, rgba(178, 160, 246, 0.14), rgba(128, 186, 246, 0.1) 50%, rgba(104, 210, 186, 0.12));
   --apex-iridescent: linear-gradient(120deg, rgba(103, 232, 249, 0.75), rgba(129, 140, 248, 0.8) 40%, rgba(192, 132, 252, 0.8) 70%, rgba(244, 114, 182, 0.6));
   --apex-focus: 0 0 0 2px rgba(20, 22, 28, 0.9), 0 0 0 4px rgba(154, 160, 255, 0.7);
@@ -446,6 +447,6 @@ html .business-page-header__copy p { margin-top: 6px; color: var(--apex-text-2);
 
 
 /* Sign-in / sign-up brand */
-html .ceopro-auth-brand { display: inline-flex; align-items: center; justify-content: center; gap: 10px; color: var(--apex-text); font: 600 25px/1 var(--keel-font-wordmark); letter-spacing: 0.14em; }
+html .ceopro-auth-brand { display: inline-flex; align-items: center; justify-content: center; gap: 10px; color: var(--keel-wordmark); font: 700 25px/1 var(--keel-font-wordmark); letter-spacing: 0.05em; }
 html .ceopro-auth-brand__mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 60%), var(--keel-logo-tile-bg); color: #fff; box-shadow: 0 10px 28px -10px rgba(91,97,240,.6); }
 html .ceopro-auth-shell { background: var(--apex-glass); border: 1px solid var(--apex-glass-border); border-radius: var(--apex-radius-lg); box-shadow: var(--apex-glass-highlight), var(--apex-shadow); backdrop-filter: var(--apex-blur); -webkit-backdrop-filter: var(--apex-blur); }
