@@ -171,7 +171,7 @@ production stay **disabled** until every 🔴 below is closed.
 
 ## Competitor data, pricing and release (needs a human)
 
-Added 2026-10-18 after the full verification run (backend 3087 passed / 0 failed / 18 skipped; frontend 83 passed, lint and build clean).
+Added 2026-10-18 after the full verification run (backend 3113 passed / 0 failed / 21 skipped; frontend 83 passed, lint and build clean).
 
 | # | Item | Owner | Status |
 |---|---|---|---|
@@ -184,6 +184,7 @@ Added 2026-10-18 after the full verification run (backend 3087 passed / 0 failed
 | 73 | Tests that need model downloads or paid accounts never ran here (embeddings, reranking, sentiment: 16 tests; Stripe test-mode e2e; live provider smoke). Run them once in CI or on a machine with the `AI_TEST_EMBEDDINGS`, `AI_TEST_RERANKING`, `AI_TEST_SENTIMENT` and Stripe test keys set. | CI owner | 🟠 Open |
 | 74 | `KEEL_Test` history was rewritten by someone between 2026-10-17 and 2026-10-18 (same commits, new hashes). Anyone with an older local clone should re-fetch and not push from it. | Whole team | ⚪ Informational |
 | 75 | **A Groq API key (`gsk_...`) was committed in `backend/.env.example`** (commit `1f43ec3`, 2026-10-18) on the public repository. The value is blanked in the file, but it stays in git history: revoke it at console.groq.com, create a new one, and put it only in `backend/.env` / the host's secret store. Check Groq usage for the period since 2026-10-18. | Whoever owns the Groq account | 🔴 Open — **do first**; file cleaned (also blanked upstream), key not revoked (see #64) |
+| 76 | Marketing images: when no AI image can be made, a locally drawn "designed poster" is stored instead (commit `e1f846c`). From reading the code, it goes through the same usage reservation as an AI image, so it appears to use one of the plan's monthly image allowances. Not tested. Decide whether it should; the billing test `test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_counted` was updated to cover only the case where nothing at all is produced. | Product / billing owner | 🟡 Open |
 
 ---
 

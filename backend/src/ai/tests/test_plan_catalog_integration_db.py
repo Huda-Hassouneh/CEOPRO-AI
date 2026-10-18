@@ -325,7 +325,7 @@ def test_a_marketing_image_is_refused_when_storage_is_full(client, monkeypatch):
 
 @requires_minio
 def test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_counted(client, monkeypatch):
-    from src.ai.marketing import image_generation
+    from src.ai.marketing import designed_poster, image_generation
     from src.ai.rag import llm_client
     from src.ai.tests.test_marketing_content_generator import _valid_response_json
 
@@ -339,13 +339,19 @@ def test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_cou
         rows = _admin("SELECT used FROM tenant_usage_counters WHERE tenant_id = %s AND feature_code = 'marketing_image_generation';", (tenant,))
         return rows[0][0] if rows else 0
 
-    # A provider failure, or no provider at all, uses nothing.
+    # When nothing at all is produced - a provider failure or no provider, and the
+    # locally drawn fallback poster failing too - nothing is used.
+    def poster_fails(*args, **kwargs):
+        raise RuntimeError("render failed")
+    monkeypatch.setattr(designed_poster, "render_designed_poster", poster_fails)
+
     def fail(prompt, **kw):
         raise image_generation.ImageGenerationError("PROVIDER_ERROR", "provider down")
     monkeypatch.setattr(image_generation, "generate_campaign_image", fail)
     assert client.post(url, headers=headers).json()["image_generation_status"] == "PROVIDER_ERROR"
     monkeypatch.undo()
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(designed_poster, "render_designed_poster", poster_fails)
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "none")
     assert client.post(url, headers=headers).json()["image_generation_status"] == "NOT_CONFIGURED"
     assert used() == 0
