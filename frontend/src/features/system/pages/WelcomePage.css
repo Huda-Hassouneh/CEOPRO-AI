@@ -18,6 +18,9 @@
   --kw-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --kw-mx: 0.5;
   --kw-my: 0.4;
+  --keel-logo-plain-stem-top: #a3b4ff; --keel-logo-plain-stem-bottom: #a78bff;
+  --keel-logo-plain-arm: #92bcff; --keel-logo-plain-tip: #86efe2; --keel-logo-plain-fold: #d4fbf7;
+  --keel-wordmark: #eef1ff;
   position: relative;
   isolation: isolate;
   display: flex;
@@ -123,7 +126,7 @@
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
-.kw-brand-word { font-family: var(--apex-font-display); font-size: 19px; font-weight: 600; letter-spacing: 0.32em; }
+.kw-brand-word { color: var(--keel-wordmark); font-family: var(--keel-font-wordmark, var(--apex-font-display)); font-size: 21px; font-weight: 700; letter-spacing: 0.05em; }
 .kw-brand:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 4px; }
 .kw .ceopro-auth-language-switch {
   position: static;
@@ -473,7 +476,7 @@
 @media (max-width: 560px) {
   .kw-top { padding: 16px 18px; }
   .kw-brand-mark { width: 38px; height: 38px; }
-  .kw-brand-word { font-size: 17px; letter-spacing: 0.28em; }
+  .kw-brand-word { font-size: 19px; }
   .kw-eyebrow { margin-bottom: 20px; font-size: 11px; }
   .kw-lead { margin-top: 18px; }
   .kw-actions { flex-direction: column; align-items: stretch; margin-top: 28px; }
