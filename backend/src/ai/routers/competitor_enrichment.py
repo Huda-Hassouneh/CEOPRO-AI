@@ -10,7 +10,7 @@ routers/competitors.py); a PRICES gap that needs it carries
 `action: "review_source"` and the source ids to review.
 """
 import logging
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
 import redis
@@ -33,6 +33,8 @@ logger = logging.getLogger("CEOPRO_AI_COMPETITOR_ENRICHMENT_API")
 class EnrichCompetitorRequest(BaseModel):
     # Omit to retry everything collectable (competitor_enrichment.ENRICHABLE_FACETS).
     facets: Optional[List[str]] = None
+    # "deep" = "load more": PRICES reads more pages, items and menu files (slower, so prefer background=true).
+    depth: Literal["standard", "deep"] = "standard"
 
 
 def _competitor_uuid(competitor_id: str) -> str:
@@ -46,11 +48,11 @@ def _enrichment_redis() -> redis.Redis:
     return get_redis_client(socket_timeout=3, socket_connect_timeout=3)
 
 
-def _queue_enrichment(tenant_id: str, competitor_id: Optional[str], facets, mode: str):
+def _queue_enrichment(tenant_id: str, competitor_id: Optional[str], facets, mode: str, *extra):
     """202 for a background job. A Redis outage is a 503 (retry shortly), never
     a silent drop; an identical job already queued is reported, not duplicated."""
     try:
-        message_id = enrichment_queue.enqueue_enrichment(_enrichment_redis(), tenant_id, competitor_id, facets, mode)
+        message_id = enrichment_queue.enqueue_enrichment(_enrichment_redis(), tenant_id, competitor_id, facets, mode, *extra)
     except redis.RedisError:
         logger.exception("could not enqueue enrichment for tenant=%s", tenant_id)
         raise HTTPException(status_code=503, detail="The retry queue is unavailable; try again shortly.")
@@ -100,13 +102,15 @@ def enrich_competitor_endpoint(
 ):
     """
     The per-competitor Retry button: re-runs the collectable facets (profile,
-    social links, Google reviews) and returns each outcome plus the refreshed
+    social links, Google reviews, news, comments, and prices from the website
+    and its menu PDFs / pictures; depth=deep loads more of the website) and returns each outcome plus the refreshed
     completeness. Additive - a retry only adds data or raises confidence. A
     provider/setup problem comes back as that facet's reason_code, not an HTTP
     error. background=true queues it for the enrichment worker instead (202).
     """
     competitor_id = _competitor_uuid(competitor_id)
     facets = body.facets if body and body.facets else None
+    deep = bool(body and body.depth == "deep")
     unsupported = [f for f in (facets or []) if f not in competitor_enrichment.ENRICHABLE_FACETS]
     if unsupported:
         raise HTTPException(
@@ -114,12 +118,13 @@ def enrich_competitor_endpoint(
             detail=f"Cannot retry {unsupported} yet; supported: {list(competitor_enrichment.ENRICHABLE_FACETS)}.",
         )
     if background:
-        return _queue_enrichment(ctx.tenant_id, competitor_id, facets, enrichment_queue.MODE_FORCE)
+        return _queue_enrichment(ctx.tenant_id, competitor_id, facets, enrichment_queue.MODE_FORCE,
+                                  *(("deep",) if deep else ()))
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         try:
             results = competitor_enrichment.enrich_competitor(
-                conn, ctx.tenant_id, competitor_id, facets=facets, throttle=True, actor_user_id=ctx.user_id,
+                conn, ctx.tenant_id, competitor_id, facets=facets, throttle=True, actor_user_id=ctx.user_id, **({"deep": True} if deep else {}),
             )
         except ValueError:
             conn.rollback()

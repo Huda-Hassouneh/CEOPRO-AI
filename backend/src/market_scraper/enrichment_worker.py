@@ -51,7 +51,8 @@ def process_job(payload: dict) -> dict:
             from src.market_scraper.price_lookup.pipeline import lookup_missing_prices
             return lookup_missing_prices(conn, tenant_id)
         if competitor_id:
-            return {"results": enrich_competitor(conn, tenant_id, competitor_id, facets=facets)}
+            extra = {"deep": True} if payload.get("depth") == "deep" else {}
+            return {"results": enrich_competitor(conn, tenant_id, competitor_id, facets=facets, **extra)}
         return enrich_tenant_competitors(conn, tenant_id, mode=mode)
     finally:
         conn.close()

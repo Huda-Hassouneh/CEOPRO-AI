@@ -86,7 +86,7 @@ def test_enrich_without_a_body_retries_everything_collectable():
 
 def test_enrich_rejects_a_facet_that_cannot_be_collected_yet_without_touching_the_database():
     with patch(f"{R}.db.app_role_connection") as connect:
-        response = client.post(f"/competitors/{COMP}/enrich", json={"facets": ["PRICES"]}, headers=_auth())
+        response = client.post(f"/competitors/{COMP}/enrich", json={"facets": ["SOCIAL_CONTENT"]}, headers=_auth())
     assert response.status_code == 422
     connect.assert_not_called()
 
@@ -211,3 +211,17 @@ def test_competitor_data_overview_is_one_bulk_read_for_the_callers_tenant():
     assert response.status_code == 200 and response.json() == {"competitors": {COMP: {"rating": 4.4}}}
     details.assert_called_once_with(conn, "t1")
     assert connect.call_args.args[0] == "t1"
+
+
+def test_deep_retry_is_passed_to_the_collector_and_the_queue():
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.competitor_enrichment.enrich_competitor", return_value={}) as enrich, \
+         patch(f"{R}.competitor_enrichment.load_data_completeness", return_value={}):
+        assert client.post(f"/competitors/{COMP}/enrich", json={"facets": ["PRICES"], "depth": "deep"},
+                           headers=_auth()).status_code == 200
+    assert enrich.call_args.kwargs["deep"] is True and enrich.call_args.kwargs["facets"] == ["PRICES"]
+    with patch(f"{R}._enrichment_redis"), patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value="3-0") as enqueue:
+        assert client.post(f"/competitors/{COMP}/enrich?background=true", json={"facets": ["PRICES"], "depth": "deep"},
+                           headers=_auth()).status_code == 202
+    assert enqueue.call_args.args[-1] == "deep"
+    assert client.post(f"/competitors/{COMP}/enrich", json={"depth": "everything"}, headers=_auth()).status_code == 422
