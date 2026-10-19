@@ -23,7 +23,7 @@ from src.ai.billing import credits
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import product_market
-from src.ai.market_inputs import competitor_comments, public_sources
+from src.ai.market_inputs import comment_themes, competitor_comments, public_sources
 from src.market_scraper import competitor_enrichment, enrichment_queue, price_coverage
 
 router = APIRouter(tags=["competitors"])
@@ -235,6 +235,10 @@ def list_market_prices_endpoint(product_id: str, ctx: TenantContext = Depends(ge
 def competitor_reviews_endpoint(
     competitor_id: str, sort: str = Query(default=competitor_comments.SORT_HELPFUL, pattern="^(helpful|recent)$"),
     limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0),
+    sentiment: Optional[str] = Query(default=None, pattern="^(positive|negative|neutral)$"),
+    platform: Optional[str] = Query(default=None, max_length=40),
+    theme: Optional[str] = Query(default=None, pattern="^(" + "|".join(comment_themes.THEME_KEYS) + ")$"),
+    action: Optional[str] = Query(default=None, pattern="^(open|noted|acted_on)$"),
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict:
     """
@@ -242,12 +246,20 @@ def competitor_reviews_endpoint(
     rating, how many people liked each (people_agreeing), replies under the comment
     they answer, and the sentiment read from the text. sort=helpful puts the most
     agreed-with first. Comments held back by the safety scan are counted in
-    summary.held_back_for_safety, never silently dropped.
+    summary.held_back_for_safety, never silently dropped. sentiment=positive|negative|neutral
+    narrows the list; summary.sentiment counts every visible comment. A comment with at
+    least competitor_comments.SIGNAL_MIN_AGREEING people agreeing carries a `signal`:
+    "opportunity" (customers are unhappy with the competitor) or "threat" (they praise it).
+    platform / theme (service, waiting, price, quality, cleanliness, staff, delivery, availability) /
+    action (open = not handled yet, noted, acted_on) narrow the list too. summary also carries
+    themes (what customers talk about, most complaints first), last_collected_at and matching
+    (how many comments the filters leave).
     """
     competitor_id = _competitor_uuid(competitor_id)
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = competitor_comments.list_competitor_comments(conn, ctx.tenant_id, competitor_id, sort, limit, offset)
+        result = competitor_comments.list_competitor_comments(
+            conn, ctx.tenant_id, competitor_id, sort, limit, offset, sentiment, platform, theme, action)
         conn.commit()
     except Exception:
         conn.rollback()
@@ -257,6 +269,32 @@ def competitor_reviews_endpoint(
     if result is None:
         raise HTTPException(status_code=404, detail="Competitor not found.")
     return {"competitor_id": competitor_id, **result}
+
+
+class CommentActionRequest(BaseModel):
+    status: Optional[Literal["noted", "acted_on"]] = None  # null clears it
+
+
+@router.put("/competitors/{competitor_id}/reviews/{review_id}/action")
+def comment_action_endpoint(
+    competitor_id: str, review_id: str, body: CommentActionRequest, ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """Records what was done about one collected comment: "noted" (seen, kept in mind) or "acted_on" (turned into a
+    price, campaign or service change); status null clears it. 404 when the comment is not this competitor's or is
+    held back by the safety check."""
+    competitor_id, review_id = _competitor_uuid(competitor_id), _competitor_uuid(review_id)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = competitor_comments.set_comment_action(conn, ctx.tenant_id, competitor_id, review_id, body.status, ctx.user_id)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    if result is None:
+        raise HTTPException(status_code=404, detail="Comment not found.")
+    return result
 
 
 @router.get("/competitor-data/overview")

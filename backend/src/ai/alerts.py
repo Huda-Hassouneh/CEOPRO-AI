@@ -15,6 +15,9 @@ from src.ai.dashboard import command_center
 PRICE_MOVE_PCT = 3.0
 PRICE_GAP_PCT = 10.0
 RECENT_DAYS = 14
+# A competitor whose recent, analysed comments are this negative (and at least this many) is worth a look.
+NEGATIVE_COMMENTS_MIN = 5
+NEGATIVE_COMMENTS_SHARE = 0.6
 
 
 def _id(*parts) -> str:
@@ -75,6 +78,26 @@ def build_alerts(conn, tenant_id: str, now=None) -> list:
                        "params": {"product": gap["name"], "gap_pct": gap["gap_pct"], "competitor": gap["cheapest_competitor"]}})
 
     with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT r.competitor_id, gc.competitor_name, COUNT(s.review_id),
+                   COUNT(*) FILTER (WHERE s.sentiment_label = 'NEGATIVE')
+            FROM reviews r
+            JOIN tenant_competitors tc ON tc.tenant_id = r.tenant_id AND tc.global_competitor_id = r.competitor_id AND tc.is_tracked = TRUE
+            JOIN global_competitors gc ON gc.global_competitor_id = r.competitor_id
+            JOIN sentiment_results s ON s.tenant_id = r.tenant_id AND s.review_id = r.review_id
+            WHERE r.tenant_id = %s AND r.subject_type = 'COMPETITOR' AND r.parent_review_id IS NULL
+              AND r.source_status = 'ALLOWED' AND COALESCE(r.safety_status, 'SAFE') = 'SAFE' AND r.review_date >= %s
+            GROUP BY r.competitor_id, gc.competitor_name
+            HAVING COUNT(s.review_id) >= %s AND COUNT(*) FILTER (WHERE s.sentiment_label = 'NEGATIVE') >= %s * COUNT(s.review_id);
+            """,
+            (tenant_id, since, NEGATIVE_COMMENTS_MIN, NEGATIVE_COMMENTS_SHARE),
+        )
+        for competitor_id, competitor_name, analysed, negative in cursor.fetchall():
+            alerts.append({"id": _id("neg-comments", competitor_id, today.isocalendar()[:2]), "kind": "competitor_comments_negative",
+                           "severity": "info", "at": today.isoformat(), "link": f"/market/competitors/{competitor_id}",
+                           "params": {"competitor": competitor_name, "negative_pct": round(100 * negative / analysed), "count": analysed}})
+
         cursor.execute(
             """
             SELECT COUNT(*), MAX(first_seen_at), COUNT(*) FILTER (WHERE is_tracked)
