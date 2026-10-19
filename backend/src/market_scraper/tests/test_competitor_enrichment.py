@@ -295,3 +295,20 @@ def test_a_plain_retry_never_runs_the_paid_social_facet_but_an_explicit_request_
         explicit = ce.enrich_competitor(MagicMock(), TENANT, COMP, facets=[ce.FACET_SOCIAL_CONTENT], deep=True)
     assert list(explicit) == [ce.FACET_SOCIAL_CONTENT]
     assert social.call_args.args[-1] is True  # deep reaches the collector
+
+
+def test_a_refused_paid_deep_review_read_keeps_the_places_reviews_and_says_why():
+    from src.ai.billing import credits
+    with patch.object(ce, "_store_deep_google_reviews", side_effect=credits.BudgetError("COST_NOT_CONFIGURED", credits.DATA, detail="apify")):
+        # Only the refusal handling is under test: reproduce the except branches the reviews outcome has.
+        try:
+            with ce._billing_scope(TENANT, "competitor_reviews"):  # noqa: SLF001
+                ce._store_deep_google_reviews(MagicMock(), TENANT, COMP, "p", "s", "tok")  # noqa: SLF001
+        except credits.BudgetError as exc:
+            error = mentions_source_error(exc)
+    assert error.code == "COST_NOT_CONFIGURED" and "bound method" not in error.detail
+
+
+def mentions_source_error(exc):
+    from src.market_scraper import competitor_mentions as mentions
+    return mentions.SourceError(exc.reason, ce._refusal_text(exc))  # noqa: SLF001

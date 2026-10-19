@@ -1829,6 +1829,22 @@ Completes V6-V9 of `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 8 on `feat/com
   screens clean (en 1440, ar 390), axe audit 0 findings (en, ar mobile, dark mobile).
 - **Not done**: the competitor list rows, native-speaker review of the Arabic text (pending #94, #71).
 
+## 2026-10-19 (pending-task sweep)
+
+Everything in the pending list that code could close was closed on `feat/competitor-frontend-controls`:
+- **Frontend**: "Read prices" on competitor list rows; each price becomes a card on a phone (check controls never scroll
+  out of sight); Arabic wording pass on the new strings (still needs a human native speaker, pending #94 / #71).
+- **Gap found while verifying**: a competitor with a website that had never been read had `can_retry: false` for PRICES, so
+  the button could never appear for the competitors that need it most; fixed (any competitor with a website can be asked to
+  read its prices) and covered by a live-DB test.
+- **Backend**: deep reads are always queued; paid calls in a synchronous retry get a billing scope and a refusal is shown
+  as its real sentence (a bound method was printed before); clock-skew-proof price-age assertion.
+- **CI**: first step of the backend job rejects tracked `.env` files and Python bytecode.
+- Re-verified: browser smoke 26/26 and axe 0 findings in en desktop / ar mobile / dark mobile; 90 node tests; lint; build.
+
+What remains is human-only (secrets rotation #102, Render env and cost rows #95 / #97, migration #90, images #85, provider
+accounts #91 / #92, real menu photos #86, native-speaker Arabic review #94, name-matcher tuning data #93).
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
