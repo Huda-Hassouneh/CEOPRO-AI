@@ -99,3 +99,45 @@ def test_a_period_follow_up_carries_the_sales_intent():
     first = u.understand("How were my sales in the last 30 days?")
     follow = u.understand("and what about the last quarter?", previous=first.state())
     assert follow.follow_up and u.SALES in follow.intents and follow.slots["period_days"] == 90
+
+
+# --- routing: public research versus the company's own records -------------------
+
+@pytest.mark.parametrize("question", [
+    "Would importing my top product be cheaper than buying it locally?",
+    "Total landed cost per kg for Syrian cucumbers to Amman via Jaber",
+    "How can I check the customs duties for importing goods into Jordan from any country?",
+    "What is the average water price?",
+    "ما هو متوسط سعر المياه؟",
+    "التكلفة الواصلة للخيار السوري إلى عمان عبر معبر جابر",
+])
+def test_questions_about_public_facts_are_sent_to_research(question):
+    assert u.understand(question).needs_research
+
+
+@pytest.mark.parametrize("question", [
+    "How were my sales last month?", "What's my average daily revenue?", "What are the top selling products?",
+    "What price should I charge for olive oil?", "ما هو هامش ربحي؟",
+])
+def test_questions_about_the_business_itself_stay_private(question):
+    understood = u.understand(question)
+    assert not understood.needs_research and not understood.public_scope
+
+
+def test_landed_cost_alone_is_a_trade_question_with_its_route():
+    understood = u.understand("Total landed cost per kg for Syrian cucumbers to Amman via Jaber")
+    assert {u.TRADE, u.LANDED_COST} <= set(understood.intents)
+    assert understood.slots["origin_country"] == "SY" and understood.slots["destination_country"] == "JO"
+    assert understood.slots["route"] == "jaber"
+
+
+def test_an_adjective_of_origin_is_never_read_as_the_destination():
+    arabic = u.understand("التكلفة الواصلة للخيار السوري إلى عمان عبر معبر جابر")
+    assert arabic.slots["origin_country"] == "SY" and arabic.slots.get("destination_country") != "SY"
+    assert arabic.slots["route"] == "معبر جابر"
+    assert u.understand("ship Turkish towels to Saudi Arabia").slots == {
+        "countries": ["TR", "SA"], "origin_country": "TR", "destination_country": "SA"}
+
+
+def test_my_top_product_is_flagged_for_the_advisor_to_resolve():
+    assert u.understand("Would importing my top product be cheaper than buying it locally?").slots["top_product"]
