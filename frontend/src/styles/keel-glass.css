@@ -1,0 +1,488 @@
+/*
+ * KEEL glass material - the approved visual language for the whole product.
+ *
+ * A clear, colourless studio (neutral light grey in light, graphite in dark) holds pieces
+ * of glass. Colour comes only from the glass: every surface carries its own
+ * faint pastel tint (--t, as RGB) at its own strength (--a), and throws that
+ * colour as soft light onto the surface beneath it. Bright edges, a rim that
+ * fades round the far side, studio reflections on the face, a glint on the lit
+ * corner and a touch of refraction (Chromium) make it read as a real object.
+ *
+ * One recipe, applied by role:
+ *   slab     panels, cards, stat tiles, auth/landing/error cards
+ *   row      list items and tiles sitting inside a slab
+ *   field    inputs, selects, search, segmented tracks (glass set into glass)
+ *   gel      coloured glass for primary actions (indigo) and positive ones (mint)
+ *   overlay  menus, dialogs, popovers, toasts, tooltips - denser so text reads
+ */
+
+/* ------------------------------------------------------------ tokens */
+:root {
+  --gl-indigo: 91, 99, 236;
+  --gl-sky: 128, 186, 246;
+  --gl-mint: 104, 210, 186;
+  --gl-blush: 244, 168, 196;
+  --gl-lavender: 178, 160, 246;
+  --gl-peach: 248, 192, 150;
+  --gl-clear: 255, 255, 255;
+
+  --gl-ink: var(--apex-text);
+  --gl-ink-2: var(--apex-text-2);
+  --gl-ink-3: var(--apex-text-3);
+
+  --gl-blur: blur(14px) saturate(175%) brightness(1.04);
+  --gl-edge: inset 0 1.5px 0 rgba(255, 255, 255, 0.95), inset 1.5px 0 0 rgba(255, 255, 255, 0.6), inset -1px 0 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.45);
+  --gl-inner: inset 0 16px 26px -22px rgba(255, 255, 255, 0.95), inset 0 -14px 22px -20px rgba(255, 255, 255, 0.7);
+  --gl-contact: 4px 8px 14px -10px rgba(36, 40, 52, 0.18);
+  --gl-glow-strength: 0.5;
+  --gl-face: linear-gradient(160deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.08) 60%, rgba(255, 255, 255, 0.14) 100%);
+  --gl-rim: linear-gradient(140deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.55) 22%, rgba(255, 255, 255, 0.12) 50%, rgba(214, 200, 255, 0.45) 74%, rgba(255, 206, 226, 0.5) 86%, rgba(190, 236, 224, 0.6) 100%);
+  --gl-reflect:
+    radial-gradient(16px 9px at 28px 5px, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.16) 26%, rgba(255, 255, 255, 0) 44%),
+    linear-gradient(122deg, transparent 54%, rgba(255, 255, 255, 0.24) 60%, rgba(255, 255, 255, 0.06) 66%, transparent 70%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.55) 0, rgba(255, 255, 255, 0) 8px);
+  --gl-row-bg: radial-gradient(120% 70% at 30% -20%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 55%), rgba(255, 255, 255, 0.08);
+  --gl-row-shadow: var(--gl-edge), 6px 10px 18px -14px rgba(36, 40, 52, 0.3);
+  --gl-field-bg: rgba(255, 255, 255, 0.34);
+  --gl-field-shadow: inset 0 1.5px 3px rgba(36, 40, 52, 0.1), inset 0 -1px 0 rgba(255, 255, 255, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.55);
+  --gl-ctl-bg: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 60%), rgba(255, 255, 255, 0.14);
+  --gl-ctl-shadow: var(--gl-edge), 6px 10px 18px -12px rgba(36, 40, 52, 0.3);
+  --gl-overlay-bg: linear-gradient(160deg, rgba(252, 252, 253, 0.88), rgba(241, 241, 244, 0.84));
+  --gl-overlay-shadow: var(--gl-edge), 30px 40px 70px -26px rgba(24, 26, 34, 0.38), 8px 10px 24px -10px rgba(24, 26, 34, 0.22);
+  --gl-hairline: rgba(255, 255, 255, 0.55);
+  --gl-hairline-ink: rgba(36, 40, 52, 0.08);
+}
+:root[data-theme="dark"] {
+  --gl-blur: blur(14px) saturate(160%) brightness(1.08);
+  --gl-edge: inset 0 1.5px 0 rgba(255, 255, 255, 0.4), inset 1.5px 0 0 rgba(255, 255, 255, 0.2), inset -1px 0 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(255, 255, 255, 0.14);
+  --gl-inner: inset 0 16px 26px -22px rgba(255, 255, 255, 0.35), inset 0 -14px 22px -20px rgba(255, 255, 255, 0.2);
+  --gl-contact: 4px 8px 14px -10px rgba(0, 0, 0, 0.6);
+  --gl-glow-strength: 0.32;
+  --gl-face: linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 60%, rgba(255, 255, 255, 0.05) 100%);
+  --gl-rim: linear-gradient(140deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.18) 24%, rgba(255, 255, 255, 0.04) 50%, rgba(178, 160, 246, 0.35) 78%, rgba(104, 210, 186, 0.35) 100%);
+  --gl-reflect:
+    radial-gradient(16px 9px at 28px 5px, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 26%, rgba(255, 255, 255, 0) 44%),
+    linear-gradient(122deg, transparent 54%, rgba(255, 255, 255, 0.08) 60%, transparent 68%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.18) 0, rgba(255, 255, 255, 0) 8px);
+  --gl-row-bg: radial-gradient(120% 70% at 30% -20%, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 55%), rgba(255, 255, 255, 0.04);
+  --gl-row-shadow: var(--gl-edge), 6px 10px 18px -14px rgba(0, 0, 0, 0.6);
+  --gl-field-bg: rgba(255, 255, 255, 0.05);
+  --gl-field-shadow: inset 0 1.5px 4px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --gl-ctl-bg: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 60%), rgba(255, 255, 255, 0.05);
+  --gl-ctl-shadow: var(--gl-edge), 6px 10px 18px -12px rgba(0, 0, 0, 0.6);
+  --gl-overlay-bg: linear-gradient(160deg, rgba(42, 44, 51, 0.94), rgba(30, 32, 37, 0.92));
+  --gl-overlay-shadow: var(--gl-edge), 30px 40px 70px -26px rgba(0, 0, 0, 0.7), 8px 10px 24px -10px rgba(0, 0, 0, 0.5);
+  --gl-hairline: rgba(255, 255, 255, 0.08);
+  --gl-hairline-ink: rgba(255, 255, 255, 0.07);
+}
+
+/* ------------------------------------------------------------ studio */
+/* Painted on the root canvas so it covers the whole document at any height. */
+html { min-height: 100%; background: var(--apex-canvas); background-color: var(--apex-bg); background-attachment: scroll; }
+html body { background: transparent; }
+body::before, body::after, .business-app-shell::before, .business-app-shell::after { content: none; display: none; }
+/* No page sheet: the glass pieces sit directly in the studio. */
+html .business-app-shell__main { position: relative; width: calc(100% - 36px); max-width: 1680px; margin: 18px auto 48px; padding: 30px 38px 52px; }
+html .business-app-shell__main::before, html .business-app-shell__main::after, html .business-app-shell__main > .apex-route::before { content: none; display: none; }
+
+/* ------------------------------------------------------------ slabs */
+html :is(.apex-panel, .apex-stat, .ceopro-card, .business-card, .dashboard-card, .ceopro-plan-card, .dashboard-kpi-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .rag-knowledge-panel, .rag-chat-panel, .products-form-card, .ceopro-upload-panel, .market-panel, .demand-panel, .ceopro-database-panel, .ceopro-auth-shell, .apex-error-page__card, .ceopro-welcome-card, .legal-page__card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section),
+html .ceopro-landing :is(.lp-navbar, .lp-browser, .lp-floating, .lp-visual, .lp-feature, .lp-plan),
+html .apex-topnav__bar {
+  --t: var(--gl-clear);
+  --a: 0.14;
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  color: var(--gl-ink);
+  background:
+    linear-gradient(160deg, rgba(var(--t), calc(var(--a) * 1.5)) 0%, rgba(var(--t), var(--a)) 50%, rgba(var(--t), calc(var(--a) * 1.25)) 100%),
+    var(--gl-face);
+  backdrop-filter: var(--gl-blur); -webkit-backdrop-filter: var(--gl-blur);
+  box-shadow: var(--gl-edge), var(--gl-inner), var(--gl-contact), 18px 28px 44px -20px rgba(var(--t), var(--gl-glow-strength));
+  transition: transform 0.45s cubic-bezier(.2, .8, .2, 1), box-shadow 0.45s ease, background 0.3s ease;
+}
+:root[data-theme="dark"] :is(.apex-panel, .apex-stat, .ceopro-card, .business-card, .dashboard-card, .ceopro-plan-card, .dashboard-kpi-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .rag-knowledge-panel, .rag-chat-panel, .products-form-card, .ceopro-upload-panel, .market-panel, .demand-panel, .ceopro-database-panel, .ceopro-auth-shell, .apex-error-page__card, .ceopro-welcome-card, .legal-page__card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section),
+:root[data-theme="dark"] .ceopro-landing :is(.lp-navbar, .lp-browser, .lp-floating, .lp-visual, .lp-feature, .lp-plan),
+:root[data-theme="dark"] .apex-topnav__bar {
+  background:
+    linear-gradient(160deg, rgba(var(--t), calc(var(--a) * 1.1)) 0%, rgba(var(--t), calc(var(--a) * 0.6)) 50%, rgba(var(--t), calc(var(--a) * 0.9)) 100%),
+    var(--gl-face);
+}
+html .apex-panel { border-radius: 28px; }
+html .apex-stat { border-radius: 24px; overflow: hidden; }
+
+/* Rim and studio reflections sit behind the content (inside the slab's own
+   stacking context), so nothing inside has to be lifted above them. */
+html :is(.apex-panel, .apex-stat, .ceopro-card, .business-card, .dashboard-card, .ceopro-plan-card, .dashboard-kpi-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .rag-knowledge-panel, .rag-chat-panel, .products-form-card, .ceopro-upload-panel, .market-panel, .demand-panel, .ceopro-database-panel, .ceopro-auth-shell, .apex-error-page__card, .ceopro-welcome-card, .legal-page__card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section)::before {
+  content: ""; position: absolute; inset: 0; height: auto; width: auto; border-radius: inherit; padding: 1.3px; pointer-events: none; z-index: -1;
+  background: var(--gl-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 1; animation: none; transform: none;
+}
+html :is(.apex-panel, .apex-stat, .ceopro-card, .business-card, .dashboard-card, .ceopro-plan-card, .dashboard-kpi-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .rag-knowledge-panel, .rag-chat-panel, .products-form-card, .ceopro-upload-panel, .market-panel, .demand-panel, .ceopro-database-panel, .ceopro-auth-shell, .apex-error-page__card, .ceopro-welcome-card, .legal-page__card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section)::after {
+  content: ""; position: absolute; inset: 0; top: 0; height: auto; width: auto; border-radius: inherit; padding: 0; pointer-events: none; z-index: -1;
+  -webkit-mask: none; mask: none; animation: none; transform: none !important; opacity: 1;
+  background: var(--gl-reflect);
+}
+html .apex-panel > * { position: relative; z-index: auto; }
+@media (hover: hover) {
+  html :is(.apex-stat, .apex-panel:not(.apex-panel--hero):not(.apex-panel--static), .ceopro-plan-card, .ceopro-data-source-card, .connected-source-card):hover {
+    transform: translateY(-3px);
+    box-shadow: var(--gl-edge), var(--gl-inner), 6px 12px 20px -12px rgba(36, 40, 52, 0.2), 24px 36px 54px -22px rgba(var(--t), calc(var(--gl-glow-strength) + 0.12));
+  }
+}
+/* Subtle refraction where the browser renders SVG filters in backdrop-filter. */
+:root[data-refract] :is(.apex-panel, .apex-stat, .ceopro-card, .ceopro-plan-card, .settings-section-card, .ceopro-auth-shell),
+:root[data-refract] .apex-topnav__bar { backdrop-filter: url(#gl-refract) var(--gl-blur); }
+
+/* ------------------------------------------------------------ tints */
+/* Each piece is its own glass: tints rotate through the family so no two
+   neighbours match, and some pieces stay completely clear. */
+html .apex-stat:nth-child(5n + 1) { --t: var(--gl-sky); --a: 0.26; }
+html .apex-stat:nth-child(5n + 2) { --t: var(--gl-lavender); --a: 0.26; }
+html .apex-stat:nth-child(5n + 3) { --t: var(--gl-mint); --a: 0.28; }
+html .apex-stat:nth-child(5n + 4) { --t: var(--gl-peach); --a: 0.28; }
+html .apex-stat:nth-child(5n + 5) { --t: var(--gl-blush); --a: 0.26; }
+html .apex-stat--success { --t: var(--gl-mint); --a: 0.28; }
+html .apex-stat--warning { --t: var(--gl-peach); --a: 0.28; }
+html .apex-stat--danger { --t: var(--gl-blush); --a: 0.28; }
+html .apex-stat--violet { --t: var(--gl-lavender); --a: 0.26; }
+
+html :is(.apex-panel, .ceopro-card, .ceopro-plan-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .market-panel, .demand-panel, .products-form-card, .ceopro-upload-panel, .ceopro-database-panel, .dashboard-kpi-card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section):nth-child(6n + 1) { --t: var(--gl-clear); --a: 0.13; }
+html :is(.apex-panel, .ceopro-card, .ceopro-plan-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .market-panel, .demand-panel, .products-form-card, .ceopro-upload-panel, .ceopro-database-panel, .dashboard-kpi-card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section):nth-child(6n + 2) { --t: var(--gl-lavender); --a: 0.13; }
+html :is(.apex-panel, .ceopro-card, .ceopro-plan-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .market-panel, .demand-panel, .products-form-card, .ceopro-upload-panel, .ceopro-database-panel, .dashboard-kpi-card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section):nth-child(6n + 3) { --t: var(--gl-mint); --a: 0.14; }
+html :is(.apex-panel, .ceopro-card, .ceopro-plan-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .market-panel, .demand-panel, .products-form-card, .ceopro-upload-panel, .ceopro-database-panel, .dashboard-kpi-card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section):nth-child(6n + 4) { --t: var(--gl-sky); --a: 0.13; }
+html :is(.apex-panel, .ceopro-card, .ceopro-plan-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .market-panel, .demand-panel, .products-form-card, .ceopro-upload-panel, .ceopro-database-panel, .dashboard-kpi-card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section):nth-child(6n + 5) { --t: var(--gl-peach); --a: 0.14; }
+html :is(.apex-panel, .ceopro-card, .ceopro-plan-card, .ceopro-data-source-card, .settings-section-card, .connected-source-card, .billing-usage-card, .market-panel, .demand-panel, .products-form-card, .ceopro-upload-panel, .ceopro-database-panel, .dashboard-kpi-card, .pricing-table-wrap, .billing-comparison-wrap, .billing-current-plan, .billing-upgrade-banner, .connect-data-section, .market-main-panel, .marketing-form, .marketing-results-section):nth-child(6n + 6) { --t: var(--gl-blush); --a: 0.13; }
+html .apex-panel--hero { --t: var(--gl-lavender); --a: 0.08; }
+html :is(.ceopro-auth-shell, .ceopro-welcome-card) { --t: var(--gl-lavender); --a: 0.08; }
+html .apex-error-page__card { --t: var(--gl-peach); --a: 0.12; }
+html .apex-panel--hero::before { animation: none; }
+
+/* ------------------------------------------------------------ type in glass */
+html .apex-eyebrow { color: var(--gl-ink-3); letter-spacing: 0.02em; text-transform: none; font-weight: 600; }
+html .apex-panel__title { color: var(--gl-ink); font-weight: 680; letter-spacing: -0.02em; }
+html :is(.apex-panel__subtitle, .apex-muted, .apex-source) { color: var(--gl-ink-3); }
+html .apex-stat__label { color: var(--gl-ink-2); font-weight: 600; }
+html .apex-stat__value { color: var(--gl-ink); letter-spacing: -0.035em; }
+html .apex-stat__hint { color: var(--gl-ink-3); }
+/* stat icon: a gel bubble in the tile's own colour */
+html .apex-stat__icon {
+  width: 38px; height: 38px; border: 0; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  background: radial-gradient(70% 45% at 40% 18%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 100%), linear-gradient(180deg, rgba(var(--t), 0.85), rgba(var(--t), 1));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -2px 5px rgba(0, 0, 0, 0.12), 6px 10px 16px -8px rgba(var(--t), 0.85);
+  filter: saturate(1.15) brightness(0.92);
+}
+html .apex-stat:not([class*="apex-stat--"]) .apex-stat__icon, html .apex-stat--accent:nth-child(6n) .apex-stat__icon { --t: var(--gl-indigo); }
+
+/* ------------------------------------------------------------ rows in glass */
+html :is(.cc-actions li, .apex-list > li, .product-signal, .mk-product, .mk-occasion, .apex-choice, .apex-check, .apex-tile, .apex-notice) {
+  border: 0;
+  background: var(--gl-row-bg);
+  box-shadow: var(--gl-row-shadow);
+}
+html :is(.apex-choice, .apex-check, .apex-tile, .mk-product, .mk-occasion):is(.is-on, .is-selected, [aria-pressed="true"], [aria-checked="true"]) {
+  background: radial-gradient(120% 70% at 30% -20%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 55%), rgba(var(--gl-indigo), 0.14);
+  box-shadow: var(--gl-edge), 0 0 0 1.5px rgba(var(--gl-indigo), 0.55), 8px 12px 20px -12px rgba(var(--gl-indigo), 0.5);
+}
+html .apex-notice--info { background: var(--gl-row-bg), rgba(var(--gl-sky), 0.18); }
+html .apex-notice--danger { background: var(--gl-row-bg), rgba(var(--gl-blush), 0.24); }
+html .apex-notice--warning { background: var(--gl-row-bg), rgba(var(--gl-peach), 0.24); }
+html .apex-notice--success { background: var(--gl-row-bg), rgba(var(--gl-mint), 0.22); }
+
+/* ------------------------------------------------------------ tables */
+html :is(.apex-table, table) th { background: rgba(255, 255, 255, 0.22); color: var(--gl-ink-2); border-color: var(--gl-hairline); backdrop-filter: none; -webkit-backdrop-filter: none; }
+html :is(.apex-table, table) td { border-color: var(--gl-hairline); }
+html :is(.apex-table, table) tbody tr { transition: background 0.2s ease; }
+html :is(.apex-table, table) tbody tr:hover { background: rgba(255, 255, 255, 0.3); }
+:root[data-theme="dark"] :is(.apex-table, table) th { background: rgba(255, 255, 255, 0.05); }
+:root[data-theme="dark"] :is(.apex-table, table) tbody tr:hover { background: rgba(255, 255, 255, 0.05); }
+html .apex-table__link { color: var(--gl-ink); font-weight: 600; }
+html .apex-table__link:hover { color: var(--apex-accent); }
+html :is(.apex-up, .apex-delta--up) { color: var(--apex-success); }
+html :is(.apex-down, .apex-delta--down) { color: var(--apex-danger); }
+
+/* ------------------------------------------------------------ feature surfaces */
+/* Rows and tiles that sit inside a slab are thin clear glass. */
+html :is(.connect-data-upload__grid > div, .market-main-ai article, .marketing-history-item, .marketing-variant-card, .products-quick-sale-product, .rag-document-row, .reports-metric, .review-source-option, .search-scope-option, .pricing-recommendation-meta, .ceopro-password-requirements, .rag-sources li > a, .rag-sources li > button, .rag-sources li > div, .rag-message-attachment, .ceopro-database-provider, .settings-language-options label, .market-main-ai) {
+  border: 0;
+  background: var(--gl-row-bg);
+  box-shadow: var(--gl-row-shadow);
+}
+html :is(.search-scope-option.is-selected, .review-source-option.is-selected, .ceopro-database-provider.is-selected) {
+  background: radial-gradient(120% 70% at 30% -20%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 55%), rgba(var(--gl-indigo), 0.14);
+  box-shadow: var(--gl-edge), 0 0 0 1.5px rgba(var(--gl-indigo), 0.55), 8px 12px 20px -12px rgba(var(--gl-indigo), 0.5);
+}
+html .rag-request-error { border: 0; background: var(--gl-row-bg), rgba(var(--gl-blush), 0.24); box-shadow: var(--gl-row-shadow); }
+/* Tables set into a slab: no box of their own, just hairlines. */
+html :is(.products-table-wrap, .market-main-table-wrap, .connect-data-table-wrap, .settings-team-table-wrap, .rag-answer-table-wrap) { border: 0; background: transparent; box-shadow: inset 0 0 0 1px var(--gl-hairline); }
+html :is(.pricing-table, .billing-comparison-table) th { background: rgba(255, 255, 255, 0.22); }
+:root[data-theme="dark"] :is(.pricing-table, .billing-comparison-table) th { background: rgba(255, 255, 255, 0.05); }
+html :is(.pricing-table, .products-table, .market-main-table, .connect-data-table) :is(th, td) { border-color: var(--gl-hairline); }
+/* Feature form controls are glass fields. */
+html :is(.reports-date-input, .reports-select, .market-main-select, .rag-document-search, .rag-document-controls select, .settings-team-role-select) {
+  border: 1px solid transparent; background: var(--gl-field-bg); box-shadow: var(--gl-field-shadow);
+}
+/* Feature buttons and filters are clear glass; the selected one is indigo gel. */
+html :is(.marketing-mode-tab, .connected-source-card__actions button, .rag-empty-conversation button, .market-main-export, .pending-sources-page__filter) {
+  border: 0; color: var(--gl-ink); background: var(--gl-ctl-bg); box-shadow: var(--gl-ctl-shadow);
+}
+html :is(.marketing-mode-tab.is-active, .pending-sources-page__filter.is-active) {
+  color: #fff;
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(126, 134, 248, 0.95), rgba(var(--gl-indigo), 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 8px 12px 20px -10px rgba(var(--gl-indigo), 0.55);
+}
+
+/* ------------------------------------------------------------ fields */
+html :is(.apex-input, .apex-select, .apex-search, .ceopro-input-shell, .rag-composer__input),
+html :is(input[type="text"], input[type="search"], input[type="email"], input[type="number"], input[type="url"], input[type="date"], input[type="password"], input[type="tel"], select, textarea):not(.apex-palette__field input):not(.apex-search input):not(.ceopro-input-shell input):not(.apex-topnav input):not(.rag-composer textarea) {
+  background: var(--gl-field-bg);
+  border: 1px solid transparent;
+  color: var(--gl-ink);
+  box-shadow: var(--gl-field-shadow);
+  backdrop-filter: blur(8px) saturate(160%); -webkit-backdrop-filter: blur(8px) saturate(160%);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+html :is(.apex-search, .ceopro-input-shell) input { background: transparent; box-shadow: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html :is(input, select, textarea)::placeholder { color: var(--gl-ink-3); opacity: 0.85; }
+html :is(.apex-input, .apex-select, .apex-search, .ceopro-input-shell, .rag-composer__input):focus-within,
+html :is(input[type="text"], input[type="search"], input[type="email"], input[type="number"], input[type="url"], input[type="date"], input[type="password"], input[type="tel"], select, textarea):not(.apex-palette__field input):not(.apex-search input):not(.ceopro-input-shell input):not(.apex-topnav input):not(.rag-composer textarea):focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: var(--gl-field-shadow), 0 0 0 3px rgba(var(--gl-indigo), 0.28);
+}
+:root[data-theme="dark"] :is(.apex-input, .apex-select, .apex-search, .ceopro-input-shell, .rag-composer__input):focus-within,
+:root[data-theme="dark"] :is(input[type="text"], input[type="search"], input[type="email"], input[type="number"], input[type="url"], input[type="date"], input[type="password"], input[type="tel"], select, textarea):not(.apex-palette__field input):not(.apex-search input):not(.ceopro-input-shell input):not(.apex-topnav input):not(.rag-composer textarea):focus { background: rgba(255, 255, 255, 0.08); }
+html :is(input, select, textarea)[aria-invalid="true"], html .ceopro-input-shell--error { box-shadow: var(--gl-field-shadow), 0 0 0 2px rgba(var(--gl-blush), 0.9); }
+html select option { background: var(--apex-bg-raised); color: var(--gl-ink); }
+
+/* ------------------------------------------------------------ buttons */
+html :is(.apex-btn, .ceopro-button) { border: 0; border-radius: 999px; font-weight: 650; letter-spacing: -0.005em; transition: transform 0.25s cubic-bezier(.2, .8, .2, 1), box-shadow 0.3s ease, filter 0.2s ease, background 0.2s ease; }
+html :is(.apex-btn, .ceopro-button)::before { content: none; }
+/* indigo gel */
+html :is(.apex-btn--primary, .ceopro-button--primary, .lp-nav-cta, .apex-error-page__primary) {
+  color: #fff; text-shadow: none;
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(126, 134, 248, 0.95), rgba(var(--gl-indigo), 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -3px 6px rgba(40, 40, 140, 0.25), 10px 16px 26px -12px rgba(var(--gl-indigo), 0.6);
+}
+html :is(.apex-btn--primary, .ceopro-button--primary):hover:not(:disabled) {
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(134, 142, 250, 0.97), rgba(var(--gl-indigo), 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -3px 6px rgba(40, 40, 140, 0.25), 14px 22px 32px -12px rgba(var(--gl-indigo), 0.7);
+}
+/* mint gel */
+html :is(.apex-btn--mint, .ceopro-button--success) {
+  color: #0b4a3f;
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(160, 234, 218, 0.85), rgba(var(--gl-mint), 0.82));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -3px 6px rgba(20, 110, 95, 0.18), 10px 16px 26px -12px rgba(var(--gl-mint), 0.7);
+}
+/* blush gel for destructive actions - the label stays dark red */
+html :is(.apex-btn--danger, .ceopro-button--danger) {
+  color: #8a1d3b;
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(250, 196, 214, 0.9), rgba(var(--gl-blush), 0.88));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -3px 6px rgba(140, 30, 70, 0.16), 10px 16px 26px -12px rgba(var(--gl-blush), 0.75);
+}
+:root[data-theme="dark"] :is(.apex-btn--danger, .ceopro-button--danger) { color: #4a0b1d; }
+/* clear glass: secondary, outline, ghost, icon buttons */
+html :is(.apex-btn--secondary, .apex-btn--ghost, .apex-btn--outline, .ceopro-button--secondary, .ceopro-button--outline, .ceopro-button--ghost, .apex-icon-btn, .apex-chip, .apex-error-page__secondary) {
+  color: var(--gl-ink);
+  background: var(--gl-ctl-bg);
+  box-shadow: var(--gl-ctl-shadow);
+  backdrop-filter: blur(6px) saturate(170%); -webkit-backdrop-filter: blur(6px) saturate(170%);
+}
+html :is(.apex-btn--ghost, .ceopro-button--ghost) { background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 60%), rgba(255, 255, 255, 0.06); }
+html :is(.apex-btn--secondary, .apex-btn--ghost, .apex-btn--outline, .ceopro-button--secondary, .ceopro-button--outline, .ceopro-button--ghost, .apex-icon-btn, .apex-chip):hover:not(:disabled) {
+  color: var(--gl-ink);
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 60%), rgba(255, 255, 255, 0.24);
+  box-shadow: var(--gl-edge), 8px 14px 22px -12px rgba(36, 40, 52, 0.36);
+}
+:root[data-theme="dark"] :is(.apex-btn--secondary, .apex-btn--ghost, .apex-btn--outline, .ceopro-button--secondary, .ceopro-button--outline, .ceopro-button--ghost, .apex-icon-btn, .apex-chip):hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+html :is(.apex-chip[aria-pressed="true"], .apex-chip.is-active) {
+  color: #fff;
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(126, 134, 248, 0.95), rgba(var(--gl-indigo), 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 8px 12px 20px -10px rgba(var(--gl-indigo), 0.55);
+}
+html :is(.apex-btn, .ceopro-button) svg { color: currentColor; }
+@media (hover: hover) {
+  html :is(.apex-btn, .ceopro-button):hover:not(:disabled) { transform: translateY(-1px); }
+}
+html :is(.apex-btn, .ceopro-button):active:not(:disabled) { transform: translateY(1px) scale(0.985); }
+html :is(.apex-btn, .ceopro-button):disabled { opacity: 0.55; filter: saturate(0.6); }
+html :is(.apex-btn, .ceopro-button, .apex-segmented button, .ceopro-segmented-control__option, .apex-chip, .apex-icon-btn, .apex-table__link, .apex-topnav__tab, a):focus-visible {
+  outline: none; box-shadow: var(--apex-focus); border-radius: 12px;
+}
+html :is(.apex-btn, .ceopro-button, .apex-segmented button, .apex-chip):focus-visible { border-radius: 999px; }
+
+/* segmented control: clear capsule, glossy white knob */
+html :is(.apex-segmented, .ceopro-segmented-control) {
+  padding: 5px; gap: 4px; border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 5px rgba(36, 40, 52, 0.12), inset 0 -1px 0 rgba(255, 255, 255, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+html :is(.apex-segmented button, .ceopro-segmented-control__option) { border-radius: 999px; color: var(--gl-ink-2); font-weight: 600; background: transparent; box-shadow: none; }
+html :is(.apex-segmented button[aria-pressed="true"], .ceopro-segmented-control__option.is-selected) {
+  color: #14161c;
+  background: radial-gradient(120% 80% at 40% 0%, #fff, rgba(255, 255, 255, 0.82) 60%, rgba(236, 238, 243, 0.9));
+  box-shadow: inset 0 1px 0 #fff, inset 0 -2px 4px rgba(36, 40, 52, 0.08), 6px 10px 16px -8px rgba(36, 40, 52, 0.35);
+}
+:root[data-theme="dark"] :is(.apex-segmented, .ceopro-segmented-control) { background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.12); }
+:root[data-theme="dark"] :is(.apex-segmented button:not([aria-pressed="true"]), .ceopro-segmented-control__option:not(.is-selected)) { color: var(--gl-ink-2); }
+
+/* pills: small pieces of tinted glass */
+html .apex-pill { border: 0; font-weight: 650; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.4); }
+html .apex-pill--neutral { background: rgba(255, 255, 255, 0.3); color: var(--gl-ink-2); }
+html .apex-pill--accent { background: rgba(var(--gl-indigo), 0.14); color: #3f45c4; }
+html .apex-pill--violet { background: rgba(var(--gl-lavender), 0.32); color: #5a3fb8; }
+html .apex-pill--warning { background: rgba(var(--gl-peach), 0.36); color: #864616; }
+html .apex-pill--danger { background: rgba(var(--gl-blush), 0.38); color: #962a4c; }
+html .apex-pill--success { background: rgba(var(--gl-mint), 0.34); color: #10624c; }
+:root[data-theme="dark"] .apex-pill { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18); }
+:root[data-theme="dark"] .apex-pill--neutral { background: rgba(255, 255, 255, 0.08); color: var(--gl-ink-2); }
+:root[data-theme="dark"] .apex-pill--accent { background: rgba(var(--gl-indigo), 0.22); color: #c3c6ff; }
+:root[data-theme="dark"] .apex-pill--violet { background: rgba(var(--gl-lavender), 0.18); color: #d8ccff; }
+:root[data-theme="dark"] .apex-pill--warning { background: rgba(var(--gl-peach), 0.18); color: #ffd2a8; }
+:root[data-theme="dark"] .apex-pill--danger { background: rgba(var(--gl-blush), 0.18); color: #ffc0d3; }
+:root[data-theme="dark"] .apex-pill--success { background: rgba(var(--gl-mint), 0.18); color: #a8f0d8; }
+
+/* meters: a channel cut into the glass with a lit fill */
+html .apex-meter { background: rgba(255, 255, 255, 0.25); box-shadow: inset 0 1px 3px rgba(36, 40, 52, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.8); }
+:root[data-theme="dark"] .apex-meter { background: rgba(255, 255, 255, 0.06); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4); }
+html .apex-meter span { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+
+/* ------------------------------------------------------------ navigation */
+html .apex-topnav__bar { --t: var(--gl-clear); --a: 0.14; border-radius: 30px; }
+html .apex-topnav__bar::before { content: ""; position: absolute; inset: 0 24px auto; height: 1px; border-radius: 0; padding: 0; -webkit-mask: none; mask: none; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent); opacity: 1; }
+:root[data-theme="dark"] .apex-topnav__bar::before { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent); }
+html .apex-topnav.is-scrolled .apex-topnav__bar { --a: 0.4; }
+:root[data-theme="dark"] .apex-topnav.is-scrolled .apex-topnav__bar { --t: 30, 32, 38; --a: 0.7; }
+html :is(.apex-topnav__tablist, .apex-topnav__search, .apex-topnav__icon, .apex-topnav__profile) {
+  background: rgba(255, 255, 255, 0.14); border: 0; color: var(--gl-ink-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(255, 255, 255, 0.3), inset 0 2px 6px rgba(36, 40, 52, 0.06);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+:root[data-theme="dark"] :is(.apex-topnav__tablist, .apex-topnav__search, .apex-topnav__icon, .apex-topnav__profile) {
+  background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+html .apex-topnav__tabs { border-top-color: rgba(255, 255, 255, 0.45); }
+:root[data-theme="dark"] .apex-topnav__tabs { border-top-color: rgba(255, 255, 255, 0.08); }
+html .apex-topnav__tab { color: var(--gl-ink-2); }
+html .apex-topnav__tab svg { color: var(--gl-ink-3); }
+html .apex-topnav__tab:hover { background: rgba(255, 255, 255, 0.2); color: var(--gl-ink); }
+html :is(.apex-topnav__tab.is-active, .apex-topnav__tab.is-active svg) { color: #fff; }
+/* the moving tab marker: an indigo gel lens */
+html .apex-topnav__lens {
+  background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(124, 132, 248, 0.92), rgba(var(--gl-indigo), 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -3px 6px rgba(40, 40, 140, 0.25), 6px 10px 18px -8px rgba(var(--gl-indigo), 0.6);
+}
+html .apex-topnav__mark { background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%), var(--keel-logo-tile-bg); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 6px 10px 18px -8px rgba(var(--gl-indigo), 0.6); color: #fff; }
+html .apex-theme-toggle__track { border: 0; box-shadow: inset 0 2px 5px rgba(36, 40, 52, 0.14), inset 0 -1px 0 rgba(255, 255, 255, 0.85); }
+html .apex-topnav__profile .ceopro-avatar, html .apex-topnav__profile img, html .apex-topnav__profile > span:first-child { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 3.5px rgba(196, 180, 255, 0.55), 0 0 14px rgba(104, 210, 186, 0.45); border-radius: 50%; }
+html .apex-sheet__item { background: var(--gl-row-bg); border: 0; box-shadow: var(--gl-row-shadow); }
+html .apex-sheet__item.is-active { color: #fff; background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, rgba(126, 134, 248, 0.95), rgba(var(--gl-indigo), 0.96)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 8px 12px 20px -10px rgba(var(--gl-indigo), 0.55); }
+
+/* ------------------------------------------------------------ overlays */
+html :is(.apex-topnav__popover, .apex-palette__panel, .apex-sheet__panel, .ceopro-modal, .ceopro-modal__panel, .ceopro-dropdown-menu, .apex-menu__list, .business-topbar__profile-menu, .ceopro-toast, .apex-dialog, .apex-drawer) {
+  border: 0;
+  color: var(--gl-ink);
+  background: var(--gl-overlay-bg);
+  backdrop-filter: blur(30px) saturate(170%); -webkit-backdrop-filter: blur(30px) saturate(170%);
+  box-shadow: var(--gl-overlay-shadow);
+}
+html .ceopro-modal:has(.ceopro-modal__panel) { background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html :is(.apex-palette__scrim, .apex-sheet__scrim, .ceopro-modal__backdrop, .ceopro-modal-overlay) { background: var(--apex-scrim); backdrop-filter: blur(6px) saturate(120%); -webkit-backdrop-filter: blur(6px) saturate(120%); }
+html .ceopro-toast--success { box-shadow: var(--gl-overlay-shadow), inset 4px 0 0 rgba(var(--gl-mint), 0.95); }
+html .ceopro-toast--error { box-shadow: var(--gl-overlay-shadow), inset 4px 0 0 rgba(var(--gl-blush), 0.95); }
+html .ceopro-toast--info { box-shadow: var(--gl-overlay-shadow), inset 4px 0 0 rgba(var(--gl-sky), 0.95); }
+html .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--gl-overlay-bg) !important; border: 0 !important; border-radius: 16px; color: var(--gl-ink);
+  box-shadow: var(--gl-edge), 16px 22px 34px -14px rgba(24, 26, 34, 0.35) !important;
+  backdrop-filter: blur(20px) saturate(170%); -webkit-backdrop-filter: blur(20px) saturate(170%);
+}
+html [role="tooltip"]:not(.recharts-tooltip-wrapper) { background: var(--gl-overlay-bg); color: var(--gl-ink); border: 0; border-radius: 12px; box-shadow: var(--gl-overlay-shadow); }
+
+/* ------------------------------------------------------------ charts */
+html .recharts-area-curve, html .recharts-line-curve { filter: none; }
+html .recharts-cartesian-grid line { stroke: var(--apex-chart-grid); }
+html .recharts-cartesian-axis-tick-value { fill: var(--gl-ink-3); }
+
+/* ------------------------------------------------------------ states */
+html .apex-state__icon { border: 0; background: var(--gl-ctl-bg); box-shadow: var(--gl-ctl-shadow); }
+html .apex-state--error .apex-state__icon { background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 60%), rgba(var(--gl-blush), 0.3); color: var(--apex-danger); }
+html .apex-state--empty .apex-state__icon { background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 60%), rgba(var(--gl-lavender), 0.26); color: #5a3fb8; }
+:root[data-theme="dark"] .apex-state--empty .apex-state__icon { color: #d8ccff; }
+html :is(.ceopro-skeleton, .apex-skeleton) { background: linear-gradient(100deg, rgba(255, 255, 255, 0.18) 20%, rgba(255, 255, 255, 0.5) 40%, rgba(255, 255, 255, 0.18) 60%) 0 0 / 200% 100%; animation: keel-shimmer 1.6s ease-in-out infinite; }
+:root[data-theme="dark"] :is(.ceopro-skeleton, .apex-skeleton) { background: linear-gradient(100deg, rgba(255, 255, 255, 0.04) 20%, rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0.04) 60%) 0 0 / 200% 100%; }
+@keyframes keel-shimmer { to { background-position: -200% 0; } }
+
+/* App-wide error screen (router errorElement) */
+.apex-error-page { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.apex-error-page__card { width: min(440px, 100%); padding: 32px 28px; text-align: center; border-radius: 26px; }
+.apex-error-page__icon { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; color: #985016; background: radial-gradient(70% 45% at 40% 18%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 100%), rgba(var(--gl-peach), 0.45); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8); }
+.apex-error-page h1 { margin: 16px 0 8px; font-size: 20px; color: var(--gl-ink); }
+.apex-error-page p { margin: 0 0 22px; color: var(--gl-ink-2); line-height: 1.6; }
+.apex-error-page__actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.apex-error-page__primary, .apex-error-page__secondary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; font-weight: 600; font-size: 14px; text-decoration: none; cursor: pointer; border: 0; }
+
+/* text-heavy popovers read on denser glass */
+html .apex-topnav__popover:is(.apex-alerts, .apex-topnav__profile-menu) { background: var(--apex-glass-solid); }
+html .rag-composer { background: transparent; border-top-color: var(--gl-hairline); }
+html .rag-composer__input { border-radius: 22px; }
+
+/* ------------------------------------------------------------ responsive / access */
+@media (max-width: 900px) {
+  html .business-app-shell__main { width: calc(100% - 16px); margin: 12px auto 32px; padding: 22px 14px 36px; }
+}
+@media (max-width: 640px) {
+  html .apex-panel { border-radius: 24px; }
+  html .apex-stat { border-radius: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html :is(.ceopro-skeleton, .apex-skeleton) { animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html :is(.apex-panel, .apex-stat, .ceopro-card, .ceopro-plan-card, .settings-section-card, .ceopro-auth-shell, .apex-error-page__card), html .apex-topnav__bar,
+  html :is(.apex-topnav__popover, .apex-palette__panel, .apex-sheet__panel, .ceopro-modal__panel, .ceopro-dropdown-menu, .ceopro-toast) {
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    background: linear-gradient(rgba(250, 250, 252, 0.97), rgba(250, 250, 252, 0.97));
+  }
+  :root[data-theme="dark"] :is(.apex-panel, .apex-stat, .ceopro-card, .ceopro-plan-card, .settings-section-card, .ceopro-auth-shell, .apex-error-page__card), :root[data-theme="dark"] .apex-topnav__bar,
+  :root[data-theme="dark"] :is(.apex-topnav__popover, .apex-palette__panel, .apex-sheet__panel, .ceopro-modal__panel, .ceopro-dropdown-menu, .ceopro-toast) {
+    background: linear-gradient(rgba(30, 32, 38, 0.97), rgba(30, 32, 38, 0.97));
+  }
+}
+@media (forced-colors: active) {
+  html :is(.apex-panel, .apex-stat, .ceopro-card, .apex-topnav__bar) { border: 1px solid CanvasText; }
+}
+
+/* ------------------------------------------------------------ public pages */
+/* Sign-in / sign-up: the coloured light is gone; three small lenses of tinted
+   glass float behind the card instead, so colour still comes only from glass. */
+html .ceopro-auth-shape {
+  filter: none; opacity: 1; border-radius: 50%;
+  background: radial-gradient(60% 40% at 34% 22%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 70%), linear-gradient(160deg, rgba(var(--t), 0.42), rgba(var(--t), 0.18) 60%, rgba(var(--t), 0.3));
+  box-shadow: var(--gl-edge), inset 0 -10px 24px -10px rgba(255, 255, 255, 0.8), 22px 34px 50px -22px rgba(var(--t), 0.6);
+  backdrop-filter: blur(4px) saturate(160%); -webkit-backdrop-filter: blur(4px) saturate(160%);
+}
+html .ceopro-auth-shape--one { --t: var(--gl-lavender); width: 280px; height: 280px; top: 8%; inset-inline-start: 12%; animation: apex-aurora-drift 26s ease-in-out infinite alternate; }
+html .ceopro-auth-shape--two { --t: var(--gl-mint); width: 190px; height: 190px; bottom: 10%; inset-inline-end: 14%; }
+html .ceopro-auth-shape--three { --t: var(--gl-blush); width: 120px; height: 120px; top: 20%; bottom: auto; inset-inline-start: auto; inset-inline-end: 22%; }
+@media (max-width: 640px) { html .ceopro-auth-shape--one { width: 140px; height: 140px; top: 13%; inset-inline-start: -46px; } html .ceopro-auth-shape--two { width: 120px; height: 120px; bottom: 3%; inset-inline-end: -20px; } html .ceopro-auth-shape--three { display: none; } }
+:root[data-theme="dark"] .ceopro-auth-shape { opacity: 0.7; }
+html .ceopro-auth-topbar { display: none; }
+
+/* Landing: a colourless studio light behind the hero instead of an aurora. */
+html .ceopro-landing .lp-hero::before { width: 760px; height: 560px; top: -220px; inset-inline-end: -160px; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0)); filter: blur(30px); animation: none; }
+html .ceopro-landing .lp-hero::after { content: none; }
+:root[data-theme="dark"] .ceopro-landing .lp-hero::before { background: radial-gradient(closest-side, rgba(150, 156, 172, 0.22), rgba(255, 255, 255, 0)); opacity: 1; }
+html .ceopro-landing h1 > span { background-image: linear-gradient(180deg, #7e86f8 0%, #5b63ec 70%); background-size: 100% 100%; animation: none; }
+:root[data-theme="dark"] .ceopro-landing h1 > span { background-image: linear-gradient(180deg, #b3b8ff 0%, #8f95ff 70%); }
+html .ceopro-landing :is(.lp-feature, .lp-plan):nth-child(5n + 1) { --t: var(--gl-sky); --a: 0.16; }
+html .ceopro-landing :is(.lp-feature, .lp-plan):nth-child(5n + 2) { --t: var(--gl-lavender); --a: 0.16; }
+html .ceopro-landing :is(.lp-feature, .lp-plan):nth-child(5n + 3) { --t: var(--gl-mint); --a: 0.17; }
+html .ceopro-landing :is(.lp-feature, .lp-plan):nth-child(5n + 4) { --t: var(--gl-peach); --a: 0.17; }
+html .ceopro-landing :is(.lp-feature, .lp-plan):nth-child(5n + 5) { --t: var(--gl-blush); --a: 0.16; }
+html .ceopro-landing :is(.lp-brand-mark, .lp-mini-symbol > span) { background: radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%), var(--keel-logo-tile-bg); }
+html .ceopro-landing .lp-orbit::before { background: rgb(var(--gl-indigo)); box-shadow: 0 0 10px rgba(var(--gl-indigo), 0.5); }

@@ -1,0 +1,60 @@
+name: Docker images
+
+# Builds the two production images exactly as Render does (render.yaml:
+# dockerContext ./backend) and checks the API image starts and answers
+# /health. Runs on pull requests and pushes that touch the backend, and on
+# demand. Nothing is pushed to a registry.
+
+on:
+  pull_request:
+    paths: ['backend/**', 'render.yaml', '.github/workflows/docker-build.yml']
+  push:
+    paths: ['backend/**', 'render.yaml', '.github/workflows/docker-build.yml']
+  workflow_dispatch:
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The images install torch (several GB); reclaim space from preinstalled
+      # toolchains these builds never use, as pr-checks.yml does.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+          sudo docker image prune -a -f
+          df -h /
+
+      - name: Build the API image (backend/Dockerfile.ai)
+        run: docker build -f backend/Dockerfile.ai -t keel-ai:ci backend
+
+      # Started without the entrypoint (which applies migrations first): no
+      # database here, and /health deliberately needs none.
+      - name: The API image starts and answers /health
+        run: |
+          docker run -d --name keel-ai -p 8000:8000 \
+            -e JWT_SECRET=ci-docker-smoke-secret -e DATABASE_URL=postgresql://unused:unused@127.0.0.1:1/unused \
+            -e APP_DB_PASSWORD=unused -e DISCOVERY_REFRESH_ENABLED=false -e NOTIFICATION_DIGEST_ENABLED=false \
+            --entrypoint uvicorn keel-ai:ci src.ai.main:app --host 0.0.0.0 --port 8000
+          for i in $(seq 1 60); do curl -sf http://localhost:8000/health && exit 0; sleep 2; done
+          docker logs keel-ai; exit 1
+
+      - name: Image sizes
+        if: always()
+        run: docker images keel-ai:ci
+
+      - name: Remove the API image (disk space for the next build)
+        run: docker rm -f keel-ai && docker rmi keel-ai:ci && docker builder prune -af
+
+      - name: Build the workers image (backend/src/infrastructure/Dockerfile.market-workers)
+        run: docker build -f backend/src/infrastructure/Dockerfile.market-workers -t keel-workers:ci backend
+
+      - name: The workers image can import every worker
+        run: |
+          docker run --rm --entrypoint python keel-workers:ci -c "
+          import importlib
+          from src.market_scraper.supervisor import WORKERS
+          for module in WORKERS.values():
+              importlib.import_module(module)
+          print('all', len(WORKERS), 'workers import')"
