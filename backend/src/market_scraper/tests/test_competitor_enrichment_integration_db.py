@@ -234,7 +234,9 @@ def test_price_coverage_flags_stale_foreign_currency_and_switched_off_mappings_f
     result = pc.get_price_coverage(conn, tenant_id)
     items = {i["product_name"]: i for i in result["products"]}
     assert items["Old price"]["issues"] == [pc.ISSUE_STALE] and items["Old price"]["next_action"] == "refresh_prices"
-    assert items["Old price"]["price_age_days"] == pc.STALE_AFTER_DAYS + 10
+    # The row is 40 days old by the DATABASE's clock; the test host's clock can differ by minutes (a Docker VM
+    # drifts), which moves a whole-days age across a boundary - so allow a day either way.
+    assert abs(items["Old price"]["price_age_days"] - (pc.STALE_AFTER_DAYS + 10)) <= 1
     assert items["Priced in USD"]["issues"] == [pc.ISSUE_CURRENCY] and items["Priced in USD"]["foreign_currency_prices"] == 1
     assert items["Mapping off"]["has_market_price"] is False and items["Mapping off"]["inactive_mappings"] == 1
     assert items["Mapping off"]["next_action"] == "review_mappings"

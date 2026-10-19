@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Megaphone, Newspaper, RefreshCw, Sparkles, Tag } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Check, Megaphone, Newspaper, Pencil, RefreshCw, RotateCcw, Sparkles, Tag, X } from 'lucide-react';
+import { useAuth } from '../../../app/providers/AuthProvider.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { ApexButton, Panel, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
+import { canReviewPrices, intelChannel, intelOrigin, needsCheck, parseCorrectedPrice } from '../api/competitorDataApi.js';
 import { discoveryApi } from '../api/discoveryApi.js';
+import { useReviewIntel } from '../hooks/useCompetitorData.js';
 import { analysisErrorKey, Citations, SourceLink } from './Citations.jsx';
 
 const CONFIDENCE = (value) => (value >= 0.85 ? 'high' : value >= 0.6 ? 'medium' : 'low');
@@ -20,6 +23,59 @@ function AnalysisError({ error, t }) {
   );
 }
 
+// The owner's check of one price that was read (not published as structured data): confirm it, correct it, reject
+// it, or take the decision back. Owner/admin only; the server enforces it, the UI only offers it.
+function PriceReview({ fact, competitorId, t }) {
+  const review = useReviewIntel(competitorId);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [problem, setProblem] = useState(null);
+  const decide = (verdict, extra = {}) => {
+    setProblem(null);
+    review.mutate({ intelId: fact.intel_id, verdict, currency: fact.currency, ...extra }, {
+      onSuccess: () => setEditing(false),
+      onError: (error) => setProblem(error?.response?.status === 403 ? 'forbidden' : 'failed'),
+    });
+  };
+  const save = (event) => {
+    event.preventDefault();
+    const value = parseCorrectedPrice(draft);
+    if (value == null) { setProblem('invalid'); return; }
+    decide('CORRECTED', { correctedPrice: value });
+  };
+  if (fact.verified) {
+    return (
+      <div className="price-review">
+        <Pill tone="success"><BadgeCheck size={12} aria-hidden="true" /> {t(fact.verdict === 'CORRECTED' ? 'intel.review.corrected' : 'intel.review.verified')}</Pill>
+        <ApexButton size="sm" variant="ghost" icon={RotateCcw} loading={review.isPending} onClick={() => decide('CLEARED')}>{t('intel.review.undo')}</ApexButton>
+        {problem && <span className="market-scan__note is-error" role="alert">{t(`intel.review.${problem}`)}</span>}
+      </div>
+    );
+  }
+  if (editing) {
+    return (
+      <form className="price-review price-review--edit" onSubmit={save}>
+        <label className="sr-only" htmlFor={`correct-${fact.intel_id}`}>{t('intel.review.correctedPrice')}</label>
+        <input
+          id={`correct-${fact.intel_id}`} className="price-review__input" inputMode="decimal" dir="ltr" autoFocus
+          value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={String(fact.price ?? '')}
+        />
+        <ApexButton size="sm" type="submit" icon={Check} loading={review.isPending}>{t('intel.review.save')}</ApexButton>
+        <ApexButton size="sm" variant="ghost" onClick={() => { setEditing(false); setProblem(null); }}>{t('intel.review.cancel')}</ApexButton>
+        {problem && <span className="market-scan__note is-error" role="alert">{t(`intel.review.${problem}`)}</span>}
+      </form>
+    );
+  }
+  return (
+    <div className="price-review">
+      <ApexButton size="sm" variant="ghost" icon={Check} loading={review.isPending} onClick={() => decide('CONFIRMED')} title={t('intel.review.confirmHint')}>{t('intel.review.confirm')}</ApexButton>
+      <ApexButton size="sm" variant="ghost" icon={Pencil} onClick={() => { setDraft(String(fact.price ?? '')); setEditing(true); }}>{t('intel.review.correct')}</ApexButton>
+      <ApexButton size="sm" variant="ghost" icon={X} loading={review.isPending} onClick={() => decide('REJECTED')} title={t('intel.review.rejectHint')}>{t('intel.review.reject')}</ApexButton>
+      {problem && <span className="market-scan__note is-error" role="alert">{t(`intel.review.${problem}`)}</span>}
+    </div>
+  );
+}
+
 // Where a news item came from, when known (older rows have none).
 const NEWS_ORIGIN = { own_site: 'intel.newsFromSite', web_search: 'intel.newsFromSearch' };
 
@@ -28,6 +84,8 @@ const NEWS_ORIGIN = { own_site: 'intel.newsFromSite', web_search: 'intel.newsFro
 // those facts in which every point cites them.
 export function CompetitorIntel({ competitor, t, locale }) {
   const queryClient = useQueryClient();
+  const { roles } = useAuth();
+  const canReview = canReviewPrices(roles);
   const id = competitor.competitor_id;
   const intel = competitor.intel || { products: [], promotions: [], messages: [], social: [], analysis: null };
   const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
@@ -68,14 +126,29 @@ export function CompetitorIntel({ competitor, t, locale }) {
               <section>
                 <h3><Tag size={14} aria-hidden="true" /> {t('intel.products')}</h3>
                 {conflicts.size > 0 && <p className="market-scan__note is-warning"><AlertTriangle size={13} aria-hidden="true" /> {t('intel.conflicts')}</p>}
-                <div className="apex-table-wrap"><table className="apex-table">
-                  <thead><tr><th>{t('intel.product')}</th><th className="apex-table__num">{t('intel.price')}</th><th>{t('intel.confidence')}</th><th>{t('intel.source')}</th></tr></thead>
+                <div className="apex-table-wrap"><table className="apex-table intel-prices">
+                  <thead><tr><th>{t('intel.product')}</th><th className="apex-table__num">{t('intel.price')}</th><th>{t('intel.confidence')}</th><th>{t('intel.source')}</th>{canReview && <th>{t('intel.review.column')}</th>}</tr></thead>
                   <tbody>{intel.products.slice(0, 30).map((p, index) => (
-                    <tr key={`${p.name}-${p.price}-${index}`} className={conflicts.has(p.name.toLowerCase()) ? 'is-conflict' : ''}>
-                      <td dir="auto">{p.name}</td>
-                      <td className="apex-table__num">{p.price != null ? money(p.price, p.currency) : '—'}</td>
-                      <td><Pill tone={CONFIDENCE(p.confidence) === 'high' ? 'success' : 'neutral'}>{t(`intel.confidenceLevels.${CONFIDENCE(p.confidence)}`)}</Pill></td>
+                    <tr key={p.intel_id || `${p.name}-${p.price}-${index}`} className={conflicts.has(p.name.toLowerCase()) ? 'is-conflict' : ''}>
+                      <td dir="auto">
+                        {p.name}
+                        <div className="price-origin">
+                          {intelChannel(p) && <Pill tone="neutral">{t(`intel.channel.${p.channel}`, { defaultValue: p.channel })}</Pill>}
+                          {intelOrigin(p) !== 'page' && <span className="apex-muted">{t(`intel.origin.${intelOrigin(p)}`)}</span>}
+                          {p.also_seen_in?.length > 0 && <span className="apex-muted">{t('intel.alsoSeen', { count: p.also_seen_in.length })}</span>}
+                          {needsCheck(p) && <span className="price-origin__check">{t('intel.review.checkThis')}</span>}
+                        </div>
+                      </td>
+                      <td className="apex-table__num">
+                        {p.price != null ? money(p.price, p.currency) : '—'}
+                        {p.read_price != null && p.read_price !== p.price && <div className="apex-muted price-origin__was">{t('intel.review.wasRead', { price: money(p.read_price, p.currency) })}</div>}
+                        {!p.verified && p.conflicts_with_price != null && p.conflicts_with_price !== p.price && <div className="apex-muted price-origin__was">{t('intel.review.conflictsWith', { price: money(p.conflicts_with_price, p.currency) })}</div>}
+                      </td>
+                      <td>{p.verified
+                        ? <Pill tone="success">{t('intel.review.checkedByYou')}</Pill>
+                        : <Pill tone={CONFIDENCE(p.confidence) === 'high' ? 'success' : 'neutral'}>{t(`intel.confidenceLevels.${CONFIDENCE(p.confidence)}`)}</Pill>}</td>
                       <td><SourceLink url={p.source_url} t={t} /> <span className="apex-muted">{date.format(new Date(p.retrieved_at))}</span></td>
+                      {canReview && <td>{p.intel_id && p.price != null ? <PriceReview fact={p} competitorId={id} t={t} /> : null}</td>}
                     </tr>
                   ))}</tbody>
                 </table></div>
@@ -84,7 +157,7 @@ export function CompetitorIntel({ competitor, t, locale }) {
             {intel.promotions.length > 0 && (
               <section>
                 <h3><Megaphone size={14} aria-hidden="true" /> {t('intel.promotions')}</h3>
-                <ul className="intel-list">{intel.promotions.map((p) => <li key={p.text}><span dir="auto">“{p.text}”</span> <SourceLink url={p.source_url} t={t} /></li>)}</ul>
+                <ul className="intel-list">{intel.promotions.map((p) => <li key={p.intel_id || p.text}><span dir="auto">“{p.text}”</span> <SourceLink url={p.source_url} t={t} /></li>)}</ul>
               </section>
             )}
             {intel.messages.length > 0 && (
