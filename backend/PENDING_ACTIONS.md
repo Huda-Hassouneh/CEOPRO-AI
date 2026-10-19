@@ -199,6 +199,16 @@ Added 2026-10-18 after the full verification run (backend 3113 passed / 0 failed
 | 83 | **Check Arabic text on the designed poster in the deployed image.** It is shaped with arabic-reshaper + python-bidi and drawn in DejaVu Sans (`fonts-dejavu-core`, added to `Dockerfile.ai`); it rendered correctly locally with a system Arabic-capable font, not yet in the built container. Override the font with `MARKETING_FONT_PATH` if needed. | Whoever deploys the `ai` image | 🟠 Open |
 | 84 | **Native-speaker review of the Arabic note** shown under a designed (non-AI) image (`studio.imageDesigned` in `ar.json`). | Product / localisation | 🟡 Open |
 
+## Competitor menus and OCR (added 2026-10-19)
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 85 | **Rebuild and deploy the AI image** so `tesseract-ocr` (+ Arabic/English data) is present; until then menu pictures are reported as `OCR_NOT_AVAILABLE`, PDFs with a text layer still work. Check `tesseract --list-langs` shows `ara` and `eng` in the running container. | Infra/DevOps | 🟠 Open |
+| 86 | **Run one real competitor end to end** with real menu photos and PDFs (Arabic and English): check OCR accuracy of names/prices, the confidence labels, and that no private or logo images are read. OCR quality was only tested with an injected engine. | Whoever has staging access | 🟠 Open |
+| 87 | **Run the live-DB suites** (`*_integration_db.py`) for `competitor_intel` / enrichment against the changes in this branch; they could not run in the authoring environment (no Docker). | CI owner | 🟠 Open |
+| 88 | **Decide the cost/terms position for reading competitor menu images**: it is the competitor's own public page, same robots.txt and rate rules as page text, but recorded images are not stored (only the extracted text and the file URL). Confirm that is acceptable, and whether a per-tenant monthly cap on OCR files is wanted. | Product / legal | 🟡 Open |
+| 89 | **Owner verification of extracted prices (V6 in `COMPETITOR_DATA_COMPLETENESS_PLAN.md`)** needs a small new table so confirmations survive re-reads; design is written, not built. Frontend also needs a "Retry prices" and "Load more" control calling `POST /competitors/{id}/enrich` with `facets:["PRICES"]` and `depth:"deep"`. | Backend + frontend | 🟡 Open |
+
 ---
 
 ## How to update this file

@@ -1,5 +1,5 @@
 """Offline tests for enrichment_queue.py (dedupe + queued marker) and
-enrichment_worker.py (job routing, dead-letter, permanent errors, sweep)."""
+w.py (job routing, dead-letter, permanent errors, sweep)."""
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -129,3 +129,14 @@ def test_a_prices_job_runs_the_tenant_wide_lookup_and_is_not_a_competitor_retry(
     client = MagicMock()
     client.exists.side_effect = lambda key: key == q.inflight_key(T, None, q.MODE_PRICES)
     assert q.is_queued(client, T, C) is False
+
+
+def test_a_deep_job_carries_its_depth_to_enrich_competitor():
+    client = MagicMock()
+    client.set.return_value = True
+    q.enqueue_enrichment(client, "t1", "c1", ["PRICES"], q.MODE_FORCE, "deep")
+    assert client.xadd.call_args.args[1]["depth"] == "deep"
+    with patch.object(w.data_access, "get_tenant_connection", return_value=MagicMock()), \
+         patch.object(w, "enrich_competitor", return_value={}) as enrich:
+        w.process_job({"tenant_id": "t1", "competitor_id": "c1", "facets": "PRICES", "depth": "deep"})
+    assert enrich.call_args.kwargs == {"facets": ["PRICES"], "deep": True}
