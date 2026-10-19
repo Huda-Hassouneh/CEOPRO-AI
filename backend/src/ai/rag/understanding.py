@@ -72,9 +72,10 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
                  "ترخيص", "رخصة", "تصريح", "قانون", "نظام", "ضريبة", "ضريبه", "القيمة المضافة", "ملصق", "بطاقة البيان",
                  "مواصفة", "مواصفات قياسية", "شهادة", "تسجيل", "متطلبات", "اشتراطات", "مسموح"),
     TRADE: ("import", "export", "custom", "tariff", "duty", "duties", "hs code", "hs-code", "origin", "shipping",
-            "freight", "incoterm", "clearance", "ship it", "shipment",
+            "freight", "incoterm", "clearance", "ship it", "shipment", "border crossing", "port of entry",
+            "via jaber", "jaber crossing", "jaber border",
             "استيراد", "استورد", "تصدير", "صدر", "جمارك", "جمرك", "تعرفة", "تعرفه", "رسوم جمركية", "شحن", "منشأ",
-            "بند جمركي", "تخليص"),
+            "بند جمركي", "تخليص", "معبر", "عبر جابر", "ميناء"),
     ADVICE: ("should i", "should we", "recommend", "advice", "what can i do", "what should", "how can i improve",
              "how do i increase", "how to increase", "how to grow",
              "شو لازم", "شو بنصح", "انصح", "أنصح", "تنصح", "نصيحة", "توصية", "ماذا أفعل", "كيف ازيد", "كيف أزيد",
@@ -85,6 +86,23 @@ _LANDED_COST_CUES = ("cheaper", "cheapest", "landed", "worth it", "more economic
                      "compare", "cost to import", "cost of importing", "total cost",
                      "أرخص", "ارخص", "أوفر", "اوفر", "توفير", "يستحق", "بيستاهل", "مقارنة", "قارن", "التكلفة الكلية",
                      "تكلفة الاستيراد", "كلفة الاستيراد")
+
+# Say "landed cost" on their own: a trade question even with no other trade word.
+_LANDED_COST_STRONG = ("landed cost", "landed price", "landed per", "cost landed", "التكلفه الواصله", "تكلفه واصله",
+                       "الكلفه الواصله", "كلفه واصله", "سعر واصل")
+
+# A question about the world rather than this business: answered from public
+# sources even when its only topic word is a private-sounding one ("price").
+_PUBLIC_CUES = ("average", "national", "official", "government", "nationwide", "country-wide", "per cubic",
+                "how can i check", "how do i check", "how to check", "where can i check", "how do i find out",
+                "متوسط", "معدل", "رسمي", "الحكومه", "حكومي", "وطني", "كيف اعرف", "كيف بعرف", "كيف اتحقق", "وين بلاقي")
+_SELF_REFERENCE = re.compile(
+    r"(?<![\w])(my|our|we|mine|ours)(?![\w])|"
+    r"عندي|لدي|لدينا|عندنا|تبعي|تبعنا|خاصتي|منتجاتي|منتجي|مبيعاتي|زبائني|محلي التجاري|شركتي|متجري|مطعمي|بضاعتي")
+_TOP_PRODUCT = ("top product", "top-selling", "top selling", "best seller", "best-seller", "best selling",
+                "best-selling", "most sold", "top seller", "number one product",
+                "اكثر منتج", "الاكثر مبيعا", "افضل منتج", "المنتج الاول", "اعلى منتج")
+_ROUTE = re.compile(r"(?:\bvia|\bthrough|عبر|عن طريق)\s+((?:معبر\s+|the\s+)?[^\s,.?!؟]+(?:\s+(?:border|crossing|port))?)")
 
 _FOLLOW_UP_CUES = ("and ", "what about", "how about", "and what", "same for", "also", "instead", "then", "why?",
                    "و", "طيب", "وماذا", "وشو", "شو عن", "ماذا عن", "وكمان", "وفي", "بدلا", "بدل", "كمان", "ليش؟", "لماذا؟")
@@ -103,9 +121,23 @@ def _has(text: str, keywords) -> bool:
 def detect_intents(text: str) -> List[str]:
     lowered = f" {_norm(text)} "
     found = [intent for intent, keywords in _KEYWORDS.items() if _has(lowered, keywords)]
-    if TRADE in found and _has(lowered, _LANDED_COST_CUES):
+    if _has(lowered, _LANDED_COST_STRONG):
+        found += [intent for intent in (TRADE, LANDED_COST) if intent not in found]
+    elif TRADE in found and _has(lowered, _LANDED_COST_CUES):
         found.append(LANDED_COST)
     return found
+
+
+def is_public_scope(text: str, intents: List[str], slots: dict) -> bool:
+    """True when the question is about the world, not this business: a public
+    cue ("average", "official", "how can I check", a named country with no
+    product of theirs) and no word pointing at the business itself."""
+    lowered = f" {_norm(text)} "
+    if _SELF_REFERENCE.search(lowered) or slots.get("products") or slots.get("top_product"):
+        return False
+    if _has(lowered, _PUBLIC_CUES):
+        return True
+    return bool(slots.get("countries")) and bool(intents) and set(intents) <= {PRICING, PRODUCTS, FINANCIALS}
 
 
 _GREETING_AND_SMALLTALK = {
@@ -236,10 +268,11 @@ class Understanding:
     follow_up: bool = False
     effective_question: str = ""
     history_intents: List[str] = field(default_factory=list)
+    public_scope: bool = False
 
     @property
     def needs_research(self) -> bool:
-        return bool(set(self.intents) & EXTERNAL_INTENTS)
+        return bool(set(self.intents) & EXTERNAL_INTENTS) or self.public_scope
 
     def state(self) -> dict:
         return {"question": self.question, "intents": self.intents, "slots": self.slots}
@@ -263,14 +296,36 @@ def _countries(text: str) -> List[Tuple[int, str]]:
     return sorted(found)
 
 
+# Adjectives of origin ("Syrian cucumbers", "خيار سوري") say where goods come from, never where they go.
+_DEMONYM = re.compile(r"^(?:[a-z]+(?:ian|ish|ese|ean|ani)|emirati|iraqi|kuwaiti|qatari|omani|yemeni|thai|"
+                      r"(?:ال)?[؀-ۿ]{2,}ي)(?![\w])")
+_NOT_DEMONYM = ("دبي", "ابوظبي", "ابو ظبي")
+
+
+def _is_demonym(text: str, position: int) -> bool:
+    word = text[position:position + 24]
+    return bool(_DEMONYM.match(word)) and not any(word.startswith(city) for city in _NOT_DEMONYM)
+
+
 def _trade_route(text: str, mentions: List[Tuple[int, str]]) -> Tuple[Optional[str], Optional[str]]:
     origin = destination = None
     for position, code in mentions:
         before = text[max(0, position - 14):position]
         if re.search(r"(from|من|مِن)\s*(?:ال)?\s*$", before):
             origin = origin or code
-        elif re.search(r"(to|into|in|for|الي|ل|في|ع)\s*(?:ال)?\s*$", before):  # text is normalised: إلى -> الي
+        elif _is_demonym(text, position):
+            continue
+        # text is normalised (إلى -> الي); a lone "ل" must stand before the word, not be the article's own letter.
+        elif re.search(r"(?:(?<![\w])(?:to|into|in|for)|الي|في|(?<![؀-ۿ])(?:ل|ع)(?:ل)?)\s*(?:ال)?\s*$", before):
             destination = destination or code
+    demonyms = [code for position, code in mentions if _is_demonym(text, position) and code != destination]
+    if not origin and len(set(demonyms)) == 1:
+        origin = demonyms[0]
+    if destination and not origin:
+        # "Syrian cucumbers to Amman": the one other country named is where the goods come from.
+        others = list(dict.fromkeys(code for _, code in mentions if code != destination))
+        if len(others) == 1:
+            origin = others[0]
     return origin, destination
 
 
@@ -373,6 +428,11 @@ def extract_slots(question: str, catalog: Optional[List[dict]] = None, company_c
     incoterm = _INCOTERM.search(raw.upper())
     if incoterm:
         slots["incoterm"] = incoterm.group(1)
+    route = _ROUTE.search(text)
+    if route:
+        slots["route"] = route.group(1).strip()
+    if _has(f" {text} ", _TOP_PRODUCT):
+        slots["top_product"] = True
     urls = _URL.findall(raw)
     if urls:
         slots["urls"] = list(dict.fromkeys(url.rstrip(".,;:!?") for url in urls))[:3]
@@ -402,7 +462,8 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
     follow_up = bool(previous.get("question")) and (
         cue or not intents or (len(words) <= 5 and set(intents) <= set(previous_intents)))
     if not follow_up:
-        return Understanding(question, intents, slots, False, question)
+        return Understanding(question, intents, slots, False, question,
+                             public_scope=is_public_scope(question, intents, slots))
 
     merged = dict(previous.get("slots") or {})
     if any(key in slots for key in ("origin_country", "destination_country", "countries")):
@@ -411,4 +472,5 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
     merged.update(slots)
     combined = list(dict.fromkeys(previous_intents + intents)) if intents else previous_intents
     effective = f"{previous.get('question', '')} {question}".strip()
-    return Understanding(question, combined, merged, True, effective, previous_intents)
+    return Understanding(question, combined, merged, True, effective, previous_intents,
+                         public_scope=is_public_scope(effective, combined, merged))
