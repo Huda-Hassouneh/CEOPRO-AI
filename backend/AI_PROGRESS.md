@@ -1812,6 +1812,23 @@ Completes V6-V9 of `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 8 on `feat/com
   (pending #102); this branch stops tracking it.
 - **Still unverified**: Apify actors, Gemini vision, real menu photos, the frontend, full Docker image builds, the CI run.
 
+## 2026-10-19 (frontend) - Retry, load-more and price-check controls
+
+`frontend/src/features/market-intelligence`: the competitor profile now exposes the new backend features.
+- **Data completeness panel**: "Read prices" and "Load more" on the Prices row, "Read posts" (+ "Load more") on the Social
+  posts row; all start background jobs (`useRetryFacet`), the plain Retry now names its five free facets explicitly so it
+  never starts a website read or a paid call. New reason texts (no prices published, JavaScript-rendered, OCR not set up,
+  not the business's own site, no posts).
+- **Price table** (`CompetitorIntel.jsx`): where each price was read from (page, menu PDF, picture, AI picture, post
+  caption, Instagram / Facebook), "read as X" / "differs from Y" notes, and for owner/admin Confirm / Correct / Wrong / Undo
+  (`discoveryApi.reviewIntel`, `useReviewIntel`); checked rows show "Checked by you".
+- **Tests**: 8 new node tests (API bodies, on-request facet rules, role gate, origin helpers, price parsing incl. Arabic
+  digits); locale parity and key-existence tests pass; lint clean; production build OK.
+- **Verified on a real local stack** (uvicorn + Postgres 15 with all migrations + Redis + vite): background retry 202 and
+  notice, confirm / correct / reject / undo round-trips, English desktop and Arabic 390 px layouts, browser smoke 26/26
+  screens clean (en 1440, ar 390), axe audit 0 findings (en, ar mobile, dark mobile).
+- **Not done**: the competitor list rows, native-speaker review of the Arabic text (pending #94, #71).
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
