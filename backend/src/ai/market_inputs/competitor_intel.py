@@ -8,6 +8,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
+from src.ai.market_inputs import intel_review
 from src.market_scraper.market_discovery import intel
 from src.ai.billing import credits
 
@@ -42,14 +43,23 @@ def save_site_intel(conn, tenant_id: str, competitor_id: str, result: dict) -> s
     status = result.get("status") or ("ok" if result["facts"] or result["pages_read"] else (result.get("error") or "empty"))
     with conn.cursor() as cursor:
         if status in (intel.STATUS_OTHER_BUSINESS, intel.STATUS_NOT_OWN_SITE):
-            cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s);",
+            cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s) "
+                           "AND COALESCE(payload->>'channel', 'website') = 'website';",
                            (tenant_id, competitor_id, list(WEBSITE_KINDS)))
             cursor.execute("UPDATE competitor_product_mappings SET is_active = FALSE WHERE tenant_id = %s AND global_competitor_id = %s;",
                            (tenant_id, competitor_id))
         if result["pages_read"]:
-            cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s);",
-                           (tenant_id, competitor_id, list(WEBSITE_KINDS)))
-            for fact in result["facts"]:
+            # A re-read that found menu files but could not read any (no OCR engine, fetch failed) must not erase
+            # what an earlier read got out of them: keep the menu-derived facts, replace the rest.
+            media = result.get("media") or {}
+            keep_media = media.get("found", 0) > 0 and media.get("read", 0) == 0
+            cursor.execute(
+                "DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s) "
+                "AND COALESCE(payload->>'channel', 'website') = 'website'"
+                + (" AND NOT COALESCE((payload->>'source_media')::boolean, FALSE)" if keep_media else "") + ";",
+                (tenant_id, competitor_id, list(WEBSITE_KINDS)),
+            )
+            for fact in intel_review.apply_to_facts(result["facts"], intel_review.load_reviews(conn, tenant_id, competitor_id)):
                 payload = {k: v for k, v in fact.items() if k not in ("kind", "source_url", "retrieved_at", "confidence")}
                 cursor.execute(
                     """
@@ -64,6 +74,26 @@ def save_site_intel(conn, tenant_id: str, competitor_id: str, result: dict) -> s
             (status, tenant_id, competitor_id),
         )
     return status
+
+
+def save_channel_facts(conn, tenant_id: str, competitor_id: str, channel: str, facts: List[dict]) -> int:
+    """Replaces what ONE social channel (instagram / facebook) said, keeping the owner's decisions (intel_review).
+    An empty read keeps what is already stored. Returns how many facts are stored for the channel afterwards."""
+    with conn.cursor() as cursor:
+        if facts:
+            kept = intel_review.apply_to_facts(facts, intel_review.load_reviews(conn, tenant_id, competitor_id))
+            cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND payload->>'channel' = %s;",
+                           (tenant_id, competitor_id, channel))
+            for fact in kept:
+                payload = {k: v for k, v in fact.items() if k not in ("kind", "source_url", "retrieved_at", "confidence")}
+                cursor.execute(
+                    "INSERT INTO competitor_intel (tenant_id, global_competitor_id, kind, payload, source_url, confidence, retrieved_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s);",
+                    (tenant_id, competitor_id, fact["kind"], json.dumps(payload), fact["source_url"], fact["confidence"], fact["retrieved_at"]),
+                )
+        cursor.execute("SELECT COUNT(*) FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND payload->>'channel' = %s;",
+                       (tenant_id, competitor_id, channel))
+        return cursor.fetchone()[0]
 
 
 @credits.metered("competitor_intel")
@@ -91,7 +121,8 @@ def refresh_competitor(conn, tenant_id: str, competitor_id: str, collect=intel.c
         from src.market_scraper.market_discovery import pipeline
 
         matched = pipeline._match_prices(conn, tenant_id, [competitor_id])["prices_matched"]  # noqa: SLF001
-    return {"status": status, "pages_read": len(result["pages_read"]), "facts": len(result["facts"]), "prices_matched": matched}
+    return {"status": status, "pages_read": len(result["pages_read"]), "facts": len(result["facts"]), "prices_matched": matched,
+            "media": result.get("media")}
 
 
 @credits.metered("competitor_intel")
@@ -147,7 +178,7 @@ def get_intel(conn, tenant_id: str, competitor_id: str) -> dict:
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT kind, payload, source_url, confidence, retrieved_at FROM competitor_intel
+            SELECT kind, payload, source_url, confidence, retrieved_at, intel_id FROM competitor_intel
             WHERE tenant_id = %s AND global_competitor_id = %s ORDER BY confidence DESC NULLS LAST, retrieved_at DESC;
             """,
             (tenant_id, competitor_id),
@@ -159,9 +190,9 @@ def get_intel(conn, tenant_id: str, competitor_id: str) -> dict:
     out = {"products": [], "promotions": [], "messages": [], "social": [], "analysis": None,
            "checked_at": checked[0].isoformat() if checked[0] else None, "status": checked[1]}
     groups = {"product": "products", "promotion": "promotions", "message": "messages", "social": "social"}
-    for kind, payload, url, confidence, retrieved in rows:
-        entry = {**(payload or {}), "source_url": url, "confidence": float(confidence) if confidence is not None else None,
-                 "retrieved_at": retrieved.isoformat()}
+    for kind, payload, url, confidence, retrieved, intel_id in rows:
+        entry = {**(payload or {}), "intel_id": str(intel_id), "source_url": url,
+                 "confidence": float(confidence) if confidence is not None else None, "retrieved_at": retrieved.isoformat()}
         if kind == "analysis":
             out["analysis"] = entry
         else:

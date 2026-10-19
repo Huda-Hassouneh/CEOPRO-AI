@@ -56,6 +56,29 @@ Compared the competitor-relevance work (category-aware tiers, confidence score, 
 
 ---
 
+## 2026-10-19 - Competitor menus, prices and deeper loads (contract additions)
+
+Additive only (see `src/infrastructure/CONTRACT_CHANGELOG.md`, 2026-10-19): `POST /competitors/{id}/enrich`
+accepts the PRICES facet and a `depth` option; PRICES reasons in `data_completeness` become specific;
+`competitor_intel.payload` gains menu-provenance keys; one stream field (`depth`) is optional. No schema
+migration. Spec alignment: S15 / S13 (collect competitor prices from public sources, honouring robots.txt and
+terms) - OCR output is weaker evidence and is labelled as such (`extracted_by`, lower `confidence`), never
+presented as verified; S20 transparency - the source file and its reading method are kept per fact.
+Precedence rule: no conflict with the master spec; this extends the enrichment contract introduced with
+`competitor_enrichment`.
+
+## 2026-10-19 (later) - Owner verification, social-post prices, vision fallback (contract additions)
+
+Additive (see `src/infrastructure/CONTRACT_CHANGELOG.md`, second 2026-10-19 entry): one new table
+(`competitor_intel_review`, RLS), one new endpoint (`.../intel/review`), `intel_id` and verification fields on intel
+facts, the SOCIAL_CONTENT facet becomes retryable, one provider class (`gemini_vision`) is classified as paid.
+Spec alignment: S13 / S19 - social platforms are read only through the licensed provider, never directly, and only
+for profile links the competitor published itself; S20 / S22 - provenance (`channel`, `extracted_by`, source post)
+stays on each fact and an owner's decision is a recorded, attributable event (`reviewed_by`, `reviewed_at`).
+Data ownership: `competitor_intel` is still written only by the AI Market Scraper Service code path; the review
+endpoint writes the new table and updates the owner's own fact, not another team's data. Precedence rule: no conflict
+with the master spec.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

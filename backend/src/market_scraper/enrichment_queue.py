@@ -28,7 +28,7 @@ def inflight_key(tenant_id: str, competitor_id: Optional[str], mode: str) -> str
 
 def enqueue_enrichment(
     redis_client, tenant_id: str, competitor_id: Optional[str] = None,
-    facets: Optional[list] = None, mode: str = MODE_DUE,
+    facets: Optional[list] = None, mode: str = MODE_DUE, depth: str = "standard",
 ) -> Optional[str]:
     """Returns the stream message id, or None when an identical job is already
     queued/running. Redis errors propagate - the caller decides how to report them."""
@@ -38,10 +38,10 @@ def enqueue_enrichment(
     if not redis_client.set(key, "1", nx=True, ex=DEDUPE_SECONDS):
         return None
     try:
-        return str(redis_client.xadd(STREAM, {
-            "tenant_id": tenant_id, "competitor_id": competitor_id or "",
-            "facets": ",".join(facets or []), "mode": mode,
-        }))
+        payload = {"tenant_id": tenant_id, "competitor_id": competitor_id or "", "facets": ",".join(facets or []), "mode": mode}
+        if depth != "standard":
+            payload["depth"] = depth  # absent = standard, so older workers and payloads keep working
+        return str(redis_client.xadd(STREAM, payload))
     except Exception:
         redis_client.delete(key)  # don't leave a phantom "queued" marker behind a failed enqueue
         raise

@@ -155,7 +155,9 @@ def competitor_items(conn, tenant_id: str, competitor_id: str) -> List[dict]:
     with conn.cursor() as cursor:
         cursor.execute(
             "SELECT payload, source_url, confidence, retrieved_at FROM competitor_intel "
-            "WHERE tenant_id = %s AND global_competitor_id = %s AND kind = 'product';",
+            "WHERE tenant_id = %s AND global_competitor_id = %s AND kind = 'product' "
+            # A social-post caption is weaker evidence than a price list: it never feeds price matching until the owner confirmed it.
+            "AND (COALESCE(payload->>'channel', 'website') = 'website' OR COALESCE((payload->>'verified')::boolean, FALSE));",
             (tenant_id, competitor_id),
         )
         rows = cursor.fetchall()

@@ -6,7 +6,7 @@ from urllib.parse import quote, urlsplit
 
 import scrapy
 
-from src.ai.pricing.matching import similarity
+from src.market_scraper.name_matching import name_similarity as similarity  # Arabic/Latin-aware; never below the plain ratio
 from src.market_scraper.content_safety import scan_external_text
 from src.market_scraper.parsing import clean_text
 

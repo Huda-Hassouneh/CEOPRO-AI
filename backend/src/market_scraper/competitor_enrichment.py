@@ -33,6 +33,7 @@ first-class outcome (BLOCKED/FAILED with NO_CREDENTIALS /
 CREDENTIALS_REJECTED / QUOTA_EXHAUSTED), never silence and never a crash.
 Secrets never reach reason_detail.
 """
+import contextlib
 import hashlib
 import json
 import logging
@@ -43,7 +44,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlsplit
 
-from src.ai.pricing.matching import similarity
+from src.ai.pricing.matching import similarity  # noqa: F401 - kept importable for callers/tests
+from src.market_scraper.name_matching import name_similarity
 from src.market_scraper import direct_search
 from src.market_scraper import competitor_mentions as mentions
 from src.market_scraper import web_search
@@ -64,9 +66,13 @@ FACET_NEWS = "NEWS"
 FACET_COMMENTS = "COMMENTS"
 ALL_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT)
 # The facets this module can actually (re)collect today.
-ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS)
+ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT)
 # What the routine runs (after discovery, the sweep, "retry all failed") collect. COMMENTS searches YouTube
 # (100 quota units a search), so it only runs when asked for: the per-competitor Retry, or an explicit facet.
+# SOCIAL_CONTENT is a paid provider call per profile, so it too only runs when asked for.
+# PRICES re-reads the whole website (and its menu files), which discovery already does on its own schedule.
+# Never part of a plain "retry everything": a paid provider call per profile, so only an explicit request runs it.
+PAID_ON_REQUEST_FACETS = (FACET_SOCIAL_CONTENT,)
 ROUTINE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS)
 
 STATUS_SUCCEEDED = "SUCCEEDED"
@@ -98,6 +104,11 @@ NOT_ATTEMPTED = "NOT_ATTEMPTED"
 NO_FEED = "NO_FEED"
 NO_NEWS = "NO_NEWS"
 NO_VIDEOS = "NO_VIDEOS"
+NO_PRICES_PUBLISHED = "NO_PRICES_PUBLISHED"
+JS_RENDERED = "JS_RENDERED"
+OCR_NOT_AVAILABLE = "OCR_NOT_AVAILABLE"
+NOT_OWN_SITE = "NOT_OWN_SITE"
+NO_POSTS = "NO_POSTS"
 ACTION_REVIEW_SOURCE = "review_source"
 
 # Transient failures are retried automatically by a later sweep after this long.
@@ -189,7 +200,7 @@ def _load_competitor(conn, tenant_id: str, competitor_id: str) -> Optional[dict]
             """
             SELECT gc.competitor_name, gc.website_url, gc.website_identity_key, gc.address, gc.city, gc.phone,
                    gc.rating, gc.rating_count, gc.place_types, gc.google_place_id, gc.latitude, gc.longitude,
-                   gc.social_profiles, gc.visibility, gc.added_by_tenant_id
+                   gc.social_profiles, gc.visibility, gc.added_by_tenant_id, gc.country_code
             FROM tenant_competitors tc
             JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
             WHERE tc.tenant_id = %s AND tc.global_competitor_id = %s;
@@ -201,7 +212,7 @@ def _load_competitor(conn, tenant_id: str, competitor_id: str) -> Optional[dict]
         return None
     keys = (
         "name", "website_url", "identity_key", "address", "city", "phone", "rating", "rating_count",
-        "place_types", "place_id", "latitude", "longitude", "social_profiles", "visibility", "owner_tenant_id",
+        "place_types", "place_id", "latitude", "longitude", "social_profiles", "visibility", "owner_tenant_id", "country",
     )
     competitor = dict(zip(keys, row))
     competitor["owner_tenant_id"] = str(competitor["owner_tenant_id"]) if competitor["owner_tenant_id"] else None
@@ -226,7 +237,7 @@ def _find_place(competitor: dict, api_key: str) -> "tuple[Optional[dict], Option
         details["place_id"] = place_id
         if our_host and _host(details.get("website")) == our_host:
             return details, 0.95
-        if similarity(details.get("name") or candidate.get("name") or "", competitor["name"]) >= _NAME_MATCH_THRESHOLD:
+        if name_similarity(details.get("name") or candidate.get("name") or "", competitor["name"]) >= _NAME_MATCH_THRESHOLD:
             return details, 0.8
     return None, None
 
@@ -759,6 +770,134 @@ def _comments_outcome(conn, tenant_id, competitor_id, competitor, actor_user_id)
     return STATUS_SUCCEEDED, None, None, len(comments), 0.7
 
 
+def enrich_prices(conn, tenant_id: str, competitor_id: str, competitor: dict, deep: bool = False) -> dict:
+    """Re-reads the competitor's website - page text, structured data and menu
+    PDFs / pictures (OCR) - and records the outcome with a specific reason.
+    deep=True is "load more": more pages, items and menu files. Additive: a
+    read that could not open the menu files keeps what an earlier read got
+    from them (competitor_intel.save_site_intel)."""
+    status, reason_code, detail, items, confidence = _prices_outcome(conn, tenant_id, competitor_id, competitor, deep)
+    _write_ledger(conn, tenant_id, competitor_id, FACET_PRICES, status, reason_code, detail, "own_website", items, confidence)
+    return {"status": status, "reason_code": reason_code, "reason_detail": detail, "items_found": items}
+
+
+# intel.collect statuses that are a site-side outcome, not a bug: (ledger status, reason, owner-facing text).
+_PRICE_READ_OUTCOMES = {
+    "blocked_by_robots": (STATUS_BLOCKED, ROBOTS_DISALLOWED, "The website does not allow automated reading."),
+    "unreachable": (STATUS_FAILED, SITE_UNREACHABLE, "The website could not be reached."),
+    "http_error": (STATUS_FAILED, SITE_UNREACHABLE, "The website answered with an error."),
+    "not_public": (STATUS_BLOCKED, SITE_UNREACHABLE, "The website address is not a public site."),
+    "needs_javascript": (STATUS_FAILED, JS_RENDERED, "The prices are drawn by JavaScript and no headless browser is available to read them."),
+    "no_relevant_page": (STATUS_FAILED, NO_PRICES_PUBLISHED, "No menu, price or product page was found on the website."),
+    "no_price_published": (STATUS_FAILED, NO_PRICES_PUBLISHED, "The website lists no prices."),
+    "not_own_site": (STATUS_BLOCKED, NOT_OWN_SITE, "The listed link is a directory or profile page, not the business's own website."),
+    "other_business_site": (STATUS_BLOCKED, NOT_OWN_SITE, "The listed website belongs to a different business."),
+    "extraction_failed": (STATUS_FAILED, PROVIDER_ERROR, "Reading the website failed unexpectedly."),
+}
+
+
+def _prices_outcome(conn, tenant_id, competitor_id, competitor, deep):
+    if not competitor["website_url"]:
+        return STATUS_NOT_APPLICABLE, NO_WEBSITE, "No website to read prices from.", 0, None
+    from functools import partial
+
+    from src.ai.market_inputs import competitor_intel
+    from src.market_scraper.market_discovery import intel
+
+    outcome = competitor_intel.refresh_competitor(conn, tenant_id, competitor_id, collect=partial(intel.collect, deep=deep))
+    media = outcome.get("media") or {}
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*), AVG(confidence), COUNT(*) FILTER (WHERE COALESCE((payload->>'source_media')::boolean, FALSE)) "
+            "FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = 'product' AND payload ? 'price';",
+            (tenant_id, competitor_id),
+        )
+        priced, average, from_menus = cursor.fetchone()
+    confidence = round(float(average), 3) if average is not None else None
+    notes = []
+    if from_menus:
+        notes.append(f"{from_menus} of them were read from menu files (PDF text or picture OCR) and are less certain than the page text.")
+    if media.get("skipped_no_ocr"):
+        notes.append(f"{media['skipped_no_ocr']} menu picture(s) were found but not read because the OCR engine is not installed on the server.")
+    if priced:
+        note = " ".join(notes) or None
+        return (STATUS_PARTIAL if media.get("skipped_no_ocr") else STATUS_SUCCEEDED), None, note, priced, confidence
+    known = _PRICE_READ_OUTCOMES.get(outcome.get("status"))
+    if media.get("skipped_no_ocr"):
+        return (STATUS_FAILED, OCR_NOT_AVAILABLE,
+                f"The menu is published as {media['skipped_no_ocr']} picture(s) but the OCR engine is not installed on the server.", 0, None)
+    if known:
+        status, code, text = known
+        return status, code, text, 0, None
+    return STATUS_FAILED, NO_PRICES_PUBLISHED, "No prices were found on the website.", 0, None
+
+
+def enrich_social_content(conn, tenant_id: str, competitor_id: str, competitor: dict, deep: bool = False) -> dict:
+    """Prices, offers and menu pictures from the competitor's own Instagram / Facebook posts, through the licensed
+    provider (social_content.py). Additive; every refusal is a specific reason, never silence."""
+    status, reason_code, detail, items, confidence = _social_content_outcome(conn, tenant_id, competitor_id, competitor, deep)
+    _write_ledger(conn, tenant_id, competitor_id, FACET_SOCIAL_CONTENT, status, reason_code, detail, "apify", items, confidence)
+    return {"status": status, "reason_code": reason_code, "reason_detail": detail, "items_found": items}
+
+
+def _social_content_outcome(conn, tenant_id, competitor_id, competitor, deep):
+    from src.ai.market_inputs import competitor_intel
+    from src.market_scraper import social_content
+
+    profiles = {p: u for p, u in (competitor["social_profiles"] or {}).items()
+                if p in social_content.SUPPORTED_PLATFORMS and isinstance(u, str) and is_public_http_url(u)}
+    if not (competitor["social_profiles"] or {}):
+        return STATUS_BLOCKED, NO_SOCIAL_LINKS, "No social profile is known for this competitor; retry its social links first.", 0, None
+    if not profiles:
+        return (STATUS_BLOCKED, COLLECTOR_NOT_ENABLED,
+                "None of this competitor's social profiles is on a platform the post reader supports (Instagram, Facebook).", 0, None)
+    token = (os.getenv("APIFY_API_TOKEN") or os.getenv("APIFY_TOKEN") or "").strip()
+    if not token:
+        return STATUS_BLOCKED, NO_CREDENTIALS, "APIFY_API_TOKEN is not set for the service that reads social posts.", 0, None
+    if not os.getenv("SOCIAL_CONTENT_APPROVAL_REFERENCE", "").strip():
+        return (STATUS_BLOCKED, PLATFORM_APPROVAL_MISSING,
+                "The operator has not recorded approval to store social-post content (SOCIAL_CONTENT_APPROVAL_REFERENCE).", 0, None)
+    country = competitor.get("country")
+    total_posts = stored = images_read = images_skipped = held_back = 0
+    errors = []
+    limit = social_content.POSTS_DEEP if deep else social_content.POSTS_STANDARD
+    outer = credits.current()
+    scope = contextlib.nullcontext() if outer is not None and outer.tenant_id == str(tenant_id) \
+        else credits.metering(tenant_id, "competitor_social_content")  # paid calls need a billing scope (a plain API retry has none)
+    with scope:
+        for platform, url in profiles.items():
+            try:
+                posts = social_content.fetch_posts(url, platform, token, limit)
+            except mentions.SourceError as exc:
+                errors.append((exc.code, exc.detail))
+                continue
+            except Exception as exc:  # noqa: BLE001 - e.g. a Data Credits refusal: surface its message, never crash the retry
+                errors.append((getattr(exc, "reason", None) or PROVIDER_ERROR, str(getattr(exc, "message", None) or type(exc).__name__)[:200]))
+                continue
+            total_posts += len(posts)
+            result = social_content.facts_from_posts(posts, platform, country, deep)
+            images_read += result["images_read"]
+            images_skipped += result["images_skipped"]
+            held_back += result["held_back"]
+            stored += competitor_intel.save_channel_facts(conn, tenant_id, competitor_id, platform, result["facts"])
+    notes = []
+    if images_skipped:
+        notes.append(f"{images_skipped} post picture(s) were not read because no OCR engine is available.")
+    if held_back:
+        notes.append(f"{held_back} caption(s) were held back by the safety scan.")
+    if stored:
+        status = STATUS_PARTIAL if errors or images_skipped else STATUS_SUCCEEDED
+        if errors:
+            notes.append(f"A profile could not be read: {errors[0][1]}")
+        return status, errors[0][0] if errors else None, " ".join(notes) or None, stored, 0.5
+    if errors and not total_posts:
+        return STATUS_FAILED, errors[0][0], errors[0][1], 0, None
+    if not total_posts:
+        return STATUS_FAILED, NO_POSTS, "The profile returned no posts.", 0, None
+    return (STATUS_FAILED, NO_PRICES_PUBLISHED,
+            f"{total_posts} post(s) were read; none shows a price, an offer or a readable menu. " + " ".join(notes), 0, None)
+
+
 def _recent_attempt_wait(conn, tenant_id: str, competitor_id: str, facet: str) -> int:
     with conn.cursor() as cursor:
         cursor.execute(
@@ -776,7 +915,7 @@ def _recent_attempt_wait(conn, tenant_id: str, competitor_id: str, facet: str) -
 @credits.metered("competitor_enrichment")
 def enrich_competitor(
     conn, tenant_id: str, competitor_id: str, facets=None, places_api_key: Optional[str] = None,
-    throttle: bool = False, actor_user_id: Optional[str] = None,
+    throttle: bool = False, actor_user_id: Optional[str] = None, deep: bool = False,
 ) -> dict:
     """Runs the requested facets (default: all enrichable ones) for one
     competitor and returns {facet: outcome}. Never raises for a provider or
@@ -785,8 +924,9 @@ def enrich_competitor(
     profile changed, so a better profile can raise its confidence.
 
     throttle=True (manual retries) refuses to re-run a facet attempted within
-    MIN_SECONDS_BETWEEN_ATTEMPTS and reports THROTTLED for it instead."""
-    requested = tuple(facets) if facets else ENRICHABLE_FACETS
+    MIN_SECONDS_BETWEEN_ATTEMPTS and reports THROTTLED for it instead.
+    deep=True ("load more") makes PRICES read more pages, items and menu files, and SOCIAL_CONTENT read more posts."""
+    requested = tuple(facets) if facets else tuple(f for f in ENRICHABLE_FACETS if f not in PAID_ON_REQUEST_FACETS)
     unsupported = [facet for facet in requested if facet not in ENRICHABLE_FACETS]
     if unsupported:
         raise ValueError(f"facets not collectable yet: {unsupported}; supported: {list(ENRICHABLE_FACETS)}")
@@ -816,6 +956,10 @@ def enrich_competitor(
                 results[facet] = enrich_news(conn, tenant_id, competitor_id, competitor)
             elif facet == FACET_COMMENTS:
                 results[facet] = enrich_comments(conn, tenant_id, competitor_id, competitor, actor_user_id)
+            elif facet == FACET_PRICES:
+                results[facet] = enrich_prices(conn, tenant_id, competitor_id, competitor, deep)
+            elif facet == FACET_SOCIAL_CONTENT:
+                results[facet] = enrich_social_content(conn, tenant_id, competitor_id, competitor, deep)
             else:
                 results[facet] = enrich_social_links(conn, tenant_id, competitor_id, competitor)
         except Exception as exc:  # noqa: BLE001 - one facet failing must not stop the rest
@@ -990,6 +1134,8 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
         facets = {}
         for facet in ENRICHABLE_FACETS:
             row = ledger.get((cid, facet))
+            if facet in (FACET_PRICES, FACET_SOCIAL_CONTENT):
+                continue  # derived below, from matched prices, the source policy and (when present) this ledger row
             if facet == FACET_REVIEWS and review_counts.get(cid, 0):
                 # Reviews exist (from Places or any other collector): the data wins over a stale ledger status.
                 last = row[5] if row else None
@@ -1009,9 +1155,14 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
         prices = price_counts.get(cid, 0)
         statuses = policies.get(cid, set())
         if prices:
-            facets[FACET_PRICES] = _facet(STATUS_SUCCEEDED, items=prices)
+            facets[FACET_PRICES] = _facet(STATUS_SUCCEEDED, items=prices, can_retry=True)
         elif not info["website"]:
             facets[FACET_PRICES] = _facet(STATUS_NOT_APPLICABLE, NO_WEBSITE, "No website to read prices from.")
+        elif ledger.get((cid, FACET_PRICES)) and not statuses:
+            # A website read (including menu files) was attempted and said why it found nothing: that reason is
+            # more specific than the generic "no product matched yet".
+            status, code, detail, items, confidence, last_attempt = ledger[(cid, FACET_PRICES)]
+            facets[FACET_PRICES] = _facet(status, code, detail, items, confidence, last_attempt, can_retry=True)
         elif not statuses:
             facets[FACET_PRICES] = _facet(STATUS_BLOCKED, NO_PRODUCTS_MAPPED, "None of your products has been matched on this competitor's site yet.")
         elif "ALLOWED" in statuses:
@@ -1025,9 +1176,13 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
             facets[FACET_PRICES] = _facet(STATUS_BLOCKED, ROBOTS_DISALLOWED, "The site disallows automated collection.")
 
         # Social content: only meaningful once links exist; collection itself is a later phase.
-        facets[FACET_SOCIAL_CONTENT] = (
-            _facet(STATUS_PENDING, COLLECTOR_NOT_ENABLED, "Social content collection is not enabled yet.") if info["social"]
-            else _facet(STATUS_BLOCKED, NO_SOCIAL_LINKS, "No social profile is known for this competitor.")
-        )
+        row = ledger.get((cid, FACET_SOCIAL_CONTENT))
+        if row:
+            status, code, detail, items, confidence, last_attempt = row
+            facets[FACET_SOCIAL_CONTENT] = _facet(status, code, detail, items, confidence, last_attempt, can_retry=status != STATUS_NOT_APPLICABLE)
+        elif info["social"]:
+            facets[FACET_SOCIAL_CONTENT] = _facet(STATUS_PENDING, NOT_ATTEMPTED, "Posts, offers and menu pictures have not been read yet.", can_retry=True)
+        else:
+            facets[FACET_SOCIAL_CONTENT] = _facet(STATUS_BLOCKED, NO_SOCIAL_LINKS, "No social profile is known for this competitor.")
         result[cid] = {"score": _completeness_score(facets), "facets": facets}
     return result

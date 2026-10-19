@@ -117,3 +117,35 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - **API** — `POST /pricing/recommend-all`: a decision for every active product; one failure does not stop the batch.
 - Env: `PRICING_DEFAULT_REGIONAL_FACTOR` (default `1.0`, used only when no product has prices in both markets to learn the factor from); `SEARXNG_SECRET` (passed to the SearXNG container from `backend/.env`).
 - Frontend: the price recommendation modal states what an estimate is based on (`pricing.modal.estimate.*`, en/ar).
+
+## - 2026-10-19
+### Added (additive; no database migration)
+- **API** - `POST /competitors/{id}/enrich` accepts `facets: ["PRICES"]` (previously rejected with 422) and an optional `depth` (`"standard"` default, `"deep"` = "load more": more pages, items and menu files). `depth` is also honoured with `background=true`. An invalid `depth` is 422. Omitting both keeps the previous behaviour for every other facet; the default (no `facets`) now includes PRICES, which re-reads the competitor's website.
+- **API** - `GET /competitors/{id}/data-status` and `data_completeness` on the competitor lists: the PRICES facet now reports the specific reason from the last website read (`NO_PRICES_PUBLISHED`, `JS_RENDERED`, `OCR_NOT_AVAILABLE`, `NOT_OWN_SITE`, plus the existing `ROBOTS_DISALLOWED` / `SITE_UNREACHABLE`) when no price has been matched to a product yet, and `can_retry: true` on it. New reason codes are additive strings (the column is `VARCHAR(40)`, no CHECK).
+- **Data** - `competitor_intel.payload` (JSONB) for `kind = 'product'` facts read from menu PDFs / pictures carries `extracted_by` (`pdf_text` | `ocr`) and `source_media: true`; a price confirmed by two places carries `also_seen_in` (list of URLs); a price that disagrees with the page text carries `conflicts_with_price`. `source_url` is the menu file. `confidence`: PDF text 0.7, OCR 0.5 (0.4 without a currency symbol); +0.05 when corroborated.
+- **Event** - stream `market.enrichment.requested` messages may carry `depth: "deep"`; absent means standard (older producers/consumers unaffected).
+- **Infra** - `Dockerfile.ai` installs `tesseract-ocr` (+ `ara`, `eng` data); `pytesseract` added to `src/ai/requirements.txt`. New optional env: `DISCOVERY_OCR_LANGS`, `DISCOVERY_MENU_MEDIA_MAX_FILES`, `DISCOVERY_MENU_MEDIA_MAX_BYTES`, `DISCOVERY_MENU_MEDIA_MAX_PDF_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_ITEMS`, `DISCOVERY_INTEL_DEEP_MAX_MEDIA`.
+### Changed (behaviour)
+- `competitor_intel.save_site_intel`: a re-read that found menu files but could not read any (OCR missing, fetch failed) no longer deletes the menu-derived facts from an earlier read ("a retry only adds").
+- `refresh_competitor` returns an extra `media` key (`found`, `read`, `skipped_no_ocr`, `ocr_available`).
+- `enrich._safe_get` takes optional `max_bytes` and `accept` (defaults unchanged).
+
+## - 2026-10-19 (second entry: V6-V9)
+### Added (additive)
+- **DB** - migration `20261023000000_add_competitor_intel_review.sql`: new table `competitor_intel_review` (owner decisions on website/menu/social prices, keyed by item name + price as read; RLS `get_current_tenant()`, FK to `tenant_competitors` ON DELETE CASCADE). No existing table or column changed.
+- **API** - `POST /discovery/competitors/{competitor_id}/intel/review` (owner/admin; plan feature COMPETITOR_MANAGEMENT): body `{intel_id, verdict: CONFIRMED|CORRECTED|REJECTED|CLEARED, corrected_price?, currency?, note?}`; 200 returns the decision and the refreshed intel; 403 other roles, 404 unknown fact, 422 invalid combination. Prices are re-matched to products afterwards.
+- **API** - every fact in `GET /discovery/competitors/{id}` / refresh `intel` (products, promotions, messages, social) now carries `intel_id`; reviewed products carry `verified`, `verdict`, and (corrected) `read_price`.
+- **API** - `POST /competitors/{id}/enrich` accepts `facets:["SOCIAL_CONTENT"]` (previously 422). `depth:"deep"` also reads more posts. SOCIAL_CONTENT reasons: `NO_SOCIAL_LINKS`, `COLLECTOR_NOT_ENABLED`, `NO_CREDENTIALS`, `PLATFORM_APPROVAL_MISSING`, `NO_POSTS`, `NO_PRICES_PUBLISHED`, plus provider/budget codes. SOCIAL_CONTENT is a paid provider call, so it is NOT part of a plain retry (no `facets`): only an explicit `facets:["SOCIAL_CONTENT"]` runs it, and even then it is refused (never sent) until the operator has set the token, the approval reference and a cost row.
+- **Data** - `competitor_intel.payload` for social-post facts: `channel` (`instagram` | `facebook`), `extracted_by` (`caption` | `ocr` | `vision`), `post_taken_at`; `source_url` is the post. Website facts have no `channel` (treated as `website`). A website re-read (`save_site_intel`) only replaces `channel`-less / `website` facts; `save_channel_facts` only replaces its own channel.
+- **Provider billing** - host `generativelanguage.googleapis.com` is classified as paid provider `gemini_vision` / operation `read_image` (refused until priced).
+- **Infra / env (all optional)** - `DISCOVERY_VISION_OCR` (off|fallback|always, default off), `DISCOVERY_VISION_MAX_FILES`, `DISCOVERY_VISION_MODEL`, `GEMINI_API_KEYS` (existing), `SOCIAL_CONTENT_APPROVAL_REFERENCE`, `SOCIAL_CONTENT_POSTS(_DEEP)`, `SOCIAL_CONTENT_IMAGES(_DEEP)`, `APIFY_INSTAGRAM_POSTS_ACTOR`, `APIFY_FACEBOOK_POSTS_ACTOR`.
+### Changed (behaviour)
+- Places candidate matching (`competitor_enrichment._find_place`, `spiders/google_places.py`) uses `name_matching.name_similarity`: Arabic / Latin / transliterated spellings of one business now clear the 0.82 bar. It is never lower than the previous plain ratio, so no match that passed before is lost; matches that previously failed across scripts may now pass.
+- Automatic price matching (`offerings.competitor_items`) ignores social-post facts until the owner has confirmed them.
+### Infra (same day, after review)
+- `tesseract-ocr` (+ `ara`, `eng`) is now installed in `Dockerfile.ai`, `src/infrastructure/Dockerfile.market-workers` and `src/infrastructure/Dockerfile.market-scraper`; `src/market_scraper/requirements.txt` gains `Pillow`, `pdfplumber`, `pytesseract` (the worker images read menus too).
+- `docker-compose.yml` (API and enrichment worker) and `render.yaml` (API and worker) pass `SOCIAL_CONTENT_APPROVAL_REFERENCE`, `DISCOVERY_VISION_OCR` (default `off`) and `GEMINI_API_KEYS`.
+- `intel_review.load_reviews` reads inside a savepoint and treats a missing `competitor_intel_review` table as "no decisions", so a code deploy that precedes the migration cannot break site reads.
+### OCR behaviour (same day, after a real-tesseract check)
+- Pictures are read with two tesseract passes when Arabic data is installed (`ara+eng`, then `eng`) and merged by amount; Arabic output returned in visual order is restored, direction marks and a few stray Arabic letters beside Latin text are removed, and an Arabic currency word misread by one letter is restored. `python-bidi` is added to `src/market_scraper/requirements.txt` (already in the AI requirements). New optional env: `DISCOVERY_MENU_MEDIA_BUDGET_SECONDS` (default 90 s of menu reading per site).
+
