@@ -27,6 +27,7 @@ import logging
 import os
 import re
 import shutil
+from difflib import SequenceMatcher
 from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import unquote, urljoin, urlsplit
 
@@ -172,14 +173,63 @@ def _ocr_languages() -> str:
     return "+".join(present) or "eng"
 
 
-def tesseract_ocr(image) -> str:
-    """OCR one PIL image with tesseract; '' when the engine fails."""
-    import pytesseract
-    try:
-        return pytesseract.image_to_string(image, lang=_ocr_languages(), config="--psm 6", timeout=45)
-    except Exception:  # noqa: BLE001 - a bad picture never stops a scan
-        logger.warning("OCR failed for one image", exc_info=True)
+_AMOUNT_RE = re.compile(r"\d+(?:[.,]\d+)?")
+
+
+def _priced_count(text: str) -> int:
+    return sum(1 for line in text.splitlines() if _AMOUNT_RE.search(line))
+
+
+_CURRENCY_RE = re.compile(r"(?<![A-Za-z])(?:JD|JOD|SAR|SR|AED|USD|EGP|EGP|KWD|QAR|BHD|OMR|LBP|NIS|ILS)(?![A-Za-z])|[$€£]|"
+                          r"دينار|ريال|درهم|جنيه|ليرة|شيكل|رانيد|لاير|مهرد", re.IGNORECASE)
+
+
+def _has_currency(line: str) -> bool:
+    return bool(_CURRENCY_RE.search(line))
+
+
+def merge_passes(texts: List[str]) -> str:
+    """One text from several OCR passes over the same picture: the pass with the most lines that carry an
+    amount wins, and a line from another pass is added when its amount is missing from the winner. This is
+    what recovers "Mansaf 8.50 JD" when the Arabic+English pass reads "JD" as Arabic letters, and an Arabic
+    menu when the English-only pass finds nothing."""
+    texts = [t for t in texts if t and t.strip()]
+    if not texts:
         return ""
+    texts.sort(key=_priced_count, reverse=True)  # stable: the first (widest-language) pass wins ties
+    merged = texts[0].splitlines()
+    seen = {m for line in merged for m in _AMOUNT_RE.findall(line)}
+    for other in texts[1:]:
+        for line in other.splitlines():
+            amounts = _AMOUNT_RE.findall(line)
+            if not amounts:
+                continue
+            if not any(a in seen for a in amounts):
+                merged.append(line)
+                seen.update(amounts)
+            elif _has_currency(line):
+                # Same amount already there: prefer this pass's line when the winner's line lost its currency.
+                for index, kept in enumerate(merged):
+                    if not _has_currency(kept) and any(a in _AMOUNT_RE.findall(kept) for a in amounts):
+                        merged[index] = line
+                        break
+    return "\n".join(merged)
+
+
+def tesseract_ocr(image) -> str:
+    """OCR one PIL image with tesseract; '' when the engine fails. With Arabic data installed it makes two passes
+    (Arabic+English, then English only) and merges them - a single mixed-language pass misreads Latin currency
+    codes next to Arabic text."""
+    import pytesseract
+    langs = _ocr_languages()
+    passes = [langs] + (["eng"] if "+" in langs and "eng" in langs.split("+") else [])
+    texts = []
+    for lang in passes:
+        try:
+            texts.append(pytesseract.image_to_string(image, lang=lang, config="--psm 6", timeout=45))
+        except Exception:  # noqa: BLE001 - a bad picture never stops a scan
+            logger.warning("OCR pass %s failed for one image", lang, exc_info=True)
+    return merge_passes(texts)
 
 
 def _prepare(image):
@@ -193,16 +243,60 @@ def _prepare(image):
     return image
 
 
-def clean_ocr_lines(text: str) -> List[str]:
-    """Lines from OCR text, with letter/digit confusions repaired only inside
-    tokens that are otherwise a decimal number ("1O.5O" -> "10.50")."""
-    lines = []
-    for raw in text.splitlines():
-        line = re.sub(r"\s+", " ", raw).strip(" \t|_~`")
-        if not (1 <= len(line) <= 220):
+_BIDI_MARKS = re.compile("[\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+_ARABIC = re.compile("[\u0600-\u06ff]")
+# Currency words, as written (logical order). Tesseract can return Arabic in visual order (every Arabic word
+# reversed, word order reversed); seeing these words reversed is how the order is recognised.
+_AR_CURRENCY_WORDS = ("دينار", "ريال", "درهم", "جنيه", "ليرة", "شيكل")
+
+
+def fix_visual_order(lines: List[str]) -> List[str]:
+    """Puts Arabic lines back in logical order when the OCR returned them in visual order. Decided per text, from
+    the currency words: more reversed forms ("رانيد") than logical ones ("دينار") means flip every line that has
+    Arabic letters. No currency word -> unchanged (prices still parse from their digits)."""
+    joined = " ".join(lines)
+    logical = sum(joined.count(w) for w in _AR_CURRENCY_WORDS)
+    reversed_ = sum(joined.count(w[::-1]) for w in _AR_CURRENCY_WORDS)
+    if reversed_ <= logical:
+        return lines
+    try:
+        from bidi.algorithm import get_display
+    except ImportError:
+        return lines
+    return [get_display(line) if _ARABIC.search(line) else line for line in lines]
+
+
+def fix_currency_words(line: str) -> str:
+    """A currency word next to an amount that OCR misread by a letter ("ديذار" for "دينار") is restored; only a
+    token touching a number is considered, and only against the known currency words."""
+    tokens = line.split(" ")
+    for index, token in enumerate(tokens):
+        if not (3 <= len(token) <= 6) or not re.fullmatch("[\u0621-\u064a]+", token) or token in _AR_CURRENCY_WORDS:
             continue
+        beside = [tokens[i] for i in (index - 1, index + 1) if 0 <= i < len(tokens)]
+        if not any(re.fullmatch(r"\d+(?:[.,]\d+)?", t) for t in beside):
+            continue
+        best = max(_AR_CURRENCY_WORDS, key=lambda w: SequenceMatcher(None, token, w).ratio())
+        if SequenceMatcher(None, token, best).ratio() >= 0.78:
+            tokens[index] = best
+    return " ".join(tokens)
+
+
+def clean_ocr_lines(text: str) -> List[str]:
+    """Lines from OCR text: direction marks removed, Arabic visual order repaired, a few stray Arabic letters
+    next to Latin text dropped (a misread "JD"), and letter/digit confusions repaired only inside tokens that
+    are otherwise a decimal number ("1O.5O" -> "10.50")."""
+    cleaned = []
+    for raw in _BIDI_MARKS.sub("", text).splitlines():
+        line = re.sub(r"\s+", " ", raw).strip(" \t|_~`")
+        if 1 <= len(line) <= 220:
+            cleaned.append(line)
+    lines = []
+    for line in fix_visual_order(cleaned):
+        if len(_ARABIC.findall(line)) <= 4 and len(re.findall(r"[A-Za-z]", line)) >= 6:
+            line = re.sub(r"\s+", " ", _ARABIC.sub("", line)).strip()
         line = _NUMBERISH.sub(lambda m: m.group(0).translate(_OCR_DIGIT), line)
-        lines.append(line)
+        lines.append(fix_currency_words(line) if _ARABIC.search(line) else line)
     return lines
 
 
