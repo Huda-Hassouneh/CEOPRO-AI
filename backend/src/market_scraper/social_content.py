@@ -26,7 +26,7 @@ import logging
 import os
 import re
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
 import httpx
 

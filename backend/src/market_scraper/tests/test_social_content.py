@@ -10,7 +10,6 @@ import pytest
 from src.market_scraper import competitor_enrichment as ce
 from src.market_scraper import competitor_mentions as mentions
 from src.market_scraper import social_content as sc
-from src.market_scraper.market_discovery import menu_media
 
 TENANT, COMP = "t1", "22222222-2222-2222-2222-222222222222"
 ITEMS = [
