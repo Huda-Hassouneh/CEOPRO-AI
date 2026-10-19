@@ -871,7 +871,7 @@ def _read_media_files(out: dict, urls: List[str], fetch_media, country: Optional
     for link in urls[:max_media]:
         try:
             got = fetch_media(link)
-        except (httpx.HTTPError, UnsafeTargetError, OSError):
+        except (httpx.HTTPError, UnsafeTargetError, OSError, PageUnavailable):
             got = None
         if not got:
             continue
