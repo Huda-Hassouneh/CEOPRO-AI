@@ -61,6 +61,13 @@ _SECTIONS_FOR_INTENT = {
 }
 _PRIVATE_ONLY = frozenset({U.SALES, U.FINANCIALS, U.INVENTORY, U.FORECAST, U.MARKETING, U.DOCUMENTS, U.PRODUCTS,
                            U.PRICING})
+# Why public research did not run, in words the model can pass on.
+_RESEARCH_FAILED = {
+    public_research.NOT_CONFIGURED: "web search is not set up on this server - an administrator needs to add a "
+                                    "search provider key",
+    public_research.SEARCH_FAILED: "the web search service failed",
+    public_research.BUDGET_EXHAUSTED: "today's web search allowance is used up",
+}
 _CAPABILITY_FOR_INTENT = {
     U.SALES: (acl.SALES,), U.FINANCIALS: (acl.SALES, acl.COSTS), U.INVENTORY: (acl.INVENTORY,),
     U.FORECAST: (acl.FORECASTS,), U.MARKETING: (acl.MARKETING,), U.COMPETITORS: (acl.COMPETITORS,),
@@ -197,6 +204,32 @@ def _catalog(conn, tenant_id: str, access: acl.Access) -> List[dict]:
         out.append({"product_id": str(product_id), "name": name, "name_alt": ar if ar and ar != name else None,
                     "price": price, "cost": cost, "currency": currency})
     return out
+
+
+def _top_product(conn, tenant_id: str, catalog: List[dict], access: acl.Access) -> Optional[dict]:
+    """The product with the most sales revenue in the last 90 days ("my top
+    product"), when the member may see sales; None when there are no sales."""
+    if conn is None or not catalog or not access.allows(acl.SALES, acl.CATALOG):
+        return None
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT ii.product_id FROM invoice_items ii
+                JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
+                WHERE ii.tenant_id = %s AND ii.product_id IS NOT NULL
+                  AND i.issue_date >= CURRENT_DATE - INTERVAL '90 days'
+                GROUP BY ii.product_id ORDER BY SUM(ii.total_price) DESC LIMIT 1;
+                """,
+                (tenant_id,),
+            )
+            row = cursor.fetchone()
+    except Exception as exc:  # noqa: BLE001 - the question is still answered, just without the product named
+        logger.info("top product lookup failed: %s", type(exc).__name__)
+        conn.rollback()
+        return None
+    by_id = {p["product_id"]: p for p in catalog}
+    return by_id.get(str(row[0])) if row else None
 
 
 def _content_words(text: str) -> set:
@@ -681,6 +714,12 @@ def _prompt(question: str, u: understanding.Understanding, company: dict, access
     if statuses:
         lines.append("Evidence status:\n" + "\n".join(
             f"- {s['need']}: {s['status']}" + (f" ({s['detail']})" if s.get("detail") else "") for s in statuses))
+    failed = next((s for s in statuses if s["need"] == "public_research" and s["status"] in _RESEARCH_FAILED), None)
+    if failed:
+        lines.append(f"Public research could not run for this question ({_RESEARCH_FAILED[failed['status']]}). "
+                     "Say that once, plainly, as the reason the public part is unanswered - never that the "
+                     "information doesn't exist or that you simply have no information. Still give everything the "
+                     "evidence does establish, and say what the user can provide instead.")
     lines.append(f"Question: {question}{llm_client._reply_language_hint(question)}")
     return "\n\n".join(lines)
 
@@ -806,6 +845,15 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     u = understanding.understand(question, previous=state, catalog=catalog, company_currency=company.get("currency"))
     registry = ev.EvidenceRegistry()
     statuses: List[dict] = []
+    if u.slots.get("top_product") and not u.slots.get("products"):
+        top = _top_product(conn, tenant_id, catalog, access)
+        if top:
+            # Only the product's name goes on to research queries - never its figures.
+            u.slots["products"] = [{"product_id": top["product_id"], "name": top["name"]}]
+        elif not access.allows(acl.SALES):
+            _status(statuses, "top_product", "not_permitted", "your role can't see sales, which rank the products")
+        else:
+            _status(statuses, "top_product", "none_found", "no sales recorded in the last 90 days to rank products by")
     answerable = understanding.is_answerable(question) or u.follow_up
 
     user_ids = _user_inputs(registry, question, state, u.follow_up, language)
@@ -824,8 +872,9 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
             if missing:
                 _status(statuses, intent, "not_permitted", f"your role can't see {', '.join(sorted(missing))}")
         company_found += _documents(conn, tenant_id, u.effective_question, access, registry, top_k, statuses, language)
-        company_found += _fact_sections(conn, tenant_id, u, access, registry, statuses)
-        company_found += _analysis(conn, tenant_id, u, access, registry)
+        if not u.public_scope:  # "the average water price" needs no sales or price-gap records
+            company_found += _fact_sections(conn, tenant_id, u, access, registry, statuses)
+            company_found += _analysis(conn, tenant_id, u, access, registry)
         products = _product_records(u, catalog, access, registry, language)
         company_found += len(products)
         company_found += _reviews(conn, tenant_id, u, access, registry, statuses, language)
@@ -834,7 +883,8 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     if llm_client.provider_configured():
         ask = llm_client.chat_completion
     research_result = None
-    private_only = bool(u.intents) and set(u.intents) <= _PRIVATE_ONLY
+    # "Price" or "cost" alone is not a private question: "the average water price" is about the world.
+    private_only = bool(u.intents) and set(u.intents) <= _PRIVATE_ONLY and not u.public_scope
     wants_research = u.needs_research or (answerable and not guide and not private_only and company_found == 0)
     if wants_research and enable_research and conn is not None and answerable:
         research_result = public_research.research(conn, tenant_id, registry, u.effective_question, u.intents,
