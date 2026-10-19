@@ -106,7 +106,7 @@ def enrich_competitor_endpoint(
     and its menu PDFs / pictures; depth=deep loads more of the website) and returns each outcome plus the refreshed
     completeness. Additive - a retry only adds data or raises confidence. A
     provider/setup problem comes back as that facet's reason_code, not an HTTP
-    error. background=true queues it for the enrichment worker instead (202).
+    error. background=true queues it for the enrichment worker instead (202); depth=deep is always queued.
     """
     competitor_id = _competitor_uuid(competitor_id)
     facets = body.facets if body and body.facets else None
@@ -117,6 +117,8 @@ def enrich_competitor_endpoint(
             status_code=422,
             detail=f"Cannot retry {unsupported} yet; supported: {list(competitor_enrichment.ENRICHABLE_FACETS)}.",
         )
+    if deep:
+        background = True  # a deep read can take minutes (24 pages, 15 menu files, OCR): never hold the request open
     if background:
         return _queue_enrichment(ctx.tenant_id, competitor_id, facets, enrichment_queue.MODE_FORCE,
                                   *(("deep",) if deep else ()))

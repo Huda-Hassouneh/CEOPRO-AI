@@ -160,3 +160,23 @@ def test_social_posts_never_feed_price_matching_until_confirmed():
     from src.market_scraper.market_discovery import offerings
     source = open(offerings.__file__, encoding="utf-8").read()
     assert "COALESCE(payload->>'channel', 'website') = 'website' OR COALESCE((payload->>'verified')::boolean, FALSE)" in source
+
+
+def test_a_real_budget_refusal_shows_its_sentence_not_a_bound_method():
+    from src.ai.billing import credits
+    outcome, _l, _f = _run({"instagram": "https://instagram.com/cafe"}, error=credits.BudgetError("COST_NOT_CONFIGURED", credits.DATA, detail="apify"))
+    assert (outcome["status"], outcome["reason_code"]) == (ce.STATUS_FAILED, "COST_NOT_CONFIGURED")
+    assert "bound method" not in outcome["reason_detail"] and len(outcome["reason_detail"]) > 10
+
+
+def test_a_synchronous_retry_gets_its_own_billing_scope_and_a_worker_keeps_the_outer_one():
+    from src.ai.billing import credits
+    assert credits.current() is None
+    with ce._billing_scope(TENANT, "x") as scope_a:  # noqa: SLF001
+        inside = credits.current()
+        assert inside is not None and inside.tenant_id == TENANT
+    assert credits.current() is None
+    with credits.metering(TENANT, "outer"):
+        outer = credits.current()
+        with ce._billing_scope(TENANT, "x"):  # noqa: SLF001
+            assert credits.current() is outer  # not replaced

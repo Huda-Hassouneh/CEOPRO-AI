@@ -135,11 +135,13 @@ export function FacetRequestButtons({ name, action, busy, onRun, t }) {
 // people agreeing, sentiment, how complete the data is, and a Retry when something is missing.
 export function CompetitorDataChips({ data, competitorId }) {
   const { t, locale } = useI18n();
-  const { run, notice, pending } = useRetryNotice(competitorId);
+  const { run, runOnRequest, notice, pending, backgroundPending } = useRetryNotice(competitorId);
   const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   if (!data) return null;
   const completeness = data.data_completeness;
   const missing = retryableFacets(completeness).length > 0;
+  // No price collected yet: offer the website / menu read right in the list.
+  const pricesMissing = Boolean(onRequestAction(completeness, 'PRICES')) && completeness.facets.PRICES.status !== 'SUCCEEDED';
   return (
     <div className="competitor-data-chips">
       {data.rating != null && <span>{t('competitorData.overview.rating', { rating: number.format(data.rating), count: number.format(data.rating_count || 0) })}</span>}
@@ -149,6 +151,7 @@ export function CompetitorDataChips({ data, competitorId }) {
       {data.sentiment_label && <Pill tone={data.sentiment_label === 'Positive' ? 'success' : data.sentiment_label === 'Negative' ? 'danger' : 'neutral'}>{t(`competitorData.overview.sentiment.${data.sentiment_label}`)}</Pill>}
       {completeness && <Pill tone={completenessTone(completeness.score)}>{t('competitorData.completeness.score', { score: completeness.score })}</Pill>}
       {missing && <ApexButton size="sm" variant="ghost" icon={RefreshCw} loading={pending} onClick={() => run()}>{t('competitorData.retry')}</ApexButton>}
+      {pricesMissing && <ApexButton size="sm" variant="ghost" icon={RefreshCw} loading={backgroundPending} onClick={() => runOnRequest('PRICES')}>{t('competitorData.actions.retryPrices')}</ApexButton>}
       <span className="apex-muted" role="status" aria-live="polite">{notice ? t(retryNoticeKey(notice.kind)) : ''}</span>
     </div>
   );
