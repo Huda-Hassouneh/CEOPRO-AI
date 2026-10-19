@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { competitorDataApi } from '../api/competitorDataApi.js';
+import { discoveryApi } from '../api/discoveryApi.js';
 
 export function useCompetitorOverview() {
   return useQuery({ queryKey: ['competitor-overview'], queryFn: competitorDataApi.overview });
@@ -44,6 +45,20 @@ export function useRetryCompetitor() {
   });
 }
 
+// Starts one competitor's PRICES / SOCIAL_CONTENT collection in the background (deep = "load more"). The job takes
+// a while, so what is shown is refreshed now and again shortly, and the data-status poll keeps going while queued.
+export function useRetryFacet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, facets, depth }) => competitorDataApi.retry(id, { facets, depth, background: true }),
+    onSuccess: (_data, { id }) => {
+      refreshCompetitorData(queryClient, id);
+      setTimeout(() => refreshCompetitorData(queryClient, id), 20000);
+      setTimeout(() => refreshCompetitorData(queryClient, id), 60000);
+    },
+  });
+}
+
 export function useRetryAllFailed() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -76,5 +91,15 @@ export function useSetBarcode() {
   return useMutation({
     mutationFn: ({ productId, barcode }) => competitorDataApi.setBarcode(productId, barcode),
     onSuccess: () => refreshCompetitorData(queryClient),
+  });
+}
+
+// The owner's decision on one price: refreshes the prices shown, the product comparisons and the coverage that
+// are built from them.
+export function useReviewIntel(competitorId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (decision) => discoveryApi.reviewIntel(competitorId, decision),
+    onSuccess: () => refreshCompetitorData(queryClient, competitorId),
   });
 }

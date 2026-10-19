@@ -1812,6 +1812,39 @@ Completes V6-V9 of `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 8 on `feat/com
   (pending #102); this branch stops tracking it.
 - **Still unverified**: Apify actors, Gemini vision, real menu photos, the frontend, full Docker image builds, the CI run.
 
+## 2026-10-19 (frontend) - Retry, load-more and price-check controls
+
+`frontend/src/features/market-intelligence`: the competitor profile now exposes the new backend features.
+- **Data completeness panel**: "Read prices" and "Load more" on the Prices row, "Read posts" (+ "Load more") on the Social
+  posts row; all start background jobs (`useRetryFacet`), the plain Retry now names its five free facets explicitly so it
+  never starts a website read or a paid call. New reason texts (no prices published, JavaScript-rendered, OCR not set up,
+  not the business's own site, no posts).
+- **Price table** (`CompetitorIntel.jsx`): where each price was read from (page, menu PDF, picture, AI picture, post
+  caption, Instagram / Facebook), "read as X" / "differs from Y" notes, and for owner/admin Confirm / Correct / Wrong / Undo
+  (`discoveryApi.reviewIntel`, `useReviewIntel`); checked rows show "Checked by you".
+- **Tests**: 8 new node tests (API bodies, on-request facet rules, role gate, origin helpers, price parsing incl. Arabic
+  digits); locale parity and key-existence tests pass; lint clean; production build OK.
+- **Verified on a real local stack** (uvicorn + Postgres 15 with all migrations + Redis + vite): background retry 202 and
+  notice, confirm / correct / reject / undo round-trips, English desktop and Arabic 390 px layouts, browser smoke 26/26
+  screens clean (en 1440, ar 390), axe audit 0 findings (en, ar mobile, dark mobile).
+- **Not done**: the competitor list rows, native-speaker review of the Arabic text (pending #94, #71).
+
+## 2026-10-19 (pending-task sweep)
+
+Everything in the pending list that code could close was closed on `feat/competitor-frontend-controls`:
+- **Frontend**: "Read prices" on competitor list rows; each price becomes a card on a phone (check controls never scroll
+  out of sight); Arabic wording pass on the new strings (still needs a human native speaker, pending #94 / #71).
+- **Gap found while verifying**: a competitor with a website that had never been read had `can_retry: false` for PRICES, so
+  the button could never appear for the competitors that need it most; fixed (any competitor with a website can be asked to
+  read its prices) and covered by a live-DB test.
+- **Backend**: deep reads are always queued; paid calls in a synchronous retry get a billing scope and a refusal is shown
+  as its real sentence (a bound method was printed before); clock-skew-proof price-age assertion.
+- **CI**: first step of the backend job rejects tracked `.env` files and Python bytecode.
+- Re-verified: browser smoke 26/26 and axe 0 findings in en desktop / ar mobile / dark mobile; 90 node tests; lint; build.
+
+What remains is human-only (secrets rotation #102, Render env and cost rows #95 / #97, migration #90, images #85, provider
+accounts #91 / #92, real menu photos #86, native-speaker Arabic review #94, name-matcher tuning data #93).
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
