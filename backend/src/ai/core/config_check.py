@@ -212,6 +212,13 @@ def check_environment() -> List[Finding]:
             add(WARNING, name, "is not read by KEEL (see KEYS_AND_ACCOUNTS_NEEDED.md for the right name) - remove it")
     if active_llm_provider() is None:
         add(WARNING, "GROQ_API_KEY", "no AI language model is configured - the assistant and AI analysis are unavailable")
+    from src.market_scraper import web_search
+
+    if not web_search.is_configured():
+        add(WARNING, "TAVILY_API_KEY", "no web search provider is configured - the assistant cannot research public "
+                                       "information (customs, taxes, prices) and discovery finds nothing; set "
+                                       "TAVILY_API_KEY (free tier), BRAVE_SEARCH_API_KEY, SEARXNG_INSTANCE_URL or "
+                                       "GOOGLE_CUSTOM_SEARCH_API_KEY + GOOGLE_CUSTOM_SEARCH_CX")
     return out
 
 
