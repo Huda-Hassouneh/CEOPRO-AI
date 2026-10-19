@@ -241,3 +241,183 @@ def test_titles_of_company_facts_are_shown_in_arabic_for_an_arabic_question(mode
     result, _ = _answer_with_sales(model, monkeypatch, _reply(("الإيرادات 20016.928 دينار.", "fact", ["E1"])),
                                    question="كيف كانت مبيعاتي هالشهر؟")
     assert result["references"][0]["title"] == "المبيعات في آخر 30 يوماً"
+
+
+# --- public research: the four questions that used to dead-end ---------------------
+# The real research code runs; only the search provider and the web are fakes.
+
+from decimal import Decimal  # noqa: E402
+
+import httpx  # noqa: E402
+
+from src.ai.research import page_reader  # noqa: E402
+from src.ai.tests.test_research import _fetch, _public  # noqa: E402
+
+CUSTOMS_URL = "https://customs.gov.jo/en/tariff"
+WATER_URL = "https://www.mwi.gov.jo/water-tariff"
+CUSTOMS_PAGE = """<html lang="en"><head><title>Jordan Customs integrated tariff</title></head><body><article>
+<p>Importers check the customs duty for any good in the Jordan Customs integrated tariff by its HS code; fresh
+cucumbers (HS 0707) and olive oil (HS 1509) are listed with their duty and the general sales tax.</p>
+<p>Goods from any country are cleared at a customs centre such as the Jaber border crossing.</p></article></body></html>"""
+WATER_PAGE = """<html lang="en"><head><title>Water tariff in Jordan</title></head><body><article>
+<p>The municipal water tariff in Jordan is set per cubic metre in consumption blocks by the Ministry of Water.</p>
+</article></body></html>"""
+
+
+class _Conn:
+    def cursor(self):
+        raise RuntimeError("no database in this test")
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+
+def _cite(title):
+    """A scripted model that cites the evidence item with this title."""
+    def reply(messages, usage, max_tokens=None):
+        prompt = messages[-1]["content"]
+        found = [line.split("]")[0][1:] for line in prompt.splitlines() if title in line and line.startswith("[E")]
+        reply.prompts.append(prompt)
+        return _reply(("Based on public sources, this is what applies.", "fact", found[:1]))
+    reply.prompts = []
+    return reply
+
+
+def _research_answer(monkeypatch, question, results, pages, title, catalog=(), top=None, documents=0):
+    page_reader._ROBOTS_CACHE.clear()
+    monkeypatch.setattr(advisor.llm_client, "provider_configured", lambda: False)  # template queries, no network
+    monkeypatch.setattr(advisor, "_company", lambda conn, tenant_id: {"currency": "JOD", "country_code": "JO"})
+    monkeypatch.setattr(advisor, "_catalog", lambda *a: list(catalog))
+    monkeypatch.setattr(advisor, "_top_product", lambda *a: top)
+    for name in ("_fact_sections", "_analysis", "_reviews"):
+        monkeypatch.setattr(advisor, name, lambda *a, **k: 0)
+
+    def unrelated_document(conn, tenant_id, q, access, registry, top_k, statuses, language="en"):
+        for _ in range(documents):
+            registry.add(ev.COMPANY_DOCUMENT, "Staff handbook", "Opening hours are 9 to 5.", ev.COMPANY, ev.OBSERVED)
+        return documents
+    monkeypatch.setattr(advisor, "_documents", unrelated_document)
+    searched = []
+    model = _cite(title)
+    monkeypatch.setattr(advisor, "_call", model)
+    result = advisor.answer(_Conn(), "t", question, access=acl.FULL_ACCESS, research_kwargs={
+        "search_fn": lambda q: searched.append(q) or results, "fetch": _fetch(pages), "resolver": _public})
+    return result, searched, model
+
+
+def _statuses(result):
+    return {s["need"]: s for s in result["evidence_status"]}
+
+
+def test_import_versus_local_researches_the_top_product_and_asks_only_for_the_supplier_quote(monkeypatch):
+    olive = {"product_id": "p1", "name": "Extra Virgin Olive Oil 1L", "name_alt": None, "price": Decimal("6.5"),
+             "cost": Decimal("4.2"), "currency": "JOD"}
+    result, searched, _ = _research_answer(
+        monkeypatch, "Would importing my top product be cheaper than buying it locally?",
+        [{"url": CUSTOMS_URL, "title": "Customs", "snippet": ""}], {CUSTOMS_URL: (200, CUSTOMS_PAGE, "text/html", {})},
+        "Jordan Customs integrated tariff", catalog=[olive], top=olive)
+    assert searched and all("Extra Virgin Olive Oil" in q for q in searched if not q.startswith("site:"))
+    assert not any(figure in " ".join(searched) for figure in ("6.5", "4.2")), "private figures never reach a search"
+    assert result["research"]["status"] == "found"
+    assert any(ref.get("url") == CUSTOMS_URL for ref in result["references"])
+    calculation = result["calculations"][0]
+    missing = [m["key"] for m in calculation["missing"]]
+    assert "supplier_unit_price" in missing and "local_unit_price" not in missing, "the local cost is the company's own"
+
+
+def test_landed_cost_for_syrian_cucumbers_researches_customs_and_the_crossing(monkeypatch):
+    result, searched, _ = _research_answer(
+        monkeypatch, "Total landed cost per kg for Syrian cucumbers to Amman via Jaber",
+        [{"url": CUSTOMS_URL, "title": "Customs", "snippet": ""}], {CUSTOMS_URL: (200, CUSTOMS_PAGE, "text/html", {})},
+        "Jordan Customs integrated tariff")
+    assert any("jaber" in q for q in searched) and any(q.startswith("site:customs.gov.jo") for q in searched)
+    statuses = _statuses(result)
+    assert statuses["public_research"]["status"] == "found" and "company_records" not in statuses
+    assert statuses["landed_cost_calculation"]["status"] == "missing_inputs"
+    assert "supplier_unit_price" in statuses["landed_cost_calculation"]["detail"]
+    assert result["state"]["slots"]["origin_country"] == "SY"
+
+
+def test_how_to_check_customs_duties_is_answered_from_the_official_source(monkeypatch):
+    result, searched, model = _research_answer(
+        monkeypatch, "How can I check the customs duties for importing goods into Jordan from any country?",
+        [{"url": "https://blog.example.com/duties", "title": "Blog", "snippet": "duties vary"},
+         {"url": CUSTOMS_URL, "title": "Customs", "snippet": ""}],
+        {CUSTOMS_URL: (200, CUSTOMS_PAGE, "text/html", {}), "https://blog.example.com/duties": (404, "", "text/html", {})},
+        "Jordan Customs integrated tariff")
+    assert result["research"]["pages"][0]["url"] == CUSTOMS_URL, "official sources are read first"
+    refs = [ref for ref in result["references"] if ref.get("url") == CUSTOMS_URL]
+    assert refs and "Jordan Customs integrated tariff" in model.prompts[0]
+
+
+@pytest.mark.parametrize("question", ["What is the average water price?", "ما هو متوسط سعر المياه؟"])
+def test_average_water_price_is_researched_even_when_company_documents_match(monkeypatch, question):
+    result, searched, model = _research_answer(
+        monkeypatch, question, [{"url": WATER_URL, "title": "Water", "snippet": ""}],
+        {WATER_URL: (200, WATER_PAGE, "text/html", {})}, "Water tariff in Jordan", documents=1)
+    assert searched, "a public question is researched even though a company document came back"
+    statuses = _statuses(result)
+    assert statuses["public_research"]["status"] == "found" and "company_records" not in statuses
+    assert any(ref.get("url") == WATER_URL for ref in result["references"])
+
+
+def test_without_a_search_provider_the_reason_reaches_the_answer_not_a_bare_no_information(monkeypatch):
+    for name in ("TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "SEARXNG_INSTANCE_URL", "GOOGLE_CUSTOM_SEARCH_API_KEY",
+                 "GOOGLE_CUSTOM_SEARCH_CX"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(advisor.llm_client, "provider_configured", lambda: False)
+    monkeypatch.setattr(advisor, "_company", lambda conn, tenant_id: {"currency": "JOD", "country_code": "JO"})
+    monkeypatch.setattr(advisor, "_catalog", lambda *a: [])
+    for name in ("_documents", "_fact_sections", "_analysis", "_reviews"):
+        monkeypatch.setattr(advisor, name, lambda *a, **k: 0)
+    model = _cite("nothing")
+    monkeypatch.setattr(advisor, "_call", model)
+    result = advisor.answer(_Conn(), "t", "How can I check the customs duties for importing goods into Jordan?",
+                            access=acl.FULL_ACCESS)
+    status = _statuses(result)["public_research"]
+    assert status["status"] == "not_configured" and "TAVILY_API_KEY" in status["detail"]
+    assert "public_research: not_configured (no web search provider is configured" in model.prompts[0]
+
+
+def test_the_system_prompt_asks_for_meaning_partial_answers_and_the_research_reason():
+    prompt = llm_client.SYSTEM_PROMPT
+    assert "water price" in prompt and "Partial answers" in prompt and "give its reason from the status" in prompt
+
+
+def test_a_top_product_that_cannot_be_ranked_says_why(monkeypatch):
+    result, _, model = _research_answer(
+        monkeypatch, "Would importing my top product be cheaper than buying it locally?", [], {}, "nothing",
+        catalog=[{"product_id": "p1", "name": "Olive Oil", "name_alt": None, "price": None, "cost": None,
+                  "currency": "JOD"}], top=None)
+    assert _statuses(result)["top_product"]["status"] == "none_found"
+    assert "no sales recorded in the last 90 days" in model.prompts[0]
+
+
+def test_a_public_question_does_not_pull_the_business_private_records(monkeypatch):
+    gathered = []
+    result, _, _ = _research_answer(monkeypatch, "What is the average water price?",
+                                    [{"url": WATER_URL, "title": "Water", "snippet": ""}],
+                                    {WATER_URL: (200, WATER_PAGE, "text/html", {})}, "Water tariff in Jordan")
+    monkeypatch.setattr(advisor, "_fact_sections", lambda *a, **k: gathered.append(1) or 0)
+    monkeypatch.setattr(advisor, "_analysis", lambda *a, **k: gathered.append(1) or 0)
+    advisor.answer(_Conn(), "t", "What is the average water price?", access=acl.FULL_ACCESS, enable_research=False)
+    assert gathered == [] and result["research"]["status"] == "found"
+
+
+def test_when_research_cannot_run_the_model_is_told_to_give_the_reason(monkeypatch):
+    for name in ("TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "SEARXNG_INSTANCE_URL", "GOOGLE_CUSTOM_SEARCH_API_KEY",
+                 "GOOGLE_CUSTOM_SEARCH_CX"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(advisor.llm_client, "provider_configured", lambda: False)
+    monkeypatch.setattr(advisor, "_company", lambda conn, tenant_id: {"currency": "JOD", "country_code": "JO"})
+    monkeypatch.setattr(advisor, "_catalog", lambda *a: [])
+    for name in ("_documents", "_fact_sections", "_analysis", "_reviews"):
+        monkeypatch.setattr(advisor, name, lambda *a, **k: 0)
+    model = _cite("nothing")
+    monkeypatch.setattr(advisor, "_call", model)
+    advisor.answer(_Conn(), "t", "What is the average water price?", access=acl.FULL_ACCESS)
+    assert "Public research could not run for this question (web search is not set up on this server" in model.prompts[0]
+    assert "never that the information doesn't exist" in model.prompts[0]
