@@ -28,6 +28,8 @@ from typing import List, Optional
 from src.market_scraper.category_taxonomy import categorize_catalog
 from src.market_scraper.market_discovery import enrich, geocode, industries, matching, news, offerings, scoring
 from src.market_scraper.market_discovery import relevance as relevance_rules
+from src.market_scraper.price_comparison import adjudicate as price_comparison_adjudicate
+from src.market_scraper.price_comparison import engine as price_comparison_engine
 from src.market_scraper.market_discovery.models import DiscoveryQuery, ProviderResult
 from src.market_scraper.market_discovery.providers import apify_maps, google_places, osm, overture, place_search, web_search, wikidata
 from src.ai.billing import credits
@@ -530,7 +532,8 @@ def execute_run(conn, tenant_id: str, run_id: str, radius_km: Optional[float] = 
         # 5. Read what the competitors publish on their own sites, then match
         #    their priced items to the company's own products.
         site_intel = _collect_site_intel(conn, tenant_id, site_reader, query.country_code)
-        priced = _match_prices(conn, tenant_id, site_intel.get("competitor_ids") or [])
+        priced = _match_prices(conn, tenant_id, site_intel.get("competitor_ids") or [],
+                               judge=price_comparison_adjudicate.model_judge)
         # 6. Recent news about the industry and the tracked competitors.
         news_result = _collect_news(conn, tenant_id, query, news_reader)
         ok = [r for r in results if r.status == "ok"]
@@ -585,7 +588,7 @@ def _collect_site_intel(conn, tenant_id: str, site_reader=None, country: Optiona
     return counts
 
 
-def _match_prices(conn, tenant_id: str, competitor_ids: List[str], ask=None) -> dict:
+def _match_prices(conn, tenant_id: str, competitor_ids: List[str], ask=None, judge=None) -> dict:
     """Competitors whose sites were read: priced items matched to the company's
     products (offerings.py); a competitor selling the company's products is
     DIRECT, and is tracked (plan limit permitting) so its prices reach
@@ -594,11 +597,20 @@ def _match_prices(conn, tenant_id: str, competitor_ids: List[str], ask=None) -> 
            "examples": []}
     try:
         products = offerings.company_products(conn, tenant_id)
+        ai_budget = [price_comparison_adjudicate.MAX_PAIRS_PER_RUN]
         covered = set()
         matched_ids = []
         for competitor_id in competitor_ids:
             result = offerings.record_matches(conn, tenant_id, competitor_id, products, ask=ask)
             out["currency_mismatch"] += result["currency_mismatch"]
+            # Items that are not the same product still tell the owner something: similar,
+            # scaled and added-value comparisons (price_comparison/). Never fails the run.
+            try:
+                ladder = price_comparison_engine.refresh_for_competitor(
+                    conn, tenant_id, competitor_id, products, judge=judge, budget=ai_budget)
+                out["comparisons"] = out.get("comparisons", 0) + ladder["rows"]
+            except Exception:  # noqa: BLE001
+                logger.exception("price comparison ladder failed for competitor %s", competitor_id)
             if not result["matched"]:
                 continue
             matched_ids.append((competitor_id, result["matched"]))

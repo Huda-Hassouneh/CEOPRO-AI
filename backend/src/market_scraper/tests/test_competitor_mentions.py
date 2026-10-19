@@ -147,7 +147,7 @@ def _thread(comment_id, text, likes, replies=()):
 def test_youtube_comments_come_only_from_videos_naming_the_competitor_with_likes_and_replies():
     get = _yt(
         [_video("v1", "Rival Burger review"), _video("v2", "Best pasta in town"), _video("v3", "Visit", channel="Rival Burger Official")],
-        {"v1": {"items": [_thread("c1", "Terrible service", 400, replies=[("r1", "Same here")])]}, "v3": {"items": []}},
+        {"v1": {"items": [_thread("c1", "Terrible service and very long waits", 400, replies=[("r1", "Same here, we waited too")])]}, "v3": {"items": []}},
     )
     comments = cm.youtube_comments("Rival Burger", "Amman", "KEY", get=get)
     assert [(c["external_id"], c["parent_external_id"], c["likes"]) for c in comments] == [("c1", None, 400), ("r1", "c1", 0)]
@@ -157,7 +157,7 @@ def test_youtube_comments_come_only_from_videos_naming_the_competitor_with_likes
 
 def test_youtube_skips_a_video_with_comments_off_and_classifies_key_and_quota_errors_without_leaking_the_key():
     off = (403, {"error": {"errors": [{"reason": "commentsDisabled"}], "message": "disabled"}})
-    get = _yt([_video("v1", "Rival Burger"), _video("v2", "Rival Burger 2")], {"v1": off, "v2": {"items": [_thread("c9", "Nice", 1)]}})
+    get = _yt([_video("v1", "Rival Burger"), _video("v2", "Rival Burger 2")], {"v1": off, "v2": {"items": [_thread("c9", "Nice food and friendly staff there", 1)]}})
     assert [c["external_id"] for c in cm.youtube_comments("Rival Burger", None, "KEY", get=get)] == ["c9"]
 
     def failing(status, reason, message="boom KEY"):
@@ -296,4 +296,37 @@ def test_replies_are_only_stored_under_a_comment_that_was_stored():
     ]
     new = ce._save_comments(conn, "t1", "comp", "src", "YouTube", comments)
     assert new == 2 and cursor.execute.call_count == 2  # top first, its reply second, the orphan skipped
-    assert cursor.execute.call_args_list[1].args[1][-1] == "rid1"  # the reply's parent_review_id
+    assert cursor.execute.call_args_list[1].args[1][-2] == "rid1"  # the reply's parent_review_id (the source url follows it)
+
+
+# ---- which comments are worth keeping (P2) ---------------------------------------------------
+
+@pytest.mark.parametrize("text,keep", [
+    ("first!", False), ("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥", False), ("nice nice", False), ("+1 +1 +1 +1 +1 +1", False),
+    ("The waiter was rude and the food came cold", True),
+    ("الخدمة بطيئة جدا والأسعار مرتفعة", True),  # Arabic counts letters and words the same way
+])
+def test_only_substantive_comments_are_kept(text, keep):
+    assert cm.is_substantive(text) is keep
+
+
+def test_an_unnamed_comment_on_someone_elses_channel_must_be_a_real_opinion():
+    short = "great video, loved the music"  # 28 chars, does not name the business
+    long = "Went there last week and the burgers were dry, the service was slow and they overcharged us"
+    assert cm.keep_comment(short, "Rival Burger", channel_names_it=False) is False
+    assert cm.keep_comment(long, "Rival Burger", channel_names_it=False) is True
+    assert cm.keep_comment(short, "Rival Burger", channel_names_it=True) is True   # their own channel
+    assert cm.keep_comment("Rival Burger was fine honestly", "Rival Burger", channel_names_it=False) is True  # names them
+
+
+def test_youtube_comments_drop_noise_and_duplicates():
+    def get(url, params, secret=None):
+        if "search" in url:
+            return 200, {"items": [{"id": {"videoId": "v1"}, "snippet": {"title": "Rival Burger review", "channelTitle": "Foodie"}}]}
+        opinion = "Rival Burger was cold and the staff ignored us for twenty minutes"
+        return 200, {"items": [
+            {"snippet": {"topLevelComment": {"id": "a", "snippet": {"textOriginal": opinion, "likeCount": 4}}, "totalReplyCount": 0}},
+            {"snippet": {"topLevelComment": {"id": "b", "snippet": {"textOriginal": opinion.upper(), "likeCount": 1}}, "totalReplyCount": 0}},  # duplicate
+            {"snippet": {"topLevelComment": {"id": "c", "snippet": {"textOriginal": "first!", "likeCount": 99}}, "totalReplyCount": 0}},
+        ]}
+    assert [c["external_id"] for c in cm.youtube_comments("Rival Burger", None, "KEY", get=get)] == ["a"]

@@ -128,7 +128,9 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         if estimate.prices:
             rec = recommendation.build_recommendation(own["current_price"], estimate.prices, own_currency)
             rec.confidence_score = min(rec.confidence_score, estimate.confidence_cap)
-            rec.matched_competitor_count = len(estimate.competitor_price_ids) + len(estimate.market_observation_ids)
+            rec.matched_competitor_count = (
+                len(estimate.competitor_price_ids) + len(estimate.market_observation_ids) + len(estimate.comparison_ids)
+            )
         else:
             rec = recommendation.build_internal_recommendation(
                 own["current_price"], own["cost"], guardrails.MIN_MARGIN_PCT, own_currency
@@ -229,6 +231,7 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
             "product_id": product_id,
             "competitor_price_entry_ids": rec.source_record_ids,
             "market_observation_ids": estimate.market_observation_ids if estimate else [],
+            "price_comparison_ids": estimate.comparison_ids if estimate else [],
             "data_basis": rec.basis,
         },
         rec.confidence_score,

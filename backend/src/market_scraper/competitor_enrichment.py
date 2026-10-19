@@ -64,6 +64,8 @@ FACET_REVIEWS = "REVIEWS"
 FACET_SOCIAL_CONTENT = "SOCIAL_CONTENT"
 FACET_NEWS = "NEWS"
 FACET_COMMENTS = "COMMENTS"
+# Google reviews (Places API / Apify) are stored under this platform; every other competitor review row is a comment.
+GOOGLE_REVIEW_PLATFORM = "Google Places"
 ALL_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT)
 # The facets this module can actually (re)collect today.
 ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT)
@@ -170,12 +172,12 @@ def _write_ledger(
     provider: Optional[str] = None, items_found: int = 0, data_confidence: Optional[float] = None,
 ) -> None:
     transient = reason_code in (PROVIDER_ERROR, QUOTA_EXHAUSTED, SITE_UNREACHABLE)
-    now = datetime.now(timezone.utc)
-    with conn.cursor() as cursor:
     if reason_code in (CREDENTIALS_REJECTED, QUOTA_EXHAUSTED):
         from src.market_scraper import provider_setup
 
         provider_setup.report_problem(provider, reason_code)  # tells the operator once a day; never raises
+    now = datetime.now(timezone.utc)
+    with conn.cursor() as cursor:
         cursor.execute(
             """
             INSERT INTO competitor_enrichment
@@ -456,6 +458,17 @@ def _request_sentiment_analysis(tenant_id: str) -> None:
         logger.warning("could not request sentiment analysis for tenant %s", tenant_id)
 
 
+def _has_unanalysed_reviews(conn, tenant_id: str, competitor_id: str) -> bool:
+    """Comments stored but never given a sentiment (the analysis event was missed): a retry asks again."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT EXISTS (SELECT 1 FROM reviews r LEFT JOIN sentiment_results s ON s.tenant_id = r.tenant_id AND s.review_id = r.review_id "
+            "WHERE r.tenant_id = %s AND r.competitor_id = %s AND r.subject_type = 'COMPETITOR' AND s.review_id IS NULL);",
+            (tenant_id, competitor_id),
+        )
+        return bool(cursor.fetchone()[0])
+
+
 @credits.metered("competitor_enrichment")
 def enrich_reviews(
     conn, tenant_id: str, competitor_id: str, competitor: dict, api_key: Optional[str],
@@ -708,6 +721,10 @@ def _news_outcome(conn, tenant_id, competitor_id, competitor):
 
 # ----------------------------------------------------------------- video comments
 
+def _http_url(value) -> Optional[str]:
+    return value if isinstance(value, str) and value.startswith(("http://", "https://")) else None
+
+
 def _save_comments(conn, tenant_id: str, competitor_id: str, source_id: str, platform: str, comments: list) -> int:
     """Stores comments as competitor reviews: top-level first, replies linked to their parent. Likes are
     kept as like_count (people agreeing). Returns how many were new."""
@@ -725,18 +742,19 @@ def _save_comments(conn, tenant_id: str, competitor_id: str, source_id: str, pla
                 INSERT INTO reviews
                     (tenant_id, product_id, source_platform, reviewer_name, review_text, review_date, subject_type,
                      competitor_id, source_status, collection_method, source_id, external_review_id, safety_status,
-                     safety_flags, like_count, reply_count, parent_review_id)
+                     safety_flags, like_count, reply_count, parent_review_id, source_url)
                 VALUES (%s, NULL, %s, %s, %s, COALESCE(%s::timestamptz, NOW()), 'COMPETITOR', %s, 'ALLOWED', 'PUBLIC_API',
-                        %s, %s, %s, %s::jsonb, %s, %s, %s)
+                        %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
                 ON CONFLICT (tenant_id, source_id, external_review_id)
                     WHERE source_id IS NOT NULL AND external_review_id IS NOT NULL
-                DO UPDATE SET like_count = EXCLUDED.like_count, reply_count = EXCLUDED.reply_count
+                DO UPDATE SET like_count = EXCLUDED.like_count, reply_count = EXCLUDED.reply_count,
+                              source_url = COALESCE(reviews.source_url, EXCLUDED.source_url)
                 RETURNING review_id, (xmax = 0);
                 """,
                 (
                     tenant_id, platform, comment["author"], comment["text"], comment["published_at"], competitor_id,
                     source_id, comment["external_id"], "QUARANTINED" if flags else "SAFE", json.dumps(flags),
-                    comment["likes"], comment["reply_count"], parent,
+                    comment["likes"], comment["reply_count"], parent, _http_url(comment.get("url")),
                 ),
             )
             review_id, inserted = cursor.fetchone()
@@ -773,7 +791,7 @@ def _comments_outcome(conn, tenant_id, competitor_id, competitor, actor_user_id)
     source_id = _review_source(conn, tenant_id, actor, approval, name="YouTube comments (official API)",
                                collector_key="youtube_comments", retention_days=30)
     new = _save_comments(conn, tenant_id, competitor_id, source_id, "YouTube", comments)
-    if new:
+    if new or _has_unanalysed_reviews(conn, tenant_id, competitor_id):
         _request_sentiment_analysis(tenant_id)
     return STATUS_SUCCEEDED, None, None, len(comments), 0.7
 
@@ -989,6 +1007,10 @@ def enrich_competitor(
             _write_ledger(conn, tenant_id, competitor_id, facet, STATUS_FAILED, PROVIDER_ERROR, f"{type(exc).__name__}", None, 0, None)
             results[facet] = {"status": STATUS_FAILED, "reason_code": PROVIDER_ERROR, "reason_detail": type(exc).__name__, "items_found": 0}
 
+    for outcome in results.values():
+        if outcome.get("status") != "THROTTLED":
+            outcome["next_step"] = next_step_for(outcome.get("status"), outcome.get("reason_code"))
+
     if profile_changed:
         try:
             from src.ai.pricing.competitor_classification import classify_competitor
@@ -997,6 +1019,53 @@ def enrich_competitor(
             conn.rollback()
             logger.exception("re-score after enrichment failed for competitor %s", competitor_id)
     return results
+
+
+COMMENTS_REFRESH_DAYS = int(os.getenv("COMMENTS_REFRESH_DAYS", "7"))
+COMMENTS_REFRESH_MAX_PER_RUN = int(os.getenv("COMMENTS_REFRESH_MAX_PER_RUN", "10"))
+
+
+def enrich_tenant_comments(conn, tenant_id: str, reserve, max_age_days: Optional[int] = None, limit: Optional[int] = None) -> dict:
+    """The scheduled refresh: re-collects comments for this tenant's tracked competitors whose COMMENTS were last
+    attempted over max_age_days ago (and succeeded, or still hold YouTube comments), oldest first. Comments are kept
+    30 days, so this keeps them continuous. Each competitor costs one YouTube search (100 quota units): `reserve()`
+    is asked first and returns False once the day's search budget is spent, which ends the run (tomorrow's run
+    resumes). A rejected key or exhausted quota also ends it. Never collects without a key and the recorded approval."""
+    if not os.getenv("YOUTUBE_API_KEY", "").strip() or not os.getenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "").strip():
+        return {"refreshed": 0, "stopped": "not_configured"}
+    max_age_days = COMMENTS_REFRESH_DAYS if max_age_days is None else max_age_days
+    limit = COMMENTS_REFRESH_MAX_PER_RUN if limit is None else limit
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT ce.global_competitor_id FROM competitor_enrichment ce
+            JOIN tenant_competitors tc ON tc.tenant_id = ce.tenant_id AND tc.global_competitor_id = ce.global_competitor_id
+            WHERE ce.tenant_id = %s AND ce.facet = 'COMMENTS' AND tc.is_tracked = TRUE
+              AND ce.last_attempt_at < NOW() - make_interval(days => %s)
+              AND (ce.status IN ('SUCCEEDED', 'PARTIAL')
+                   OR EXISTS (SELECT 1 FROM reviews r WHERE r.tenant_id = ce.tenant_id AND r.competitor_id = ce.global_competitor_id
+                              AND r.subject_type = 'COMPETITOR' AND r.source_platform = 'YouTube'))
+            ORDER BY ce.last_attempt_at ASC LIMIT %s;
+            """,
+            (tenant_id, max_age_days, limit),
+        )
+        competitor_ids = [str(row[0]) for row in cursor.fetchall()]
+    refreshed, stopped = 0, None
+    for competitor_id in competitor_ids:
+        if not reserve():
+            stopped = "daily_budget_spent"
+            break
+        try:
+            outcome = enrich_competitor(conn, tenant_id, competitor_id, facets=[FACET_COMMENTS])[FACET_COMMENTS]
+        except Exception:  # noqa: BLE001 - one competitor failing must not stop the others
+            conn.rollback()
+            logger.exception("comments refresh failed for competitor %s", competitor_id)
+            continue
+        refreshed += 1
+        if outcome.get("reason_code") in (QUOTA_EXHAUSTED, CREDENTIALS_REJECTED):
+            stopped = outcome["reason_code"].lower()
+            break
+    return {"refreshed": refreshed, "candidates": len(competitor_ids), "stopped": stopped}
 
 
 _SETUP_BLOCK_CODES = (NO_CREDENTIALS, CREDENTIALS_REJECTED)
@@ -1073,6 +1142,29 @@ def enrich_tenant_competitors(
 _POLICY_RANK = {"ALLOWED": 3, "RESTRICTED": 2, "BLOCKED": 1}
 
 
+# Who can resolve a gap, so the UI offers a Retry only where one can help (see COMPETITOR_COMMENTS_AND_RETRY_PLAN.md).
+NEXT_NONE, NEXT_RETRY, NEXT_WAIT, NEXT_OWNER, NEXT_ADMIN = "none", "retry", "wait", "owner", "admin"
+_ADMIN_CODES = (NO_CREDENTIALS, CREDENTIALS_REJECTED, PLATFORM_APPROVAL_MISSING, SERVICE_MISCONFIGURED, COLLECTOR_NOT_ENABLED, OCR_NOT_AVAILABLE)
+_WAIT_CODES = (QUOTA_EXHAUSTED, PROVIDER_ERROR, SITE_UNREACHABLE)
+_OWNER_CODES = (TERMS_UNREVIEWED, NOT_OWN_SITE)
+_NOTHING_TO_DO_CODES = (NO_WEBSITE, SHARED_RECORD, NO_SOCIAL_LINKS, ROBOTS_DISALLOWED)
+
+
+def next_step_for(status: Optional[str], reason_code: Optional[str]) -> str:
+    """none | retry | wait | owner | admin - who has to act for this facet to fill. Unknown codes mean "retry"."""
+    if status in (STATUS_SUCCEEDED, STATUS_NOT_APPLICABLE):
+        return NEXT_NONE
+    if reason_code in _ADMIN_CODES:
+        return NEXT_ADMIN
+    if reason_code in _WAIT_CODES:
+        return NEXT_WAIT
+    if reason_code in _OWNER_CODES:
+        return NEXT_OWNER
+    if reason_code in _NOTHING_TO_DO_CODES:
+        return NEXT_NONE
+    return NEXT_RETRY
+
+
 def _facet(status, reason_code=None, reason_detail=None, items=0, confidence=None, last_attempt=None, can_retry=False, action=None, action_source_ids=None) -> dict:
     """`action` names the fix the UI can offer for this gap (today:
     "review_source" - the owner/admin terms review at
@@ -1082,7 +1174,7 @@ def _facet(status, reason_code=None, reason_detail=None, items=0, confidence=Non
         "status": status, "reason_code": reason_code, "reason_detail": reason_detail,
         "items_found": items, "confidence": confidence,
         "last_attempt_at": last_attempt.isoformat() if last_attempt else None, "can_retry": can_retry,
-        "action": action, "action_source_ids": action_source_ids or [],
+        "action": action, "action_source_ids": action_source_ids or [], "next_step": next_step_for(status, reason_code),
     }
 
 
@@ -1138,10 +1230,13 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
                 restricted_sources.setdefault(str(cid), []).append(str(source_id))
 
         cursor.execute(
-            "SELECT competitor_id, COUNT(*) FROM reviews WHERE tenant_id = %s AND subject_type = 'COMPETITOR' GROUP BY competitor_id;",
-            (tenant_id,),
+            "SELECT competitor_id, COUNT(*) FILTER (WHERE source_platform = %s), COUNT(*) FILTER (WHERE source_platform <> %s) "
+            "FROM reviews WHERE tenant_id = %s AND subject_type = 'COMPETITOR' GROUP BY competitor_id;",
+            (GOOGLE_REVIEW_PLATFORM, GOOGLE_REVIEW_PLATFORM, tenant_id),
         )
-        review_counts = {str(r[0]): r[1] for r in cursor.fetchall()}
+        review_counts, comment_counts = {}, {}
+        for competitor, google, other in cursor.fetchall():
+            review_counts[str(competitor)], comment_counts[str(competitor)] = google, other
 
         cursor.execute(
             "SELECT global_competitor_id, COUNT(*) FROM market_news WHERE tenant_id = %s AND global_competitor_id IS NOT NULL "
@@ -1161,6 +1256,10 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
                 # Reviews exist (from Places or any other collector): the data wins over a stale ledger status.
                 last = row[5] if row else None
                 facets[facet] = _facet(STATUS_SUCCEEDED, items=review_counts[cid], confidence=row[4] if row else None, last_attempt=last, can_retry=True)
+            elif facet == FACET_COMMENTS and comment_counts.get(cid, 0):
+                # Comments exist (YouTube, social): the data wins over a ledger that says BLOCKED or FAILED.
+                facets[facet] = _facet(STATUS_SUCCEEDED, items=comment_counts[cid], confidence=row[4] if row else None,
+                                       last_attempt=row[5] if row else None, can_retry=True)
             elif facet == FACET_NEWS and news_counts.get(cid, 0):
                 # News exists (from any source, including the industry scan): the data wins over a stale ledger status.
                 facets[facet] = _facet(STATUS_SUCCEEDED, items=news_counts[cid], confidence=row[4] if row else None,
@@ -1207,5 +1306,7 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
             facets[FACET_SOCIAL_CONTENT] = _facet(STATUS_PENDING, NOT_ATTEMPTED, "Posts, offers and menu pictures have not been read yet.", can_retry=True)
         else:
             facets[FACET_SOCIAL_CONTENT] = _facet(STATUS_BLOCKED, NO_SOCIAL_LINKS, "No social profile is known for this competitor.")
-        result[cid] = {"score": _completeness_score(facets), "facets": facets}
+        # Facets that cannot fill until the service itself is set up: the score is not the owner's to raise there.
+        needs_setup = [name for name in ALL_FACETS if name in facets and facets[name]["next_step"] == NEXT_ADMIN]
+        result[cid] = {"score": _completeness_score(facets), "needs_setup": needs_setup, "facets": facets}
     return result
