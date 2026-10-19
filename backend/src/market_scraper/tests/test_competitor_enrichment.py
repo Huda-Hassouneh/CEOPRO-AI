@@ -163,7 +163,7 @@ def test_a_social_profile_competitor_is_its_own_link():
 
 def test_unsupported_facets_are_rejected_up_front():
     with pytest.raises(ValueError):
-        ce.enrich_competitor(MagicMock(), TENANT, COMP, facets=[ce.FACET_SOCIAL_CONTENT])
+        ce.enrich_competitor(MagicMock(), TENANT, COMP, facets=["BOGUS"])
 
 
 def test_unknown_competitor_raises():
@@ -189,6 +189,7 @@ def test_one_facet_crashing_is_recorded_and_the_other_still_runs():
          patch.object(ce, "enrich_news", return_value={"status": ce.STATUS_SUCCEEDED}), \
          patch.object(ce, "enrich_comments", return_value={"status": ce.STATUS_SUCCEEDED}), \
          patch.object(ce, "enrich_prices", return_value={"status": ce.STATUS_SUCCEEDED}), \
+         patch.object(ce, "enrich_social_content", return_value={"status": ce.STATUS_SUCCEEDED}), \
          patch.object(ce, "_write_ledger") as ledger:
         results = ce.enrich_competitor(MagicMock(), TENANT, COMP, places_api_key="k")
     assert results[ce.FACET_PROFILE]["reason_code"] == ce.PROVIDER_ERROR
@@ -275,4 +276,22 @@ def test_deep_reads_are_requested_through_the_collector():
 
 
 def test_prices_is_retryable_but_not_part_of_the_routine_sweep():
-    assert ce.FACET_PRICES in ce.ENRICHABLE_FACETS and ce.FACET_PRICES not in ce.ROUTINE_FACETS
+    assert {ce.FACET_PRICES, ce.FACET_SOCIAL_CONTENT} <= set(ce.ENRICHABLE_FACETS)
+    assert not {ce.FACET_PRICES, ce.FACET_SOCIAL_CONTENT} & set(ce.ROUTINE_FACETS)
+
+
+def test_a_plain_retry_never_runs_the_paid_social_facet_but_an_explicit_request_does():
+    with patch.object(ce, "_load_competitor", return_value=_competitor()), \
+         patch.object(ce, "enrich_profile", return_value={"status": ce.STATUS_SUCCEEDED}), \
+         patch.object(ce, "enrich_social_links", return_value={"status": ce.STATUS_SUCCEEDED}), \
+         patch.object(ce, "enrich_reviews", return_value={"status": ce.STATUS_SUCCEEDED}), \
+         patch.object(ce, "enrich_news", return_value={"status": ce.STATUS_SUCCEEDED}), \
+         patch.object(ce, "enrich_comments", return_value={"status": ce.STATUS_SUCCEEDED}), \
+         patch.object(ce, "enrich_prices", return_value={"status": ce.STATUS_SUCCEEDED}), \
+         patch.object(ce, "enrich_social_content", return_value={"status": ce.STATUS_SUCCEEDED}) as social, \
+         patch.object(ce, "_write_ledger"):
+        plain = ce.enrich_competitor(MagicMock(), TENANT, COMP, places_api_key="k")
+        assert ce.FACET_SOCIAL_CONTENT not in plain and not social.called
+        explicit = ce.enrich_competitor(MagicMock(), TENANT, COMP, facets=[ce.FACET_SOCIAL_CONTENT], deep=True)
+    assert list(explicit) == [ce.FACET_SOCIAL_CONTENT]
+    assert social.call_args.args[-1] is True  # deep reaches the collector

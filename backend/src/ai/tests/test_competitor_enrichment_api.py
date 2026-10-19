@@ -86,7 +86,7 @@ def test_enrich_without_a_body_retries_everything_collectable():
 
 def test_enrich_rejects_a_facet_that_cannot_be_collected_yet_without_touching_the_database():
     with patch(f"{R}.db.app_role_connection") as connect:
-        response = client.post(f"/competitors/{COMP}/enrich", json={"facets": ["SOCIAL_CONTENT"]}, headers=_auth())
+        response = client.post(f"/competitors/{COMP}/enrich", json={"facets": ["NOT_A_FACET"]}, headers=_auth())
     assert response.status_code == 422
     connect.assert_not_called()
 

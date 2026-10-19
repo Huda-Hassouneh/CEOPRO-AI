@@ -116,18 +116,26 @@ panel but have no Retry behind them, (c) every refresh is the same shallow read 
 | V3 | "Load more": `depth` = `standard` / `deep` on the enrich request - deep reads more pages, items and menu files. | DONE |
 | V4 | Additive guarantee: a re-read that could not read menu files (OCR missing, fetch failed) keeps the menu-derived facts from the earlier read instead of deleting them. | DONE |
 | V5 | Completeness panel: PRICES prefers the ledger's specific reason over the generic derived one; reports site-published prices even when none is matched to a product yet. | DONE |
-| V6 | Owner verification of a fact (confirm / correct / reject) that survives re-reads - needs a table (`competitor_intel_review`) keyed by competitor + normalized name + source. | OPEN (design below) |
-| V7 | SOCIAL_CONTENT collector: captions and post pictures from stored handles through the licensed provider, same OCR path. Needs provider credentials to verify live (decision 3 above). | OPEN |
-| V8 | Vision-model fallback for stylised menus tesseract cannot read; spend bounded by the cost ledger. | OPEN |
-| V9 | Arabic / transliterated name matching below the 0.82 bar (R8); needs a labelled sample to tune safely. | OPEN |
-| V10 | Run the live-DB suites and a real-tesseract run in the project's Docker stack; none could run in the authoring environment. | OPEN (CI) |
+| V6 | Owner verification of a fact (confirm / correct / reject) that survives re-reads: table `competitor_intel_review` (migration `20261023000000`), `POST /discovery/competitors/{id}/intel/review` (owner/admin), decisions re-applied by `save_site_intel` and `save_channel_facts`. | DONE (live-DB tested) |
+| V7 | SOCIAL_CONTENT collector (`market_scraper/social_content.py`): Instagram / Facebook post captions and lead pictures from the competitor's own stored profile links, through the Apify actor (metered), same OCR / vision path. Retryable facet; needs `APIFY_API_TOKEN` and `SOCIAL_CONTENT_APPROVAL_REFERENCE`. Actor field names are unverified until a live run. | DONE (offline + live-DB tested; provider not run live) |
+| V8 | Vision-model fallback (Gemini) for stylised menus tesseract cannot read: `DISCOVERY_VISION_OCR=off|fallback|always` (default off), per-site call allowance, every call a metered paid request refused until the provider has a price. | DONE (offline tested; not run against Gemini) |
+| V9 | Arabic / transliterated name matching (`name_matching.py`): normalisation, transliteration, consonant skeleton, one-to-one word match; used for Places candidates; never below the plain ratio; names with <4 consonants stay strict. Not yet tuned on a labelled real sample. | DONE (pinned by 17 tests) |
+| V10 | Live-DB suites ran against a throwaway pgvector Postgres with all 78 migrations applied from empty (competitor / discovery / enrichment / intel suites green; one pre-existing day-boundary failure in `test_price_coverage_flags_stale...`). A real-tesseract run and CI are still open. | PARTLY DONE |
 
-### V6 design (not built)
-`competitor_intel_review(tenant_id, global_competitor_id, name_key, source_host, verdict CHECK IN ('CONFIRMED','CORRECTED','REJECTED'), corrected_price, currency, reviewed_by, reviewed_at)`.
-`save_site_intel` re-applies verdicts after every re-read (CONFIRMED -> confidence 1.0 and `verified: true`; CORRECTED -> the owner's price; REJECTED -> fact dropped). RLS identical to `competitor_intel`. API: `POST /competitors/{id}/intel/review`.
+### V6 as built
+`competitor_intel_review(tenant_id, global_competitor_id, name_key, read_price, verdict CONFIRMED|CORRECTED|REJECTED, corrected_price, currency, note, reviewed_by, reviewed_at)`,
+primary key (tenant, competitor, name_key, **price as read**), RLS like `competitor_intel`. A decision is keyed by what was READ, so it survives the replace-on-re-read and never vouches
+for a different price the site shows later (that price is a new, unreviewed fact). CONFIRMED -> `verified: true`, confidence 1.0; CORRECTED -> owner's price, the read price kept as
+`read_price`; REJECTED -> dropped; CLEARED withdraws a decision (a rejected fact returns at the next read). Each fact in `get_intel` now carries `intel_id`.
+Social-post facts (V7) carry `channel` and are excluded from automatic price matching (`offerings.competitor_items`) until confirmed.
+
+### V7-V9 notes
+* **V7** needs, per environment: `APIFY_API_TOKEN` (already used for reviews), `SOCIAL_CONTENT_APPROVAL_REFERENCE`, a cost row for the `apify` provider. Posts: 12 (deep 40); pictures read: 5 (deep 15); only pictures whose caption points at a menu / price / offer, or that have no caption.
+* **V8** call volume per site: `DISCOVERY_VISION_MAX_FILES` (default 3). A refused or failed vision call returns nothing and the OCR result stands.
+* **V9** limit: a name with fewer than 4 consonants ("Sufra" / "سفرة") is not matched across scripts - too many unrelated names share 3 consonants.
 
 ### Compatibility notes for this roadmap
-* No migration is required by V1-V5: facts keep living in `competitor_intel.payload` (JSONB); new payload keys are additive (`extracted_by`, `source_media`, `also_seen_in`, `conflicts_with_price`). The ledger already allows the `PRICES` facet.
+* V6 adds one table (migration `20261023000000`, additive, RLS). V1-V5, V7-V9 need no migration: facts keep living in `competitor_intel.payload` (JSONB); new payload keys are additive (`extracted_by`, `source_media`, `also_seen_in`, `conflicts_with_price`). The ledger already allows the `PRICES` facet.
 * `collect()` gains optional parameters only; every existing call keeps its behaviour. `_safe_get` gains optional `max_bytes` / `accept`.
-* New env settings (all optional): `DISCOVERY_OCR_LANGS`, `DISCOVERY_MENU_MEDIA_MAX_FILES`, `DISCOVERY_MENU_MEDIA_MAX_BYTES`, `DISCOVERY_MENU_MEDIA_MAX_PDF_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_ITEMS`.
+* New env settings (all optional): `DISCOVERY_VISION_OCR`, `DISCOVERY_VISION_MAX_FILES`, `DISCOVERY_VISION_MODEL`, `SOCIAL_CONTENT_APPROVAL_REFERENCE`, `SOCIAL_CONTENT_POSTS`, `SOCIAL_CONTENT_POSTS_DEEP`, `SOCIAL_CONTENT_IMAGES`, `SOCIAL_CONTENT_IMAGES_DEEP`, `DISCOVERY_OCR_LANGS`, `DISCOVERY_MENU_MEDIA_MAX_FILES`, `DISCOVERY_MENU_MEDIA_MAX_BYTES`, `DISCOVERY_MENU_MEDIA_MAX_PDF_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_ITEMS`.
 * Dockerfile.ai installs `tesseract-ocr` (+ara, eng); without it pictures are reported as skipped, never an error.
