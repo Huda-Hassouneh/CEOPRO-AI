@@ -84,19 +84,21 @@ _SCHEMA_ALIASES = {
 }
 
 
-def _safe_get(client: httpx.Client, url: str) -> Optional[httpx.Response]:
-    """GET that refuses private targets at every hop and stops at MAX_BYTES.
-    None when the redirects never end."""
+def _safe_get(client: httpx.Client, url: str, max_bytes: Optional[int] = None,
+              accept: str = "text/html,application/xhtml+xml,text/plain") -> Optional[httpx.Response]:
+    """GET that refuses private targets at every hop and stops at MAX_BYTES
+    (or max_bytes, for a menu PDF or image). None when the redirects never end."""
+    limit = max_bytes or MAX_BYTES
     for _ in range(MAX_REDIRECTS + 1):
         resolve_public_addresses(url)
-        with client.stream("GET", url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml,text/plain"}) as response:
+        with client.stream("GET", url, headers={"User-Agent": USER_AGENT, "Accept": accept}) as response:
             if response.is_redirect and response.headers.get("location"):
                 url = urljoin(url, response.headers["location"])
                 continue
             body = b""
             for chunk in response.iter_bytes():
                 body += chunk
-                if len(body) >= MAX_BYTES:
+                if len(body) >= limit:
                     break
             response._content = body  # noqa: SLF001 - keep the capped body for .text
             return response

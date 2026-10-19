@@ -41,7 +41,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from src.market_scraper.market_discovery import enrich
+from src.market_scraper.market_discovery import enrich, menu_media
 from src.market_scraper.market_discovery.http import USER_AGENT
 from src.market_scraper.network_security import UnsafeTargetError
 
@@ -643,6 +643,22 @@ class _Site:
             raise PageUnavailable(STATUS_HTTP)
         return response.text
 
+    def media(self, url: str) -> Optional[Tuple[bytes, str]]:
+        """A menu PDF / picture: (bytes, content type), or None when robots.txt
+        disallows it, it can't be fetched, or it is larger than the cap (a
+        cut-off file would only be misread)."""
+        if not self.allowed(url):
+            return None
+        wait = PAGE_DELAY_SECONDS - (time.monotonic() - self._last)
+        if wait > 0:
+            time.sleep(wait)
+        self._last = time.monotonic()
+        response = enrich._safe_get(self.client, url, max_bytes=menu_media.MEDIA_MAX_BYTES,  # noqa: SLF001
+                                    accept="application/pdf,image/*")
+        if response is None or response.status_code >= 400 or len(response.content) >= menu_media.MEDIA_MAX_BYTES:
+            return None
+        return response.content, response.headers.get("content-type", "")
+
     def close(self) -> None:
         self.client.close()
 
@@ -708,19 +724,25 @@ def _status(out: dict) -> str:
 
 
 def collect(website: str, fetch: Optional[Callable[[str], Optional[str]]] = None, country: Optional[str] = None,
-            render: Optional[Callable[[str], Optional[str]]] = None, names: Optional[List[str]] = None) -> dict:
+            render: Optional[Callable[[str], Optional[str]]] = None, names: Optional[List[str]] = None,
+            fetch_media: Optional[Callable[[str], Optional[Tuple[bytes, str]]]] = None,
+            ocr: Optional[Callable] = None) -> dict:
     """Reads a competitor's site. Returns {"facts", "pages_read", "pages_blocked",
     "pages_failed", "status", "error", "platform"}; `fetch` (tests) returns a
     page's text, or None for a page that can't be read. With `names` (the
     business's names), a site that is plainly another business's - a wrong
-    link in the public listing - is not read (STATUS_OTHER_BUSINESS)."""
+    link in the public listing - is not read (STATUS_OTHER_BUSINESS).
+    Menu PDFs and pictures found on the pages are read too (menu_media.py):
+    `fetch_media` (tests) returns (bytes, content type) for such a file and
+    `ocr` reads a picture; the outcome is in out["media"]."""
     url = website if "://" in website else f"https://{website}"
     if not own_site(url):  # a profile or directory page is not what the business publishes about itself
         return {"facts": [], "pages_read": [], "pages_blocked": 0, "pages_failed": 0, "error": STATUS_NOT_OWN_SITE,
                 "status": STATUS_NOT_OWN_SITE, "platform": None, "relevant_pages": 0, "needs_js": False}
     country = site_country(url, country)
     out = {"facts": [], "pages_read": [], "pages_blocked": 0, "pages_failed": 0, "error": None, "status": None,
-           "platform": None, "relevant_pages": 0, "needs_js": False}
+           "platform": None, "relevant_pages": 0, "needs_js": False,
+           "media": {"found": 0, "read": 0, "skipped_no_ocr": 0, "ocr_available": None}}
     site = None
     if fetch is None:
         site = _Site(url)
@@ -767,6 +789,13 @@ def collect(website: str, fetch: Optional[Callable[[str], Optional[str]]] = None
             return out
         out["facts"].extend(first["facts"])
         out["pages_read"].append(url)
+        media_urls: List[str] = []
+
+        def note_media(page_html: str, page_url: str, relevant: bool) -> None:
+            for link in menu_media.media_links(page_html, page_url, relevant, _same_site):
+                if link not in media_urls:
+                    media_urls.append(link)
+        note_media(html, url, first.get("relevant", False))
         # The shop platform's own catalogue, when it publishes one (for the
         # whole host: not when the business owns only a path on it).
         lowered = html.lower() if path_scope(url) == "/" else ""
@@ -807,6 +836,9 @@ def collect(website: str, fetch: Optional[Callable[[str], Optional[str]]] = None
             out["relevant_pages"] += 1
             out["facts"].extend(f for f in result["facts"] if f["kind"] != "social")
             out["pages_read"].append(page)
+            note_media(page_html, page, result.get("relevant", False))
+        _read_media_files(out, media_urls, fetch_media if fetch_media is not None else (site.media if site is not None else None),
+                          country, ocr)
     except Exception:  # noqa: BLE001 - one site's odd page never stops a scan
         logger.exception("reading %s failed", urlsplit(url).hostname)
         out["error"] = out["status"] = STATUS_FAILED
@@ -816,6 +848,35 @@ def collect(website: str, fetch: Optional[Callable[[str], Optional[str]]] = None
     out["facts"] = _dedupe(out["facts"])
     out["status"] = out["status"] or _status(out)
     return out
+
+
+def _read_media_files(out: dict, urls: List[str], fetch_media, country: Optional[str], ocr: Optional[Callable]) -> None:
+    """Reads the menu files found on the pages and merges their prices into
+    out["facts"] (corroborating page facts where they agree)."""
+    out["media"]["found"] = len(urls)
+    if not urls or fetch_media is None:
+        return
+    out["media"]["ocr_available"] = ocr is not None or menu_media.ocr_available()
+    retrieved, media = _now(), []
+    for link in urls[:menu_media.MAX_MEDIA_FILES]:
+        try:
+            got = fetch_media(link)
+        except (httpx.HTTPError, UnsafeTargetError, OSError):
+            got = None
+        if not got:
+            continue
+        lines, method = menu_media.read_media(got[0], got[1], ocr=ocr, ocr_ready=out["media"]["ocr_available"])
+        if method == "skipped_no_ocr":
+            out["media"]["skipped_no_ocr"] += 1
+        if not lines:
+            continue
+        found = menu_media.media_facts(lines, method, link, retrieved, country, text_prices, MAX_ITEMS)
+        if found:
+            out["media"]["read"] += 1
+            media.extend(found)
+    if media:
+        out["facts"] = menu_media.corroborate(media, out["facts"])
+        out["pages_read"].extend(dict.fromkeys(f["source_url"] for f in media))
 
 
 def _json(body: Optional[str]):
