@@ -1,6 +1,6 @@
 # Competitor data completeness — root causes and fix plan
 
-Status: PLAN ONLY (no code changed). Branch base: `fix/competitor-category-relevance`.
+Status: Phases 1-3 are built on `main` (ledger, PROFILE / SOCIAL_LINKS / REVIEWS / NEWS / COMMENTS facets, retry endpoints, worker). Section 8 below is the v2 roadmap and its progress log (menus + OCR, PRICES facet, deeper loads). Sections 1-7 are the original plan, kept for the reasoning.
 Findings below come from reading the code; Phase 0 confirms them against the live DB before any build.
 
 ## 1. The problem in product terms
@@ -99,3 +99,35 @@ migration (ledger + `google_place_id`), pass Places key from env (R3), keep webs
 1. **Approval model** (3.3): OK to add tenant-admin one-click approval for competitor websites, and operator-level one-time approval for Places?
 2. **Budget**: acceptable monthly spend for Places Details + social provider per tenant (drives default depth and the retry cap)?
 3. Which **social providers/credentials** exist today (Apify? ScrapeCreators?) — decides whether Phase 4 can be verified live.
+
+
+## 8. v2 roadmap - menus, prices, OCR, deeper loads (branch `feat/competitor-completeness-v2`)
+
+Why: after PR #58 and the enrichment work, the biggest remaining gaps for "optimum competitor details" are
+(a) prices published only as menu pictures / PDFs, (b) PRICES and SOCIAL_CONTENT are shown in the completeness
+panel but have no Retry behind them, (c) every refresh is the same shallow read - no way to "load more",
+(d) a refresh that reads less than before silently deletes richer data (violates "retry only adds"),
+(e) nothing tells the owner which numbers are verified versus guessed.
+
+| # | Change | Status |
+|---|--------|--------|
+| V1 | Read menu PDFs and pictures (text layer, else tesseract OCR ara+eng) into the price facts: `market_discovery/menu_media.py`, wired into `intel.collect`. Facts tagged `extracted_by`, lower confidence; corroboration (`also_seen_in`) and conflict flag (`conflicts_with_price`). | DONE |
+| V2 | PRICES facet becomes retryable: `POST /competitors/{id}/enrich {facets:["PRICES"]}` re-reads the site (+menus) and writes the ledger with a specific reason (JS-rendered, robots, unreachable, no price published, menu is a picture and OCR is missing). | DONE |
+| V3 | "Load more": `depth` = `standard` / `deep` on the enrich request - deep reads more pages, items and menu files. | DONE |
+| V4 | Additive guarantee: a re-read that could not read menu files (OCR missing, fetch failed) keeps the menu-derived facts from the earlier read instead of deleting them. | DONE |
+| V5 | Completeness panel: PRICES prefers the ledger's specific reason over the generic derived one; reports site-published prices even when none is matched to a product yet. | DONE |
+| V6 | Owner verification of a fact (confirm / correct / reject) that survives re-reads - needs a table (`competitor_intel_review`) keyed by competitor + normalized name + source. | OPEN (design below) |
+| V7 | SOCIAL_CONTENT collector: captions and post pictures from stored handles through the licensed provider, same OCR path. Needs provider credentials to verify live (decision 3 above). | OPEN |
+| V8 | Vision-model fallback for stylised menus tesseract cannot read; spend bounded by the cost ledger. | OPEN |
+| V9 | Arabic / transliterated name matching below the 0.82 bar (R8); needs a labelled sample to tune safely. | OPEN |
+| V10 | Run the live-DB suites and a real-tesseract run in the project's Docker stack; none could run in the authoring environment. | OPEN (CI) |
+
+### V6 design (not built)
+`competitor_intel_review(tenant_id, global_competitor_id, name_key, source_host, verdict CHECK IN ('CONFIRMED','CORRECTED','REJECTED'), corrected_price, currency, reviewed_by, reviewed_at)`.
+`save_site_intel` re-applies verdicts after every re-read (CONFIRMED -> confidence 1.0 and `verified: true`; CORRECTED -> the owner's price; REJECTED -> fact dropped). RLS identical to `competitor_intel`. API: `POST /competitors/{id}/intel/review`.
+
+### Compatibility notes for this roadmap
+* No migration is required by V1-V5: facts keep living in `competitor_intel.payload` (JSONB); new payload keys are additive (`extracted_by`, `source_media`, `also_seen_in`, `conflicts_with_price`). The ledger already allows the `PRICES` facet.
+* `collect()` gains optional parameters only; every existing call keeps its behaviour. `_safe_get` gains optional `max_bytes` / `accept`.
+* New env settings (all optional): `DISCOVERY_OCR_LANGS`, `DISCOVERY_MENU_MEDIA_MAX_FILES`, `DISCOVERY_MENU_MEDIA_MAX_BYTES`, `DISCOVERY_MENU_MEDIA_MAX_PDF_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_ITEMS`.
+* Dockerfile.ai installs `tesseract-ocr` (+ara, eng); without it pictures are reported as skipped, never an error.
