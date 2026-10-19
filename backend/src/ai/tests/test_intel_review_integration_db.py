@@ -118,3 +118,59 @@ def test_decisions_are_private_to_the_company():
             intel_review.review_fact(conn, other, competitor_id, fact["intel_id"], "REJECTED", other_user)
     finally:
         conn.close()
+
+
+def _social(name, price, kind="product", **extra):
+    fact = {"kind": kind, "source_url": "https://www.instagram.com/p/AAA/", "retrieved_at": "2026-10-19T10:00:00+00:00",
+            "confidence": 0.5, "channel": "instagram", "extracted_by": "caption", **extra}
+    return {**fact, "name": name, "price": price, "currency": "JOD"} if kind == "product" else {**fact, "text": name}
+
+
+def test_social_facts_are_kept_apart_from_the_website_and_decisions_apply_to_them():
+    tenant, user, competitor_id = _setup()
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        before = len(competitor_intel.get_intel(conn, tenant, competitor_id)["products"])
+        assert competitor_intel.save_channel_facts(conn, tenant, competitor_id, "instagram",
+                                                   [_social("Mansaf", 8.5), _social("Buy 2 get 1 free", None, "promotion")]) == 2
+        conn.commit()
+        found = competitor_intel.get_intel(conn, tenant, competitor_id)
+        assert len(found["products"]) == before + 1
+
+        # Re-reading the website leaves the social facts alone ...
+        competitor_intel.refresh_competitor(conn, tenant, competitor_id, collect=_collect(PAGES))
+        conn.commit()
+        found = competitor_intel.get_intel(conn, tenant, competitor_id)
+        mansaf = _fact(found, "Mansaf")
+        assert mansaf["channel"] == "instagram" and len(found["products"]) == before + 1
+
+        # ... the owner confirms one, and a fresh collection of the channel keeps that decision.
+        intel_review.review_fact(conn, tenant, competitor_id, mansaf["intel_id"], "CONFIRMED", user)
+        assert competitor_intel.save_channel_facts(conn, tenant, competitor_id, "instagram", [_social("Mansaf", 8.5), _social("Tea", 1.0)]) == 2
+        conn.commit()
+        found = competitor_intel.get_intel(conn, tenant, competitor_id)
+        assert _fact(found, "Mansaf")["verified"] is True and not _fact(found, "Tea").get("verified")
+        assert not found["promotions"] or all(p.get("channel") != "instagram" or p["text"] != "Buy 2 get 1 free" for p in found["promotions"])
+
+        # An empty read changes nothing.
+        assert competitor_intel.save_channel_facts(conn, tenant, competitor_id, "instagram", []) == 2
+        # Another channel is independent.
+        assert competitor_intel.save_channel_facts(conn, tenant, competitor_id, "facebook", []) == 0
+    finally:
+        conn.close()
+
+
+def test_unconfirmed_social_prices_never_reach_price_matching_but_confirmed_ones_may():
+    from src.market_scraper.market_discovery import offerings
+    tenant, user, competitor_id = _setup()
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        competitor_intel.save_channel_facts(conn, tenant, competitor_id, "instagram", [_social("Mansaf", 8.5)])
+        conn.commit()
+        names = lambda: {f["name"] for f in offerings.competitor_items(conn, tenant, competitor_id)}  # noqa: E731
+        assert "Mansaf" not in names()
+        fact = _fact(competitor_intel.get_intel(conn, tenant, competitor_id), "Mansaf")
+        intel_review.review_fact(conn, tenant, competitor_id, fact["intel_id"], "CONFIRMED", user)
+        assert "Mansaf" in names()
+    finally:
+        conn.close()

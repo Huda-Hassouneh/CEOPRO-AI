@@ -1770,6 +1770,31 @@ is superseded). Plan and progress table: `COMPETITOR_DATA_COMPLETENESS_PLAN.md` 
   re-reads (V6), social-post OCR (V7), vision-model fallback (V8), Arabic fuzzy matching (V9) - designed or
   listed in the plan, section 8.
 
+## 2026-10-19 (later) - Competitor details v2: owner verification, social posts, vision fallback, Arabic names
+
+Completes V6-V9 of `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 8 on `feat/competitor-completeness-v2`.
+
+- **V6 owner verification**: new table `competitor_intel_review` (migration `20261023000000`); owner/admin can
+  CONFIRM, CORRECT or REJECT a price read from a site, menu or post (`POST /discovery/competitors/{id}/intel/review`,
+  CLEARED withdraws it). Decisions are keyed by item + price as read, so they survive every re-read and never vouch
+  for a changed price. Facts expose `intel_id`, `verified`, `read_price`.
+- **V7 social content**: `SOCIAL_CONTENT` is now a retryable facet (`market_scraper/social_content.py`): posts of the
+  competitor's own Instagram / Facebook profile via the Apify actors (metered, operator approval required), caption
+  prices / offers through the page parser, lead pictures through OCR / vision. Facts carry `channel`, stay out of
+  automatic price matching until confirmed, and are replaced per channel only. It is not part of a plain retry.
+- **V8 vision fallback**: `DISCOVERY_VISION_OCR=off|fallback|always` (default off); Gemini reads menu pictures tesseract
+  cannot; allowance per site; each call is a metered paid request, refused until the provider is priced.
+- **V9 names**: `market_scraper/name_matching.py` (Arabic folding, transliteration, consonant skeleton, one-to-one word
+  match) used for Places candidates; never below the old ratio; names under 4 consonants stay strict.
+- **Tests**: 17 name-matching, 16 social-content, 8 new menu / vision, 5 review API, 5 live-DB review + channel tests,
+  plus updated enrichment tests. **Live-DB verification**: a throwaway pgvector Postgres 15 (Colima) with all 78
+  migrations applied from empty through `scripts/apply_migrations.py`; the competitor / discovery / enrichment / intel
+  suites (903 tests selected) pass except two failures unrelated to this work (a day-boundary assertion in
+  `test_price_coverage_flags_stale_foreign_currency_...`, which fails identically on the base commit, and a PDF
+  report test that needs `reportlab`, absent from the authoring environment).
+- **Not verified**: Apify actor field names, Gemini output quality, real tesseract on real menu photos, tuning of the
+  name matcher on a labelled real sample - see `PENDING_ACTIONS.md` #85-#93.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
