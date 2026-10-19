@@ -145,12 +145,20 @@ def test_due_mode_skips_permanent_misses_but_force_mode_retries_them_and_fixed_s
     ce._write_ledger(conn, tenant_id, permanent, ce.FACET_PROFILE, ce.STATUS_FAILED, ce.NO_MATCH, "x")
     ce._write_ledger(conn, tenant_id, transient, ce.FACET_PROFILE, ce.STATUS_FAILED, ce.PROVIDER_ERROR, "x")
     ce._write_ledger(conn, tenant_id, blocked_key, ce.FACET_PROFILE, ce.STATUS_BLOCKED, ce.NO_CREDENTIALS, "x")
-    with conn.cursor() as cursor:  # make the transient failure's scheduled retry due
+    with conn.cursor() as cursor:
+        # Only competitors the tenant tracks are ever picked, and registration sets that flag from the
+        # classifier and the plan's competitor cap. Neither is what this test is about, so pin it
+        # rather than inherit whatever plan/limit state the shared database happens to be in.
+        cursor.execute("UPDATE tenant_competitors SET is_tracked = TRUE WHERE tenant_id = %s;", (tenant_id,))
+        # make the transient failure's scheduled retry due
         cursor.execute("UPDATE competitor_enrichment SET next_retry_at = NOW() - INTERVAL '1 minute' WHERE global_competitor_id = %s;", (transient,))
     conn.commit()
 
-    assert set(_candidates_picked(conn, tenant_id, "due")) == {transient}
-    assert set(_candidates_picked(conn, tenant_id, "force")) == {permanent, transient, blocked_key}
+    names = {permanent: "permanent", transient: "transient", blocked_key: "blocked_key", done: "done"}
+    picked_due = {names.get(c, c) for c in _candidates_picked(conn, tenant_id, "due")}
+    picked_force = {names.get(c, c) for c in _candidates_picked(conn, tenant_id, "force")}
+    assert picked_due == {"transient"}
+    assert picked_force == {"permanent", "transient", "blocked_key"}
 
 
 def test_the_sweep_function_lists_only_tenants_with_work(conn):
@@ -222,7 +230,7 @@ def test_price_coverage_flags_stale_foreign_currency_and_switched_off_mappings_f
             )
             mappings[name] = cursor.fetchone()[0]
         cursor.execute(
-            "INSERT INTO competitor_prices (tenant_id, mapping_id, scraped_price, currency, observed_at) VALUES (%s, %s, 4.5, 'JOD', NOW() - make_interval(days => %s));",
+            "INSERT INTO competitor_prices (tenant_id, mapping_id, scraped_price, currency, observed_at) VALUES (%s, %s, 4.5, 'JOD', NOW() - make_interval(days => %s, hours => 12));",
             (tenant_id, mappings["Old price"], pc.STALE_AFTER_DAYS + 10),
         )
         cursor.execute(
