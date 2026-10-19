@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useAuthStore } from '../../auth/store/authStore.js';
@@ -11,6 +12,8 @@ import { TeamSettings } from '../components/TeamSettings.jsx';
 import { NotificationSettings } from '../components/NotificationSettings.jsx';
 import { PreferenceSettings } from '../components/PreferenceSettings.jsx';
 import { SecuritySettings } from '../components/SecuritySettings.jsx';
+import { ServiceSetup } from '../components/ServiceSetup.jsx';
+import { operatorApi } from '../api/operatorApi.js';
 import { useProfile } from '../hooks/useProfile.js';
 import { useCompany } from '../hooks/useCompany.js';
 import { useTeamMembers } from '../hooks/useTeamMembers.js';
@@ -18,7 +21,7 @@ import { useNotificationPreferences } from '../hooks/useNotificationPreferences.
 import { getSettingsPermissions } from '../permissions/settingsPermissions.js';
 import '../styles/Settings.css';
 
-const tabIds = ['profile', 'company', 'team', 'notifications', 'preferences', 'security'];
+const tabIds = ['profile', 'company', 'team', 'notifications', 'preferences', 'security', 'service'];
 
 export default function SettingsPage() {
   const { t, locale, dir, setLocale } = useI18n();
@@ -27,7 +30,9 @@ export default function SettingsPage() {
   const companyId = useAuthStore((state) => state.tenantId);
   const [params, setParams] = useSearchParams();
   const requestedTab = params.get('tab');
-  const activeTab = tabIds.includes(requestedTab) ? requestedTab : 'profile';
+  const operatorQuery = useQuery({ queryKey: ['operator-me', companyId], queryFn: operatorApi.isOperator, retry: false, staleTime: 5 * 60 * 1000 });
+  const isOperator = operatorQuery.data === true;
+  const activeTab = tabIds.includes(requestedTab) && (requestedTab !== 'service' || isOperator) ? requestedTab : 'profile';
   const permissions = useMemo(() => getSettingsPermissions(roles), [roles]);
   const [notice, setNotice] = useState(null);
   const profileQuery = useProfile(user);
@@ -42,6 +47,7 @@ export default function SettingsPage() {
     { id: 'notifications', label: t('settings.tabs.notifications'), content: <NotificationSettings query={notificationQuery} companyId={companyId} t={t} onNotice={showNotice} /> },
     { id: 'preferences', label: t('settings.tabs.preferences'), content: <PreferenceSettings locale={locale} setLocale={setLocale} t={t} /> },
     { id: 'security', label: t('settings.tabs.security'), content: <SecuritySettings t={t} onNotice={showNotice} /> },
+    ...(isOperator ? [{ id: 'service', label: t('settings.tabs.service'), content: <ServiceSetup t={t} /> }] : []),
   ];
   return <div className="settings-workspace" dir={dir}><PageHeader title={t('settings.page.title')} subtitle={t('settings.page.subtitle')} /><Tabs className="settings-workspace-tabs" tabs={tabs} activeTab={activeTab} onChange={(tab) => setParams((previous) => { const next = new URLSearchParams(previous); next.set('tab', tab); return next; })} ariaLabel={t('settings.tabs.label')} />{notice && <div className="settings-toast"><Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} /></div>}</div>;
 }

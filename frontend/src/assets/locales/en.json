@@ -923,7 +923,33 @@
       "team": "Team Members",
       "notifications": "Notifications",
       "preferences": "Preferences",
-      "security": "Security"
+      "security": "Security",
+      "service": "Service setup"
+    },
+    "service": {
+      "title": "Service setup",
+      "subtitle": "Provider keys are held by the service operator in the environment settings. This page shows their status only; no key is ever shown or entered here.",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "unlocks": "Unlocks",
+      "variable": "Set in the environment",
+      "cost": "Cost",
+      "test": "Test connection",
+      "testing": "Testing...",
+      "recent": "Recently reported: {{problem}}",
+      "result": {
+        "valid": "Valid: the provider accepted the key.",
+        "rejected": "Rejected: the provider refused the key. Check it and that the API is enabled.",
+        "quota_exhausted": "Quota used up: the key works but the limit was reached.",
+        "not_configured": "Not configured: set the variable first.",
+        "too_soon": "Please wait a few seconds before testing again.",
+        "error": "Could not reach the provider or got an unexpected answer."
+      },
+      "problem": {
+        "CREDENTIALS_REJECTED": "key rejected",
+        "QUOTA_EXHAUSTED": "quota used up"
+      },
+      "loadFailed": "Could not load the service status."
     },
     "common": {
       "notAvailable": "Not available",
