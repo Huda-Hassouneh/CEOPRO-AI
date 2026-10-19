@@ -54,7 +54,31 @@ class Result:
 
 
 class SearchFailed(Exception):
-    """Every configured provider failed (or none is configured)."""
+    """Every configured provider failed (or none is configured). str() stays
+    "not_configured" / "unreachable" for callers that branch on it;
+    `failures` says what went wrong with each provider, without secrets."""
+
+    def __init__(self, message: str = "", failures: Optional[List[str]] = None):
+        super().__init__(message)
+        self.failures = failures or []
+
+
+def _failure(name: str, exc: Exception) -> str:
+    """One provider's failure in words safe to log and show: the HTTP status or
+    the error type only - never the URL, which can carry an API key."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return f"{name}: HTTP {exc.response.status_code}"
+    if isinstance(exc, httpx.TimeoutException):
+        return f"{name}: timed out"
+    if isinstance(exc, httpx.HTTPError):
+        return f"{name}: could not connect ({type(exc).__name__})"
+    return f"{name}: unusable answer ({type(exc).__name__})"
+
+
+def missing_configuration() -> str:
+    """Which settings would turn web search on (names only)."""
+    return ("no web search provider is configured on this server - set one of TAVILY_API_KEY, "
+            "BRAVE_SEARCH_API_KEY, SEARXNG_INSTANCE_URL, or GOOGLE_CUSTOM_SEARCH_API_KEY with GOOGLE_CUSTOM_SEARCH_CX")
 
 
 # fetch(method, url, *, params, json, headers) -> parsed JSON; raises on HTTP/transport errors.
@@ -179,12 +203,14 @@ def search(query: str, max_results: int = 10, country: Optional[str] = None,
     providers = configured_providers(exclude)
     if not providers:
         raise SearchFailed("not_configured")
+    failures = []
     for name in providers:
         try:
             return name, PROVIDERS[name][1](fetch, query, max_results, country)
         except (httpx.HTTPError, ValueError, KeyError, SearchFailed) as exc:
-            logger.warning("web search via %s failed: %s", name, exc)
-    raise SearchFailed("unreachable")
+            failures.append(_failure(name, exc))
+            logger.warning("web search failed - %s", failures[-1])
+    raise SearchFailed("unreachable", failures)
 
 
 def search_news(query: str, max_results: int = 10, country: Optional[str] = None,

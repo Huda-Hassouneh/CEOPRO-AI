@@ -12,6 +12,7 @@ SETTINGS = ("JWT_SECRET", "DATABASE_URL", "APP_DB_PASSWORD", "REDIS_URL", "REDIS
             "SENTRY_ENVIRONMENT", "GROQ_API_KEY", "PAID_LLM_BASE_URL", "PAID_LLM_API_KEY", "HUGGINGFACE_LLM_MODEL",
             "LOCAL_LLM_BASE_URL", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "CLOUDFLARE_ACCOUNT_ID",
             "CLOUDFLARE_API_TOKEN", "GOOGLE_CUSTOM_SEARCH_API_KEY", "GOOGLE_CUSTOM_SEARCH_CX", "POSTGRES_PASSWORD",
+            "TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "SEARXNG_INSTANCE_URL", "WEB_SEARCH_PROVIDERS",
             *config_check.IGNORED_NAMES)
 
 
@@ -72,7 +73,15 @@ def test_a_correct_deployment_passes(env):
     for name in ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "EMAIL_FROM_ADDRESS",
                  "MINIO_ENDPOINT", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD"):
         env.setenv(name, "https://storage.example.com" if name == "MINIO_ENDPOINT" else "set")
+    env.setenv("TAVILY_API_KEY", "tvly-test")
     assert config_check.check_environment() == []
+
+
+def test_no_web_search_provider_is_reported_by_name(env):
+    findings = [f for f in config_check.check_environment() if f.setting == "TAVILY_API_KEY"]
+    assert findings and findings[0].level == config_check.WARNING and "research" in findings[0].message
+    env.setenv("SEARXNG_INSTANCE_URL", "http://searxng:8080")
+    assert not [f for f in config_check.check_environment() if f.setting == "TAVILY_API_KEY"]
 
 
 def test_cors_must_name_the_frontend_not_the_api(env):
