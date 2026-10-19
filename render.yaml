@@ -217,6 +217,12 @@ services:
         sync: false
       - key: PLACES_TERMS_APPROVAL_REFERENCE
         sync: false
+      - key: SOCIAL_CONTENT_APPROVAL_REFERENCE
+        sync: false
+      - key: DISCOVERY_VISION_OCR
+        value: "off"
+      - key: GEMINI_API_KEYS
+        sync: false
       - key: SERPAPI_API_KEY
         sync: false
       # Assistant public research: searches per day for the whole server.
@@ -311,6 +317,12 @@ services:
       - key: EXTERNAL_COMMENTS_APPROVAL_REFERENCE
         sync: false
       - key: PLACES_TERMS_APPROVAL_REFERENCE
+        sync: false
+      - key: SOCIAL_CONTENT_APPROVAL_REFERENCE
+        sync: false
+      - key: DISCOVERY_VISION_OCR
+        value: "off"
+      - key: GEMINI_API_KEYS
         sync: false
       - key: SERPAPI_API_KEY
         sync: false

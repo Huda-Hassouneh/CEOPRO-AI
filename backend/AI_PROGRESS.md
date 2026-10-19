@@ -1744,6 +1744,74 @@ Verified on a real Postgres through the restricted app role, including a mutatio
 Details fields beyond business status; a competitor MENU (no source provides one - the newer pipeline
 reads published menu/product prices from the competitor's own website into `competitor_intel`).
 
+## 2026-10-19 - Competitor details v2: menus (OCR), retryable prices, "load more"
+
+Branch `feat/competitor-completeness-v2` (from `origin/main`; PR #58's work is already in `main`, so #58
+is superseded). Plan and progress table: `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 8.
+
+- **Menus as pictures / PDFs** (`market_scraper/market_discovery/menu_media.py`, wired into `intel.collect`):
+  finds menu-looking PDFs and images on the competitor's own pages (logos/icons/other sites excluded;
+  robots.txt, public-address and size caps apply), reads the PDF text layer or OCRs pictures and scanned
+  PDFs (tesseract, Arabic + English; digit confusions repaired only inside numbers), and feeds the lines to
+  the same price parser as page text. Facts are tagged `extracted_by` / `source_media`, carry a lower
+  confidence, are corroborated against page facts (`also_seen_in`) and flagged on disagreement
+  (`conflicts_with_price`). Without tesseract, pictures are reported as skipped, not silently dropped.
+- **PRICES is now a retryable facet** (`enrich_prices`): re-reads the website + menus and records a specific
+  reason (JS-rendered, robots, unreachable, no prices published, OCR missing, not the business's own site).
+  Completeness panel prefers that reason over the generic "no product matched yet".
+- **Load more**: `depth: "deep"` on `POST /competitors/{id}/enrich` (and queued jobs) raises pages 8->24,
+  items 250->600, menu files 6->15 (env-tunable).
+- **Additive guarantee**: a re-read that cannot open the menu files keeps the earlier menu-derived facts.
+- **Tests**: 8 + 2 + 7 + 1 new offline tests (menu finding, OCR clean-up, PDF text layer, OCR path with an
+  injected engine, corroboration/conflict, deep vs standard, keep-media on re-read, PRICES outcomes, API
+  depth, queue depth); the pre-existing "PRICES is unsupported" tests were updated to use SOCIAL_CONTENT.
+- **Not verified here**: a real tesseract run on real menu photos, and the live-DB suites (no Docker stack in
+  the authoring environment) - see `PENDING_ACTIONS.md` #85-#87. Not built: owner verification that survives
+  re-reads (V6), social-post OCR (V7), vision-model fallback (V8), Arabic fuzzy matching (V9) - designed or
+  listed in the plan, section 8.
+
+## 2026-10-19 (later) - Competitor details v2: owner verification, social posts, vision fallback, Arabic names
+
+Completes V6-V9 of `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 8 on `feat/competitor-completeness-v2`.
+
+- **V6 owner verification**: new table `competitor_intel_review` (migration `20261023000000`); owner/admin can
+  CONFIRM, CORRECT or REJECT a price read from a site, menu or post (`POST /discovery/competitors/{id}/intel/review`,
+  CLEARED withdraws it). Decisions are keyed by item + price as read, so they survive every re-read and never vouch
+  for a changed price. Facts expose `intel_id`, `verified`, `read_price`.
+- **V7 social content**: `SOCIAL_CONTENT` is now a retryable facet (`market_scraper/social_content.py`): posts of the
+  competitor's own Instagram / Facebook profile via the Apify actors (metered, operator approval required), caption
+  prices / offers through the page parser, lead pictures through OCR / vision. Facts carry `channel`, stay out of
+  automatic price matching until confirmed, and are replaced per channel only. It is not part of a plain retry.
+- **V8 vision fallback**: `DISCOVERY_VISION_OCR=off|fallback|always` (default off); Gemini reads menu pictures tesseract
+  cannot; allowance per site; each call is a metered paid request, refused until the provider is priced.
+- **V9 names**: `market_scraper/name_matching.py` (Arabic folding, transliteration, consonant skeleton, one-to-one word
+  match) used for Places candidates; never below the old ratio; names under 4 consonants stay strict.
+- **Tests**: 17 name-matching, 16 social-content, 8 new menu / vision, 5 review API, 5 live-DB review + channel tests,
+  plus updated enrichment tests. **Live-DB verification**: a throwaway pgvector Postgres 15 (Colima) with all 78
+  migrations applied from empty through `scripts/apply_migrations.py`; the competitor / discovery / enrichment / intel
+  suites (903 tests selected) pass except two failures unrelated to this work (a day-boundary assertion in
+  `test_price_coverage_flags_stale_foreign_currency_...`, which fails identically on the base commit, and a PDF
+  report test that needs `reportlab`, absent from the authoring environment).
+- **Not verified**: Apify actor field names, Gemini output quality, real tesseract on real menu photos, tuning of the
+  name matcher on a labelled real sample - see `PENDING_ACTIONS.md` #85-#93.
+
+## 2026-10-19 (final) - Pre-push verification of competitor details v2
+
+- **Real tesseract run** (containers: python:3.11-slim / tesseract 5.5.0 and ubuntu:24.04 / 5.3.4 - the Playwright worker
+  base): English menu 5/5 priced items, scanned PDF read through OCR, Arabic 2-3 of 4 lines. It exposed four defects that
+  the injected-OCR unit tests could not, all fixed in `menu_media.py`: (1) Arabic text returned in visual order
+  (`fix_visual_order`, decided from reversed currency words, python-bidi); (2) the Arabic+English pass reading `JD` as
+  Arabic letters (second English-only pass, `merge_passes` by amount; stray Arabic letters beside Latin text dropped);
+  (3) an Arabic currency word misread by one letter (`fix_currency_words`); (4) a line losing its currency in the merge.
+  `test_menu_media_real_ocr.py` repeats the check wherever tesseract is installed and is skipped elsewhere (CI).
+- **Other checks**: `validate_application_knowledge.py` OK; `pip-audit` on pytesseract / Pillow / pdfplumber clean;
+  `docker compose config` and `render.yaml` parse; tesseract + Arabic data install on ubuntu 24.04; pyflakes clean on all
+  changed Python; competitor / discovery / enrichment / intel suites 1,052 passed against a fresh Postgres (3 unrelated
+  failures, pending #100).
+- **Found while merging `origin/main`**: a root `.env` with live-looking secrets was committed by the merge
+  (pending #102); this branch stops tracking it.
+- **Still unverified**: Apify actors, Gemini vision, real menu photos, the frontend, full Docker image builds, the CI run.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

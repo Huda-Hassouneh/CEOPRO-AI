@@ -140,3 +140,7 @@ arabic-reshaper>=3.0,<4.0
 python-bidi>=0.6,<1.0
 # marketing/designed_poster.py + image_generation.py (explicit; previously only transitive)
 Pillow>=10.1,<13.0
+
+# Menu pictures and scanned PDFs (market_discovery/menu_media.py): Python wrapper for the tesseract binary
+# installed in Dockerfile.ai. Optional at runtime - without the binary, pictures are reported as skipped.
+pytesseract>=0.3.10,<0.4

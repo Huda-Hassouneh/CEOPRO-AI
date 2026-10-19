@@ -1,6 +1,6 @@
 # Competitor data completeness — root causes and fix plan
 
-Status: PLAN ONLY (no code changed). Branch base: `fix/competitor-category-relevance`.
+Status: Phases 1-3 are built on `main` (ledger, PROFILE / SOCIAL_LINKS / REVIEWS / NEWS / COMMENTS facets, retry endpoints, worker). Section 8 below is the v2 roadmap and its progress log (menus + OCR, PRICES facet, deeper loads). Sections 1-7 are the original plan, kept for the reasoning.
 Findings below come from reading the code; Phase 0 confirms them against the live DB before any build.
 
 ## 1. The problem in product terms
@@ -99,3 +99,43 @@ migration (ledger + `google_place_id`), pass Places key from env (R3), keep webs
 1. **Approval model** (3.3): OK to add tenant-admin one-click approval for competitor websites, and operator-level one-time approval for Places?
 2. **Budget**: acceptable monthly spend for Places Details + social provider per tenant (drives default depth and the retry cap)?
 3. Which **social providers/credentials** exist today (Apify? ScrapeCreators?) — decides whether Phase 4 can be verified live.
+
+
+## 8. v2 roadmap - menus, prices, OCR, deeper loads (branch `feat/competitor-completeness-v2`)
+
+Why: after PR #58 and the enrichment work, the biggest remaining gaps for "optimum competitor details" are
+(a) prices published only as menu pictures / PDFs, (b) PRICES and SOCIAL_CONTENT are shown in the completeness
+panel but have no Retry behind them, (c) every refresh is the same shallow read - no way to "load more",
+(d) a refresh that reads less than before silently deletes richer data (violates "retry only adds"),
+(e) nothing tells the owner which numbers are verified versus guessed.
+
+| # | Change | Status |
+|---|--------|--------|
+| V1 | Read menu PDFs and pictures (text layer, else tesseract OCR ara+eng) into the price facts: `market_discovery/menu_media.py`, wired into `intel.collect`. Facts tagged `extracted_by`, lower confidence; corroboration (`also_seen_in`) and conflict flag (`conflicts_with_price`). | DONE |
+| V2 | PRICES facet becomes retryable: `POST /competitors/{id}/enrich {facets:["PRICES"]}` re-reads the site (+menus) and writes the ledger with a specific reason (JS-rendered, robots, unreachable, no price published, menu is a picture and OCR is missing). | DONE |
+| V3 | "Load more": `depth` = `standard` / `deep` on the enrich request - deep reads more pages, items and menu files. | DONE |
+| V4 | Additive guarantee: a re-read that could not read menu files (OCR missing, fetch failed) keeps the menu-derived facts from the earlier read instead of deleting them. | DONE |
+| V5 | Completeness panel: PRICES prefers the ledger's specific reason over the generic derived one; reports site-published prices even when none is matched to a product yet. | DONE |
+| V6 | Owner verification of a fact (confirm / correct / reject) that survives re-reads: table `competitor_intel_review` (migration `20261023000000`), `POST /discovery/competitors/{id}/intel/review` (owner/admin), decisions re-applied by `save_site_intel` and `save_channel_facts`. | DONE (live-DB tested) |
+| V7 | SOCIAL_CONTENT collector (`market_scraper/social_content.py`): Instagram / Facebook post captions and lead pictures from the competitor's own stored profile links, through the Apify actor (metered), same OCR / vision path. Retryable facet; needs `APIFY_API_TOKEN` and `SOCIAL_CONTENT_APPROVAL_REFERENCE`. Actor field names are unverified until a live run. | DONE (offline + live-DB tested; provider not run live) |
+| V8 | Vision-model fallback (Gemini) for stylised menus tesseract cannot read: `DISCOVERY_VISION_OCR=off|fallback|always` (default off), per-site call allowance, every call a metered paid request refused until the provider has a price. | DONE (offline tested; not run against Gemini) |
+| V9 | Arabic / transliterated name matching (`name_matching.py`): normalisation, transliteration, consonant skeleton, one-to-one word match; used for Places candidates; never below the plain ratio; names with <4 consonants stay strict. Not yet tuned on a labelled real sample. | DONE (pinned by 17 tests) |
+| V10 | Verification: live-DB suites against a throwaway pgvector Postgres 15 with all 78 migrations applied from empty; the OCR path against a REAL tesseract (5.5.0 and 5.3.4) in containers - which found and fixed four defects the fake-OCR tests could not (Arabic returned in visual order, `JD` misread as Arabic letters by the mixed-language pass, an Arabic currency word misread by one letter, a lost currency on merge). Not verified: real menu photos, Apify, Gemini, the frontend, the Docker image builds themselves (only the tesseract apt step on ubuntu 24.04 and python:3.11-slim). | PARTLY DONE |
+
+### V6 as built
+`competitor_intel_review(tenant_id, global_competitor_id, name_key, read_price, verdict CONFIRMED|CORRECTED|REJECTED, corrected_price, currency, note, reviewed_by, reviewed_at)`,
+primary key (tenant, competitor, name_key, **price as read**), RLS like `competitor_intel`. A decision is keyed by what was READ, so it survives the replace-on-re-read and never vouches
+for a different price the site shows later (that price is a new, unreviewed fact). CONFIRMED -> `verified: true`, confidence 1.0; CORRECTED -> owner's price, the read price kept as
+`read_price`; REJECTED -> dropped; CLEARED withdraws a decision (a rejected fact returns at the next read). Each fact in `get_intel` now carries `intel_id`.
+Social-post facts (V7) carry `channel` and are excluded from automatic price matching (`offerings.competitor_items`) until confirmed.
+
+### V7-V9 notes
+* **V7** needs, per environment: `APIFY_API_TOKEN` (already used for reviews), `SOCIAL_CONTENT_APPROVAL_REFERENCE`, a cost row for the `apify` provider. Posts: 12 (deep 40); pictures read: 5 (deep 15); only pictures whose caption points at a menu / price / offer, or that have no caption.
+* **V8** call volume per site: `DISCOVERY_VISION_MAX_FILES` (default 3). A refused or failed vision call returns nothing and the OCR result stands.
+* **V9** limit: a name with fewer than 4 consonants ("Sufra" / "سفرة") is not matched across scripts - too many unrelated names share 3 consonants.
+
+### Compatibility notes for this roadmap
+* V6 adds one table (migration `20261023000000`, additive, RLS). V1-V5, V7-V9 need no migration: facts keep living in `competitor_intel.payload` (JSONB); new payload keys are additive (`extracted_by`, `source_media`, `also_seen_in`, `conflicts_with_price`). The ledger already allows the `PRICES` facet.
+* `collect()` gains optional parameters only; every existing call keeps its behaviour. `_safe_get` gains optional `max_bytes` / `accept`.
+* New env settings (all optional): `DISCOVERY_VISION_OCR`, `DISCOVERY_VISION_MAX_FILES`, `DISCOVERY_VISION_MODEL`, `SOCIAL_CONTENT_APPROVAL_REFERENCE`, `SOCIAL_CONTENT_POSTS`, `SOCIAL_CONTENT_POSTS_DEEP`, `SOCIAL_CONTENT_IMAGES`, `SOCIAL_CONTENT_IMAGES_DEEP`, `DISCOVERY_OCR_LANGS`, `DISCOVERY_MENU_MEDIA_MAX_FILES`, `DISCOVERY_MENU_MEDIA_MAX_BYTES`, `DISCOVERY_MENU_MEDIA_MAX_PDF_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_ITEMS`.
+* Dockerfile.ai installs `tesseract-ocr` (+ara, eng); without it pictures are reported as skipped, never an error.
