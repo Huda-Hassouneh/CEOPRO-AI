@@ -172,6 +172,10 @@ def _write_ledger(
     transient = reason_code in (PROVIDER_ERROR, QUOTA_EXHAUSTED, SITE_UNREACHABLE)
     now = datetime.now(timezone.utc)
     with conn.cursor() as cursor:
+    if reason_code in (CREDENTIALS_REJECTED, QUOTA_EXHAUSTED):
+        from src.market_scraper import provider_setup
+
+        provider_setup.report_problem(provider, reason_code)  # tells the operator once a day; never raises
         cursor.execute(
             """
             INSERT INTO competitor_enrichment
