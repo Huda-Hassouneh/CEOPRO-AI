@@ -126,7 +126,7 @@ export function CompetitorIntel({ competitor, t, locale }) {
               <section>
                 <h3><Tag size={14} aria-hidden="true" /> {t('intel.products')}</h3>
                 {conflicts.size > 0 && <p className="market-scan__note is-warning"><AlertTriangle size={13} aria-hidden="true" /> {t('intel.conflicts')}</p>}
-                <div className="apex-table-wrap"><table className="apex-table">
+                <div className="apex-table-wrap"><table className="apex-table intel-prices">
                   <thead><tr><th>{t('intel.product')}</th><th className="apex-table__num">{t('intel.price')}</th><th>{t('intel.confidence')}</th><th>{t('intel.source')}</th>{canReview && <th>{t('intel.review.column')}</th>}</tr></thead>
                   <tbody>{intel.products.slice(0, 30).map((p, index) => (
                     <tr key={p.intel_id || `${p.name}-${p.price}-${index}`} className={conflicts.has(p.name.toLowerCase()) ? 'is-conflict' : ''}>
