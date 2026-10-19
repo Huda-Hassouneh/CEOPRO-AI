@@ -43,7 +43,8 @@ def save_site_intel(conn, tenant_id: str, competitor_id: str, result: dict) -> s
     status = result.get("status") or ("ok" if result["facts"] or result["pages_read"] else (result.get("error") or "empty"))
     with conn.cursor() as cursor:
         if status in (intel.STATUS_OTHER_BUSINESS, intel.STATUS_NOT_OWN_SITE):
-            cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s);",
+            cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s) "
+                           "AND COALESCE(payload->>'channel', 'website') = 'website';",
                            (tenant_id, competitor_id, list(WEBSITE_KINDS)))
             cursor.execute("UPDATE competitor_product_mappings SET is_active = FALSE WHERE tenant_id = %s AND global_competitor_id = %s;",
                            (tenant_id, competitor_id))
@@ -53,7 +54,8 @@ def save_site_intel(conn, tenant_id: str, competitor_id: str, result: dict) -> s
             media = result.get("media") or {}
             keep_media = media.get("found", 0) > 0 and media.get("read", 0) == 0
             cursor.execute(
-                "DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s)"
+                "DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s) "
+                "AND COALESCE(payload->>'channel', 'website') = 'website'"
                 + (" AND NOT COALESCE((payload->>'source_media')::boolean, FALSE)" if keep_media else "") + ";",
                 (tenant_id, competitor_id, list(WEBSITE_KINDS)),
             )
@@ -72,6 +74,26 @@ def save_site_intel(conn, tenant_id: str, competitor_id: str, result: dict) -> s
             (status, tenant_id, competitor_id),
         )
     return status
+
+
+def save_channel_facts(conn, tenant_id: str, competitor_id: str, channel: str, facts: List[dict]) -> int:
+    """Replaces what ONE social channel (instagram / facebook) said, keeping the owner's decisions (intel_review).
+    An empty read keeps what is already stored. Returns how many facts are stored for the channel afterwards."""
+    with conn.cursor() as cursor:
+        if facts:
+            kept = intel_review.apply_to_facts(facts, intel_review.load_reviews(conn, tenant_id, competitor_id))
+            cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND payload->>'channel' = %s;",
+                           (tenant_id, competitor_id, channel))
+            for fact in kept:
+                payload = {k: v for k, v in fact.items() if k not in ("kind", "source_url", "retrieved_at", "confidence")}
+                cursor.execute(
+                    "INSERT INTO competitor_intel (tenant_id, global_competitor_id, kind, payload, source_url, confidence, retrieved_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s);",
+                    (tenant_id, competitor_id, fact["kind"], json.dumps(payload), fact["source_url"], fact["confidence"], fact["retrieved_at"]),
+                )
+        cursor.execute("SELECT COUNT(*) FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND payload->>'channel' = %s;",
+                       (tenant_id, competitor_id, channel))
+        return cursor.fetchone()[0]
 
 
 @credits.metered("competitor_intel")
