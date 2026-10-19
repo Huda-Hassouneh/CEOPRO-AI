@@ -33,6 +33,7 @@ first-class outcome (BLOCKED/FAILED with NO_CREDENTIALS /
 CREDENTIALS_REJECTED / QUOTA_EXHAUSTED), never silence and never a crash.
 Secrets never reach reason_detail.
 """
+import contextlib
 import hashlib
 import json
 import logging
@@ -860,21 +861,25 @@ def _social_content_outcome(conn, tenant_id, competitor_id, competitor, deep):
     total_posts = stored = images_read = images_skipped = held_back = 0
     errors = []
     limit = social_content.POSTS_DEEP if deep else social_content.POSTS_STANDARD
-    for platform, url in profiles.items():
-        try:
-            posts = social_content.fetch_posts(url, platform, token, limit)
-        except mentions.SourceError as exc:
-            errors.append((exc.code, exc.detail))
-            continue
-        except Exception as exc:  # noqa: BLE001 - e.g. a Data Credits refusal: surface its message, never crash the retry
-            errors.append((getattr(exc, "reason", None) or PROVIDER_ERROR, str(getattr(exc, "message", None) or type(exc).__name__)[:200]))
-            continue
-        total_posts += len(posts)
-        result = social_content.facts_from_posts(posts, platform, country, deep)
-        images_read += result["images_read"]
-        images_skipped += result["images_skipped"]
-        held_back += result["held_back"]
-        stored += competitor_intel.save_channel_facts(conn, tenant_id, competitor_id, platform, result["facts"])
+    outer = credits.current()
+    scope = contextlib.nullcontext() if outer is not None and outer.tenant_id == str(tenant_id) \
+        else credits.metering(tenant_id, "competitor_social_content")  # paid calls need a billing scope (a plain API retry has none)
+    with scope:
+        for platform, url in profiles.items():
+            try:
+                posts = social_content.fetch_posts(url, platform, token, limit)
+            except mentions.SourceError as exc:
+                errors.append((exc.code, exc.detail))
+                continue
+            except Exception as exc:  # noqa: BLE001 - e.g. a Data Credits refusal: surface its message, never crash the retry
+                errors.append((getattr(exc, "reason", None) or PROVIDER_ERROR, str(getattr(exc, "message", None) or type(exc).__name__)[:200]))
+                continue
+            total_posts += len(posts)
+            result = social_content.facts_from_posts(posts, platform, country, deep)
+            images_read += result["images_read"]
+            images_skipped += result["images_skipped"]
+            held_back += result["held_back"]
+            stored += competitor_intel.save_channel_facts(conn, tenant_id, competitor_id, platform, result["facts"])
     notes = []
     if images_skipped:
         notes.append(f"{images_skipped} post picture(s) were not read because no OCR engine is available.")
