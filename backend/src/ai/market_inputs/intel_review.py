@@ -127,6 +127,14 @@ def review_fact(conn, tenant_id: str, competitor_id: str, intel_id: str, verdict
         if verdict == "REJECTED":
             cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND intel_id = %s;",
                            (tenant_id, competitor_id, intel_id))
+            # The price already recorded from this item (offerings.record_matches keeps the item name as the mapping's
+            # sku) must stop counting too, or a rejected price keeps feeding comparisons and recommendations.
+            cursor.execute(
+                "UPDATE competitor_prices cp SET is_available = FALSE FROM competitor_product_mappings m "
+                "WHERE cp.tenant_id = %s AND m.tenant_id = cp.tenant_id AND m.mapping_id = cp.mapping_id "
+                "AND m.global_competitor_id = %s AND m.competitor_product_sku = %s AND cp.scraped_price = %s;",
+                (tenant_id, competitor_id, name[:100], read),
+            )
         else:
             payload.pop("read_price", None)
             payload["price"] = float(read)  # start from the read value, then apply the decision

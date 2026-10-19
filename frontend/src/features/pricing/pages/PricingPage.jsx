@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Search, Tag } from 'lucide-react';
+import { GitCompareArrows, RefreshCw, Search, Tag } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { DashboardLayout } from '../../../app/layouts/DashboardLayout.jsx';
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
@@ -8,10 +8,14 @@ import Input from '../../../shared/components/ui/Input.jsx';
 import Button from '../../../shared/components/ui/Button.jsx';
 import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
-import { Pager } from '../../../shared/components/apex/Apex.jsx';
+import { Pager, Pill } from '../../../shared/components/apex/Apex.jsx';
+import Toast from '../../../shared/components/ui/Toast.jsx';
 import { useDebounce } from '../../../shared/hooks/useDebounce.js';
 import { productsApi } from '../../products/api/productsApi.js';
 import { PriceRecommendationModal } from '../components/PriceRecommendationModal.jsx';
+import { PriceComparisonModal } from '../components/PriceComparisonModal.jsx';
+import { PositionPill, TIERS, TierPill } from '../components/PriceLadder.jsx';
+import { usePriceComparisonSummary, useRefreshComparisons } from '../hooks/usePriceComparisons.js';
 import '../styles/Pricing.css';
 
 // Margin here is computed the same way backend/src/ai/pricing/
@@ -42,6 +46,8 @@ export function PricingPage() {
     placeholderData: keepPreviousData,
   });
   const [activeProduct, setActiveProduct] = useState(null);
+  const [compareProduct, setCompareProduct] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   // One formatter cache per interface language.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,25 +62,64 @@ export function PricingPage() {
   const filtered = query.data?.products ?? [];
   const total = query.data?.total ?? 0;
 
+  // How each product on this page relates to what competitors sell (exact / equivalent / similar / added value).
+  const comparisons = usePriceComparisonSummary(filtered.map((product) => product.product_id));
+  const refresh = useRefreshComparisons();
+  const summaries = comparisons.data ?? {};
+  const coverage = useMemo(() => {
+    const counts = { none: 0 };
+    TIERS.forEach((tier) => { counts[tier] = 0; });
+    filtered.forEach((product) => {
+      const tier = summaries[product.product_id]?.headline?.tier;
+      counts[tier || 'none'] += 1;
+    });
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, comparisons.data]);
+  const refreshComparisons = () => refresh.mutate(undefined, {
+    onSuccess: (result) => setNotice({ variant: 'success', message: t(result.ai_pending ? 'pricing.ladder.refreshedPending' : 'pricing.ladder.refreshed', { rows: result.rows, competitors: result.competitors, pending: result.ai_pending }) }),
+    onError: () => setNotice({ variant: 'error', message: t('pricing.ladder.refreshFailed') }),
+  });
+
   return <DashboardLayout><div className="pricing-page">
     <PageHeader title={t('pricing.page.title')} subtitle={t('pricing.page.subtitle')} />
+    <div className="pricing-toolbar">
     <div className="pricing-filters">
       <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('pricing.list.searchPlaceholder')} leftIcon={<Search size={17} />} aria-label={t('pricing.list.searchPlaceholder')} />
     </div>
+    <Button size="sm" variant="outline" onClick={refreshComparisons} loading={refresh.isPending} loadingLabel={t('pricing.ladder.refreshing')}><RefreshCw size={14} aria-hidden="true" /> {t('pricing.ladder.refresh')}</Button>
+    </div>
+
+    {query.isSuccess && filtered.length > 0 && comparisons.isSuccess && (
+      <div className="pricing-coverage" role="group" aria-label={t('pricing.ladder.coverageTitle')}>
+        <span className="pricing-coverage__title">{t('pricing.ladder.coverageTitle')}</span>
+        {TIERS.map((tier) => <span key={tier} className="pricing-coverage__item"><TierPill tier={tier} t={t} /> <strong>{percentFormatter.format(coverage[tier])}</strong></span>)}
+        <span className="pricing-coverage__item"><Pill tone="warning">{t('pricing.ladder.noComparison')}</Pill> <strong>{percentFormatter.format(coverage.none)}</strong></span>
+      </div>
+    )}
 
     {query.isPending && <Skeleton height="320px" variant="rectangular" />}
     {query.isError && <EmptyState title={t('pricing.list.loadError')} action={<Button size="sm" variant="outline" onClick={() => query.refetch()}>{t('pricing.list.retry')}</Button>} />}
     {query.isSuccess && (filtered.length
       ? <div className="pricing-table-wrap"><table className="pricing-table">
-          <thead><tr><th>{t('pricing.table.product')}</th><th>{t('pricing.table.currentPrice')}</th><th>{t('pricing.table.cost')}</th><th>{t('pricing.table.markup')}</th><th>{t('pricing.table.actions')}</th></tr></thead>
+          <thead><tr><th>{t('pricing.table.product')}</th><th>{t('pricing.table.currentPrice')}</th><th>{t('pricing.table.cost')}</th><th>{t('pricing.table.markup')}</th><th>{t('pricing.table.position')}</th><th>{t('pricing.table.actions')}</th></tr></thead>
           <tbody>{filtered.map((product) => {
             const markup = markupOverCostPct(product.current_price, product.cost_price);
+            const headline = summaries[product.product_id]?.headline;
             return <tr key={product.product_id}>
               <td><strong>{product.product_name}</strong>{product.brand && <span className="pricing-table-sub">{product.brand}</span>}</td>
               <td>{currencyFormatter(product.current_price, product.currency)}</td>
               <td>{currencyFormatter(product.cost_price, product.currency)}</td>
               <td>{markup != null ? `${percentFormatter.format(markup)}%` : t('products.common.notAvailable')}</td>
-              <td><button type="button" className="pricing-link-action" onClick={() => setActiveProduct(product)}><Tag size={13} />{t('pricing.list.getRecommendation')}</button></td>
+              <td className="pricing-position">
+                {comparisons.isPending ? <span className="apex-muted">…</span> : headline
+                  ? <><TierPill tier={headline.tier} t={t} /> <PositionPill pct={headline.position_pct} t={t} number={percentFormatter} /><span className="pricing-table-sub">{t('pricing.ladder.basedOn', { count: headline.count })}{headline.tier === 'SIMILAR' && (headline.direction === 'own_richer' || headline.direction === 'own_leaner') ? ` · ${t(`pricing.ladder.direction.${headline.direction}`)}` : ''}</span></>
+                  : <span className="apex-muted">{t('pricing.ladder.noComparison')}</span>}
+              </td>
+              <td className="pricing-actions">
+                <button type="button" className="pricing-link-action" onClick={() => setCompareProduct(product)}><GitCompareArrows size={13} />{t('pricing.list.compare')}</button>
+                <button type="button" className="pricing-link-action" onClick={() => setActiveProduct(product)}><Tag size={13} />{t('pricing.list.getRecommendation')}</button>
+              </td>
             </tr>;
           })}</tbody>
         </table>
@@ -85,6 +130,8 @@ export function PricingPage() {
           description={t(term ? 'pricing.list.noResultsDescription' : 'pricing.list.emptyDescription')}
         />)}
 
+    <PriceComparisonModal open={Boolean(compareProduct)} product={compareProduct} onClose={() => setCompareProduct(null)} t={t} />
+    {notice && <Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} />}
     <PriceRecommendationModal open={Boolean(activeProduct)} product={activeProduct} onClose={() => setActiveProduct(null)} currencyFormatter={currencyFormatter} t={t} />
   </div></DashboardLayout>;
 }

@@ -269,6 +269,32 @@ def _youtube_error(status: int, payload: dict, key: str) -> Optional[SourceError
     return SourceError(PROVIDER_ERROR, f"YouTube returned {status}. {message}".strip())
 
 
+# What counts as a comment worth keeping (tunable; see COMPETITOR_COMMENTS_AND_RETRY_PLAN.md P2).
+MIN_COMMENT_LETTERS = int(os.getenv("COMMENT_MIN_LETTERS", "12"))
+MIN_COMMENT_WORDS = int(os.getenv("COMMENT_MIN_WORDS", "3"))
+# On a video whose channel does not name the competitor, an unnamed comment is kept only if it is a real opinion this long.
+OFF_CHANNEL_MIN_CHARS = int(os.getenv("COMMENT_OFF_CHANNEL_MIN_CHARS", "30"))
+_WORDS = re.compile(r"\w+", re.UNICODE)
+
+
+def is_substantive(text: str) -> bool:
+    """Enough letters (any script) and words to be an opinion: drops "first!", emoji, "nice", "+1"."""
+    letters = sum(1 for ch in text or "" if ch.isalpha())
+    return letters >= MIN_COMMENT_LETTERS and len(_WORDS.findall(text)) >= MIN_COMMENT_WORDS
+
+
+def _normalised(text: str) -> str:
+    return " ".join(_WORDS.findall((text or "").lower()))
+
+
+def keep_comment(text: str, competitor: str, channel_names_it: bool) -> bool:
+    """A comment about the business, not just the video: substantive, and either on the competitor's own
+    channel, naming the competitor, or long enough to be a considered opinion."""
+    if not is_substantive(text):
+        return False
+    return channel_names_it or _names_match(competitor, text) or len(text) >= OFF_CHANNEL_MIN_CHARS
+
+
 def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Callable = _get,
                      max_videos: int = 3, per_video: int = 50) -> List[dict]:
     """Comments (top-level first, replies after) on videos whose title or channel names the competitor.
@@ -285,9 +311,10 @@ def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Ca
         snippet = item.get("snippet") or {}
         video_id = (item.get("id") or {}).get("videoId")
         if video_id and _names_match(name, snippet.get("title"), snippet.get("channelTitle")):
-            videos.append((video_id, snippet.get("title") or ""))
+            videos.append((video_id, snippet.get("title") or "", _names_match(name, snippet.get("channelTitle"))))
     comments: List[dict] = []
-    for video_id, title in videos[:max_videos]:
+    seen_text = set()
+    for video_id, title, own_channel in videos[:max_videos]:
         status, payload = get(YOUTUBE_COMMENTS_URL, {
             "part": "snippet,replies", "videoId": video_id, "maxResults": per_video, "order": "relevance",
             "textFormat": "plainText", "key": api_key,
@@ -304,8 +331,9 @@ def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Ca
             top = (thread.get("snippet") or {}).get("topLevelComment") or {}
             snippet = top.get("snippet") or {}
             text = clean_text(snippet.get("textOriginal") or snippet.get("textDisplay"), 2000)
-            if not top.get("id") or not text:
+            if not top.get("id") or not text or not keep_comment(text, name, own_channel) or _normalised(text) in seen_text:
                 continue
+            seen_text.add(_normalised(text))
             comments.append({
                 "external_id": top["id"], "parent_external_id": None, "author": snippet.get("authorDisplayName"),
                 "text": text, "likes": snippet.get("likeCount"), "published_at": snippet.get("publishedAt"),
@@ -315,7 +343,8 @@ def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Ca
             for reply in ((thread.get("replies") or {}).get("comments") or []):
                 rs = reply.get("snippet") or {}
                 rtext = clean_text(rs.get("textOriginal") or rs.get("textDisplay"), 2000)
-                if reply.get("id") and rtext:
+                if reply.get("id") and rtext and is_substantive(rtext) and _normalised(rtext) not in seen_text:
+                    seen_text.add(_normalised(rtext))
                     comments.append({
                         "external_id": reply["id"], "parent_external_id": top["id"], "author": rs.get("authorDisplayName"),
                         "text": rtext, "likes": rs.get("likeCount"), "published_at": rs.get("publishedAt"),

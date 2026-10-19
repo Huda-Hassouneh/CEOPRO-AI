@@ -250,3 +250,47 @@ def _category_key(category) -> Optional[str]:
     else:
         text = category
     return text.strip().lower() if isinstance(text, str) and text.strip() else None
+
+
+def load_comparable_prices(conn, tenant_id: str, product_id: str, currency: str, max_age_days: int = None) -> list:
+    """
+    Prices of competitors' items that are not the same product but can stand in for it, from the
+    price comparison ladder (market_scraper/price_comparison/): EQUIVALENT rows (the same item in
+    another quantity, already scaled to this product's) and SIMILAR rows that are a like-for-like swap
+    (direction 'same': another flavour or variant at the same size and richness). SIMILAR rows where
+    one side has more in it (a bigger size, extras, a nearby quantity) are left out: averaging them in
+    would pull a richer product's price down toward leaner items, or the reverse. Pairs where one name is the
+    other plus words nobody has judged yet (an extra or just a variant) are left out too. ADDED_VALUE rows are
+    never returned: the company's richer product is not what a market average measures. Same-currency, tracked, non-manufacturer competitors, within the
+    freshness window. `price_found` is the comparable price; each record carries its `tier`.
+    A deployment without the table yet returns [].
+    """
+    max_age_days = MAX_PRICE_AGE_DAYS if max_age_days is None else max_age_days
+    query = """
+        SELECT c.comparison_id, c.global_competitor_id, gc.competitor_name, c.comparable_price, c.currency,
+               c.observed_at, c.tier
+        FROM product_price_comparisons c
+        JOIN tenant_competitors tc ON tc.tenant_id = c.tenant_id AND tc.global_competitor_id = c.global_competitor_id
+        JOIN global_competitors gc ON gc.global_competitor_id = c.global_competitor_id
+        WHERE c.tenant_id = %s AND c.product_id = %s AND c.currency = %s
+          AND (c.tier = 'EQUIVALENT' OR (c.tier = 'SIMILAR' AND c.direction = 'same'))
+          AND NOT (c.reasons @> '[{"code": "specificity_unclear"}]'::jsonb)
+          AND tc.is_tracked = TRUE AND gc.is_manufacturer = FALSE
+          AND c.observed_at >= NOW() - (%s || ' days')::interval;
+    """
+    with conn.cursor() as cursor:
+        cursor.execute("SAVEPOINT comparable_prices_read;")
+        try:
+            cursor.execute(query, (tenant_id, product_id, currency, str(max_age_days)))
+            rows = cursor.fetchall()
+        except Exception as exc:  # noqa: BLE001
+            cursor.execute("ROLLBACK TO SAVEPOINT comparable_prices_read;")
+            if getattr(exc, "pgcode", None) != "42P01":  # undefined_table: migration 20261024000000 not applied yet
+                raise
+            return []
+        cursor.execute("RELEASE SAVEPOINT comparable_prices_read;")
+    return [
+        {"price_entry_id": str(r[0]), "competitor_id": str(r[1]), "competitor_name": r[2], "price_found": float(r[3]),
+         "currency": r[4], "captured_at": r[5], "tier": r[6]}
+        for r in rows
+    ]

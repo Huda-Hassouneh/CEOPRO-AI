@@ -312,3 +312,42 @@ def test_a_refused_paid_deep_review_read_keeps_the_places_reviews_and_says_why()
 def mentions_source_error(exc):
     from src.market_scraper import competitor_mentions as mentions
     return mentions.SourceError(exc.reason, ce._refusal_text(exc))  # noqa: SLF001
+
+
+# ---- next_step: who can resolve a gap ---------------------------------------------------------
+
+@pytest.mark.parametrize("status,code,expected", [
+    (ce.STATUS_SUCCEEDED, None, "none"),
+    (ce.STATUS_NOT_APPLICABLE, ce.NO_WEBSITE, "none"),
+    (ce.STATUS_BLOCKED, ce.NO_CREDENTIALS, "admin"),
+    (ce.STATUS_BLOCKED, ce.PLATFORM_APPROVAL_MISSING, "admin"),
+    (ce.STATUS_FAILED, ce.CREDENTIALS_REJECTED, "admin"),
+    (ce.STATUS_FAILED, ce.QUOTA_EXHAUSTED, "wait"),
+    (ce.STATUS_FAILED, ce.SITE_UNREACHABLE, "wait"),
+    (ce.STATUS_BLOCKED, ce.TERMS_UNREVIEWED, "owner"),
+    (ce.STATUS_BLOCKED, ce.ROBOTS_DISALLOWED, "none"),
+    (ce.STATUS_FAILED, ce.NO_VIDEOS, "retry"),
+    (ce.STATUS_PENDING, ce.NOT_ATTEMPTED, "retry"),
+    (ce.STATUS_FAILED, "SOMETHING_NEW", "retry"),
+])
+def test_next_step_says_who_can_resolve_a_gap(status, code, expected):
+    assert ce.next_step_for(status, code) == expected
+
+
+def test_a_comments_facet_without_a_youtube_key_names_the_missing_setting(monkeypatch):
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    status, code, detail, items, _ = ce._comments_outcome(MagicMock(), TENANT, COMP, {"name": "X", "city": None}, None)
+    assert (status, code, items) == (ce.STATUS_BLOCKED, ce.NO_CREDENTIALS, 0)
+    assert "YOUTUBE_API_KEY" in detail and ce.next_step_for(status, code) == "admin"
+
+
+def test_every_retry_outcome_carries_a_next_step():
+    with patch.object(ce, "_load_competitor", return_value={"name": "X"}), \
+         patch.object(ce, "enrich_news", return_value={"status": ce.STATUS_FAILED, "reason_code": ce.NO_NEWS, "reason_detail": "x", "items_found": 0}):
+        results = ce.enrich_competitor(MagicMock(), TENANT, COMP, facets=[ce.FACET_NEWS])
+    assert results[ce.FACET_NEWS]["next_step"] == "retry"
+
+
+def test_only_http_links_are_stored_as_a_comments_source():
+    assert ce._http_url("https://www.youtube.com/watch?v=x&lc=y") == "https://www.youtube.com/watch?v=x&lc=y"
+    assert ce._http_url("javascript:alert(1)") is None and ce._http_url(None) is None and ce._http_url("") is None
