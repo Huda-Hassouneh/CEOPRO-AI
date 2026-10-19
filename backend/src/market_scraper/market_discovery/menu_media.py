@@ -35,7 +35,10 @@ logger = logging.getLogger("KEEL_MARKET_DISCOVERY")
 MEDIA_MAX_BYTES = int(os.getenv("DISCOVERY_MENU_MEDIA_MAX_BYTES", str(8_000_000)))
 MAX_MEDIA_FILES = int(os.getenv("DISCOVERY_MENU_MEDIA_MAX_FILES", "6"))
 MAX_PDF_PAGES = int(os.getenv("DISCOVERY_MENU_MEDIA_MAX_PDF_PAGES", "8"))
-MAX_IMAGE_PIXELS = 40_000_000
+MAX_IMAGE_PIXELS = 25_000_000  # a decoded picture is ~4 bytes a pixel, and several sites are read in parallel
+# Wall-clock budget for all menu files of one site: tesseract can take ~45 s on a bad picture, so without a cap
+# 15 files could hold a worker for ten minutes.
+TIME_BUDGET_SECONDS = float(os.getenv("DISCOVERY_MENU_MEDIA_BUDGET_SECONDS", "90"))
 OCR_LANGS = os.getenv("DISCOVERY_OCR_LANGS", "ara+eng")
 MIN_OCR_WIDTH = 1600  # smaller pictures are upscaled; tesseract needs ~300 dpi text
 
@@ -82,7 +85,6 @@ def _attr(tag: str, name: str) -> str:
 
 def _score(url: str, label: str) -> int:
     name = unquote(urlsplit(url).path.rsplit("/", 1)[-1])
-    text = f"{name} {label}"
     if _NOT_MENU.search(name) and not _MENU_WORDS.search(label):
         return 0
     return 2 * bool(_MENU_WORDS.search(name)) + 2 * bool(_MENU_WORDS.search(label))
