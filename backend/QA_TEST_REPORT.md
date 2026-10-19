@@ -44,8 +44,12 @@ Five *tests* were fragile (depended on the developer's shell or a stale expectat
   * 4 MinIO-backed tests (`test_plan_catalog_integration_db.py` x3, `test_marketing_lifecycle_integration_db.py` x1) that
     only checked for the database, so they failed where MinIO is absent. **Fixed:** they now skip without MinIO (and pass with it, verified both ways).
   * `test_competitor_enrichment_integration_db.py::test_due_mode_skips_permanent_misses_but_force_mode_retries_them_and_fixed_setup_blocks`
-    failed in one CI run and passed in the next, and passed in 4 local runs, so it is **flaky** (competitor area, out of scope).
-    **Not fixed - cause not reproduced.** If it recurs, the failing assertion is the first one ("due" mode picks the wrong set).
+    failed in one CI run and passed in the next. **Hardened (2026-10-19), original failure never reproduced** (15 isolated and
+    3 full-package runs passed before the change). Which competitors the query picks depends on `tenant_competitors.is_tracked`,
+    which registration sets from the classifier and the plan's competitor cap, i.e. ambient state the test did not control.
+    The test now pins `is_tracked = TRUE` and reports picks by name. If it still fails, the message now shows which competitor was wrongly picked or missed.
+  * Same file, `test_price_coverage_flags_stale_foreign_currency_...`: asserted an age of exactly 40.000 days, which floors to 39
+    when the DB clock is a few ms ahead of the test process (failed 4/4 against a Docker Postgres). **Fixed:** the seeded price is 40.5 days old.
 
 ## 3. Observations worth knowing (no action required)
 
