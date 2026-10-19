@@ -3190,6 +3190,43 @@
       "invalid": "Enter the price as a number, for example 3.50."
     }
   },
+  "priceChanges": {
+    "eyebrow": "Price moves",
+    "title": "Recent price changes",
+    "subtitle": "Prices on their menu, website and posts that moved. Changes between two weak reads (pictures, captions) stay hidden unless you ask.",
+    "includeUncertain": "Include uncertain reads",
+    "error": "Price changes couldn't be loaded.",
+    "none": "No price changes yet",
+    "noneHint": "KEEL compares each new read of their website with the last one. Changes appear here after the next read.",
+    "to": "to",
+    "on": "Changed {{date}}",
+    "uncertain": "Read from a picture or post - please check",
+    "recentTitle": "Competitor price moves",
+    "recentSubtitle": "The latest price changes across your competitors in the last 30 days."
+  },
+  "productMatches": {
+    "eyebrow": "Matching",
+    "title": "Matched to your products",
+    "subtitle": "Which of their items counts as which of your products. A wrong match gives a wrong price comparison - correct it here and KEEL remembers.",
+    "yourProduct": "Your product",
+    "theirItem": "Their item",
+    "yourPrice": "Your price {{price}}",
+    "chosenByYou": "Chosen by you",
+    "notSame": "Not the same",
+    "notSameHint": "This item is a different product; KEEL looks for another match",
+    "choose": "Choose item",
+    "pickItem": "Pick their item",
+    "auto": "Back to automatic",
+    "rejectedTitle": "Matches you rejected",
+    "rejectedLine": "“{{item}}” is not “{{product}}”",
+    "priceGap": "Very different from your price - check it is the same size or pack",
+    "ownerOnly": "Only an owner or administrator can change matches.",
+    "problem": {
+      "forbidden": "Only an owner or administrator can change matches.",
+      "refused": "That item can't be matched to this product (a different currency, or a post price you haven't confirmed yet).",
+      "failed": "Your decision couldn't be saved. Please try again."
+    }
+  },
   "dashboardActivity": {
     "open": "Open",
     "loadError": "This couldn't be loaded.",

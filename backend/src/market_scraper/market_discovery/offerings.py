@@ -29,6 +29,8 @@ import re
 from difflib import SequenceMatcher
 from typing import Dict, List, Optional, Sequence
 
+from src.market_scraper.market_discovery import match_overrides
+
 logger = logging.getLogger("KEEL_MARKET_DISCOVERY")
 MIN_SCORE = 0.75
 PRICE_RATIO = (0.2, 5.0)
@@ -166,10 +168,14 @@ def competitor_items(conn, tenant_id: str, competitor_id: str) -> List[dict]:
 
 
 def record_matches(conn, tenant_id: str, competitor_id: str, products: List[dict], with_aliases: bool = True,
-                   ask=None) -> dict:
+                   ask=None, update_rate: bool = True) -> dict:
     """Matches one competitor's priced items to the company's products and
     records each match (mapping + price, unless the same price was already
-    recorded today). Caller commits. Returns counts and the matches."""
+    recorded today). Caller commits. Returns counts and the matches.
+
+    The owner's decisions (match_overrides) win: an item rejected for a product is never offered to it, an item the
+    owner chose for a product is used as its match, and a mapping whose item was rejected is switched off.
+    update_rate=False when `products` is only a subset (the owner re-matched one product)."""
     items = [i for i in competitor_items(conn, tenant_id, competitor_id) if i.get("price") is not None]
     with conn.cursor() as cursor:
         cursor.execute("SELECT competitor_name FROM global_competitors WHERE global_competitor_id = %s;", (competitor_id,))
@@ -179,14 +185,34 @@ def record_matches(conn, tenant_id: str, competitor_id: str, products: List[dict
     if not items or not products:
         return out
     currencies = {i.get("currency") for i in items}
+    rejected, chosen = match_overrides.load(conn, tenant_id, competitor_id)
+    matched_products = set()
     with conn.cursor() as cursor:
         for product in products:
-            if product.get("currency") not in currencies:
-                out["currency_mismatch"] += 1 if currencies - {None} else 0
-                continue
-            found = best_match(product, items, aliases(product["name"], ask) if with_aliases else (), context)
+            pid = product["product_id"]
+            forced = chosen.get(pid)
+            if forced:  # the owner's choice: the item must still be on the site, in the product's currency
+                found = next((dict(i, match_score=1.0, owner_chosen=True) for i in items
+                              if match_overrides.item_key(i["name"]) == forced and i.get("currency") == product.get("currency")), None)
+            else:
+                found = None
+            if found is None:
+                if product.get("currency") not in currencies:
+                    out["currency_mismatch"] += 1 if currencies - {None} else 0
+                    continue
+                candidates = [i for i in items if (pid, match_overrides.item_key(i["name"])) not in rejected]
+                found = best_match(product, candidates, aliases(product["name"], ask) if with_aliases else (), context)
             if found is None:
                 continue
+            matched_products.add(pid)
+            # A mapping now pointing at a DIFFERENT item (the owner re-matched it, or a better item turned up) must not
+            # keep the price series of the old item: the latest price would be one of two different products' prices.
+            cursor.execute(
+                "SELECT mapping_id, competitor_product_sku FROM competitor_product_mappings "
+                "WHERE tenant_id = %s AND global_competitor_id = %s AND product_id = %s;", (tenant_id, competitor_id, pid))
+            existing = cursor.fetchone()
+            if existing and existing[1] and match_overrides.item_key(existing[1]) != match_overrides.item_key(found["name"]):
+                cursor.execute("DELETE FROM competitor_prices WHERE tenant_id = %s AND mapping_id = %s;", (tenant_id, existing[0]))
             cursor.execute(
                 """
                 INSERT INTO competitor_product_mappings (tenant_id, global_competitor_id, product_id, competitor_product_url,
@@ -214,9 +240,18 @@ def record_matches(conn, tenant_id: str, competitor_id: str, products: List[dict
             )
             out["matched"] += 1
             out["matches"].append({"product_id": product["product_id"], "product": product["name"], "item": found["name"],
-                                   "price": found["price"], "currency": found["currency"], "score": found["match_score"],
+                                   "price": found["price"], "currency": found["currency"], "score": found["match_score"], "owner_chosen": bool(found.get("owner_chosen")),
                                    "source_url": found.get("source_url")})
-        if products:
+        if rejected:  # a mapping whose item the owner rejected stays off unless another item matched this pass
+            cursor.execute(
+                "SELECT product_id, competitor_product_sku FROM competitor_product_mappings "
+                "WHERE tenant_id = %s AND global_competitor_id = %s AND is_active = TRUE;", (tenant_id, competitor_id))
+            for pid, sku in cursor.fetchall():
+                if str(pid) not in matched_products and (str(pid), match_overrides.item_key(sku or "")) in rejected:
+                    cursor.execute(
+                        "UPDATE competitor_product_mappings SET is_active = FALSE WHERE tenant_id = %s AND global_competitor_id = %s AND product_id = %s;",
+                        (tenant_id, competitor_id, pid))
+        if products and update_rate:
             cursor.execute(
                 "UPDATE tenant_competitors SET product_match_rate = %s WHERE tenant_id = %s AND global_competitor_id = %s;",
                 (round(out["matched"] / len(products), 4), tenant_id, competitor_id),

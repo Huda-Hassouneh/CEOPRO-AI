@@ -4,9 +4,18 @@ import httpClient from '../../../shared/lib/httpClient.js';
 // real comments collected, people agreeing, sentiment, and data completeness with
 // Retry (backend/src/ai/routers/competitor_enrichment.py), plus the market-price
 // coverage of the company's own products.
+export const OVERVIEW_BATCH = 100;
+
 export const competitorDataApi = {
-  // One bulk read for every tracked competitor, keyed by competitor_id.
-  overview: async () => (await httpClient.get('/competitor-data/overview')).data.competitors,
+  // One bulk read, keyed by competitor_id. With ids (the competitors on screen) only those come back, 100 per request:
+  // a list showing one page needs one page of details, not every competitor's (megabytes for a large list).
+  overview: async ({ ids } = {}) => {
+    if (!ids) return (await httpClient.get('/competitor-data/overview')).data.competitors;
+    const batches = [];
+    for (let i = 0; i < ids.length; i += OVERVIEW_BATCH) batches.push(ids.slice(i, i + OVERVIEW_BATCH));
+    const pages = await Promise.all(batches.map(async (batch) => (await httpClient.get('/competitor-data/overview', { params: { ids: batch.join(',') } })).data.competitors));
+    return Object.assign({}, ...pages);
+  },
 
   // The real comments collected about one competitor. sort: 'helpful' | 'recent'.
   comments: async (id, { sort = 'helpful', limit = 20, offset = 0 } = {}) => {
@@ -164,4 +173,26 @@ export function parseCorrectedPrice(text) {
   if (!/^\d+(\.\d{1,4})?$/.test(normalised)) return null;
   const value = Number(normalised);
   return Number.isFinite(value) ? value : null;
+}
+
+// ---- Price changes and the owner's product matches ----
+
+// "-11.8" -> "-11.8%": the sign is kept, the unit is part of the text so it never gets separated from the number.
+export function changeLabel(pct, formatter) {
+  if (pct == null) return '';
+  const number = formatter ? formatter.format(Math.abs(pct)) : String(Math.abs(pct));
+  return `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${number}%`;
+}
+
+// Changes grouped for a short feed: the biggest moves first within the same day is not wanted - newest first is.
+export function sortChanges(changes) {
+  return [...(changes || [])].sort((a, b) => String(b.changed_at).localeCompare(String(a.changed_at)));
+}
+
+// The competitor items an owner may still pick for a product: priced, same currency, a post price only once confirmed.
+export function chooseableItems(items, product, currentItem) {
+  return (items || []).filter((item) => (
+    item.price != null && (item.currency || null) === (product?.currency || null)
+    && !item.needs_confirmation && item.name !== currentItem
+  ));
 }
