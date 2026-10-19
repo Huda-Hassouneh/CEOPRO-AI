@@ -87,41 +87,67 @@ def test_product_market_detail_assembles_coverage_references_and_barcode():
 
 # ---- comments ---------------------------------------------------------------------------
 
-def _comment_row(i, parent=None, likes=5, platform="FACEBOOK", sentiment="NEGATIVE"):
-    return (f"r{i}", parent, platform, f"user{i}", f"text {i}", None, NOW, likes, 1, sentiment)
+def _comment_row(i, parent=None, likes=5, platform="FACEBOOK", sentiment="NEGATIVE", action=None):
+    return (f"r{i}", parent, platform, f"user{i}", f"text {i}", None, NOW, likes, 1, sentiment, f"https://example.com/c/{i}", action, None)
+
+
+def _comments_cursor(comments, replies=(), platforms=(), sentiments=(), theme_rows=(), counts=(0, 0, 0, None), held=0, matching=None):
+    """The queries list_competitor_comments runs, in order: tracked, counts, platforms, held back, sentiment counts,
+    theme rows, matching count, the page, and (when the page has comments) its replies."""
+    answers = [list(platforms), list(sentiments), list(theme_rows), list(comments)] + ([list(replies)] if comments else [])
+    return _one_cursor(fetchone=[(1,), counts, (held,), (len(comments) if matching is None else matching,)], fetchall=answers)
 
 
 def test_comments_carry_text_likes_replies_and_a_safety_count():
-    conn, _ = _one_cursor(
-        fetchone=[(1,), (2, 1, 405), (3,)],
-        fetchall=[[("FACEBOOK", 2), ("GOOGLE", 1)], [_comment_row(1, likes=400), _comment_row(2, likes=5)],
-                  [_comment_row(9, parent="r1", likes=0, sentiment=None)]],
+    collected = datetime(2026, 10, 18, tzinfo=timezone.utc)
+    conn, _ = _comments_cursor(
+        [_comment_row(1, likes=400), _comment_row(2, likes=5)], replies=[_comment_row(9, parent="r1", likes=0, sentiment=None)],
+        platforms=[("FACEBOOK", 2), ("GOOGLE", 1)], sentiments=[("negative", 2)], counts=(2, 1, 405, collected), held=3,
+        theme_rows=[("r1", "Very slow service", "NEGATIVE", 400)],
     )
     result = cc.list_competitor_comments(conn, "t1", "c1")
-    assert result["summary"] == {"comments": 2, "replies": 1, "people_agreeing": 405,
-                                 "platforms": {"FACEBOOK": 2, "GOOGLE": 1}, "held_back_for_safety": 3}
+    summary = result["summary"]
+    assert summary["platforms"] == {"FACEBOOK": 2, "GOOGLE": 1} and summary["held_back_for_safety"] == 3
+    assert (summary["comments"], summary["replies"], summary["people_agreeing"]) == (2, 1, 405)
+    assert summary["sentiment"] == {"positive": 0, "negative": 2, "neutral": 0, "not_analysed": 0}
+    assert summary["last_collected_at"] == collected.isoformat() and summary["matching"] == 2
+    assert {t["theme"] for t in summary["themes"]} == {"waiting", "service"}
     first = result["comments"][0]
+    assert first["url"] == "https://example.com/c/1" and first["action_status"] is None
+    assert first["signal"] == "opportunity" and result["comments"][1]["signal"] == "opportunity"  # negative, 400 and 5 agreeing
     assert first["text"] == "text 1" and first["people_agreeing"] == 400 and first["sentiment"] == "negative"
     assert [r["id"] for r in first["replies"]] == ["r9"] and first["replies"][0]["sentiment"] is None
     assert result["next_offset"] is None
 
 
-def test_comments_page_and_unknown_competitor_and_bad_sort():
-    conn, _ = _one_cursor(fetchone=[(1,), (45, 0, 10), (0,)], fetchall=[[], [_comment_row(1)], []])
+def test_comments_page_and_unknown_competitor_and_bad_filters():
+    conn, _ = _comments_cursor([_comment_row(1)], counts=(45, 0, 10, None), matching=45)
     assert cc.list_competitor_comments(conn, "t1", "c1", limit=20, offset=20)["next_offset"] == 40
     conn, _ = _one_cursor(fetchone=[None])
     assert cc.list_competitor_comments(conn, "t1", "nope") is None
-    try:
-        cc.list_competitor_comments(MagicMock(), "t1", "c1", sort="loudest")
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("an unknown sort must be refused")
+    for bad in ({"sort": "loudest"}, {"sentiment": "angry"}, {"theme": "weather"}, {"action": "maybe"}):
+        try:
+            cc.list_competitor_comments(MagicMock(), "t1", "c1", **bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"{bad} must be refused")
+
+
+def test_filters_narrow_the_list_and_the_paging():
+    conn, cursor = _comments_cursor([_comment_row(1)], counts=(30, 0, 0, None), sentiments=[("negative", 25), ("positive", 5)], matching=25)
+    result = cc.list_competitor_comments(conn, "t1", "c1", limit=20, sentiment="negative", platform="YouTube", theme="price", action="open")
+    count, listing = cursor.execute.call_args_list[6], cursor.execute.call_args_list[7]
+    for query in (count.args[0], listing.args[0]):
+        assert "LOWER(s.sentiment_label) = %s" in query and "r.source_platform = %s" in query
+        assert "ILIKE ANY" in query and "r.action_status IS NULL" in query
+    assert listing.args[1][:3] == ("t1", "c1", "negative") and listing.args[1][3] == "YouTube" and listing.args[1][-2:] == (20, 0)
+    assert result["next_offset"] == 20  # 25 match, 20 shown
+    assert result["summary"]["sentiment"] == {"positive": 5, "negative": 25, "neutral": 0, "not_analysed": 0}
 
 
 def test_sort_decides_the_order_of_the_comment_query():
     for sort, expected in (("helpful", "COALESCE(r.like_count, 0) DESC"), ("recent", "ORDER BY r.review_date DESC")):
-        conn, cursor = _one_cursor(fetchone=[(1,), (0, 0, 0), (0,)], fetchall=[[], []])
+        conn, cursor = _comments_cursor([])
         cc.list_competitor_comments(conn, "t1", "c1", sort=sort)
-        listing = cursor.execute.call_args_list[4]
+        listing = cursor.execute.call_args_list[7]
         assert expected in listing.args[0] and listing.args[1][-2:] == (20, 0)

@@ -10,7 +10,7 @@ NOW = datetime(2026, 10, 12, 9, 30, tzinfo=timezone.utc)   # a Monday, 12:30 in 
 
 def test_every_alert_kind_belongs_to_a_group():
     kinds = {"competitor_price", "restock", "price_gap", "new_competitors", "import_failed", "payment_failed", "trial_ending",
-             "credits_low", "credits_exhausted"}
+             "credits_low", "credits_exhausted", "competitor_comments_negative"}
     assert kinds == set(prefs.GROUP_OF_KIND)
 
 

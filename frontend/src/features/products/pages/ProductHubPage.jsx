@@ -16,6 +16,7 @@ import httpClient from '../../../shared/lib/httpClient.js';
 import { QuickSaleModal } from '../components/QuickSaleModal.jsx';
 import { PriceRecommendationModal } from '../../pricing/components/PriceRecommendationModal.jsx';
 import { CompetitorDataChips } from '../../market-intelligence/components/DataCompleteness.jsx';
+import { ProductPriceLadder } from '../../pricing/components/ProductPriceLadder.jsx';
 import { ProductMarketDetail } from '../../market-intelligence/components/ProductMarketDetail.jsx';
 
 const TONE_ICON = { restock: Boxes, overstock: Boxes, sales_down: TrendingDown, sales_up: TrendingUp, no_recent_sales: AlertTriangle, priced_above: Tag, priced_below: Tag, no_competitor_prices: Users, competitor_price_change: Tag, negative_reviews: MessageSquareText };
@@ -180,6 +181,10 @@ export function ProductHubPage() {
                   </table>
                 </div>
               )}
+              <div className="product-price-ladder">
+                <p className="apex-eyebrow">{t('pricing.ladder.sectionTitle')}</p>
+                <ProductPriceLadder productId={product.product_id} />
+              </div>
               <ProductMarketDetail product={product} competitors={competitors} currency={currency} />
               {competitors.industry_level.length > 0 && (
                 <div className="product-industry">

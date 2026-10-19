@@ -11,7 +11,7 @@ from typing import Optional
 GROUPS = {
     "stock": ("restock",),
     "pricing": ("competitor_price", "price_gap"),
-    "market": ("new_competitors",),
+    "market": ("new_competitors", "competitor_comments_negative"),
     "data": ("import_failed",),
     "billing": ("payment_failed", "trial_ending", "credits_low", "credits_exhausted"),
 }

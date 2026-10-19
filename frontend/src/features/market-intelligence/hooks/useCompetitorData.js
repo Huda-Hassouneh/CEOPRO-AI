@@ -16,13 +16,24 @@ export function useCompetitorDataStatus(id, enabled = true) {
   });
 }
 
-export function useCompetitorComments(id, sort) {
+// filters: { sentiment, platform, theme, action } - each optional.
+export function useCompetitorComments(id, sort, filters = {}) {
+  const { sentiment = null, platform = null, theme = null, action = null } = filters;
   return useInfiniteQuery({
-    queryKey: ['competitor-comments', id, sort],
-    queryFn: ({ pageParam }) => competitorDataApi.comments(id, { sort, offset: pageParam }),
+    queryKey: ['competitor-comments', id, sort, sentiment, platform, theme, action],
+    queryFn: ({ pageParam }) => competitorDataApi.comments(id, { sort, sentiment, platform, theme, action, offset: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (last) => last?.next_offset ?? undefined,
     enabled: Boolean(id),
+  });
+}
+
+// Marks one comment noted / acted on and refreshes the list (and its "to review" filter).
+export function useCommentAction(competitorId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reviewId, status }) => competitorDataApi.setCommentAction(competitorId, reviewId, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['competitor-comments', competitorId] }),
   });
 }
 

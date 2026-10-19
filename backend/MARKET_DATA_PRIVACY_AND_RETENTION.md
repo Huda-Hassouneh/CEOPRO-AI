@@ -37,6 +37,17 @@ events, or alerts. Product/page-text quarantine blocks price promotion. Reviews 
 records: a flagged review is stored as `QUARANTINED` and excluded from sentiment/LLM consumers, but
 does not invalidate a separately verified safe product price.
 
+## Price comparison tiers (added 2026-10-19)
+
+`product_price_comparisons` and `product_price_comparison_overrides` hold derived data only: names and prices the company
+already stores (its own products, competitor items read under the existing source policy) and the owner's decisions.
+They are tenant-isolated (RLS), deleted with the product or competitor, and rebuilt from `competitor_intel`.
+
+When an AI model is configured (`DISCOVERY_AI_HINTS`), a pair whose names the rules cannot place is sent to the
+configured provider as **two item names and the extra words** (for example "Conversation class" / "30 min class") and
+nothing else: no prices, no company or customer data, no URLs. Answers are cached per pair and stored with the
+comparison. Set `DISCOVERY_AI_HINTS=false` to send nothing; those pairs then stay unsettled and out of recommendations.
+
 ## Retention
 
 Each source has a reviewed `retention_days` value (default 90, allowed range 1–3650). The maintenance

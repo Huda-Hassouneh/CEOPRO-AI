@@ -140,3 +140,36 @@ def test_a_deep_job_carries_its_depth_to_enrich_competitor():
          patch.object(w, "enrich_competitor", return_value={}) as enrich:
         w.process_job({"tenant_id": "t1", "competitor_id": "c1", "facets": "PRICES", "depth": "deep"})
     assert enrich.call_args.kwargs == {"facets": ["PRICES"], "deep": True}
+
+
+# ---- the weekly comments refresh and its daily search budget ----------------------------------
+
+def test_the_daily_budget_allows_exactly_that_many_searches_then_says_no():
+    client = MagicMock()
+    client.incr.side_effect = [1, 2, 3]
+    reserve = w.daily_search_reserve(client, budget=2)
+    assert [reserve(), reserve(), reserve()] == [True, True, False]
+    assert client.expire.called  # the counter cleans itself up
+
+
+def test_a_comments_job_runs_the_refresh_with_the_shared_budget_and_needs_a_client():
+    conn, client = MagicMock(), MagicMock()
+    with patch.object(w.data_access, "get_tenant_connection", return_value=conn), \
+         patch.object(w, "enrich_tenant_comments", return_value={"refreshed": 2}) as refresh:
+        assert w.process_job({"tenant_id": T, "mode": "comments"}, client) == {"refreshed": 2}
+    assert refresh.call_args.args[:2] == (conn, T) and callable(refresh.call_args.args[2])
+    with patch.object(w.data_access, "get_tenant_connection", return_value=MagicMock()), pytest.raises(ValueError):
+        w.process_job({"tenant_id": T, "mode": "comments"})
+
+
+def test_the_comments_sweep_runs_once_a_day_and_queues_one_job_per_stale_tenant():
+    client = MagicMock()
+    client.exists.return_value = 0
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("t1",), ("t2",)]
+    with patch.object(w.data_access, "get_tenant_connection", return_value=conn), \
+         patch.object(w.enrichment_queue, "enqueue_enrichment", return_value="1-0") as enqueue:
+        assert w.run_comments_sweep(client) == {"tenants_with_stale_comments": 2, "jobs_queued": 2}
+    assert enqueue.call_args_list[0].kwargs == {"mode": "comments"} and client.set.called
+    client.exists.return_value = 1
+    assert w.run_comments_sweep(client) == {"skipped": "already_ran_today"}

@@ -230,6 +230,17 @@ Added 2026-10-18 after the full verification run (backend 3113 passed / 0 failed
 
 ---
 
+## Price comparison tiers (added 2026-10-19)
+
+Design and verification: `PRICE_COMPARISON_TIERS_PLAN.md`. Status of each item below is 🟠/🟡 until a person does it.
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 105 | **Apply migration `20261024000000_add_product_price_comparisons`** to staging and production, with or before the code. Until it is applied the ladder is simply empty (reads and writes tolerate the missing table, tested) and `POST /pricing/comparisons/refresh` returns zero rows. Rollback: `database/rollback/20261024000000_add_product_price_comparisons.down.sql` (the table only holds derived data). | Infra/DB | 🟠 Open |
+| 106 | **Fill the ladder for existing companies**: after #105, call `POST /pricing/comparisons/refresh` once per company (or use the **Refresh comparisons** button on the Pricing page). It reads the competitor items already stored - no crawl, no external request, no credits. New discovery runs fill it on their own. | Ops / each owner | 🟠 Open |
+| 107 | **Product decisions on the tiers**: (a) the added-value premium that still reads as "justified" defaults to **60 %** over the competitor's base item (`PRICE_COMPARISON_PREMIUM_BAND_PCT`) - a transparent heuristic, not a measured willingness to pay; confirm it or set it per vertical. (b) Tiers are read from names and quantities by rules (EN/AR); pairs where one name is the other plus unplaceable words (an extra or a variant) are settled by the AI model when one is configured (`DISCOVERY_AI_HINTS`, `PRICE_COMPARISON_AI_MAX_PAIRS`) and otherwise stay unsettled and out of recommendations - set up a model on the worker for full accuracy; an owner override ("this is / is not comparable") and a premium band learned from `recommendation_outcomes` are designed (Phase 3) but not built (the model check for ambiguous pairs is built). (c) A product that has only an added-value comparison still gets an internal-only recommendation: the richer product is deliberately not averaged against a base item. | Product owner | 🟡 Open |
+| 108 | **Apply migration `20261026000000_add_price_comparison_overrides`** (with #105). Until it is applied, the ladder works but an owner's corrections cannot be saved (the endpoint errors on the missing table). Rollback loses saved decisions. | Infra/DB | 🟠 Open |
+
 ## How to update this file
 
 - Resolving an item: change its Status cell (e.g. `🔴 Open` → `✅ Resolved 2026-08-10 — <one-line note, link to commit/PR if applicable>`). Don't delete the row.
