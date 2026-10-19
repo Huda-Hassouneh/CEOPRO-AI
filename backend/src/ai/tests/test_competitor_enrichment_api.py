@@ -214,14 +214,23 @@ def test_competitor_data_overview_is_one_bulk_read_for_the_callers_tenant():
 
 
 def test_deep_retry_is_passed_to_the_collector_and_the_queue():
+    # A standard synchronous retry still reaches the collector; a deep one is queued with its depth.
     with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
          patch(f"{R}.competitor_enrichment.enrich_competitor", return_value={}) as enrich, \
          patch(f"{R}.competitor_enrichment.load_data_completeness", return_value={}):
-        assert client.post(f"/competitors/{COMP}/enrich", json={"facets": ["PRICES"], "depth": "deep"},
-                           headers=_auth()).status_code == 200
-    assert enrich.call_args.kwargs["deep"] is True and enrich.call_args.kwargs["facets"] == ["PRICES"]
+        assert client.post(f"/competitors/{COMP}/enrich", json={"facets": ["PRICES"]}, headers=_auth()).status_code == 200
+    assert "deep" not in enrich.call_args.kwargs and enrich.call_args.kwargs["facets"] == ["PRICES"]
     with patch(f"{R}._enrichment_redis"), patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value="3-0") as enqueue:
         assert client.post(f"/competitors/{COMP}/enrich?background=true", json={"facets": ["PRICES"], "depth": "deep"},
                            headers=_auth()).status_code == 202
     assert enqueue.call_args.args[-1] == "deep"
     assert client.post(f"/competitors/{COMP}/enrich", json={"depth": "everything"}, headers=_auth()).status_code == 422
+
+
+def test_a_deep_read_is_always_queued_even_when_the_caller_did_not_ask_for_background():
+    with patch(f"{R}._enrichment_redis"), patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value="4-0") as enqueue, \
+         patch(f"{R}.competitor_enrichment.enrich_competitor") as direct:
+        response = client.post(f"/competitors/{COMP}/enrich", json={"facets": ["PRICES"], "depth": "deep"}, headers=_auth())
+    assert response.status_code == 202 and response.json()["queued"] is True
+    direct.assert_not_called()  # nothing ran inside the request
+    assert enqueue.call_args.args[-1] == "deep"

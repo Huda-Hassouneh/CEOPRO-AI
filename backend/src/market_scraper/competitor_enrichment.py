@@ -532,10 +532,14 @@ def _reviews_outcome(conn, tenant_id, competitor_id, competitor, api_key, contex
     deep_total, deep_new, deep_error = 0, 0, None
     if deep_token:
         try:
-            deep_new, deep_total = _store_deep_google_reviews(conn, tenant_id, competitor_id, place_id, source_id, deep_token)
+            with _billing_scope(tenant_id, "competitor_reviews"):
+                deep_new, deep_total = _store_deep_google_reviews(conn, tenant_id, competitor_id, place_id, source_id, deep_token)
         except mentions.SourceError as exc:
             conn.rollback()
             deep_error = exc
+        except credits.BudgetError as exc:  # the company's Data Credits (or the provider's price) do not allow the paid read
+            conn.rollback()
+            deep_error = mentions.SourceError(exc.reason, _refusal_text(exc))
     if new_reviews or deep_new:
         _request_sentiment_analysis(tenant_id)
 
@@ -832,6 +836,22 @@ def _prices_outcome(conn, tenant_id, competitor_id, competitor, deep):
     return STATUS_FAILED, NO_PRICES_PUBLISHED, "No prices were found on the website.", 0, None
 
 
+def _refusal_text(exc) -> str:
+    """The owner-facing sentence for a refused paid call (credits.BudgetError.message() is a method)."""
+    message = getattr(exc, "message", None)
+    text = message() if callable(message) else message
+    return str(text or type(exc).__name__)[:300]
+
+
+def _billing_scope(tenant_id, operation_type: str):
+    """A paid provider call needs a billing scope. The worker and discovery paths already have one; a synchronous
+    API retry does not (it only checked the budget up front), so open one for this tenant - or keep the outer scope."""
+    outer = credits.current()
+    if outer is not None and outer.tenant_id == str(tenant_id):
+        return contextlib.nullcontext()
+    return credits.metering(tenant_id, operation_type)
+
+
 def enrich_social_content(conn, tenant_id: str, competitor_id: str, competitor: dict, deep: bool = False) -> dict:
     """Prices, offers and menu pictures from the competitor's own Instagram / Facebook posts, through the licensed
     provider (social_content.py). Additive; every refusal is a specific reason, never silence."""
@@ -861,10 +881,7 @@ def _social_content_outcome(conn, tenant_id, competitor_id, competitor, deep):
     total_posts = stored = images_read = images_skipped = held_back = 0
     errors = []
     limit = social_content.POSTS_DEEP if deep else social_content.POSTS_STANDARD
-    outer = credits.current()
-    scope = contextlib.nullcontext() if outer is not None and outer.tenant_id == str(tenant_id) \
-        else credits.metering(tenant_id, "competitor_social_content")  # paid calls need a billing scope (a plain API retry has none)
-    with scope:
+    with _billing_scope(tenant_id, "competitor_social_content"):
         for platform, url in profiles.items():
             try:
                 posts = social_content.fetch_posts(url, platform, token, limit)
@@ -872,7 +889,7 @@ def _social_content_outcome(conn, tenant_id, competitor_id, competitor, deep):
                 errors.append((exc.code, exc.detail))
                 continue
             except Exception as exc:  # noqa: BLE001 - e.g. a Data Credits refusal: surface its message, never crash the retry
-                errors.append((getattr(exc, "reason", None) or PROVIDER_ERROR, str(getattr(exc, "message", None) or type(exc).__name__)[:200]))
+                errors.append((getattr(exc, "reason", None) or PROVIDER_ERROR, _refusal_text(exc)))
                 continue
             total_posts += len(posts)
             result = social_content.facts_from_posts(posts, platform, country, deep)
@@ -1158,22 +1175,24 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
             facets[FACET_PRICES] = _facet(STATUS_SUCCEEDED, items=prices, can_retry=True)
         elif not info["website"]:
             facets[FACET_PRICES] = _facet(STATUS_NOT_APPLICABLE, NO_WEBSITE, "No website to read prices from.")
+        # Every state below has a website, and "Read prices" reads it (page text, structured data, menu files) whatever the
+        # product-collection policy says, so it can always be tried - including a competitor nobody has read yet.
         elif ledger.get((cid, FACET_PRICES)) and not statuses:
             # A website read (including menu files) was attempted and said why it found nothing: that reason is
             # more specific than the generic "no product matched yet".
             status, code, detail, items, confidence, last_attempt = ledger[(cid, FACET_PRICES)]
             facets[FACET_PRICES] = _facet(status, code, detail, items, confidence, last_attempt, can_retry=True)
         elif not statuses:
-            facets[FACET_PRICES] = _facet(STATUS_BLOCKED, NO_PRODUCTS_MAPPED, "None of your products has been matched on this competitor's site yet.")
+            facets[FACET_PRICES] = _facet(STATUS_BLOCKED, NO_PRODUCTS_MAPPED, "None of your products has been matched on this competitor's site yet.", can_retry=True)
         elif "ALLOWED" in statuses:
-            facets[FACET_PRICES] = _facet(STATUS_FAILED, NO_DATA_COLLECTED, "Collection is approved but no price has been collected yet.")
+            facets[FACET_PRICES] = _facet(STATUS_FAILED, NO_DATA_COLLECTED, "Collection is approved but no price has been collected yet.", can_retry=True)
         elif "RESTRICTED" in statuses:
             facets[FACET_PRICES] = _facet(
-                STATUS_BLOCKED, TERMS_UNREVIEWED, "The site's terms have not been reviewed, so prices are not collected.",
+                STATUS_BLOCKED, TERMS_UNREVIEWED, "The site's terms have not been reviewed, so prices are not collected.", can_retry=True,
                 action=ACTION_REVIEW_SOURCE, action_source_ids=sorted(restricted_sources.get(cid, [])),
             )
         else:
-            facets[FACET_PRICES] = _facet(STATUS_BLOCKED, ROBOTS_DISALLOWED, "The site disallows automated collection.")
+            facets[FACET_PRICES] = _facet(STATUS_BLOCKED, ROBOTS_DISALLOWED, "The site disallows automated collection.", can_retry=True)
 
         # Social content: only meaningful once links exist; collection itself is a later phase.
         row = ledger.get((cid, FACET_SOCIAL_CONTENT))
