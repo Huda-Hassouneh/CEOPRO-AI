@@ -130,3 +130,16 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - `refresh_competitor` returns an extra `media` key (`found`, `read`, `skipped_no_ocr`, `ocr_available`).
 - `enrich._safe_get` takes optional `max_bytes` and `accept` (defaults unchanged).
 
+## - 2026-10-19 (second entry: V6-V9)
+### Added (additive)
+- **DB** - migration `20261023000000_add_competitor_intel_review.sql`: new table `competitor_intel_review` (owner decisions on website/menu/social prices, keyed by item name + price as read; RLS `get_current_tenant()`, FK to `tenant_competitors` ON DELETE CASCADE). No existing table or column changed.
+- **API** - `POST /discovery/competitors/{competitor_id}/intel/review` (owner/admin; plan feature COMPETITOR_MANAGEMENT): body `{intel_id, verdict: CONFIRMED|CORRECTED|REJECTED|CLEARED, corrected_price?, currency?, note?}`; 200 returns the decision and the refreshed intel; 403 other roles, 404 unknown fact, 422 invalid combination. Prices are re-matched to products afterwards.
+- **API** - every fact in `GET /discovery/competitors/{id}` / refresh `intel` (products, promotions, messages, social) now carries `intel_id`; reviewed products carry `verified`, `verdict`, and (corrected) `read_price`.
+- **API** - `POST /competitors/{id}/enrich` accepts `facets:["SOCIAL_CONTENT"]` (previously 422). `depth:"deep"` also reads more posts. SOCIAL_CONTENT reasons: `NO_SOCIAL_LINKS`, `COLLECTOR_NOT_ENABLED`, `NO_CREDENTIALS`, `PLATFORM_APPROVAL_MISSING`, `NO_POSTS`, `NO_PRICES_PUBLISHED`, plus provider/budget codes. SOCIAL_CONTENT is a paid provider call, so it is NOT part of a plain retry (no `facets`): only an explicit `facets:["SOCIAL_CONTENT"]` runs it, and even then it is refused (never sent) until the operator has set the token, the approval reference and a cost row.
+- **Data** - `competitor_intel.payload` for social-post facts: `channel` (`instagram` | `facebook`), `extracted_by` (`caption` | `ocr` | `vision`), `post_taken_at`; `source_url` is the post. Website facts have no `channel` (treated as `website`). A website re-read (`save_site_intel`) only replaces `channel`-less / `website` facts; `save_channel_facts` only replaces its own channel.
+- **Provider billing** - host `generativelanguage.googleapis.com` is classified as paid provider `gemini_vision` / operation `read_image` (refused until priced).
+- **Infra / env (all optional)** - `DISCOVERY_VISION_OCR` (off|fallback|always, default off), `DISCOVERY_VISION_MAX_FILES`, `DISCOVERY_VISION_MODEL`, `GEMINI_API_KEYS` (existing), `SOCIAL_CONTENT_APPROVAL_REFERENCE`, `SOCIAL_CONTENT_POSTS(_DEEP)`, `SOCIAL_CONTENT_IMAGES(_DEEP)`, `APIFY_INSTAGRAM_POSTS_ACTOR`, `APIFY_FACEBOOK_POSTS_ACTOR`.
+### Changed (behaviour)
+- Places candidate matching (`competitor_enrichment._find_place`, `spiders/google_places.py`) uses `name_matching.name_similarity`: Arabic / Latin / transliterated spellings of one business now clear the 0.82 bar. It is never lower than the previous plain ratio, so no match that passed before is lost; matches that previously failed across scripts may now pass.
+- Automatic price matching (`offerings.competitor_items`) ignores social-post facts until the owner has confirmed them.
+
