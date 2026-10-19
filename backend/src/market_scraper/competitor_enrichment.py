@@ -64,9 +64,10 @@ FACET_NEWS = "NEWS"
 FACET_COMMENTS = "COMMENTS"
 ALL_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT)
 # The facets this module can actually (re)collect today.
-ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS)
+ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES)
 # What the routine runs (after discovery, the sweep, "retry all failed") collect. COMMENTS searches YouTube
 # (100 quota units a search), so it only runs when asked for: the per-competitor Retry, or an explicit facet.
+# PRICES re-reads the whole website (and its menu files), which discovery already does on its own schedule.
 ROUTINE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS)
 
 STATUS_SUCCEEDED = "SUCCEEDED"
@@ -98,6 +99,10 @@ NOT_ATTEMPTED = "NOT_ATTEMPTED"
 NO_FEED = "NO_FEED"
 NO_NEWS = "NO_NEWS"
 NO_VIDEOS = "NO_VIDEOS"
+NO_PRICES_PUBLISHED = "NO_PRICES_PUBLISHED"
+JS_RENDERED = "JS_RENDERED"
+OCR_NOT_AVAILABLE = "OCR_NOT_AVAILABLE"
+NOT_OWN_SITE = "NOT_OWN_SITE"
 ACTION_REVIEW_SOURCE = "review_source"
 
 # Transient failures are retried automatically by a later sweep after this long.
@@ -759,6 +764,68 @@ def _comments_outcome(conn, tenant_id, competitor_id, competitor, actor_user_id)
     return STATUS_SUCCEEDED, None, None, len(comments), 0.7
 
 
+def enrich_prices(conn, tenant_id: str, competitor_id: str, competitor: dict, deep: bool = False) -> dict:
+    """Re-reads the competitor's website - page text, structured data and menu
+    PDFs / pictures (OCR) - and records the outcome with a specific reason.
+    deep=True is "load more": more pages, items and menu files. Additive: a
+    read that could not open the menu files keeps what an earlier read got
+    from them (competitor_intel.save_site_intel)."""
+    status, reason_code, detail, items, confidence = _prices_outcome(conn, tenant_id, competitor_id, competitor, deep)
+    _write_ledger(conn, tenant_id, competitor_id, FACET_PRICES, status, reason_code, detail, "own_website", items, confidence)
+    return {"status": status, "reason_code": reason_code, "reason_detail": detail, "items_found": items}
+
+
+# intel.collect statuses that are a site-side outcome, not a bug: (ledger status, reason, owner-facing text).
+_PRICE_READ_OUTCOMES = {
+    "blocked_by_robots": (STATUS_BLOCKED, ROBOTS_DISALLOWED, "The website does not allow automated reading."),
+    "unreachable": (STATUS_FAILED, SITE_UNREACHABLE, "The website could not be reached."),
+    "http_error": (STATUS_FAILED, SITE_UNREACHABLE, "The website answered with an error."),
+    "not_public": (STATUS_BLOCKED, SITE_UNREACHABLE, "The website address is not a public site."),
+    "needs_javascript": (STATUS_FAILED, JS_RENDERED, "The prices are drawn by JavaScript and no headless browser is available to read them."),
+    "no_relevant_page": (STATUS_FAILED, NO_PRICES_PUBLISHED, "No menu, price or product page was found on the website."),
+    "no_price_published": (STATUS_FAILED, NO_PRICES_PUBLISHED, "The website lists no prices."),
+    "not_own_site": (STATUS_BLOCKED, NOT_OWN_SITE, "The listed link is a directory or profile page, not the business's own website."),
+    "other_business_site": (STATUS_BLOCKED, NOT_OWN_SITE, "The listed website belongs to a different business."),
+    "extraction_failed": (STATUS_FAILED, PROVIDER_ERROR, "Reading the website failed unexpectedly."),
+}
+
+
+def _prices_outcome(conn, tenant_id, competitor_id, competitor, deep):
+    if not competitor["website_url"]:
+        return STATUS_NOT_APPLICABLE, NO_WEBSITE, "No website to read prices from.", 0, None
+    from functools import partial
+
+    from src.ai.market_inputs import competitor_intel
+    from src.market_scraper.market_discovery import intel
+
+    outcome = competitor_intel.refresh_competitor(conn, tenant_id, competitor_id, collect=partial(intel.collect, deep=deep))
+    media = outcome.get("media") or {}
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*), AVG(confidence), COUNT(*) FILTER (WHERE COALESCE((payload->>'source_media')::boolean, FALSE)) "
+            "FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = 'product' AND payload ? 'price';",
+            (tenant_id, competitor_id),
+        )
+        priced, average, from_menus = cursor.fetchone()
+    confidence = round(float(average), 3) if average is not None else None
+    notes = []
+    if from_menus:
+        notes.append(f"{from_menus} of them were read from menu files (PDF text or picture OCR) and are less certain than the page text.")
+    if media.get("skipped_no_ocr"):
+        notes.append(f"{media['skipped_no_ocr']} menu picture(s) were found but not read because the OCR engine is not installed on the server.")
+    if priced:
+        note = " ".join(notes) or None
+        return (STATUS_PARTIAL if media.get("skipped_no_ocr") else STATUS_SUCCEEDED), None, note, priced, confidence
+    known = _PRICE_READ_OUTCOMES.get(outcome.get("status"))
+    if media.get("skipped_no_ocr"):
+        return (STATUS_FAILED, OCR_NOT_AVAILABLE,
+                f"The menu is published as {media['skipped_no_ocr']} picture(s) but the OCR engine is not installed on the server.", 0, None)
+    if known:
+        status, code, text = known
+        return status, code, text, 0, None
+    return STATUS_FAILED, NO_PRICES_PUBLISHED, "No prices were found on the website.", 0, None
+
+
 def _recent_attempt_wait(conn, tenant_id: str, competitor_id: str, facet: str) -> int:
     with conn.cursor() as cursor:
         cursor.execute(
@@ -776,7 +843,7 @@ def _recent_attempt_wait(conn, tenant_id: str, competitor_id: str, facet: str) -
 @credits.metered("competitor_enrichment")
 def enrich_competitor(
     conn, tenant_id: str, competitor_id: str, facets=None, places_api_key: Optional[str] = None,
-    throttle: bool = False, actor_user_id: Optional[str] = None,
+    throttle: bool = False, actor_user_id: Optional[str] = None, deep: bool = False,
 ) -> dict:
     """Runs the requested facets (default: all enrichable ones) for one
     competitor and returns {facet: outcome}. Never raises for a provider or
@@ -785,7 +852,8 @@ def enrich_competitor(
     profile changed, so a better profile can raise its confidence.
 
     throttle=True (manual retries) refuses to re-run a facet attempted within
-    MIN_SECONDS_BETWEEN_ATTEMPTS and reports THROTTLED for it instead."""
+    MIN_SECONDS_BETWEEN_ATTEMPTS and reports THROTTLED for it instead.
+    deep=True ("load more") makes PRICES read more pages, items and menu files."""
     requested = tuple(facets) if facets else ENRICHABLE_FACETS
     unsupported = [facet for facet in requested if facet not in ENRICHABLE_FACETS]
     if unsupported:
@@ -816,6 +884,8 @@ def enrich_competitor(
                 results[facet] = enrich_news(conn, tenant_id, competitor_id, competitor)
             elif facet == FACET_COMMENTS:
                 results[facet] = enrich_comments(conn, tenant_id, competitor_id, competitor, actor_user_id)
+            elif facet == FACET_PRICES:
+                results[facet] = enrich_prices(conn, tenant_id, competitor_id, competitor, deep)
             else:
                 results[facet] = enrich_social_links(conn, tenant_id, competitor_id, competitor)
         except Exception as exc:  # noqa: BLE001 - one facet failing must not stop the rest
@@ -990,6 +1060,8 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
         facets = {}
         for facet in ENRICHABLE_FACETS:
             row = ledger.get((cid, facet))
+            if facet == FACET_PRICES:
+                continue  # derived below, from matched prices, the source policy and (when present) this ledger row
             if facet == FACET_REVIEWS and review_counts.get(cid, 0):
                 # Reviews exist (from Places or any other collector): the data wins over a stale ledger status.
                 last = row[5] if row else None
@@ -1009,9 +1081,14 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
         prices = price_counts.get(cid, 0)
         statuses = policies.get(cid, set())
         if prices:
-            facets[FACET_PRICES] = _facet(STATUS_SUCCEEDED, items=prices)
+            facets[FACET_PRICES] = _facet(STATUS_SUCCEEDED, items=prices, can_retry=True)
         elif not info["website"]:
             facets[FACET_PRICES] = _facet(STATUS_NOT_APPLICABLE, NO_WEBSITE, "No website to read prices from.")
+        elif ledger.get((cid, FACET_PRICES)) and not statuses:
+            # A website read (including menu files) was attempted and said why it found nothing: that reason is
+            # more specific than the generic "no product matched yet".
+            status, code, detail, items, confidence, last_attempt = ledger[(cid, FACET_PRICES)]
+            facets[FACET_PRICES] = _facet(status, code, detail, items, confidence, last_attempt, can_retry=True)
         elif not statuses:
             facets[FACET_PRICES] = _facet(STATUS_BLOCKED, NO_PRODUCTS_MAPPED, "None of your products has been matched on this competitor's site yet.")
         elif "ALLOWED" in statuses:

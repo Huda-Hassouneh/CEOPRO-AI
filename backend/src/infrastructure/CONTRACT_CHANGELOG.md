@@ -117,3 +117,16 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - **API** — `POST /pricing/recommend-all`: a decision for every active product; one failure does not stop the batch.
 - Env: `PRICING_DEFAULT_REGIONAL_FACTOR` (default `1.0`, used only when no product has prices in both markets to learn the factor from); `SEARXNG_SECRET` (passed to the SearXNG container from `backend/.env`).
 - Frontend: the price recommendation modal states what an estimate is based on (`pricing.modal.estimate.*`, en/ar).
+
+## - 2026-10-19
+### Added (additive; no database migration)
+- **API** - `POST /competitors/{id}/enrich` accepts `facets: ["PRICES"]` (previously rejected with 422) and an optional `depth` (`"standard"` default, `"deep"` = "load more": more pages, items and menu files). `depth` is also honoured with `background=true`. An invalid `depth` is 422. Omitting both keeps the previous behaviour for every other facet; the default (no `facets`) now includes PRICES, which re-reads the competitor's website.
+- **API** - `GET /competitors/{id}/data-status` and `data_completeness` on the competitor lists: the PRICES facet now reports the specific reason from the last website read (`NO_PRICES_PUBLISHED`, `JS_RENDERED`, `OCR_NOT_AVAILABLE`, `NOT_OWN_SITE`, plus the existing `ROBOTS_DISALLOWED` / `SITE_UNREACHABLE`) when no price has been matched to a product yet, and `can_retry: true` on it. New reason codes are additive strings (the column is `VARCHAR(40)`, no CHECK).
+- **Data** - `competitor_intel.payload` (JSONB) for `kind = 'product'` facts read from menu PDFs / pictures carries `extracted_by` (`pdf_text` | `ocr`) and `source_media: true`; a price confirmed by two places carries `also_seen_in` (list of URLs); a price that disagrees with the page text carries `conflicts_with_price`. `source_url` is the menu file. `confidence`: PDF text 0.7, OCR 0.5 (0.4 without a currency symbol); +0.05 when corroborated.
+- **Event** - stream `market.enrichment.requested` messages may carry `depth: "deep"`; absent means standard (older producers/consumers unaffected).
+- **Infra** - `Dockerfile.ai` installs `tesseract-ocr` (+ `ara`, `eng` data); `pytesseract` added to `src/ai/requirements.txt`. New optional env: `DISCOVERY_OCR_LANGS`, `DISCOVERY_MENU_MEDIA_MAX_FILES`, `DISCOVERY_MENU_MEDIA_MAX_BYTES`, `DISCOVERY_MENU_MEDIA_MAX_PDF_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_ITEMS`, `DISCOVERY_INTEL_DEEP_MAX_MEDIA`.
+### Changed (behaviour)
+- `competitor_intel.save_site_intel`: a re-read that found menu files but could not read any (OCR missing, fetch failed) no longer deletes the menu-derived facts from an earlier read ("a retry only adds").
+- `refresh_competitor` returns an extra `media` key (`found`, `read`, `skipped_no_ocr`, `ocr_available`).
+- `enrich._safe_get` takes optional `max_bytes` and `accept` (defaults unchanged).
+

@@ -47,8 +47,15 @@ def save_site_intel(conn, tenant_id: str, competitor_id: str, result: dict) -> s
             cursor.execute("UPDATE competitor_product_mappings SET is_active = FALSE WHERE tenant_id = %s AND global_competitor_id = %s;",
                            (tenant_id, competitor_id))
         if result["pages_read"]:
-            cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s);",
-                           (tenant_id, competitor_id, list(WEBSITE_KINDS)))
+            # A re-read that found menu files but could not read any (no OCR engine, fetch failed) must not erase
+            # what an earlier read got out of them: keep the menu-derived facts, replace the rest.
+            media = result.get("media") or {}
+            keep_media = media.get("found", 0) > 0 and media.get("read", 0) == 0
+            cursor.execute(
+                "DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND kind = ANY(%s)"
+                + (" AND NOT COALESCE((payload->>'source_media')::boolean, FALSE)" if keep_media else "") + ";",
+                (tenant_id, competitor_id, list(WEBSITE_KINDS)),
+            )
             for fact in result["facts"]:
                 payload = {k: v for k, v in fact.items() if k not in ("kind", "source_url", "retrieved_at", "confidence")}
                 cursor.execute(
@@ -91,7 +98,8 @@ def refresh_competitor(conn, tenant_id: str, competitor_id: str, collect=intel.c
         from src.market_scraper.market_discovery import pipeline
 
         matched = pipeline._match_prices(conn, tenant_id, [competitor_id])["prices_matched"]  # noqa: SLF001
-    return {"status": status, "pages_read": len(result["pages_read"]), "facts": len(result["facts"]), "prices_matched": matched}
+    return {"status": status, "pages_read": len(result["pages_read"]), "facts": len(result["facts"]), "prices_matched": matched,
+            "media": result.get("media")}
 
 
 @credits.metered("competitor_intel")

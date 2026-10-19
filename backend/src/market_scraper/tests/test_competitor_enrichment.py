@@ -163,7 +163,7 @@ def test_a_social_profile_competitor_is_its_own_link():
 
 def test_unsupported_facets_are_rejected_up_front():
     with pytest.raises(ValueError):
-        ce.enrich_competitor(MagicMock(), TENANT, COMP, facets=[ce.FACET_PRICES])
+        ce.enrich_competitor(MagicMock(), TENANT, COMP, facets=[ce.FACET_SOCIAL_CONTENT])
 
 
 def test_unknown_competitor_raises():
@@ -188,6 +188,7 @@ def test_one_facet_crashing_is_recorded_and_the_other_still_runs():
          patch.object(ce, "enrich_reviews", return_value={"status": ce.STATUS_SUCCEEDED}), \
          patch.object(ce, "enrich_news", return_value={"status": ce.STATUS_SUCCEEDED}), \
          patch.object(ce, "enrich_comments", return_value={"status": ce.STATUS_SUCCEEDED}), \
+         patch.object(ce, "enrich_prices", return_value={"status": ce.STATUS_SUCCEEDED}), \
          patch.object(ce, "_write_ledger") as ledger:
         results = ce.enrich_competitor(MagicMock(), TENANT, COMP, places_api_key="k")
     assert results[ce.FACET_PROFILE]["reason_code"] == ce.PROVIDER_ERROR
@@ -217,3 +218,61 @@ def test_completeness_score_weights_partial_half():
 def test_the_routine_facets_leave_out_the_youtube_search_that_costs_quota():
     assert ce.FACET_COMMENTS in ce.ENRICHABLE_FACETS and ce.FACET_COMMENTS not in ce.ROUTINE_FACETS
     assert {ce.FACET_PROFILE, ce.FACET_SOCIAL_LINKS, ce.FACET_REVIEWS, ce.FACET_NEWS} == set(ce.ROUTINE_FACETS)
+
+
+# ---- PRICES: website + menu files -----------------------------------------------------------
+
+def _prices_conn(priced, average=0.6, from_menus=0):
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (priced, average, from_menus)
+    return conn
+
+
+def _prices(conn, outcome, website="https://cafe.jo", deep=False):
+    competitor = {**_competitor(), "website_url": website}
+    with patch("src.ai.market_inputs.competitor_intel.refresh_competitor", return_value=outcome) as refresh, \
+         patch.object(ce, "_write_ledger") as ledger:
+        result = ce.enrich_prices(conn, TENANT, COMP, competitor, deep)
+    return result, ledger, refresh
+
+
+def test_prices_without_a_website_is_not_applicable_and_reads_nothing():
+    result, _ledger, refresh = _prices(MagicMock(), {}, website=None)
+    assert (result["status"], result["reason_code"]) == (ce.STATUS_NOT_APPLICABLE, ce.NO_WEBSITE)
+    refresh.assert_not_called()
+
+
+def test_prices_found_are_a_success_and_menu_origin_is_disclosed():
+    result, ledger, _ = _prices(_prices_conn(9, 0.55, from_menus=4), {"status": "prices_found", "media": {"found": 2, "read": 2}})
+    assert result["status"] == ce.STATUS_SUCCEEDED and result["items_found"] == 9
+    assert "4 of them were read from menu files" in result["reason_detail"]
+    assert ledger.call_args.args[3] == ce.FACET_PRICES
+
+
+def test_menu_pictures_without_an_ocr_engine_say_so_instead_of_no_prices():
+    result, _l, _r = _prices(_prices_conn(0, None), {"status": "no_price_published", "media": {"found": 3, "read": 0, "skipped_no_ocr": 3}})
+    assert (result["status"], result["reason_code"]) == (ce.STATUS_FAILED, ce.OCR_NOT_AVAILABLE)
+    assert "3 picture(s)" in result["reason_detail"]
+
+
+def test_some_prices_with_some_unreadable_pictures_is_partial_not_success():
+    result, _l, _r = _prices(_prices_conn(5), {"status": "prices_found", "media": {"found": 3, "read": 1, "skipped_no_ocr": 2}})
+    assert result["status"] == ce.STATUS_PARTIAL and "not installed" in result["reason_detail"]
+
+
+def test_site_side_outcomes_get_specific_reasons():
+    for status, expected in (("blocked_by_robots", ce.ROBOTS_DISALLOWED), ("needs_javascript", ce.JS_RENDERED),
+                             ("unreachable", ce.SITE_UNREACHABLE), ("no_price_published", ce.NO_PRICES_PUBLISHED),
+                             ("not_own_site", ce.NOT_OWN_SITE)):
+        result, _l, _r = _prices(_prices_conn(0, None), {"status": status, "media": {}})
+        assert result["reason_code"] == expected, status
+
+
+def test_deep_reads_are_requested_through_the_collector():
+    _result, _l, refresh = _prices(_prices_conn(1), {"status": "prices_found", "media": {}}, deep=True)
+    collect = refresh.call_args.kwargs["collect"]
+    assert collect.keywords == {"deep": True}
+
+
+def test_prices_is_retryable_but_not_part_of_the_routine_sweep():
+    assert ce.FACET_PRICES in ce.ENRICHABLE_FACETS and ce.FACET_PRICES not in ce.ROUTINE_FACETS
