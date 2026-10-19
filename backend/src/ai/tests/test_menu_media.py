@@ -4,6 +4,8 @@ with how they were read, and merged with - never overwriting - page facts.
 OCR is injected, so these tests need no tesseract."""
 import io
 
+import pytest
+
 from src.market_scraper.market_discovery import intel, menu_media
 
 HOME = """<html><body><a href="/menu">Menu</a><a href="/files/price-list.pdf">Price list</a>
@@ -234,3 +236,41 @@ def test_menu_file_reading_stops_at_the_time_budget(monkeypatch):
              "https://cafe.jo/files/price-list.pdf": (_pdf(["Grilled chicken 6.50 JD"]), "application/pdf")}
     result = _collect(files, ocr=lambda image: "Mansaf 8.50 JD")
     assert result["media"]["found"] >= 2 and result["media"]["read"] == 0 and result["media"]["stopped_on_time_budget"] is True
+
+
+# ---- what a real tesseract run showed (container check, tesseract 5.5) ---------------------------------
+
+def test_arabic_returned_in_visual_order_is_put_back_in_logical_order():
+    pytest.importorskip("bidi")
+    visual = "رانيد 8.50 فسنم\nرانيد 2.75 جاجد امرواش"  # what tesseract returned for "منسف 8.50 دينار" / "شاورما دجاج 2.75 دينار"
+    assert menu_media.clean_ocr_lines(visual) == ["منسف 8.50 دينار", "شاورما دجاج 2.75 دينار"]
+    already = "منسف 8.50 دينار\nشاورما دجاج 2.75 دينار"  # logical order (another build): untouched
+    assert menu_media.clean_ocr_lines(already) == already.splitlines()
+    assert menu_media.clean_ocr_lines("فسنم 8.50") == ["فسنم 8.50"]  # no currency word: cannot tell, left alone
+
+
+def test_stray_arabic_letters_next_to_latin_text_and_direction_marks_are_dropped():
+    assert menu_media.clean_ocr_lines("Mansaf 8.50 \u200fمال\u200e") == ["Mansaf 8.50"]
+    assert menu_media.clean_ocr_lines("منسف بالجميد 8.50 دينار") == ["منسف بالجميد 8.50 دينار"]  # real Arabic is kept
+
+
+def test_two_ocr_passes_are_merged_by_amount():
+    arabic_english = "Mansaf 8.50 مال\nFalafel sandwich 1.25 JD"
+    english = "Mansaf 8.50 JD\nFalafel sandwich 1.25 JD\nTea 0.75 JD"
+    merged = menu_media.merge_passes([arabic_english, english]).splitlines()
+    assert len(merged) == 3 and "Tea 0.75 JD" in merged
+    assert menu_media.merge_passes(["", "  "]) == "" and menu_media.merge_passes(["Tea 1 JD"]) == "Tea 1 JD"
+    # The pass with more priced lines leads; a line is added only when its amount is new.
+    assert menu_media.merge_passes(["x", "Tea 1 JD\nCake 2 JD"]).splitlines()[0] == "Tea 1 JD"
+
+
+def test_a_line_that_lost_its_currency_in_one_pass_is_taken_from_the_other():
+    assert menu_media.merge_passes(["Mansaf 8.50\nTea 0.75 JD", "Mansaf 8.50 JD\nTea 0.75 JD"]).splitlines() == ["Mansaf 8.50 JD", "Tea 0.75 JD"]
+
+
+def test_a_currency_word_misread_by_one_letter_next_to_an_amount_is_restored():
+    assert menu_media.fix_currency_words("شاورما دجاج 2.75 ديذار") == "شاورما دجاج 2.75 دينار"
+    assert menu_media.fix_currency_words("شاورما دجاج 2.75 دينار") == "شاورما دجاج 2.75 دينار"
+    # An ordinary word that is not beside an amount, or not close to a currency word, is never touched.
+    assert menu_media.fix_currency_words("ديذار الشام 2.75") == "ديذار الشام 2.75"
+    assert menu_media.fix_currency_words("خبز طازج 2.75") == "خبز طازج 2.75"

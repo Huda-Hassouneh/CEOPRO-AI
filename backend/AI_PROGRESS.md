@@ -1795,6 +1795,23 @@ Completes V6-V9 of `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 8 on `feat/com
 - **Not verified**: Apify actor field names, Gemini output quality, real tesseract on real menu photos, tuning of the
   name matcher on a labelled real sample - see `PENDING_ACTIONS.md` #85-#93.
 
+## 2026-10-19 (final) - Pre-push verification of competitor details v2
+
+- **Real tesseract run** (containers: python:3.11-slim / tesseract 5.5.0 and ubuntu:24.04 / 5.3.4 - the Playwright worker
+  base): English menu 5/5 priced items, scanned PDF read through OCR, Arabic 2-3 of 4 lines. It exposed four defects that
+  the injected-OCR unit tests could not, all fixed in `menu_media.py`: (1) Arabic text returned in visual order
+  (`fix_visual_order`, decided from reversed currency words, python-bidi); (2) the Arabic+English pass reading `JD` as
+  Arabic letters (second English-only pass, `merge_passes` by amount; stray Arabic letters beside Latin text dropped);
+  (3) an Arabic currency word misread by one letter (`fix_currency_words`); (4) a line losing its currency in the merge.
+  `test_menu_media_real_ocr.py` repeats the check wherever tesseract is installed and is skipped elsewhere (CI).
+- **Other checks**: `validate_application_knowledge.py` OK; `pip-audit` on pytesseract / Pillow / pdfplumber clean;
+  `docker compose config` and `render.yaml` parse; tesseract + Arabic data install on ubuntu 24.04; pyflakes clean on all
+  changed Python; competitor / discovery / enrichment / intel suites 1,052 passed against a fresh Postgres (3 unrelated
+  failures, pending #100).
+- **Found while merging `origin/main`**: a root `.env` with live-looking secrets was committed by the merge
+  (pending #102); this branch stops tracking it.
+- **Still unverified**: Apify actors, Gemini vision, real menu photos, the frontend, full Docker image builds, the CI run.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
