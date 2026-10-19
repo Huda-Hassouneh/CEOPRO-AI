@@ -18,8 +18,9 @@ jobs:
           python-version: '3.11'
 
       - name: Build and Extract OpenAPI Schema
+        working-directory: backend
         run: |
-          pip install -r requirements.txt
+          pip install -r src/ai/requirements.txt
           python src/infrastructure/openapi_extractor.py
         env:
           # CI-only placeholders for OpenAPI extraction (no live DB is touched

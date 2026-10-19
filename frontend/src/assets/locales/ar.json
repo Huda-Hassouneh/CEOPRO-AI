@@ -1,0 +1,3521 @@
+{
+  "common": {
+    "noData": "لا توجد بيانات متاحة بعد.",
+    "dataTable": "جدول بيانات",
+    "brand": "KEEL",
+    "loading": "جارٍ التحميل...",
+    "languageSwitch": "تغيير اللغة",
+    "englishShort": "EN",
+    "arabicShort": "ع",
+    "arabic": "العربية",
+    "close": "إغلاق",
+    "notAvailable": "غير متوفر",
+    "cancel": "إلغاء",
+    "scrollableTable": "جدول (قابل للتمرير أفقيًا)"
+  },
+  "businessShell": {
+    "navigation": {
+      "label": "تنقل الأعمال",
+      "primary": "التنقل الرئيسي",
+      "secondary": "تنقل الحساب",
+      "dashboard": "لوحة التحكم",
+      "products": "المنتجات",
+      "pricing": "التسعير",
+      "market": "المنافسون",
+      "forecasts": "الطلب",
+      "rag": "المساعد",
+      "connectData": "البيانات والمستندات",
+      "marketing": "التسويق",
+      "reports": "التقارير",
+      "settings": "الإعدادات",
+      "billing": "الفوترة",
+      "logout": "تسجيل الخروج",
+      "groups": {
+        "overview": "نظرة عامة",
+        "business": "الأعمال",
+        "market": "السوق",
+        "intelligence": "الذكاء"
+      }
+    },
+    "search": {
+      "label": "البحث العام",
+      "placeholder": "ابحث عن المنتجات والمنافسين...",
+      "products": "المنتجات",
+      "competitors": "المنافسون",
+      "noResults": "لا توجد نتائج",
+      "failed": "البحث غير متاح حالياً",
+      "open": "البحث في KEEL",
+      "pages": "الصفحات",
+      "hint": "ابحث في منتجاتك ومنافسيك وصفحات KEEL."
+    },
+    "profile": {
+      "label": "ملف الحساب"
+    },
+    "mobile": {
+      "openMenu": "فتح التنقل",
+      "closeMenu": "إغلاق التنقل"
+    },
+    "theme": {
+      "switchToDark": "التبديل إلى الوضع الداكن",
+      "switchToLight": "التبديل إلى الوضع الفاتح"
+    }
+  },
+  "dataStatus": {
+    "verified": {
+      "label": "موثّق",
+      "description": "يعتمد على بيانات أعمال متصلة أو مرفوعة."
+    },
+    "derived": {
+      "label": "مُشتق",
+      "description": "محسوب من بيانات الأعمال المتاحة."
+    },
+    "estimated": {
+      "label": "تقديري",
+      "description": "تم تقديره باستخدام البيانات المتاحة أو نماذج الذكاء الاصطناعي."
+    }
+  },
+  "products": {
+    "page": {
+      "title": "المنتجات"
+    },
+    "list": {
+      "addProduct": "إضافة منتج",
+      "searchPlaceholder": "البحث بالاسم أو العلامة التجارية أو الفئة",
+      "columns": {
+        "name": "المنتج",
+        "price": "السعر",
+        "stock": "المخزون",
+        "actions": "الإجراءات"
+      },
+      "emptyTitle": "لا توجد منتجات بعد",
+      "emptyDescription": "أضف منتجك الأول لبدء متابعة المخزون والمبيعات.",
+      "noResultsTitle": "لا توجد نتائج مطابقة",
+      "noResultsDescription": "جرّب كلمة بحث مختلفة.",
+      "loadError": "تعذر تحميل المنتجات",
+      "retry": "إعادة المحاولة",
+      "deleted": "تم حذف {{name}}",
+      "deleteFailed": "تعذر حذف هذا المنتج",
+      "added": "تمت إضافة المنتج"
+    },
+    "common": {
+      "notAvailable": "غير متاح",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "saving": "جارٍ الحفظ...",
+      "cancel": "إلغاء"
+    },
+    "form": {
+      "name": "اسم المنتج",
+      "brand": "العلامة التجارية",
+      "category": "الفئة",
+      "currency": "العملة",
+      "currencyHint": "رمز من 3 أحرف، مثل JOD أو USD",
+      "currentPrice": "السعر الحالي",
+      "costPrice": "سعر التكلفة",
+      "costPriceHint": "اختياري - يُستخدم لحساب هامش الربح",
+      "initialStock": "كمية المخزون الأولية",
+      "initialStockHint": "اتركه فارغاً إذا كنت لا تتابع مخزون هذا المنتج (مثل الخدمات)",
+      "create": "إنشاء المنتج",
+      "save": "حفظ التغييرات",
+      "errors": {
+        "nameRequired": "اسم المنتج مطلوب",
+        "priceInvalid": "أدخل سعرًا صحيحًا وغير سالب",
+        "currencyInvalid": "أدخل رمز عملة صحيحًا من 3 أحرف"
+      },
+      "notFound": "المنتج غير موجود",
+      "back": "العودة إلى المنتجات",
+      "editTitle": "تعديل المنتج",
+      "createTitle": "إضافة منتج",
+      "saveError": "تعذر حفظ هذا المنتج"
+    },
+    "quickSale": {
+      "title": "تسجيل بيع سريع",
+      "quantity": "الكمية",
+      "unitPrice": "سعر الوحدة (اختياري)",
+      "unitPriceHint": "اتركه فارغًا لاستخدام السعر الحالي للمنتج",
+      "record": "تسجيل البيع",
+      "recorded": "تم تسجيل البيع ({{invoice}})",
+      "failed": "تعذر تسجيل هذا البيع"
+    },
+    "deleteConfirm": {
+      "title": "حذف المنتج",
+      "message": "هل تريد حذف {{name}}؟ لا يمكن التراجع عن هذا من هنا.",
+      "confirm": "حذف"
+    }
+  },
+  "sales": {
+    "record": {
+      "productPlaceholder": "ابحث عن المنتجات بالاسم...",
+      "insufficientStock": "لا يوجد مخزون كافٍ لهذه الكمية."
+    }
+  },
+  "pricing": {
+    "page": {
+      "title": "التسعير والهوامش",
+      "subtitle": "قارن أسعارك وتكاليفك ببيانات السوق الفعلية، منتجاً بمنتج."
+    },
+    "list": {
+      "searchPlaceholder": "ابحث بالاسم أو العلامة التجارية",
+      "getRecommendation": "احصل على توصية",
+      "loadError": "تعذر تحميل المنتجات",
+      "retry": "إعادة المحاولة",
+      "emptyTitle": "لا توجد منتجات بعد",
+      "emptyDescription": "أضف منتجاً للبدء بمقارنة سعره وتكلفته.",
+      "noResultsTitle": "لا توجد منتجات مطابقة",
+      "noResultsDescription": "جرّب كلمة بحث مختلفة."
+    },
+    "table": {
+      "product": "المنتج",
+      "currentPrice": "السعر الحالي",
+      "cost": "التكلفة",
+      "markup": "الهامش فوق التكلفة",
+      "actions": "الإجراءات"
+    },
+    "modal": {
+      "title": "توصية السعر — {{name}}",
+      "errorTitle": "تعذر الحصول على توصية",
+      "errorDescription": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      "retry": "إعادة المحاولة",
+      "unknownTitle": "لا توجد بيانات سوق كافية بعد",
+      "unknownDescription": "لم تُسجَّل أسعار منافسين لهذا المنتج خلال آخر {{period}}. سجّل سعر منافس ضمن المنافسين للحصول على توصية.",
+      "basis": "مقارنة مع {{count}} من أسعار المنافسين المسجلة خلال آخر {{period}}.",
+      "estimate": {
+        "MARKET_REFERENCE": "تقدير مبني على أسعار مرجعية من السوق لهذا المنتج؛ لا يوجد بعد سعر منافس متتبَّع له.",
+        "REGIONAL_ESTIMATE": "تقدير مبني على أسعار من خارج منطقتك، محوّلة إلى عملتك ومعدَّلة بما يناسب سوقك المحلي.",
+        "PEER_ESTIMATE": "تقدير مبني على تكلفة هذا المنتج وعلى تسعير المنتجات المشابهة في سوقك.",
+        "INTERNAL_ONLY": "لا تتوفر أسعار سوق لهذا المنتج بعد، لذا يعتمد هذا القرار على تكلفتك وهامش ربحك فقط."
+      },
+      "matchedCompetitors": "المنافسون المطابقون",
+      "confidence": "الثقة",
+      "guardrailApplied": "تم تعديل هذه التوصية بواسطة ضابط حماية للسعر للحفاظ على هامشك أو للحد من مقدار تغيّر السعر دفعة واحدة."
+    },
+    "actions": {
+      "raise": "رفع السعر",
+      "lower": "خفض السعر",
+      "hold": "الإبقاء على السعر"
+    },
+    "reason": {
+      "market": {
+        "lower": "سعرك {{price}} أعلى بأكثر من 5% من متوسط أسعار {{count}} من المنافسين، وهو {{average}} (من {{min}} إلى {{max}}).",
+        "raise": "سعرك {{price}} أقل بأكثر من 5% من متوسط أسعار {{count}} من المنافسين، وهو {{average}} (من {{min}} إلى {{max}}).",
+        "hold": "سعرك {{price}} ضمن 5% من متوسط أسعار {{count}} من المنافسين، وهو {{average}} (من {{min}} إلى {{max}})."
+      },
+      "hold": {
+        "stock_short": "يشير السوق إلى خفض السعر، لكن مخزونك ({{stock}}) يغطي نحو {{days}} يومًا فقط من {{forecast}} وحدة متوقعة خلال الثلاثين يومًا القادمة. خفض السعر سينفد المخزون أسرع ويضيّع هامشًا على وحدات ستُباع على أي حال — أعد التخزين أولًا.",
+        "demand_rising": "يشير السوق إلى خفض السعر، لكن المبيعات ارتفعت {{pct}}% عن الثلاثين يومًا السابقة بسعرك الحالي ({{recent}} مقابل {{previous}} وحدة). الطلب لا يحتاج إلى خفض السعر.",
+        "demand_falling": "يسمح السوق بسعر أعلى، لكن المبيعات انخفضت {{pct}}% عن الثلاثين يومًا السابقة ({{recent}} مقابل {{previous}} وحدة). رفع السعر الآن قد يخسرك مزيدًا من المبيعات."
+      }
+    }
+  },
+  "marketScoped": {
+    "common": {
+      "actions": "الإجراءات",
+      "viewDetails": "عرض التفاصيل"
+    },
+    "leaderboard": {
+      "sort": "ترتيب حسب",
+      "search": "ابحث عن المنافسين...",
+      "competitor": "المنافس",
+      "priceScore": "نتيجة السعر",
+      "activityScore": "نشاط السوق",
+      "compositeScore": "النتيجة المركبة"
+    }
+  },
+  "marketMain": {
+    "actions": {
+      "retry": "حاول مرة أخرى"
+    },
+    "overviewCards": {
+      "priceTrend": "اتجاه السعر",
+      "directionUp": "صاعد",
+      "directionDown": "هابط",
+      "directionStable": "مستقر",
+      "increases": "ارتفاعات",
+      "decreases": "انخفاضات",
+      "sentiment": "معنويات السوق",
+      "sentimentBullish": "متفائل",
+      "sentimentNeutral": "محايد",
+      "sentimentBearish": "متشائم",
+      "positive": "إيجابي",
+      "competitorsTracked": "منافسين لديهم بيانات معنويات",
+      "categoryActivity": "نشاط الفئات",
+      "notEnoughData": "لا توجد بيانات كافية بعد",
+      "categoryColumn": "الفئة",
+      "levelColumn": "مستوى النشاط",
+      "categoryTableTitle": "تفصيل نشاط الفئات",
+      "categoryTableSubtitle": "أعلى مستوى نشاط منافسين تم رصده لكل فئة منتجات.",
+      "categoryEmptyTitle": "لا يوجد نشاط فئات بعد",
+      "categoryEmptyDescription": "سيظهر نشاط الفئات عند مطابقة المنافسين بفئات منتجاتك."
+    }
+  },
+  "market": {
+    "traits": {
+      "PRICE_COMPETITIVE": "أسعاره تنافسية مقارنة بالسوق",
+      "PRICE_UNCOMPETITIVE": "أسعاره أقل تنافسية من السوق",
+      "SENTIMENT_POSITIVE": "آراء العملاء إيجابية",
+      "SENTIMENT_NEGATIVE": "آراء العملاء سلبية"
+    },
+    "recordPrice": {
+      "title": "تسجيل سعر منافس",
+      "subtitle": "رأيت سعرهم في المتجر أو في نشرة أو على الإنترنت؟ سجّله هنا - يُستخدم في مقارنة الأسعار وتوصيات التسعير.",
+      "chooseProduct": "اختر أحد منتجاتك",
+      "product": "منتجك",
+      "price": "سعرهم",
+      "observedOn": "تاريخ المشاهدة",
+      "observedOnHint": "اتركه فارغاً لتاريخ اليوم",
+      "url": "الرابط (اختياري)",
+      "save": "حفظ السعر",
+      "saving": "جارٍ الحفظ...",
+      "saved": "تم حفظ سعر المنافس.",
+      "failed": "تعذر حفظ السعر. يرجى المحاولة مرة أخرى.",
+      "notFound": "هذا المنافس أو المنتج لم يعد متاحاً.",
+      "noProducts": "أضف منتجاتك أولاً لمقارنة أسعارها."
+    },
+    "reference": {
+      "backToCompetitor": "العودة إلى المنافس",
+      "trackProduct": "تتبع المنتج",
+      "demandSignal": "إشارة الطلب",
+      "currentPrice": "السعر الحالي",
+      "customerSentiment": "انطباع العملاء",
+      "demandTrend": "اتجاه الطلب",
+      "keyInsights": "الرؤى الرئيسية",
+      "packageDetails": "تفاصيل الباقة",
+      "downloadSpeed": "سرعة التنزيل",
+      "uploadSpeed": "سرعة الرفع",
+      "contractPeriod": "مدة العقد",
+      "availability": "التوفر",
+      "relatedProducts": "منتجات ذات صلة",
+      "allProducts": "عرض كل المنتجات",
+      "opportunitiesSubtitle": "فرص منتجات حددها الذكاء الاصطناعي بناءً على تحليل السوق.",
+      "exportReport": "تصدير التقرير",
+      "totalOpportunities": "إجمالي الفرص",
+      "estimatedMarketSize": "حجم السوق المقدر",
+      "averageDemandGrowth": "متوسط نمو الطلب",
+      "topOpportunities": "أهم الفرص",
+      "allOpportunities": "كل الفرص",
+      "marketTrends": "اتجاهات السوق الداعمة للفرص",
+      "opportunityType": "نوع الفرصة",
+      "timePeriod": "الفترة الزمنية",
+      "next12Months": "الأشهر الـ12 القادمة",
+      "competition": "المنافسة",
+      "opportunityDetails": "تفاصيل الفرصة",
+      "opportunityDetailsSubtitle": "استكشف الرؤى وراء هذه الفرصة وكيفية الاستفادة منها.",
+      "competitionLevel": "مستوى المنافسة",
+      "competitorActivity": "نشاط المنافسين",
+      "recommendedActions": "الإجراءات المقترحة",
+      "leaderboardSubtitle": "قارن المنافسين جنبًا إلى جنب.",
+      "totalCompetitors": "إجمالي المنافسين",
+      "averageScore": "متوسط النتيجة المركبة",
+      "highestPrice": "أعلى تنافسية سعرية",
+      "topSentiment": "أعلى نتيجة انطباع",
+      "view": "العرض",
+      "top10": "أفضل 10",
+      "priceScore": "نتيجة السعر",
+      "sentimentScore": "نتيجة الانطباع",
+      "activityScore": "نشاط السوق",
+      "compositeScore": "النتيجة المركبة",
+      "trend": "الاتجاه",
+      "scoreBreakdown": "تفصيل النتائج (أفضل 5 منافسين)",
+      "methodology": "منهجية التقييم",
+      "methodologyText": "تُحسب النتيجة المركبة من مؤشرات سوق تجريبية.",
+      "keyInsightsTitle": "الرؤى الرئيسية",
+      "topMovers": "أكبر التحركات",
+      "biggestImprovers": "الأكثر تحسناً",
+      "biggestDecliners": "الأكثر تراجعاً",
+      "notFoundCompetitor": "المنافس غير موجود"
+    },
+    "final": {
+      "productNotFound": "المنتج غير موجود",
+      "opportunityNotFound": "الفرصة غير موجودة",
+      "productsTitle": "تفاصيل المنتج",
+      "back": "رجوع",
+      "provider": "المزود",
+      "category": "الفئة",
+      "type": "النوع",
+      "status": "الحالة",
+      "active": "نشط",
+      "price": "السعر الحالي",
+      "website": "الموقع الإلكتروني",
+      "summary": "ملخص المنتج",
+      "positioning": "الموقع في السوق",
+      "activity": "النشاط الأخير",
+      "opportunitiesTitle": "فرص السوق",
+      "opportunitiesSubtitle": "اكتشف الفرص ذات الإمكانات العالية في سوقك.",
+      "search": "ابحث عن الفرص...",
+      "all": "الكل",
+      "potential": "الإمكانات",
+      "track": "تتبع الفرصة",
+      "tracked": "متابعة",
+      "viewDetails": "عرض التفاصيل",
+      "leaderboardTitle": "ترتيب المنافسين",
+      "leaderboardSubtitle": "قارن المنافسين عبر إشارات السوق الرئيسية.",
+      "rank": "الترتيب",
+      "competitor": "المنافس",
+      "score": "النتيجة المركبة",
+      "movement": "التغيير",
+      "empty": "لم يتم العثور على فرص.",
+      "description": "بيانات معاينة للمنتج والمنافسين."
+    },
+    "tabs": {
+      "label": "تنقل المنافسين",
+      "overview": "نظرة عامة",
+      "trends": "اتجاهات الصناعة",
+      "competitors": "المنافسون",
+      "opportunities": "الفرص",
+      "leaderboard": "ترتيب المنافسين"
+    },
+    "controls": {
+      "dateRange": "النطاق الزمني",
+      "last30": "آخر 30 يوماً",
+      "last90": "آخر 90 يوماً",
+      "industry": "الصناعة",
+      "homeInternet": "الإنترنت المنزلي",
+      "timePeriod": "الفترة الزمنية",
+      "last12": "آخر 12 شهراً",
+      "addCompetitor": "إضافة منافس",
+      "export": "تصدير التقرير",
+      "viewAll": "عرض الكل",
+      "searchScope": "نطاق البحث",
+      "pendingSources": "المصادر قيد المراجعة"
+    },
+    "scope": {
+      "save": "حفظ النطاق",
+      "back": "العودة إلى المنافسين",
+      "loadError": "تعذر تحميل نطاق البحث الحالي."
+    },
+    "sources": {
+      "title": "مراجعة المصادر المكتشفة",
+      "subtitle": "يكتشف الاستكشاف الآلي المنافسين الحقيقيين ويصنّفهم، لكن كل موقع مكتشف يحتاج إلى مراجعة حقيقية لشروط الخدمة الخاصة به قبل أن نجمع البيانات منه - وافق أو ارفض كل مصدر أدناه.",
+      "back": "العودة إلى المنافسين",
+      "filterLabel": "التصفية حسب الحالة",
+      "emptyTitle": "لا توجد مصادر هنا",
+      "emptyDescription": {
+        "RESTRICTED": "لا يوجد شيء بانتظار المراجعة حالياً.",
+        "ALLOWED": "لم تتم الموافقة على أي مصدر بعد.",
+        "BLOCKED": "لم يتم رفض أي مصدر."
+      },
+      "errorTitle": "تعذر تحميل المصادر المكتشفة",
+      "errorDescription": "يرجى المحاولة مرة أخرى بعد قليل.",
+      "status": {
+        "ALLOWED": "مسموح",
+        "RESTRICTED": "بحاجة إلى مراجعة",
+        "BLOCKED": "محظور"
+      },
+      "finalized": {
+        "ALLOWED": "يتم الجمع منه بالفعل",
+        "BLOCKED": "مرفوض"
+      },
+      "table": {
+        "competitor": "المنافس",
+        "url": "رابط المصدر",
+        "status": "الحالة",
+        "products": "المنتجات المرتبطة",
+        "discovered": "تاريخ الاكتشاف",
+        "actions": "الإجراءات",
+        "review": "مراجعة"
+      },
+      "review": {
+        "title": "مراجعة هذا المصدر",
+        "subtitle": "أكّد ما إذا كانت شروط الخدمة الخاصة بهذا الموقع تسمح بالجمع الآلي للبيانات. يُسجَّل هذا القرار ولا يمكن اتخاذه تلقائياً.",
+        "termsQuestion": "هل تسمح شروط الخدمة الخاصة بهذا المصدر بالجمع الآلي؟",
+        "termsYes": "نعم، الشروط تسمح بالجمع",
+        "termsNo": "لا، الشروط تمنع الجمع",
+        "referenceLabel": "ماذا راجعت؟",
+        "referencePlaceholder": "مثال: تمت مراجعة /terms بتاريخ 2026-09-29 - كتالوج عام، لا يوجد بند مانع للجمع الآلي.",
+        "referenceHelp": "مطلوب - ملاحظة حقيقية عمّا راجعته، تُحفظ كسجل تدقيق لهذا القرار.",
+        "cancel": "إلغاء",
+        "submit": "إرسال المراجعة",
+        "submitting": "جارٍ الإرسال...",
+        "error": "تعذر حفظ هذه المراجعة. يرجى المحاولة مرة أخرى.",
+        "result": {
+          "ALLOWED": "تمت الموافقة على المصدر - تمت جدولة الجمع.",
+          "BLOCKED": "تم رفض المصدر - لن يتم الجمع منه."
+        }
+      }
+    },
+    "overview": {
+      "title": "نظرة عامة على المنافسين",
+      "subtitle": "تابع سوقك ومنافسيك وفرصك في مكان واحد.",
+      "summaryTitle": "ملخص السوق",
+      "summarySubtitle": "لقطة سريعة عن مشهد السوق.",
+      "trendTitle": "نظرة عامة على اتجاه السوق",
+      "trendSubtitle": "اتجاه الطلب العام في صناعتك.",
+      "trendChartLabel": "اتجاه الطلب الحالي والسابق في السوق",
+      "driversTitle": "محركات السوق الرئيسية",
+      "driversSubtitle": "العوامل الرئيسية المؤثرة حالياً في صناعتك.",
+      "competitorsTitle": "منافسوك",
+      "competitorsSubtitle": "قائمة بالمنافسين المتابعين في سوقك.",
+      "activityTitle": "نشاط المنافسين الأخير",
+      "activitySubtitle": "أحدث التغييرات المرصودة لدى المنافسين.",
+      "activityEmptyTitle": "لا يوجد نشاط منافسين حديث",
+      "activityEmptyDescription": "ستظهر تغيرات أسعار المنافسين المرصودة هنا.",
+      "opportunitiesTitle": "فرص السوق",
+      "opportunitiesSubtitle": "فرص منتجات محددة بالذكاء الاصطناعي بناءً على تحليل السوق."
+    },
+    "metrics": {
+      "competitors": "المنافسون المتابعون",
+      "sentiment": "معنويات السوق",
+      "price": "القدرة التنافسية السعرية",
+      "growth": "نمو السوق"
+    },
+    "common": {
+      "thisMonth": "هذا الشهر",
+      "vsLastMonth": "مقارنة بالشهر الماضي",
+      "vsLastYear": "مقارنة بالعام الماضي",
+      "vsLastQuarter": "مقارنة بالربع الماضي",
+      "vsPreviousPeriod": "مقارنة بالفترة السابقة",
+      "previewNote": "تعتمد الرؤى على بيانات السوق التجريبية المتاحة.",
+      "twoHours": "منذ ساعتين",
+      "fiveHours": "منذ 5 ساعات",
+      "oneDay": "منذ يوم",
+      "twoDays": "منذ يومين",
+      "threeDays": "منذ 3 أيام",
+      "fourDays": "منذ 4 أيام",
+      "notAvailable": "غير متاح"
+    },
+    "status": {
+      "positive": "إيجابي",
+      "neutral": "محايد",
+      "negative": "سلبي",
+      "high": "مرتفع",
+      "medium": "متوسط",
+      "low": "منخفض",
+      "highPotential": "إمكانات عالية",
+      "mediumPotential": "متوسط",
+      "highImpact": "تأثير مرتفع",
+      "mediumImpact": "تأثير متوسط"
+    },
+    "insight": {
+      "title": "رؤية السوق بالذكاء الاصطناعي",
+      "description": "يزداد الطلب على الإنترنت المنزلي في عمان بنسبة 20% الشهر المقبل، مدفوعاً بالتسجيل الموسمي للطلاب وإطلاق باقات ألياف جديدة من المنافسين.",
+      "action": "عرض التحليل الكامل"
+    },
+    "drivers": {
+      "positive": "المحركات الإيجابية",
+      "negative": "المحركات السلبية",
+      "remoteWork": "زيادة العمل عن بعد والتعليم الإلكتروني",
+      "fiberInfrastructure": "توسع البنية التحتية للألياف في المدن الكبرى",
+      "highSpeeds": "تزايد الطلب على سرعات إنترنت أعلى",
+      "digitalServices": "خدمات رقمية جديدة واعتماد المنازل الذكية",
+      "priceSensitivity": "حساسية الأسعار في المناطق الريفية",
+      "competition": "منافسة عالية وعروض متكررة",
+      "economicUncertainty": "عدم اليقين الاقتصادي",
+      "regulatoryPressure": "الضغط التنظيمي في قطاع الاتصالات",
+      "sentimentDescription": "تبقى المعنويات العامة في قطاع الإنترنت المنزلي إيجابية بدرجة 72 من 100."
+    },
+    "competitors": {
+      "name": "المنافس",
+      "sentiment": "معنويات السوق",
+      "price": "القدرة السعرية",
+      "activity": "النشاط الأخير",
+      "updated": "آخر تحديث",
+      "actions": "الإجراءات",
+      "viewDetails": "عرض التفاصيل",
+      "newPackage": "إطلاق باقة جديدة",
+      "priceDrop": "خفض سعر بنسبة 10%",
+      "newCampaign": "حملة جديدة",
+      "bundlePricing": "تحديث أسعار الباقات",
+      "newProduct": "رصد منتج جديد",
+      "launchedFiber": "إطلاق باقة ألياف جديدة Ultra Speed",
+      "activityPriceIncreased": "رفع سعر {{product}}",
+      "activityPriceDecreased": "خفض سعر {{product}}",
+      "activityIncreaseBadge": "ارتفاع سعر",
+      "activityDecreaseBadge": "انخفاض سعر"
+    },
+    "badges": {
+      "newProduct": "منتج جديد",
+      "priceChange": "تغيير سعر",
+      "marketing": "تسويق",
+      "pricing": "تسعير"
+    },
+    "opportunities": {
+      "highSpeed": "باقات سرعات أعلى",
+      "highSpeedDescription": "طلب متزايد على باقات 500 ميغابت فأعلى مع حضور تنافسي منخفض.",
+      "smartHome": "باقات المنازل الذكية",
+      "smartHomeDescription": "اهتمام متزايد بحلول المنازل الذكية وأجهزة إنترنت الأشياء.",
+      "mobileInternet": "باقات الهاتف والإنترنت",
+      "mobileInternetDescription": "ارتفاع البحث عن باقات الهاتف والإنترنت المجمعة.",
+      "view": "عرض الفرصة",
+      "unavailableTitle": "تحليل الفرص غير متاح بعد",
+      "unavailableDescription": "لا تجمع هذه المنصة بعد بيانات حجم السوق أو نمو الطلب أو مستوى المنافسة اللازمة لتحديد فرص توسع حقيقية. ستعرض هذه الصفحة نتائج حقيقية عند توفر تلك البيانات."
+    },
+    "industry": {
+      "title": "اتجاهات الصناعة",
+      "subtitle": "إشارات حقيقية على مستوى المنشأة لاتجاه الأسعار والمعنويات ونشاط الفئات.",
+      "errorTitle": "تعذر تحميل اتجاهات الصناعة",
+      "errorDescription": "تعذر تحميل هذا العرض السوقي. يرجى المحاولة مرة أخرى.",
+      "metrics": {
+        "providers": "المزودون المرصودون",
+        "monthlyPrice": "متوسط السعر الشهري",
+        "activity": "نشاط السوق"
+      },
+      "high": "مرتفع",
+      "priceTitle": "اتجاه الأسعار العالمي",
+      "priceSubtitle": "مؤشر متوسط الأسعار المرجح مقارنة بالمعيار",
+      "priceChartLabel": "اتجاه الأسعار الحالي والسابق عالمياً",
+      "bullish": "صاعد",
+      "positiveIndicators": "مؤشرات إيجابية",
+      "keyDrivers": "المحركات الرئيسية",
+      "seasonalTitle": "أنماط النمو الموسمية",
+      "seasonalSubtitle": "معدلات التبني الفصلية السابقة مقارنة بالعام الحالي",
+      "historical": "المتوسط السابق",
+      "currentYear": "العام الحالي",
+      "seasonalChartLabel": "مقارنة المتوسط السابق بالعام الحالي حسب الربع",
+      "categoryTitle": "نشاط المنتجات والفئات",
+      "categorySubtitle": "توزيع النشاط عبر فئات المنتجات الرئيسية",
+      "emergingTitle": "أهم الاتجاهات الناشئة",
+      "signalsTitle": "إشارات السوق",
+      "signalsSubtitle": "مؤشرات رئيسية مستخرجة من بيانات وتحليل السوق."
+    },
+    "categories": {
+      "homeInternet": "الإنترنت المنزلي",
+      "mobileBundles": "باقات الهاتف",
+      "fixedWireless": "اللاسلكي الثابت 5G",
+      "tv": "التلفاز والترفيه",
+      "smartHome": "خدمات المنزل الذكي",
+      "other": "أخرى"
+    },
+    "emerging": {
+      "bundled": "نمو الخدمات المجمعة",
+      "bundledDescription": "تزايد اعتماد باقات الإنترنت والهاتف معاً.",
+      "fiveG": "اللاسلكي الثابت 5G",
+      "fiveGDescription": "بديل متنامٍ في المناطق غير الحضرية.",
+      "smartHome": "تكامل المنزل الذكي",
+      "smartHomeDescription": "تزايد الطلب على الباقات الجاهزة لإنترنت الأشياء.",
+      "sustainability": "مبادرات الاستدامة",
+      "sustainabilityDescription": "مزودون أكثر يقدمون خيارات طاقة خضراء."
+    },
+    "competitorsPage": {
+      "title": "المنافسون",
+      "subtitle": "تابع وراقب المنافسين الذين تتابعهم.",
+      "search": "ابحث عن المنافسين...",
+      "industry": "الصناعة",
+      "allIndustries": "كل الصناعات",
+      "status": "الحالة",
+      "allStatus": "الكل",
+      "sort": "ترتيب حسب",
+      "lastUpdated": "آخر تحديث",
+      "name": "الاسم",
+      "filter": "تصفية",
+      "showing": "عرض {{start}} إلى {{end}} من أصل {{total}} منافساً",
+      "previous": "الصفحة السابقة",
+      "next": "الصفحة التالية",
+      "errorTitle": "تعذر تحميل المنافسين",
+      "errorDescription": "تعذر تحميل قائمة المنافسين. حاول مرة أخرى.",
+      "retry": "حاول مرة أخرى",
+      "emptyTitle": "لا يوجد منافسون متابَعون بعد",
+      "emptyDescription": "أضف منافساً لبدء متابعة أسعاره ومشاعر العملاء تجاهه ونشاطه.",
+      "tier": "الفئة",
+      "allTiers": "كل الفئات",
+      "tierStrategic": "استراتيجي",
+      "tierRelevant": "ذو صلة",
+      "summaryStrategic": "منافس استراتيجي — تداخل {{pct}}٪ مع منتجاتك.",
+      "summaryRelevant": "منافس ذو صلة — تمت مطابقة {{count}} من منتجاتك لمقارنة الأسعار."
+    },
+    "modal": {
+      "title": "إضافة منافس",
+      "subtitle": "تابع منافساً جديداً لإثراء لوحة المنافسين.",
+      "name": "اسم المنافس",
+      "website": "رابط الموقع",
+      "marketplace": "روابط المتاجر",
+      "social": "حسابات التواصل الاجتماعي",
+      "optional": "اختياري",
+      "submit": "إضافة منافس",
+      "submitting": "جارٍ الإضافة...",
+      "cancel": "إلغاء",
+      "required": "هذا الحقل مطلوب.",
+      "invalidUrl": "أدخل رابط موقع صحيحاً.",
+      "submitError": "تعذرت إضافة هذا المنافس. حاول مرة أخرى."
+    },
+    "detail": {
+      "back": "العودة إلى المنافسين",
+      "tracked": "متابع",
+      "lastUpdated": "آخر تحديث:",
+      "monitor": "مراقبة المنافس",
+      "orangeDescription": "مشغل اتصالات رائد في الأردن يقدم خدمات الهاتف والإنترنت والخدمات الرقمية.",
+      "sentiment": "معنويات السوق",
+      "activity": "نشاط السوق",
+      "relevance": "درجة الصلة",
+      "presenceTitle": "الحضور في السوق بمرور الوقت",
+      "presenceSubtitle": "الحصة السوقية المقدرة والحضور الرقمي",
+      "presenceChartLabel": "حضور المنافس مقارنة بمتوسط الصناعة",
+      "summary": "ملخص المنافس",
+      "summaryText": "أورنج أكبر مشغل اتصالات في الأردن بحضور قوي في الهاتف والإنترنت المنزلي والخدمات الرقمية. تركز الشركة على باقات الإنترنت السريع والعروض المجمعة وتوسيع البنية التحتية للألياف.",
+      "headquarters": "المقر الرئيسي",
+      "marketPosition": "المركز السوقي",
+      "primaryFocus": "التركيز الرئيسي",
+      "website": "الموقع الإلكتروني",
+      "strengths": "نقاط القوة",
+      "weaknesses": "نقاط الضعف",
+      "strongRecognition": "شهرة قوية للعلامة التجارية",
+      "wideCoverage": "تغطية واسعة وبنية ألياف",
+      "bundledPackages": "باقات مجمعة تنافسية",
+      "activePresence": "حضور تسويقي ورقمي نشط",
+      "higherPrices": "أسعار أعلى في بعض المناطق الريفية",
+      "customerComplaints": "شكاوى العملاء بشأن استقرار الخدمة",
+      "limitedFlexibility": "مرونة محدودة في الخطط المخصصة",
+      "slowerNicheResponse": "استجابة أبطأ لقطاعات السوق المتخصصة",
+      "strategicMoves": "التحركات الاستراتيجية الأخيرة",
+      "startedFiveG": "بدء توسع 5G في المدن الرئيسية",
+      "selfServiceApp": "ميزات جديدة لتطبيق الخدمة الذاتية",
+      "providerPartnership": "شراكة مع مزودي المنازل الذكية",
+      "productsTitle": "المنتجات والخدمات",
+      "productsSubtitle": "قائمة بأهم المنتجات والباقات التي تقدمها أورنج.",
+      "allCategories": "كل الفئات",
+      "searchProducts": "ابحث عن المنتجات...",
+      "productName": "اسم المنتج",
+      "category": "الفئة",
+      "type": "النوع",
+      "currentPrice": "السعر الحالي (دينار)",
+      "priceComparison": "مقارنة الأسعار",
+      "priceComparisonSubtitle": "مقارنة متوسط أسعار الباقات المتشابهة",
+      "yourPrice": "سعرك",
+      "theirPrice": "سعرهم",
+      "recentActivity": "النشاط الأخير",
+      "newProductLaunched": "إطلاق منتج جديد",
+      "priceChanged": "تغيير السعر",
+      "campaignDetected": "رصد حملة تسويقية",
+      "bundleUpdated": "تحديث أسعار الباقة",
+      "serviceDetected": "رصد خدمة جديدة"
+    },
+    "empty": {
+      "strengths": "لم يتم رصد نقاط قوة واضحة بعد - لا توجد بيانات كافية عن الأسعار أو المعنويات لهذا المنافس.",
+      "weaknesses": "لم يتم رصد نقاط ضعف واضحة بعد - لا توجد بيانات كافية عن الأسعار أو المعنويات لهذا المنافس.",
+      "noTrend": "",
+      "detailErrorTitle": "تعذر تحميل المنافس",
+      "detailErrorDescription": "تعذر تحميل ملف هذا المنافس. يرجى المحاولة مرة أخرى.",
+      "detailNotFoundTitle": "المنافس غير موجود",
+      "detailNotFoundDescription": "هذا المنافس غير متابَع، أو لم يعد موجوداً.",
+      "strategicOverlap": "نسبة تداخل {{pct}}% مع كتالوج منتجاتك - لا تُعرض مقارنة أسعار لكل منتج لمنافسي الفئة الاستراتيجية.",
+      "priceComparisonTitle": "لا توجد مقارنات أسعار بعد",
+      "priceComparisonDescription": "لا توجد منتجات لهذا المنافس مرتبطة بمنتجاتك بسعر مرصود حديثاً بعد."
+    },
+    "signals": {
+      "indicator": "المؤشر",
+      "current": "الاتجاه الحالي",
+      "change": "التغير مقارنة بالسابق",
+      "trend": "الاتجاه 12 شهراً",
+      "insights": "الرؤى",
+      "priceTrend": "اتجاه السعر",
+      "activity": "نشاط السوق",
+      "sentiment": "اتجاه المعنويات",
+      "product": "نشاط المنتجات",
+      "competitor": "نشاط المنافسين",
+      "increasing": "متزايد",
+      "high": "مرتفع",
+      "positive": "إيجابي",
+      "priceInsight": "ارتفع متوسط الأسعار لدى معظم المزودين.",
+      "activityInsight": "إطلاقات منتجات وتحركات تنافسية أكثر.",
+      "sentimentInsight": "معنويات إيجابية في نقاشات العملاء.",
+      "productInsight": "تم رصد باقات وميزات جديدة.",
+      "competitorInsight": "زيادة الحملات التسويقية وتغييرات الأسعار."
+    }
+  },
+  "auth": {
+    "common": {
+      "email": "البريد الإلكتروني",
+      "emailAddress": "عنوان البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "showPassword": "إظهار كلمة المرور",
+      "hidePassword": "إخفاء كلمة المرور",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+      "fullName": "الاسم الكامل",
+      "businessName": "اسم المنشأة",
+      "country": "الدولة",
+      "currency": "العملة",
+      "backToLogin": "العودة إلى تسجيل الدخول"
+    },
+    "welcome": {
+      "eyebrow": "ذكاء أعمال مدعوم بالذكاء الاصطناعي",
+      "title": "انظر إلى ما",
+      "titleAccent": "وراء الواضح.",
+      "tagline": "حوِّل بيانات عملك إلى خطوتك الذكية التالية.",
+      "description": "تجمع KEEL مبيعاتك وسوقك وعملاءك في رؤية ذكية واحدة، لتكتشف ما يهمّ وتقرأ الإشارات مبكراً وتتخذ قراراتك بثقة.",
+      "getStarted": "ابدأ الآن",
+      "login": "تسجيل الدخول",
+      "note": "مصمَّم للعربية والإنجليزية",
+      "insightsLabel": "ما يساعدك KEEL على رؤيته",
+      "insights": {
+        "market": {
+          "title": "إشارات السوق",
+          "text": "اكتشف ما الذي يتغيّر."
+        },
+        "demand": {
+          "title": "رؤى الطلب",
+          "text": "استبق ما هو قادم."
+        },
+        "pricing": {
+          "title": "ذكاء التسعير",
+          "text": "اتخذ قرارات تسعير أكثر وعياً."
+        },
+        "ai": {
+          "title": "رؤى بالذكاء الاصطناعي",
+          "text": "حوِّل المعلومات إلى قرارات."
+        }
+      }
+    },
+    "login": {
+      "title": "مرحباً بعودتك",
+      "subtitle": "سجّل الدخول إلى KEEL للوصول إلى لوحة ذكاء الأعمال.",
+      "emailPlaceholder": "name@company.com",
+      "passwordPlaceholder": "أدخل كلمة المرور",
+      "forgotPassword": "نسيت كلمة المرور؟",
+      "submit": "تسجيل الدخول",
+      "noAccount": "ليس لديك حساب؟",
+      "signup": "إنشاء حساب"
+    },
+    "signup": {
+      "title": "إنشاء حساب",
+      "subtitle": "ابدأ تجربتك المجانية لمدة 14 يوماً.",
+      "namePlaceholder": "الاسم الكامل",
+      "businessPlaceholder": "اسم المنشأة",
+      "emailPlaceholder": "name@example.com",
+      "passwordPlaceholder": "أنشئ كلمة مرور",
+      "confirmPasswordPlaceholder": "أعد إدخال كلمة المرور",
+      "countryPlaceholder": "اختر دولتك",
+      "currencyPlaceholder": "اختر العملة",
+      "currencyHint": "تُملأ تلقائيًا حسب دولتك. غيّرها إذا كنت تبيع بعملة أخرى.",
+      "agreementPrefix": "أوافق على",
+      "terms": "شروط الخدمة",
+      "and": "و",
+      "privacy": "سياسة الخصوصية",
+      "submit": "إنشاء الحساب",
+      "hasAccount": "لديك حساب بالفعل؟",
+      "loginInstead": "سجّل الدخول"
+    },
+    "forgotPassword": {
+      "title": "إعادة تعيين كلمة المرور",
+      "subtitle": "أدخل بريدك الإلكتروني وسنرسل إليك رمزاً لإعادة تعيين كلمة المرور.",
+      "emailPlaceholder": "name@company.com",
+      "submit": "إرسال رمز التحقق"
+    },
+    "verificationCode": {
+      "title": "أدخل رمز التحقق",
+      "subtitlePrefix": "أرسلنا رمز تحقق مكوّناً من 6 أرقام إلى",
+      "subtitleGeneric": "أرسلنا رمز تحقق مكوّناً من 6 أرقام إلى بريدك الإلكتروني.",
+      "notReceived": "لم يصلك الرمز؟",
+      "resend": "إعادة إرسال الرمز",
+      "resendIn": "إعادة الإرسال خلال {{seconds}} ث",
+      "submit": "تحقق من الرمز",
+      "inputLabel": "رمز التحقق"
+    },
+    "resetPassword": {
+      "title": "إعادة تعيين كلمة المرور",
+      "subtitle": "أدخل كلمة المرور الجديدة أدناه.",
+      "newPlaceholder": "أدخل كلمة مرور جديدة",
+      "confirmPlaceholder": "أعد إدخال كلمة المرور الجديدة",
+      "strength": "قوة كلمة المرور",
+      "strengthWeak": "ضعيفة",
+      "strengthFair": "مقبولة",
+      "strengthGood": "جيدة",
+      "strengthStrong": "قوية",
+      "hint": "يجب ألا تقل عن 8 أحرف.",
+      "submit": "إعادة تعيين كلمة المرور"
+    },
+    "verifyEmail": {
+      "title": "أكّد بريدك الإلكتروني",
+      "subtitlePrefix": "أرسلنا رمزًا من 6 أرقام إلى",
+      "subtitleGeneric": "أرسلنا رمزًا من 6 أرقام إلى بريدك الإلكتروني.",
+      "required": "أدخله لتبدأ باستخدام KEEL.",
+      "inputLabel": "رمز التأكيد",
+      "submit": "تأكيد البريد",
+      "notReceived": "لم يصلك الرمز؟",
+      "resend": "أرسل رمزًا جديدًا",
+      "resendIn": "أرسل رمزًا جديدًا بعد {{seconds}} ث",
+      "later": "سأفعل ذلك لاحقًا",
+      "signOut": "تسجيل الخروج",
+      "backToLogin": "العودة إلى تسجيل الدخول"
+    },
+    "invitation": {
+      "imageAlt": "دعوة للانضمام إلى الفريق",
+      "title": "لقد تمت دعوتك!",
+      "subtitle": "تلقيت دعوة للانضمام إلى",
+      "detailsLabel": "تفاصيل الدعوة",
+      "joinTeam": "انضم إلى الفريق وابدأ التعاون على KEEL.",
+      "invitedBy": "الدعوة من",
+      "expiresIn": "تنتهي صلاحية الدعوة خلال",
+      "days": "{{count}} أيام",
+      "accept": "قبول الدعوة",
+      "anotherAccount": "تسجيل الدخول بحساب آخر",
+      "wrongAccount": "ليس هذا الحساب المطلوب؟",
+      "differentEmail": "استخدم بريداً إلكترونياً مختلفاً",
+      "expiredTitle": "انتهت صلاحية هذه الدعوة",
+      "expiredBody": "لم يعد رابط الدعوة صالحاً. تواصل مع مسؤول الفريق للحصول على دعوة جديدة.",
+      "invalidTitle": "رابط الدعوة هذا غير صالح",
+      "invalidBody": "لم نتمكن من العثور على دعوة لهذا الرابط. تواصل مع مسؤول الفريق للحصول على دعوة جديدة."
+    },
+    "validation": {
+      "required": "هذا الحقل مطلوب.",
+      "emailRequired": "البريد الإلكتروني مطلوب.",
+      "passwordRequired": "كلمة المرور مطلوبة.",
+      "fullNameRequired": "الاسم الكامل مطلوب.",
+      "businessNameRequired": "اسم المنشأة مطلوب.",
+      "confirmPasswordRequired": "تأكيد كلمة المرور مطلوب.",
+      "countryRequired": "يرجى اختيار دولتك.",
+      "currencyRequired": "العملة مطلوبة.",
+      "currency": "يرجى إدخال رمز عملة صالح مكوّن من 3 أحرف.",
+      "termsRequired": "يجب الموافقة على شروط الخدمة وسياسة الخصوصية.",
+      "email": "يرجى إدخال بريد إلكتروني صالح.",
+      "passwordLength": "يجب ألا تقل كلمة المرور عن {{min}} أحرف.",
+      "passwordUppercase": "يجب أن تتضمن كلمة المرور حرفاً إنجليزياً كبيراً.",
+      "passwordLowercase": "يجب أن تتضمن كلمة المرور حرفاً إنجليزياً صغيراً.",
+      "passwordNumber": "يجب أن تتضمن كلمة المرور رقماً.",
+      "passwordSpecial": "يجب أن تتضمن كلمة المرور رمزاً خاصاً.",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين.",
+      "verificationCode": "يرجى إدخال الرمز كاملاً والمكوّن من {{length}} أرقام."
+    },
+    "passwordRequirements": {
+      "title": "يجب أن تتضمن كلمة المرور:",
+      "minLength": "{{min}} أحرف على الأقل",
+      "uppercase": "حرفاً إنجليزياً كبيراً واحداً على الأقل",
+      "lowercase": "حرفاً إنجليزياً صغيراً واحداً على الأقل",
+      "number": "رقماً واحداً على الأقل",
+      "special": "رمزاً خاصاً واحداً على الأقل",
+      "met": "تم استيفاء الشرط",
+      "unmet": "لم يتم استيفاء الشرط"
+    },
+    "loading": {
+      "login": "جارٍ تسجيل الدخول...",
+      "signup": "جارٍ إنشاء الحساب...",
+      "sendingCode": "جارٍ إرسال الرمز...",
+      "verifying": "جارٍ التحقق...",
+      "resetting": "جارٍ إعادة تعيين كلمة المرور...",
+      "resending": "جارٍ إعادة الإرسال...",
+      "acceptingInvitation": "جارٍ قبول الدعوة..."
+    },
+    "errors": {
+      "generic": "حدث خطأ. حاول مرة أخرى.",
+      "network": "تعذر الاتصال. تحقق من اتصالك وحاول مرة أخرى.",
+      "serverUnavailable": "الخدمة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.",
+      "tooManyAttempts": "عدد المحاولات كبير. يرجى الانتظار ثم المحاولة مجدداً.",
+      "authenticationUnavailable": "واجهة المصادقة جاهزة للربط، لكن خدمة الخادم غير مفعلة بعد.",
+      "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      "invalidCode": "رمز التحقق غير صحيح.",
+      "expiredCode": "انتهت صلاحية رمز التحقق هذا.",
+      "resendFailed": "تعذر إعادة إرسال الرمز. يرجى المحاولة مجدداً.",
+      "emailInUse": "يوجد حساب مسجل بهذا البريد الإلكتروني.",
+      "invitationUnavailable": "تعذر تحميل هذه الدعوة. يرجى المحاولة مجدداً."
+    },
+    "success": {
+      "codeResent": "تم إرسال رمز تحقق جديد.",
+      "invitationAccepted": "تم قبول الدعوة.",
+      "passwordReset": "تمت إعادة تعيين كلمة المرور. يمكنك تسجيل الدخول الآن.",
+      "companyDeleted": "تم حذف الشركة وجميع بياناتها.",
+      "emailVerified": "تم تأكيد بريدك الإلكتروني. يمكنك تسجيل الدخول الآن."
+    },
+    "workspaces": {
+      "title": "اختر الشركة",
+      "subtitle": "حسابك مرتبط بأكثر من شركة. أيها تريد فتحها؟",
+      "back": "استخدام حساب آخر"
+    }
+  },
+  "settings": {
+    "page": {
+      "title": "الإعدادات",
+      "subtitle": "إدارة حسابك وشركتك وفريقك وتفضيلاتك وأمانك."
+    },
+    "tabs": {
+      "label": "أقسام الإعدادات",
+      "profile": "الملف الشخصي",
+      "company": "الشركة",
+      "team": "أعضاء الفريق",
+      "notifications": "الإشعارات",
+      "preferences": "التفضيلات",
+      "security": "الأمان"
+    },
+    "common": {
+      "notAvailable": "غير متاح",
+      "saveChanges": "حفظ التغييرات",
+      "saving": "جارٍ الحفظ...",
+      "cancel": "إلغاء"
+    },
+    "profile": {
+      "title": "الملف الشخصي",
+      "subtitle": "إدارة معلوماتك الشخصية.",
+      "avatar": "الصورة الشخصية",
+      "fullName": "الاسم الكامل",
+      "email": "البريد الإلكتروني",
+      "jobTitle": "المسمى الوظيفي / المنصب",
+      "emailReadOnly": "يتطلب تغيير البريد الإلكتروني مسار تحقق للحساب، وهو غير مدعوم حاليًا.",
+      "avatarUnavailable": "تغيير الصورة الشخصية غير متصل حاليًا.",
+      "loadError": "تعذر تحميل ملفك الشخصي.",
+      "unavailable": "تحديث الملف الشخصي غير متصل. لم يتم حفظ تغييراتك.",
+      "saved": "تم حفظ تغييرات الملف الشخصي.",
+      "saveError": "تعذر حفظ تغييرات ملفك الشخصي."
+    },
+    "company": {
+      "title": "الشركة",
+      "subtitle": "إدارة معلومات الشركة وإعدادات مساحة العمل.",
+      "manageSubscription": "إدارة الاشتراك",
+      "fields": {
+        "name": "اسم الشركة",
+        "industry": "القطاع",
+        "country": "الدولة / المنطقة",
+        "currency": "العملة",
+        "industryKey": "القطاع",
+        "website": "الموقع الإلكتروني",
+        "description": "ماذا تبيع"
+      },
+      "countryPlaceholder": "اختر دولة",
+      "industryPlaceholder": "مثال: تجارة تجزئة، إلكترونيات",
+      "currencyPlaceholder": "JOD",
+      "editUnavailable": "تعديل الشركة غير متصل. ستبقى القيم للقراءة فقط حتى تدعم خدمة الشركة التحديثات.",
+      "readOnly": "إدارة الشركة للقراءة فقط وفقًا لدورك.",
+      "loadError": "تعذر تحميل معلومات الشركة.",
+      "saved": "تم حفظ بيانات الشركة.",
+      "saveError": "تعذر حفظ تغييرات الشركة.",
+      "industryKeyHint": "يحدد الأنشطة التي يعتبرها مسح السوق منافسين لك.",
+      "industryKeyPlaceholder": "اختر قطاعك",
+      "descriptionPlaceholder": "مثال: زيت زيتون وبهارات وتمور، فرعان وتوصيل"
+    },
+    "targetMarkets": {
+      "title": "الأسواق المستهدفة",
+      "subtitle": "الدول أو المناطق التي ترغب صراحةً بمنافسة فيها - منفصلة عن دولة شركتك، ودول التشغيل، ونطاق بحث المنافسين. لا شيء هنا يُستنتج من بياناتك؛ أضف الأسواق التي تختارها بنفسك فقط.",
+      "empty": "لم يتم تحديد أي أسواق مستهدفة بعد. أضف سوقًا أدناه.",
+      "placeholder": "مثال: AE",
+      "regionPlaceholder": "مثال: الشرق الأوسط",
+      "inputLabel": "رمز الدولة",
+      "regionInputLabel": "اسم المنطقة",
+      "typeLabel": "نوع السوق",
+      "type": {
+        "country": "دولة",
+        "region": "منطقة",
+        "global": "عالمي"
+      },
+      "add": "إضافة",
+      "saving": "جارٍ الحفظ...",
+      "remove": "إزالة {{code}}",
+      "invalidCode": "أدخل رمز دولة صحيحًا من حرفين (مثال: AE, SA, EG).",
+      "invalidRegion": "أدخل اسم المنطقة.",
+      "clearGlobalFirst": "أزل السوق العالمي قبل إضافة دولة أو منطقة محددة.",
+      "globalReplacesAll": "إضافة \"عالمي\" ستستبدل جميع الأسواق المستهدفة الأخرى المحددة.",
+      "loadError": "تعذر تحميل الأسواق المستهدفة.",
+      "saveError": "تعذر حفظ هذا السوق المستهدف. يرجى المحاولة مرة أخرى."
+    },
+    "team": {
+      "directoryUnavailable": "دليل فريق العمل غير متاح حالياً. يظهر حسابك المسجل فقط، ولا يمكن تحديد إجمالي أعضاء الفريق.",
+      "invitationsUnavailable": "معلومات الدعوات غير متاحة حالياً.",
+      "title": "أعضاء الفريق",
+      "subtitle": "إدارة من يمكنه الوصول إلى مساحة عمل KEEL.",
+      "you": "أنت",
+      "loadError": "تعذر تحميل معلومات الفريق.",
+      "emptyTitle": "لا يوجد أعضاء فريق متاحون",
+      "emptyDescription": "لم تُرجع الخدمة سجلات أعضاء لمساحة العمل هذه.",
+      "firstTeam": "ادعُ فريقك للتعاون في KEEL.",
+      "managementUnavailable": "تم حذف تغيير الأدوار وإزالة الأعضاء لأن إجراءات الخادم هذه غير متاحة.",
+      "readOnly": "عضوية الفريق للقراءة فقط وفقًا لدورك. تتطلب إدارة مساحة العمل صلاحية المشرف وتفويض الخادم.",
+      "pendingTitle": "الدعوات المعلقة",
+      "noPending": "لا توجد دعوات معلقة.",
+      "pendingCount": "{{count}} دعوات معلقة",
+      "summary": {
+        "total": "إجمالي الأعضاء",
+        "admin": "المشرفون",
+        "editor": "المحررون",
+        "viewer": "المشاهدون",
+        "pending": "الدعوات المعلقة",
+        "other": "أعضاء آخرون"
+      },
+      "columns": {
+        "member": "العضو",
+        "email": "البريد الإلكتروني",
+        "role": "الدور",
+        "status": "الحالة",
+        "joined": "تاريخ الانضمام",
+        "actions": "الإجراءات"
+      },
+      "manage": {
+        "remove": "إزالة",
+        "confirmRemove": "إزالة {{name}} من مساحة العمل؟ سيفقد الوصول فوراً.",
+        "removed": "تمت إزالة {{name}} من مساحة العمل.",
+        "roleChanged": "تم تحديث دور {{name}}.",
+        "roleFor": "دور {{name}}",
+        "failed": "تعذر حفظ التغيير. يرجى المحاولة مرة أخرى."
+      },
+      "status": {
+        "active": "نشط",
+        "pending": "معلق",
+        "invited": "تمت دعوته",
+        "disabled": "معطل"
+      },
+      "invite": {
+        "action": "دعوة عضو",
+        "title": "دعوة عضو للفريق",
+        "email": "عنوان البريد الإلكتروني",
+        "role": "الدور",
+        "send": "إرسال الدعوة",
+        "sending": "جارٍ الإرسال...",
+        "existing": "هذا البريد الإلكتروني يخص عضوًا موجودًا في مساحة العمل.",
+        "pending": "توجد دعوة معلقة بالفعل لهذا البريد الإلكتروني.",
+        "unavailable": "إرسال الدعوات غير متصل. لم يتم إرسال أي دعوة.",
+        "sent": "تم إرسال الدعوة.",
+        "failed": "تعذر إرسال الدعوة."
+      }
+    },
+    "roles": {
+      "owner": {
+        "label": "مالك",
+        "description": "إدارة كاملة لمساحة العمل والفريق."
+      },
+      "admin": {
+        "label": "مشرف",
+        "description": "إدارة كاملة لمساحة العمل والفريق."
+      },
+      "manager": {
+        "label": "مدير",
+        "description": "يمكنه العمل على بيانات الأعمال وميزات KEEL، ولا يمكنه إدارة إعدادات مساحة العمل المحمية."
+      },
+      "accountant": {
+        "label": "محاسب",
+        "description": "وصول إلى البيانات المالية والتسعير لأغراض إعداد التقارير."
+      },
+      "staff": {
+        "label": "موظف",
+        "description": "وصول للقراءة فقط إلى معلومات الأعمال والرؤى المسموح بها."
+      },
+      "editor": {
+        "label": "محرر",
+        "description": "يمكنه العمل على بيانات الأعمال وميزات KEEL، ولا يمكنه إدارة إعدادات مساحة العمل المحمية."
+      },
+      "viewer": {
+        "label": "مشاهد",
+        "description": "وصول للقراءة فقط إلى معلومات الأعمال والرؤى المسموح بها."
+      }
+    },
+    "notifications": {
+      "title": "الإشعارات",
+      "subtitle": "اختر التنبيهات التي تظهر لك في KEEL وتلك التي تصلك في ملخص بالبريد الإلكتروني.",
+      "loadError": "تعذر تحميل تفضيلات الإشعارات.",
+      "saveFailed": "تعذر حفظ التغيير. حاول مرة أخرى.",
+      "frequency": {
+        "label": "ملخص البريد الإلكتروني",
+        "off": "إيقاف",
+        "offHint": "لا رسائل ملخص",
+        "daily": "يومي",
+        "dailyHint": "كل صباح الساعة 7:00 عند وجود جديد",
+        "weekly": "أسبوعي",
+        "weeklyHint": "صباح كل اثنين الساعة 7:00 عند وجود جديد"
+      },
+      "columns": {
+        "group": "التنبيهات",
+        "inApp": "داخل التطبيق",
+        "email": "ملخص البريد"
+      },
+      "groups": {
+        "stock": {
+          "title": "المخزون",
+          "description": "منتجات ستنفد قريبًا"
+        },
+        "pricing": {
+          "title": "التسعير",
+          "description": "تغيّر أسعار المنافسين والفجوات مع السوق"
+        },
+        "market": {
+          "title": "السوق",
+          "description": "منافسون جدد وجدهم مسح السوق"
+        },
+        "data": {
+          "title": "البيانات",
+          "description": "عمليات استيراد فشلت"
+        },
+        "billing": {
+          "title": "الفوترة",
+          "description": "دفعات فشلت وانتهاء الفترة التجريبية"
+        }
+      },
+      "emailUnverified": "أكّد عنوان بريدك الإلكتروني لتصلك الملخصات. لن يُرسل أي ملخص قبل ذلك.",
+      "emailUnavailable": "البريد الإلكتروني غير مُعدّ على هذا الخادم بعد، لذا لا يمكن إرسال الملخصات حاليًا. تم حفظ اختياراتك.",
+      "emailOffNote": "اختر يومي أو أسبوعي أعلاه لتحديد التنبيهات التي تدخل في ملخص البريد."
+    },
+    "preferences": {
+      "title": "التفضيلات",
+      "subtitle": "خصص تجربة KEEL الخاصة بك.",
+      "language": "اللغة",
+      "languages": {
+        "en": "واجهة إنجليزية بتخطيط من اليسار إلى اليمين",
+        "ar": "واجهة عربية بتخطيط من اليمين إلى اليسار"
+      },
+      "languageDirection": "يتبع اتجاه النص اللغة المحددة تلقائيًا. يستخدم KEEL مظهره الزجاجي الداكن."
+    },
+    "security": {
+      "title": "تغيير كلمة المرور",
+      "subtitle": "إدارة كلمة مرور حسابك الشخصي.",
+      "currentPassword": "كلمة المرور الحالية",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور الجديدة",
+      "currentRequired": "كلمة المرور الحالية مطلوبة.",
+      "changePassword": "تغيير كلمة المرور",
+      "changing": "جارٍ تغيير كلمة المرور...",
+      "passwordUnavailable": "تغيير كلمة المرور غير متصل. لم تتغير كلمة مرورك.",
+      "passwordChanged": "تم تغيير كلمة المرور بنجاح.",
+      "passwordFailed": "تعذر تغيير كلمة مرورك.",
+      "sessionsTitle": "الأجهزة والجلسات",
+      "sessionsSubtitle": "راجع الجلسات التي تعيدها خدمة المصادقة.",
+      "sessionsError": "تعذر تحميل معلومات الجلسات.",
+      "sessionsUnavailableTitle": "إدارة الجلسات غير متاحة",
+      "sessionsUnavailableDescription": "لا تعرض خدمة المصادقة حاليًا بيانات الأجهزة أو الجلسات.",
+      "noSessionsTitle": "لا توجد جلسات إضافية",
+      "noSessionsDescription": "لم تُرجع الخدمة جلسات أخرى.",
+      "currentSession": "الجلسة الحالية"
+    },
+    "data": {
+      "title": "بياناتك",
+      "subtitle": "نزّل كل ما خزّنته شركتك، أو احذف الشركة نهائيًا.",
+      "exportTitle": "تنزيل بيانات الشركة",
+      "exportText": "ملف مضغوط يضم كل المنتجات والمبيعات والمنافسين وسجلات المستندات والحملات والإعدادات، مع قائمة فريقك. لا تُضمَّن كلمات المرور أو بيانات الاعتماد المخزنة أبدًا.",
+      "exportButton": "تنزيل البيانات",
+      "exportFailed": "تعذر تجهيز التصدير. حاول مجددًا.",
+      "deleteTitle": "حذف هذه الشركة",
+      "deleteText": "يحذف الشركة وكل بياناتها وملفاتها وصلاحيات فريقها نهائيًا. لا يمكن التراجع عن ذلك. ألغِ أي اشتراك مدفوع من الفوترة أولًا.",
+      "confirmLabel": "اكتب {{name}} للتأكيد",
+      "deleteButton": "حذف الشركة",
+      "subscriptionActive": "لا يزال لدى هذه الشركة اشتراك مدفوع. ألغه من الفوترة ثم احذف الشركة.",
+      "deleteFailed": "تعذر حذف الشركة. حاول مجددًا."
+    }
+  },
+  "billing": {
+    "management": {
+      "title": "الخطط والاشتراك",
+      "subtitle": "إدارة خطتك واستخدامك واشتراكك.",
+      "currentPlanTitle": "خطتك الحالية",
+      "currentPlan": "الخطة الحالية",
+      "planTrial": "تجربة {{plan}}",
+      "billingCycle": "دورة الفوترة",
+      "planPrice": "سعر الخطة المهيأ",
+      "nextBillingDate": "تاريخ الفوترة التالي",
+      "trialEndDate": "تاريخ انتهاء التجربة",
+      "daysRemaining": "متبقي {{count}} يومًا",
+      "status": {
+        "trial": "تجربة",
+        "active": "نشط",
+        "failed": "فشل",
+        "expired": "منتهية"
+      },
+      "usageTitle": "الاستخدام والحدود",
+      "usageSubtitle": "استخدام الشركة الحالي مقارنةً بالحدود المهيأة لخطتك.",
+      "credits": {
+        "title": "أرصدة البيانات والذكاء الاصطناعي",
+        "subtitle": "ميزانيتان شهريتان منفصلتان. تستهلك كل عملية أرصدة بحسب تكلفتها الفعلية، لذلك تختلف كمية الأرصدة بين عمليات البحث والأسئلة.",
+        "data": "أرصدة البيانات",
+        "dataHelp": "تُستخدم لاكتشاف المنافسين ومتابعتهم والبحث على الويب.",
+        "ai": "أرصدة الذكاء الاصطناعي",
+        "aiHelp": "تُستخدم للمساعد الذكي والتحليل بالذكاء الاصطناعي والمحتوى التسويقي.",
+        "used": "استُخدم {{used}} من {{limit}}",
+        "remaining": "المتبقي {{remaining}}",
+        "inProgress": "{{reserved}} محجوزة لعمل جارٍ",
+        "renews": "تتجدد في {{date}}",
+        "warning": "استخدمت {{percent}}٪ من هذه الميزانية.",
+        "exhausted": "نفدت هذه الميزانية لهذه الفترة.",
+        "exhaustedOptions": "يتوقف العمل الجديد الذي يحتاجها حتى {{date}}. يمكنك ترقية خطتك الآن أو التواصل معنا بشأن خطة مخصصة.",
+        "notIncluded": "غير مشمولة",
+        "competitorNote": "لا يوجد عدد ثابت من المنافسين: يكتشف KEEL المنافسين في سوقك ومنطقتك ومصادرك ويتابعهم بقدر ما تسمح به أرصدة البيانات.",
+        "topUpsUnavailable": "لا يمكن شراء أرصدة إضافية بعد.",
+        "historyTitle": "الاستخدام الأخير",
+        "historyEmpty": "لم يستهلك أي شيء أرصدة في هذه الفترة بعد.",
+        "historyColumns": { "when": "الوقت", "what": "العملية", "budget": "الميزانية", "credits": "الأرصدة", "status": "الحالة" },
+        "operations": {
+          "assistant_question": "سؤال للمساعد", "competitor_analysis": "تحليل منافس", "marketing_campaign": "محتوى تسويقي",
+          "marketing_image": "صورة تسويقية", "market_discovery": "اكتشاف المنافسين", "competitor_intel": "مواقع المنافسين",
+          "competitor_enrichment": "تفاصيل المنافسين", "product_discovery": "اكتشاف المنتجات", "price_lookup": "أسعار السوق",
+          "web_research": "بحث على الويب", "other": "أخرى"
+        },
+        "statuses": {
+          "reserved": "قيد التنفيذ", "consumed": "تم", "released": "دون رسوم", "failed_charged": "فشلت (احتسبها المزوّد)",
+          "pending_reconciliation": "بانتظار التكلفة النهائية", "reconciled": "تم"
+        }
+      },
+      "startTrial": "ابدأ تجربة مجانية لمدة {{days}} يومًا",
+      "trialStarted": "بدأت تجربتك المجانية.",
+      "usageUnavailable": "بيانات الاستخدام غير متاحة لهذا الاشتراك.",
+      "gb": " غ.ب",
+      "usageLabels": {
+        "products": "المنتجات",
+        "competitors": "المنافسون",
+        "reports": "التقارير",
+        "storageGb": "التخزين",
+        "webSearches": "عمليات البحث على الويب",
+        "imageGenerations": "صور تسويقية بالذكاء الاصطناعي",
+        "aiTokens": "رموز المساعد الذكي",
+        "documentProcessingMb": "المستندات المعالجة (ميغابايت)",
+        "dataSources": "مصادر البيانات المتصلة",
+        "sentimentRecords": "المراجعات المحللة",
+        "teamSeats": "مقاعد الفريق",
+        "dataCredits": "أرصدة البيانات",
+        "aiCredits": "أرصدة الذكاء الاصطناعي"
+      },
+      "usageState": {
+        "unlimited": "غير محدود",
+        "normal": "ضمن الحد",
+        "approaching": "يقترب من الحد",
+        "reached": "تم بلوغ الحد",
+        "unknown": "غير متاح",
+        "notIncluded": "غير مشمول"
+      },
+      "recommendation": {
+        "trialTitle": "المتابعة بعد الفترة التجريبية",
+        "trialDescription": "قارن الخيارات المدفوعة المهيأة قبل انتهاء تجربتك الحالية.",
+        "reachedTitle": "قد تساعدك سعة أكبر",
+        "reachedDescription": "استخدمت {{used}} من أصل {{limit}} من {{metric}} المتاحة في خطتك الحالية.",
+        "approachingTitle": "أنت تقترب من أحد حدود الخطة",
+        "approachingDescription": "استخدمت {{used}} من أصل {{limit}} من {{metric}} المتاحة في خطتك الحالية."
+      },
+      "context": {
+        "products": {
+          "title": "تم بلوغ حد المنتجات",
+          "description": "لقد بلغت حد المنتجات في خطتك الحالية ({{used}} من {{limit}})."
+        },
+        "competitors": {
+          "title": "تم بلوغ حد المنافسين",
+          "description": "لقد بلغت حد متابعة المنافسين في خطتك الحالية ({{used}} من {{limit}})."
+        },
+        "ragQueries": {
+          "title": "وصلت إلى حد أسئلة المساعد",
+          "description": "استخدمت كل أسئلة المساعد ({{limit}}) في باقتك هذا الشهر ({{used}} مستخدمة)."
+        },
+        "storageGb": {
+          "title": "تم بلوغ حد التخزين",
+          "description": "لقد بلغت حد التخزين في خطتك الحالية ({{used}} من {{limit}})."
+        }
+      },
+      "comparePlansAction": "مقارنة الخطط",
+      "compareTitle": "مقارنة الخطط",
+      "compareSubtitle": "راجع الحدود وخيارات الفوترة المهيأة والمتاحة لشركتك.",
+      "contactSales": "التواصل مع المبيعات",
+      "notAvailable": "غير متاح",
+      "customLimit": "مخصص",
+      "comparison": {
+        "title": "مقارنة تفصيلية للخطط",
+        "subtitle": "مقارنة مركزة لحدود الاستخدام المعرفة في إعدادات الخطط الحالية.",
+        "limit": "حد الاستخدام"
+      },
+      "errorTitle": "الاشتراك غير متاح",
+      "errorDescription": "تعذر تحميل معلومات الخطط والاشتراك.",
+      "retry": "إعادة المحاولة",
+      "accessEnds": "ينتهي الوصول",
+      "contactTeam": "تواصل مع فريق KEEL لإعداد خطة مخصصة.",
+      "askOwner": "اطلب من مالك الشركة",
+      "paymentsUnavailable": "الدفع الإلكتروني غير متاح",
+      "paymentsUnavailableHint": "الدفع الإلكتروني غير مفعّل على هذا الخادم بعد. خطتك واستهلاكك أدناه حقيقيان؛ ولتغيير الخطة تواصل مع فريق KEEL.",
+      "switchPlan": "التبديل إلى هذه الخطة",
+      "subscribe": "اشترك",
+      "subscribeKeepTrial": "اشترك (مع الاحتفاظ بأيام التجربة)",
+      "manageBilling": "وسيلة الدفع والإيصالات",
+      "resume": "الإبقاء على اشتراكي",
+      "cancel": "إلغاء الاشتراك",
+      "resumed": "سيستمر اشتراكك.",
+      "cancelled": "سينتهي اشتراكك في التاريخ الظاهر، ويبقى لديك وصول كامل حتى ذلك الحين.",
+      "changed": "تم قبول تغيير الخطة. {{date}}",
+      "scheduledChange": "ستتغير خطتك إلى {{plan}} في {{date}}.",
+      "keepCurrentPlan": "الإبقاء على خطتي الحالية",
+      "scheduledCancelled": "تم إلغاء التغيير المجدول.",
+      "statusHelp": {
+        "failed": "لم تنجح عملية الدفع الأخيرة، لذا توقفت ميزات الذكاء الاصطناعي وغيرها من ميزات الخطة. حدّث وسيلة الدفع لاستعادتها — بياناتك آمنة.",
+        "expired": "انتهت خطتك، لذا توقفت ميزات الذكاء الاصطناعي وغيرها من ميزات الخطة. اختر خطة أدناه للمتابعة — بياناتك آمنة."
+      },
+      "cancelTitle": "إلغاء الاشتراك؟",
+      "cancelBody": "يبقى لديك وصول كامل حتى {{date}}، وبعدها تتوقف ميزات الخطة حتى تشترك مجددًا. تبقى بياناتك محفوظة.",
+      "switchTitle": "تغيير الخطة",
+      "switchBody": "التبديل إلى {{plan}} ({{price}})؟ الترقية تبدأ فورًا ويُحتسب الفرق مباشرة، أما التخفيض فيبدأ في نهاية الفترة المدفوعة.",
+      "back": "رجوع",
+      "confirmCancel": "الإلغاء في نهاية الفترة",
+      "confirmSwitch": "تأكيد التغيير"
+    },
+    "trial": {
+      "title": "ابدأ تجربة Pro لمدة {{days}} يوماً",
+      "description": "احصل على ميزات وحدود Pro كاملة.",
+      "badge": "{{days}} يوماً مجاناً"
+    },
+    "periods": {
+      "label": "مدة الفوترة",
+      "monthly": "شهرياً",
+      "monthCountLabel": "{{months}} أشهر",
+      "savePercent": "وفّر {{percent}}%",
+      "month": "شهر",
+      "monthCount": "{{months}} أشهر",
+      "monthlyEquivalent": "ما يعادل {{price}} شهرياً"
+    },
+    "plans": {
+      "mostPopular": "الأكثر شيوعاً",
+      "customPricing": "سعر مخصص",
+      "custom": {
+        "name": "مخصصة",
+        "description": "مصممة لاحتياجات شركتك",
+        "action": "تواصل معنا"
+      },
+      "trialIncluded": "تجربة مجانية لمدة {{days}} يومًا للشركات الجديدة",
+      "startWith": "ابدأ بخطة {{plan}}",
+      "starter": {
+        "name": "القياسية",
+        "description": "ذكاء السوق وتوقع الطلب وتتبع المنافسين وتحليل آراء العملاء ورؤى الذكاء الاصطناعي، بسعة تناسب الشركات الصغيرة التي تبدأ باستخدام KEEL.",
+        "action": "اختر القياسية"
+      },
+      "growth": {
+        "name": "بلس",
+        "description": "تحليلات متقدمة للشركات النامية تشمل التنبؤ بالطلب وذكاء السوق والمنافسين وسعة أكبر للذكاء الاصطناعي وربط مصادر بيانات أكثر.",
+        "action": "ابدأ تجربة مجانية لمدة {{days}} يومًا"
+      },
+      "enterprise": {
+        "name": "برو",
+        "description": "وصول عالي السعة إلى KEEL للشركات كثيفة البيانات مع تكاملات متقدمة وأحمال أكبر بكثير للذكاء الاصطناعي والمستندات ومراقبة أسرع للمنافسين.",
+        "action": "اختر برو"
+      }
+    },
+    "features": {
+      "products": "إضافة {{value}} منتج",
+      "competitors": "متابعة {{value}} منافسين",
+      "reports": "{{value}} تقريراً شهرياً",
+      "storage": "مساحة تخزين {{value}}",
+      "customLimits": "حدود مخصصة حسب احتياجك",
+      "support": "دعم مخصص",
+      "largeTeams": "مرونة للفرق الكبيرة",
+      "imageGenerations": "{{value}} صورة تسويقية بالذكاء الاصطناعي شهريًا",
+      "aiTokens": "{{value}} رمز للمساعد الذكي شهريًا",
+      "documentProcessingMb": "معالجة {{value}} ميغابايت من المستندات شهريًا",
+      "dataSources": "مصادر البيانات المتصلة: {{value}}",
+      "sentimentRecords": "تحليل {{value}} مراجعة شهريًا",
+      "everythingPro": "كل ما في باقة برو",
+      "teamSeats": "{{value}} مقعدًا للفريق",
+      "dataCredits": "{{value}} من أرصدة البيانات شهريًا",
+      "aiCredits": "{{value}} من أرصدة الذكاء الاصطناعي شهريًا",
+      "competitorsByBudget": "اكتشاف المنافسين ومتابعتهم ضمن أرصدة البيانات - دون عدد ثابت",
+      "trialCredits": "تشمل التجربة المجانية {{data}} من أرصدة البيانات و{{ai}} من أرصدة الذكاء الاصطناعي"
+    },
+    "checkout": {
+      "success": "تم استلام الدفعة. ستتحدث خطتك هنا خلال ثوانٍ.",
+      "cancelled": "تم إلغاء الدفع — لم يُخصم أي مبلغ."
+    },
+    "errors": {
+      "generic": "لم تنجح العملية. حاول مجددًا بعد قليل.",
+      "payments_not_configured": "الدفع الإلكتروني غير مفعّل على هذا الخادم بعد.",
+      "price_not_synced": "لا يمكن شراء هذه الخطة إلكترونيًا بعد. تواصل معنا.",
+      "subscription_exists": "لدى شركتك اشتراك بالفعل — بدّل الخطة بدلًا من ذلك.",
+      "plan_not_available": "هذه الخطة أو مدة الفوترة غير متاحة.",
+      "contact_sales": "يتم ترتيب هذه الخطة مع فريقنا.",
+      "no_billing_account": "لا يوجد حساب فوترة بعد — اشترك في خطة أولًا.",
+      "no_subscription": "ليس لدى شركتك اشتراك مدفوع بعد.",
+      "payment_required": "سدّد الدفعة المستحقة قبل تغيير الخطة.",
+      "cancellation_pending": "أبقِ على اشتراكك قبل تغيير الخطة.",
+      "already_on_plan": "هذه خطتك الحالية بالفعل.",
+      "downgrade_scheduled": "يوجد تغيير مجدول بالفعل.",
+      "already_scheduled": "هذا التغيير مجدول بالفعل.",
+      "already_cancelling": "اشتراكك مضبوط على الانتهاء بالفعل.",
+      "not_cancelling": "اشتراكك غير مضبوط على الانتهاء.",
+      "provider_error": "لم يستجب مزود الدفع. حاول مجددًا بعد قليل.",
+      "trial_already_used": "استخدمت شركتك تجربتها المجانية من قبل.",
+      "trial_already_used_by_person": "استخدمت تجربة مجانية مع شركة أخرى من قبل.",
+      "plan_has_no_trial": "هذه الخطة لا تتضمن تجربة مجانية.",
+      "plan_already_assigned": "لدى شركتك خطة بالفعل."
+    },
+    "invoices": {
+      "title": "المدفوعات",
+      "empty": "لا توجد مدفوعات بعد.",
+      "date": "التاريخ",
+      "amount": "المبلغ",
+      "status": "الحالة",
+      "document": "الإيصال",
+      "succeeded": "مدفوعة",
+      "failed": "فشلت",
+      "view": "عرض"
+    },
+    "modules": {
+      "market_intelligence": "ذكاء السوق",
+      "demand_prediction": "التنبؤ بالطلب",
+      "competitor_management": "متابعة المنافسين",
+      "notIncluded": "غير مشمول"
+    },
+    "gate": {
+      "title": "{{feature}} غير مشمول في باقتك",
+      "body": "باقتك الحالية لا تشمل هذا الجزء من KEEL. باقتا النمو والمؤسسات تشملان ذكاء السوق والتنبؤ بالطلب ومتابعة المنافسين.",
+      "action": "عرض الباقات",
+      "inactiveTitle": "باقتك غير نشطة",
+      "inactiveBody": "اختر باقة من الفوترة لمتابعة استخدام هذا الجزء من KEEL."
+    }
+  },
+  "connectData": {
+    "reviews": {
+      "title": "تقييمات العملاء",
+      "subtitle": "استورد التقييمات من خرائط Google أو فيسبوك أو مواقع الحجز أو نماذج الملاحظات الخاصة بك (CSV أو Excel). يتم تحليل مشاعر كل تقييم تلقائياً.",
+      "template": "قالب التقييمات",
+      "import": "استيراد التقييمات",
+      "importing": "جارٍ الاستيراد...",
+      "summary": "تم استيراد {{imported}} تقييم ({{linked}} مرتبطة بمنتجاتك) · {{duplicates}} مستوردة مسبقاً · تم تخطي {{skipped}} (بدون نص)",
+      "failed": "تعذر استيراد ملف التقييمات. يرجى المحاولة مرة أخرى.",
+      "date": "التاريخ",
+      "review": "التقييم",
+      "product": "حول",
+      "rating": "الدرجة",
+      "sentiment": "المشاعر",
+      "wholeBusiness": "نشاطك التجاري",
+      "emptyTitle": "لا توجد تقييمات عملاء بعد",
+      "emptyDescription": "استورد ملفاً يحتوي على عمود للتقييم أو التعليق على الأقل؛ ويتم استخدام أعمدة التاريخ والدرجة والمنتج والمنصة عند توفرها.",
+      "sentiments": {
+        "positive": "إيجابي",
+        "neutral": "محايد",
+        "negative": "سلبي",
+        "pending": "جارٍ التحليل..."
+      }
+    },
+    "page": {
+      "title": "ربط البيانات",
+      "subtitle": "اربط وارفع وأدر بيانات الأعمال التي يستخدمها KEEL.",
+      "supporting": "حافظ على تحديث بيانات المبيعات والمنتجات والمخزون والسوق."
+    },
+    "actions": {
+      "addSource": "إضافة مصدر بيانات",
+      "retry": "حاول مرة أخرى",
+      "prepareImport": "تجهيز الاستيراد",
+      "preparingImport": "جارٍ الاستيراد..."
+    },
+    "statuses": {
+      "connected": "متصل",
+      "completed": "مكتمل",
+      "processing": "قيد المعالجة",
+      "needsAttention": "يحتاج إلى مراجعة",
+      "failed": "فشل"
+    },
+    "connected": {
+      "title": "مصادر البيانات المتصلة",
+      "subtitle": "المصادر المرتبطة حالياً بمساحة عمل شركتك.",
+      "count": "{{count}} مصادر"
+    },
+    "upload": {
+      "title": "رفع الملفات",
+      "subtitle": "أضف إصداراً جديداً أو استورد بيانات أعمال إضافية.",
+      "templates": "تنزيل القالب",
+      "files": "اختيار الملفات"
+    },
+    "activity": {
+      "title": "نشاط البيانات الأخير",
+      "subtitle": "عمليات الاستيراد وتحديثات الاتصال الأخيرة.",
+      "date": "التاريخ",
+      "source": "المصدر",
+      "name": "الملف / الاتصال",
+      "type": "النوع",
+      "status": "الحالة",
+      "emptyTitle": "لا يوجد نشاط بيانات حديث",
+      "emptyDescription": "ستظهر عمليات الاستيراد وتحديثات الاتصال هنا."
+    },
+    "add": {
+      "title": "إضافة مصدر بيانات",
+      "subtitle": "اختر أحد مصادر البيانات التي يدعمها KEEL حالياً."
+    },
+    "empty": {
+      "title": "لم يتم ربط أي مصادر بيانات بعد",
+      "description": "اربط مصدراً مدعوماً أو ارفع ملفات أعمال للبدء."
+    },
+    "error": {
+      "title": "مصادر البيانات غير متاحة",
+      "description": "تعذر تحميل مصادرك المتصلة. يرجى المحاولة مرة أخرى."
+    },
+    "importSummary": {
+      "imported": "تم استيراد {{count}} من سجلات المبيعات",
+      "duplicates": "{{count}} مستوردة مسبقاً (تم تخطيها)",
+      "failed": "تعذر استيراد {{count}}",
+      "overProductLimit": "{{count}} لم تُستورد: وصلت إلى حد المنتجات في خطتك",
+      "fileFailed": "{{name}}: {{error}}"
+    },
+    "feedback": {
+      "uploadFailed": "فشل رفع الملف. يرجى المحاولة مرة أخرى."
+    },
+    "fileTypes": {
+      "pdf": "PDF",
+      "xlsx": "Excel",
+      "csv": "CSV",
+      "connection": "اتصال"
+    },
+    "options": {
+      "documents": {
+        "title": "رفع ملفات",
+        "description": "صادرات المبيعات وقوائم المنتجات وجداول الأسعار (CSV وExcel) أو مستندات العمل (PDF)."
+      },
+      "api": {
+        "title": "اربط نظام نقاط البيع أو ERP",
+        "description": "اسحب المبيعات تلقائيًا من واجهة برمجة نظام نقاط البيع أو ERP أو متجرك الإلكتروني."
+      },
+      "database": {
+        "title": "اربط قاعدة بيانات",
+        "description": "اقرأ المبيعات من قاعدة بيانات PostgreSQL الخاصة بك بمستخدم للقراءة فقط."
+      }
+    },
+    "system": {
+      "apiTitle": "اربط نظام نقاط البيع أو ERP",
+      "databaseTitle": "اربط قاعدة بيانات",
+      "apiIntro": "استخدم بيانات الواجهة البرمجية من إعدادات المطورين في نظامك. KEEL يقرأ البيانات فقط ولا يغيّر أي شيء في نظامك.",
+      "databaseIntro": "أنشئ مستخدمًا للقراءة فقط لـ KEEL. يُشغَّل الاستعلام أدناه فقط وبحسب الجدول الذي تختاره.",
+      "name": "اسم الاتصال",
+      "namePlaceholder": "مثال: نقاط بيع الفرع الرئيسي",
+      "baseUrl": "عنوان الواجهة لسجلات المبيعات",
+      "recordsPath": "مسار السجلات (اختياري)",
+      "pageParam": "معامل الصفحة",
+      "authHeader": "ترويسة الدخول",
+      "authScheme": "البادئة",
+      "token": "مفتاح الواجهة أو الرمز",
+      "host": "الخادم",
+      "port": "المنفذ",
+      "dbname": "اسم قاعدة البيانات",
+      "user": "مستخدم للقراءة فقط",
+      "password": "كلمة المرور",
+      "query": "استعلام يعيد صفوف المبيعات",
+      "readOnly": "يُفتح الاتصال للقراءة فقط. تُشفَّر بيانات الدخول ويمكن حذفها في أي وقت بقطع الاتصال.",
+      "mapping": "طابق حقولك",
+      "mappingHint": "اكتب الاسم الذي يستخدمه نظامك لكل عنصر. الحقول المعلَّمة بـ * مطلوبة.",
+      "fields": {
+        "product_name": "اسم المنتج",
+        "quantity": "الكمية",
+        "unit_price": "سعر الوحدة",
+        "currency": "العملة",
+        "transaction_date": "تاريخ البيع",
+        "invoice_id": "رقم الفاتورة",
+        "discount_pct": "نسبة الخصم"
+      },
+      "frequency": "المزامنة",
+      "every": {
+        "15": "كل 15 دقيقة",
+        "60": "كل ساعة",
+        "360": "كل 6 ساعات",
+        "1440": "مرة يوميًا"
+      },
+      "connect": "ربط",
+      "connected": "تم الربط. تتم أول مزامنة خلال دقائق.",
+      "failed": "تعذر حفظ الاتصال. تحقق من البيانات وحاول مجددًا.",
+      "adminOnly": "يمكن للمالك أو المسؤول فقط إدارة الاتصالات.",
+      "actionFailed": "لم ينجح ذلك. حاول مجددًا.",
+      "syncNow": "زامن الآن",
+      "syncQueued": "أُضيفت المزامنة إلى الانتظار وتتم خلال دقائق.",
+      "disconnect": "قطع الاتصال",
+      "disconnected": "تم قطع الاتصال. تبقى البيانات المستوردة وحُذفت بيانات الدخول المخزنة.",
+      "kind": {
+        "api": "واجهة نقاط البيع / ERP",
+        "database": "قاعدة بيانات"
+      },
+      "lastSynced": "آخر مزامنة {{date}}",
+      "notSyncedYet": "بانتظار أول مزامنة",
+      "lastRun": "{{rows}} سجلًا في آخر تشغيل",
+      "status": {
+        "COMPLETED": "تمت المزامنة",
+        "FAILED": "فشلت آخر مزامنة",
+        "RUNNING": "جارٍ المزامنة",
+        "PENDING": "في الانتظار",
+        "PARTIAL": "مزامنة جزئية"
+      }
+    }
+  },
+  "demand": {
+    "tabs": {
+      "label": "أقسام توقع الطلب",
+      "overview": "نظرة عامة",
+      "products": "توقعات المنتجات",
+      "inventory": "توصيات المخزون"
+    },
+    "common": {
+      "units": "وحدة",
+      "sku": "رمز المنتج",
+      "dateRange": "النطاق الزمني",
+      "last30Days": "آخر 30 يوماً",
+      "next30Days": "الأيام الـ30 القادمة",
+      "viewAll": "عرض الكل",
+      "viewDetails": "عرض التفاصيل",
+      "viewMore": "عرض المزيد",
+      "fullAnalysis": "عرض التحليل الكامل",
+      "more": "إجراءات إضافية"
+    },
+    "overview": {
+      "title": "نظرة عامة على توقع الطلب",
+      "subtitle": "حوّل بياناتك إلى قرارات أذكى بشأن المخزون.",
+      "addData": "إضافة بيانات",
+      "snapshot": "ملخص التوقعات",
+      "snapshotSubtitle": "مؤشرات رئيسية من توقعات الطلب.",
+      "nextWeek": "توقع الأسبوع المقبل",
+      "next30Days": "توقع الأيام الـ30 القادمة",
+      "productsForecasted": "المنتجات المتوقعة",
+      "spikesDetected": "ارتفاعات الطلب المرصودة",
+      "spikesDetail": "منتجات ذات زيادة كبيرة في الطلب",
+      "trendTitle": "نظرة عامة على اتجاه الطلب",
+      "trendSubtitle": "اتجاه إجمالي الطلب على جميع المنتجات.",
+      "aiInsight": "رؤية الطلب بالذكاء الاصطناعي",
+      "aiInsightText": "من المتوقع ارتفاع الطلب على باقات الإنترنت المنزلي الشهر المقبل، مدفوعاً بصورة أساسية بتسجيل الطلبة الجدد والعروض الموسمية.",
+      "aiHighlight": "زيادة متوقعة في الطلب",
+      "topIncrease": "أعلى المنتجات ارتفاعاً في الطلب المتوقع",
+      "topIncreaseSubtitle": "المنتجات ذات أعلى نمو متوقع في الطلب.",
+      "topDecrease": "أعلى المنتجات انخفاضاً في الطلب المتوقع",
+      "topDecreaseSubtitle": "المنتجات ذات أعلى تراجع متوقع في الطلب.",
+      "inventoryActions": "إجراءات المخزون ذات الأولوية",
+      "inventorySubtitle": "إجراءات موصى بها بالذكاء الاصطناعي استناداً إلى الطلب المتوقع.",
+      "opportunities": "فرص التوقعات",
+      "opportunitiesSubtitle": "فرص حددها الذكاء الاصطناعي استناداً إلى توقعات الطلب."
+    },
+    "products": {
+      "title": "توقعات المنتجات",
+      "subtitle": "استكشف توقعات الطلب على منتجاتك المدعومة بالذكاء الاصطناعي.",
+      "addProduct": "إضافة منتج",
+      "totalProducts": "إجمالي المنتجات",
+      "totalProductsDetail": "من أصل 500 منتج",
+      "expectedIncrease": "منتجات متوقع ارتفاعها",
+      "expectedIncreaseDetail": "58% من المنتجات المتوقعة",
+      "expectedDecrease": "منتجات متوقع انخفاضها",
+      "expectedDecreaseDetail": "26% من المنتجات المتوقعة",
+      "stableDemand": "طلب مستقر",
+      "stableDemandDetail": "16% من المنتجات المتوقعة",
+      "empty": "لا توجد توقعات منتجات تطابق عوامل التصفية.",
+      "showing": "عرض {{count}} من أصل {{total}} منتجاً"
+    },
+    "inventory": {
+      "comingSoon": "سيتم إكمال توصيات المخزون في الجزء الثاني."
+    },
+    "detail": {
+      "back": "العودة إلى توقعات المنتجات",
+      "notFound": "توقع المنتج غير موجود",
+      "watchlist": "إضافة إلى قائمة المتابعة",
+      "watching": "ضمن قائمة المتابعة",
+      "currentStock": "المخزون الحالي",
+      "forecast30": "توقع الأيام الـ30 القادمة",
+      "modelAccuracy": "دقة النموذج",
+      "highReliability": "موثوقية عالية",
+      "dailyDemand": "متوسط الطلب اليومي",
+      "revenueOpportunity": "فرصة الإيرادات المقدرة",
+      "forecastTitle": "توقع الطلب",
+      "forecastSubtitle": "البيانات التاريخية والطلب المتوقع ونطاق الثقة.",
+      "granularity": "دقة عرض التوقع",
+      "dateRange": "يناير 2025 - ديسمبر 2026",
+      "aiInsight": "رؤية بالذكاء الاصطناعي",
+      "highConfidence": "ثقة عالية",
+      "insightText": "من المتوقع ارتفاع الطلب على {{product}} بنسبة 42% خلال الأشهر الثلاثة المقبلة، مدفوعاً بموسم العودة إلى المدارس وارتفاع أسعار المنافسين وتزايد الاهتمام بالأجهزة الصوتية المحمولة.",
+      "insights": {
+        "signal": "اتجاه صاعد قوي متوقع",
+        "season": "ذروة موسمية من أغسطس إلى سبتمبر",
+        "stock": "مخاطر منخفضة لنفاد المخزون عند الطلب الآن"
+      },
+      "forecastTable": "جدول التوقعات",
+      "seasonality": "الموسمية والاتجاهات",
+      "weeklyView": "أيام الأسبوع",
+      "seasonalityLabel": "خريطة كثافة الطلب الشهرية",
+      "lowerDemand": "طلب أقل",
+      "higherDemand": "طلب أعلى",
+      "trendAnalysis": "تحليل الاتجاه",
+      "analysis": {
+        "overall": "الاتجاه العام",
+        "seasonality": "الموسمية",
+        "volatility": "التقلب",
+        "growth": "معدل النمو",
+        "increasing": "متزايد",
+        "high": "مرتفع",
+        "moderate": "متوسط"
+      },
+      "actions": "الإجراءات",
+      "adjustInventory": "تعديل المخزون",
+      "export": "تصدير التوقع"
+    },
+    "filters": {
+      "searchProducts": "ابحث عن المنتجات...",
+      "category": "الفئة",
+      "allCategories": "كل الفئات",
+      "trend": "اتجاه التوقع",
+      "allTrends": "كل اتجاهات التوقع",
+      "status": "الحالة",
+      "allStatuses": "كل الحالات",
+      "clear": "مسح عوامل التصفية"
+    },
+    "table": {
+      "product": "المنتج",
+      "category": "الفئة",
+      "stock": "المخزون",
+      "currentStock": "المخزون الحالي",
+      "forecast30": "توقع 30 يوماً",
+      "predicted": "الطلب المتوقع",
+      "change": "التغير",
+      "demandTrend": "اتجاه الطلب",
+      "accuracy": "دقة النموذج",
+      "status": "الحالة",
+      "action": "الإجراء",
+      "recommendedAction": "الإجراء الموصى به",
+      "suggestedQty": "الكمية المقترحة",
+      "reason": "السبب",
+      "month": "الشهر",
+      "historical": "الطلب التاريخي",
+      "lower": "الحد الأدنى",
+      "upper": "الحد الأعلى"
+    },
+    "status": {
+      "increasing": "متزايد",
+      "decreasing": "متناقص",
+      "stable": "مستقر"
+    },
+    "actions": {
+      "restock": "إعادة التخزين الآن",
+      "reduce": "تقليل الطلب",
+      "monitor": "مراقبة"
+    },
+    "reasons": {
+      "highIncrease": "طلب مرتفع متوقع (+100%)",
+      "trending": "اتجاه الطلب صاعد (+80%)",
+      "lowerDemand": "طلب أقل متوقع (-49%)",
+      "seasonalDecline": "انخفاض موسمي (-48%)",
+      "review": "إبقاء المنتج قيد المراجعة"
+    },
+    "opportunities": {
+      "bundle": "باقة الإنترنت المنزلي والتلفاز",
+      "bundleText": "تزايد الطلب على باقات الإنترنت المصحوبة بخدمات ترفيهية.",
+      "seasonal": "حملة موسمية",
+      "seasonalText": "إعداد عروض ترويجية لموسم العودة إلى المدارس.",
+      "mobile": "ترقية باقة الهاتف",
+      "mobileText": "تزايد الطلب على باقات البيانات الأعلى لدى المهنيين الشباب.",
+      "view": "عرض الفرصة"
+    },
+    "potential": {
+      "high": "إمكانات عالية",
+      "medium": "متوسطة"
+    },
+    "pagination": {
+      "previous": "الصفحة السابقة",
+      "next": "الصفحة التالية"
+    },
+    "period": {
+      "daily": "يومي",
+      "weekly": "أسبوعي",
+      "monthly": "شهري"
+    },
+    "charts": {
+      "demandLabel": "مخطط الطلب التاريخي والمتوقع",
+      "today": "اليوم",
+      "thisYear": "هذا العام",
+      "historical": "الطلب التاريخي",
+      "predicted": "الطلب المتوقع",
+      "previous": "العام السابق",
+      "confidence": "نطاق الثقة"
+    },
+    "categories": {
+      "electronics": "الإلكترونيات",
+      "beauty": "الجمال",
+      "office": "المكتب",
+      "food": "الأطعمة والمشروبات",
+      "apparel": "الملابس",
+      "outdoor": "الأنشطة الخارجية",
+      "toys": "الألعاب"
+    },
+    "months": {
+      "jan": "يناير",
+      "feb": "فبراير",
+      "mar": "مارس",
+      "apr": "أبريل",
+      "may": "مايو",
+      "jun": "يونيو",
+      "jul": "يوليو",
+      "aug": "أغسطس",
+      "sep": "سبتمبر",
+      "oct": "أكتوبر",
+      "nov": "نوفمبر",
+      "dec": "ديسمبر"
+    },
+    "periods": {
+      "jul2026": "يوليو 2026",
+      "aug2026": "أغسطس 2026",
+      "sep2026": "سبتمبر 2026",
+      "oct2026": "أكتوبر 2026",
+      "nov2026": "نوفمبر 2026",
+      "dec2026": "ديسمبر 2026"
+    }
+  },
+  "ragAssistant": {
+    "page": {
+      "title": "المساعد",
+      "subtitle": "اسأل عن عملك ومنتجاتك وزبائنك والسوق والتجارة والأنظمة. النقاط المهمة تظهر معها أرقام مراجع يمكنك فتحها."
+    },
+    "chat": {
+      "regionLabel": "محادثة مساعد المستندات",
+      "assistant": "مساعد KEEL",
+      "you": "أنت",
+      "generating": "جارٍ إنشاء الإجابة...",
+      "unavailable": "تعذر على المساعد الإجابة عن هذا السؤال الآن. تم الاحتفاظ بسؤالك في هذه الجلسة - يرجى المحاولة مرة أخرى.",
+      "evidenceNote": "معروض دون ملخص بالذكاء الاصطناعي — هذه المعلومات التي وجدها KEEL لسؤالك.",
+      "unverifiedNote": "تعذّر التحقق من بعض أجزاء هذه الإجابة مقابل الأدلة. تعامل بحذر مع ما هو موسوم بأنه غير مؤكد.",
+      "followUps": "أسئلة متابعة مقترحة"
+    },
+    "composer": {
+      "placeholder": "اسأل عن عملك أو السوق أو الاستيراد أو الأنظمة...",
+      "send": "إرسال السؤال",
+      "helper": "الإجابات تعتمد على سجلات شركتك ومستنداتها، ومصادر عامة عند الحاجة، وحسابات KEEL نفسها."
+    },
+    "empty": {
+      "title": "اسأل KEEL عن عملك.",
+      "description": "الإجابات تستخدم بياناتك ومستنداتك، وتبحث في المصادر العامة عند الحاجة، وتعرض رقم مرجع بجانب كل نقطة مهمة.",
+      "restoring": "جارٍ استعادة محادثتك السابقة...",
+      "prompts": {
+        "summary": "كيف كانت مبيعاتي في آخر 30 يوم؟",
+        "pricing": "ليش الزبائن بيفضلوا منتجي الأكثر مبيعاً؟",
+        "compare": "هل استيراد منتجي الأكثر مبيعاً أرخص من شرائه محلياً؟"
+      }
+    },
+    "sources": {
+      "title": "المصادر",
+      "knowledgeBase": "قاعدة المعرفة",
+      "web": "مصدر خارجي من الويب"
+    },
+    "attachments": {
+      "remove": "إزالة {{name}}",
+      "imagePreview": "معاينة الصورة المحددة"
+    },
+    "knowledge": {
+      "title": "قاعدة المعرفة",
+      "subtitle": "إدارة المستندات التي يستخدمها المساعد.",
+      "upload": "رفع مستند",
+      "search": "البحث في المستندات...",
+      "type": "نوع المستند",
+      "allTypes": "جميع الأنواع",
+      "sort": "الترتيب حسب",
+      "newest": "الأحدث أولاً",
+      "oldest": "الأقدم أولاً",
+      "collapse": "إخفاء قاعدة المعرفة",
+      "open": "فتح قاعدة المعرفة"
+    },
+    "documents": {
+      "emptyTitle": "لا توجد مستندات متاحة",
+      "emptyDescription": "ارفع مستندات PDF (السياسات، الكتالوجات، قوائم الأسعار، العقود) ليتمكن المساعد من الإجابة منها.",
+      "noMatchesTitle": "لا توجد مستندات مطابقة",
+      "noMatchesDescription": "جرّب بحثاً أو نوع مستند مختلفاً.",
+      "errorTitle": "قاعدة المعرفة غير متاحة",
+      "errorDescription": "تعذر تحميل مستندات الشركة.",
+      "showing": "عرض {{start}}–{{end}} من {{total}} مستندات",
+      "status": {
+        "ready": "جاهز",
+        "processing": "قيد المعالجة",
+        "failed": "فشل"
+      },
+      "retry": "إعادة معالجة {{name}}",
+      "retryFailed": "تعذّرت معالجة هذا المستند. حاول لاحقًا."
+    },
+    "upload": {
+      "title": "رفع مستندات للمساعد",
+      "description": "تصبح مستندات PDF قابلة للبحث من قبل المساعد. ويتم استيراد ملفات CSV وExcel كبيانات مبيعات يستخدمها المساعد أيضاً.",
+      "uploading": "جارٍ الرفع..."
+    },
+    "actions": {
+      "retry": "إعادة المحاولة",
+      "cancel": "إلغاء"
+    },
+    "history": {
+      "title": "السجل",
+      "newChat": "محادثة جديدة",
+      "empty": "لا توجد محادثات سابقة بعد.",
+      "untitled": "محادثة بلا عنوان",
+      "unavailable": "تعذر تحميل سجل محادثاتك.",
+      "loadFailed": "تعذر فتح تلك المحادثة. يرجى المحاولة مرة أخرى."
+    },
+    "feedback": {
+      "reasons": {
+        "notConfigured": "خدمة الذكاء الاصطناعي للمساعد غير مُعدّة على هذا الخادم بعد، لذلك لم يتم إنشاء إجابة. يحتاج المسؤول إلى إعدادها. تم الاحتفاظ بسؤالك في هذه المحادثة.",
+        "providerUnavailable": "خدمة الذكاء الاصطناعي التي يعتمد عليها المساعد لا تستجيب حاليًا، لذلك لم يتم إنشاء إجابة. تم الاحتفاظ بسؤالك — يرجى المحاولة مرة أخرى بعد بضع دقائق.",
+        "internalError": "حدث خطأ أثناء إعداد الإجابة، لذلك لم يتم إنشاؤها. تم الاحتفاظ بسؤالك — يرجى المحاولة مرة أخرى.",
+        "offline": "تعذّر الوصول إلى KEEL. تحقق من اتصالك بالإنترنت وحاول مرة أخرى. تم الاحتفاظ بسؤالك.",
+        "creditsExhausted": "استُخدمت أرصدة الذكاء الاصطناعي في باقتك لفترة الفوترة الحالية، لذلك لم يتم إنشاء إجابة. تتجدد بعد {{date}} — أو يمكنك ترقية باقتك من صفحة الفوترة. تم الاحتفاظ بسؤالك.",
+        "subscriptionInactive": "اشتراكك غير نشط، لذلك لا يستطيع المساعد الإجابة الآن. حدّث باقتك من صفحة الفوترة للمتابعة. تم الاحتفاظ بسؤالك.",
+        "serviceSuspended": "خدمة الذكاء الاصطناعي للمساعد متوقفة مؤقتًا على هذا الخادم، لذلك لم يتم إنشاء إجابة. يرجى المحاولة لاحقًا. تم الاحتفاظ بسؤالك.",
+        "tooManyRunning": "لدى شركتك عدة أسئلة قيد الإجابة حاليًا. يرجى الانتظار حتى تنتهي ثم إعادة السؤال. تم الاحتفاظ بسؤالك.",
+        "tooLarge": "هذا السؤال أطول من أن تتم الإجابة عليه دفعة واحدة. يرجى اختصاره وإعادة السؤال.",
+        "accountingUnavailable": "تعذّر على KEEL التحقق من أرصدة الذكاء الاصطناعي في باقتك الآن، لذلك لم يتم إنشاء إجابة. يرجى المحاولة بعد قليل. تم الاحتفاظ بسؤالك."
+      },
+      "planLimit": "استخدمت جميع أسئلة المساعد المتاحة في باقتك لفترة الفوترة الحالية. تتجدد بعد {{date}} — أو يمكنك ترقية باقتك من صفحة الفوترة.",
+      "busy": "المساعد يجيب على أسئلة كثيرة الآن. يرجى إعادة السؤال بعد حوالي {{seconds}} ثانية.",
+      "uploadFailed": "فشل رفع المستند. يرجى المحاولة مرة أخرى.",
+      "uploadSummary": "تمت إضافة {{added}} مستند إلى المساعد · تم استيراد {{data}} جدول كبيانات أعمال · تعذرت معالجة {{failed}}"
+    },
+    "claims": {
+      "kindCalculation": "حساب",
+      "kindEstimate": "تقدير",
+      "kindInference": "تحليل",
+      "kindRecommendation": "توصية",
+      "kindAssumption": "افتراض",
+      "kindUnknown": "غير محسوم",
+      "unverified": "غير مؤكد",
+      "unofficial": "مصدر غير رسمي"
+    },
+    "references": {
+      "title": "المراجع",
+      "open": "افتح المرجع {{n}}",
+      "close": "إغلاق المرجع",
+      "organisation": "الجهة الناشرة",
+      "location": "الموضع",
+      "jurisdiction": "الولاية القانونية",
+      "appliesTo": "ينطبق على",
+      "excerpt": "الدليل الداعم",
+      "method": "طريقة الحساب",
+      "limitations": "حدود هذا المصدر",
+      "openSource": "افتح المصدر الأصلي",
+      "openRecord": "افتح في KEEL",
+      "newTab": "(يفتح في تبويب جديد)",
+      "date": {
+        "published": "تاريخ النشر",
+        "effective": "تاريخ النفاذ",
+        "observed": "تاريخ الرصد",
+        "retrieved": "تاريخ الاسترجاع"
+      },
+      "kindCompanyRecord": "سجلات شركتك",
+      "kindCompanySummary": "ملخص KEEL لبياناتك",
+      "kindCompanyDocument": "مستند من مستنداتك",
+      "kindProductGuide": "دليل استخدام KEEL",
+      "kindWebPage": "مصدر عام",
+      "kindCalculation": "حساب من KEEL",
+      "kindUserInput": "ما ذكرته لـ KEEL",
+      "credibilityOfficial": "مصدر رسمي",
+      "credibilityPrimary": "مصدر أساسي",
+      "credibilityCompany": "بياناتك الخاصة",
+      "credibilitySecondary": "مصدر ثانوي",
+      "credibilityUser": "قدمته أنت",
+      "credibilityCalculated": "محسوب من KEEL",
+      "useFact": "يدعم معلومة",
+      "useCalculation": "نتيجة حساب",
+      "useCalculationInput": "مدخل في الحساب",
+      "useEstimate": "يدعم تقديراً",
+      "useAnalysis": "يدعم التحليل",
+      "useRecommendation": "يدعم توصية",
+      "useAssumption": "يدعم افتراضاً",
+      "useContext": "سياق"
+    },
+    "calculation": {
+      "formula": "المعادلة",
+      "value": "النتيجة",
+      "step": "الخطوة",
+      "stepsCaption": "خطوات الحساب",
+      "inputSources": "مصادر المدخلات:",
+      "missing": "ما زال مطلوباً",
+      "assumptions": "الافتراضات",
+      "exclusions": "غير مشمول",
+      "sensitivity": "إذا تغيّرت المدخلات غير المؤكدة",
+      "scenario": "السيناريو",
+      "perUnit": "للوحدة",
+      "saving": "الفرق مقارنة بالشراء المحلي",
+      "sourceUser": "من رسالتك",
+      "sourceEvidence": "من مصدر مذكور",
+      "sourceCompany": "من سجلاتك",
+      "sourceAssumption": "افتراض",
+      "inputs": {
+        "supplier_unit_price": "سعر المورد للوحدة",
+        "quantity": "الكمية",
+        "fx_rate": "سعر الصرف",
+        "freight": "الشحن",
+        "insurance": "التأمين",
+        "duty_rate": "نسبة الرسوم الجمركية",
+        "specific_duty_per_unit": "رسم نوعي للوحدة",
+        "excise_rate": "نسبة الضريبة الانتقائية",
+        "sales_tax_rate": "نسبة ضريبة المبيعات / القيمة المضافة",
+        "local_unit_price": "السعر المحلي للوحدة",
+        "selling_price": "سعر البيع لديك",
+        "brokerage": "أجور الوساطة",
+        "clearance": "التخليص الجمركي",
+        "port_handling": "مناولة الميناء",
+        "inspection": "الفحص",
+        "testing": "الاختبارات",
+        "certification": "شهادات المطابقة",
+        "permits": "التصاريح",
+        "documentation": "المستندات",
+        "bank_fees": "الرسوم البنكية",
+        "warehousing": "التخزين",
+        "local_delivery": "التوصيل المحلي",
+        "other": "تكاليف أخرى"
+      },
+      "cardTitle": "حساب من KEEL",
+      "landedPerUnit": "التكلفة الواصلة للوحدة",
+      "landedTotal": "التكلفة الواصلة (الإجمالي)",
+      "localPerUnit": "السعر المحلي للوحدة",
+      "importSaves": "الاستيراد يوفّر",
+      "importCostsMore": "الاستيراد أغلى بمقدار",
+      "breakEven": "كمية التعادل (وحدات)",
+      "stillNeeded": "ما زال مطلوباً لرقم كامل: {{items}}.",
+      "listSeparator": "، "
+    },
+    "status": {
+      "researchNotConfigured": "البحث في المصادر العامة غير مُفعّل على هذا الخادم، لذلك تعتمد هذه الإجابة على بياناتك ومستنداتك فقط.",
+      "researchBudget": "استُهلك حد البحث في المصادر العامة لهذا اليوم، لذلك لم تُراجع المصادر العامة.",
+      "researchFailed": "تعذّر إكمال البحث في المصادر العامة الآن، لذلك لم تُراجع المصادر العامة.",
+      "researchNoResults": "لم يُعثر على مصادر عامة لهذا السؤال، وهذا لا يثبت أن المعلومة غير موجودة.",
+      "researchUnreadable": "وُجدت مصادر عامة لكن تعذّرت قراءتها، لذلك لم تُستخدم.",
+      "calculationMissing": "بعض مدخلات الحساب ناقصة - راجع مرجع الحساب لمعرفة ما يلزم.",
+      "companyRecordsNone": "لا يوجد في سجلات شركتك ما يجيب عن هذا، والبحث العام لا يكشف أرقاماً خاصة لم تُسجَّل.",
+      "reviewsNone": "لا توجد تقييمات زبائن محفوظة لهذا بعد.",
+      "notPermitted": "بعض البيانات اللازمة لهذا السؤال غير متاحة لدورك.",
+      "documentsFailed": "البحث في المستندات لم يكن متاحاً لهذا السؤال."
+    }
+  },
+  "dataIngestion": {
+    "templates": {
+      "excel": "Excel (.xlsx)",
+      "csv": "CSV (.csv)",
+      "download": "تنزيل",
+      "downloaded": "تم التنزيل"
+    },
+    "dropTitle": "اسحب الملفات وأفلتها هنا",
+    "or": "أو",
+    "browse": "استعراض الملفات",
+    "supported": "المدعوم: PDF وCSV وExcel (.xlsx, .xlsm)",
+    "maxSize": "الحد الأقصى: 10 ميغابايت لكل ملف",
+    "invalidFile": "الملف {{name}} غير مدعوم أو يتجاوز 10 ميغابايت.",
+    "uploadedFiles": "الملفات المرفوعة ({{count}})",
+    "removeAll": "إزالة الكل",
+    "removeFile": "إزالة {{name}}",
+    "ready": "جاهز"
+  },
+  "reports": {
+    "page": {
+      "title": "التقارير",
+      "subtitle": "بيانات مبيعات ومالية حقيقية لعملك، قابلة للتصدير بصيغة CSV أو JSON."
+    },
+    "common": {
+      "unknown": "غير معروف",
+      "exportCsv": "تصدير CSV",
+      "exportJson": "تصدير JSON",
+      "exportPdf": "تنزيل PDF"
+    },
+    "financial": {
+      "title": "الملخص المالي",
+      "windowLabel": "الفترة",
+      "windowOptions": {
+        "7": "آخر 7 أيام",
+        "30": "آخر 30 يوماً",
+        "90": "آخر 90 يوماً"
+      },
+      "revenue": "الإيرادات",
+      "grossProfit": "إجمالي الربح",
+      "grossMargin": "هامش الربح الإجمالي",
+      "costCoverage": "تغطية بيانات التكلفة",
+      "grossProfitNote": "إجمالي الربح فقط (الإيرادات ناقص تكلفة البضاعة المباعة). لا يشمل هذا المصاريف التشغيلية الثابتة أو الإنفاق التسويقي أو الخصومات أو المرتجعات أو الضرائب - وهو ليس صافي ربحك.",
+      "unavailable": "تعذر تحميل الملخص المالي."
+    },
+    "sales": {
+      "title": "تقرير المبيعات",
+      "startDate": "من",
+      "endDate": "إلى",
+      "empty": "لا توجد مبيعات مسجلة في هذه الفترة.",
+      "unavailable": "تعذر تحميل تقرير المبيعات.",
+      "noCostData": "لا توجد بيانات تكلفة",
+      "columns": {
+        "issueDate": "التاريخ",
+        "invoiceNumber": "الفاتورة",
+        "product": "المنتج",
+        "quantity": "الكمية",
+        "unitPrice": "سعر الوحدة",
+        "total": "الإجمالي",
+        "grossProfit": "إجمالي الربح"
+      },
+      "pageOf": "الصفوف {{from}}–{{to}} من {{total}}",
+      "previous": "السابق",
+      "next": "التالي",
+      "pagination": "صفحات تقرير المبيعات",
+      "exporting": "جارٍ التحضير…",
+      "exportFailed": "تعذّر تنزيل الملف. يُرجى المحاولة مرة أخرى."
+    }
+  },
+  "marketing": {
+    "results": {
+      "packageTitle": "حزمة الحملة",
+      "audienceTitle": "الجمهور المحتمل",
+      "audienceNote": "اقتراح من الذكاء الاصطناعي بناءً على منتجك - وليس بيانات عملاء مقيسة.",
+      "positioningTitle": "المكانة السوقية",
+      "positioningUnavailable": "غير متاحة - لا توجد بيانات أسعار منافسين مطابقة لهذا المنتج بعد.",
+      "creativeDirectionTitle": "التوجيه الإبداعي",
+      "creativeDirectionNote": "وصف مكتوب للمصمم أو لتوليد الصور بالذكاء الاصطناعي - لم تُنشأ منه أي صورة بعد.",
+      "uploadImageLabel": "رفع صورة للمنتج (اختياري)",
+      "uploadImageButton": "رفع",
+      "uploadImageError": "تعذّر رفع هذه الصورة. حاول مرة أخرى.",
+      "referenceEditorTitle": "صورة المنتج المرجعية",
+      "referenceEditorHint": "ارفع صورة حقيقية لمنتجك، ويمكنك إزالة خلفيتها، ثم اختر أي نسخة تُستخدم كمرجع لتوليد الصورة بالذكاء الاصطناعي أدناه.",
+      "referencePreviewToggle": "معاينة",
+      "referenceOriginal": "الأصلية",
+      "previewProcessed": "بعد إزالة الخلفية",
+      "removeBackground": "إزالة الخلفية",
+      "restoreOriginal": "استعادة الأصلية",
+      "useAsReference": "استخدامها كمرجع",
+      "referenceCurrentlySet": "المرجع المستخدم حاليًا: {{choice}}",
+      "backgroundRemovalNotConfigured": "إزالة الخلفية غير مُفعّلة في هذه البيئة بعد.",
+      "backgroundRemovalError": "تعذّرت إزالة الخلفية الآن. حاول مرة أخرى لاحقًا.",
+      "referenceNotUsedGeneric": "تم اختيار صورة مرجعية للمنتج، لكن مزوّد توليد الصور الحالي لا يدعم استخدامها - تم إنشاء هذه الصورة من النص فقط.",
+      "referenceWasUsed": "تم إنشاء هذه الصورة باستخدام صورة المنتج المرجعية التي اخترتها.",
+      "imageTitle": "صورة مولّدة بالذكاء الاصطناعي",
+      "generateImage": "إنشاء صورة بالذكاء الاصطناعي",
+      "regenerateImage": "إعادة إنشاء الصورة",
+      "downloadImage": "تنزيل الصورة",
+      "generatedImageAlt": "تصميم إعلاني مُولَّد بالذكاء الاصطناعي",
+      "imageNotConfigured": "توليد الصور بالذكاء الاصطناعي غير مُفعّل في هذه البيئة بعد.",
+      "imageProviderError": "تعذّر إنشاء صورة الآن. حاول مرة أخرى لاحقًا.",
+      "imageLoadError": "تعذّر تحميل الصورة المُنشأة.",
+      "contentTitle": "المحتوى المُنشأ",
+      "headlineLabel": "العنوان",
+      "captionLabel": "النص التسويقي",
+      "descriptionLabel": "الوصف",
+      "copy": "نسخ",
+      "copied": "تم النسخ"
+    },
+    "history": {
+      "title": "الحملات الأخيرة",
+      "empty": "لا توجد حملات بعد"
+    }
+  },
+  "demandApex": {
+    "title": "الطلب",
+    "subtitle": "ما يُرجّح أن يشتريه عملاؤك خلال الأيام الثلاثين القادمة، متوقَّعًا من سجل مبيعاتك.",
+    "filters": {
+      "product": "المنتج",
+      "allProducts": "كل المنتجات",
+      "label": "تصفية المنتجات",
+      "all": "الكل",
+      "increasing": "متزايد",
+      "decreasing": "متراجع",
+      "restock": "يحتاج إعادة تخزين"
+    },
+    "actions": {
+      "refresh": "تحديث التوقعات",
+      "retry": "حاول مرة أخرى",
+      "addProduct": "إضافة منتج",
+      "importSales": "استيراد المبيعات",
+      "recordSale": "تسجيل عملية بيع"
+    },
+    "error": {
+      "title": "تعذّر تحميل توقعات الطلب",
+      "description": "بياناتك بأمان. تحقق من اتصالك وحاول مرة أخرى."
+    },
+    "empty": {
+      "noProductsTitle": "أضف منتجات لرؤية توقعات الطلب",
+      "noProductsDescription": "تُبنى التوقعات لكل منتج من سجل مبيعاته.",
+      "noSalesTitle": "التوقعات تحتاج إلى سجل مبيعات",
+      "noSalesDescription": "لا يوجد أي منتج لديه مبيعات مسجّلة بعد. استورد ملف مبيعات أو سجّل المبيعات، وسيتوقع KEEL الطلب على كل منتج تلقائيًا."
+    },
+    "refresh": {
+      "running": "جارٍ تحديث التوقعات بأحدث مبيعاتك — اكتمل {{done}} من {{total}} منتج.",
+      "failed": "تعذّر تحديث التوقعات الآن. الأرقام أدناه من آخر تحديث ناجح.",
+      "label": "تقدّم تحديث التوقعات"
+    },
+    "stats": {
+      "forecast": "الطلب المتوقع · 30 يومًا القادمة",
+      "vsLast30": "مقارنة بآخر 30 يومًا",
+      "calculating": "جارٍ الحساب…",
+      "revenue": "الإيراد المتوقع",
+      "revenueHint": "الوحدات المتوقعة × الأسعار الحالية",
+      "rising": "طلب متزايد",
+      "falling": "طلب متراجع",
+      "ofForecasted": "من أصل {{count}} منتجات متوقعة",
+      "stable": "{{count}} مستقر",
+      "restock": "تحتاج إعادة تخزين",
+      "restockHint": "المخزون لن يكفي الأيام الثلاثين القادمة"
+    },
+    "chart": {
+      "eyebrow": "منحنى الطلب",
+      "titleAll": "الوحدات يوميًا — كل المنتجات",
+      "titleOne": "الوحدات يوميًا — {{name}}",
+      "subtitle": "المبيعات الفعلية لآخر 90 يومًا، ثم التوقع للأيام الثلاثين القادمة.",
+      "actual": "المبيعات الفعلية",
+      "forecast": "التوقع",
+      "today": "اليوم",
+      "emptyTitle": "لا مبيعات في آخر 90 يومًا",
+      "emptyDescription": "يظهر الرسم عند وجود مبيعات حديثة للمقارنة."
+    },
+    "table": {
+      "eyebrow": "حسب المنتج",
+      "title": "توقعات المنتجات",
+      "subtitle": "يقارن الاتجاه التوقع بمبيعات آخر 30 يومًا (±{{band}}٪ يُعدّ مستقرًا).",
+      "product": "المنتج",
+      "sold": "المُباع · آخر 30 يومًا",
+      "forecast": "التوقع · 30 يومًا القادمة",
+      "trend": "الاتجاه",
+      "stock": "في المخزون",
+      "cover": "يكفي المخزون",
+      "advice": "توصية المخزون",
+      "noMatch": "لا توجد منتجات تطابق هذا التصفية.",
+      "calculating": "جارٍ الحساب…",
+      "noForecast": "لا يوجد توقع",
+      "notTracked": "غير متتبَّع",
+      "days": "{{count}} يومًا"
+    },
+    "trend": {
+      "increasing": "متزايد",
+      "decreasing": "متراجع",
+      "stable": "مستقر",
+      "not_forecast": "قيد الانتظار",
+      "no_sales": "لا مبيعات"
+    },
+    "action": {
+      "restock": "أعد التخزين",
+      "reduce": "مخزون زائد",
+      "monitor": "مغطّى",
+      "none": "—",
+      "restockQty": "اطلب نحو {{qty}}",
+      "reduceQty": "نحو {{qty}} فوق حاجة 90 يومًا"
+    },
+    "method": "تستخدم التوقعات نموذج تعلّم آلي عندما يتفوق على الطرق البسيطة في بياناتك، وإلا فأدق طريقة بسيطة. وتتحدّث تلقائيًا بعد كل مبيعات جديدة."
+  },
+  "productHub": {
+    "back": "كل المنتجات",
+    "notFound": "هذا المنتج غير موجود أو تم حذفه.",
+    "loadError": "تعذّر تحميل هذا المنتج.",
+    "uncategorised": "منتج",
+    "margin": "هامش {{pct}}٪",
+    "stockNotTracked": "المخزون غير متتبَّع",
+    "inStock": "{{qty}} في المخزون",
+    "actions": {
+      "recordSale": "تسجيل بيع",
+      "priceAdvice": "نصيحة السعر",
+      "promote": "روّج له",
+      "edit": "تعديل"
+    },
+    "signals": {
+      "title": "ما يحتاج انتباهك",
+      "restock": "أعد التخزين: يكفي المخزون نحو {{days}} يومًا بوتيرة التوقع — اطلب نحو {{qty}}.",
+      "restockNoCover": "أعد التخزين: المخزون عند حد إعادة الطلب أو أقل — اطلب نحو {{qty}}.",
+      "overstock": "مخزون زائد: يكفي نحو {{days}} يومًا — فكّر في طلب كمية أقل.",
+      "sales_down": "انخفضت المبيعات {{pct}}٪ مقارنة بالأيام الثلاثين السابقة.",
+      "sales_up": "ارتفعت المبيعات {{pct}}٪ مقارنة بالأيام الثلاثين السابقة.",
+      "no_recent_sales": "لا مبيعات في آخر 30 يومًا (آخر بيع {{since}}).",
+      "priced_above": "سعرك أعلى بـ {{pct}}٪ من متوسط المنافسين — {{cheaper_count}} من {{count}} منافسين أرخص.",
+      "priced_below": "سعرك أقل بـ {{pct}}٪ من متوسط المنافسين — قد يكون هناك مجال لرفعه.",
+      "no_competitor_prices": "لم تُسجَّل أسعار منافسين لهذا المنتج بعد.",
+      "competitor_price_change": "غيّر {{name}} سعره لهذا المنتج بنسبة {{pct}}٪.",
+      "negative_reviews": "{{share}}٪ من {{count}} تقييمًا محلَّلًا سلبية."
+    },
+    "stats": {
+      "units": "الوحدات المُباعة · 30 يومًا",
+      "revenue": "الإيراد · 30 يومًا",
+      "forecast": "التوقع · 30 يومًا القادمة",
+      "cover": "يكفي المخزون",
+      "vsPrev": "مقارنة بالـ30 يومًا السابقة",
+      "vsLast30": "مقارنة بآخر 30 يومًا",
+      "forecastPending": "جارٍ الحساب…",
+      "forecastNeedsSales": "يحتاج سجل مبيعات"
+    },
+    "demand": {
+      "eyebrow": "الطلب",
+      "title": "المبيعات والتوقع",
+      "emptyTitle": "لا مبيعات لهذا المنتج بعد",
+      "emptyDescription": "سجّل المبيعات أو استوردها وسيظهر التوقع هنا تلقائيًا."
+    },
+    "competition": {
+      "eyebrow": "المنافسة",
+      "title": "أسعار المنافسين لهذا المنتج",
+      "subtitle": "آخر سعر مسجَّل لدى كل منافس لهذا المنتج نفسه.",
+      "manage": "المنافسون",
+      "lowest": "الأدنى",
+      "average": "المتوسط",
+      "highest": "الأعلى",
+      "yours": "سعرك",
+      "position": "موقع سعرك ضمن نطاق أسعار المنافسين",
+      "noneTitle": "لا أسعار منافسين لهذا المنتج بعد",
+      "noneDescription": "تتابع {{count}} منافسين آخرين في سوقك. سجّل ما يتقاضونه عن هذا المنتج لمقارنة الأسعار.",
+      "recordPrice": "تسجيل سعر منافس",
+      "competitor": "المنافس",
+      "price": "سعرهم",
+      "vsYou": "مقارنة بك",
+      "recorded": "تاريخ التسجيل",
+      "cheaper": "أرخص بـ {{pct}}٪",
+      "pricier": "أعلى بـ {{pct}}٪",
+      "same": "السعر نفسه",
+      "openListing": "فتح صفحة {{name}}",
+      "industryTitle": "منافسون آخرون في سوقك",
+      "industryHint": "ينافسون نشاطك عمومًا؛ لم يُسجَّل لديهم سعر لهذا المنتج بعد.",
+      "sourceManual": "أُدخل يدويًا",
+      "sourceProductPage": "من صفحة المنتج لديهم",
+      "sourceDataSource": "من {{name}}",
+      "levelProduct": "ينافس على هذا المنتج",
+      "levelMarket": "منافس على مستوى السوق"
+    },
+    "reviews": {
+      "eyebrow": "العملاء",
+      "title": "تقييمات هذا المنتج",
+      "emptyTitle": "لا تقييمات لهذا المنتج",
+      "emptyDescription": "استورد تقييمات العملاء لرؤية الدرجات والانطباعات هنا.",
+      "import": "استيراد التقييمات",
+      "count": "{{count}} تقييمًا",
+      "sentiment": "{{positive}} إيجابي · {{negative}} سلبي من أصل {{analysed}} محلَّلًا",
+      "positiveShare": "نسبة التقييمات الإيجابية",
+      "notAnalysed": "لم يُحلَّل انطباع هذه التقييمات بعد.",
+      "basisRatings": "المشاعر مأخوذة من تقييمات النجوم التي وضعها العملاء.",
+      "basisMixed": "المشاعر مأخوذة من نص المراجعات، ومن تقييمات النجوم عندما لم يكن نموذج النص متاحًا."
+    },
+    "sales": {
+      "eyebrow": "المبيعات",
+      "title": "أحدث المبيعات",
+      "subtitle": "{{units}} وحدة · {{revenue}} منذ {{since}}",
+      "allSales": "كل المبيعات",
+      "date": "التاريخ",
+      "quantity": "الكمية",
+      "unitPrice": "سعر الوحدة",
+      "total": "الإجمالي",
+      "emptyTitle": "لا مبيعات مسجَّلة",
+      "emptyDescription": "تظهر هنا المبيعات التي تسجّلها أو تستوردها لهذا المنتج."
+    },
+    "sources": "المصادر: سجلات مبيعاتك ومخزونك ومنتجاتك؛ أسعار المنافسين من متابعة KEEL للمنافسين؛ التوقعات محسوبة بواسطة KEEL."
+  },
+  "productsApex": {
+    "subtitle": "كل منتج مع مبيعاته والطلب عليه ومخزونه في لمحة. افتح أي منتج لترى كل شيء عنه.",
+    "recordSale": "تسجيل بيع",
+    "importSales": "استيراد المبيعات",
+    "importProducts": "استيراد المنتجات",
+    "count": "{{count}} منتج",
+    "sold30": "المُباع · 30 يومًا",
+    "demand": "اتجاه التوقع",
+    "advice": "توصية المخزون",
+    "noSales": "لا مبيعات بعد",
+    "sell": "بيع",
+    "sellFor": "تسجيل بيع لـ {{name}}",
+    "moreFor": "إجراءات أخرى لـ {{name}}",
+    "open": "فتح المنتج",
+    "pageOf": "{{from}}–{{to}} من {{total}}",
+    "previous": "السابق",
+    "next": "التالي",
+    "pickTitle": "تسجيل بيع — اختر المنتج"
+  },
+  "commandCenter": {
+    "greeting": {
+      "morning": "صباح الخير، {{name}}",
+      "afternoon": "مساء الخير، {{name}}",
+      "evening": "مساء الخير، {{name}}"
+    },
+    "summary": "حققت {{revenue}} خلال آخر {{days}} يومًا. هناك {{attention}} أمور تحتاج انتباهك اليوم.",
+    "today": {
+      "label": "اليوم حتى الآن",
+      "orders": "{{count}} طلبًا"
+    },
+    "window": {
+      "label": "الفترة",
+      "days": "{{count}} يومًا"
+    },
+    "askAssistant": "اسأل المساعد",
+    "error": {
+      "title": "تعذّر تحميل مركز القيادة",
+      "description": "بياناتك بأمان. تحقق من اتصالك وحاول مرة أخرى."
+    },
+    "kpi": {
+      "revenue": "الإيراد · {{days}} يومًا",
+      "units": "الوحدات المُباعة · {{days}} يومًا",
+      "forecast": "التوقع · 30 يومًا القادمة",
+      "restock": "منتجات تحتاج إعادة تخزين",
+      "restockHint": "المخزون لن يغطي الطلب المتوقع",
+      "competitors": "المنافسون المتابَعون",
+      "vsPrev": "مقارنة بالفترة السابقة",
+      "noPrev": "لا يوجد سجل كافٍ للمقارنة",
+      "newCompetitors": "{{count}} جديد في هذه الفترة"
+    },
+    "trend": {
+      "eyebrow": "المبيعات",
+      "title": "الإيراد اليومي · آخر {{days}} يومًا",
+      "revenue": "الإيراد",
+      "reports": "التقارير",
+      "empty": "لا مبيعات في هذه الفترة"
+    },
+    "next": {
+      "eyebrow": "أفضل الخطوات التالية",
+      "title": "ماذا تفعل الآن",
+      "allClear": "لا شيء عاجل الآن",
+      "allClearHint": "المخزون يغطي الطلب ولا يوجد منتج تتراجع مبيعاته بحدة.",
+      "open": "فتح {{name}}",
+      "view": "عرض",
+      "promote": "روّج"
+    },
+    "actions": {
+      "restock": "أعد تخزين {{name}} — يكفي المخزون نحو {{days}} يومًا. اطلب نحو {{qty}}.",
+      "declining": "انخفضت مبيعات {{name}} بنسبة {{pct}}٪ مقارنة بالفترة السابقة.",
+      "priced_above": "سعر {{name}} أعلى بـ {{pct}}٪ من متوسط المنافسين؛ و{{competitor}} الأرخص.",
+      "promote_rising": "الطلب على {{name}} يرتفع ({{pct}}٪) والمخزون جيد — منتج مناسب للترويج.",
+      "promote_overstock": "لدى {{name}} مخزون يكفي نحو {{days}} يومًا — قد يساعد عرض ترويجي على تصريفه.",
+      "promote_growing": "نمت مبيعات {{name}} بنسبة {{pct}}٪ — فكّر في الترويج له."
+    },
+    "lists": {
+      "top": "أفضل المنتجات",
+      "declining": "مبيعات متراجعة",
+      "restock": "أعد التخزين قريبًا",
+      "empty": "لا مبيعات في هذه الفترة",
+      "noneDeclining": "لا يوجد منتج تراجعت مبيعاته بحدة",
+      "noneRestock": "المخزون يغطي الطلب المتوقع",
+      "units": "{{now}} مقابل {{before}} وحدة",
+      "order": "اطلب {{qty}}",
+      "allRestock": "كل المنتجات التي تحتاج إعادة تخزين ({{count}})"
+    },
+    "market": {
+      "eyebrow": "السوق",
+      "movesTitle": "تغيّرات أسعار المنافسين الأخيرة",
+      "all": "المنافسون",
+      "noMoves": "لم تُسجَّل تغيّرات في أسعار المنافسين خلال آخر 30 يومًا",
+      "noMovesHint": "تظهر التغيّرات هنا عندما يتغيّر سعر مسجَّل لمنافس.",
+      "moveLine": "{{product}}: {{from}} ← {{to}}",
+      "priceTitle": "فرص التسعير",
+      "noGaps": "أسعارك متماشية مع المنافسين",
+      "noGapsHint": "تظهر هنا المنتجات التي يزيد سعرها أو يقل بأكثر من 5٪ عن متوسط المنافسين.",
+      "above": "سعرك {{yours}} · متوسط المنافسين {{average}} — {{competitor}} الأرخص",
+      "below": "سعرك {{yours}} · متوسط المنافسين {{average}} — قد يكون هناك مجال لرفعه"
+    },
+    "setup": {
+      "subtitle": "لنُعدّ ذكاء أعمالك. كل خطوة تفتح المزيد من KEEL.",
+      "products": {
+        "title": "أضف منتجاتك",
+        "description": "أضفها واحدًا تلو الآخر أو استورد قائمة منتجات.",
+        "action": "إضافة منتجات"
+      },
+      "sales": {
+        "title": "استورد مبيعاتك",
+        "description": "ارفع ملف مبيعات (CSV أو Excel). تبدأ التوقعات والاتجاهات وتوصيات المخزون منه.",
+        "action": "استيراد المبيعات"
+      },
+      "competitors": {
+        "title": "تابع منافسيك",
+        "description": "أضف الأنشطة التي تنافسها والأسعار التي تتقاضاها.",
+        "action": "إضافة منافسين"
+      },
+      "documents": {
+        "title": "علّم المساعد مستنداتك",
+        "description": "ارفع السياسات أو قوائم الأسعار أو الأبحاث ليجيب المساعد منها.",
+        "action": "رفع المستندات"
+      }
+    },
+    "sources": "من سجلات مبيعاتك ومخزونك ومنتجاتك، وتوقعات KEEL، ومتابعة KEEL للمنافسين."
+  },
+  "competitorsApex": {
+    "title": "المنافسون",
+    "subtitle": "من تنافس — على مستوى سوقك كله وعلى منتجات محددة — وكيف تقارن أسعارك.",
+    "searchArea": "نطاق البحث",
+    "sources": "مصادر للمراجعة",
+    "error": "تعذّر تحميل بيانات المنافسين.",
+    "stats": {
+      "tracked": "المنافسون المتابَعون",
+      "ofPlan": "من أصل {{limit}} في باقتك",
+      "unlimited": "غير محدود في باقتك",
+      "levels": "على مستوى السوق · على مستوى المنتج",
+      "levelsHint": "كيف ينافسك منافسوك",
+      "coverage": "منتجات لها أسعار منافسين",
+      "coverageHint": "منتجات يُعرف فيها سعر منافس واحد على الأقل",
+      "above": "أسعار أعلى من المنافسين",
+      "changes": "{{count}} تغيّرًا في أسعار المنافسين خلال 30 يومًا",
+      "planUsage": "{{used}} من أصل {{limit}} منافسًا في باقتك"
+    },
+    "level": {
+      "MARKET": {
+        "short": "على مستوى السوق",
+        "title": "ينافس نشاطي كله",
+        "example": "متجر أو علامة أخرى في سوقي — مثل سوبرماركت أو محل أطعمة لمتجر بقالة."
+      },
+      "PRODUCT": {
+        "short": "على مستوى المنتج",
+        "title": "ينافس على منتجات محددة",
+        "example": "متخصص في بعض منتجاتي — مثل محمصة قهوة مقابل قهوتي العربية."
+      }
+    },
+    "coverage": {
+      "eyebrow": "حسب المنتج",
+      "title": "المنافسة على كل منتج",
+      "subtitle": "المنتجات بلا أسعار منافسين نقاط عمياء: أضف من ينافس عليها.",
+      "filter": "تصفية المنتجات",
+      "filters": {
+        "all": "كل المنتجات",
+        "none": "بلا منافسين بعد",
+        "above": "أعلى من السوق"
+      },
+      "product": "المنتج",
+      "yours": "سعرك",
+      "competitors": "المنافسون",
+      "cheapest": "أرخص منافس",
+      "average": "متوسط المنافسين",
+      "position": "سعرك مقارنة بالمتوسط",
+      "addFor": "إضافة منافس"
+    },
+    "add": {
+      "button": "إضافة منافس",
+      "subtitle": "أخبر KEEL من هم وكيف ينافسونك.",
+      "who": "من هم؟",
+      "how": "كيف ينافسونك؟",
+      "howHint": "المنافسون على مستوى السوق يتنافسون على العملاء أنفسهم عمومًا؛ والمنافسون على مستوى المنتج على منتجات معينة فقط.",
+      "whichProducts": "أي من منتجاتك؟ ({{count}} مختار)",
+      "pickProducts": "اختر منتجًا واحدًا على الأقل ينافسون عليه.",
+      "planLimit": "تتضمن باقتك {{limit}} منافسًا متابَعًا وكلها مستخدمة. رقِّ باقتك أو أزل منافسًا لإضافة آخر.",
+      "seePlans": "عرض الباقات",
+      "moreProducts": "يوجد {{count}} منتج آخر مطابق - ابحث لتضييق القائمة."
+    },
+    "sourcesNote": "الأسعار مما سجّلته أنت أو متابعة KEEL للمنافسين، مع تاريخ رؤيتها."
+  },
+  "marketingApex": {
+    "title": "التسويق",
+    "subtitle": "أنشئ حملة بخطوات بسيطة. يكتب KEEL المنشورات والإعلانات، وأنت تختار التوجّه.",
+    "progress": "خطوات الحملة",
+    "stepOf": "الخطوة {{n}} من {{total}}",
+    "back": "رجوع",
+    "next": "متابعة",
+    "generate": "أنشئ حملتي",
+    "generating": "جارٍ كتابة حملتك…",
+    "steps": {
+      "what": {
+        "title": "المنتج",
+        "question": "ماذا تسوّق؟",
+        "hint": "اختر أحد منتجاتك، أو الصق رابطًا له، أو صِفه بجملة."
+      },
+      "goal": {
+        "title": "الهدف",
+        "question": "ماذا تريد أن تنشئ؟",
+        "hint": "يحدد هذا طريقة كتابة المنشورات."
+      },
+      "audience": {
+        "title": "الجمهور",
+        "question": "لمن هذه الحملة؟",
+        "hint": "اختر ما يناسب، أو صِف عملاءك بكلماتك."
+      },
+      "style": {
+        "title": "الطابع",
+        "question": "ما الطابع الذي تريده؟",
+        "hint": "اختر الطابع المناسب — أو دع KEEL يختار بحسب منتجك وسعره."
+      },
+      "direction": {
+        "title": "التوجّه",
+        "question": "هل لديك فكرة محددة؟",
+        "hint": "صِف الإحساس الذي تريده بكلماتك. هذا ببساطة توجيهك الإبداعي."
+      },
+      "season": {
+        "title": "التوقيت",
+        "question": "هل تريدها مرتبطة بمناسبة؟",
+        "hint": "أفكار من التقويم ومن أداء هذا المنتج فعلًا في المناسبات السابقة."
+      },
+      "generate": {
+        "title": "إنشاء",
+        "question": "جاهز لإنشاء حملتك",
+        "hint": "راجع اختياراتك، ثم أنشئ الحملة."
+      }
+    },
+    "what": {
+      "source": "طريقة الوصف",
+      "product": "منتجي",
+      "link": "رابط",
+      "describe": "صِفه",
+      "linkLabel": "رابط صفحة المنتج",
+      "linkHint": "يقرأ KEEL الصفحة ليفهم المنتج.",
+      "describeLabel": "صِف المنتج",
+      "describePlaceholder": "مثال: زيت زيتون بكر ممتاز معصور على البارد من شمال الأردن، عبوة لتر.",
+      "photoTitle": "صورة المنتج (اختياري)",
+      "photoHint": "تُستخدم مرجعًا لصور الذكاء الاصطناعي عند تفعيلها.",
+      "addPhoto": "إضافة صورة",
+      "removePhoto": "إزالة الصورة"
+    },
+    "goals": {
+      "social_ad": {
+        "title": "إعلان على مواقع التواصل",
+        "description": "منشورات لإنستغرام وفيسبوك وتيك توك، وإعلان بحث."
+      },
+      "promotion": {
+        "title": "ترويج منتج",
+        "description": "أبرز منتجًا ولماذا يستحق الشراء."
+      },
+      "seasonal": {
+        "title": "حملة موسمية",
+        "description": "اربط المنتج بمناسبة أو موسم."
+      },
+      "awareness": {
+        "title": "التعريف بالعلامة",
+        "description": "اجعل الناس يتذكرون علامتك، دون بيع مباشر."
+      },
+      "sale": {
+        "title": "حملة تخفيضات",
+        "description": "عرض لفترة محدودة مع سبب واضح للشراء الآن."
+      }
+    },
+    "audience": {
+      "options": {
+        "families": "العائلات",
+        "young_adults": "الشباب",
+        "professionals": "الموظفون المشغولون",
+        "gift_buyers": "مشترو الهدايا",
+        "health": "المهتمون بالصحة",
+        "local": "سكان الحي"
+      },
+      "otherLabel": "بكلماتك (اختياري)",
+      "otherPlaceholder": "مثال: الأمهات اللواتي يحضّرن إفطار رمضان",
+      "optional": "تخطَّ هذه الخطوة إن لم تكن متأكدًا — ستعمل الحملة رغم ذلك."
+    },
+    "style": {
+      "auto": "دع KEEL يختار",
+      "autoHint": "يُختار بحسب منتجك وفئته وموقع سعره.",
+      "names": {
+        "LUXURY_PREMIUM": "فاخر",
+        "MINIMAL_CLEAN": "بسيط وأنيق",
+        "MODERN_TECH": "عصري",
+        "SOCIAL_TRENDY": "مرح ورائج",
+        "BOLD_PROMOTIONAL": "عرض جريء",
+        "LIFESTYLE": "دافئ وحياتي",
+        "SEASONAL": "احتفالي وموسمي"
+      },
+      "describe": {
+        "LUXURY_PREMIUM": "راقٍ ومميز؛ الجودة قبل السعر.",
+        "MINIMAL_CLEAN": "هادئ وواضح وواثق.",
+        "MODERN_TECH": "أنيق ودقيق.",
+        "SOCIAL_TRENDY": "حيوي ومناسب لمواقع التواصل.",
+        "BOLD_PROMOTIONAL": "كبير ولافت، يركز على العرض.",
+        "LIFESTYLE": "لحظات حقيقية من الحياة اليومية.",
+        "SEASONAL": "يحتفي بالمناسبة."
+      },
+      "sample": {
+        "LUXURY_PREMIUM": "صُنع للقلة.",
+        "MINIMAL_CLEAN": "ببساطة رائع.",
+        "MODERN_TECH": "صُنع بشكل أفضل.",
+        "SOCIAL_TRENDY": "الكل يتحدث عنه!",
+        "BOLD_PROMOTIONAL": "خصم 20٪ — اليوم فقط",
+        "LIFESTYLE": "صباح الجمعة معًا.",
+        "SEASONAL": "رمضان كريم"
+      }
+    },
+    "direction": {
+      "label": "توجيهك الإبداعي (اختياري)",
+      "placeholder": "مثال: اجعلها تبدو كحملة رمضانية فاخرة.",
+      "examples": "أمثلة:",
+      "example": {
+        "premiumRamadan": "اجعلها تبدو كحملة رمضانية فاخرة.",
+        "instagramModern": "اجعلها عصرية ومناسبة لإنستغرام.",
+        "familyWarm": "دافئة وعائلية، كمطبخ البيت.",
+        "urgentOffer": "قصيرة وعاجلة — العرض ينتهي نهاية الأسبوع."
+      }
+    },
+    "season": {
+      "error": "تعذّر تحميل الأفكار.",
+      "highlight": "باع هذا المنتج {{lift}}× وتيرته المعتادة خلال {{occasion}} في المرة السابقة. القادمة: {{next}}.",
+      "upcoming": "قريبًا",
+      "none": "بلا مناسبة",
+      "noneHint": "حملة صالحة لكل وقت.",
+      "now": "جارية الآن",
+      "inDays": "بعد {{days}} يومًا · {{date}}",
+      "mayShift": "قد يتغيّر الموعد يومًا",
+      "lift": "بِيع {{lift}}× المعتاد سابقًا",
+      "signals": {
+        "rising_demand": "الطلب على هذا المنتج يرتفع ({{pct}}٪ فوق المبيعات الأخيرة) — وقت مناسب للترويج له.",
+        "overstock": "لديك مخزون يكفي نحو {{days}} يومًا — قد يساعد عرض ترويجي على تصريفه.",
+        "low_stock": "المخزون يكفي نحو {{days}} يومًا فقط — أعد التخزين قبل الترويج المكثف.",
+        "falling_demand": "يُتوقع انخفاض الطلب {{pct}}٪ — قد تساعد حملة على عكس ذلك.",
+        "priced_below_market": "سعرك أقل بـ {{pct}}٪ من المنافسين — نقطة قوية للترويج.",
+        "priced_above_market": "سعرك أعلى بـ {{pct}}٪ من المنافسين — ركّز على الجودة لا السعر."
+      },
+      "honesty": "الأفكار من تقويم بلدك ومن سجل مبيعاتك. اتجاهات مواقع التواصل والبحث المباشرة غير متصلة، لذا لا تُعرض."
+    },
+    "occasions": {
+      "ramadan": "رمضان",
+      "eid_fitr": "عيد الفطر",
+      "eid_adha": "عيد الأضحى",
+      "national_day": "العيد الوطني",
+      "mothers_day": "عيد الأم",
+      "black_friday": "الجمعة البيضاء",
+      "back_to_school": "العودة إلى المدارس",
+      "summer": "الصيف",
+      "winter": "الشتاء",
+      "olive_harvest": "موسم قطاف الزيتون",
+      "new_year": "رأس السنة",
+      "valentines": "عيد الحب"
+    },
+    "prompt": {
+      "audience": "الجمهور المستهدف",
+      "occasion": "المناسبة"
+    },
+    "review": {
+      "withPhoto": "مع صورة",
+      "anyAudience": "الجميع",
+      "whatYouGet": "ستحصل على ملخص للجمهور، وتوجّه إبداعي، ومنشورات جاهزة للنسخ لإنستغرام وفيسبوك وتيك توك وإعلان بحث في Google."
+    },
+    "errors": {
+      "notConfigured": "كتابة الحملات غير مُعدّة على هذا الخادم بعد، لذلك تعذّرت كتابة الحملة. يحتاج المسؤول إلى إعداد خدمة الذكاء الاصطناعي.",
+      "busy": "كاتب الحملات مشغول الآن. حاول مرة أخرى بعد دقيقة.",
+      "badLink": "تعذّرت قراءة هذا الرابط. تحقق منه أو صِف المنتج بدلًا من ذلك.",
+      "failed": "تعذّرت كتابة الحملة هذه المرة. حاول مرة أخرى.",
+      "offline": "تعذّر الوصول إلى KEEL. تحقق من اتصالك وحاول مرة أخرى.",
+      "busyFor": "الذكاء الاصطناعي في KEEL مشغول الآن. حاول مرة أخرى بعد نحو {{seconds}} ثانية.",
+      "planTokens": "استُهلك رصيد الذكاء الاصطناعي في خطتك لهذه الفترة.",
+      "planImages": "استخدمت كل صور الذكاء الاصطناعي المتاحة في خطتك لهذه الفترة.",
+      "planStorage": "مساحة التخزين في خطتك ممتلئة. احذف الملفات التي لم تعد تحتاجها أو قم بترقية خطتك.",
+      "planUploads": "استُهلك رصيد الرفع في خطتك لهذه الفترة.",
+      "planOther": "تم بلوغ حد خطتك لهذه الميزة.",
+      "planInactive": "اشتراكك غير نشط.",
+      "renewsOn": "يتجدد في {{date}}.",
+      "openBilling": "عرض الخطط في الفوترة",
+      "imageFailed": "تعذّر إنشاء صورة الآن. حاول مرة أخرى لاحقًا.",
+      "uploadFailed": "تعذّر رفع هذه الصورة. حاول مرة أخرى.",
+      "photoFailed": "لم تنجح العملية هذه المرة. حاول مرة أخرى.",
+      "photoTooLarge": "حجم هذه الصورة أكبر من 8 ميغابايت. اختر صورة أصغر.",
+      "photoWrongType": "استخدم صورة بصيغة JPG أو PNG أو WebP."
+    },
+    "result": {
+      "eyebrow": "حملتك",
+      "photoFailed": "أُنشئت الحملة لكن تعذّر حفظ الصورة. يمكنك إضافتها مجددًا أدناه.",
+      "failedCampaign": "تعذّرت كتابة هذه الحملة"
+    },
+    "history": {
+      "eyebrow": "الأحدث",
+      "status": {
+        "COMPLETED": "جاهزة",
+        "FAILED": "فشلت",
+        "PENDING": "قيد الكتابة…"
+      }
+    },
+    "positioning": {
+      "PREMIUM": "فاخر",
+      "MID_RANGE": "متوسط",
+      "BUDGET": "اقتصادي"
+    }
+  },
+  "appError": {
+    "unexpected": {
+      "title": "حدث خطأ في هذه الشاشة",
+      "description": "بياناتك آمنة. أعد تحميل الصفحة للمحاولة مجددًا، وإذا تكرر ذلك فعد إلى مركز القيادة."
+    },
+    "updated": {
+      "title": "تم تحديث KEEL للتو",
+      "description": "يتوفر إصدار أحدث. أعد تحميل الصفحة للمتابعة."
+    },
+    "notFound": {
+      "title": "هذه الصفحة غير موجودة",
+      "description": "قد يكون الرابط قديمًا أو مكتوبًا بشكل خاطئ."
+    },
+    "reload": "إعادة تحميل الصفحة",
+    "home": "الذهاب إلى مركز القيادة"
+  },
+  "legal": {
+    "updated": "آخر تحديث {{date}}",
+    "contact": "لديك أسئلة؟ تواصل معنا على",
+    "terms": "الشروط",
+    "privacy": "الخصوصية"
+  },
+  "discovery": {
+    "eyebrow": "مسح السوق",
+    "title": "اكتشف المنافسين من حولك",
+    "subtitle": "نبحث عن أنشطة {{industry}} في {{place}} ضمن {{radius}} كم.",
+    "noPlace": "منطقتك",
+    "pinnedLocation": "موقعك المحدد",
+    "changeArea": "تغيير المنطقة",
+    "scan": "اكتشف المنافسين",
+    "rescan": "تحديث المسح",
+    "running": "جارٍ مسح المصادر العامة… يستغرق ذلك عادةً أقل من دقيقة.",
+    "result": "وجد آخر مسح {{found}} نشاطًا: {{added}} جديد، وأُضيف {{tracked}} إلى قائمة المتابعة.",
+    "partial": "بعض المصادر لم تستجب",
+    "failed": {
+      "noLocation": "يحتاج المسح إلى موقع نشاطك. أدخل مدينتك أو حدد موقعك ثم أعد المسح.",
+      "noSources": "البحث عن المنافسين غير مُعدّ لحسابك بعد. يرجى التواصل مع دعم KEEL.",
+      "generic": "تعذر إكمال المسح. حاول مجددًا بعد دقائق.",
+      "locationNotFound": "تعذر تحديد مدينتك على الخريطة. استخدم \"تغيير المنطقة\" لتحديد موقعك بدقة ثم أعد المسح.",
+      "unreachable": "تعذر الوصول إلى مصادر المنافسين الآن. حاول مجددًا بعد دقائق."
+    },
+    "startFailed": "تعذر بدء المسح. حاول مجددًا.",
+    "needLocation": "أضف مدينتك أو موقعك على الخريطة ليجد المسح الأنشطة القريبة منك.",
+    "setLocation": "تحديد الموقع",
+    "provenance": "يأتي المنافسون فقط من قوائم الأعمال العامة ونتائج البحث على الويب ومواقع الشركات نفسها حيث تسمح بذلك. لا شيء مُخمَّن؛ كل منافس مرتبط بالمكان الذي وُجد فيه.",
+    "error": "تعذر تحميل بيانات المنافسين.",
+    "providers": {
+      "map_listing": "قوائم الخرائط",
+      "web_search": "البحث على الويب",
+      "company_database": "قاعدة بيانات الشركات"
+    },
+    "providerState": {
+      "ready": "جاهز",
+      "notConnected": "غير متصل",
+      "found": "{{count}} نتيجة",
+      "unreachable": "تعذر الوصول",
+      "noLocation": "يحتاج إلى موقع",
+      "optional": "اختياري - يحتاج مفتاح بحث مجاني"
+    },
+    "sources": {
+      "map_listing": "قائمة أعمال عامة",
+      "web_search": "نتيجة بحث على الويب",
+      "business_website": "موقع الشركة",
+      "added_by_you": "أضفته أنت",
+      "demo": "بيانات تجريبية",
+      "company_database": "قاعدة بيانات شركات عامة",
+      "news": "مقال إخباري"
+    },
+    "status": {
+      "tracked": "متابَعون",
+      "suggested": "مقترحون",
+      "all": "الكل"
+    },
+    "sort": {
+      "relevance": "الأكثر صلة",
+      "distance": "الأقرب",
+      "rating": "الأعلى تقييمًا",
+      "reviews": "الأكثر مراجعات",
+      "name": "الاسم",
+      "recent": "الأحدث اكتشافًا"
+    },
+    "origin": {
+      "any": "أي مصدر",
+      "map": "قوائم الخرائط",
+      "web": "الويب والتواصل الاجتماعي",
+      "manual": "أضفته أنت"
+    },
+    "confidence": {
+      "high": "ثقة عالية",
+      "medium": "ثقة متوسطة",
+      "low": "ثقة منخفضة"
+    },
+    "list": {
+      "eyebrow": "المنافسون",
+      "title": "مشهدك التنافسي",
+      "subtitle": "يغذي المنافسون المتابَعون التسعير والتنبيهات والتقارير والمساعد. الاقتراحات تأتي من مسح السوق.",
+      "status": "عرض",
+      "search": "ابحث في المنافسين",
+      "sort": "ترتيب حسب",
+      "origin": "المصدر",
+      "km": "{{km}} كم",
+      "branches": "{{count}} فروع",
+      "relevance": "الصلة",
+      "priced": "{{count}} أسعار مقارنة",
+      "track": "متابعة",
+      "untrack": "إيقاف المتابعة",
+      "demo": "بيانات تجريبية",
+      "limitReached": "وصلت إلى حد المنافسين المتابَعين في خطتك. أوقف متابعة أحدهم أو قم بترقية خطتك.",
+      "trackFailed": "تعذر حفظ هذا التغيير. حاول مجددًا.",
+      "empty": {
+        "tracked": "لا تتابع أي منافس بعد",
+        "suggested": "لا توجد اقتراحات بعد",
+        "all": "لا يوجد منافسون بعد"
+      },
+      "emptyHint": "شغّل مسح السوق للعثور على أنشطة مشابهة قريبة، أو أضف منافسًا تعرفه.",
+      "showing": "يُعرض {{shown}} من {{total}}",
+      "showMore": "عرض المزيد"
+    },
+    "reasons": {
+      "same_industry": "نفس نوع نشاطك",
+      "related_industry": "نشاط قريب من نشاطك",
+      "keyword": "وُجد عند البحث عن أنشطة مثل نشاطك",
+      "other_industry": "نوع نشاط مختلف",
+      "distance": "يبعد {{km}} كم عنك",
+      "branches": "{{count}} فروع في منطقتك",
+      "reviews": "تقييم {{rating}} من {{count}} مراجعة عامة",
+      "sources": "مؤكد من {{count}} مصدر"
+    },
+    "detail": {
+      "subtitle": "منافس",
+      "distance": "المسافة",
+      "rating": "التقييم العام",
+      "reviews": "{{count}} مراجعة",
+      "noReviews": "لا توجد مراجعات عامة",
+      "branches": "المواقع",
+      "profileEyebrow": "الملف",
+      "profile": "تفاصيل النشاط",
+      "address": "العنوان",
+      "phone": "الهاتف",
+      "categories": "الفئات",
+      "firstSeen": "أول اكتشاف",
+      "lastSeen": "آخر تأكيد",
+      "why": "سبب الإدراج",
+      "sourcesEyebrow": "المصدر",
+      "sources": "من أين تأتي هذه المعلومات",
+      "sourcesHint": "كل سجل عام تمت مطابقة هذا المنافس معه.",
+      "seen": "آخر ظهور {{date}}",
+      "open": "فتح",
+      "addedByYou": "أضفته أنت - لا يوجد سجل عام مرتبط بعد.",
+      "pricesEyebrow": "الأسعار",
+      "profiles": "الحسابات على مواقع التواصل"
+    },
+    "sourcesChecked": "فُحص {{checked}} بحثًا وصفحة؛ استجاب منها {{answered}}.",
+    "relationship": {
+      "label": "مدى المنافسة",
+      "DIRECT": "منافس مباشر",
+      "INDIRECT": "منافس غير مباشر",
+      "RELATED": "نشاط ذو صلة",
+      "UNVERIFIED": "غير مؤكَّد",
+      "filter": {
+        "any": "كل الأنواع",
+        "DIRECT": "المنافسون المباشرون",
+        "INDIRECT": "المنافسون غير المباشرين",
+        "RELATED": "أنشطة ذات صلة",
+        "UNVERIFIED": "غير مؤكَّد",
+        "with_prices": "ينشر أسعارًا"
+      }
+    },
+    "reason": {
+      "same_products": "يبيع {{count}} من منتجاتك (الأسعار على موقعه)",
+      "same_specialty": "التخصص نفسه: «{{term}}» في {{where}}",
+      "same_trade": "قائمته تذكر نوع نشاطك",
+      "same_industry": "القطاع نفسه دون ما يدل على تخصصك",
+      "related_industry": "نوع نشاط قريب",
+      "name_matches_industry": "اسمه يدل على أنه في قطاعك",
+      "not_confirmed": "لا تؤكده أي فئة في القوائم",
+      "where": {
+        "name": "اسمه",
+        "category": "فئته في القوائم"
+      }
+    },
+    "website": {
+      "notYet": "لم يُقرأ الموقع بعد",
+      "items": "{{count}} منتجًا/صنفًا على موقعهم",
+      "prices": "{{count}} بأسعار",
+      "matched": "{{count}} مطابقة لمنتجاتك"
+    },
+    "coverage": {
+      "title": "ما أنتجه آخر مسح",
+      "listings": "القوائم التي وُجدت",
+      "listingsValue": "{{found}} (دُمج {{merged}} مكررًا)",
+      "relevant": "المحفوظة حسب مدى المنافسة",
+      "websites": "المواقع المقروءة",
+      "websitesValue": "{{read}} من {{tried}} · {{pages}} صفحة",
+      "extracted": "ما قُرئ من المواقع",
+      "extractedValue": "{{products}} منتجًا · {{prices}} سعرًا · {{offers}} عرضًا",
+      "matched": "المطابق لمنتجاتك",
+      "matchedValue": "{{products}} من منتجاتك لها أسعار · {{prices}} سعرًا من {{competitors}} منافسين"
+    }
+  },
+  "workspaces": {
+    "label": "شركاتك",
+    "new": "شركة جديدة",
+    "switchFailed": "تعذر فتح هذه الشركة. حاول مجددًا.",
+    "create": {
+      "title": "إضافة شركة",
+      "subtitle": "أدر نشاطًا آخر بنفس الحساب. لكل شركة منتجاتها ومبيعاتها ومنافسوها وخطتها وفريقها.",
+      "back": "رجوع",
+      "name": "اسم النشاط",
+      "namePlaceholder": "مثال: صيدلية الشفاء",
+      "country": "الدولة",
+      "countryPlaceholder": "اختر الدولة",
+      "currency": "العملة",
+      "currencyPlaceholder": "اختر العملة",
+      "note": "لا يُنسخ أي شيء من شركتك الحالية. ستُعدّها في الخطوة التالية.",
+      "submit": "إنشاء الشركة",
+      "failed": "تعذر إنشاء الشركة. تحقق من البيانات وحاول مجددًا.",
+      "tooMany": "وصلت إلى الحد الأقصى لعدد الشركات لحساب واحد."
+    }
+  },
+  "setup": {
+    "eyebrow": "إعداد الشركة",
+    "title": "لنُعدّ {{name}}",
+    "subtitle": "أربع خطوات قصيرة ليجد KEEL منافسيك ويقرأ سوقك. يمكنك تغيير كل شيء لاحقًا من الإعدادات.",
+    "progress": "تقدم الإعداد",
+    "steps": {
+      "business": "النشاط",
+      "location": "الموقع",
+      "products": "المنتجات",
+      "finish": "المسح"
+    },
+    "loadError": "تعذر تحميل ملف شركتك.",
+    "saveError": "تعذر الحفظ. حاول مجددًا.",
+    "notSet": "غير محدد",
+    "back": "رجوع",
+    "next": "متابعة",
+    "skip": "تخطي الآن",
+    "business": {
+      "title": "ما نوع نشاطك؟",
+      "subtitle": "يحدد ذلك الأنشطة التي تُعدّ منافسة لك.",
+      "search": "ابحث في القطاعات",
+      "industry": "القطاع",
+      "description": "ماذا تبيع (اختياري)",
+      "website": "موقعك الإلكتروني (اختياري)"
+    },
+    "location": {
+      "title": "أين يجدك عملاؤك؟",
+      "subtitle": "نشاطك مسجل في {{country}}. أخبرنا بالمدينة، أو حدد موقعك بدقة للحصول على أدق خريطة للمنافسين.",
+      "city": "المدينة",
+      "cityPlaceholder": "مثال: عمّان",
+      "useMine": "استخدم موقعي الحالي",
+      "pinned": "الموقع المحدد {{lat}}، {{lon}}",
+      "radius": "المنافسون ضمن",
+      "radiusHint": "تتنافس المطاعم والمقاهي ضمن بضعة كيلومترات؛ أما الفنادق ومتاجر الإلكترونيات فعلى مستوى المدينة.",
+      "unsupported": "لا يستطيع هذا المتصفح مشاركة الموقع. اكتب مدينتك بدلًا من ذلك.",
+      "denied": "لم تتم مشاركة الموقع. اكتب مدينتك بدلًا من ذلك."
+    },
+    "products": {
+      "title": "أضف بعض المنتجات أو الخدمات",
+      "subtitle": "اختياري - بضعة منتجات تساعد في التسعير ومطابقة المنافسين. يمكنك استيراد الكتالوج الكامل وملف المبيعات لاحقًا.",
+      "subtitleHas": "لديك {{count}} منتجًا بالفعل. أضف المزيد هنا أو استورد لاحقًا.",
+      "name": "اسم المنتج أو الخدمة",
+      "price": "السعر ({{currency}})",
+      "remove": "إزالة",
+      "add": "إضافة آخر",
+      "save": "حفظ {{count}} والمتابعة",
+      "importHint": "لاستيراد كتالوج كامل وسجل المبيعات، استخدم البيانات والمستندات بعد الإعداد."
+    },
+    "finish": {
+      "title": "جاهز لمسح سوقك",
+      "subtitle": "سيبحث KEEL في قوائم الخرائط العامة والويب عن أنشطة مثل نشاطك في هذه المنطقة. كل منافس يجده مرتبط بمصدره.",
+      "scan": "إنهاء ومسح سوقي",
+      "later": "إنهاء بدون مسح"
+    }
+  },
+  "scopeArea": {
+    "title": "نطاق السوق",
+    "subtitle": "مكان نشاطك ومدى امتداد المنافسة. يبحث مسح السوق في هذا النطاق.",
+    "latitude": "خط العرض",
+    "longitude": "خط الطول",
+    "pinHint": "تحديد الموقع يعطي أدق مسافات للمنافسين. اتركه فارغًا لاستخدام مركز المدينة.",
+    "pinInvalid": "أدخل خطي العرض والطول كأرقام، أو اتركهما فارغين.",
+    "saved": "تم حفظ نطاق السوق. حدّث المسح في صفحة المنافسين لاستخدامه.",
+    "saveError": "تعذر حفظ نطاق السوق. حاول مجددًا."
+  },
+  "alerts": {
+    "label": "التنبيهات",
+    "labelUnread": "التنبيهات، {{count}} غير مقروءة",
+    "title": "التنبيهات",
+    "count": "{{count}} عناصر",
+    "error": "تعذر تحميل التنبيهات.",
+    "empty": "لا شيء يحتاج انتباهك الآن.",
+    "competitor_price": {
+      "down": "خفّض {{competitor}} سعر {{product}} بنسبة {{pct}}٪ إلى {{price}}",
+      "up": "رفع {{competitor}} سعر {{product}} بنسبة {{pct}}٪ إلى {{price}}"
+    },
+    "restock": "سينفد {{product}} خلال {{days}} يومًا تقريبًا - أعد طلب نحو {{quantity}}",
+    "price_gap": {
+      "above": "سعر {{product}} أعلى من السوق بنسبة {{pct}}٪ (الأرخص: {{competitor}})",
+      "below": "سعر {{product}} أقل من السوق بنسبة {{pct}}٪ - يمكنك رفعه"
+    },
+    "new_competitors": "وجد مسح السوق {{count}} منافسين جدد ({{tracked}} قيد المتابعة الآن)",
+    "import_failed": "فشل استيراد: {{name}}",
+    "trial_ending": "تنتهي فترتك التجريبية خلال {{days}} أيام - اختر خطة للاستمرار",
+    "payment_failed": "فشلت آخر عملية دفع - حدّث وسيلة الدفع من الفوترة",
+    "credits_low": "استخدمت {{percent}}٪ من {{budget}} لهذه الفترة - تتجدد في {{date}}",
+    "credits_exhausted": "نفدت {{budget}} لهذه الفترة - تتجدد في {{date}}؛ يمكنك الترقية من الفوترة",
+    "budget": { "data": "أرصدة البيانات", "ai": "أرصدة الذكاء الاصطناعي" }
+  },
+  "intel": {
+    "citation": "المصدر {{n}}: {{text}}",
+    "openSource": "افتح المصدر على {{host}}",
+    "eyebrow": "من موقعهم",
+    "title": "ما ينشرونه",
+    "checkedAt": "قُرئ من موقعهم في {{date}}",
+    "neverChecked": "لم يُقرأ موقعهم بعد.",
+    "refresh": "اقرأ مجددًا",
+    "read": "اقرأ موقعهم",
+    "refreshFailed": "تعذّرت قراءة موقعهم الآن. حاول مرة أخرى بعد دقائق.",
+    "status": {
+      "not_allowed": "يطلب موقعهم من القرّاء الآليين عدم قراءة هذه الصفحات، لذلك لم يقرأها KEEL.",
+      "unreachable": "لم يستجب موقعهم في آخر محاولة.",
+      "not_public": "موقعهم ليس على الإنترنت العام.",
+      "empty": "قُرئ موقعهم، لكنه لا ينشر منتجات أو أسعارًا أو عروضًا يمكن لـ KEEL قراءتها.",
+      "no_website": "لا يُعرف موقع لهذا المنافس.",
+      "failed": "تعذّرت قراءة موقعهم في آخر مرة.",
+      "prices_found": "قُرئت المنتجات والأسعار من موقعهم.",
+      "no_price_published": "يعرض موقعهم منتجات أو قائمة طعام لكنه لا ينشر أسعارًا تمكّن KEEL من قراءتها.",
+      "no_relevant_page": "قُرئ موقعهم، لكن لم توجد صفحة منتجات أو قائمة أو أسعار أو عروض.",
+      "blocked_by_robots": "يطلب موقعهم من القرّاء الآليين عدم قراءة هذه الصفحات، لذلك لم يقرأها KEEL.",
+      "http_error": "أجاب موقعهم بصفحة خطأ.",
+      "needs_javascript": "لا تظهر محتويات صفحاتهم إلا بعد تشغيل JavaScript، وتعذّر ذلك في هذه القراءة.",
+      "extraction_failed": "قُرئ موقعهم لكن تعذّرت معالجة صفحاته.",
+      "not_own_site": "الرابط المسجّل لهم صفحة تواصل اجتماعي أو دليل أو منصة، وليس موقعهم الخاص، لذلك لم يُقرأ.",
+      "other_business_site": "الموقع المسجّل لهم في البيانات العامة يعود لنشاط تجاري آخر، لذلك لم تُستخدم أسعاره."
+    },
+    "noWebsite": "لا يُعرف موقع",
+    "noWebsiteHint": "يقرأ KEEL المنتجات والأسعار والعروض من موقع المنافس نفسه، ولم يُعثر على موقع لهذا المنافس في القوائم العامة.",
+    "nothingYet": "لم يُقرأ شيء من موقعهم بعد",
+    "nothingYetHint": "اختر «اقرأ موقعهم» لجمع المنتجات والأسعار والعروض التي ينشرها.",
+    "products": "المنتجات والأسعار المنشورة",
+    "conflicts": "بعض المنتجات معروضة بأكثر من سعر على موقعهم، ونعرض السعرين.",
+    "product": "المنتج",
+    "price": "السعر",
+    "confidence": "الثقة",
+    "source": "المصدر",
+    "confidenceLevels": {
+      "high": "من بيانات منتجات الموقع",
+      "medium": "مقروء من نص الصفحة",
+      "low": "منخفضة"
+    },
+    "promotions": "العروض والتخفيضات",
+    "messages": "كيف يصفون أنفسهم",
+    "provenance": "يُقرأ فقط من موقع المنافس العام، حيث يسمح ملف robots.txt. كل معلومة مرتبطة بالصفحة التي جاءت منها.",
+    "analysisEyebrow": "تحليل بالذكاء الاصطناعي",
+    "analysisTitle": "التحليل",
+    "analysisAt": "كُتب في {{date}}",
+    "analysisHint": "تحليل بالذكاء الاصطناعي للمعلومات التي جمعها KEEL عن هذا المنافس.",
+    "aiLabel": "تحليل بالذكاء الاصطناعي للمصادر أدناه - وليس حقائق مؤكدة. كل نقطة مرتبطة بالدليل الذي بُنيت عليه.",
+    "analyse": "حلّل",
+    "reanalyse": "حلّل مجددًا",
+    "summarise": "لخّص الاتجاهات",
+    "insufficient": "لا توجد معلومات كافية للتحليل بعد. اقرأ موقعهم أو شغّل بحثًا جديدًا أولًا.",
+    "noAnalysis": "لا يوجد تحليل بعد",
+    "noAnalysisHint": "يكتبه KEEL فقط من المعلومات المجمّعة مع ذكر مصدر كل منها.",
+    "analysis": {
+      "positioning": "التموضع",
+      "target_audience": "الجمهور المحتمل",
+      "strengths": "نقاط القوة",
+      "weaknesses": "نقاط الضعف",
+      "differentiators": "ما يميّزهم",
+      "opportunities": "فرص لك"
+    },
+    "analysisErrors": {
+      "offline": "تعذّر الوصول إلى KEEL. تحقق من اتصالك وحاول مرة أخرى.",
+      "planLimit": "استُهلك رصيد الذكاء الاصطناعي في خطتك لهذه الفترة.",
+      "notConfigured": "التحليل بالذكاء الاصطناعي غير مُعدّ على هذا الخادم بعد.",
+      "busy": "الذكاء الاصطناعي في KEEL مشغول الآن. حاول بعد دقيقة.",
+      "failed": "تعذّرت كتابة التحليل هذه المرة. حاول مرة أخرى."
+    },
+    "newsEyebrow": "الأخبار",
+    "competitorNews": "في الأخبار",
+    "marketEyebrow": "السوق",
+    "trendsTitle": "اتجاهات السوق",
+    "trendsHint": "ملخص بالذكاء الاصطناعي لأخبار القطاع الأخيرة وعروض المنافسين، مع ذكر كل مصدر.",
+    "trends": "الاتجاهات",
+    "watch": "يستحق المتابعة",
+    "noTrends": "لا يظهر اتجاه واضح في الأخبار المجمّعة حتى الآن.",
+    "marketNews": "أخبار القطاع والمنافسين",
+    "newsSource": "مقالات حديثة من مواقع إخبارية في بلدك، وجدها آخر بحث.",
+    "noNewsYet": "لم تُجمع أخبار بعد",
+    "noNewsHint": "يبحث كل بحث عن المنافسين أيضًا عن أخبار حديثة عن قطاعك ومنافسيك المتابَعين.",
+    "otherLanguage": "كُتب هذا التحليل بلغة أخرى. اختر «حلّل مجددًا» للحصول عليه بهذه اللغة.",
+    "statusShort": {
+      "prices_found": "وُجدت أسعار",
+      "no_price_published": "لا أسعار منشورة",
+      "no_relevant_page": "لا صفحة منتجات",
+      "blocked_by_robots": "غير مسموح",
+      "http_error": "صفحة خطأ",
+      "needs_javascript": "يحتاج JavaScript",
+      "extraction_failed": "تعذّرت المعالجة",
+      "unreachable": "لا يستجيب",
+      "not_public": "غير عام",
+      "ok": "قُرئ",
+      "empty": "لا شيء للقراءة",
+      "not_own_site": "ليس موقعهم",
+      "other_business_site": "موقع نشاط آخر"
+    },
+    "newsFromSite": "من موقعهم",
+    "newsFromSearch": "بحث الأخبار"
+  },
+  "dashboardActivity": {
+    "open": "فتح",
+    "loadError": "تعذّر تحميل هذا.",
+    "campaigns": {
+      "eyebrow": "التسويق",
+      "title": "الحملات",
+      "total": "{{count}} حملة محفوظة",
+      "empty": "لا توجد حملات بعد",
+      "emptyHint": "اختر منتجًا ويكتب KEEL حملة كاملة له.",
+      "create": "أنشئ حملة"
+    },
+    "market": {
+      "eyebrow": "المنافسون",
+      "title": "معلومات المنافسين",
+      "never": "لم يُجرَ بحث عن المنافسين بعد",
+      "neverHint": "اعثر على الأعمال المنافسة لك وما تبيعه وبكم.",
+      "scan": "ابحث عن المنافسين",
+      "failed": "تعذّر على آخر بحث الوصول إلى مصادره.",
+      "result": "آخر بحث: وُجد {{found}} منافسًا، منهم {{added}} جديد."
+    },
+    "updates": {
+      "eyebrow": "التحديثات",
+      "title": "آخر التحديثات"
+    }
+  },
+  "studio": {
+    "subtitle": "اختر ما تريد الترويج له وينشئ KEEL صورة تسويقية واحدة مع النص المناسب لها. اعرضها وعدّلها وأعد إنشاءها واحفظها.",
+    "steps": {
+      "what": "ماذا ولماذا",
+      "create": "الإنشاء",
+      "review": "المراجعة والحفظ"
+    },
+    "step1Eyebrow": "الخطوة 1",
+    "step1Title": "ما الذي نسوّق له؟",
+    "step1Hint": "اختر أحد منتجاتك (يعرف KEEL اسمه وسعره وفئته مسبقًا)، أو رابط منتج، أو صِفه.",
+    "noProducts": "لا توجد منتجات بعد. أضف منتجات، أو استخدم رابطًا أو وصفًا بدلًا من ذلك.",
+    "productKnown": "يستخدم KEEL تفاصيل المنتج المحفوظة لديك - لا حاجة لكتابتها مجددًا.",
+    "goalLabel": "ما هدف الحملة؟",
+    "goals": {
+      "sell": {
+        "title": "زيادة المبيعات",
+        "description": "الفوائد وسبب واضح للشراء الآن."
+      },
+      "offer": {
+        "title": "الإعلان عن عرض",
+        "description": "خصم أو عرض لفترة محدودة بصدق."
+      },
+      "awareness": {
+        "title": "التعريف بالعلامة",
+        "description": "اجعل علامتك التجارية لا تُنسى."
+      },
+      "seasonal": {
+        "title": "موسم أو مناسبة",
+        "description": "رمضان والعيد والأعياد ومناسبات أخرى."
+      }
+    },
+    "language": "لغة الحملة",
+    "languages": {
+      "en": "الإنجليزية",
+      "ar": "العربية"
+    },
+    "options": "خيارات إضافية (اختيارية)",
+    "audienceLabel": "لمن الحملة؟",
+    "audiencePlaceholder": "مثلًا: العائلات في عمّان، الموظفون، من يشترون الهدايا",
+    "lookLabel": "الطابع والأسلوب",
+    "notesLabel": "هل هناك ما تريد إضافته؟",
+    "photoHint": "تُحفظ مع الحملة للرجوع إليها، ولا تُرسل أبدًا إلى خدمة الصور.",
+    "step2Eyebrow": "الخطوة 2",
+    "step2Title": "إنشاء الحملة",
+    "step2Hint": "بنقرة واحدة يُكتب النص وتُنشأ الصورة المناسبة له.",
+    "step2HintNoImage": "بنقرة واحدة يُكتب النص. إنشاء الصور متوقف على هذا الخادم.",
+    "summary": "{{what}} · {{goal}} · {{language}}",
+    "yourDescription": "وصفك",
+    "chooseFirst": "اختر منتجًا أو رابطًا أو وصفًا أولًا.",
+    "generate": "أنشئ الحملة",
+    "writing": "جارٍ كتابة حملتك…",
+    "creatingImage": "جارٍ إنشاء الصورة…",
+    "elapsed": "{{seconds}} ث",
+    "keepOpen": "أبقِ هذه الصفحة مفتوحة",
+    "imagePrivacy": "تُنشأ الصورة بخدمة ذكاء اصطناعي خارجية مجانية من نص الحملة (اسم المنتج ووصفه). لا تُرسل صورك أبدًا.",
+    "reviewEyebrow": "الخطوة 3 · المراجعة والحفظ",
+    "titleLabel": "عنوان الحملة",
+    "savedAt": "حُفظت {{date}}",
+    "save": "احفظ التغييرات",
+    "saved": "محفوظة",
+    "savedNote": "تم حفظ تغييراتك.",
+    "rewrite": "اكتب نصوصًا جديدة",
+    "delete": "احذف",
+    "confirmDelete": "احذف نهائيًا",
+    "cancel": "إلغاء",
+    "deleteNamed": "احذف {{title}}",
+    "imageAlt": "صورة حملة {{title}}",
+    "imageOff": "إنشاء الصور متوقف على هذا الخادم.",
+    "imageFailed": "تعذّر إنشاء الصورة هذه المرة - لم تستجب خدمات الصور المجانية. حاول بعد دقيقة.",
+    "imageDesigned": "هذه الصورة تصميم جاهز مبني على نص حملتك وصورتك (وليست مولَّدة بالذكاء الاصطناعي). أعد المحاولة لاحقًا للحصول على صورة مولَّدة بالذكاء الاصطناعي.",
+    "imageBlocked": "لم تُنشأ صورة: استُهلكت صور خطتك لهذه الفترة.",
+    "noImageYet": "لا توجد صورة بعد.",
+    "regenerateImage": "صورة جديدة",
+    "createImage": "أنشئ صورة",
+    "platforms": "المنصات",
+    "option": "الخيار {{n}}",
+    "post": "النص",
+    "copyPost": "انسخ المنشور",
+    "copied": "تم النسخ",
+    "headline": "العنوان",
+    "caption": "النص المرافق",
+    "description": "الوصف",
+    "hashtags": "الوسوم",
+    "cta": "دعوة لاتخاذ إجراء",
+    "charsLeft": "متبقٍ {{count}} حرفًا",
+    "aiSuggestion": "اقتراح ذكاء اصطناعي",
+    "more": "الموجز الإبداعي وصورة المنتج",
+    "historyTitle": "حملاتك",
+    "historyCount": "{{count}} محفوظة",
+    "searchHistory": "ابحث في الحملات",
+    "noMatch": "لا توجد حملة تطابق هذا البحث.",
+    "edited": "معدّلة",
+    "openFailed": "تعذّر فتح هذه الحملة.",
+    "emptyTitle": "لا توجد حملة مفتوحة",
+    "emptyHint": "أنشئ واحدة أعلاه أو افتح إحدى حملاتك."
+  },
+  "structure": {
+    "eyebrow": "بنية السوق",
+    "title": "سوقك في لمحة",
+    "subtitle": "{{count}} نشاطًا وجدتها عمليات المسح من القوائم العامة ومواقعها.",
+    "empty": "لا نتائج مسح بعد",
+    "emptyHint": "شغّل مسح السوق في تبويب النظرة العامة لترى بنية سوقك.",
+    "howClose": "مدى المنافسة",
+    "chains": "{{count}} منها لديها أكثر من فرع.",
+    "kinds": "الأنواع الأكثر شيوعًا",
+    "distance": "المسافة منك",
+    "bands": {
+      "under_1km": "< 1 كم",
+      "1_3km": "1–3 كم",
+      "3_5km": "3–5 كم",
+      "5_10km": "5–10 كم",
+      "over_10km": "> 10 كم"
+    },
+    "websites": "المواقع",
+    "websitesValue": "{{known}} لها موقع · قُرئ {{read}} · {{priced}} تنشر أسعارًا أمكن قراءتها",
+    "prices": "منتجاتك مقابل أسعار المنافسين المنشورة",
+    "noPrices": "لم يُعثر بعد على سعر منافس منشور لمنتجاتك. لا يقارن KEEL إلا الأسعار المنشورة للمنتج نفسه.",
+    "product": "المنتج",
+    "yours": "سعرك",
+    "range": "نطاق المنافسين",
+    "median": "الوسيط",
+    "seenAt": "أين نُشر",
+    "competitors": "{{count}} منافسين",
+    "position": {
+      "above": "أعلى من الجميع",
+      "below": "أقل من الجميع",
+      "within": "ضمن النطاق"
+    },
+    "provenance": "الأرقام والأسعار من نتائج المسح المحفوظة فقط؛ كل سعر مرتبط بالصفحة التي نُشر فيها."
+  },
+  "competitorData": {
+    "title": "البيانات المتوفرة",
+    "retry": "إعادة المحاولة",
+    "retrying": "جارٍ إعادة المحاولة…",
+    "retryAll": "إعادة محاولة كل ما فشل",
+    "retryAllHint": "يعيد محاولة كل تفصيل ناقص أو فاشل لدى المنافسين. يعمل في الخلفية.",
+    "lastTry": "آخر محاولة {{date}}",
+    "never": "لم تتم المحاولة بعد",
+    "reviewTerms": "مراجعة الشروط",
+    "completeness": {
+      "title": "اكتمال البيانات",
+      "subtitle": "ما جمعته KEEL عن هذا المنافس وما ينقص وسبب ذلك. إعادة المحاولة تضيف بيانات فقط ولا تحذف ما هو مخزّن.",
+      "score": "مكتمل بنسبة {{score}}%",
+      "unknown": "لم يُفحص بعد",
+      "items": "{{count}} عنصر"
+    },
+    "facet": {
+      "PROFILE": "ملف النشاط التجاري",
+      "SOCIAL_LINKS": "حسابات التواصل الاجتماعي",
+      "REVIEWS": "مراجعات Google",
+      "PRICES": "الأسعار",
+      "SOCIAL_CONTENT": "منشورات وتعليقات التواصل الاجتماعي",
+      "NEWS": "أخبار عنهم",
+      "COMMENTS": "تعليقات الفيديو"
+    },
+    "status": {
+      "SUCCEEDED": "تم الجمع",
+      "PARTIAL": "جُمع جزئيًا",
+      "FAILED": "فشل",
+      "BLOCKED": "محظور",
+      "PENDING": "قيد الانتظار",
+      "NOT_APPLICABLE": "لا ينطبق"
+    },
+    "reason": {
+      "NO_CREDENTIALS": "مفتاح مزوّد تحتاجه هذه البيانات غير مُعدّ في الخدمة.",
+      "CREDENTIALS_REJECTED": "رفضت Google المفتاح. تأكد من تفعيله لخدمة Places API.",
+      "QUOTA_EXHAUSTED": "تم بلوغ الحد اليومي لـ Google. ستُعاد المحاولة تلقائيًا.",
+      "PROVIDER_ERROR": "حدثت مشكلة لدى مزوّد البيانات. ستُعاد المحاولة تلقائيًا.",
+      "NO_MATCH": "لم يتم العثور على نشاط مطابق في Google.",
+      "INCOMPLETE_LISTING": "النشاط موجود في Google لكن بلا عنوان أو تقييم.",
+      "NO_WEBSITE": "ليس لهذا النشاط موقع إلكتروني.",
+      "ROBOTS_DISALLOWED": "الموقع لا يسمح بالجمع الآلي.",
+      "SITE_UNREACHABLE": "تعذّر الوصول إلى الموقع. ستُعاد المحاولة تلقائيًا.",
+      "SHARED_RECORD": "هذا سجل مشترك ولا يمكن تعديله.",
+      "NO_PRODUCTS_MAPPED": "لم تتم مطابقة أي من منتجاتك لدى هذا المنافس بعد.",
+      "TERMS_UNREVIEWED": "لم تتم مراجعة شروط الموقع، لذلك لا تُجمع الأسعار.",
+      "NO_DATA_COLLECTED": "الجمع مُعدّ لكن لم تصل أي بيانات بعد.",
+      "COLLECTOR_NOT_ENABLED": "هذا النوع من البيانات لا يُجمع بعد.",
+      "NO_SOCIAL_LINKS": "لا يوجد حساب تواصل اجتماعي معروف لهذا المنافس.",
+      "NO_PLACE_ID": "لا يوجد نشاط معروف في Google بعد. أعد محاولة الملف التجاري أولًا.",
+      "PLATFORM_APPROVAL_MISSING": "لم يوافق المسؤول بعد على تخزين هذه البيانات.",
+      "SERVICE_MISCONFIGURED": "ينقص الخدمة إعداد ما. يرجى التواصل مع الدعم.",
+      "NOT_ATTEMPTED": "لم تُجمع بعد.",
+      "UNKNOWN": "لا توجد تفاصيل إضافية.",
+      "NO_FEED": "موقع هذا المنافس لا ينشر خلاصة أخبار.",
+      "NO_NEWS": "لم يُعثر على أخبار حديثة تذكر هذا المنافس.",
+      "NO_VIDEOS": "لم يُعثر على فيديو يذكر هذا المنافس وعليه تعليقات عامة."
+    },
+    "outcome": {
+      "succeeded": "تم جمع كل شيء.",
+      "partial": "جُمعت بعض التفاصيل، وباقيها موضّح أدناه مع السبب.",
+      "failed": "تعذّر جمع أي جديد. الأسباب موضّحة أدناه.",
+      "queued": "بدأت إعادة المحاولة في الخلفية. ستظهر النتائج هنا قريبًا.",
+      "alreadyQueued": "هناك إعادة محاولة قيد التنفيذ بالفعل.",
+      "tooSoon": "أعدت المحاولة للتو. يرجى الانتظار قليلًا.",
+      "error": "تعذّر بدء إعادة المحاولة. يرجى المحاولة مرة أخرى."
+    },
+    "overview": {
+      "rating": "{{rating}} في Google ({{count}})",
+      "comments": "التعليقات المجموعة: {{count}}",
+      "agreeing": "الموافقون: {{count}}",
+      "noComments": "لم تُجمع تعليقات بعد",
+      "sentiment": {
+        "Positive": "إيجابي غالبًا",
+        "Neutral": "مختلط",
+        "Negative": "سلبي غالبًا"
+      }
+    },
+    "comments": {
+      "title": "ماذا يقول الناس",
+      "subtitle": "التعليقات والمراجعات الحقيقية المجموعة عن هذا المنافس. الإعجاب يُحسب شخصًا إضافيًا يوافق.",
+      "summary": "التعليقات: {{comments}} · الردود: {{replies}} · الموافقون: {{agreeing}}",
+      "sort": "ترتيب التعليقات",
+      "helpful": "الأكثر موافقة",
+      "recent": "الأحدث",
+      "agree": "{{count}} يوافق",
+      "replies": "الردود: {{count}}",
+      "repliesTo": "الردود",
+      "heldBack": "محجوبة بفحص السلامة: {{count}}",
+      "loadMore": "عرض المزيد",
+      "empty": "لم تُجمع تعليقات بعد",
+      "emptyHint": "استخدم إعادة المحاولة أعلاه لجمع مراجعات Google. تعليقات التواصل الاجتماعي تحتاج إلى مزوّد بيانات اجتماعية مرتبط.",
+      "error": "تعذّر تحميل التعليقات.",
+      "sentiment": {
+        "positive": "إيجابي",
+        "negative": "سلبي",
+        "neutral": "محايد"
+      },
+      "anonymous": "مجهول"
+    },
+    "coverage": {
+      "eyebrow": "أسعار السوق",
+      "title": "هل لكل منتج سعر في السوق؟",
+      "subtitle": "يأتي سعر السوق من منافس تتابعه، وإلا من قوائم عامة وقواعد بيانات الأسعار. المنتج الذي لا يبيعه أحد عبر الإنترنت قد يبقى بلا سعر، ويظهر السبب.",
+      "stats": {
+        "covered": "لها سعر في السوق",
+        "competitor": "من المنافسين",
+        "reference": "من قوائم عامة",
+        "gaps": "بلا سعر",
+        "barcodes": "بلا باركود"
+      },
+      "find": "ابحث عن الأسعار الناقصة",
+      "finding": "جارٍ البحث…",
+      "findStarted": "يجري البحث عن الأسعار في الخلفية. حدّث الصفحة بعد دقيقة.",
+      "findAlready": "هناك بحث عن الأسعار قيد التنفيذ بالفعل.",
+      "findFailed": "تعذّر بدء البحث عن الأسعار.",
+      "onlyGaps": "منتجات بلا سعر",
+      "onlyBarcodes": "إضافة باركود",
+      "product": "المنتج",
+      "reason": "سبب غياب السعر",
+      "lastLookup": "آخر بحث: {{outcome}} · {{date}}",
+      "neverSearched": "لم يُبحث بعد",
+      "allCovered": "لكل منتج سعر في السوق.",
+      "noBarcodes": "لكل منتج باركود.",
+      "error": "تعذّر تحميل تغطية الأسعار.",
+      "reasons": {
+        "NO_COMPETITOR_MAPPED": "لا يوجد منافس مطابق لهذا المنتج.",
+        "TERMS_UNREVIEWED": "تمت المطابقة، لكن شروط الموقع بانتظار مراجعتك.",
+        "ROBOTS_DISALLOWED": "تمت المطابقة، لكن الموقع لا يسمح بالجمع الآلي.",
+        "NO_DATA_COLLECTED": "المصدر معتمد لكن لم يصل أي سعر بعد."
+      },
+      "lookup": {
+        "FOUND": "تم العثور",
+        "NOTHING_FOUND": "لم يُعثر على شيء",
+        "NOT_CONFIGURED": "لا يوجد مصدر مُعدّ",
+        "PROVIDER_ERROR": "خطأ في المصدر"
+      },
+      "basis": {
+        "competitor": "سعر منافس",
+        "market_reference": "قائمة عامة"
+      },
+      "headline": "{{covered}} من أصل {{total}} منتجاً لها سعر سوقي موثّق المصدر",
+      "honesty": "لا تُحتسب إلا الأسعار التي جمعها KEEL فعلاً أو أدخلتها بنفسك. المنتج الذي لا سعر له يُظهر السبب، ولا يُعرض له سعر تقديري أبداً.",
+      "filtersLabel": "عرض المنتجات حسب الحالة",
+      "filters": {
+        "all": "بحاجة إلى متابعة",
+        "missing": "بلا سعر سوقي",
+        "approval": "بانتظار اعتماد المصدر",
+        "stale": "أسعار قديمة",
+        "currency": "عملة مختلفة",
+        "inactive": "مطابقات غير نشطة"
+      },
+      "noneInFilter": "لا توجد منتجات في هذه المجموعة حالياً.",
+      "statusColumn": "الحالة",
+      "why": "السبب",
+      "nextStep": "الخطوة التالية",
+      "status": {
+        "missing": "بلا سعر سوقي"
+      },
+      "badge": {
+        "stale": "قديم · {{days}} يوماً",
+        "currency_mismatch": "عملة مختلفة",
+        "inactive_mapping": "المطابقة متوقفة"
+      },
+      "issueText": {
+        "stale": "أحدث سعر عمره {{days}} يوماً، والأسعار الأقدم من {{limit}} يوماً تحتاج إلى تحديث.",
+        "currency_mismatch": "يوجد {{count}} من الأسعار بعملة غير عملة منتجك ({{currency}})، وهي محفوظة ولكنها لا تُقارن بسعرك.",
+        "inactive_mapping": "مطابقات منافسين متوقفة أو لم تعد متابَعة: {{count}}."
+      },
+      "actions": {
+        "review_source": "مراجعة المصدر",
+        "add_competitor": "إضافة منافس",
+        "enter_price": "إدخال سعر",
+        "check_collection": "التحقق من الجمع",
+        "refresh_prices": "تحديث الأسعار",
+        "check_currency": "التحقق من العملات",
+        "review_mappings": "مراجعة المطابقات"
+      }
+    },
+    "barcode": {
+      "label": "الباركود",
+      "placeholder": "EAN / UPC (من 8 إلى 14 رقمًا)",
+      "add": "إضافة باركود",
+      "save": "حفظ",
+      "saved": "تم حفظ الباركود",
+      "invalid": "هذا ليس باركودًا صالحًا. تحقق من الأرقام.",
+      "hint": "الباركود يتيح لـ KEEL إيجاد سعر هذا المنتج بدقة."
+    },
+    "product": {
+      "eyebrow": "أسعار السوق",
+      "title": "الأسعار في السوق",
+      "subtitle": "أسعار من قوائم عامة وقواعد بيانات الأسعار، وتُعرض منفصلة عن المنافسين الذين تتابعهم.",
+      "basis": "أساس السعر",
+      "none": "لم يُعثر على سعر في السوق بعد",
+      "seller": "البائع",
+      "price": "السعر",
+      "rating": "تقييمهم",
+      "listing": "القائمة",
+      "counted": "محسوب",
+      "notCounted": "بعيد عن سعرك - غير محسوب",
+      "referenceRange": "القوائم العامة: الأدنى {{low}} · المتوسط {{avg}} · الأعلى {{high}} ({{count}})",
+      "reviews": "المراجعات: {{count}}",
+      "open": "فتح القائمة",
+      "competitorDetails": "تفاصيل المنافس"
+    }
+  }
+}

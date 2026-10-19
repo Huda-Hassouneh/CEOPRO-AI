@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Liquid Glass UI kit</title>
+  <link rel="stylesheet" href="liquid-glass.css" />
+</head>
+<body class="lg-stage">
+  <main class="lg-plate lg-sheet" aria-label="Liquid Glass UI kit">
+    <header class="lg-sheet__head">
+      <div><h1>Liquid Glass</h1><p>Frosted desktop UI kit</p></div>
+      <span class="lg-menu" aria-hidden="true"></span>
+    </header>
+
+    <div class="lg-grid">
+      <button class="lg-gel" type="button">Start project</button>
+      <button class="lg-gel lg-gel--mint" type="button">Secondary</button>
+      <div class="lg-avatar" style="grid-row: span 1"><div class="lg-avatar__ring"><div class="lg-avatar__face" aria-hidden="true">🧑</div></div></div>
+
+      <label class="lg-pill lg-search lg-span-2">
+        <span class="lg-search__field">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="search" placeholder="Search files..." aria-label="Search files" />
+        </span>
+        <button class="lg-gel lg-search__go" type="button" aria-label="Search">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/></svg>
+        </button>
+      </label>
+      <button class="lg-pill lg-check" type="button"><span class="lg-tick">✓</span>Switch<span class="lg-arrow">→</span></button>
+
+      <button class="lg-pill lg-iris" type="button" aria-pressed="true"><span class="lg-box">✓</span>Add user</button>
+      <button class="lg-pill lg-toggle" type="button" role="switch" aria-checked="true" aria-label="Toggle"><span class="lg-toggle__off"></span><span class="lg-toggle__puck"></span></button>
+      <section class="lg-card"><h3>Add user <span class="lg-card__badge"></span></h3><button class="lg-gel lg-gel--sm" type="button">Subscribe now</button></section>
+
+      <div class="lg-folder" aria-label="Folder"><div class="lg-folder__back"><span class="lg-folder__dot"></span></div><div class="lg-folder__front"></div></div>
+      <div class="lg-folder lg-folder--clear" aria-label="Folder"><div class="lg-folder__back"><span class="lg-folder__tab"></span></div><div class="lg-folder__front"></div></div>
+      <section class="lg-card"><h3>Toast!</h3><input class="lg-field" placeholder="Input" aria-label="Input" /><div style="height:14px"></div><button class="lg-gel lg-gel--sm" type="button">Modal</button></section>
+    </div>
+  </main>
+</body>
+</html>
