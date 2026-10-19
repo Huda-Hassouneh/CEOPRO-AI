@@ -104,3 +104,14 @@ def test_reading_a_site_still_works_when_the_review_table_is_not_deployed_yet():
     finally:
         with psycopg2.connect(DATABASE_URL) as admin, admin.cursor() as cursor:
             cursor.execute("ALTER TABLE competitor_intel_review_off RENAME TO competitor_intel_review;")
+
+
+def test_a_competitor_with_a_website_can_always_be_asked_to_read_its_prices():
+    tenant, user, competitor_id = _setup()  # discovered, never retried: no ledger row, no product mapped
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        panel = ce.load_data_completeness(conn, tenant, competitor_id)[competitor_id]["facets"][ce.FACET_PRICES]
+        assert panel["reason_code"] in (ce.NO_PRODUCTS_MAPPED, ce.TERMS_UNREVIEWED, ce.NO_DATA_COLLECTED, ce.ROBOTS_DISALLOWED)
+        assert panel["can_retry"] is True
+    finally:
+        conn.close()
