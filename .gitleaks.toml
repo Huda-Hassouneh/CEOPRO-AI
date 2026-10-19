@@ -1,0 +1,35 @@
+# Secret scanning for this repository (gitleaks; see .githooks/pre-commit and
+# .github/workflows/secret-scan.yml). Starts from gitleaks' built-in rules and
+# only allowlists the few values that are known not to be secrets. Anything
+# else that matches fails the check: remove it, do not allowlist it. If a real
+# secret was committed, rotate it first (see backend/PENDING_ACTIONS.md #104).
+title = "CEOPRO-AI gitleaks config"
+
+[extend]
+useDefault = true
+
+# A throwaway key for unit tests: set with setdefault, never used outside the
+# test process, and different from any deployed CREDENTIAL_VAULT_MASTER_KEY.
+[[allowlists]]
+description = "Unit-test fixtures that set a throwaway key through os.environ.setdefault"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''backend/src/ai/tests/(conftest|test_first_customer_uat_fixes)\.py$''']
+regexTarget = "line"
+regexes = ['''os\.environ\.setdefault\("(CREDENTIAL_VAULT_MASTER_KEY|JWT_SECRET)"''']
+
+# SearXNG refuses to start with an empty key; this committed demo value is
+# overridden by SEARXNG_SECRET (backend/PENDING_ACTIONS.md #52).
+[[allowlists]]
+description = "SearXNG demo secret_key, overridden by SEARXNG_SECRET in every real environment"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''backend/src/infrastructure/searxng/settings\.yml$''']
+regexTarget = "line"
+regexes = ['''^\s*secret_key:''']
+
+# Prose in a docstring (the word after "mean-pool over real tokens"), not a key.
+[[allowlists]]
+description = "Docstring text in the embeddings module"
+targetRules = ["generic-api-key"]
+paths = ['''backend/src/ai/rag/embeddings\.py$''']

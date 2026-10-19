@@ -1,0 +1,11 @@
+#!/bin/sh
+# Blocks a commit whose staged changes contain a secret (gitleaks, rules in
+# .gitleaks.toml). Enable once per clone:  git config core.hooksPath .githooks
+# Install gitleaks:  brew install gitleaks
+# CI (.github/workflows/secret-scan.yml) runs the same scan, so a missing tool
+# here only delays the failure to the pull request.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is not installed, secret scan skipped (brew install gitleaks)" >&2
+  exit 0
+fi
+exec gitleaks git --staged --redact --no-banner -c "$(git rev-parse --show-toplevel)/.gitleaks.toml"
