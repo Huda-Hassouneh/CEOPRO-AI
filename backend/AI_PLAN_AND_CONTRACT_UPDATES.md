@@ -56,6 +56,17 @@ Compared the competitor-relevance work (category-aware tiers, confidence score, 
 
 ---
 
+## 2026-10-19 - Competitor menus, prices and deeper loads (contract additions)
+
+Additive only (see `src/infrastructure/CONTRACT_CHANGELOG.md`, 2026-10-19): `POST /competitors/{id}/enrich`
+accepts the PRICES facet and a `depth` option; PRICES reasons in `data_completeness` become specific;
+`competitor_intel.payload` gains menu-provenance keys; one stream field (`depth`) is optional. No schema
+migration. Spec alignment: S15 / S13 (collect competitor prices from public sources, honouring robots.txt and
+terms) - OCR output is weaker evidence and is labelled as such (`extracted_by`, lower `confidence`), never
+presented as verified; S20 transparency - the source file and its reading method are kept per fact.
+Precedence rule: no conflict with the master spec; this extends the enrichment contract introduced with
+`competitor_enrichment`.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

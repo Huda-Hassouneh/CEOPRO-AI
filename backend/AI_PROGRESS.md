@@ -1744,6 +1744,32 @@ Verified on a real Postgres through the restricted app role, including a mutatio
 Details fields beyond business status; a competitor MENU (no source provides one - the newer pipeline
 reads published menu/product prices from the competitor's own website into `competitor_intel`).
 
+## 2026-10-19 - Competitor details v2: menus (OCR), retryable prices, "load more"
+
+Branch `feat/competitor-completeness-v2` (from `origin/main`; PR #58's work is already in `main`, so #58
+is superseded). Plan and progress table: `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 8.
+
+- **Menus as pictures / PDFs** (`market_scraper/market_discovery/menu_media.py`, wired into `intel.collect`):
+  finds menu-looking PDFs and images on the competitor's own pages (logos/icons/other sites excluded;
+  robots.txt, public-address and size caps apply), reads the PDF text layer or OCRs pictures and scanned
+  PDFs (tesseract, Arabic + English; digit confusions repaired only inside numbers), and feeds the lines to
+  the same price parser as page text. Facts are tagged `extracted_by` / `source_media`, carry a lower
+  confidence, are corroborated against page facts (`also_seen_in`) and flagged on disagreement
+  (`conflicts_with_price`). Without tesseract, pictures are reported as skipped, not silently dropped.
+- **PRICES is now a retryable facet** (`enrich_prices`): re-reads the website + menus and records a specific
+  reason (JS-rendered, robots, unreachable, no prices published, OCR missing, not the business's own site).
+  Completeness panel prefers that reason over the generic "no product matched yet".
+- **Load more**: `depth: "deep"` on `POST /competitors/{id}/enrich` (and queued jobs) raises pages 8->24,
+  items 250->600, menu files 6->15 (env-tunable).
+- **Additive guarantee**: a re-read that cannot open the menu files keeps the earlier menu-derived facts.
+- **Tests**: 8 + 2 + 7 + 1 new offline tests (menu finding, OCR clean-up, PDF text layer, OCR path with an
+  injected engine, corroboration/conflict, deep vs standard, keep-media on re-read, PRICES outcomes, API
+  depth, queue depth); the pre-existing "PRICES is unsupported" tests were updated to use SOCIAL_CONTENT.
+- **Not verified here**: a real tesseract run on real menu photos, and the live-DB suites (no Docker stack in
+  the authoring environment) - see `PENDING_ACTIONS.md` #85-#87. Not built: owner verification that survives
+  re-reads (V6), social-post OCR (V7), vision-model fallback (V8), Arabic fuzzy matching (V9) - designed or
+  listed in the plan, section 8.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

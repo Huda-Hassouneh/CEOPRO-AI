@@ -102,3 +102,32 @@ def test_no_ocr_engine_is_visible_in_the_result():
                            fetch_media=lambda url: files.get(url))
     if not menu_media.ocr_available():
         assert result["media"]["skipped_no_ocr"] >= 1 and result["media"]["ocr_available"] is False
+
+
+def test_deep_reads_more_pages_than_the_standard_read(monkeypatch):
+    monkeypatch.setattr(intel, "MAX_PAGES", 1)
+    monkeypatch.setattr(intel, "DEEP_MAX_PAGES", 4)
+    home = '<html><body><a href="/menu">Menu</a><a href="/prices">Prices</a><a href="/offers">Offers</a></body></html>'
+    pages = {"https://cafe.jo": home, "https://cafe.jo/menu": "<p>Mansaf 8 JD</p>", "https://cafe.jo/prices": "<p>Tea 1 JD</p>",
+             "https://cafe.jo/offers": "<p>Cake 2 JD</p>"}
+    fetch = lambda url: pages.get(url.rstrip("/"))  # noqa: E731
+    standard = intel.collect("https://cafe.jo", fetch=fetch, country="JO")
+    deep = intel.collect("https://cafe.jo", fetch=fetch, country="JO", deep=True)
+    assert len(deep["pages_read"]) > len(standard["pages_read"])
+    assert {f["name"] for f in deep["facts"] if f["kind"] == "product"} >= {"Mansaf", "Tea", "Cake"}
+
+
+def test_a_reread_that_could_not_open_the_menu_files_keeps_what_they_gave_earlier():
+    from unittest.mock import MagicMock
+
+    from src.ai.market_inputs import competitor_intel
+    conn = MagicMock()
+    cursor = conn.cursor.return_value.__enter__.return_value
+    base = {"facts": [], "pages_read": ["https://cafe.jo"], "status": intel.STATUS_PRICES}
+    competitor_intel.save_site_intel(conn, "t", "c", {**base, "media": {"found": 2, "read": 0, "skipped_no_ocr": 2}})
+    deletes = [c.args[0] for c in cursor.execute.call_args_list if c.args[0].startswith("DELETE")]
+    assert "source_media" in deletes[-1]
+    cursor.reset_mock()
+    competitor_intel.save_site_intel(conn, "t", "c", {**base, "media": {"found": 2, "read": 2}})
+    deletes = [c.args[0] for c in cursor.execute.call_args_list if c.args[0].startswith("DELETE")]
+    assert "source_media" not in deletes[-1]
