@@ -38,14 +38,26 @@ def _price(value) -> Optional[Decimal]:
 
 
 def load_reviews(conn, tenant_id: str, competitor_id: str) -> Dict[Tuple[str, Decimal], dict]:
+    """The owner's decisions for one competitor. Read inside a savepoint: if the table is not there yet (code
+    deployed before migration 20261023000000), no decisions apply and the caller's transaction is NOT poisoned -
+    reading a site must never fail because of a missing review table."""
     with conn.cursor() as cursor:
-        cursor.execute(
-            "SELECT name_key, read_price, verdict, corrected_price, currency, reviewed_at FROM competitor_intel_review "
-            "WHERE tenant_id = %s AND global_competitor_id = %s;",
-            (tenant_id, competitor_id),
-        )
-        return {(row[0], _price(row[1])): {"verdict": row[2], "corrected_price": row[3], "currency": row[4],
-                                            "reviewed_at": row[5].isoformat() if row[5] else None} for row in cursor.fetchall()}
+        cursor.execute("SAVEPOINT intel_review_read;")
+        try:
+            cursor.execute(
+                "SELECT name_key, read_price, verdict, corrected_price, currency, reviewed_at FROM competitor_intel_review "
+                "WHERE tenant_id = %s AND global_competitor_id = %s;",
+                (tenant_id, competitor_id),
+            )
+            rows = cursor.fetchall()
+        except Exception as exc:  # noqa: BLE001
+            if getattr(exc, "pgcode", None) != "42P01":  # undefined_table
+                raise
+            cursor.execute("ROLLBACK TO SAVEPOINT intel_review_read;")
+            return {}
+        cursor.execute("RELEASE SAVEPOINT intel_review_read;")
+    return {(row[0], _price(row[1])): {"verdict": row[2], "corrected_price": row[3], "currency": row[4],
+                                        "reviewed_at": row[5].isoformat() if row[5] else None} for row in rows}
 
 
 def apply_to_facts(facts: List[dict], reviews: Dict[Tuple[str, Decimal], dict]) -> List[dict]:

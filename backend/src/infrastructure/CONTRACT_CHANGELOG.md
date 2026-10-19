@@ -142,4 +142,8 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 ### Changed (behaviour)
 - Places candidate matching (`competitor_enrichment._find_place`, `spiders/google_places.py`) uses `name_matching.name_similarity`: Arabic / Latin / transliterated spellings of one business now clear the 0.82 bar. It is never lower than the previous plain ratio, so no match that passed before is lost; matches that previously failed across scripts may now pass.
 - Automatic price matching (`offerings.competitor_items`) ignores social-post facts until the owner has confirmed them.
+### Infra (same day, after review)
+- `tesseract-ocr` (+ `ara`, `eng`) is now installed in `Dockerfile.ai`, `src/infrastructure/Dockerfile.market-workers` and `src/infrastructure/Dockerfile.market-scraper`; `src/market_scraper/requirements.txt` gains `Pillow`, `pdfplumber`, `pytesseract` (the worker images read menus too).
+- `docker-compose.yml` (API and enrichment worker) and `render.yaml` (API and worker) pass `SOCIAL_CONTENT_APPROVAL_REFERENCE`, `DISCOVERY_VISION_OCR` (default `off`) and `GEMINI_API_KEYS`.
+- `intel_review.load_reviews` reads inside a savepoint and treats a missing `competitor_intel_review` table as "no decisions", so a code deploy that precedes the migration cannot break site reads.
 
