@@ -166,3 +166,57 @@ def test_links_the_user_pasted_are_read_without_searching():
                                 search_fn=lambda q: searched.append(q) or [],
                                 fetch=_fetch({url: (200, ARTICLE, "text/html", {})}), resolver=_public)
     assert outcome.status == research.FOUND and outcome.pages[0]["url"] == url
+
+
+_PROVIDER_SETTINGS = ("TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "SEARXNG_INSTANCE_URL", "GOOGLE_CUSTOM_SEARCH_API_KEY",
+                      "GOOGLE_CUSTOM_SEARCH_CX")
+
+
+class _Conn:
+    """Just enough of a connection for the search budget and page cache."""
+
+    def cursor(self):
+        raise RuntimeError("no database in this test")
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+
+def test_with_no_provider_the_outcome_names_the_settings_that_would_enable_it(monkeypatch):
+    for name in _PROVIDER_SETTINGS:
+        monkeypatch.delenv(name, raising=False)
+    outcome = research.research(_Conn(), "t1", ev.EvidenceRegistry(), "How can I check customs duties in Jordan?",
+                                ["trade"], {"destination_country": "JO"}, {"country_code": "JO"})
+    assert outcome.status == research.NOT_CONFIGURED
+    assert "TAVILY_API_KEY" in outcome.detail and "SEARXNG_INSTANCE_URL" in outcome.detail
+
+
+def test_a_failing_provider_is_reported_with_its_reason_and_never_its_key(monkeypatch):
+    from src.market_scraper import search_quota, web_search
+
+    for name in _PROVIDER_SETTINGS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("TAVILY_API_KEY", "tvly-SECRET")
+    monkeypatch.setenv("WEB_SEARCH_PROVIDERS", "tavily")
+    monkeypatch.setattr(search_quota, "try_reserve_query", lambda conn, limit: True)
+    monkeypatch.setattr(research, "_tenant_budget_ok", lambda tenant_id: True)
+
+    def refuse(method, url, **kwargs):
+        request = httpx.Request(method, url + "?key=tvly-SECRET")
+        raise httpx.HTTPStatusError("unauthorized", request=request, response=httpx.Response(401, request=request))
+    monkeypatch.setattr(web_search, "_default_fetch", refuse)
+    outcome = research.research(_Conn(), "t1", ev.EvidenceRegistry(), "customs duty for cucumbers into Jordan",
+                                ["trade"], {"destination_country": "JO"}, {"country_code": "JO"})
+    assert outcome.status == research.SEARCH_FAILED
+    assert "tavily: HTTP 401" in outcome.detail and "SECRET" not in outcome.detail
+
+
+def test_the_border_crossing_is_part_of_the_search():
+    queries = research.plan_queries("Total landed cost per kg for Syrian cucumbers to Amman via Jaber",
+                                    ["trade", "landed_cost"],
+                                    {"origin_country": "SY", "destination_country": "JO", "route": "jaber"},
+                                    {"country_code": "JO"})
+    assert any("jaber" in q for q in queries) and len(queries) <= research.MAX_QUERIES

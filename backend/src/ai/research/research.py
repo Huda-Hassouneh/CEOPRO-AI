@@ -69,7 +69,7 @@ _OFFICIAL_SITES = {
 COUNTRY_NAMES = {
     "JO": ("Jordan", "الأردن"), "SA": ("Saudi Arabia", "السعودية"), "AE": ("United Arab Emirates", "الإمارات"),
     "KW": ("Kuwait", "الكويت"), "QA": ("Qatar", "قطر"), "BH": ("Bahrain", "البحرين"), "OM": ("Oman", "عُمان"),
-    "EG": ("Egypt", "مصر"), "LB": ("Lebanon", "لبنان"), "IQ": ("Iraq", "العراق"), "PS": ("Palestine", "فلسطين"),
+    "EG": ("Egypt", "مصر"), "LB": ("Lebanon", "لبنان"), "SY": ("Syria", "سوريا"), "IQ": ("Iraq", "العراق"), "PS": ("Palestine", "فلسطين"),
     "MA": ("Morocco", "المغرب"), "DZ": ("Algeria", "الجزائر"), "TN": ("Tunisia", "تونس"), "TR": ("Türkiye", "تركيا"),
     "CN": ("China", "الصين"), "IN": ("India", "الهند"), "US": ("United States", "الولايات المتحدة"),
     "GB": ("United Kingdom", "المملكة المتحدة"), "DE": ("Germany", "ألمانيا"), "IT": ("Italy", "إيطاليا"),
@@ -139,7 +139,8 @@ def plan_queries(question: str, intents: List[str], slots: dict, company: dict,
                     "Never include prices, quantities, amounts or any private business figure.")},
                 {"role": "user", "content": json.dumps({
                     "question": public_safe(question, hs_code), "needs": intents, "country": country,
-                    "origin_country": slots.get("origin_country"), "product": product, "hs_code": hs_code,
+                    "origin_country": slots.get("origin_country"), "route": slots.get("route"),
+                    "product": product, "hs_code": hs_code,
                     "business_type": company.get("business_type")}, ensure_ascii=False)},
             ], temperature=0, max_tokens=500)
             parsed = json.loads(re.search(r"\{.*\}", answer, re.S).group(0))
@@ -148,21 +149,25 @@ def plan_queries(question: str, intents: List[str], slots: dict, company: dict,
             logger.info("research query planning unavailable: %s", type(exc).__name__)
     if not planned:
         planned = _template_queries(question, intents, country, slots.get("origin_country"), product, hs_code,
-                                    company.get("business_type"))
+                                    company.get("business_type"), slots.get("route"))
     if country in _OFFICIAL_SITES and ({"regulation", "trade", "landed_cost"} & set(intents)):
         topic = product or hs_code or public_safe(question, hs_code)
-        planned.append(f"site:{_OFFICIAL_SITES[country][0]} {topic}")
+        # Second in line, so the three-query cap never drops the official source.
+        planned.insert(1, f"site:{_OFFICIAL_SITES[country][0]} {topic}")
     return list(dict.fromkeys(q for q in planned if q and len(q) >= 4))[:MAX_QUERIES]
 
 
 def _template_queries(question: str, intents: List[str], country: Optional[str], origin: Optional[str],
-                      product: Optional[str], hs_code: Optional[str], business_type: Optional[str]) -> List[str]:
+                      product: Optional[str], hs_code: Optional[str], business_type: Optional[str],
+                      route: Optional[str] = None) -> List[str]:
     english, arabic = COUNTRY_NAMES.get(country, (country or "", country or ""))
     subject = product or public_safe(question, hs_code)
     queries = []
     if {"trade", "landed_cost"} & set(intents):
         origin_name = COUNTRY_NAMES.get(origin, (origin or "",))[0]
         queries.append(f"{subject} import customs duty {english} {('HS ' + hs_code) if hs_code else 'HS code'}".strip())
+        if route:
+            queries.append(f"{route} border crossing {english} import fees {product or ''}".strip())
         queries.append(f"import requirements {english} {subject} {('from ' + origin_name) if origin_name else ''}".strip())
         if _is_arabic(question):
             queries.append(f"رسوم جمركية استيراد {subject} {arabic}")
@@ -193,7 +198,7 @@ def _search(conn, tenant_id: str, query: str, country: Optional[str], search_fn)
 
     if search_fn is None:
         if not web_search.is_configured():
-            raise _Stop(NOT_CONFIGURED)
+            raise _Stop(NOT_CONFIGURED, web_search.missing_configuration())
         # Tenant allowance first, then an atomic reserve of the shared daily budget (no check-then-record race).
         if not _tenant_budget_ok(tenant_id) or not search_quota.try_reserve_query(conn, DAILY_SEARCH_LIMIT):
             raise _Stop(BUDGET_EXHAUSTED)
@@ -201,7 +206,8 @@ def _search(conn, tenant_id: str, query: str, country: Optional[str], search_fn)
         try:
             _provider, results = web_search.search(query, MAX_RESULTS_PER_QUERY, country=country)
         except web_search.SearchFailed as exc:
-            raise _Stop(SEARCH_FAILED, str(exc)) from exc
+            raise _Stop(SEARCH_FAILED, "every configured search provider failed: "
+                        + ("; ".join(exc.failures) or str(exc))) from exc
         return [r.as_dict() for r in results]
     return search_fn(query)
 
@@ -280,7 +286,9 @@ def _best_passages(page: page_reader.Page, query: str, limit: int = PASSAGES_PER
         return []
     index = BM25Index([(str(i), text) for i, text in enumerate(candidates)])
     ranked = index.query(query, top_k=limit)
-    return [chunk.text for chunk in ranked]
+    # An Arabic question shares no words with an English page the search engine
+    # chose for it: the page's opening passage is kept rather than nothing.
+    return [chunk.text for chunk in ranked] or candidates[:1]
 
 
 def _order_results(results: List[dict], official_first: bool) -> List[dict]:
@@ -330,6 +338,8 @@ def research(conn, tenant_id: str, registry: ev.EvidenceRegistry, question: str,
     candidates: List[dict] = [{"url": url, "title": url, "snippet": "", "user_link": True} for url in slots.get("urls") or []]
     queries = plan_queries(question, intents, slots, company, ask)
     result.queries = queries
+    # Passages are matched against the searches too: they carry the English and official wording.
+    reading_query = " ".join([reading_query, *queries])
     country = slots.get("destination_country") or company.get("country_code")
     for query in queries:
         try:
