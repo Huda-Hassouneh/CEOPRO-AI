@@ -146,4 +146,6 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - `tesseract-ocr` (+ `ara`, `eng`) is now installed in `Dockerfile.ai`, `src/infrastructure/Dockerfile.market-workers` and `src/infrastructure/Dockerfile.market-scraper`; `src/market_scraper/requirements.txt` gains `Pillow`, `pdfplumber`, `pytesseract` (the worker images read menus too).
 - `docker-compose.yml` (API and enrichment worker) and `render.yaml` (API and worker) pass `SOCIAL_CONTENT_APPROVAL_REFERENCE`, `DISCOVERY_VISION_OCR` (default `off`) and `GEMINI_API_KEYS`.
 - `intel_review.load_reviews` reads inside a savepoint and treats a missing `competitor_intel_review` table as "no decisions", so a code deploy that precedes the migration cannot break site reads.
+### OCR behaviour (same day, after a real-tesseract check)
+- Pictures are read with two tesseract passes when Arabic data is installed (`ara+eng`, then `eng`) and merged by amount; Arabic output returned in visual order is restored, direction marks and a few stray Arabic letters beside Latin text are removed, and an Arabic currency word misread by one letter is restored. `python-bidi` is added to `src/market_scraper/requirements.txt` (already in the AI requirements). New optional env: `DISCOVERY_MENU_MEDIA_BUDGET_SECONDS` (default 90 s of menu reading per site).
 
