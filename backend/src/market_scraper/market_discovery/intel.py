@@ -867,6 +867,7 @@ def _read_media_files(out: dict, urls: List[str], fetch_media, country: Optional
         return
     out["media"]["ocr_available"] = ocr is not None or menu_media.ocr_available()
     retrieved, media = _now(), []
+    vision = menu_media.vision_engine()
     for link in urls[:max_media]:
         try:
             got = fetch_media(link)
@@ -874,7 +875,7 @@ def _read_media_files(out: dict, urls: List[str], fetch_media, country: Optional
             got = None
         if not got:
             continue
-        lines, method = menu_media.read_media(got[0], got[1], ocr=ocr, ocr_ready=out["media"]["ocr_available"])
+        lines, method = menu_media.read_media(got[0], got[1], ocr=ocr, ocr_ready=out["media"]["ocr_available"], vision=vision)
         if method == "skipped_no_ocr":
             out["media"]["skipped_no_ocr"] += 1
         if not lines:
