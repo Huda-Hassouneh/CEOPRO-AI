@@ -2,7 +2,9 @@
 found (with sources), and choose which competitors to track."""
 import logging
 import threading
+from decimal import Decimal
 from typing import Literal, Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -12,7 +14,7 @@ from src.ai.billing import credits
 from src.ai.market_inputs import public_sources
 from src.ai.core import tenant_cache, usage
 from src.ai.core.security import TenantContext, get_tenant_context
-from src.ai.market_inputs import competitor_analysis, competitor_intel, discovered_competitors, market_news, market_structure
+from src.ai.market_inputs import competitor_analysis, competitor_intel, discovered_competitors, intel_review, market_news, market_structure
 from src.infrastructure.request_language import get_request_language
 from src.market_scraper.market_discovery import industries, pipeline
 
@@ -176,6 +178,55 @@ def refresh_competitor_intel(competitor_id: str, ctx: TenantContext = Depends(ge
         conn.commit()
         tenant_cache.bump(ctx.tenant_id)
         return {**outcome, "intel": competitor_intel.get_intel(conn, ctx.tenant_id, competitor_id)}
+    finally:
+        conn.close()
+
+
+class ReviewIntelRequest(BaseModel):
+    intel_id: UUID
+    verdict: Literal["CONFIRMED", "CORRECTED", "REJECTED", "CLEARED"]
+    corrected_price: Optional[Decimal] = Field(default=None, ge=0)
+    currency: Optional[str] = Field(default=None, min_length=3, max_length=3)
+    note: Optional[str] = Field(default=None, max_length=500)
+
+
+@router.post("/competitors/{competitor_id}/intel/review")
+def review_competitor_intel(competitor_id: UUID, body: ReviewIntelRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The owner's check of one price read from the competitor's website or menu:
+    CONFIRMED (verified, confidence 1.0), CORRECTED (their price replaces the
+    one read; send corrected_price), REJECTED (dropped), or CLEARED (withdraws
+    an earlier decision). Decisions are remembered across re-reads of the site,
+    per item AND price read: a changed price on the site is a new, unreviewed
+    fact. Prices are re-matched to your products afterwards. Owner/admin only.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if not intel_review.can_review(conn, ctx.tenant_id, ctx.user_id):
+            raise HTTPException(status_code=403, detail="You do not have permission to perform this action.")
+        competitor_id, intel_id = str(competitor_id), str(body.intel_id)
+        try:
+            if body.verdict == "CLEARED":
+                result = {"intel_id": intel_id, "verdict": "CLEARED",
+                          "had_decision": intel_review.clear_review(conn, ctx.tenant_id, competitor_id, intel_id)}
+            else:
+                result = intel_review.review_fact(conn, ctx.tenant_id, competitor_id, intel_id, body.verdict, ctx.user_id,
+                                                  body.corrected_price, body.currency, body.note)
+        except LookupError:
+            conn.rollback()
+            raise HTTPException(status_code=404, detail="Price not found for this competitor.")
+        except intel_review.ReviewError as err:
+            conn.rollback()
+            raise HTTPException(status_code=422, detail=str(err))
+        from src.market_scraper.market_discovery import pipeline
+
+        pipeline._match_prices(conn, ctx.tenant_id, [competitor_id])  # noqa: SLF001 - a corrected or rejected price changes the matches
+        conn.commit()
+        tenant_cache.bump(ctx.tenant_id)
+        return {**result, "intel": competitor_intel.get_intel(conn, ctx.tenant_id, competitor_id)}
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
