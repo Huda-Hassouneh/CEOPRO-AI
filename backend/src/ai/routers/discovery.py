@@ -14,7 +14,9 @@ from src.ai.billing import credits
 from src.ai.market_inputs import public_sources
 from src.ai.core import tenant_cache, usage
 from src.ai.core.security import TenantContext, get_tenant_context
-from src.ai.market_inputs import competitor_analysis, competitor_intel, discovered_competitors, intel_review, market_news, market_structure
+from src.ai.market_inputs import (
+    competitor_analysis, competitor_intel, discovered_competitors, intel_review, market_news, market_structure, price_history, product_matches,
+)
 from src.infrastructure.request_language import get_request_language
 from src.market_scraper.market_discovery import industries, pipeline
 
@@ -229,6 +231,131 @@ def review_competitor_intel(competitor_id: UUID, body: ReviewIntelRequest, ctx: 
         raise
     finally:
         conn.close()
+
+
+def _known_competitor(conn, tenant_id: str, competitor_id: str) -> str:
+    competitor_id = str(competitor_id)
+    try:
+        competitor_intel.competitor_website(conn, tenant_id, competitor_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Competitor not found")
+    return competitor_id
+
+
+@router.get("/competitors/{competitor_id}/price-changes")
+def competitor_price_changes(competitor_id: UUID, days: int = Query(default=90, ge=1, le=730), include_unreliable: bool = False,
+                             limit: int = Query(default=50, ge=1, le=200), offset: int = Query(default=0, ge=0),
+                             ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    Price changes on this competitor's own menu, site and posts, newest first: item, old and new price, % change, when,
+    where it was read. Changes between two weak reads (picture / caption / AI reads) are included only with
+    include_unreliable=true, unless the owner confirmed them.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        competitor_id = _known_competitor(conn, ctx.tenant_id, competitor_id)
+        changes = price_history.list_changes(conn, ctx.tenant_id, competitor_id, days, include_unreliable, limit, offset)
+        conn.commit()
+        return {"competitor_id": competitor_id, "days": days, "changes": changes}
+    finally:
+        conn.close()
+
+
+@router.get("/price-changes")
+def recent_price_changes(days: int = Query(default=30, ge=1, le=365), include_unreliable: bool = False,
+                         limit: int = Query(default=30, ge=1, le=200), offset: int = Query(default=0, ge=0),
+                         ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Recent price changes across every competitor (newest first); same rules as the per-competitor list."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        changes = price_history.list_changes(conn, ctx.tenant_id, None, days, include_unreliable, limit, offset)
+        conn.commit()
+        return {"days": days, "changes": changes}
+    finally:
+        conn.close()
+
+
+@router.get("/competitors/{competitor_id}/price-history")
+def competitor_item_price_history(competitor_id: UUID, item_key: str = Query(min_length=1, max_length=200),
+                                  currency: Optional[str] = Query(default=None, min_length=3, max_length=3),
+                                  ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """The recorded prices of one item (item_key from price-changes), oldest first - a trend line."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        competitor_id = _known_competitor(conn, ctx.tenant_id, competitor_id)
+        series = price_history.item_series(conn, ctx.tenant_id, competitor_id, item_key, currency.upper() if currency else None)
+        conn.commit()
+        return {"competitor_id": competitor_id, "item_key": item_key, "series": series}
+    finally:
+        conn.close()
+
+
+@router.get("/competitors/{competitor_id}/matches")
+def competitor_product_matches(competitor_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Which of this competitor's items are matched to which of your products, the priced items you can choose from,
+    and the matches you rejected."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        competitor_id = _known_competitor(conn, ctx.tenant_id, competitor_id)
+        result = product_matches.list_matches(conn, ctx.tenant_id, competitor_id)
+        conn.commit()
+        return {"competitor_id": competitor_id, **result}
+    finally:
+        conn.close()
+
+
+class RejectMatchRequest(BaseModel):
+    product_id: UUID
+
+
+class ChooseMatchRequest(BaseModel):
+    product_id: UUID
+    intel_id: UUID
+
+
+def _match_change(competitor_id, ctx, action):
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if not product_matches.can_manage(conn, ctx.tenant_id, ctx.user_id):
+            raise HTTPException(status_code=403, detail="You do not have permission to perform this action.")
+        competitor_id = _known_competitor(conn, ctx.tenant_id, competitor_id)
+        try:
+            result = action(conn, competitor_id)
+        except LookupError:
+            conn.rollback()
+            raise HTTPException(status_code=404, detail="Product, price or match not found for this competitor.")
+        except product_matches.MatchError as err:
+            conn.rollback()
+            raise HTTPException(status_code=422, detail=str(err))
+        conn.commit()
+        tenant_cache.bump(ctx.tenant_id)
+        return {**result, **{k: v for k, v in product_matches.list_matches(conn, ctx.tenant_id, competitor_id).items()}}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/competitors/{competitor_id}/matches/reject")
+def reject_competitor_match(competitor_id: UUID, body: RejectMatchRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """"This item is not that product": it is never matched to it again, the price comparison stops using it and the
+    next best item (if any) is matched instead. Owner/admin only."""
+    return _match_change(competitor_id, ctx, lambda conn, cid: product_matches.reject_match(conn, ctx.tenant_id, cid, str(body.product_id), ctx.user_id))
+
+
+@router.post("/competitors/{competitor_id}/matches")
+def choose_competitor_match(competitor_id: UUID, body: ChooseMatchRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """You choose the competitor item (intel_id from the matches list) that is this product. Same currency required; a
+    price read from a post must be confirmed first. Owner/admin only."""
+    return _match_change(competitor_id, ctx, lambda conn, cid: product_matches.choose_match(
+        conn, ctx.tenant_id, cid, str(body.product_id), str(body.intel_id), ctx.user_id))
+
+
+@router.delete("/competitors/{competitor_id}/matches/{product_id}")
+def clear_competitor_match(competitor_id: UUID, product_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Back to automatic matching for this product (removes your decisions about it). Owner/admin only."""
+    return _match_change(competitor_id, ctx, lambda conn, cid: product_matches.clear_match(conn, ctx.tenant_id, cid, str(product_id)))
 
 
 def _analysis_error(err: "competitor_analysis.AnalysisUnavailable") -> HTTPException:

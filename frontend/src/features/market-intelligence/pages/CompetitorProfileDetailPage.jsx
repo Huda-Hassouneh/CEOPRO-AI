@@ -15,6 +15,8 @@ import { useTrackCompetitor } from '../hooks/useDiscovery.js';
 import { RecordCompetitorPrice } from '../components/RecordCompetitorPrice.jsx';
 import { CompetitorIntel } from '../components/CompetitorIntel.jsx';
 import { DataCompleteness } from '../components/DataCompleteness.jsx';
+import { PriceChanges } from '../components/PriceChanges.jsx';
+import { ProductMatches } from '../components/ProductMatches.jsx';
 import { CompetitorComments } from '../components/CompetitorComments.jsx';
 import { useCompetitorDataStatus } from '../hooks/useCompetitorData.js';
 import '../styles/MarketIntelligence.css';
@@ -144,6 +146,8 @@ export function CompetitorProfileDetailPage() {
           </div>
 
           <CompetitorIntel competitor={c} t={t} locale={locale} />
+          {c.website_url && <PriceChanges competitorId={competitorId} />}
+          {c.is_tracked && <ProductMatches competitorId={competitorId} />}
 
           {c.is_tracked && <DataCompleteness completeness={dataStatus.data} competitorId={competitorId} queued={Boolean(dataStatus.data?.queued)} />}
           {c.is_tracked && <CompetitorComments competitorId={competitorId} />}

@@ -2,8 +2,15 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { competitorDataApi } from '../api/competitorDataApi.js';
 import { discoveryApi } from '../api/discoveryApi.js';
 
-export function useCompetitorOverview() {
-  return useQuery({ queryKey: ['competitor-overview'], queryFn: competitorDataApi.overview });
+// Without ids: every tracked competitor. With ids (the rows on screen): only those, so the payload follows the page.
+export function useCompetitorOverview(ids) {
+  const wanted = ids ? [...ids].sort() : null;
+  return useQuery({
+    queryKey: ['competitor-overview', wanted ? wanted.join(',') : 'all'],
+    queryFn: () => competitorDataApi.overview(wanted ? { ids: wanted } : undefined),
+    enabled: !wanted || wanted.length > 0,
+    placeholderData: (previous) => previous, // keep the rows' details while the next page's arrive
+  });
 }
 
 export function useCompetitorDataStatus(id, enabled = true) {
@@ -34,6 +41,7 @@ function refreshCompetitorData(queryClient, id) {
   queryClient.invalidateQueries({ queryKey: ['competitor-profile', id] });
   queryClient.invalidateQueries({ queryKey: ['product-intelligence'] });
   queryClient.invalidateQueries({ queryKey: ['price-coverage'] });
+  queryClient.invalidateQueries({ queryKey: ['price-changes'] });
 }
 
 // Retry one competitor (all collectable facets, or the given ones) and refresh what is shown.
@@ -102,4 +110,34 @@ export function useReviewIntel(competitorId) {
     mutationFn: (decision) => discoveryApi.reviewIntel(competitorId, decision),
     onSuccess: () => refreshCompetitorData(queryClient, competitorId),
   });
+}
+
+export function usePriceChanges(competitorId, options) {
+  return useQuery({
+    queryKey: ['price-changes', competitorId, options],
+    queryFn: () => discoveryApi.priceChanges(competitorId, options),
+    enabled: Boolean(competitorId),
+  });
+}
+
+export function useRecentPriceChanges(options) {
+  return useQuery({ queryKey: ['price-changes', 'all', options], queryFn: () => discoveryApi.recentPriceChanges(options) });
+}
+
+export function useCompetitorMatches(competitorId) {
+  return useQuery({ queryKey: ['competitor-matches', competitorId], queryFn: () => discoveryApi.matches(competitorId), enabled: Boolean(competitorId) });
+}
+
+// The owner's decisions on matches: what is shown, the product comparisons and the coverage built from them refresh.
+export function useMatchActions(competitorId) {
+  const queryClient = useQueryClient();
+  const done = () => {
+    refreshCompetitorData(queryClient, competitorId);
+    queryClient.invalidateQueries({ queryKey: ['competitor-matches', competitorId] });
+  };
+  return {
+    reject: useMutation({ mutationFn: (productId) => discoveryApi.rejectMatch(competitorId, productId), onSuccess: done }),
+    choose: useMutation({ mutationFn: (decision) => discoveryApi.chooseMatch(competitorId, decision), onSuccess: done }),
+    clear: useMutation({ mutationFn: (productId) => discoveryApi.clearMatch(competitorId, productId), onSuccess: done }),
+  };
 }

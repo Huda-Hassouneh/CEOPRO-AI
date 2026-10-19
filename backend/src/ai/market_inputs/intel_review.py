@@ -51,9 +51,9 @@ def load_reviews(conn, tenant_id: str, competitor_id: str) -> Dict[Tuple[str, De
             )
             rows = cursor.fetchall()
         except Exception as exc:  # noqa: BLE001
-            if getattr(exc, "pgcode", None) != "42P01":  # undefined_table
-                raise
             cursor.execute("ROLLBACK TO SAVEPOINT intel_review_read;")
+            if not (getattr(exc, "pgcode", None) == "42P01" and "competitor_intel_review" in str(exc) and "does not exist" in str(exc)):
+                raise  # only a missing review table is tolerated, not any other undefined-table error
             return {}
         cursor.execute("RELEASE SAVEPOINT intel_review_read;")
     return {(row[0], _price(row[1])): {"verdict": row[2], "corrected_price": row[3], "currency": row[4],
@@ -124,6 +124,10 @@ def review_fact(conn, tenant_id: str, competitor_id: str, intel_id: str, verdict
             """,
             (tenant_id, competitor_id, key, read, verdict, name, corrected, (currency or "").upper() or None, note, user_id),
         )
+        if verdict in ("CONFIRMED", "CORRECTED"):
+            from src.ai.market_inputs import price_history
+
+            price_history.mark_verified(conn, tenant_id, competitor_id, key, read)
         if verdict == "REJECTED":
             cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND intel_id = %s;",
                            (tenant_id, competitor_id, intel_id))

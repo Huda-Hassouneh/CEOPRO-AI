@@ -260,17 +260,27 @@ def competitor_reviews_endpoint(
 
 
 @router.get("/competitor-data/overview")
-def competitor_data_overview_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def competitor_data_overview_endpoint(
+    ids: Optional[str] = Query(default=None, max_length=8000, description="Comma-separated competitor ids; omit for every tracked competitor."),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
     """
     One bulk read for the competitor list: for every tracked competitor its
     Google rating and review count, comments collected, people agreeing,
     sentiment (plain and agreement-weighted), social profiles and data
     completeness (what is missing, why, and whether Retry applies). Keyed by
-    competitor_id - the list screens merge it onto their rows.
+    competitor_id - the list screens merge it onto their rows. With `ids` (up to 200) only
+    those competitors come back: a list showing one page needs one page of details, not every competitor's.
     """
+    wanted = None
+    if ids is not None:
+        wanted = [part.strip() for part in ids.split(",") if part.strip()]
+        if len(wanted) > 200:
+            raise HTTPException(status_code=422, detail="At most 200 ids per request.")
+        wanted = [_competitor_uuid(part) for part in wanted]
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        details = product_market.competitor_details(conn, ctx.tenant_id)
+        details = product_market.competitor_details(conn, ctx.tenant_id, *([] if wanted is None else [wanted]))
         conn.commit()
         return {"competitors": details}
     except Exception:

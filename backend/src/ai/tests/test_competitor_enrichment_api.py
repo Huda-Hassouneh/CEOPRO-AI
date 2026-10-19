@@ -234,3 +234,15 @@ def test_a_deep_read_is_always_queued_even_when_the_caller_did_not_ask_for_backg
     assert response.status_code == 202 and response.json()["queued"] is True
     direct.assert_not_called()  # nothing ran inside the request
     assert enqueue.call_args.args[-1] == "deep"
+
+
+def test_the_overview_can_be_limited_to_the_competitors_on_screen():
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.product_market.competitor_details", return_value={COMP: {"rating": 4.4}}) as details:
+        assert client.get("/competitor-data/overview", headers=_auth()).json() == {"competitors": {COMP: {"rating": 4.4}}}
+        assert len(details.call_args.args) == 2  # no ids: every tracked competitor, exactly as before
+        client.get(f"/competitor-data/overview?ids={COMP}, {COMP}", headers=_auth())
+        assert details.call_args.args[2] == [COMP, COMP]
+        assert client.get("/competitor-data/overview?ids=not-a-uuid", headers=_auth()).status_code == 422
+        too_many = ",".join([COMP] * 201)
+        assert client.get(f"/competitor-data/overview?ids={too_many}", headers=_auth()).status_code == 422
