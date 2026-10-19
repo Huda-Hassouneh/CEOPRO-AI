@@ -1,0 +1,80 @@
+# KEEL - src/ai/main.py's Docker image (PENDING_ACTIONS.md #2/#25,
+# RED_FLAGS.md's Critical "ceopro_admin unconditionally bypasses RLS" entry).
+# Builds and runs the first service that ever connects to Postgres as the
+# restricted ceopro_app role instead of the superuser ceopro_admin.
+#
+# Deliberately python:3.11-slim (Debian/glibc), not
+# src/infrastructure/Dockerfile.backend's python:3.11-alpine (musl) pattern -
+# src/ai/requirements.txt's ML dependencies (torch, faiss-cpu) ship manylinux
+# (glibc) wheels, not musl ones, so Alpine would force a slow, fragile
+# from-source build for both. This is a deliberate deviation from the
+# existing Dockerfile, not an oversight.
+
+# ==========================================
+# STAGE 1: DEPENDENCY BUILDER
+# ==========================================
+FROM python:3.11-slim AS ai-builder
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY src/ai/requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir --user -r requirements.txt
+
+# ==========================================
+# STAGE 2: PRODUCTION RUNTIME
+# ==========================================
+FROM python:3.11-slim AS ai-runtime
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PATH=/home/ceopro/.local/bin:$PATH
+ENV HOME=/home/ceopro
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 curl fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r ceoprogroup && useradd -r -g ceoprogroup -d /home/ceopro ceopro \
+    && mkdir -p /home/ceopro/.local \
+    && chown -R ceopro:ceoprogroup /app /home/ceopro
+COPY --from=ai-builder /root/.local /home/ceopro/.local
+COPY --chown=ceopro:ceoprogroup src/ai ./src/ai
+# src.ai.main's own import chain reaches both of these at real runtime
+# (db.py -> src.infrastructure.db_pool; routers/competitors.py -> src.
+# market_scraper.discovery -> data_access.py -> credential_vault.py, plus
+# rag/web_fallback.py, routers/onboarding.py, dashboard/, pricing/, and
+# insights/category_gap.py's own market_scraper imports) - this image
+# never actually ran without ModuleNotFoundError until these two were
+# added; src/market_scraper/__init__.py is docstring-only (no package-
+# level imports), so copying the whole package doesn't pull in the
+# Scrapy-only spiders/pipelines/worker modules the ai service itself
+# never imports, without needing to hand-pick a file subset.
+COPY --chown=ceopro:ceoprogroup src/infrastructure ./src/infrastructure
+COPY --chown=ceopro:ceoprogroup src/market_scraper ./src/market_scraper
+COPY --chown=ceopro:ceoprogroup templates ./templates
+# apply_migrations.py alone (not the rest of scripts/, which pulls in
+# heavier live-verification/scraping scripts the ai service never runs) -
+# see docker-entrypoint.sh's own comment for why a single-container
+# platform needs this baked into the image's own startup instead of
+# relying on docker-compose.yml's separate one-shot `migrate` service.
+COPY --chown=ceopro:ceoprogroup scripts/apply_migrations.py ./scripts/apply_migrations.py
+COPY --chown=ceopro:ceoprogroup docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+USER ceopro
+# The static multilingual embedding model (RAG_EMBEDDING_BACKEND=static, what
+# render.yaml runs on the 512 MB plan), prepared at build time: its public
+# weights are fetched once and cut to a ~80 MB float16 matrix, so the running
+# service needs no download and no network for embeddings - document text and
+# questions never leave the service. The downloaded original is removed.
+RUN python -c "from src.ai.rag import embeddings; print(embeddings.prepare_static())" \
+    && rm -rf /home/ceopro/.cache/huggingface
+EXPOSE 8000
+# $PORT is only known at container runtime (Render assigns it
+# dynamically), not at build time - CMD's shell form expands it when the
+# check actually runs. Falls back to 8000 when PORT isn't set, matching
+# docker-entrypoint.sh's own default.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
+ENTRYPOINT ["./docker-entrypoint.sh"]

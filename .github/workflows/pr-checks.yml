@@ -1,0 +1,265 @@
+name: PR Checks
+
+# Runs the same checks a contributor is expected to run locally before
+# pushing (backend pytest suite, the Application Knowledge Registry
+# staleness validator, frontend lint, the frontend node --test suite, a
+# production build, and the browser smoke test of every screen) on every pull request and every push to main - previously nothing
+# ran automatically at all (staging-deployment.yml only fires on a push to
+# `staging` and only extracts the OpenAPI schema, it never runs a single
+# test). Zero-cost: GitHub-hosted runners + the free pgvector/pgvector:pg15
+# image used locally and in docker-compose.yml, no paid service of any kind.
+
+on:
+  pull_request:
+  push:
+    # KEEL_Test is the integration branch: pushed to directly, never via PR.
+    branches: [main, KEEL_Test]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: ceopro_admin
+          POSTGRES_PASSWORD: ci_test_admin_password
+          POSTGRES_DB: ceopro_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      # Closes a real gap: test_consumer.py's 16 live-Redis tests were
+      # always skipped in CI for lack of a Redis service, never because
+      # they didn't work - confirmed by running them against a real local
+      # Redis container (all 16 pass). Free, same zero-cost GitHub-hosted-
+      # runner service pattern as postgres above.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Real Postgres, real superuser role (scripts/apply_migrations.py's
+      # own docstring: must run as a superuser/schema-owning role, e.g.
+      # ceopro_admin, never the restricted ceopro_app role it creates) -
+      # a throwaway password scoped to this one ephemeral CI database, not
+      # a secret protecting anything real.
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      APP_DB_PASSWORD: ci_test_app_password
+      JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
+      AI_TEST_REDIS_HOST: localhost
+      # connector_worker.py's own real production DSN env var - same admin
+      # connection as DATABASE_URL above is sufficient for this job (the
+      # SECURITY DEFINER grant under test doesn't need a separate role
+      # here), and SCRAPER_ACTOR_USER_ID is the fixed background-worker
+      # service principal UUID get_current_tenant() already trusts
+      # (src/infrastructure/database/migrations/
+      # 20260928000000_fix_service_actor_tenant_context.sql). Closes
+      # test_connector_worker_integration_db.py's 6 always-skipped tests -
+      # confirmed passing against a real local Postgres.
+      SCRAPER_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      SCRAPER_ACTOR_USER_ID: "00000000-0000-0000-0000-000000000000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # requirements.txt pulls torch/sentence-transformers/faiss for the RAG
+      # embedding + reranking pipeline (see requirements.txt's own comments)
+      # - torch's default Linux wheel bundles CUDA and a full nvidia-* stack
+      # (~4.6GB) this CPU-only application never uses. That alone blew past
+      # a GitHub-hosted runner's free disk (~14GB, much already used by
+      # preinstalled toolchains this job never touches) and failed the very
+      # first real run of this job with "No space left on device" - reclaim
+      # space from those unused preinstalled toolchains rather than change
+      # what actually gets installed (keeps this job's dependency set
+      # identical to Dockerfile.ai's and every contributor's local venv).
+      - name: Free disk space (unused preinstalled toolchains this job never touches)
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+          sudo docker image prune -a -f
+          df -h /
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --no-cache-dir -r src/ai/requirements.txt
+
+      # Known vulnerabilities in exactly what was just installed (PyPI's
+      # advisory data). Fails the job on any finding.
+      - name: Audit Python dependencies
+        run: |
+          pip install --no-cache-dir pip-audit
+          pip freeze --exclude-editable | grep -v '^pip-audit==' > "$RUNNER_TEMP/installed.txt"
+          # CVE-2026-106454 (Twisted IMAP *server* wildcardToRegexp ReDoS) is the only
+          # ignored advisory: Twisted is just Scrapy's transitive dependency, nothing here
+          # imports twisted.mail/imap4 or runs an IMAP server, 26.4.0 is already the newest
+          # release and no fixed version exists (checked 2026-10-17). Remove this ignore as
+          # soon as Twisted publishes a fix; every other finding still fails the job.
+          pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off \
+            --ignore-vuln CVE-2026-106454
+
+      - name: Apply database migrations
+        working-directory: backend
+        run: python scripts/apply_migrations.py
+
+      - name: Validate Application Knowledge Registry is in sync with the real frontend
+        working-directory: backend
+        run: python scripts/validate_application_knowledge.py
+
+      # Real, confirmed gap this fixes: only src/ai/tests ever ran here -
+      # the entire src/market_scraper/tests suite (518 tests: Target
+      # Markets, discovery, classification, connector workers, pricing
+      # collectors) had never once run in CI. `src/` covers both.
+      - name: Run backend test suite (offline unit tests + live-DB integration tests)
+        working-directory: backend
+        run: python -m pytest src/ -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Audit runtime dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run frontend test suite
+        working-directory: frontend
+        run: node --test tests/*.test.mjs
+
+      - name: Production build
+        working-directory: frontend
+        run: npm run build
+
+  # Opens every main screen in a real browser (frontend/tests/browser/
+  # smoke.mjs) in English desktop, Arabic mobile and dark mode, against the
+  # real API and a fresh database with one company that has finished setup
+  # (backend/scripts/ci_smoke_account.py). Fails on page errors, failed API
+  # calls, untranslated text and sideways scrolling.
+  browser-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: ceopro_admin
+          POSTGRES_PASSWORD: ci_test_admin_password
+          POSTGRES_DB: ceopro_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway values for this one ephemeral job, not secrets.
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      APP_DB_PASSWORD: ci_test_app_password
+      JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
+      REDIS_URL: redis://localhost:6379/0
+      REDIS_HOST: localhost
+      DISCOVERY_REFRESH_ENABLED: "false"
+      NOTIFICATION_DIGEST_ENABLED: "false"
+      E2E_EMAIL: ci-smoke@keel-ci.example
+      E2E_PASSWORD: Ci!Smoke-Only-2026
+      APP_URL: http://localhost:5173
+      API_URL: http://localhost:8000
+      CHROMIUM_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # Same reason as the backend job: torch's wheel needs the room.
+      - name: Free disk space (unused preinstalled toolchains this job never touches)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+          sudo docker image prune -a -f
+          df -h /
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --no-cache-dir -r src/ai/requirements.txt
+
+      - name: Apply database migrations
+        working-directory: backend
+        run: python scripts/apply_migrations.py
+
+      - name: Start the API
+        working-directory: backend
+        run: |
+          export CREDENTIAL_VAULT_MASTER_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+          nohup uvicorn src.ai.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/api.log" 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://localhost:8000/health && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/api.log"; exit 1
+
+      - name: Create the test company
+        working-directory: backend
+        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD"
+
+      - name: Build and serve the frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: http://localhost:8000
+        run: |
+          npm ci
+          npm run build
+          nohup npx vite preview --host localhost --port 5173 --strictPort > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:5173/login && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/web.log"; exit 1
+
+      - name: Browser smoke test (English desktop, Arabic mobile, dark mode)
+        working-directory: frontend
+        run: npm run test:browser
+
+      - name: Accessibility audit (axe-core, WCAG 2.1 AA; fails on serious or critical)
+        working-directory: frontend
+        run: npm run test:a11y
+
+      - name: API log
+        if: failure()
+        run: tail -n 200 "$RUNNER_TEMP/api.log"
