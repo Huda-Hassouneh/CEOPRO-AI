@@ -16,6 +16,10 @@ os.environ.setdefault("BILLING_MAINTENANCE_ENABLED", "0")
 os.environ.setdefault("API_RATE_LIMIT_ENABLED", "false")  # test_rate_limit.py turns it on
 # Discovery tests never fetch real competitor websites.
 os.environ.setdefault("DISCOVERY_ENRICH_MAX_SITES", "0")
+# xgboost and torch each bundle their own OpenMP runtime on macOS; once both are
+# loaded in one process, torch ops (e.g. softmax in sentiment/model.py) can
+# deadlock. Single-threaded OpenMP avoids it. Must be set before either imports.
+os.environ.setdefault("OMP_NUM_THREADS", "1")
 # Model loaders are mocked in tests: skip the hub reachability probe.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 # Onboarding's connect endpoints refuse (503) without a credential-vault key;
