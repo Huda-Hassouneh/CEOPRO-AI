@@ -43,7 +43,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlsplit
 
-from src.ai.pricing.matching import similarity
+from src.ai.pricing.matching import similarity  # noqa: F401 - kept importable for callers/tests
+from src.market_scraper.name_matching import name_similarity
 from src.market_scraper import direct_search
 from src.market_scraper import competitor_mentions as mentions
 from src.market_scraper import web_search
@@ -231,7 +232,7 @@ def _find_place(competitor: dict, api_key: str) -> "tuple[Optional[dict], Option
         details["place_id"] = place_id
         if our_host and _host(details.get("website")) == our_host:
             return details, 0.95
-        if similarity(details.get("name") or candidate.get("name") or "", competitor["name"]) >= _NAME_MATCH_THRESHOLD:
+        if name_similarity(details.get("name") or candidate.get("name") or "", competitor["name"]) >= _NAME_MATCH_THRESHOLD:
             return details, 0.8
     return None, None
 
