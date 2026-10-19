@@ -61,6 +61,18 @@ def build_alerts(conn, tenant_id: str, now=None) -> list:
                        "kind": "competitor_price", "severity": "warning" if move["change_pct"] < 0 else "info",
                        "at": move["observed_at"], "link": f"/market/competitors/{move['competitor_id']}",
                        "params": {k: move[k] for k in ("competitor", "product", "price", "previous_price", "change_pct", "currency")}})
+    # Prices on a competitor's own menu / site / posts that moved and are not one of your products' matches.
+    try:
+        from src.ai.market_inputs import price_history
+
+        for change in price_history.alert_changes(conn, tenant_id, RECENT_DAYS, PRICE_MOVE_PCT, now=now):
+            alerts.append({"id": _id("item", change["competitor_id"], change["item_key"], change["changed_at"]),
+                           "kind": "competitor_item_price", "severity": "warning" if change["direction"] == "down" else "info",
+                           "at": change["changed_at"], "link": f"/market/competitors/{change['competitor_id']}",
+                           "params": {"competitor": change["competitor"], "product": change["item"], "price": change["new_price"],
+                                      "previous_price": change["old_price"], "change_pct": change["change_pct"], "currency": change["currency"]}})
+    except Exception:  # noqa: BLE001 - alerts never fail over one source
+        conn.rollback()
     for item in cc["restock"]:
         if item.get("priority") != "high":
             continue

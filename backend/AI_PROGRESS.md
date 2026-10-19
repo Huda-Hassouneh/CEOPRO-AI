@@ -1845,6 +1845,22 @@ Everything in the pending list that code could close was closed on `feat/competi
 What remains is human-only (secrets rotation #102, Render env and cost rows #95 / #97, migration #90, images #85, provider
 accounts #91 / #92, real menu photos #86, native-speaker Arabic review #94, name-matcher tuning data #93).
 
+## 2026-10-19 (price changes, match corrections, list performance)
+
+Branch `feat/competitor-price-changes` (stacked on the frontend-controls branch). Details: `COMPETITOR_DATA_COMPLETENESS_PLAN.md` section 9.
+- **Price changes**: item price history kept across re-reads, changes listed per competitor and across competitors, a derived
+  alert, UI panels; changes between weak reads (OCR / caption / vision) stay out of the default view and out of alerts.
+- **Match corrections**: owner/admin can reject a wrong match, pick the right item, or go back to automatic; decisions survive
+  every re-read. Found while testing: moving a mapping to another item kept the old item's prices; fixed.
+- **Performance**: `scripts/competitor_list_benchmark.py`; 5,000 competitors measured (all screens under ~120 ms with statistics);
+  the overview payload (6.7 MB) now follows the rows on screen (134 KB).
+- **Defect found by the live tests**: the "tolerate a missing table" helper swallowed every `undefined_table` error, including a
+  mistyped alias in a new query, and returned an empty list; it now tolerates only the named table.
+- Verified on a local stack: panels, reject / choose / back-to-automatic round-trips, uncertain-read toggle, Market feed, alert
+  in the bell, Arabic phone layout; browser smoke 26/26 clean and axe 0 findings in en desktop / ar mobile / dark mobile.
+- Not done: "no longer listed" events, per-item trend line in the UI, changes in prices of items nobody matched are not
+  compared with your own price.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

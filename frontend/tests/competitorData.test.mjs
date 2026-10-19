@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import {
-  canReviewPrices, competitorDataApi, completenessTone, facetActions, facetTone, intelChannel, intelOrigin, needsCheck, onRequestAction,
-  parseCorrectedPrice, reasonKey, REASON_CODES, RETRYABLE_FACETS, retryableFacets, retryOutcome, withOverview,
+  canReviewPrices, changeLabel, chooseableItems, competitorDataApi, completenessTone, facetActions, facetTone, intelChannel, intelOrigin, needsCheck, onRequestAction,
+  parseCorrectedPrice, reasonKey, sortChanges, REASON_CODES, RETRYABLE_FACETS, retryableFacets, retryOutcome, withOverview,
 } from '../src/features/market-intelligence/api/competitorDataApi.js';
 import { discoveryApi } from '../src/features/market-intelligence/api/discoveryApi.js';
 import httpClient from '../src/shared/lib/httpClient.js';
@@ -230,4 +230,65 @@ test('a corrected price must be a plain number; Arabic digits and a decimal comm
   assert.equal(parseCorrectedPrice('3,5'), 3.5);
   assert.equal(parseCorrectedPrice('٣٫٥'.replace('٫', '.')), 3.5);
   for (const bad of ['', 'abc', '-1', '1.23456', '3 JD', null, undefined, '1e3']) assert.equal(parseCorrectedPrice(bad), null, String(bad));
+});
+
+// ---- price changes, matches and the paged overview ----
+
+test('the overview follows the rows on screen: ids go in batches of 100 and the pages are merged', async (t) => {
+  const seen = await serve(t, (req, res) => {
+    const ids = (new URL(req.url, 'http://x').searchParams.get('ids') || '').split(',').filter(Boolean);
+    res.end(JSON.stringify({ competitors: Object.fromEntries(ids.map((id) => [id, { id }])) }));
+  });
+  const ids = Array.from({ length: 230 }, (_, i) => `c${i}`);
+  const overview = await competitorDataApi.overview({ ids });
+  assert.equal(Object.keys(overview).length, 230);
+  assert.equal(seen.length, 3);
+  assert.deepEqual(seen.map((r) => new URL(r.url, 'http://x').searchParams.get('ids').split(',').length), [100, 100, 30]);
+  seen.length = 0;
+  await competitorDataApi.overview();
+  assert.equal(seen[0].url, '/competitor-data/overview'); // no ids: every competitor, exactly as before
+});
+
+test('price changes and matches use the real endpoints and flags', async (t) => {
+  const seen = await serve(t, (_req, res) => res.end('{"changes":[],"matches":[],"items":[],"rejected":[]}'));
+  await discoveryApi.priceChanges('c1', { days: 30, includeUnreliable: true, limit: 5 });
+  await discoveryApi.priceChanges('c1');
+  await discoveryApi.recentPriceChanges({ limit: 8 });
+  await discoveryApi.matches('c1');
+  await discoveryApi.rejectMatch('c1', 'p1');
+  await discoveryApi.chooseMatch('c1', { productId: 'p1', intelId: 'i1' });
+  await discoveryApi.clearMatch('c1', 'p1');
+  assert.deepEqual(seen.map((r) => `${r.method} ${r.url}`), [
+    'GET /discovery/competitors/c1/price-changes?days=30&include_unreliable=true&limit=5',
+    'GET /discovery/competitors/c1/price-changes?days=90&limit=50',
+    'GET /discovery/price-changes?days=30&limit=8',
+    'GET /discovery/competitors/c1/matches',
+    'POST /discovery/competitors/c1/matches/reject',
+    'POST /discovery/competitors/c1/matches',
+    'DELETE /discovery/competitors/c1/matches/p1',
+  ]);
+  assert.deepEqual(seen[4].body, { product_id: 'p1' });
+  assert.deepEqual(seen[5].body, { product_id: 'p1', intel_id: 'i1' });
+});
+
+test('a price change is worded with its sign and unit, and the newest change is first', () => {
+  const pct = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
+  assert.equal(changeLabel(11.8, pct), '+11.8%');
+  assert.equal(changeLabel(-5, pct), '−5%');
+  assert.equal(changeLabel(0, pct), '0%');
+  assert.equal(changeLabel(null, pct), '');
+  assert.deepEqual(sortChanges([{ changed_at: '2026-10-01' }, { changed_at: '2026-10-09' }, { changed_at: '2026-10-05' }]).map((c) => c.changed_at), ['2026-10-09', '2026-10-05', '2026-10-01']);
+  assert.deepEqual(sortChanges(undefined), []);
+});
+
+test('only items that can honestly be matched are offered when the owner picks one', () => {
+  const items = [
+    { intel_id: 'a', name: 'Mansaf plate', price: 8, currency: 'JOD' },
+    { intel_id: 'b', name: 'Mansaf tray', price: 18, currency: 'JOD' },
+    { intel_id: 'c', name: 'Mansaf USD', price: 25, currency: 'USD' },
+    { intel_id: 'd', name: 'Mansaf post', price: 17, currency: 'JOD', needs_confirmation: true },
+    { intel_id: 'e', name: 'Mansaf free', price: null, currency: 'JOD' },
+  ];
+  assert.deepEqual(chooseableItems(items, { currency: 'JOD' }, 'Mansaf tray').map((i) => i.intel_id), ['a']);
+  assert.deepEqual(chooseableItems(undefined, { currency: 'JOD' }, 'x'), []);
 });

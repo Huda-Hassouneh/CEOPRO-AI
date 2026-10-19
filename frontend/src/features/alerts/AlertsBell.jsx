@@ -7,6 +7,7 @@ import httpClient from '../../shared/lib/httpClient.js';
 
 export const ICONS = {
   competitor_price: (a) => (a.params.change_pct < 0 ? TrendingDown : TrendingUp),
+  competitor_item_price: (a) => (a.params.change_pct < 0 ? TrendingDown : TrendingUp),
   restock: () => PackageX, price_gap: () => Tag, new_competitors: () => Radar,
   import_failed: () => FileWarning, payment_failed: () => CreditCard, trial_ending: () => CreditCard,
   credits_low: () => Gauge, credits_exhausted: () => Gauge,
@@ -16,6 +17,7 @@ export const ICONS = {
 export function describeAlert(a, t, number, money) {
   const p = a.params;
   switch (a.kind) {
+    case 'competitor_item_price':
     case 'competitor_price': return t(`alerts.competitor_price.${p.change_pct < 0 ? 'down' : 'up'}`, { competitor: p.competitor, product: p.product, price: money(p.price, p.currency), pct: number.format(Math.abs(p.change_pct)) });
     case 'restock': return t('alerts.restock', { product: p.product, days: number.format(p.days ?? 0), quantity: number.format(p.quantity ?? 0) });
     case 'price_gap': return t(`alerts.price_gap.${p.gap_pct > 0 ? 'above' : 'below'}`, { product: p.product, pct: number.format(Math.abs(p.gap_pct)), competitor: p.competitor });
