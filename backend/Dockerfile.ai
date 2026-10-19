@@ -34,7 +34,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH=/home/ceopro/.local/bin:$PATH
 ENV HOME=/home/ceopro
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq5 curl fonts-dejavu-core \
+    && apt-get install -y --no-install-recommends libpq5 curl fonts-dejavu-core tesseract-ocr tesseract-ocr-ara tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r ceoprogroup && useradd -r -g ceoprogroup -d /home/ceopro ceopro \
     && mkdir -p /home/ceopro/.local \
