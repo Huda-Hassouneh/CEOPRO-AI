@@ -13,6 +13,7 @@ import { competitorsApi } from '../api/competitorsApi.js';
 import { MarketScan } from '../components/MarketScan.jsx';
 import { MarketInsights } from '../components/MarketInsights.jsx';
 import { CompetitorDirectory } from '../components/CompetitorDirectory.jsx';
+import { RecentPriceChanges } from '../components/PriceChanges.jsx';
 import { PriceCoverage } from '../components/PriceCoverage.jsx';
 import { useRetryAllFailed } from '../hooks/useCompetitorData.js';
 import { retryOutcome } from '../api/competitorDataApi.js';
@@ -74,6 +75,7 @@ export function CompetitorLandscapePage() {
           {limit != null && <div className="apex-limit-bar"><span>{t('competitorsApex.stats.planUsage', { used: data.competitors.length, limit })}</span><Meter value={data.competitors.length} max={limit} tone={data.competitors.length >= limit ? 'danger' : 'accent'} label={t('competitorsApex.stats.tracked')} /></div>}
 
           <MarketScan />
+          <RecentPriceChanges />
           <CompetitorDirectory pricing={pricing} planLimit={limit} />
           <PriceCoverage />
           <MarketInsights />

@@ -8,7 +8,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
-from src.ai.market_inputs import intel_review
+from src.ai.market_inputs import intel_review, price_history
 from src.market_scraper.market_discovery import intel
 from src.ai.billing import credits
 
@@ -59,7 +59,10 @@ def save_site_intel(conn, tenant_id: str, competitor_id: str, result: dict) -> s
                 + (" AND NOT COALESCE((payload->>'source_media')::boolean, FALSE)" if keep_media else "") + ";",
                 (tenant_id, competitor_id, list(WEBSITE_KINDS)),
             )
-            for fact in intel_review.apply_to_facts(result["facts"], intel_review.load_reviews(conn, tenant_id, competitor_id)):
+            reviews = intel_review.load_reviews(conn, tenant_id, competitor_id)
+            # What the site SHOWED goes to the price history (not the owner's corrections of it), before decisions apply.
+            price_history.record(conn, tenant_id, competitor_id, result["facts"], reviews)
+            for fact in intel_review.apply_to_facts(result["facts"], reviews):
                 payload = {k: v for k, v in fact.items() if k not in ("kind", "source_url", "retrieved_at", "confidence")}
                 cursor.execute(
                     """
@@ -81,7 +84,9 @@ def save_channel_facts(conn, tenant_id: str, competitor_id: str, channel: str, f
     An empty read keeps what is already stored. Returns how many facts are stored for the channel afterwards."""
     with conn.cursor() as cursor:
         if facts:
-            kept = intel_review.apply_to_facts(facts, intel_review.load_reviews(conn, tenant_id, competitor_id))
+            reviews = intel_review.load_reviews(conn, tenant_id, competitor_id)
+            price_history.record(conn, tenant_id, competitor_id, facts, reviews)
+            kept = intel_review.apply_to_facts(facts, reviews)
             cursor.execute("DELETE FROM competitor_intel WHERE tenant_id = %s AND global_competitor_id = %s AND payload->>'channel' = %s;",
                            (tenant_id, competitor_id, channel))
             for fact in kept:

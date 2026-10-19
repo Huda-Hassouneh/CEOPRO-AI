@@ -599,6 +599,16 @@ html .mk-photo-picker:focus-within { outline: none; box-shadow: var(--apex-focus
 .price-review__input { width: 92px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--apex-glass-border); background: var(--apex-glass); color: inherit; font: inherit; font-size: 13px; }
 .price-review__input:focus-visible { outline: 2px solid var(--apex-accent, currentColor); outline-offset: 1px; }
 
+/* Price changes feed (competitor profile and the Market page). */
+.price-changes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.price-change { display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; border-radius: 12px; background: var(--apex-glass); border: 1px solid var(--apex-glass-border); font-size: 13px; }
+.price-change > svg { flex-shrink: 0; margin-top: 2px; color: var(--apex-text-3); }
+.price-change.is-down > svg { color: var(--apex-warning, #b7791f); }
+.price-change__body { min-width: 0; overflow-wrap: anywhere; }
+.price-change__prices { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.price-change__meta { margin-top: 2px; font-size: 11.5px; }
+.price-changes__toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--apex-text-2); cursor: pointer; }
+
 /* On a phone each price becomes a small card, so the owner's check is never scrolled out of sight. */
 @media (max-width: 640px) {
   .intel-prices thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }

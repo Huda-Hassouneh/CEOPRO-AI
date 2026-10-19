@@ -149,3 +149,13 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 ### OCR behaviour (same day, after a real-tesseract check)
 - Pictures are read with two tesseract passes when Arabic data is installed (`ara+eng`, then `eng`) and merged by amount; Arabic output returned in visual order is restored, direction marks and a few stray Arabic letters beside Latin text are removed, and an Arabic currency word misread by one letter is restored. `python-bidi` is added to `src/market_scraper/requirements.txt` (already in the AI requirements). New optional env: `DISCOVERY_MENU_MEDIA_BUDGET_SECONDS` (default 90 s of menu reading per site).
 
+## - 2026-10-19 (third entry: price changes, match corrections, paged overview)
+### Added (additive)
+- **DB** - migration `20261024000000_add_competitor_price_history_and_match_overrides.sql`: `competitor_price_history` (item price observations; RLS) and `competitor_match_override` (owner decisions on item-to-product matches; RLS; one `MATCHED` per product and competitor). No existing table changed.
+- **API** - `GET /discovery/competitors/{id}/price-changes?days&include_unreliable&limit&offset`, `GET /discovery/price-changes` (all competitors), `GET /discovery/competitors/{id}/price-history?item_key&currency`; `GET /discovery/competitors/{id}/matches`, `POST .../matches/reject {product_id}`, `POST .../matches {product_id, intel_id}`, `DELETE .../matches/{product_id}` (the three writes owner/admin only, 403 otherwise; 404 unknown; 422 for a currency mismatch, an unpriced item or an unconfirmed post price).
+- **API** - `GET /competitor-data/overview` accepts `ids` (comma-separated, at most 200); without it the response is unchanged.
+- **Alerts** - new derived kind `competitor_item_price` with the same `params` as `competitor_price` (competitor, product = the item's name, price, previous_price, change_pct, currency).
+### Changed (behaviour)
+- `offerings.record_matches` reads the owner's decisions: a rejected item is not offered to that product, a chosen item is used, a mapping whose item was rejected is switched off, and a mapping that moves to a different item loses the previous item's price rows (previously the latest price could belong to either product). New optional parameter `update_rate` (default true).
+- `intel_review.load_reviews` now tolerates only a missing `competitor_intel_review` table (it used to swallow any `undefined_table` error, which also hides a mistyped alias in a query).
+

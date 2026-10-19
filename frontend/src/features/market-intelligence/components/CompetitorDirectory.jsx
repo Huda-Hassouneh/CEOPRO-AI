@@ -55,7 +55,8 @@ export function CompetitorDirectory({ pricing = {}, planLimit }) {
   const query = useDiscoveredCompetitors(filters);
   const track = useTrackCompetitor();
   // Ratings, comments, agreement and data completeness for each tracked competitor (one bulk read; the list works without it).
-  const overview = useCompetitorOverview();
+  const shown = useMemo(() => (query.data?.competitors || []).map((c) => c.competitor_id), [query.data]);
+  const overview = useCompetitorOverview(shown);
   const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   const isArabic = locale?.startsWith('ar');
   const competitorPath = (id) => routePaths.marketCompetitorDetail.replace(':competitorId', id);
