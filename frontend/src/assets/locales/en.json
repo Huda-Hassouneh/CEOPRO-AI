@@ -3155,7 +3155,40 @@
       "other_business_site": "another business's site"
     },
     "newsFromSite": "From their website",
-    "newsFromSearch": "News search"
+    "newsFromSearch": "News search",
+    "origin": {
+      "page": "Page text",
+      "pdf_text": "From a menu PDF",
+      "ocr": "Read from a picture",
+      "vision": "Read from a picture (AI)",
+      "caption": "From a post caption"
+    },
+    "channel": {
+      "instagram": "Instagram",
+      "facebook": "Facebook"
+    },
+    "alsoSeen": "Also seen in {{count}} other place(s)",
+    "review": {
+      "column": "Your check",
+      "confirm": "Confirm",
+      "confirmHint": "This price is right",
+      "correct": "Correct",
+      "reject": "Wrong",
+      "rejectHint": "Remove this price",
+      "undo": "Undo",
+      "save": "Save",
+      "cancel": "Cancel",
+      "correctedPrice": "Correct price",
+      "verified": "Confirmed",
+      "checkedByYou": "Checked by you",
+      "corrected": "Corrected",
+      "wasRead": "read as {{price}}",
+      "conflictsWith": "differs from {{price}} elsewhere",
+      "checkThis": "Read automatically - please check",
+      "failed": "Could not save your check. Please try again.",
+      "forbidden": "Only an owner or administrator can check prices.",
+      "invalid": "Enter the price as a number, for example 3.50."
+    }
   },
   "dashboardActivity": {
     "open": "Open",
@@ -3321,6 +3354,13 @@
     "lastTry": "Last tried {{date}}",
     "never": "Not tried yet",
     "reviewTerms": "Review terms",
+    "actions": {
+      "retryPrices": "Read prices",
+      "loadMore": "Load more",
+      "loadMoreHint": "Reads more of the website and its menus (or more posts). It takes longer and runs in the background.",
+      "readPosts": "Read posts",
+      "readPostsHint": "Reads their latest Instagram / Facebook posts for prices, offers and menu pictures. Uses paid data credits."
+    },
     "completeness": {
       "title": "Data completeness",
       "subtitle": "What KEEL has collected about this competitor, what is missing and why. Retry only adds data; it never removes what is already stored.",
@@ -3368,7 +3408,12 @@
       "UNKNOWN": "No more detail is available.",
       "NO_FEED": "This competitor's website publishes no news feed.",
       "NO_NEWS": "No recent news naming this competitor was found.",
-      "NO_VIDEOS": "No video naming this competitor, with public comments, was found."
+      "NO_VIDEOS": "No video naming this competitor, with public comments, was found.",
+      "NO_PRICES_PUBLISHED": "The website lists no prices, or none could be read from it.",
+      "JS_RENDERED": "The prices are drawn by JavaScript, which could not be read.",
+      "OCR_NOT_AVAILABLE": "The menu is a picture, and picture reading is not set up on the service yet.",
+      "NOT_OWN_SITE": "The listed link is a directory or another business's page, not this competitor's own website.",
+      "NO_POSTS": "The social profile returned no posts."
     },
     "outcome": {
       "succeeded": "Everything was collected.",
