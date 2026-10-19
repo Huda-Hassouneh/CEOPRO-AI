@@ -226,3 +226,11 @@ def test_the_gemini_call_sends_the_key_in_a_header_and_reads_the_text(monkeypatc
     assert "the-key" not in sent["url"] and sent["headers"] == {"x-goog-api-key": "the-key"}
     assert sent["body"]["contents"][0]["parts"][1]["inline_data"]["mime_type"] == "image/jpeg"
     assert provider_billing.classify(sent["url"]) == ("gemini_vision", "read_image", "request")
+
+
+def test_menu_file_reading_stops_at_the_time_budget(monkeypatch):
+    monkeypatch.setattr(menu_media, "TIME_BUDGET_SECONDS", -1)
+    files = {"https://cafe.jo/img/dinner-menu-page1.jpg": (_png(), "image/png"),
+             "https://cafe.jo/files/price-list.pdf": (_pdf(["Grilled chicken 6.50 JD"]), "application/pdf")}
+    result = _collect(files, ocr=lambda image: "Mansaf 8.50 JD")
+    assert result["media"]["found"] >= 2 and result["media"]["read"] == 0 and result["media"]["stopped_on_time_budget"] is True

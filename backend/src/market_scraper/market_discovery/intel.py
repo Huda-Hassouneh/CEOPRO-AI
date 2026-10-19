@@ -868,7 +868,11 @@ def _read_media_files(out: dict, urls: List[str], fetch_media, country: Optional
     out["media"]["ocr_available"] = ocr is not None or menu_media.ocr_available()
     retrieved, media = _now(), []
     vision = menu_media.vision_engine()
+    started = time.monotonic()
     for link in urls[:max_media]:
+        if time.monotonic() - started > menu_media.TIME_BUDGET_SECONDS:
+            out["media"]["stopped_on_time_budget"] = True  # the rest are read at the next refresh / "load more"
+            break
         try:
             got = fetch_media(link)
         except (httpx.HTTPError, UnsafeTargetError, OSError, PageUnavailable):

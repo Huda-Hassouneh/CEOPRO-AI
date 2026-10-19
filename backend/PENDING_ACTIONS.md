@@ -223,6 +223,9 @@ Added 2026-10-18 after the full verification run (backend 3113 passed / 0 failed
 | 100 | **Fix or retire the date-dependent test** `test_price_coverage_flags_stale_foreign_currency_and_switched_off_mappings_from_real_rows` (it fails on the base commit too: `assert 39 == (30 + 10)`), and add `reportlab` to the test environment (`test_pdf_report_totals_months_and_products_from_real_rows` needs it). | CI owner | 🟡 Open |
 | 101 | **Dev machine**: the authoring session started the Colima Docker VM (`colima start`) to run live-DB tests and removed its throwaway Postgres container. Stop it with `colima stop` if it is not wanted. | Whoever owns this machine | ⚪ Informational |
 
+| 102 | **A root-level `.env` with live-looking secrets is tracked on `origin/main`** (added by merge commit `128dba2`, 2026-10-19). By name, values that look real: `POSTGRES_PASSWORD`, `DATABASE_URL`, `APP_DB_PASSWORD`, `JWT_SECRET`, `GROQ_API_KEY`, `SEARXNG_SECRET`, `REDIS_URL`; the repository is public. This branch stops tracking it (`git rm --cached`, root `.gitignore`), but it stays in git history: **treat every value in it as exposed** - rotate the database passwords, `JWT_SECRET` (signs every login; rotating logs everyone out) and the Groq key (see #64, #75), then decide whether to purge history. Also tracked by the same merge: five stray `__pycache__/*.pyc` files at the repository root (also untracked here). | Repo admin + whoever owns each secret | 🔴 Open - **do first** |
+| 103 | **Whoever merged 128dba2 should check the old-layout files that merge kept** (`.env`, root `src/ai/__pycache__`, `scripts/__pycache__`): the "backend/ restructure" merge was committed from a checkout that still had them. Consider a pre-commit / CI check that rejects `.env` and `*.pyc`. | Repo admin / CI owner | 🟡 Open |
+
 ---
 
 ## How to update this file
