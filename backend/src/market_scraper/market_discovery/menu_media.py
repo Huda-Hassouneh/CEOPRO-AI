@@ -21,6 +21,7 @@ Honest limits, kept visible to the owner:
 Nothing here fetches on its own: the caller supplies bytes, so the same
 robots.txt, public-address and size rules as the page reader apply.
 """
+import base64
 import io
 import logging
 import os
@@ -38,7 +39,23 @@ MAX_IMAGE_PIXELS = 40_000_000
 OCR_LANGS = os.getenv("DISCOVERY_OCR_LANGS", "ara+eng")
 MIN_OCR_WIDTH = 1600  # smaller pictures are upscaled; tesseract needs ~300 dpi text
 
+# Vision-model reading of stylised menus tesseract cannot read (V8): off unless an operator turns it on, and paid
+# per call from the company's Data Credits (refused until the provider has a price - provider_billing.py).
+#   off       never (default)
+#   fallback  only for a picture tesseract missing/failed to get prices from
+#   always    every menu picture and scanned page
+VISION_MODE = os.getenv("DISCOVERY_VISION_OCR", "off").lower()
+VISION_MAX_FILES = int(os.getenv("DISCOVERY_VISION_MAX_FILES", "3"))
+VISION_MODEL = os.getenv("DISCOVERY_VISION_MODEL", "gemini-2.5-flash")
+VISION_URL = os.getenv("GEMINI_VISION_URL", "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
+VISION_MAX_SIDE = 2000
+VISION_PROMPT = ("This is a picture of a menu or price list. Transcribe every item that has a price, one per line, as "
+                 "`item name  price currency` exactly as printed (keep Arabic and English as written; keep the printed "
+                 "currency word or symbol). Include size variants as separate lines. Do not add, translate, guess or "
+                 "correct anything. Skip headings and anything without a price. If there is no menu, answer with nothing.")
+
 CONFIDENCE_PDF_TEXT = 0.7
+CONFIDENCE_VISION = 0.55
 CONFIDENCE_OCR = 0.5
 CONFIDENCE_OCR_NO_CURRENCY = 0.4
 CONFIDENCE_CORROBORATED_BONUS = 0.05
@@ -187,11 +204,18 @@ def clean_ocr_lines(text: str) -> List[str]:
     return lines
 
 
+def _priced_lines(lines: List[str]) -> int:
+    return sum(1 for line in lines if re.search(r"\d", line))
+
+
 def read_media(data: bytes, content_type: str = "", ocr: Optional[Callable] = None,
-               ocr_ready: Optional[bool] = None) -> Tuple[List[str], str]:
+               ocr_ready: Optional[bool] = None, vision: Optional[Callable] = None) -> Tuple[List[str], str]:
     """(lines, method) for one downloaded file; method is 'pdf_text', 'ocr',
-    'skipped_no_ocr', 'unreadable' or 'not_media'. `ocr` takes a PIL image
-    and returns text (tests inject one); default is tesseract when installed."""
+    'vision', 'skipped_no_ocr', 'unreadable' or 'not_media'. `ocr` takes a PIL
+    image and returns text (tests inject one); default is tesseract when
+    installed. `vision` (see vision_engine) takes a PIL image and returns text;
+    with DISCOVERY_VISION_OCR=fallback it is tried when OCR is missing or got
+    fewer than 3 priced lines, with =always it replaces OCR for pictures."""
     kind = sniff(data, content_type)
     if kind is None:
         return [], "not_media"
@@ -199,37 +223,101 @@ def read_media(data: bytes, content_type: str = "", ocr: Optional[Callable] = No
     engine = ocr or (tesseract_ocr if ready else None)
     try:
         if kind == "pdf":
-            return _read_pdf(data, engine)
-        if engine is None:
+            return _read_pdf(data, engine, vision)
+        if engine is None and vision is None:
             return [], "skipped_no_ocr"
         from PIL import Image
         Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
         with Image.open(io.BytesIO(data)) as image:
             if image.width * image.height > MAX_IMAGE_PIXELS:
                 return [], "unreadable"
-            text = engine(_prepare(image))
-        return clean_ocr_lines(text), "ocr"
+            image.load()
+            lines, method = [], "ocr"
+            if engine is not None and not (vision is not None and VISION_MODE == "always"):
+                lines = clean_ocr_lines(engine(_prepare(image)))
+            if vision is not None and (VISION_MODE == "always" or _priced_lines(lines) < 3):
+                seen = vision(image)
+                if seen and _priced_lines(clean_text_lines(seen)) >= _priced_lines(lines):
+                    lines, method = clean_ocr_lines(seen), "vision"
+        return lines, (method if lines or method == "vision" else "ocr")
     except Exception:  # noqa: BLE001
         logger.warning("reading a menu file failed", exc_info=True)
         return [], "unreadable"
 
 
-def _read_pdf(data: bytes, engine: Optional[Callable]) -> Tuple[List[str], str]:
+def vision_engine(limit: Optional[int] = None) -> Optional[Callable]:
+    """A callable PIL image -> text that asks a vision model (Gemini) to
+    transcribe a menu picture, or None when VISION_MODE is off or no key is
+    set. At most `limit` calls (default VISION_MAX_FILES) per engine, so one
+    site can only spend a bounded amount; each call is a metered paid request
+    (refused, never sent, when the budget or the provider price do not allow
+    it - the call then simply returns '' and OCR's result stands)."""
+    if VISION_MODE not in ("fallback", "always"):
+        return None
+    keys = [k.strip() for k in os.getenv("GEMINI_API_KEYS", "").split(",") if k.strip()]
+    if not keys:
+        return None
+    left = [VISION_MAX_FILES if limit is None else limit]
+
+    def read(image) -> str:
+        if left[0] <= 0:
+            return ""
+        left[0] -= 1
+        return _ask_gemini(image, keys[0])
+    return read
+
+
+def _ask_gemini(image, key: str) -> str:
+    import httpx
+
+    from src.market_scraper.provider_billing import metered_request
+
+    rgb = image.convert("RGB")
+    if max(rgb.size) > VISION_MAX_SIDE:
+        scale = VISION_MAX_SIDE / max(rgb.size)
+        rgb = rgb.resize((max(1, int(rgb.width * scale)), max(1, int(rgb.height * scale))))
+    buffer = io.BytesIO()
+    rgb.save(buffer, "JPEG", quality=85)
+    body = {"contents": [{"parts": [{"text": VISION_PROMPT},
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}],
+            "generationConfig": {"temperature": 0}}
+    url = VISION_URL.format(model=VISION_MODEL)
+
+    def send():
+        response = httpx.post(url, headers={"x-goog-api-key": key}, json=body, timeout=60)  # key in a header, never the URL
+        response.raise_for_status()
+        return response.json()
+
+    try:
+        data = metered_request(url, send, json_body=None)
+        parts = data["candidates"][0]["content"]["parts"]
+        return "\n".join(p.get("text", "") for p in parts)
+    except Exception as exc:  # noqa: BLE001 - refused budget, HTTP error or odd answer: OCR's result stands
+        logger.warning("vision reading of a menu picture failed: %s", type(exc).__name__)
+        return ""
+
+
+def _read_pdf(data: bytes, engine: Optional[Callable], vision: Optional[Callable] = None) -> Tuple[List[str], str]:
     import pdfplumber
     lines: List[str] = []
-    ocr_pages = 0
+    ocr_pages = vision_pages = 0
     with pdfplumber.open(io.BytesIO(data)) as pdf:
         for page in pdf.pages[:MAX_PDF_PAGES]:
             text = page.extract_text() or ""
             if len(text.strip()) >= 20:
                 lines.extend(clean_text_lines(text))
-            elif engine is not None:  # scanned page: no text layer
-                image = _prepare(page.to_image(resolution=200).original)
-                lines.extend(clean_ocr_lines(engine(image)))
+            elif engine is not None or vision is not None:  # scanned page: no text layer
+                original = page.to_image(resolution=200).original
+                page_lines = clean_ocr_lines(engine(_prepare(original))) if engine is not None and VISION_MODE != "always" else []
+                if vision is not None and (VISION_MODE == "always" or _priced_lines(page_lines) < 3):
+                    seen = clean_ocr_lines(vision(original) or "")
+                    if _priced_lines(seen) >= _priced_lines(page_lines):
+                        page_lines, vision_pages = seen, vision_pages + 1
+                lines.extend(page_lines)
                 ocr_pages += 1
-    if not lines and engine is None:
+    if not lines and engine is None and vision is None:
         return [], "skipped_no_ocr"
-    return lines, "ocr" if ocr_pages else "pdf_text"
+    return lines, ("vision" if vision_pages else "ocr") if ocr_pages else "pdf_text"
 
 
 def clean_text_lines(text: str) -> List[str]:
@@ -247,7 +335,7 @@ def media_facts(lines: List[str], method: str, source_url: str, retrieved_at: st
     """Price facts from a menu file's lines, through the page reader's own
     price parser (a menu file is a menu page by definition)."""
     items = text_prices(lines, country, True)
-    base = CONFIDENCE_PDF_TEXT if method == "pdf_text" else CONFIDENCE_OCR
+    base = {"pdf_text": CONFIDENCE_PDF_TEXT, "vision": CONFIDENCE_VISION}.get(method, CONFIDENCE_OCR)
     facts = []
     for item in items[:max_items]:
         confidence = (CONFIDENCE_OCR_NO_CURRENCY if method == "ocr" else base - 0.1) if item.get("currency_inferred") else base

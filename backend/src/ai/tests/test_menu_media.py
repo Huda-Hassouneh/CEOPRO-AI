@@ -131,3 +131,98 @@ def test_a_reread_that_could_not_open_the_menu_files_keeps_what_they_gave_earlie
     competitor_intel.save_site_intel(conn, "t", "c", {**base, "media": {"found": 2, "read": 2}})
     deletes = [c.args[0] for c in cursor.execute.call_args_list if c.args[0].startswith("DELETE")]
     assert "source_media" not in deletes[-1]
+
+
+# ---- vision-model fallback (V8) --------------------------------------------------------------
+
+def _vision_files():
+    return {"https://cafe.jo/img/dinner-menu-page1.jpg": (_png(), "image/png")}
+
+
+def test_vision_is_off_by_default_and_needs_a_key(monkeypatch):
+    monkeypatch.setattr(menu_media, "VISION_MODE", "off")
+    monkeypatch.setenv("GEMINI_API_KEYS", "k")
+    assert menu_media.vision_engine() is None
+    monkeypatch.setattr(menu_media, "VISION_MODE", "fallback")
+    monkeypatch.delenv("GEMINI_API_KEYS")
+    assert menu_media.vision_engine() is None
+
+
+def test_fallback_uses_vision_only_when_ocr_got_too_little(monkeypatch):
+    monkeypatch.setattr(menu_media, "VISION_MODE", "fallback")
+    calls = []
+
+    def vision(image):
+        calls.append(1)
+        return "Mansaf 8.50 JD\nFalafel 1.25 JD\nTea 0.75 JD"
+    good = "Mansaf 8.50 JD\nFalafel 1.25 JD\nTea 0.75 JD"
+    lines, method = menu_media.read_media(_png(), "image/png", ocr=lambda i: good, ocr_ready=True, vision=vision)
+    assert method == "ocr" and not calls  # OCR was good enough: no paid call
+    lines, method = menu_media.read_media(_png(), "image/png", ocr=lambda i: "smudge", ocr_ready=True, vision=vision)
+    assert method == "vision" and len(calls) == 1 and "Mansaf 8.50 JD" in lines
+    lines, method = menu_media.read_media(_png(), "image/png", ocr=None, ocr_ready=False, vision=vision)  # no tesseract at all
+    assert method == "vision" and len(calls) == 2
+
+
+def test_always_mode_skips_ocr_and_a_worse_vision_answer_does_not_replace_ocr(monkeypatch):
+    monkeypatch.setattr(menu_media, "VISION_MODE", "always")
+    ocr_calls = []
+    lines, method = menu_media.read_media(_png(), "image/png", ocr=lambda i: ocr_calls.append(1) or "x", ocr_ready=True,
+                                          vision=lambda i: "Tea 1 JD\nCake 2 JD\nJuice 3 JD")
+    assert method == "vision" and not ocr_calls
+    monkeypatch.setattr(menu_media, "VISION_MODE", "fallback")
+    lines, method = menu_media.read_media(_png(), "image/png", ocr=lambda i: "Tea 1 JD\nCake 2 JD", ocr_ready=True,
+                                          vision=lambda i: "no menu here")
+    assert method == "ocr" and "Tea 1 JD" in lines
+
+
+def test_vision_facts_are_tagged_and_sit_between_pdf_text_and_ocr(monkeypatch):
+    monkeypatch.setattr(menu_media, "VISION_MODE", "fallback")
+    result = _collect(_vision_files(), ocr=lambda image: "")
+    assert result["media"]["read"] == 0  # no vision engine configured in this run: nothing invented
+    facts = menu_media.media_facts(["Mansaf 8.50 JD"], "vision", "https://cafe.jo/m.jpg", "now", "JO", intel.text_prices)
+    assert facts[0]["extracted_by"] == "vision" and facts[0]["confidence"] == menu_media.CONFIDENCE_VISION
+    assert menu_media.CONFIDENCE_OCR < menu_media.CONFIDENCE_VISION < menu_media.CONFIDENCE_PDF_TEXT
+
+
+def test_the_engine_spends_at_most_its_allowance_and_a_refusal_falls_back_to_ocr(monkeypatch):
+    monkeypatch.setattr(menu_media, "VISION_MODE", "fallback")
+    monkeypatch.setenv("GEMINI_API_KEYS", "secret-key")
+    asked = []
+    monkeypatch.setattr(menu_media, "_ask_gemini", lambda image, key: asked.append(key) or "Tea 1 JD")
+    engine = menu_media.vision_engine(limit=2)
+    from PIL import Image
+    image = Image.new("RGB", (10, 10))
+    assert [engine(image), engine(image), engine(image)] == ["Tea 1 JD", "Tea 1 JD", ""] and len(asked) == 2
+
+    monkeypatch.undo()
+    monkeypatch.setattr(menu_media, "VISION_MODE", "fallback")
+    from src.ai.billing import credits
+    from src.market_scraper import provider_billing
+
+    def refused(url, send, json_body=None):
+        raise credits.BudgetError("PROVIDER_NOT_PRICED") if hasattr(credits, "BudgetError") else RuntimeError("refused")
+    monkeypatch.setattr(provider_billing, "metered_request", refused)
+    assert menu_media._ask_gemini(image, "k") == ""  # noqa: SLF001 - never raises, never sends
+
+
+def test_the_gemini_call_sends_the_key_in_a_header_and_reads_the_text(monkeypatch):
+    from unittest.mock import MagicMock
+
+    import httpx
+
+    from src.market_scraper import provider_billing
+    sent = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        sent.update(url=url, headers=headers, body=json)
+        response = MagicMock()
+        response.json.return_value = {"candidates": [{"content": {"parts": [{"text": "Tea 1 JD"}, {"text": "Cake 2 JD"}]}}]}
+        return response
+    monkeypatch.setattr(httpx, "post", fake_post)
+    monkeypatch.setattr(provider_billing, "metered_request", lambda url, send, json_body=None: send())
+    from PIL import Image
+    assert menu_media._ask_gemini(Image.new("RGB", (3000, 1000)), "the-key") == "Tea 1 JD\nCake 2 JD"  # noqa: SLF001
+    assert "the-key" not in sent["url"] and sent["headers"] == {"x-goog-api-key": "the-key"}
+    assert sent["body"]["contents"][0]["parts"][1]["inline_data"]["mime_type"] == "image/jpeg"
+    assert provider_billing.classify(sent["url"]) == ("gemini_vision", "read_image", "request")
