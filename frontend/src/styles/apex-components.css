@@ -590,6 +590,15 @@ html .mk-photo-picker:focus-within { outline: none; box-shadow: var(--apex-focus
   .data-completeness__score { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Where a price was read from and the owner's check of it (CompetitorIntel). */
+.price-origin { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 3px; font-size: 11.5px; }
+.price-origin__check { color: var(--apex-warning, #b7791f); }
+.price-origin__was { font-size: 11.5px; }
+.price-review { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+.price-review--edit { gap: 6px; }
+.price-review__input { width: 92px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--apex-glass-border); background: var(--apex-glass); color: inherit; font: inherit; font-size: 13px; }
+.price-review__input:focus-visible { outline: 2px solid var(--apex-accent, currentColor); outline-offset: 1px; }
+
 .competitor-comments__summary { margin: 0 0 12px; font-size: 12.5px; }
 .competitor-comments, .competitor-comment__replies { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .competitor-comment { padding: 12px 14px; border-radius: 12px; background: var(--apex-glass); border: 1px solid var(--apex-glass-border); font-size: 13.5px; }

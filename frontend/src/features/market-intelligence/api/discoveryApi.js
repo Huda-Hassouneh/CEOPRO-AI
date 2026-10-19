@@ -22,6 +22,12 @@ export const discoveryApi = {
   untrack: async (id) => (await httpClient.delete(`/discovery/competitors/${encodeURIComponent(id)}/track`)).data,
   // Reads the competitor's website again now (also the retry after a failed read).
   refresh: async (id) => (await httpClient.post(`/discovery/competitors/${encodeURIComponent(id)}/refresh`)).data,
+  // The owner's check of one price read from the site, a menu or a post (owner/admin only).
+  // verdict: CONFIRMED | CORRECTED (with correctedPrice) | REJECTED | CLEARED (withdraws an earlier decision).
+  reviewIntel: async (competitorId, { intelId, verdict, correctedPrice, currency, note }) => (await httpClient.post(
+    `/discovery/competitors/${encodeURIComponent(competitorId)}/intel/review`,
+    { intel_id: intelId, verdict, corrected_price: correctedPrice, currency, note },
+  )).data,
   // AI analysis built only on collected facts; every point cites them.
   analyse: async (id) => (await httpClient.post(`/discovery/competitors/${encodeURIComponent(id)}/analysis`)).data,
   news: async ({ competitorId, limit = 30 } = {}) => (await httpClient.get('/discovery/news', {

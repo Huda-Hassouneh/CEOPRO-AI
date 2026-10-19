@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import {
-  competitorDataApi, completenessTone, facetActions, facetTone, reasonKey, REASON_CODES, retryableFacets, retryOutcome, withOverview,
+  canReviewPrices, competitorDataApi, completenessTone, facetActions, facetTone, intelChannel, intelOrigin, needsCheck, onRequestAction,
+  parseCorrectedPrice, reasonKey, REASON_CODES, RETRYABLE_FACETS, retryableFacets, retryOutcome, withOverview,
 } from '../src/features/market-intelligence/api/competitorDataApi.js';
+import { discoveryApi } from '../src/features/market-intelligence/api/discoveryApi.js';
 import httpClient from '../src/shared/lib/httpClient.js';
 
 async function serve(t, handler) {
@@ -154,4 +156,78 @@ test('the reason codes the backend can send are all known to the screen', () => 
     'ROBOTS_DISALLOWED', 'SITE_UNREACHABLE', 'SHARED_RECORD', 'NO_PRODUCTS_MAPPED', 'TERMS_UNREVIEWED', 'NO_DATA_COLLECTED', 'COLLECTOR_NOT_ENABLED',
     'NO_SOCIAL_LINKS', 'NO_PLACE_ID', 'PLATFORM_APPROVAL_MISSING', 'SERVICE_MISCONFIGURED', 'NOT_ATTEMPTED', 'NO_FEED', 'NO_NEWS', 'NO_VIDEOS'];
   assert.deepEqual(backend.filter((code) => !REASON_CODES.includes(code)), []);
+});
+
+// ---- retry with depth, on-request facets, and the owner's check of a price ----
+
+test('retry sends depth only when it is not the default, and the background flag as a query', async (t) => {
+  const seen = await serve(t, (_req, res) => res.end('{"queued":true}'));
+  await competitorDataApi.retry('c1', { facets: ['PRICES'], depth: 'deep', background: true });
+  await competitorDataApi.retry('c1', { facets: ['PRICES'] });
+  await competitorDataApi.retry('c1');
+  assert.deepEqual(seen.map((r) => [r.url, r.body]), [
+    ['/competitors/c1/enrich?background=true', { facets: ['PRICES'], depth: 'deep' }],
+    ['/competitors/c1/enrich', { facets: ['PRICES'] }],
+    ['/competitors/c1/enrich', undefined],
+  ]);
+});
+
+test('the owner\'s check of a price posts the decision to the review endpoint', async (t) => {
+  const seen = await serve(t, (_req, res) => res.end('{"verdict":"CORRECTED"}'));
+  await discoveryApi.reviewIntel('c1', { intelId: 'i1', verdict: 'CORRECTED', correctedPrice: 11.5, currency: 'JOD' });
+  await discoveryApi.reviewIntel('c1', { intelId: 'i1', verdict: 'CLEARED' });
+  assert.equal(seen[0].method, 'POST');
+  assert.equal(seen[0].url, '/discovery/competitors/c1/intel/review');
+  assert.deepEqual(seen[0].body, { intel_id: 'i1', verdict: 'CORRECTED', corrected_price: 11.5, currency: 'JOD' });
+  assert.deepEqual(seen[1].body, { intel_id: 'i1', verdict: 'CLEARED' });
+});
+
+test('PRICES and SOCIAL_CONTENT get their own buttons, and "load more" only once something was collected', () => {
+  const facets = (prices, social) => ({ facets: { PRICES: prices, SOCIAL_CONTENT: social, PROFILE: { can_retry: true, status: 'FAILED' } } });
+  assert.deepEqual(onRequestAction(facets({ can_retry: true, status: 'SUCCEEDED' }), 'PRICES'), { canRun: true, canLoadMore: true, hasData: true });
+  assert.deepEqual(onRequestAction(facets({ can_retry: true, status: 'FAILED' }), 'PRICES'), { canRun: true, canLoadMore: false, hasData: false });
+  assert.equal(onRequestAction(facets({ can_retry: false, status: 'NOT_APPLICABLE' }), 'PRICES'), null);
+  assert.equal(onRequestAction(facets({}, { can_retry: true, status: 'PENDING' }), 'SOCIAL_CONTENT').canRun, true);
+  assert.equal(onRequestAction(facets({}, {}), 'PROFILE'), null); // not an on-request facet
+  assert.equal(onRequestAction(null, 'PRICES'), null);
+  // The plain Retry never names the on-request facets.
+  assert.ok(!RETRYABLE_FACETS.includes('PRICES') && !RETRYABLE_FACETS.includes('SOCIAL_CONTENT'));
+  assert.deepEqual(retryableFacets(facets({ can_retry: true, status: 'FAILED' }, {})), ['PROFILE']);
+});
+
+test('the new price and social reasons have translations keys, unknown ones fall back', () => {
+  for (const code of ['NO_PRICES_PUBLISHED', 'JS_RENDERED', 'OCR_NOT_AVAILABLE', 'NOT_OWN_SITE', 'NO_POSTS']) {
+    assert.ok(REASON_CODES.includes(code));
+    assert.equal(reasonKey(code), `competitorData.reason.${code}`);
+  }
+  assert.equal(reasonKey('SOMETHING_NEW'), 'competitorData.reason.UNKNOWN');
+});
+
+test('only an owner or admin is offered the price check', () => {
+  assert.equal(canReviewPrices(['owner']), true);
+  assert.equal(canReviewPrices([' Admin ']), true);
+  assert.equal(canReviewPrices(['manager', 'staff']), false);
+  assert.equal(canReviewPrices(undefined), false);
+});
+
+test('a price fact says how it was read and whether it needs a look', () => {
+  assert.equal(intelOrigin({}), 'page');
+  assert.equal(intelOrigin({ extracted_by: 'ocr' }), 'ocr');
+  assert.equal(intelOrigin({ extracted_by: 'something-else' }), 'page');
+  assert.equal(needsCheck({ extracted_by: 'ocr' }), true);
+  assert.equal(needsCheck({ extracted_by: 'caption' }), true);
+  assert.equal(needsCheck({ extracted_by: 'pdf_text' }), false); // a PDF's own text layer is not a guess
+  assert.equal(needsCheck({ extracted_by: 'vision', verified: true }), false);
+  assert.equal(needsCheck({}), false);
+  assert.equal(intelChannel({ channel: 'instagram' }), 'instagram');
+  assert.equal(intelChannel({ channel: 'website' }), null);
+  assert.equal(intelChannel({}), null);
+});
+
+test('a corrected price must be a plain number; Arabic digits and a decimal comma are accepted', () => {
+  assert.equal(parseCorrectedPrice('3.50'), 3.5);
+  assert.equal(parseCorrectedPrice(' 12 '), 12);
+  assert.equal(parseCorrectedPrice('3,5'), 3.5);
+  assert.equal(parseCorrectedPrice('٣٫٥'.replace('٫', '.')), 3.5);
+  for (const bad of ['', 'abc', '-1', '1.23456', '3 JD', null, undefined, '1e3']) assert.equal(parseCorrectedPrice(bad), null, String(bad));
 });

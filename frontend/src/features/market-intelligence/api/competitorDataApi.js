@@ -21,12 +21,19 @@ export const competitorDataApi = {
   dataStatus: async (id) => (await httpClient.get(`/competitors/${encodeURIComponent(id)}/data-status`)).data,
 
   // Retry one competitor now (waits for the result) or in the background.
-  // facets: optional subset of PROFILE | SOCIAL_LINKS | REVIEWS | NEWS | COMMENTS.
-  retry: async (id, { facets, background = false } = {}) => (await httpClient.post(
-    `/competitors/${encodeURIComponent(id)}/enrich`,
-    facets?.length ? { facets } : undefined,
-    { params: background ? { background: true } : undefined },
-  )).data,
+  // facets: optional subset of PROFILE | SOCIAL_LINKS | REVIEWS | NEWS | COMMENTS | PRICES | SOCIAL_CONTENT.
+  // depth 'deep' = "load more" (PRICES reads more pages and menu files, SOCIAL_CONTENT more posts); slow, so
+  // pair it with background: true.
+  retry: async (id, { facets, background = false, depth = 'standard' } = {}) => {
+    const body = {};
+    if (facets?.length) body.facets = facets;
+    if (depth !== 'standard') body.depth = depth;
+    return (await httpClient.post(
+      `/competitors/${encodeURIComponent(id)}/enrich`,
+      Object.keys(body).length ? body : undefined,
+      { params: background ? { background: true } : undefined },
+    )).data;
+  },
 
   // "Retry all failed": queues one background job for every competitor facet that needs it.
   retryAllFailed: async () => (await httpClient.post('/competitors/enrich-failed')).data,
@@ -44,8 +51,21 @@ export const competitorDataApi = {
 };
 
 export const FACET_ORDER = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS', 'COMMENTS', 'PRICES', 'SOCIAL_CONTENT'];
-// Facets the Retry button can re-collect; the others are fixed elsewhere (review a source, add a barcode).
+// Facets the plain Retry button re-collects (free or already-budgeted sources); sent explicitly so the button keeps
+// its behaviour as the server learns new facets.
 export const RETRYABLE_FACETS = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS', 'COMMENTS'];
+// Facets with their own button, always run in the background: PRICES re-reads the competitor's website and its
+// menu files (OCR), SOCIAL_CONTENT reads social posts through a paid provider.
+export const ON_REQUEST_FACETS = ['PRICES', 'SOCIAL_CONTENT'];
+
+// What an on-request facet's buttons should offer right now: whether it can run at all, and whether
+// "load more" makes sense (something was already collected that a deeper read can extend).
+export function onRequestAction(completeness, name) {
+  const facet = completeness?.facets?.[name];
+  if (!ON_REQUEST_FACETS.includes(name) || !facet?.can_retry) return null;
+  const hasData = facet.status === 'SUCCEEDED' || facet.status === 'PARTIAL';
+  return { canRun: true, canLoadMore: hasData, hasData };
+}
 
 export function facetTone(status) {
   switch (status) {
@@ -92,6 +112,7 @@ export const REASON_CODES = [
   'NO_WEBSITE', 'ROBOTS_DISALLOWED', 'SITE_UNREACHABLE', 'SHARED_RECORD', 'NO_PRODUCTS_MAPPED', 'TERMS_UNREVIEWED',
   'NO_DATA_COLLECTED', 'COLLECTOR_NOT_ENABLED', 'NO_SOCIAL_LINKS', 'NO_PLACE_ID', 'PLATFORM_APPROVAL_MISSING',
   'SERVICE_MISCONFIGURED', 'NOT_ATTEMPTED', 'NO_FEED', 'NO_NEWS', 'NO_VIDEOS',
+  'NO_PRICES_PUBLISHED', 'JS_RENDERED', 'OCR_NOT_AVAILABLE', 'NOT_OWN_SITE', 'NO_POSTS',
 ];
 
 export const PRICE_REASON_CODES = ['NO_COMPETITOR_MAPPED', 'TERMS_UNREVIEWED', 'ROBOTS_DISALLOWED', 'NO_DATA_COLLECTED'];
@@ -108,4 +129,39 @@ export function retryOutcome(response) {
 // Merges the bulk overview onto discovery rows by competitor id (rows without data stay untouched).
 export function withOverview(competitors, overview) {
   return (competitors || []).map((c) => ({ ...c, data: overview?.[c.competitor_id] || null }));
+}
+
+// ---- Prices read from a website, menu or social post: where each came from, and the owner's check of it ----
+
+// Roles the backend lets verify a price (POST /discovery/competitors/{id}/intel/review is owner/admin only).
+export const PRICE_REVIEW_ROLES = ['owner', 'admin'];
+
+export function canReviewPrices(roles) {
+  const have = (roles || []).map((role) => String(role).trim().toLowerCase());
+  return PRICE_REVIEW_ROLES.some((role) => have.includes(role));
+}
+
+// How a price fact was read, as a translation suffix: page text (default), a PDF's text, picture OCR, a vision
+// model, or a social post caption.
+export function intelOrigin(fact) {
+  const by = fact?.extracted_by;
+  return ['pdf_text', 'ocr', 'vision', 'caption'].includes(by) ? by : 'page';
+}
+
+// A read that is not the site's own structured data is worth a second look: only these show "check this".
+export function needsCheck(fact) {
+  return !fact?.verified && ['ocr', 'vision', 'caption'].includes(intelOrigin(fact));
+}
+
+// The platform a social-post fact came from, if any ('instagram' | 'facebook').
+export function intelChannel(fact) {
+  return fact?.channel && fact.channel !== 'website' ? fact.channel : null;
+}
+
+// Validates the owner's correction before it is sent; returns the number or null.
+export function parseCorrectedPrice(text) {
+  const normalised = String(text ?? '').trim().replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(',', '.');
+  if (!/^\d+(\.\d{1,4})?$/.test(normalised)) return null;
+  const value = Number(normalised);
+  return Number.isFinite(value) ? value : null;
 }
