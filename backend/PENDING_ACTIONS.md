@@ -264,6 +264,7 @@ Design: `COMPETITOR_COMMENTS_AND_RETRY_PLAN.md`.
 
 ## How to update this file
 
+- **Numbers repeat across sections.** Rows were numbered per section at different times, so #1-#26, #51-#59 and #85 each appear more than once (for example #51-#58 in "Needs a decision" are competitor and pricing items, and #51-#58 in "Subscriptions & billing" are staging go-live items; #85 is both the test run log in "Marketing images" and the image rebuild in "Competitor menus and OCR"). Other documents and commit messages cite these numbers, so they are not renumbered: cite a row as *section name + number* ("Subscriptions #54"), and give new rows a number above the highest one in the file (currently 122).
 - Resolving an item: change its Status cell (e.g. `🔴 Open` → `✅ Resolved 2026-08-10 — <one-line note, link to commit/PR if applicable>`). Don't delete the row.
 - New item: add a row to the relevant section (or add a new section if it doesn't fit the existing three). Keep the Owner column specific enough that someone reading it knows who to ping.
 - If an item turns out to already be resolved elsewhere, still record it here rather than silently dropping it — same reasoning as `AI_PLAN_AND_CONTRACT_UPDATES.md`'s precedence rule: the record matters even after the fact.
