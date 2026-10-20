@@ -1,0 +1,578 @@
+{
+  "base_manifest": "PHASE1A_STARTING_HASHES.json",
+  "git_command": [
+    "git",
+    "diff",
+    "--no-index",
+    "--no-renames",
+    "--name-status",
+    "base",
+    "current"
+  ],
+  "git_diff_exit": 1,
+  "counts": {
+    "ADD": 61,
+    "MODIFY": 32
+  },
+  "rows": [
+    {
+      "path": "backend/scripts/billing_admin.py",
+      "action": "MODIFY",
+      "before_sha256": "f4e3c82ffc216784a42c91de711a00ceff5e2d017cbe27f70132444499720980",
+      "after_sha256": "c842b3a1f8016633441564e5694739428976a61c681cdfcf7c8a7a78c91cbde5"
+    },
+    {
+      "path": "backend/scripts/bootstrap_platform_owner.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "dab956979b37f2447d86cf0d918e329614e0633afe6e014c61e1a6af9d169374"
+    },
+    {
+      "path": "backend/scripts/phase1a_migration_rehearsal.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "7d410f11cc8fec050e51ffccdfaade999941efe273e999a58f6ca63ae4e3101e"
+    },
+    {
+      "path": "backend/scripts/phase1a_verification.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "e1182bfe5dffaab3ee8c3a390d1183228ffc788404f73da6c6812a66de52376e"
+    },
+    {
+      "path": "backend/src/ai/core/authorization.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "955b8e97eb3d36021ed4f3a8b6684cade493fba9d4bfc3cb53b76e6666ef0dc3"
+    },
+    {
+      "path": "backend/src/ai/core/pending_registration.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "bbbf2f893276d13549eaf583b6391b7dfb1f71139e464843457f309bc24446c1"
+    },
+    {
+      "path": "backend/src/ai/core/security.py",
+      "action": "MODIFY",
+      "before_sha256": "5d9e38b623da08b43e7941947dce89a54632b1c41ece40c0b64e7ffd8900a9c3",
+      "after_sha256": "dae0aa425b7506146d2e5bdfe4706be329078f594c9b03c5c5b6797e1d6f2ec6"
+    },
+    {
+      "path": "backend/src/ai/core/usage.py",
+      "action": "MODIFY",
+      "before_sha256": "2944ddc08c002d7fa62188bfc0eb11319a01b57c9e4742d83763d35c387c16c9",
+      "after_sha256": "d46fc6cd0fc526fb534b68ab8d8c9f821ffe65d3e63d479e1b2ed2ec2b39e80d"
+    },
+    {
+      "path": "backend/src/ai/main.py",
+      "action": "MODIFY",
+      "before_sha256": "3168c2c0cd02fadf8f57400a27a74b1592fc95d1ac8cbbebc2f0ed89559ddf07",
+      "after_sha256": "52861580f19863d3a60e52ca0b2b53124255ef07a1f296f88233589a571b2bb9"
+    },
+    {
+      "path": "backend/src/ai/platform/__init__.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "095ba80893654baefdd83ed27fadbee650b05d5d849a0f9749aa0078c117ac0c"
+    },
+    {
+      "path": "backend/src/ai/platform/service.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "7c28187498cee7d43d7ffe06421e84e527dc11f68773ef044f594e010f1f1fda"
+    },
+    {
+      "path": "backend/src/ai/routers/auth.py",
+      "action": "MODIFY",
+      "before_sha256": "6adc011aa08ddce868930e2943ce1fe1963382aa69884c13db6e02e0411b66ae",
+      "after_sha256": "0f9fbd1ab9f15524870a19a04881ed2b689ba1c4a184cdaf469dcb10ece8248c"
+    },
+    {
+      "path": "backend/src/ai/routers/platform.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "ed71a7f228b1b01fa7452fb351cc314218f70ee1245317da825506cf118d2530"
+    },
+    {
+      "path": "backend/src/ai/routers/settings.py",
+      "action": "MODIFY",
+      "before_sha256": "bdb9b8f395dd58b8fe998a61dda9b678859726ba19939afdc6c3f178c8e77d40",
+      "after_sha256": "b93606b9eebcd1f93b8c6ebac2e4ec736cc9f66e273637a129515ff620b291e7"
+    },
+    {
+      "path": "backend/src/infrastructure/database/migrations/20261025000100_integration_principal_permissions.sql",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "76d16b20ffbfd69659d712d8525e2571a2ea50e02e3279a4fbdbf639b45296c3"
+    },
+    {
+      "path": "backend/tests/keel_integration/__init__.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "17eebb4925fb430020b1e3d9484aaa8e4b6ad92eaffaa446f8e0cded0287452b"
+    },
+    {
+      "path": "backend/tests/keel_integration/conftest.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "1de72fb6cc281dabfd53f2dadd80a96fadfdfadbb8fad8c6af4c119a814820ec"
+    },
+    {
+      "path": "backend/tests/keel_integration/docker-compose.yml",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "e6197c7f6b20ee24d40d9edf3a64a358ab6af5b0fe2e9bf78adc6af081f35dfd"
+    },
+    {
+      "path": "backend/tests/keel_integration/test_auth_phase1a.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "51897c96e07093c4e7ee0b8121acb6c416b6abb6796d265015b8fa8dcde61247"
+    },
+    {
+      "path": "backend/tests/keel_integration/test_native_phase1a.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "87a0418f7093fb7d55f210e95c36d85ac394ed91046487be848b6a1e6068e250"
+    },
+    {
+      "path": "backend/tests/keel_integration/test_platform_phase1a.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "cff3109ffc63d48b3a9260beef4257839883c044e45326a3a3fcdbeefc56f301"
+    },
+    {
+      "path": "backend/tests/keel_integration/test_redis_phase1a.py",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "012152c538c86f057674b90a90b73a99cec0974d7e86335342da201aee6bcd7e"
+    },
+    {
+      "path": "docs/keel-integration/CAPABILITY_TRACEABILITY.csv",
+      "action": "MODIFY",
+      "before_sha256": "2c2a414a1b1d0ed05ae385a24a794f9acc81024ec6638a13a545fb9db0809bdf",
+      "after_sha256": "202d7294f9bc6e52c1b18ea771aa25dbf5654efc6e38722302b558cf27daf6c5"
+    },
+    {
+      "path": "docs/keel-integration/DECISION_REGISTER.md",
+      "action": "MODIFY",
+      "before_sha256": "251b03567c54487fa4d3f3b18c43dd3fe85561ca531a2eca5f2b32e7f7920d2d",
+      "after_sha256": "7478c7907bba6531ffd9287794b8798ede71c27b136e7961d47e7436d0fcba0d"
+    },
+    {
+      "path": "docs/keel-integration/DOMAIN_READINESS.md",
+      "action": "MODIFY",
+      "before_sha256": "d9aac6c7025b86977fb368e6912e30fa8b66852f1a0e8436e22ea71e1de3a5d1",
+      "after_sha256": "6eef881dc3e31e129a5b8c72d59093f7032438304c245674b16c179716e80f6f"
+    },
+    {
+      "path": "docs/keel-integration/IMPLEMENTATION_PHASES.md",
+      "action": "MODIFY",
+      "before_sha256": "0f4f2b1f2dcd8ec16faa52aad4330a5b00bc3bfc55434d5aaf3c23a25aa68b3f",
+      "after_sha256": "9f2af4e8033d4caa492280e100152c3bab95d1109b721c220a5bf72728408dec"
+    },
+    {
+      "path": "docs/keel-integration/NEXT_IMPLEMENTATION_HANDOFF.md",
+      "action": "MODIFY",
+      "before_sha256": "5ee43f67966624ecfa13eaf30055ab497a72ab793bd4f4542e905bd4545bbaf2",
+      "after_sha256": "98e832f8ac7b2646cc1bffe6be0462e23c3cee71fe91021da1980d9dcec9062d"
+    },
+    {
+      "path": "docs/keel-integration/NEXT_TASK.md",
+      "action": "MODIFY",
+      "before_sha256": "3800dac1d24e4e38725ed1a7601b2a168ae104255d4a963e2c2d2d89c2a624ba",
+      "after_sha256": "cc6691b336de2b6524a1d5822b568e6b138034d2e003a1a28b3283cc02142710"
+    },
+    {
+      "path": "docs/keel-integration/OPEN_GAPS_AND_RELEASE_BLOCKERS.md",
+      "action": "MODIFY",
+      "before_sha256": "74c9585ad47dcf9e84c9fd81c15f6fc49ce4fe829bf0e58827f0b845fc2d1931",
+      "after_sha256": "308c9165b7dd99a350189a34ba7d29db77789a3a668e1308d889b79fbfab2049"
+    },
+    {
+      "path": "docs/keel-integration/PHASE0R_README.md",
+      "action": "MODIFY",
+      "before_sha256": "71d858288f92d557dbd4ae59cf0d4d83db5cff48c68d704aa26cc49e92e43635",
+      "after_sha256": "de5b7241bfa89b1fd4d17a40801357486651e55155d4b0bc4fa8bdf129ac31b8"
+    },
+    {
+      "path": "docs/keel-integration/PHASE1A_APPLY_INSTRUCTIONS.md",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "2aad45b699c9987a856cfd45a5bcc5656a6bc1f5c09f89dd98e7bdd546351ff8"
+    },
+    {
+      "path": "docs/keel-integration/PHASE1A_IMPLEMENTATION_REPORT.md",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "59a638fcc19c59a03439acda96093289c47df3cbe1eb121a3880ccaedef3ed35"
+    },
+    {
+      "path": "docs/keel-integration/PHASE1A_MIGRATION_AND_COMPATIBILITY.md",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "e620e1236162d07aaa8f6b0df907a0bc91170973639d2cb4f291a0db82b75488"
+    },
+    {
+      "path": "docs/keel-integration/PHASE1A_NATIVE_VERIFICATION.md",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "45f468e410377b0eabd38e4bd558553b2f713688e251ca898a18bf2e9dff67c4"
+    },
+    {
+      "path": "docs/keel-integration/PHASE1A_SOURCE_TRACE.csv",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "a33dd2d1032ee924060f6400c0445be240108d656fec916425187072784f8495"
+    },
+    {
+      "path": "docs/keel-integration/PHASE1A_TRACE_MAP.md",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "3dcdb1c1573f612346f3e084890aa40d14e35acfa64e414e1c0e2ba61416bb89"
+    },
+    {
+      "path": "docs/keel-integration/PHASE1B_BOUNDARY.md",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "cf09dee5f63950262261f3b3f2424be885abd5978786df156e0d30207e084587"
+    },
+    {
+      "path": "docs/keel-integration/README.md",
+      "action": "MODIFY",
+      "before_sha256": "6d9f698fd99f5c451d9c5811d001a8d826903dbcb056d492c92e2e8639803b73",
+      "after_sha256": "b37a1d03e40edd4bea46eda4b0194ae43d854edd423c2296e2961692e30e5013"
+    },
+    {
+      "path": "docs/keel-integration/SOURCE_BASELINES.md",
+      "action": "MODIFY",
+      "before_sha256": "525c5b7d227926ec89849e078b58fd9b936bbd55e1f2f4995a630feb03a142ee",
+      "after_sha256": "b336a14ea0d4d0825917db1bc75cc7d0a59b32e70cf6355c0696754d84908a8b"
+    },
+    {
+      "path": "docs/keel-integration/TEST_EVIDENCE.md",
+      "action": "MODIFY",
+      "before_sha256": "3876f2dd93e1faea9940e6f20fb37cfdb401d8403ccf374409d1517280a37d26",
+      "after_sha256": "f1e9fd624830051d636ee07da2e7f1f4be9110563bfcb9ecc32778f24003721f"
+    },
+    {
+      "path": "docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md",
+      "action": "MODIFY",
+      "before_sha256": "4e10e70da62d47af71c045db22e5a10048fee570452ae7bc459d84008879562f",
+      "after_sha256": "ae8eb2158dade8a4afb67e6a31bfae3982d9c890e6e901e8afed8cf516f593dc"
+    },
+    {
+      "path": "docs/keel-integration/architecture/ADR-AUTH-001-identity-bootstrap-and-session-policy.md",
+      "action": "MODIFY",
+      "before_sha256": "249e8201bbed8ce448e3e9919328f4722b50c82bf1d82e57bd5923d08772e1a4",
+      "after_sha256": "43423a8e01eec9218594c4c990d02d8de81de077d28359669cc1371cf3d932b9"
+    },
+    {
+      "path": "docs/keel-integration/architecture/ADR-AUTH-002-platform-authority-and-role-boundaries.md",
+      "action": "MODIFY",
+      "before_sha256": "f058a29fb68ae6bc8cd29b4b470e235c2cbb019a94d34aa251d7d13c15477b7e",
+      "after_sha256": "fb76f433bee92ce2ce08e404d49fc1c51fc0c0ada60b6f4809f475a2e0acebcf"
+    },
+    {
+      "path": "docs/keel-integration/architecture/FEATURE-auth.md",
+      "action": "MODIFY",
+      "before_sha256": "32bc7756293264e158b36debbbbe0bf3eba4925dd8c42710b019de53dda1e9d7",
+      "after_sha256": "89d6671991be606dcc128400c254871f5b341aecc02ba8e5144fa1425024964f"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/FINAL_HEAD_DIFF_NAMES.txt",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": null
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/FINAL_HEAD_GIT_STATUS.txt",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": null
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/FINAL_INCREMENTAL_DIFF.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": null
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/FINAL_INCREMENTAL_GIT_NAME_STATUS.txt",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": null
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/FINAL_RECONCILIATION.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": null
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/FINAL_SOURCE_HASHES.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": null
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/PHASE1A_STARTING_HASHES.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "21258ae05465229aa28a1fa5e68ff4a2dfd9608a423a8452d607dad6f5a35831"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/SQL_SOURCE_PARSE.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "3c95f79d1f23337572ff47ce3048ea969199ac2b411c8bd2e25c360f3394de1a"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/STARTING_GIT_DIFF.patch",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "961a50e52795bbf27311023ece86f9ea2939898baf84a5934e36fbde37b384a2"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/STARTING_GIT_STATUS.txt",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "5ec279b9e5d8da9a100be247559937128aca25be35c24732c16584f1b94cfdef"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/STARTING_STAGED_DIFF.patch",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/STARTING_STATE.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "c8fe4615123abc0663c83d254ef2961eb8c407ebe26a0141b56e81537cb8f81b"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/TEST_RESULT_SUMMARY.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "2a0b79bc792e38ba33821e6349c09591df7fbd73ca9b6f8e8b51f4a2772f0542"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/build-command.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "07871a65f6bfa1cea2159371227cf30c3769e58b8edb5a5bbe911b2e112245fc"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/build.log",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "8ee2a2086a5d04b6408e730067c96ca10f9a4bdce63c54fe23f5df82826b1415"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/focused-command.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "c16407cd149b6c5b14e66c21bf19304266fe92688eeefef2c3cad1cde84b9ee2"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/focused.log",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "b8270964806659d6d847724022c9a361a81291e8bb3990229b9f8213e9c58870"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/focused.xml",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "8357b8932d520347cb53d114f499dfccc8d92390670c5ba96d8e17a8dd0a9eb5"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/frontend-command.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "1a426c1234c1a15b262637c925bad90336effa0821db5ad727cf68f7553dc4e9"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/frontend-eslint.log",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/frontend.log",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "da359f363c91654756155f296e93888b23767a50d52faea641e257a464eabbbd"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/legacy-auth-collection-command.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "9cf781d9e5a52f5287073325c9dea0f4c43889ee9733646de2993b4b9de905da"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/legacy-auth-collection.log",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "4d1877cdb55783495a01b3773a5c08dc194c454de756ab958a8113fe55608bf5"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/lint-command.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "b23a82593eed5337cfd349158779b643afa5ebdf5a0c0fe8f0a84ed77fa65198"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/lint.log",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "244b8f5e184462e8a36184b0d7e531f55d20ea4e32e46a75287d13e91a29af21"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/regression-command.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "d1945a2ac3284672ec0b69a7b78a1f4d9c6f2c2dfaf49b31691868eb08bb7125"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/regression.log",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "9869408084c512cea4fdb3fa2f9d36cb0f0288e16215f995f0e970c481ebc179"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/regression.xml",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "fd2b892597efc57bc61260448ee80f774972b07668cb396f34a04f0a84ff443a"
+    },
+    {
+      "path": "docs/keel-integration/evidence/phase1a/static-checks.json",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "3d8b2538205389655a3b732a3cfa0e0868ea0ca18eb1a6a6519699ebe367636a"
+    },
+    {
+      "path": "frontend/src/app/router/index.jsx",
+      "action": "MODIFY",
+      "before_sha256": "cc02c3194537c53fea2ef9a2c9e972f54a8577bd0c1ce667be3df64e944756bc",
+      "after_sha256": "78eea5621cb334538bc94648cbe57670e08beaa68cfcf7e5fe3f30e1a9f4f712"
+    },
+    {
+      "path": "frontend/src/assets/locales/ar.json",
+      "action": "MODIFY",
+      "before_sha256": "5170c04a43bdffb9b84267dfd83b0ad41b1ccb08e6ad54b44efcb39978f023f1",
+      "after_sha256": "d5093dab82bece25105f66c55484b48ca7412271f240c7543cd711cbde0b8be9"
+    },
+    {
+      "path": "frontend/src/assets/locales/en.json",
+      "action": "MODIFY",
+      "before_sha256": "284e074890a2b39d9a4533fb37c9f3e2bca38376685f728c36176c40fa273330",
+      "after_sha256": "38b3274144f5d58d487b65a1f16f09ef7a3b8eaa19a929dc625a83819fdf4668"
+    },
+    {
+      "path": "frontend/src/features/auth/api/authHttpAdapter.js",
+      "action": "MODIFY",
+      "before_sha256": "058aad98ed721b14360c583c22c3e5ee9d5e0907bfb4422b8346410118235f72",
+      "after_sha256": "57aa96d6948e9c55501ecb2288801ad519287aef666e7b2c34654da448e9ecac"
+    },
+    {
+      "path": "frontend/src/features/auth/pages/LoginPage.jsx",
+      "action": "MODIFY",
+      "before_sha256": "db66f63fb2afbde76cab67c4572f2765bb9716b83668db9b97a0cac6d1b948bb",
+      "after_sha256": "9eb2be9554ad94cf8996a681dccecb4a97620b43e4cbfb31c8609195bf3ccac9"
+    },
+    {
+      "path": "frontend/src/features/auth/pages/SignupPage.jsx",
+      "action": "MODIFY",
+      "before_sha256": "16e5d2b649892ba303a9bab4c35c10d7c712aa03a6ea1a3ada658276e8eb66d1",
+      "after_sha256": "fcad5de305eba563e4394f4233897f2ff0d34ab132536a36e2a5d1fdaaf3bb64"
+    },
+    {
+      "path": "frontend/src/features/auth/pages/VerifyEmailPage.jsx",
+      "action": "MODIFY",
+      "before_sha256": "a4c1580ac0bc40fca52988a16bcfcebdcf441e9e8eb9982742723b3ec94972db",
+      "after_sha256": "17f55d020cbc097adc6341251d80178840888dace01dd96a6e10e47c6a367c41"
+    },
+    {
+      "path": "frontend/src/features/auth/pendingRegistration.js",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "4bfa718ac51a0f6d04b4cf50a4998cf227b5d30122d54a6a1959855e3d4922d3"
+    },
+    {
+      "path": "frontend/src/features/auth/utils/authRouting.js",
+      "action": "MODIFY",
+      "before_sha256": "78041771a3bdb96814fcf68af0762b407d2579004d9407082b88325b6952d09f",
+      "after_sha256": "f7db937d5c4b29b0d190836f1a5c04784bbcc5753368d46c1210360ec90958c2"
+    },
+    {
+      "path": "frontend/src/features/platform/PlatformAccessLink.jsx",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "3ed07e5f04cdca855458f26eb16d650e3609a844b43036349e1de27a590deb7c"
+    },
+    {
+      "path": "frontend/src/features/platform/PlatformAccount.jsx",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "5e1096b4583adf824acd76adc9194891dc0ddd88274160f3e9328e2118443421"
+    },
+    {
+      "path": "frontend/src/features/platform/PlatformDashboard.jsx",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "2d5d1f6c977e0a662b8182a218183df424e3995558e24b41eaae2d88fa1426c3"
+    },
+    {
+      "path": "frontend/src/features/platform/PlatformInvitation.jsx",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "9e56cc779566e98e181a5a7c89013baf53b655be548a7e38589d777929ca4b62"
+    },
+    {
+      "path": "frontend/src/features/platform/platform.css",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "08957c336a38c88841dc57b0f00885b150f5107f5f274c59e41b8d6e6f7deaa8"
+    },
+    {
+      "path": "frontend/src/features/platform/platformApi.js",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "011e7afdc1c350dae7b1242f2b9363421e70b27decab0dc9426c1e682896f8c9"
+    },
+    {
+      "path": "frontend/src/features/settings/components/SecuritySettings.jsx",
+      "action": "MODIFY",
+      "before_sha256": "85382ff3277696f1569c0de730db276460f284af7bb12c13afe362ab099c50da",
+      "after_sha256": "f483b8f132ca50170a8317bde02c6f780b251bb566b49b2fd082f8e04bbdef6f"
+    },
+    {
+      "path": "frontend/src/shared/components/layout/TopNav.jsx",
+      "action": "MODIFY",
+      "before_sha256": "ea0f0a3c187235f20f4010f601c5eb122f9db2498628ef45a6e94189284cc561",
+      "after_sha256": "77e7d8212679ab0639c775d59b07e7ba93adcd4d1110b0e3f82264679d0e2ed5"
+    },
+    {
+      "path": "frontend/src/shared/components/layout/signOut.js",
+      "action": "MODIFY",
+      "before_sha256": "2603a507eb06a7306ef2adc89f3098455aae8dc9740bddc14395cc8776cc8a6e",
+      "after_sha256": "52cb987b1ddc696aefd34b1095a5445fd2a6c97b1337da536c33f2900170712f"
+    },
+    {
+      "path": "frontend/tests/browser/phase1a.mjs",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "f8b34567952712966b07f6101168b53c757ed5b968b9ccf45b883eb0fa0be6ba"
+    },
+    {
+      "path": "frontend/tests/phase1a.test.mjs",
+      "action": "ADD",
+      "before_sha256": null,
+      "after_sha256": "8140d0d0452cb268a6dc34046b42b330bd4ba8d88040483b43258119fae91e18"
+    }
+  ],
+  "self_reference_exclusion": "Six FINAL_* audit outputs are included by exact path/action but exclude their own changing hashes. Final ZIP hash is provided outside the candidate."
+}

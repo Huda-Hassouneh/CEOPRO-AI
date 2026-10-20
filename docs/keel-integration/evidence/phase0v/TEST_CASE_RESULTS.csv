@@ -1,0 +1,180 @@
+suite,class,name,status,reason
+backend,tests.billing.test_contract,test_signed_event_is_verified_by_the_actual_stripe_sdk,PASS,
+backend,tests.billing.test_contract,test_signature_rejects_invalid_body_or_timestamp[wrong_secret],PASS,
+backend,tests.billing.test_contract,test_signature_rejects_invalid_body_or_timestamp[tampered_body],PASS,
+backend,tests.billing.test_contract,test_signature_rejects_invalid_body_or_timestamp[expired],PASS,
+backend,tests.billing.test_contract,test_webhook_rejects_missing_or_invalid_signature_before_database[None],PASS,
+backend,tests.billing.test_contract,test_webhook_rejects_missing_or_invalid_signature_before_database[invalid],PASS,
+backend,tests.billing.test_contract,test_webhook_not_configured_is_503,PASS,
+backend,tests.billing.test_contract,test_existing_billing_routes_require_authentication[get-/billing/subscription],PASS,
+backend,tests.billing.test_contract,test_existing_billing_routes_require_authentication[post-/billing/checkout],PASS,
+backend,tests.billing.test_contract,test_existing_billing_routes_require_authentication[post-/billing/cancel],PASS,
+backend,tests.billing.test_contract,test_existing_billing_routes_require_authentication[post-/billing/resume],PASS,
+backend,tests.billing.test_contract,test_existing_billing_routes_require_authentication[get-/billing/invoices],PASS,
+backend,tests.billing.test_contract,test_checkout_preserves_existing_contract_and_provider_idempotency,PASS,
+backend,tests.billing.test_contract,test_checkout_does_not_create_a_second_current_subscription,PASS,
+backend,tests.billing.test_contract,test_missing_stripe_key_has_controlled_failure,PASS,
+backend,tests.billing.test_contract,test_existing_upgrade_preserves_trial_or_waits_for_payment[False],PASS,
+backend,tests.billing.test_contract,test_existing_upgrade_preserves_trial_or_waits_for_payment[True],PASS,
+backend,tests.billing.test_contract,test_existing_downgrade_is_scheduled_without_replacing_paid_period,PASS,
+backend,tests.billing.test_contract,test_revoked_main_token_is_rejected_before_billing_database,PASS,
+backend,tests.billing.test_contract,test_invalid_main_token_is_rejected_before_billing_database,PASS,
+backend,tests.billing.test_database,test_checkout_links_existing_tenant_and_reuses_customer,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_signed_checkout_persists_once_and_replayed_events_do_not_duplicate,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_subscription_lifecycle_is_synchronized_to_existing_rows[trialing-trialing],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_subscription_lifecycle_is_synchronized_to_existing_rows[active-active],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_subscription_lifecycle_is_synchronized_to_existing_rows[past_due-past_due],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_subscription_lifecycle_is_synchronized_to_existing_rows[unpaid-payment_failed],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_subscription_lifecycle_is_synchronized_to_existing_rows[incomplete-pending],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_subscription_lifecycle_is_synchronized_to_existing_rows[paused-paused],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_subscription_lifecycle_is_synchronized_to_existing_rows[canceled-cancelled],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_subscription_lifecycle_is_synchronized_to_existing_rows[incomplete_expired-expired],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_stale_event_payload_cannot_replace_current_provider_state,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_payment_failure_then_success_is_one_invoice_record,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_provider_outage_event_retries_then_is_a_duplicate,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_cancel_and_resume_wait_for_webhook_sync,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_invoice_authorization_uses_existing_membership[owner-200],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_invoice_authorization_uses_existing_membership[admin-200],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_invoice_authorization_uses_existing_membership[accountant-200],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_invoice_authorization_uses_existing_membership[manager-403],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_invoice_authorization_uses_existing_membership[staff-403],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_restricted_runtime_role_cannot_forge_billing_or_read_another_tenant,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_concurrent_delivery_claims_one_execution,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_existing_catalog_has_current_plan_records_without_reference_seeding,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_preflight_reads_schema_without_writes,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_native_runtime_role_password_authentication,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_database,test_late_failed_invoice_event_does_not_overwrite_a_paid_invoice,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.billing.test_safety,test_live_or_unknown_stripe_keys_are_refused[sk_live_not_real],PASS,
+backend,tests.billing.test_safety,test_live_or_unknown_stripe_keys_are_refused[rk_live_not_real],PASS,
+backend,tests.billing.test_safety,test_live_or_unknown_stripe_keys_are_refused[arbitrary],PASS,
+backend,tests.billing.test_safety,test_offline_or_test_keys_are_accepted[],PASS,
+backend,tests.billing.test_safety,test_offline_or_test_keys_are_accepted[sk_test_offline],PASS,
+backend,tests.billing.test_safety,test_offline_or_test_keys_are_accepted[rk_test_offline],PASS,
+backend,tests.billing.test_safety,test_unsafe_databases_are_refused_without_exposing_the_url[postgresql://owner:secret@127.0.0.1:5433/KEEL_DEV],PASS,
+backend,tests.billing.test_safety,test_unsafe_databases_are_refused_without_exposing_the_url[postgresql://owner:secret@remote.example:5432/keel_billing_test],PASS,
+backend,tests.billing.test_safety,test_unsafe_databases_are_refused_without_exposing_the_url[postgresql://owner:secret@127.0.0.1/keel_billing_test],PASS,
+backend,tests.billing.test_safety,test_unsafe_databases_are_refused_without_exposing_the_url[postgresql://owner:secret@127.0.0.1:5433/production_test],PASS,
+backend,tests.billing.test_safety,test_unsafe_databases_are_refused_without_exposing_the_url[postgresql://owner:secret@127.0.0.1:5433/keel_billing_test?options=x],PASS,
+backend,tests.billing.test_safety,test_unsafe_databases_are_refused_without_exposing_the_url[postgresql://owner:secret@127.0.0.1:bad/keel_billing_test],PASS,
+backend,tests.billing.test_safety,test_unsafe_databases_are_refused_without_exposing_the_url[],PASS,
+backend,tests.billing.test_safety,test_database_url_is_explicit_and_not_taken_from_application_environment,PASS,
+backend,tests.billing.test_safety,test_explicit_local_disposable_database_is_accepted,PASS,
+backend,tests.billing.test_safety,test_catalog_delegates_to_existing_main_sync_in_test_mode[False],PASS,
+backend,tests.billing.test_safety,test_catalog_delegates_to_existing_main_sync_in_test_mode[True],PASS,
+backend,tests.billing.test_safety,test_catalog_without_credentials_does_not_start_a_subprocess,PASS,
+backend,tests.entitlements.test_database,test_status_effects_on_atomic_reservations[active],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_status_effects_on_atomic_reservations[trialing],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_status_effects_on_atomic_reservations[expired],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_status_effects_on_atomic_reservations[cancelled],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_status_effects_on_atomic_reservations[past_due],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_status_effects_on_atomic_reservations[payment_failed],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_status_effects_on_atomic_reservations[pending],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_status_effects_on_atomic_reservations[paused],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_missing_assignment_denies_consumption,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_catalog_mapping_is_resolved_from_actual_main_tables,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_credit_budgets_include_reserved_units_and_remain_separate,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_missing_report_limit_fails_closed_but_explicit_null_is_unlimited,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_atomic_limit_release_and_read_contract,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_live_product_capacity,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_sum_counter_reset_selects_new_period_retains_old_history,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_exact_free_trial_expiry,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_same_report_retry_counts_once,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_old_report_key_cannot_bypass_inactive_subscription,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_old_period_report_key_counts_in_current_period,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_reservations_require_positive_integer_amount[0],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_reservations_require_positive_integer_amount[-1],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_reservations_require_positive_integer_amount[1.5],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_runtime_role_can_meter_rag_without_elevating_privileges,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_tenant_cannot_read_another_tenants_assignment_or_counter,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_forged_tenant_context_cannot_resolve_other_plan,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_subscription_contract_remains_reachable_when_inactive,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_database,test_real_multi_session_atomicity,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.entitlements.test_policy,test_inactive_module_request_is_402_before_work[none],PASS,
+backend,tests.entitlements.test_policy,test_inactive_module_request_is_402_before_work[expired],PASS,
+backend,tests.entitlements.test_policy,test_inactive_module_request_is_402_before_work[cancelled],PASS,
+backend,tests.entitlements.test_policy,test_inactive_module_request_is_402_before_work[past_due],PASS,
+backend,tests.entitlements.test_policy,test_inactive_module_request_is_402_before_work[payment_failed],PASS,
+backend,tests.entitlements.test_policy,test_inactive_module_request_is_402_before_work[pending],PASS,
+backend,tests.entitlements.test_policy,test_inactive_module_request_is_402_before_work[paused],PASS,
+backend,tests.entitlements.test_policy,test_inactive_module_request_is_402_before_work[unpaid],PASS,
+backend,tests.entitlements.test_policy,test_included_module_respects_existing_dependency[active],PASS,
+backend,tests.entitlements.test_policy,test_included_module_respects_existing_dependency[trialing],PASS,
+backend,tests.entitlements.test_policy,test_absent_module_denied,PASS,
+backend,tests.entitlements.test_policy,test_paid_work_fails_closed_if_accounting_connection_is_down,PASS,
+backend,tests.entitlements.test_policy,test_api_quota_error_preserves_main_contract,PASS,
+backend,tests.entitlements.test_routes,test_router_inventory_has_unique_methods_and_paths,PASS,
+backend,tests.entitlements.test_routes,test_forecasting_router_keeps_module_gate,PASS,
+backend,tests.entitlements.test_routes,test_dashboard_forecast_alias_has_same_gate_as_forecasting_router,PASS,
+backend,tests.integration_review.test_http_database,test_all_billing_mutations_deny_staff_before_provider[POST-/billing/checkout-body0],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_all_billing_mutations_deny_staff_before_provider[POST-/billing/portal-None],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_all_billing_mutations_deny_staff_before_provider[POST-/billing/change-plan-body2],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_all_billing_mutations_deny_staff_before_provider[DELETE-/billing/scheduled-change-None],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_all_billing_mutations_deny_staff_before_provider[POST-/billing/cancel-None],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_all_billing_mutations_deny_staff_before_provider[POST-/billing/resume-None],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_removed_membership_cannot_read_invoices,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_forged_cross_tenant_token_cannot_manage_billing,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_report_http_retry_does_not_double_charge,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_report_http_old_key_cannot_bypass_cancelled_subscription,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_report_http_missing_subscription_is_denied,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_report_http_new_key_cannot_bypass_exhausted_quota,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_late_old_subscription_cancellation_does_not_disable_new_subscription,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_renewal_moves_period_preserves_old_counter_history,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_upgrade_keeps_local_plan_until_webhook[service],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_upgrade_keeps_local_plan_until_webhook[http],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_downgrade_stages_then_webhook_applies[service],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_downgrade_stages_then_webhook_applies[http],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_http_database,test_actual_migration_runner_repeat_is_noop,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.integration_review.test_migration_failure,test_failed_migration_leaves_no_partial_table_or_success_ledger,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_invoice_reconciliation_outage_retries_without_storing_failure,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_invoice_customer_mismatch_rolls_back,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_provider_subscription_identity_mismatch_retries,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_paid_store_row_cannot_regress,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_report_different_parameters_cannot_share_a_free_key,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_removed_member_cannot_replay,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_other_tenant_actor_cannot_reserve,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_other_same_tenant_user_cannot_replay_internal_key,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_refund_cannot_apply_twice_or_to_replacement,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_original_failure_cannot_refund_successful_replay,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_period_scoped_release_preserves_old_history,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_legacy_unbound_key_requires_new_key,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_invalid_quota_values_rejected[True],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_invalid_quota_values_rejected[False],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_invalid_quota_values_rejected[inf],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_commercial_boundaries,test_invalid_quota_values_rejected[nan],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_forecast_gate,test_exact_forecast_route_gate[inactive],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_forecast_gate,test_exact_forecast_route_gate[missing-module],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_forecast_gate,test_exact_forecast_route_gate[included],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_migration_upgrade,test_upgrade_preserves_keys_rls_grants_and_allows_new_period,SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_native_concurrency,test_concurrent_report_http_enforcement[False],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,tests.remediation.test_native_concurrency,test_concurrent_report_http_enforcement[True],SKIPPED,Database suite disabled; run the guarded runner with --database
+backend,src.ai.tests.test_billing_consistency,test_frontend_and_backend_show_the_same_plan_terms,PASS,
+backend,src.ai.tests.test_billing_consistency,test_every_shown_term_and_alert_has_both_languages,PASS,
+auth,,src.ai.tests.test_auth,COLLECTION_ERROR,collection failure
+auth,,src.ai.tests.test_auth_completeness,COLLECTION_ERROR,collection failure
+workers,,src.market_scraper.tests.test_worker,COLLECTION_ERROR,collection failure
+workers,,src.market_scraper.tests.test_analysis_worker,COLLECTION_ERROR,collection failure
+workers,,src.market_scraper.tests.test_discovery_worker,COLLECTION_ERROR,collection failure
+workers,src.market_scraper.tests.test_connector_sync,test_never_synced_is_always_due,PASS,
+workers,src.market_scraper.tests.test_connector_sync,test_recently_synced_is_not_due,PASS,
+workers,src.market_scraper.tests.test_connector_sync,test_overdue_sync_is_due,PASS,
+workers,src.market_scraper.tests.test_connector_sync,test_exactly_at_the_interval_boundary_is_due,PASS,
+workers,src.market_scraper.tests.test_connector_sync,test_missing_sync_frequency_falls_back_to_the_module_default,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_get_nested_returns_the_payload_itself_when_no_path_given,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_get_nested_walks_a_dotted_path,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_get_nested_returns_none_for_a_missing_path,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_returns_bare_array_response,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_extracts_records_via_records_path,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_returns_none_on_an_empty_page_stopping_pagination,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_raises_on_a_non_list_records_path_result,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_builds_bearer_auth_header_from_credentials,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_supports_a_custom_auth_header_and_scheme,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_sends_no_auth_header_when_no_credentials_given,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_includes_extra_query_params_and_page_size,PASS,
+workers,src.market_scraper.tests.test_api_connector_sync,test_fetch_page_propagates_a_real_http_error,PASS,
+workers,src.market_scraper.tests.test_network_security,test_public_dns_answers_are_accepted,PASS,
+workers,src.market_scraper.tests.test_network_security,test_private_link_local_and_loopback_dns_answers_are_rejected[127.0.0.1],PASS,
+workers,src.market_scraper.tests.test_network_security,test_private_link_local_and_loopback_dns_answers_are_rejected[10.0.0.5],PASS,
+workers,src.market_scraper.tests.test_network_security,test_private_link_local_and_loopback_dns_answers_are_rejected[169.254.169.254],PASS,
+workers,src.market_scraper.tests.test_network_security,test_private_link_local_and_loopback_dns_answers_are_rejected[::1],PASS,
+workers,src.market_scraper.tests.test_network_security,test_private_link_local_and_loopback_dns_answers_are_rejected[fe80::1],PASS,
+workers,src.market_scraper.tests.test_network_security,test_cross_origin_redirect_is_rejected,PASS,

@@ -1,0 +1,410 @@
+✔ a Markdown table from the model becomes a table block (2.177547ms)
+✔ bulleted and numbered lists are grouped (0.338088ms)
+✔ Arabic lines and a lone pipe character stay paragraphs (0.375493ms)
+✔ an answer maps to claims, numbered references and follow-up questions (2.513832ms)
+✔ reference links are limited to http(s) sources and in-app routes (0.300673ms)
+✔ answers saved before references existed keep their source list (0.305681ms)
+✔ evidence states become notes the user can read, never silent (0.315545ms)
+✔ claims keep their kind and verification state (0.177291ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/auth.test.mjs (99.136997ms)
+✔ barcodes are validated with the GS1 check digit, matching the server (1.309288ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/billingApi.test.mjs (85.237546ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/competitorData.test.mjs (106.342643ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/competitors.test.mjs (93.441806ms)
+✔ scrubEvent drops the user, headers, cookies and query strings (1.862172ms)
+✔ scrubBreadcrumb drops console output and strips query strings from URLs (0.42096ms)
+✔ reportError is a no-op when tracking is off (no DSN) (0.29175ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/httpClientUnauthorized.test.mjs (102.295719ms)
+✔ a clean import reports how many rows landed (1.381604ms)
+✔ a re-uploaded file reports the rows skipped as already imported (0.218942ms)
+✔ row failures and rejected files are surfaced, not hidden behind a success message (0.406549ms)
+✔ rows that failed before promotion are reported as failed, not silently dropped (0.225311ms)
+✔ rows over the plan product limit are reported as such, not as unreadable rows (0.211922ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/ingestion.test.mjs (91.300934ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/knowledgeBase.test.mjs (84.813151ms)
+✔ app: English and Arabic have the same keys (2093.471943ms)
+✔ app: no text blank in one language only, and both languages use the same {{placeholders}} (4.365448ms)
+✔ landing: English and Arabic have the same keys (10.521553ms)
+✔ landing: no text blank in one language only, and both languages use the same {{placeholders}} (0.512775ms)
+✔ every literal t("...") key used in the code exists in English (13.75122ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/marketing.test.mjs (90.127902ms)
+✔ plan limits name the allowance that ran out and when it renews (2.312305ms)
+✔ busy, unconfigured, offline and photo errors get their own explanation (0.31229ms)
+✔ every key the helper can return is translated in English and Arabic (0.329204ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/pricing.test.mjs (79.872601ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/products.test.mjs (85.174749ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/recentImports.test.mjs (93.949719ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/reports.test.mjs (89.838716ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/searchScope.test.mjs (79.057571ms)
+✔ tokenTimes reads expiry and issue time; garbage yields null (2.205999ms)
+✔ renews shortly before expiry when the user has been active since the token was issued (0.187696ms)
+✔ does not renew for an idle tab - it is left to expire (0.131914ms)
+✔ does not renew too early, or after expiry, or without a token (0.18309ms)
+✔ older tokens without an issue time renew on recent activity only (0.282716ms)
+✔ email confirmation is needed only when the token says it was required and not done (0.378487ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/settings.test.mjs (83.495085ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend/src/shared/lib/httpClient.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests/sourceReviewApi.test.mjs (75.847304ms)
+✔ required and email fields (1.560217ms)
+✔ passwords need length, both cases, a number and a symbol - every missing rule is reported (1.306134ms)
+✔ password confirmation, currency and the 6-digit code (0.42838ms)
+✔ sign-in opens the Dashboard, resuming only an invitation or a checkout return (0.241696ms)
+✔ sign-in errors become the right message (0.242337ms)
+✔ uploads accept only what the server reads, up to its size limit (0.363295ms)
+✔ money is formatted in the company currency and language (17.387162ms)
+✔ plan usage: unlimited, approaching at 80%, reached at the limit (0.331949ms)
+✔ upgrade advice names the limit that blocked the action first (0.537472ms)
+ℹ tests 55
+ℹ suites 0
+ℹ pass 40
+ℹ fail 15
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2369.638466
+
+✖ failing tests:
+
+test at tests/auth.test.mjs:1:1
+✖ tests/auth.test.mjs (99.136997ms)
+  'test failed'
+
+test at tests/billingApi.test.mjs:1:1
+✖ tests/billingApi.test.mjs (85.237546ms)
+  'test failed'
+
+test at tests/competitorData.test.mjs:1:1
+✖ tests/competitorData.test.mjs (106.342643ms)
+  'test failed'
+
+test at tests/competitors.test.mjs:1:1
+✖ tests/competitors.test.mjs (93.441806ms)
+  'test failed'
+
+test at tests/httpClientUnauthorized.test.mjs:1:1
+✖ tests/httpClientUnauthorized.test.mjs (102.295719ms)
+  'test failed'
+
+test at tests/ingestion.test.mjs:1:1
+✖ tests/ingestion.test.mjs (91.300934ms)
+  'test failed'
+
+test at tests/knowledgeBase.test.mjs:1:1
+✖ tests/knowledgeBase.test.mjs (84.813151ms)
+  'test failed'
+
+test at tests/marketing.test.mjs:1:1
+✖ tests/marketing.test.mjs (90.127902ms)
+  'test failed'
+
+test at tests/pricing.test.mjs:1:1
+✖ tests/pricing.test.mjs (79.872601ms)
+  'test failed'
+
+test at tests/products.test.mjs:1:1
+✖ tests/products.test.mjs (85.174749ms)
+  'test failed'
+
+test at tests/recentImports.test.mjs:1:1
+✖ tests/recentImports.test.mjs (93.949719ms)
+  'test failed'
+
+test at tests/reports.test.mjs:1:1
+✖ tests/reports.test.mjs (89.838716ms)
+  'test failed'
+
+test at tests/searchScope.test.mjs:1:1
+✖ tests/searchScope.test.mjs (79.057571ms)
+  'test failed'
+
+test at tests/settings.test.mjs:1:1
+✖ tests/settings.test.mjs (83.495085ms)
+  'test failed'
+
+test at tests/sourceReviewApi.test.mjs:1:1
+✖ tests/sourceReviewApi.test.mjs (75.847304ms)
+  'test failed'

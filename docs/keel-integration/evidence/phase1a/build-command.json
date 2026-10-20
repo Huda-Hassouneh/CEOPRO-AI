@@ -1,0 +1,17 @@
+{
+  "check": "build",
+  "command": [
+    "npm",
+    "run",
+    "build",
+    "--",
+    "--outDir",
+    "/workspace/scratch/327eb0b847b6/analysis/phase1a/frontend-dist",
+    "--emptyOutDir"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/frontend",
+  "exit_code": 0,
+  "seconds": 3.7,
+  "native_services": "NOT RUN",
+  "profile": "production metering defaults; no inherited service credentials; scratch TCP fence; explicit test doubles"
+}

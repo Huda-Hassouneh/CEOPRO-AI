@@ -1,0 +1,273 @@
+Engine: {
+  rows: [
+    {
+      version: 'PostgreSQL 17.5 on wasm32-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit',
+      current_database: 'keel_billing_test'
+    }
+  ],
+  fields: [
+    { name: 'version', dataTypeID: 25 },
+    { name: 'current_database', dataTypeID: 19 }
+  ],
+  affectedRows: 0
+}
+2026-10-19 20:36:13,605 [INFO] CEOPRO_MIGRATION_RUNNER: Applying Final_schema.sql...
+2026-10-19 20:36:13,713 [INFO] CEOPRO_MIGRATION_RUNNER: Final_schema.sql applied.
+2026-10-19 20:36:13,717 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260807225947_add_campaigns_table.sql
+2026-10-19 20:36:13,725 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260807225947_add_campaigns_table.sql
+2026-10-19 20:36:13,726 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260807230553_add_market_intelligence_tables.sql
+2026-10-19 20:36:13,738 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260807230553_add_market_intelligence_tables.sql
+2026-10-19 20:36:13,738 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260808040000_add_extraction_status.sql
+2026-10-19 20:36:13,740 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260808040000_add_extraction_status.sql
+2026-10-19 20:36:13,740 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827000000_restore_shared_evidence_architecture.sql
+2026-10-19 20:36:13,744 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827000000_restore_shared_evidence_architecture.sql
+2026-10-19 20:36:13,744 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827000100_add_rag_embedding_column.sql
+2026-10-19 20:36:13,775 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827000100_add_rag_embedding_column.sql
+2026-10-19 20:36:13,775 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827000200_add_app_role.sql
+2026-10-19 20:36:13,779 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827000200_add_app_role.sql
+2026-10-19 20:36:13,779 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827010000_restore_review_subject_types.sql
+2026-10-19 20:36:13,786 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827010000_restore_review_subject_types.sql
+2026-10-19 20:36:13,786 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827020000_add_competitor_country_code.sql
+2026-10-19 20:36:13,787 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827020000_add_competitor_country_code.sql
+2026-10-19 20:36:13,787 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827030000_add_competitor_prices_policy_columns.sql
+2026-10-19 20:36:13,789 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827030000_add_competitor_prices_policy_columns.sql
+2026-10-19 20:36:13,789 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827040000_add_recommendation_outcomes_evidence_link.sql
+2026-10-19 20:36:13,793 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827040000_add_recommendation_outcomes_evidence_link.sql
+2026-10-19 20:36:13,793 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827050000_add_currency_rates_source.sql
+2026-10-19 20:36:13,794 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827050000_add_currency_rates_source.sql
+2026-10-19 20:36:13,794 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260827060000_fix_get_current_tenant_recursion.sql
+2026-10-19 20:36:13,795 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260827060000_fix_get_current_tenant_recursion.sql
+2026-10-19 20:36:13,795 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260829010000_add_collection_policy_engine.sql
+2026-10-19 20:36:13,801 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260829010000_add_collection_policy_engine.sql
+2026-10-19 20:36:13,801 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260829020000_add_market_collection_intelligence.sql
+2026-10-19 20:36:13,829 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260829020000_add_market_collection_intelligence.sql
+2026-10-19 20:36:13,829 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260829030000_harden_market_collection_production.sql
+2026-10-19 20:36:13,839 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260829030000_harden_market_collection_production.sql
+2026-10-19 20:36:13,839 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260830000000_add_transactions_and_model_versions.sql
+2026-10-19 20:36:13,855 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260830000000_add_transactions_and_model_versions.sql
+2026-10-19 20:36:13,855 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260830020000_add_field_level_ingestion_tracking.sql
+2026-10-19 20:36:13,857 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260830020000_add_field_level_ingestion_tracking.sql
+2026-10-19 20:36:13,857 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260831000000_add_rag_document_status_column.sql
+2026-10-19 20:36:13,859 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260831000000_add_rag_document_status_column.sql
+2026-10-19 20:36:13,859 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260906000000_add_competitor_classification_columns.sql
+2026-10-19 20:36:13,861 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260906000000_add_competitor_classification_columns.sql
+2026-10-19 20:36:13,861 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260906010000_add_engagement_metrics_columns.sql
+2026-10-19 20:36:13,863 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260906010000_add_engagement_metrics_columns.sql
+2026-10-19 20:36:13,863 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260907000000_add_competitor_domain_dedup_key.sql
+2026-10-19 20:36:13,865 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260907000000_add_competitor_domain_dedup_key.sql
+2026-10-19 20:36:13,865 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260907010000_add_search_cache_and_competitor_tier.sql
+2026-10-19 20:36:13,869 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260907010000_add_search_cache_and_competitor_tier.sql
+2026-10-19 20:36:13,869 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260907020000_add_search_quota_usage.sql
+2026-10-19 20:36:13,871 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260907020000_add_search_quota_usage.sql
+2026-10-19 20:36:13,871 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260911000000_add_geo_proximity_and_competitor_scope.sql
+2026-10-19 20:36:13,875 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260911000000_add_geo_proximity_and_competitor_scope.sql
+2026-10-19 20:36:13,875 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260911010000_add_rag_documents_bucket_path_unique_index.sql
+2026-10-19 20:36:13,877 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260911010000_add_rag_documents_bucket_path_unique_index.sql
+2026-10-19 20:36:13,877 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260911020000_add_rag_documents_content_hash.sql
+2026-10-19 20:36:13,878 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260911020000_add_rag_documents_content_hash.sql
+2026-10-19 20:36:13,878 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260912000000_add_connector_discovery_function.sql
+2026-10-19 20:36:13,879 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260912000000_add_connector_discovery_function.sql
+2026-10-19 20:36:13,879 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260913000000_add_reply_threading_to_reviews.sql
+2026-10-19 20:36:13,882 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260913000000_add_reply_threading_to_reviews.sql
+2026-10-19 20:36:13,882 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260913010000_add_video_metadata_columns.sql
+2026-10-19 20:36:13,884 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260913010000_add_video_metadata_columns.sql
+2026-10-19 20:36:13,884 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260915000000_add_scraping_cost_ledger.sql
+2026-10-19 20:36:13,888 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260915000000_add_scraping_cost_ledger.sql
+2026-10-19 20:36:13,888 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260915020000_add_auth_lookup_functions.sql
+2026-10-19 20:36:13,889 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260915020000_add_auth_lookup_functions.sql
+2026-10-19 20:36:13,889 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260919000000_add_auth_completeness.sql
+2026-10-19 20:36:13,895 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260919000000_add_auth_completeness.sql
+2026-10-19 20:36:13,895 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260919010000_add_user_notification_preferences.sql
+2026-10-19 20:36:13,896 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260919010000_add_user_notification_preferences.sql
+2026-10-19 20:36:13,896 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260920000000_fix_products_soft_delete_rls.sql
+2026-10-19 20:36:13,897 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260920000000_fix_products_soft_delete_rls.sql
+2026-10-19 20:36:13,897 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260925000000_add_marketing_campaign_content.sql
+2026-10-19 20:36:13,905 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260925000000_add_marketing_campaign_content.sql
+2026-10-19 20:36:13,905 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260925010000_add_marketing_image_generation.sql
+2026-10-19 20:36:13,906 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260925010000_add_marketing_image_generation.sql
+2026-10-19 20:36:13,906 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260925020000_add_marketing_background_removal.sql
+2026-10-19 20:36:13,908 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260925020000_add_marketing_background_removal.sql
+2026-10-19 20:36:13,908 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260925030000_add_rag_conversation_persistence.sql
+2026-10-19 20:36:13,918 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260925030000_add_rag_conversation_persistence.sql
+2026-10-19 20:36:13,918 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260928000000_fix_service_actor_tenant_context.sql
+2026-10-19 20:36:13,919 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260928000000_fix_service_actor_tenant_context.sql
+2026-10-19 20:36:13,919 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260928010000_add_global_search_scope_and_geo_gates.sql
+2026-10-19 20:36:13,920 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260928010000_add_global_search_scope_and_geo_gates.sql
+2026-10-19 20:36:13,920 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260930000000_add_company_target_markets.sql
+2026-10-19 20:36:13,925 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260930000000_add_company_target_markets.sql
+2026-10-19 20:36:13,925 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20260930010000_add_target_market_type.sql
+2026-10-19 20:36:13,930 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20260930010000_add_target_market_type.sql
+2026-10-19 20:36:13,930 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261005000000_fix_email_format_allow_plus_addressing.sql
+2026-10-19 20:36:13,932 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261005000000_fix_email_format_allow_plus_addressing.sql
+2026-10-19 20:36:13,932 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261006000000_add_ingestion_job_file_name.sql
+2026-10-19 20:36:13,933 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261006000000_add_ingestion_job_file_name.sql
+2026-10-19 20:36:13,933 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261006010000_fractional_quantities.sql
+2026-10-19 20:36:13,950 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261006010000_fractional_quantities.sql
+2026-10-19 20:36:13,950 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261006020000_exact_paid_line_totals.sql
+2026-10-19 20:36:13,952 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261006020000_exact_paid_line_totals.sql
+2026-10-19 20:36:13,952 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261007000000_add_usage_plans.sql
+2026-10-19 20:36:13,966 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261007000000_add_usage_plans.sql
+2026-10-19 20:36:13,966 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261008000000_add_localized_text.sql
+2026-10-19 20:36:13,968 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261008000000_add_localized_text.sql
+2026-10-19 20:36:13,968 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261008010000_add_competition_level.sql
+2026-10-19 20:36:13,969 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261008010000_add_competition_level.sql
+2026-10-19 20:36:13,969 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261008020000_revise_plan_allowances.sql
+2026-10-19 20:36:13,971 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261008020000_revise_plan_allowances.sql
+2026-10-19 20:36:13,971 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261009000000_add_billing.sql
+2026-10-19 20:36:13,999 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261009000000_add_billing.sql
+2026-10-19 20:36:13,999 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261009010000_add_market_discovery.sql
+2026-10-19 20:36:14,015 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261009010000_add_market_discovery.sql
+2026-10-19 20:36:14,016 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261009020000_add_notification_reads.sql
+2026-10-19 20:36:14,019 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261009020000_add_notification_reads.sql
+2026-10-19 20:36:14,019 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261010000000_add_notification_digests.sql
+2026-10-19 20:36:14,022 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261010000000_add_notification_digests.sql
+2026-10-19 20:36:14,022 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261011000000_add_auth_email_verified_lookup.sql
+2026-10-19 20:36:14,023 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261011000000_add_auth_email_verified_lookup.sql
+2026-10-19 20:36:14,023 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261011000100_add_auth_join_tenant.sql
+2026-10-19 20:36:14,024 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261011000100_add_auth_join_tenant.sql
+2026-10-19 20:36:14,024 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261012000000_align_plans_with_catalog.sql
+2026-10-19 20:36:14,034 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261012000000_align_plans_with_catalog.sql
+2026-10-19 20:36:14,034 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261013000000_agreed_plan_limits.sql
+2026-10-19 20:36:14,036 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261013000000_agreed_plan_limits.sql
+2026-10-19 20:36:14,036 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261013000100_add_tenant_storage_objects.sql
+2026-10-19 20:36:14,042 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261013000100_add_tenant_storage_objects.sql
+2026-10-19 20:36:14,042 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261014000000_widen_competitor_source_names.sql
+2026-10-19 20:36:14,043 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261014000000_widen_competitor_source_names.sql
+2026-10-19 20:36:14,043 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261014000100_add_competitor_intel_and_market_news.sql
+2026-10-19 20:36:14,053 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261014000100_add_competitor_intel_and_market_news.sql
+2026-10-19 20:36:14,053 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261014000200_add_market_summaries.sql
+2026-10-19 20:36:14,057 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261014000200_add_market_summaries.sql
+2026-10-19 20:36:14,057 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261014000300_campaign_image_prompt_edits_and_request_key.sql
+2026-10-19 20:36:14,059 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261014000300_campaign_image_prompt_edits_and_request_key.sql
+2026-10-19 20:36:14,059 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261014000400_allow_overture_competitor_source.sql
+2026-10-19 20:36:14,060 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261014000400_allow_overture_competitor_source.sql
+2026-10-19 20:36:14,060 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261014000500_competitor_relationship_and_run_coverage.sql
+2026-10-19 20:36:14,063 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261014000500_competitor_relationship_and_run_coverage.sql
+2026-10-19 20:36:14,063 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261016000000_add_competitor_category_and_confidence.sql
+2026-10-19 20:36:14,067 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261016000000_add_competitor_category_and_confidence.sql
+2026-10-19 20:36:14,067 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261016000000_add_rag_advisor_evidence.sql
+2026-10-19 20:36:14,071 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261016000000_add_rag_advisor_evidence.sql
+2026-10-19 20:36:14,071 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261017000000_add_competitor_tracking_decision.sql
+2026-10-19 20:36:14,073 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261017000000_add_competitor_tracking_decision.sql
+2026-10-19 20:36:14,073 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261018000000_add_competitor_enrichment.sql
+2026-10-19 20:36:14,078 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261018000000_add_competitor_enrichment.sql
+2026-10-19 20:36:14,078 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261018010000_add_enrichment_sweep_function.sql
+2026-10-19 20:36:14,080 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261018010000_add_enrichment_sweep_function.sql
+2026-10-19 20:36:14,080 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261018020000_add_market_price_observations.sql
+2026-10-19 20:36:14,088 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261018020000_add_market_price_observations.sql
+2026-10-19 20:36:14,088 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261019000000_add_competitor_news_and_comment_facets.sql
+2026-10-19 20:36:14,089 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261019000000_add_competitor_news_and_comment_facets.sql
+2026-10-19 20:36:14,089 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261019010000_add_comment_retention.sql
+2026-10-19 20:36:14,090 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261019010000_add_comment_retention.sql
+2026-10-19 20:36:14,090 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261020000000_keel_subscriptions_and_credits.sql
+2026-10-19 20:36:14,131 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261020000000_keel_subscriptions_and_credits.sql
+2026-10-19 20:36:14,131 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261021000000_pro_plan_limits_500_products_50_seats.sql
+2026-10-19 20:36:14,132 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261021000000_pro_plan_limits_500_products_50_seats.sql
+2026-10-19 20:36:14,132 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261022000000_free_image_provider_cost_rows.sql
+2026-10-19 20:36:14,134 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261022000000_free_image_provider_cost_rows.sql
+2026-10-19 20:36:14,134 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261023000000_add_competitor_intel_review.sql
+2026-10-19 20:36:14,138 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261023000000_add_competitor_intel_review.sql
+2026-10-19 20:36:14,138 [INFO] CEOPRO_MIGRATION_RUNNER: Applying migration: 20261024000000_report_request_identity.sql
+2026-10-19 20:36:14,141 [INFO] CEOPRO_MIGRATION_RUNNER: Applied: 20261024000000_report_request_identity.sql
+2026-10-19 20:36:14,141 [WARNING] CEOPRO_MIGRATION_RUNNER: APP_DB_PASSWORD not set - skipping ceopro_app password sync.
+2026-10-19 20:36:14,141 [INFO] CEOPRO_MIGRATION_RUNNER: Migration run complete. Applied 78 new migration(s).
+2026-10-19 20:36:14,142 [INFO] CEOPRO_MIGRATION_RUNNER: Base schema already present (table 'companies' exists) - skipping Final_schema.sql.
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260807225947_add_campaigns_table.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260807230553_add_market_intelligence_tables.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260808040000_add_extraction_status.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827000000_restore_shared_evidence_architecture.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827000100_add_rag_embedding_column.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827000200_add_app_role.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827010000_restore_review_subject_types.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827020000_add_competitor_country_code.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827030000_add_competitor_prices_policy_columns.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827040000_add_recommendation_outcomes_evidence_link.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827050000_add_currency_rates_source.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260827060000_fix_get_current_tenant_recursion.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260829010000_add_collection_policy_engine.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260829020000_add_market_collection_intelligence.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260829030000_harden_market_collection_production.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260830000000_add_transactions_and_model_versions.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260830020000_add_field_level_ingestion_tracking.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260831000000_add_rag_document_status_column.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260906000000_add_competitor_classification_columns.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260906010000_add_engagement_metrics_columns.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260907000000_add_competitor_domain_dedup_key.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260907010000_add_search_cache_and_competitor_tier.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260907020000_add_search_quota_usage.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260911000000_add_geo_proximity_and_competitor_scope.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260911010000_add_rag_documents_bucket_path_unique_index.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260911020000_add_rag_documents_content_hash.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260912000000_add_connector_discovery_function.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260913000000_add_reply_threading_to_reviews.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260913010000_add_video_metadata_columns.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260915000000_add_scraping_cost_ledger.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260915020000_add_auth_lookup_functions.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260919000000_add_auth_completeness.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260919010000_add_user_notification_preferences.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260920000000_fix_products_soft_delete_rls.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260925000000_add_marketing_campaign_content.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260925010000_add_marketing_image_generation.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260925020000_add_marketing_background_removal.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260925030000_add_rag_conversation_persistence.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260928000000_fix_service_actor_tenant_context.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260928010000_add_global_search_scope_and_geo_gates.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260930000000_add_company_target_markets.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20260930010000_add_target_market_type.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261005000000_fix_email_format_allow_plus_addressing.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261006000000_add_ingestion_job_file_name.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261006010000_fractional_quantities.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261006020000_exact_paid_line_totals.sql
+2026-10-19 20:36:14,144 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261007000000_add_usage_plans.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261008000000_add_localized_text.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261008010000_add_competition_level.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261008020000_revise_plan_allowances.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261009000000_add_billing.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261009010000_add_market_discovery.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261009020000_add_notification_reads.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261010000000_add_notification_digests.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261011000000_add_auth_email_verified_lookup.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261011000100_add_auth_join_tenant.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261012000000_align_plans_with_catalog.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261013000000_agreed_plan_limits.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261013000100_add_tenant_storage_objects.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261014000000_widen_competitor_source_names.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261014000100_add_competitor_intel_and_market_news.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261014000200_add_market_summaries.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261014000300_campaign_image_prompt_edits_and_request_key.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261014000400_allow_overture_competitor_source.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261014000500_competitor_relationship_and_run_coverage.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261016000000_add_competitor_category_and_confidence.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261016000000_add_rag_advisor_evidence.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261017000000_add_competitor_tracking_decision.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261018000000_add_competitor_enrichment.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261018010000_add_enrichment_sweep_function.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261018020000_add_market_price_observations.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261019000000_add_competitor_news_and_comment_facets.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261019010000_add_comment_retention.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261020000000_keel_subscriptions_and_credits.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261021000000_pro_plan_limits_500_products_50_seats.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261022000000_free_image_provider_cost_rows.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261023000000_add_competitor_intel_review.sql
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Skipping already-applied migration: 20261024000000_report_request_identity.sql
+2026-10-19 20:36:14,145 [WARNING] CEOPRO_MIGRATION_RUNNER: APP_DB_PASSWORD not set - skipping ceopro_app password sync.
+2026-10-19 20:36:14,145 [INFO] CEOPRO_MIGRATION_RUNNER: Migration run complete. Applied 0 new migration(s).
+Migration runner: fresh=78, repeat=0
+........................................s..s............................ [ 48%]
+.................s................s.ss...........s.s.................... [ 96%]
+..ss..                                                                   [100%]
+=============================== warnings summary ===============================
+../../../../billing-test-deps/fastapi/testclient.py:1
+  /workspace/scratch/90c9d609e82f/billing-test-deps/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/billing/test_database.py:385: Native PostgreSQL multi-session concurrency required; PGlite multiplexing is not equivalent
+SKIPPED [1] tests/billing/test_database.py:464: PGlite socket authentication is not a native PostgreSQL password-authentication test
+SKIPPED [1] tests/entitlements/test_database.py:301: PGlite multiplexes a single backend; native PostgreSQL concurrency required
+SKIPPED [3] tests/integration_review/test_http_database.py:49: This mutation opens two DB connections; native PostgreSQL required
+SKIPPED [1] tests/integration_review/test_http_database.py:226: HTTP plan changes hold two DB connections; native PostgreSQL required
+SKIPPED [1] tests/integration_review/test_http_database.py:267: HTTP plan changes hold two DB connections; native PostgreSQL required
+SKIPPED [2] tests/remediation/test_native_concurrency.py:18: Requires native PostgreSQL independent sessions and concurrent HTTP requests
+140 passed, 10 skipped, 1 warning in 2.63s

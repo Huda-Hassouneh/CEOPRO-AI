@@ -1,0 +1,16 @@
+> Phase 0R: read [SOURCE_TRACE_CORRECTIONS.md](SOURCE_TRACE_CORRECTIONS.md) and [PHASE0R_README.md](PHASE0R_README.md) before relying on original source-inference wording. Native/runtime gates remain pending.
+
+# Trace confidence and unresolved work
+
+This file prevents source search results from becoming unsupported parity claims.
+
+1. `CAPABILITY_TRACEABILITY.csv` is an atomic requirement/architecture matrix, not 125 completed implementations. Exact selected functions appear when resolved; a domain-source fallback is explicitly labeled. `CAPABILITY_SYMBOL_REFERENCES.csv` expands domain helper dependencies; it is not proof every listed helper participates in every scenario.
+2. `FUNCTION_CALL_INDEX.csv` records Python AST call expressions, including nested calls and decorators. Node symbols are lexical and can include constants; no TypeScript compiler call-graph proof was run. A named exported function and an imported alias can differ. Object property calls, callbacks, dynamic imports and SQL-created runtime helpers require branch inspection/test coverage.
+3. `IMPORT_GRAPH.csv` preserves static local imports and unresolved/external terminals. `REACHABILITY.csv` is best-effort static entrypoint reachability, not a declaration that unreached code is dead. The active singular Node `.route.ts` files must not be replaced by similarly named legacy `.routes.ts` files. The old Stripe External Services subtree has an actual app.ts import for cancellation; it cannot all be dismissed as dead.
+4. `ROUTE_CANDIDATES.csv` includes frontend HTTP calls and API declarations; counts are not distinct active server endpoints. `ACTIVE_PYTHON_ROUTES.csv` and `ROUTE_MOUNT_MAP.md` distinguish actual router mounts. Dynamic Node handler wrappers and platform controller internals remain source review obligations before each implementation slice.
+5. `SQL_OBJECT_LINEAGE.csv` contains ordered DDL/grants/policies, including dynamic SQL. Regex capture of a table or commented SQL is not confirmation of effective database policy. Final_schema.sql plus append-only migrations must be rehearsed on a populated native PG17 copy and queried via pg_catalog/pg_policies under restricted runtime credentials. No such database proof is claimed.
+6. Existing Python/Node tests in the matrix are regression candidates; matching filenames are not evidence that every atomic edge case is already asserted. `ACCEPTANCE_TEST_SPEC.csv` is the mandatory future test checklist. Every AT ID is currently NOT RUN as an implementation acceptance test.
+7. Provider security here is derived from supplied source. API versions, scope availability, legal retention and external provider behavior were not freshly researched or live-certified. Live Stripe/Shopify/Woo tests need authorized test resources; do not treat fixture tests as provider certification.
+8. No fresh remote post-Task-6 HEAD was available. This limits architecture approval to this exact content snapshot; a materially different commit requires a trace delta and revised ledger.
+
+These gaps block a strict declaration that exhaustive Phase 0 completion gates passed. They do not justify changing production code during this phase. The next task resolves the clean baseline/native verification prerequisite; affected architecture/behavior branches remain subject to owner approval.
