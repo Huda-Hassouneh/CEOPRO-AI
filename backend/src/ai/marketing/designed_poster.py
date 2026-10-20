@@ -170,7 +170,9 @@ def _font(size: int):
     for path in _FONTS:
         if path and os.path.isfile(path):
             try:
-                return ImageFont.truetype(path, size)
+                # BASIC layout: _shape() already reshapes + reorders RTL text, and a Pillow built
+                # with Raqm (the Docker image) would reorder it a second time, reversing the words.
+                return ImageFont.truetype(path, size, layout_engine=ImageFont.Layout.BASIC)
             except OSError:
                 continue
     return ImageFont.load_default(size)
@@ -178,7 +180,7 @@ def _font(size: int):
 
 def _shape(text: str) -> str:
     if text and _ARABIC.search(text) and arabic_reshaper and get_display:
-        return get_display(arabic_reshaper.reshape(text))
+        return get_display(arabic_reshaper.reshape(text), base_dir="R")
     return text
 
 
