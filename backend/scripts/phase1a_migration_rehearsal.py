@@ -15,12 +15,12 @@ import psycopg2
 from scripts import apply_migrations as runner
 from scripts.billing_verification import is_test_database_name, validate_test_environment
 
-MIGRATION='20261025000100_integration_principal_permissions.sql'
+MIGRATIONS=['20261025000100_integration_principal_permissions.sql','20261025000200_auth_platform_stabilization.sql']
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--mode',choices=['fresh','populated'],required=True)
+    parser.add_argument('--mode',choices=['fresh','populated','phase1a'],required=True)
     parser.add_argument('--output',required=True)
     args=parser.parse_args()
     url=validate_test_environment(dict(os.environ),database=True)
@@ -36,11 +36,12 @@ def main():
             cur.execute("SELECT to_regclass('public.companies')");assert cur.fetchone()[0]is None,'Refuse nonempty fixture database'
         conn.commit()
         previous=runner.MIGRATIONS_DIR
-        if args.mode=='populated':
+        if args.mode in ['populated','phase1a']:
             with tempfile.TemporaryDirectory(prefix='keel-pre-phase1a-')as temp:
                 historical=Path(temp)
                 for source in previous.glob('*.sql'):
-                    if source.name!=MIGRATION:shutil.copyfile(source,historical/source.name)
+                    excluded=MIGRATIONS if args.mode=='populated' else MIGRATIONS[1:]
+                    if source.name not in excluded:shutil.copyfile(source,historical/source.name)
                 runner.MIGRATIONS_DIR=historical
                 try:baseline=runner.run(conn)
                 finally:runner.MIGRATIONS_DIR=previous
@@ -50,18 +51,20 @@ def main():
                 cur.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency)VALUES(%s,'Historical company','JO','JOD')",(tid,))
                 cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key)VALUES(%s,%s,'owner')",(tid,uid))
                 cur.execute("INSERT INTO metered_request_keys(tenant_id,feature_code,idempotency_key,period_start,actor_user_id,request_fingerprint)VALUES(%s,'monthly_reports','historical-key',CURRENT_DATE,%s,%s)RETURNING request_id",(tid,uid,'0'*64));receipt=str(cur.fetchone()[0])
-                for age,code in [(2,'1'*64),(1,'2'*64)]:
+                tokens=[(2,'1'*64),(1,'2'*64)] if args.mode=='populated' else [(1,'2'*64)]
+                for age,code in tokens:
                     cur.execute("INSERT INTO auth_tokens(token_type,token_hash,user_id,expires_at,created_at)VALUES('EMAIL_VERIFICATION',%s,%s,now()+interval '1 hour',now()-make_interval(mins=>%s))",(code,uid,age))
             conn.commit()
-            applied=runner.run(conn);assert applied==[MIGRATION]
+            applied=runner.run(conn)
+            assert applied==(MIGRATIONS if args.mode=='populated' else MIGRATIONS[1:])
             with conn.cursor()as cur:
                 cur.execute('SELECT password_hash,credential_version FROM users WHERE user_id=%s',(uid,));assert cur.fetchone()==('preserve-existing-hash',0)
                 cur.execute("SELECT request_id::text,request_fingerprint FROM metered_request_keys WHERE tenant_id=%s AND idempotency_key='historical-key'",(tid,));assert cur.fetchone()==(receipt,'0'*64)
-                cur.execute("SELECT token_hash,used_at IS NULL FROM auth_tokens WHERE user_id=%s ORDER BY created_at",(uid,));assert cur.fetchall()==[('1'*64,False),('2'*64,True)]
+                cur.execute("SELECT token_hash,used_at IS NULL FROM auth_tokens WHERE user_id=%s ORDER BY created_at",(uid,));assert cur.fetchall()==([('1'*64,False),('2'*64,True)] if args.mode=='populated' else [('2'*64,True)])
                 cur.execute('SELECT count(*)FROM tenant_users WHERE tenant_id=%s AND user_id=%s AND removed_at IS NULL',(tid,uid));assert cur.fetchone()[0]==1
             conn.commit()
         else:
-            baseline=[];applied=runner.run(conn);assert MIGRATION in applied
+            baseline=[];applied=runner.run(conn);assert all(name in applied for name in MIGRATIONS)
         repeated=runner.run(conn);assert repeated==[]
         catalog={}
         with conn.cursor()as cur:
@@ -73,7 +76,7 @@ def main():
             catalog['policies']=cur.fetchall()
             cur.execute("SELECT p.proname,pg_get_function_identity_arguments(p.oid),pg_get_userbyid(p.proowner),p.prosecdef,p.proconfig,p.proacl::text FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public'AND(p.proname LIKE 'keel_%'OR p.proname LIKE 'auth_%'OR p.proname='get_current_tenant')ORDER BY p.proname")
             catalog['functions']=cur.fetchall()
-        output={'mode':args.mode,'database':database,'server_version_num':version,'baseline_applied':baseline,'phase_applied':applied,'repeat_applied':repeated,'historical_compatibility':'PASS'if args.mode=='populated'else'not applicable','catalog':catalog,'native_runtime_tests':'Run phase1a_verification --database and integration_review --database separately; this is migration/catalog evidence only'}
+        output={'mode':args.mode,'database':database,'server_version_num':version,'baseline_applied':baseline,'phase_applied':applied,'repeat_applied':repeated,'historical_compatibility':'PASS'if args.mode in ['populated','phase1a']else'not applicable','catalog':catalog,'native_runtime_tests':'Run phase1a_verification --database and integration_review --database separately; this is migration/catalog evidence only'}
         Path(args.output).write_text(json.dumps(output,default=str,indent=2)+'\n')
         print(json.dumps({'mode':args.mode,'applied':len(applied),'repeat_applied':len(repeated),'output':args.output}))
     finally:conn.close()

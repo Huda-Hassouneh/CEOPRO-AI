@@ -248,7 +248,10 @@ def test_platform_suspension_fences_team_invitation_and_preserves_report_actor_c
             cur.execute("SELECT removed_at IS NOT NULL,platform_suspended_at IS NOT NULL FROM tenant_users WHERE tenant_user_id=%s",(membership,));assert cur.fetchone()==(True,True)
             cur.execute('SELECT keel_active_principal(%s,%s)',(customer['user_id'],customer['tenant_id']));assert cur.fetchone()[0]is False
     finally:conn.close()
-    assert command(owner,tid,'membership_status',{'id':membership,'active':True,'reason':'native restore'})['active']is True
+    assert command(owner,tid,'membership_restore_scope',{'id':membership})['tenant_id']==customer['tenant_id']
+    assert command(owner,tid,'membership_status',{'id':membership,'active':True,'reason':'missing canonical limit'})['error']=='seat_capacity'
+    assert command(owner,tid,'membership_status',{'id':membership,'active':True,'reason':'full seat','_seat_limit':1})['error']=='seat_capacity'
+    assert command(owner,tid,'membership_status',{'id':membership,'active':True,'reason':'native restore','_seat_limit':2})['active']is True
 
 
 def test_native_http_signup_verification_reuses_python_trial_and_jwt(monkeypatch):
@@ -325,6 +328,65 @@ def test_password_reset_increments_durable_version_without_changing_memberships(
             cur.execute('SELECT auth_credential_version(%s),keel_active_principal(%s,%s)',(customer['user_id'],customer['user_id'],customer['tenant_id']));assert cur.fetchone()==(1,True)
         conn.commit()
     finally:conn.close()
+
+
+def test_inactive_operator_cannot_be_reactivated_by_invitation(platform_owner):
+    from src.ai.core.security import hash_token
+    owner,tid=platform_owner;uid=str(uuid.uuid4());email=f'phase1a-inactive-{uid}@example.test';raw=uuid.uuid4().hex;conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute("INSERT INTO users(user_id,email,password_hash,email_verified_at)VALUES(%s,%s,'fixture-only',now())",(uid,email))
+            cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key)VALUES(%s,%s,'staff')",(tid,uid))
+            cur.execute("INSERT INTO keel_platform_members(user_id,role_key,status)VALUES(%s,'admin','suspended')",(uid,))
+            cur.execute("INSERT INTO keel_platform_invitations(email,token_hash,expires_at,created_by)VALUES(%s,%s,now()+interval '1 hour',%s)",(email,hash_token(raw),owner))
+        conn.commit()
+        assert command(owner,tid,'invite',{'email':email,'token_hash':hash_token('replacement-'+raw),'expires_at':(datetime.now(timezone.utc)+timedelta(hours=1)).isoformat(),'reason':'cannot bypass suspension'})=={'error':'operator_inactive'}
+        with conn.cursor()as cur:
+            cur.execute('SET ROLE ceopro_app');cur.execute('SELECT keel_platform_accept(%s,%s,true)',(hash_token(raw),Json({})));assert cur.fetchone()[0]=={'error':'operator_inactive'}
+        conn.commit()
+        with conn.cursor()as cur:
+            cur.execute('RESET ROLE');cur.execute('SELECT status FROM keel_platform_members WHERE user_id=%s',(uid,));assert cur.fetchone()[0]=='suspended'
+        assert command(owner,tid,'member_update',{'id':uid,'status':'active','reason':'explicit Owner restore'})['status']=='active'
+    finally:conn.close()
+
+
+def test_numeric_code_cannot_be_consumed_after_wall_clock_expiry():
+    from src.ai.routers.auth import _consume_token
+    from fastapi import HTTPException
+    payload=registration();pending('register',payload);created=pending('verify',payload);conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute('SELECT now()');cur.execute('SELECT pg_sleep(0.02)')
+            cur.execute("INSERT INTO auth_tokens(token_type,token_hash,user_id,expires_at)VALUES('PASSWORD_RESET',%s,%s,clock_timestamp()-interval '1 millisecond')RETURNING token_id",(uuid.uuid4().hex.ljust(64,'0'),created['user_id']));token=cur.fetchone()[0]
+        with pytest.raises(HTTPException)as error:_consume_token(conn,token)
+        assert error.value.status_code==400
+        with conn.cursor()as cur:
+            cur.execute('SELECT used_at FROM auth_tokens WHERE token_id=%s',(token,));assert cur.fetchone()[0]is None
+    finally:conn.rollback();conn.close()
+
+
+def test_login_snapshot_does_not_adopt_a_reset_version(monkeypatch):
+    from src.ai.routers import auth
+    from src.ai.core import security,auth_throttle
+    import jwt
+    payload=registration();payload['password_hash']=security.hash_password('OldStrong1!')
+    pending('register',payload);created=pending('verify',payload)
+    monkeypatch.setattr(auth.db,'auth_lookup_connection',runtime_connection)
+    for name in ['ensure_allowed','record_failure','reset']:monkeypatch.setattr(auth_throttle,name,lambda *a:None)
+    real_verify=auth.verify_password
+    def reset_after_password_snapshot(plain,digest):
+        matched=real_verify(plain,digest);conn=connect()
+        try:
+            with conn.cursor()as cur:cur.execute('SELECT auth_reset_password(%s,%s)',(created['user_id'],security.hash_password('NewStrong2!')))
+            conn.commit()
+        finally:conn.close()
+        return matched
+    monkeypatch.setattr(auth,'verify_password',reset_after_password_snapshot)
+    result=auth.login(auth.LoginRequest(email=payload['email'],password='OldStrong1!'))
+    claims=jwt.decode(result['access_token'],security._JWT_SECRET,algorithms=['HS256']);assert claims['cv']==0
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException)as error:security.assert_active_principal(created['tenant_id'],created['user_id'],claims['cv'])
+    assert error.value.status_code==401
 
 
 def test_native_http_password_reset_consumes_only_the_email_bound_code(monkeypatch):

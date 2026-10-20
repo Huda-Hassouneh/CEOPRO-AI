@@ -36,7 +36,7 @@ def test_login_rejects_missing_fields():
 
 def test_login_rejects_unknown_email():
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=None):
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=None):
         response = client.post("/auth/login", json={"email": "nobody@example.com", "password": "x"})
 
     assert response.status_code == 401
@@ -44,9 +44,9 @@ def test_login_rejects_unknown_email():
 
 
 def test_login_rejects_wrong_password():
-    user_row = ("u1", _REAL_HASH, "Jane Doe", "en")
+    user_row = ("u1", _REAL_HASH, "Jane Doe", "en", 0)
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row):
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row):
         response = client.post("/auth/login", json={"email": "jane@example.com", "password": "wrong-password"})
 
     assert response.status_code == 401
@@ -57,12 +57,12 @@ def test_login_never_reveals_whether_the_email_existed():
     """Same message for 'no such account' and 'wrong password' - never
     lets a caller distinguish the two (account enumeration)."""
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=None):
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=None):
         unknown_email = client.post("/auth/login", json={"email": "nobody@example.com", "password": "x"})
 
-    user_row = ("u1", _REAL_HASH, "Jane Doe", "en")
+    user_row = ("u1", _REAL_HASH, "Jane Doe", "en", 0)
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row):
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row):
         wrong_password = client.post("/auth/login", json={"email": "jane@example.com", "password": "wrong"})
 
     assert unknown_email.status_code == wrong_password.status_code == 401
@@ -70,9 +70,9 @@ def test_login_never_reveals_whether_the_email_existed():
 
 
 def test_login_rejects_account_with_no_workspace():
-    user_row = ("u1", _REAL_HASH, "Jane Doe", "en")
+    user_row = ("u1", _REAL_HASH, "Jane Doe", "en", 0)
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row), \
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=[]):
         response = client.post(
             "/auth/login", json={"email": "jane@example.com", "password": "correct horse battery staple"},
@@ -83,10 +83,10 @@ def test_login_rejects_account_with_no_workspace():
 
 
 def test_login_issues_a_real_working_token_for_a_single_workspace_account():
-    user_row = ("u1", _REAL_HASH, "Jane Doe", "en")
+    user_row = ("u1", _REAL_HASH, "Jane Doe", "en", 0)
     memberships = [("t1", "owner", "Jane's Shop")]
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row), \
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=memberships):
         response = client.post(
             "/auth/login", json={"email": "jane@example.com", "password": "correct horse battery staple"},
@@ -111,10 +111,10 @@ def test_login_issues_a_real_working_token_for_a_single_workspace_account():
 
 
 def test_login_requires_tenant_id_for_a_multi_workspace_account():
-    user_row = ("u1", _REAL_HASH, "Jane Doe", "en")
+    user_row = ("u1", _REAL_HASH, "Jane Doe", "en", 0)
     memberships = [("t1", "owner", "Jane's Shop"), ("t2", "staff", "Side Hustle Co")]
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row), \
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=memberships):
         response = client.post(
             "/auth/login", json={"email": "jane@example.com", "password": "correct horse battery staple"},
@@ -127,10 +127,10 @@ def test_login_requires_tenant_id_for_a_multi_workspace_account():
 
 
 def test_login_accepts_an_explicit_tenant_id_for_a_multi_workspace_account():
-    user_row = ("u1", _REAL_HASH, "Jane Doe", "en")
+    user_row = ("u1", _REAL_HASH, "Jane Doe", "en", 0)
     memberships = [("t1", "owner", "Jane's Shop"), ("t2", "staff", "Side Hustle Co")]
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row), \
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=memberships):
         response = client.post(
             "/auth/login",
@@ -143,10 +143,10 @@ def test_login_accepts_an_explicit_tenant_id_for_a_multi_workspace_account():
 
 
 def test_login_rejects_a_tenant_id_the_account_does_not_belong_to():
-    user_row = ("u1", _REAL_HASH, "Jane Doe", "en")
+    user_row = ("u1", _REAL_HASH, "Jane Doe", "en", 0)
     memberships = [("t1", "owner", "Jane's Shop")]
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row), \
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=memberships):
         response = client.post(
             "/auth/login",
@@ -161,9 +161,9 @@ def test_login_rejects_a_malformed_legacy_hash_as_wrong_password_not_a_500():
     real bcrypt hash - must fail closed as a login failure, never surface
     a 500 for what is, from the caller's perspective, a login attempt
     that didn't succeed."""
-    user_row = ("u1", "seed_data_placeholder_hash", "Demo User", "en")
+    user_row = ("u1", "seed_data_placeholder_hash", "Demo User", "en", 0)
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row):
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row):
         response = client.post("/auth/login", json={"email": "demo@example.com", "password": "anything"})
 
     assert response.status_code == 401
@@ -175,7 +175,7 @@ def test_login_closes_the_connection_even_on_failure():
     connection is still closed via login()'s own finally, not left open."""
     conn = _fake_conn()
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=conn), \
-         patch("src.ai.routers.auth._fetch_user_by_email", side_effect=RuntimeError("db exploded")):
+         patch("src.ai.routers.auth._fetch_login_identity", side_effect=RuntimeError("db exploded")):
         response = error_client.post("/auth/login", json={"email": "jane@example.com", "password": "x"})
 
     assert response.status_code == 500
@@ -205,6 +205,8 @@ def _token_with(auth_time_offset_hours=0, exp_minutes=60, **extra):
 def _refresh(token, memberships=((_TENANT_ID, "owner", "Shop"),), revoked=False):
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=list(memberships)), \
+         patch("src.ai.routers.auth._email_verified", return_value=True), \
+         patch("src.ai.routers.auth._credential_version", return_value=0), \
          patch("src.ai.core.security.assert_active_principal"), \
          patch("src.ai.core.security.is_token_revoked", return_value=revoked):
         return client.post("/auth/refresh", headers={"Authorization": f"Bearer {token}"})
@@ -257,9 +259,9 @@ def test_tokens_from_before_auth_time_existed_count_from_when_they_were_issued()
 
 
 def test_login_tokens_carry_their_sign_in_time():
-    user_row = ("u1", _REAL_HASH, "Jane Doe", "en")
+    user_row = ("u1", _REAL_HASH, "Jane Doe", "en", 0)
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=user_row), \
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=user_row), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=[("t1", "owner", "Shop")]):
         body = client.post("/auth/login", json={"email": "jane@example.com", "password": "correct horse battery staple"}).json()
     claims = jwt.decode(body["access_token"], _SECRET, algorithms=["HS256"])
