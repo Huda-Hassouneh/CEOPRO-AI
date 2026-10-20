@@ -29,6 +29,7 @@ export function TierPill({ tier, t }) {
 export function PriceLadder({ ladder, onDecide, onSetBand, busy = false }) {
   const { t, locale } = useI18n();
   const [bandInput, setBandInput] = useState('');
+  const bandValid = bandInput !== '' && Number(bandInput) >= 5 && Number(bandInput) <= 300;
   const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
   const money = (amount) => (amount == null ? '—' : new Intl.NumberFormat(locale, { style: 'currency', currency: ladder.currency }).format(amount));
@@ -65,7 +66,7 @@ export function PriceLadder({ ladder, onDecide, onSetBand, busy = false }) {
       ) : <p className="price-ladder__headline apex-muted">{t('pricing.ladder.noneAtAll')}</p>}
 
       {ladder.added_value_guidance ? (
-        <p className="price-ladder__guidance" data-testid="added-value-guidance">
+        <div className="price-ladder__guidance" data-testid="added-value-guidance">
           {t('pricing.ladder.guidance.text', {
             base: money(ladder.added_value_guidance.base_price), low: money(ladder.added_value_guidance.range_low),
             high: money(ladder.added_value_guidance.range_high), band: number.format(ladder.added_value_guidance.band_pct),
@@ -78,19 +79,23 @@ export function PriceLadder({ ladder, onDecide, onSetBand, busy = false }) {
                 : t('pricing.ladder.guidance.default')}
           </span>
           {onSetBand && (
-            <span className="price-ladder__band-editor">
+            <form className="price-ladder__band-editor" onSubmit={(event) => {
+              event.preventDefault();
+              if (!bandValid) return;
+              onSetBand(ladder.category ?? null, Number(bandInput));
+              setBandInput('');
+            }}>
               <label>
                 <span className="apex-muted">{t('pricing.ladder.guidance.setLabel')}</span>{' '}
-                <input type="number" min="5" max="300" step="1" value={bandInput} onChange={(event) => setBandInput(event.target.value)} aria-label={t('pricing.ladder.guidance.setLabel')} />
+                <input type="number" inputMode="decimal" min="5" max="300" step="1" value={bandInput} onChange={(event) => setBandInput(event.target.value)} />
               </label>{' '}
-              <button type="button" className="price-ladder__link" disabled={busy || !bandInput || Number(bandInput) < 5 || Number(bandInput) > 300}
-                onClick={() => { onSetBand(ladder.category ?? null, Number(bandInput)); setBandInput(''); }}>{t('pricing.ladder.guidance.save')}</button>
+              <button type="submit" className="price-ladder__link" disabled={busy || !bandValid}>{t('pricing.ladder.guidance.save')}</button>
               {ladder.added_value_guidance.band_source === 'owner' && (
                 <button type="button" className="price-ladder__link" disabled={busy} onClick={() => onSetBand(ladder.category ?? null, null)}>{t('pricing.ladder.guidance.clear')}</button>
               )}
-            </span>
+            </form>
           )}
-        </p>
+        </div>
       ) : null}
 
       {TIERS.map((tier) => {
@@ -103,7 +108,7 @@ export function PriceLadder({ ladder, onDecide, onSetBand, busy = false }) {
               <span className="price-ladder__count">{number.format(data.count)}</span>
             </header>
             {data.count === 0 ? <p className="price-ladder__empty apex-muted">{t('pricing.ladder.tierEmpty')}</p> : (
-              <div className="apex-table-wrap">
+              <div className="apex-table-wrap" role="region" aria-label={t(`pricing.ladder.tier.${tier}.name`)} tabIndex={0}>
                 <table className="apex-table">
                   <thead><tr>
                     <th>{t('pricing.ladder.competitor')}</th>
