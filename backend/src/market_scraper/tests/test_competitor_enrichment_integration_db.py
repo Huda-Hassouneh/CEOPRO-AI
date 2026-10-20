@@ -553,3 +553,28 @@ def test_the_refresh_stops_for_the_day_when_youtube_rejects_the_key_or_the_quota
         with patch.object(ce, "enrich_competitor", side_effect=run):
             result = ce.enrich_tenant_comments(conn, tenant_id, lambda: True)
         assert len(calls) == 1 and result["stopped"] == label  # no point trying the other two today
+
+
+def test_an_edited_comment_gets_its_new_text_and_loses_the_stale_sentiment(conn):
+    tenant_id = _insert_company(conn)
+    competitor_id = _register(conn, tenant_id)
+    source_id = ce._review_source(conn, tenant_id, str(uuid.uuid4()), "ops-1", name="YouTube comments (official API)", collector_key="youtube_comments", retention_days=30)
+    comment = {"external_id": "e1", "parent_external_id": None, "author": "Sam", "text": "Terrible service and cold food", "likes": 3,
+               "published_at": "2026-10-01T10:00:00Z", "reply_count": 0}
+    ce._save_comments(conn, tenant_id, competitor_id, source_id, "YouTube", [comment])
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT review_id FROM reviews WHERE tenant_id = %s AND external_review_id = 'e1';", (tenant_id,))
+        review_id = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO sentiment_results (tenant_id, review_id, sentiment_score, sentiment_label, model_version) VALUES (%s, %s, -0.9, 'NEGATIVE', 'test');", (tenant_id, review_id))
+    conn.commit()
+    ce._save_comments(conn, tenant_id, competitor_id, source_id, "YouTube", [dict(comment, likes=5)])  # same text: sentiment stays
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM sentiment_results WHERE review_id = %s;", (review_id,))
+        assert cursor.fetchone()[0] == 1
+    ce._save_comments(conn, tenant_id, competitor_id, source_id, "YouTube", [dict(comment, text="Update: service is great now")])
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT review_text FROM reviews WHERE review_id = %s;", (review_id,))
+        assert cursor.fetchone()[0] == "Update: service is great now"
+        cursor.execute("SELECT count(*) FROM sentiment_results WHERE review_id = %s;", (review_id,))
+        assert cursor.fetchone()[0] == 0
+    assert ce._has_unanalysed_reviews(conn, tenant_id, competitor_id)  # so the next run asks for a fresh analysis

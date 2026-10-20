@@ -741,6 +741,11 @@ def _save_comments(conn, tenant_id: str, competitor_id: str, source_id: str, pla
                 continue  # a reply whose comment was not stored cannot be linked
             flags = scan_external_text(comment["text"])
             cursor.execute(
+                "SELECT review_id, review_text FROM reviews WHERE tenant_id = %s AND source_id = %s AND external_review_id = %s;",
+                (tenant_id, source_id, comment["external_id"]),
+            )
+            existing = cursor.fetchone()
+            cursor.execute(
                 """
                 INSERT INTO reviews
                     (tenant_id, product_id, source_platform, reviewer_name, review_text, review_date, subject_type,
@@ -751,7 +756,9 @@ def _save_comments(conn, tenant_id: str, competitor_id: str, source_id: str, pla
                 ON CONFLICT (tenant_id, source_id, external_review_id)
                     WHERE source_id IS NOT NULL AND external_review_id IS NOT NULL
                 DO UPDATE SET like_count = EXCLUDED.like_count, reply_count = EXCLUDED.reply_count,
-                              source_url = COALESCE(reviews.source_url, EXCLUDED.source_url)
+                              source_url = COALESCE(reviews.source_url, EXCLUDED.source_url),
+                              review_text = EXCLUDED.review_text, safety_status = EXCLUDED.safety_status,
+                              safety_flags = EXCLUDED.safety_flags
                 RETURNING review_id, (xmax = 0);
                 """,
                 (
@@ -761,6 +768,9 @@ def _save_comments(conn, tenant_id: str, competitor_id: str, source_id: str, pla
                 ),
             )
             review_id, inserted = cursor.fetchone()
+            if existing and existing[1] != comment["text"]:
+                # edited on YouTube: the stored sentiment described the old wording, so drop it and let the next analysis redo it
+                cursor.execute("DELETE FROM sentiment_results WHERE tenant_id = %s AND review_id = %s;", (tenant_id, review_id))
             ids[comment["external_id"]] = str(review_id)
             new += 1 if inserted else 0
     conn.commit()
