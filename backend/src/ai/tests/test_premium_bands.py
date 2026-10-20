@@ -70,3 +70,16 @@ def test_ladder_lines_never_call_a_similar_or_added_value_item_an_exact_price():
     text = comparisons.describe({"name": "Burger", **ladder})
     assert "a reference, not like for like" in text and "added-value" in text
     assert "exact" not in text.lower().replace("not like for like", "")
+
+
+def test_overview_failure_leaves_the_callers_transaction_alone():
+    from unittest.mock import MagicMock, patch
+
+    conn = MagicMock()
+    with patch.object(comparisons, "overview_lines", side_effect=RuntimeError("boom")):
+        assert comparisons.safe_overview_lines(conn, "t") == []
+    sql = [c.args[0] for c in conn.cursor.return_value.__enter__.return_value.execute.call_args_list]
+    assert sql == ["SAVEPOINT price_ladder_overview;", "ROLLBACK TO SAVEPOINT price_ladder_overview;"]
+    conn.rollback.assert_not_called()
+    with patch.object(comparisons, "overview_lines", return_value=["x"]):
+        assert comparisons.safe_overview_lines(MagicMock(), "t") == ["x"]

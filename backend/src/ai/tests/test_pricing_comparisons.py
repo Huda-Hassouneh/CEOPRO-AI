@@ -224,6 +224,7 @@ def test_premium_bands_need_auth_and_the_set_endpoint_is_owner_or_admin_only():
 
 def test_setting_and_clearing_a_premium_band():
     conn, cursor = _override_conn("owner")
+    cursor.fetchone.side_effect = [("owner",), (0, False)]
     with patch(f"{R}.db.app_role_connection", return_value=conn), patch(f"{R}._bands_payload", return_value=PAYLOAD):
         response = client.put("/pricing/premium-bands", json={"category": " Burgers ", "band_pct": 40}, headers=_auth())
     assert response.status_code == 200 and response.json() == PAYLOAD
@@ -234,6 +235,18 @@ def test_setting_and_clearing_a_premium_band():
         assert client.put("/pricing/premium-bands", json={"category": None, "band_pct": None}, headers=_auth()).status_code == 200
     delete = next(c for c in cursor.execute.call_args_list if "DELETE FROM price_premium_band_overrides" in c.args[0])
     assert delete.args[1][1] == "__none__"
+
+
+def test_the_number_of_owner_set_bands_is_capped():
+    conn = MagicMock()
+    cursor = conn.cursor.return_value.__enter__.return_value
+    cursor.fetchone.side_effect = [("owner",), (200, False)]
+    with patch(f"{R}.db.app_role_connection", return_value=conn):
+        response = client.put("/pricing/premium-bands", json={"category": "one more", "band_pct": 40}, headers=_auth())
+    assert response.status_code == 409
+    cursor.fetchone.side_effect = [("owner",), (200, True)]  # changing one that already exists is fine
+    with patch(f"{R}.db.app_role_connection", return_value=conn), patch(f"{R}._bands_payload", return_value=PAYLOAD):
+        assert client.put("/pricing/premium-bands", json={"category": "burgers", "band_pct": 40}, headers=_auth()).status_code == 200
 
 
 def test_read_premium_bands():
