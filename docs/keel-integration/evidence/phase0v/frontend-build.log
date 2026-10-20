@@ -1,0 +1,10 @@
+COMMAND: ["npm", "run", "build", "--", "--outDir", "/workspace/scratch/327eb0b847b6/analysis/phase0v/frontend-dist", "--emptyOutDir"]
+CWD: /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend
+PROFILE: clean allowlisted environment; no inherited DB/provider secrets; Python TCP fence; metering enabled/unassigned none
+
+> keel-frontend@0.1.0 build
+> vite build --outDir /workspace/scratch/327eb0b847b6/analysis/phase0v/frontend-dist --emptyOutDir
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 2948 modules transformed.

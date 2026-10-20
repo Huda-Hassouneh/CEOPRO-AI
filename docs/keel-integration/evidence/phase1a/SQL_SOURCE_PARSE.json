@@ -1,0 +1,6 @@
+{
+  "sql_statements": 71,
+  "plpgsql_function_bodies": 17,
+  "engine": "pglast PostgreSQL 18 grammar only",
+  "native_pg17": "NOT RUN"
+}

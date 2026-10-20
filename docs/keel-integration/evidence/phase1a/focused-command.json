@@ -1,0 +1,20 @@
+{
+  "check": "focused",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-ra",
+    "-p",
+    "no:cacheprovider",
+    "tests/keel_integration",
+    "--junitxml",
+    "/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/docs/keel-integration/evidence/phase1a/focused.xml"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/backend",
+  "exit_code": 0,
+  "seconds": 5.33,
+  "native_services": "NOT RUN",
+  "profile": "production metering defaults; no inherited service credentials; scratch TCP fence; explicit test doubles"
+}
