@@ -190,17 +190,22 @@ from datetime import datetime, timedelta, timezone  # noqa: E402
 from src.ai.core import security  # noqa: E402
 
 
+_TENANT_ID = "00000000-0000-4000-8000-000000000001"
+_USER_ID = "00000000-0000-4000-8000-000000000002"
+
+
 def _token_with(auth_time_offset_hours=0, exp_minutes=60, **extra):
     now = datetime.now(timezone.utc)
-    claims = {"tenant_id": "t1", "user_id": "u1", "exp": now + timedelta(minutes=exp_minutes), "jti": "old-jti",
+    claims = {"tenant_id": _TENANT_ID, "user_id": _USER_ID, "exp": now + timedelta(minutes=exp_minutes), "jti": "old-jti",
               "auth_time": int((now - timedelta(hours=auth_time_offset_hours)).timestamp())}
     claims.update(extra)
     return jwt.encode(claims, _SECRET, algorithm="HS256")
 
 
-def _refresh(token, memberships=(("t1", "owner", "Shop"),), revoked=False):
+def _refresh(token, memberships=((_TENANT_ID, "owner", "Shop"),), revoked=False):
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=list(memberships)), \
+         patch("src.ai.core.security.assert_active_principal"), \
          patch("src.ai.core.security.is_token_revoked", return_value=revoked):
         return client.post("/auth/refresh", headers={"Authorization": f"Bearer {token}"})
 
@@ -216,7 +221,7 @@ def test_refresh_issues_a_new_token_that_keeps_the_sign_in_time():
     body = response.json()
     new_claims = jwt.decode(body["access_token"], _SECRET, algorithms=["HS256"])
     old_claims = jwt.decode(old, _SECRET, algorithms=["HS256"])
-    assert new_claims["tenant_id"] == "t1" and new_claims["user_id"] == "u1"
+    assert new_claims["tenant_id"] == _TENANT_ID and new_claims["user_id"] == _USER_ID
     assert new_claims["auth_time"] == old_claims["auth_time"]
     assert new_claims["jti"] != "old-jti"
     assert new_claims["exp"] > old_claims["exp"]
@@ -229,7 +234,10 @@ def test_refresh_is_refused_once_the_sign_in_is_too_old():
 
 
 def test_refresh_is_refused_for_someone_removed_from_the_company():
-    response = _refresh(_token_with(), memberships=[("another-tenant", "owner", "Elsewhere")])
+    response = _refresh(
+        _token_with(),
+        memberships=[("00000000-0000-4000-8000-000000000003", "owner", "Elsewhere")],
+    )
     assert response.status_code == 401
 
 
@@ -240,7 +248,7 @@ def test_refresh_is_refused_for_an_expired_or_signed_out_token():
 
 def test_tokens_from_before_auth_time_existed_count_from_when_they_were_issued():
     now = datetime.now(timezone.utc)
-    legacy = jwt.encode({"tenant_id": "t1", "user_id": "u1", "exp": now + timedelta(minutes=30), "jti": "x"},
+    legacy = jwt.encode({"tenant_id": _TENANT_ID, "user_id": _USER_ID, "exp": now + timedelta(minutes=30), "jti": "x"},
                         _SECRET, algorithm="HS256")
     response = _refresh(legacy)
     assert response.status_code == 200

@@ -34,6 +34,13 @@ REQUIRED_TABLES = (
     "billing_trials",
     "tenant_plan_assignments",
 )
+TEST_DATABASE_NAME = re.compile(
+    r"(?:keel_billing_test(?:_[a-z0-9]+)?|KEEL_INTEGRATION_TEST(?:_[A-Z0-9]+)?)"
+)
+
+
+def is_test_database_name(name: str) -> bool:
+    return TEST_DATABASE_NAME.fullmatch(name) is not None
 
 
 class VerificationRefused(ValueError):
@@ -61,7 +68,7 @@ def validate_test_environment(
     if (
         parsed.scheme not in ("postgresql", "postgres")
         or parsed.hostname not in ("127.0.0.1", "localhost", "::1")
-        or not re.fullmatch(r"keel_billing_test(?:_[a-z0-9]+)?", name)
+        or not is_test_database_name(name)
         or not parsed.username
         or not port
         or parsed.query
@@ -69,7 +76,8 @@ def validate_test_environment(
     ):
         raise VerificationRefused(
             "Database tests require an explicit localhost PostgreSQL URL with a port and "
-            "database named keel_billing_test (or keel_billing_test_<suffix>), without URL options. "
+            "database named keel_billing_test (or its lowercase suffix form) or "
+            "KEEL_INTEGRATION_TEST (or its uppercase suffix form), without URL options. "
             "DATABASE_URL is never used as a fallback."
         )
     return raw
@@ -92,7 +100,7 @@ def preflight(environ: dict[str, str]) -> dict:
                     "SELECT current_database(), current_setting('server_version')"
                 )
                 name, version = cur.fetchone()
-                if not re.fullmatch(r"keel_billing_test(?:_[a-z0-9]+)?", name):
+                if not is_test_database_name(name):
                     raise VerificationRefused(
                         "Connected database is not the requested dedicated test database."
                     )
