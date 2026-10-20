@@ -6,7 +6,7 @@ from threading import Barrier
 from datetime import datetime,timedelta,timezone
 import pytest
 from psycopg2.extras import Json
-from scripts.billing_verification import validate_test_environment
+from scripts.billing_verification import is_test_database_name, validate_test_environment
 
 pytestmark=pytest.mark.skipif(os.getenv('BILLING_DATABASE_TESTS')!='1',reason='BLOCKED: isolated native PostgreSQL 17 not enabled')
 
@@ -19,8 +19,14 @@ def connect():
     with conn.cursor()as cur:
         cur.execute("SELECT current_database(),current_setting('server_version_num')::integer")
         database,version=cur.fetchone()
-        assert database.startswith('keel_billing_test')and 170000<=version<180000
+        assert is_test_database_name(database)and 170000<=version<180000
     conn.commit();return conn
+
+
+def runtime_connection():
+    conn=connect()
+    with conn.cursor()as cur:cur.execute('SET ROLE ceopro_app')
+    return conn
 
 
 def pending(action,payload):
@@ -54,6 +60,30 @@ def test_pending_has_no_permanent_identity_and_duplicate_registration_is_immutab
             cur.execute('SELECT password_hash FROM keel_pending_registrations WHERE email=%s',(payload['email'],));assert cur.fetchone()[0]==payload['password_hash']
             cur.execute('SELECT count(*) FROM companies WHERE business_name=%s',(payload['business_name'],));assert cur.fetchone()[0]==0
     finally:conn.close()
+
+
+def test_parallel_registration_creates_one_pending_record_and_conflicts_for_the_rest():
+    payload=registration();barrier=Barrier(8)
+    def register(_):barrier.wait(timeout=10);return pending('register',payload)
+    try:
+        with ThreadPoolExecutor(max_workers=8)as workers:results=list(workers.map(register,range(8)))
+        assert sum(x['status']=='pending'for x in results)==1
+        assert sum(x['status']=='conflict'for x in results)==7
+        conn=connect()
+        try:
+            with conn.cursor()as cur:
+                cur.execute('SELECT count(*)FROM keel_pending_registrations WHERE email=%s',(payload['email'],))
+                assert cur.fetchone()[0]==1
+                cur.execute('SELECT count(*)FROM users WHERE email=%s',(payload['email'],))
+                assert cur.fetchone()[0]==0
+        finally:conn.close()
+    finally:
+        conn=connect()
+        try:
+            with conn.cursor()as cur:
+                cur.execute('DELETE FROM keel_pending_registrations WHERE email=%s',(payload['email'],))
+            conn.commit()
+        finally:conn.close()
 
 
 def test_parallel_verification_commits_exactly_one_user_company_membership():
@@ -227,6 +257,8 @@ def test_native_http_signup_verification_reuses_python_trial_and_jwt(monkeypatch
     from src.ai.routers import auth
     from src.ai.core import auth_throttle,notifications,security
     captured=[]
+    monkeypatch.setattr(auth.db,'auth_lookup_connection',runtime_connection)
+    monkeypatch.setattr(auth.db,'system_connection',connect)
     monkeypatch.setattr(auth_throttle,'ensure_allowed',lambda *a:None)
     monkeypatch.setattr(auth_throttle,'record_failure',lambda *a:False)
     monkeypatch.setattr(auth_throttle,'reset',lambda *a:None)
@@ -246,7 +278,7 @@ def test_native_http_signup_verification_reuses_python_trial_and_jwt(monkeypatch
     conn=connect()
     try:
         with conn.cursor()as cur:
-            cur.execute('SELECT count(*)FROM billing_trials WHERE tenant_id=%s',(claims['tenant_id'],));assert cur.fetchone()[0]<=1
+            cur.execute('SELECT count(*)FROM billing_trials WHERE tenant_id=%s',(claims['tenant_id'],));assert cur.fetchone()[0]==1
     finally:conn.close()
 
 
@@ -292,4 +324,121 @@ def test_password_reset_increments_durable_version_without_changing_memberships(
             cur.execute('SELECT auth_reset_password(%s,%s)',(customer['user_id'],'new-fixture-hash'))
             cur.execute('SELECT auth_credential_version(%s),keel_active_principal(%s,%s)',(customer['user_id'],customer['user_id'],customer['tenant_id']));assert cur.fetchone()==(1,True)
         conn.commit()
+    finally:conn.close()
+
+
+def test_native_http_password_reset_consumes_only_the_email_bound_code(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from src.ai.core import auth_throttle, security
+    from src.ai.routers import auth
+    monkeypatch.setattr(auth.db,'auth_lookup_connection',runtime_connection)
+    monkeypatch.setattr(auth_throttle,'ensure_allowed',lambda *a:None)
+    monkeypatch.setattr(auth_throttle,'record_failure',lambda *a:False)
+    monkeypatch.setattr(auth_throttle,'reset',lambda *a:None)
+    target,other=registration(),registration()
+    pending('register',target);target_user=pending('verify',target)
+    pending('register',other);other_user=pending('verify',other)
+    target_code=f'{int(uuid.uuid4().hex[:8],16)%1_000_000:06d}'
+    other_code=f'{(int(target_code)+1)%1_000_000:06d}'
+    conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute("INSERT INTO auth_tokens(token_type,token_hash,user_id,expires_at)VALUES('PASSWORD_RESET',%s,%s,now()+interval '10 minutes')",
+                        (security.hash_token(target_code),target_user['user_id']))
+            cur.execute("INSERT INTO auth_tokens(token_type,token_hash,user_id,expires_at)VALUES('PASSWORD_RESET',%s,%s,now()+interval '10 minutes')",
+                        (security.hash_token(other_code),other_user['user_id']))
+        conn.commit()
+    finally:conn.close()
+    app=FastAPI();app.include_router(auth.router)
+    with TestClient(app)as client:
+        wrong=client.post('/auth/password/reset',json={'email':target['email'],'code':other_code,'new_password':'UpdatedPass1!'})
+        assert wrong.status_code==400
+        accepted=client.post('/auth/password/reset',json={'email':target['email'],'code':target_code,'new_password':'UpdatedPass1!'})
+        assert accepted.status_code==200 and accepted.json()=={'ok':True}
+        replay=client.post('/auth/password/reset',json={'email':target['email'],'code':target_code,'new_password':'AnotherPass2!'})
+        assert replay.status_code==400
+    conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute('SELECT auth_credential_version(%s),email_verified_at IS NOT NULL FROM users WHERE user_id=%s',
+                        (target_user['user_id'],target_user['user_id']))
+            assert cur.fetchone()==(1,True)
+            cur.execute('SELECT count(*)FROM tenant_users WHERE user_id=%s AND removed_at IS NULL',(target_user['user_id'],))
+            assert cur.fetchone()[0]==1
+            cur.execute('SELECT password_hash FROM users WHERE user_id=%s',(target_user['user_id'],))
+            assert security.verify_password('UpdatedPass1!',cur.fetchone()[0])
+            cur.execute('SELECT password_hash FROM users WHERE user_id=%s',(other_user['user_id'],))
+            assert cur.fetchone()[0]==other['password_hash']
+            cur.execute('SELECT used_at IS NOT NULL FROM auth_tokens WHERE user_id=%s AND token_hash=%s',
+                        (target_user['user_id'],security.hash_token(target_code)))
+            assert cur.fetchone()[0]is True
+            cur.execute('SELECT used_at IS NULL FROM auth_tokens WHERE user_id=%s AND token_hash=%s',
+                        (other_user['user_id'],security.hash_token(other_code)))
+            assert cur.fetchone()[0]is True
+    finally:conn.close()
+
+
+def test_native_http_customer_invitation_reuses_and_creates_identities(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from src.ai.core import auth_throttle, security
+    from src.ai.routers import auth
+    monkeypatch.setattr(auth.db,'auth_lookup_connection',runtime_connection)
+    monkeypatch.setattr(auth.db,'system_connection',connect)
+    monkeypatch.setattr(auth_throttle,'ensure_allowed',lambda *a:None)
+    monkeypatch.setattr(auth_throttle,'record_failure',lambda *a:False)
+    monkeypatch.setattr(auth_throttle,'reset',lambda *a:None)
+    owner_payload,existing_payload=registration(),registration()
+    pending('register',owner_payload);owner=pending('verify',owner_payload)
+    pending('register',existing_payload);existing=pending('verify',existing_payload)
+    auth._start_free_trial(owner['tenant_id'],owner['user_id'])
+    invitations=[]
+    conn=connect()
+    try:
+        with conn.cursor()as cur:
+            for email in (existing_payload['email'],f'phase1a-invite-{uuid.uuid4().hex}@example.test'):
+                raw=uuid.uuid4().hex
+                cur.execute("INSERT INTO auth_tokens(token_type,token_hash,email,tenant_id,role_key,expires_at) "
+                            "VALUES('TEAM_INVITATION',%s,%s,%s,'staff',now()+interval '1 hour')",
+                            (security.hash_token(raw),email,owner['tenant_id']))
+                invitations.append((raw,email))
+        conn.commit()
+    finally:conn.close()
+    app=FastAPI();app.include_router(auth.router)
+    raw_existing,existing_email=invitations[0]
+    raw_new,new_email=invitations[1]
+    with TestClient(app)as client:
+        reused=client.post(f'/auth/invitations/{raw_existing}/accept',json={})
+        assert reused.status_code==200
+        assert reused.json()['user_id']==existing['user_id']
+        assert reused.json()['role_key']=='staff'
+        missing=client.post(f'/auth/invitations/{raw_new}/accept',json={})
+        assert missing.status_code==422
+        created=client.post(f'/auth/invitations/{raw_new}/accept',
+                            json={'full_name':'Native Invitee','password':'StrongPass1!'})
+        assert created.status_code==200
+        assert created.json()['email']==new_email
+        assert created.json()['full_name']=='Native Invitee'
+        assert created.json()['role_key']=='staff'
+        replay=client.post(f'/auth/invitations/{raw_new}/accept',
+                           json={'full_name':'Native Invitee','password':'StrongPass1!'})
+        assert replay.status_code==404
+    conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute('SELECT count(*)FROM tenant_users WHERE tenant_id=%s AND user_id=%s AND role_key=%s AND removed_at IS NULL',
+                        (owner['tenant_id'],existing['user_id'],'staff'))
+            assert cur.fetchone()[0]==1
+            cur.execute('SELECT user_id FROM users WHERE email=%s',(new_email,))
+            created_user=cur.fetchone()[0]
+            cur.execute('SELECT count(*)FROM tenant_users WHERE tenant_id=%s AND user_id=%s AND role_key=%s AND removed_at IS NULL',
+                        (owner['tenant_id'],created_user,'staff'))
+            assert cur.fetchone()[0]==1
+            cur.execute('SELECT used_at IS NOT NULL FROM auth_tokens WHERE token_hash=%s',
+                        (security.hash_token(raw_existing),))
+            assert cur.fetchone()[0]is True
+            cur.execute('SELECT used_at IS NOT NULL FROM auth_tokens WHERE token_hash=%s',
+                        (security.hash_token(raw_new),))
+            assert cur.fetchone()[0]is True
     finally:conn.close()
