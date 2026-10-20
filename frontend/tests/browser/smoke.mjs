@@ -85,10 +85,16 @@ if (product) {
     await page.goto(`${BASE}/pricing`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
     await page.getByRole('button', { name: messages.list.getRecommendation }).first().click({ timeout: 10000 }).catch((e) => problems.push(`recommendation button: ${String(e).slice(0, 120)}`));
-    const dialogText = await page.locator('[role="dialog"]').first().innerText({ timeout: 10000 }).catch(() => '');
     const compact = (text) => text.replace(/\s+/g, ' ');
     const expected = compact(testCase[2]);
-    const issues = [...problems, ...(compact(dialogText).includes(expected) ? [] : [`dialog does not show "${expected}"`])];
+    const dialog = page.locator('[role="dialog"]').first();
+    // The dialog opens on a skeleton and fills in when the (stubbed) answer arrives.
+    await page.waitForFunction(([text]) => {
+      const el = document.querySelector('[role="dialog"]');
+      return Boolean(el) && el.innerText.replace(/\s+/g, ' ').includes(text);
+    }, [expected], { timeout: 10000 }).catch(() => {});
+    const dialogText = await dialog.innerText({ timeout: 3000 }).catch(() => '');
+    const issues = [...problems, ...(compact(dialogText).includes(expected) ? [] : [`dialog does not show "${expected}"; it shows "${compact(dialogText).slice(0, 200)}"`])];
     dialogFailures += issues.length ? 1 : 0;
     console.log(`${issues.length ? '✗' : '✓'} price recommendation dialog: ${testCase[0]}${issues.map((i) => `\n    ${i}`).join('')}`);
   }
