@@ -90,7 +90,7 @@ export function PricingPage() {
       <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('pricing.list.searchPlaceholder')} leftIcon={<Search size={17} />} aria-label={t('pricing.list.searchPlaceholder')} />
     </div>
     <Button size="sm" variant="outline" onClick={refreshComparisons} loading={refresh.isPending} loadingLabel={t('pricing.ladder.refreshing')}><RefreshCw size={14} aria-hidden="true" /> {t('pricing.ladder.refresh')}</Button>
-    <Link to={routePaths.pricingReport}>{t('pricing.report.open')}</Link>
+    <Link className="pricing-link" to={routePaths.pricingReport}>{t('pricing.report.open')}</Link>
     </div>
 
     {query.isSuccess && filtered.length > 0 && comparisons.isSuccess && (
