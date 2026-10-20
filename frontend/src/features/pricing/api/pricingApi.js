@@ -32,4 +32,11 @@ export const pricingApi = {
 
   // Recomputes the ladder from the competitor items already stored (no crawl, no credits).
   refreshComparisons: async () => (await httpClient.post('/pricing/comparisons/refresh')).data,
+
+  // Added-value premium bands per category; setPremiumBand is owner/admin only (bandPct null clears the owner's setting).
+  premiumBands: async () => (await httpClient.get('/pricing/premium-bands')).data,
+  setPremiumBand: async ({ category, bandPct }) => (await httpClient.put('/pricing/premium-bands', { category: category ?? null, band_pct: bandPct ?? null })).data,
+
+  // GET /reports/price-comparison: every product with competitor evidence and its ladder.
+  comparisonReport: async (limit = 50) => (await httpClient.get('/reports/price-comparison', { params: { limit } })).data,
 };

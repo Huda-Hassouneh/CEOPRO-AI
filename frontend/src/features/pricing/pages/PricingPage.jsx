@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { GitCompareArrows, RefreshCw, Search, Tag } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { DashboardLayout } from '../../../app/layouts/DashboardLayout.jsx';
@@ -10,6 +11,7 @@ import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 import { Pager, Pill } from '../../../shared/components/apex/Apex.jsx';
 import Toast from '../../../shared/components/ui/Toast.jsx';
+import { routePaths } from '../../../app/router/routePaths.js';
 import { useDebounce } from '../../../shared/hooks/useDebounce.js';
 import { productsApi } from '../../products/api/productsApi.js';
 import { PriceRecommendationModal } from '../components/PriceRecommendationModal.jsx';
@@ -88,6 +90,7 @@ export function PricingPage() {
       <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('pricing.list.searchPlaceholder')} leftIcon={<Search size={17} />} aria-label={t('pricing.list.searchPlaceholder')} />
     </div>
     <Button size="sm" variant="outline" onClick={refreshComparisons} loading={refresh.isPending} loadingLabel={t('pricing.ladder.refreshing')}><RefreshCw size={14} aria-hidden="true" /> {t('pricing.ladder.refresh')}</Button>
+    <Link to={routePaths.pricingReport}>{t('pricing.report.open')}</Link>
     </div>
 
     {query.isSuccess && filtered.length > 0 && comparisons.isSuccess && (
