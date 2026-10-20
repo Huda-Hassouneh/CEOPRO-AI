@@ -1,6 +1,43 @@
 # Phase 1A verification runbook
 
-Current result: native database and Redis verification passed on 2026-10-20 using isolated disposable services. The legacy authentication unit suites now pass (42 passed), the approved auth-contract suite passes (34 passed), and the native Phase 1A PostgreSQL suite passes (18 passed). These results do not establish production readiness. SMTP delivery, browser journeys, settings/team suites, Python 3.11, and persistent-storage database outage recovery remain unverified.
+## Current local stabilization overlay
+
+The integration branch `integration/keel-task6-phase1a` now contains a local, uncommitted stabilization overlay on top of the preserved six commits. The original candidate digest `d7cebce04a816b21d9e0c139610edad08358f1352e88ab07450cdccafb82eca3` remains historical evidence; the separately recorded merged-source digest is in [POST_STABILIZATION_SOURCE_HASHES.json](evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES.json). The overlay adds authentication/platform source corrections, forward-only migration `20261025000200_auth_platform_stabilization.sql`, and regression coverage. It does not change pricing, entitlement policy, billing authorities, or AI algorithms.
+
+Latest local verification on migration 80:
+
+| Check | Result | Scope |
+|---|---|---|
+| Migration rehearsal `--mode fresh` | 80 applied; repeat 0 | New `KEEL_INTEGRATION_TEST_FRESH80`; PostgreSQL 17.11. |
+| Migration rehearsal `--mode populated` | 78 baseline + 2 applied; repeat 0 | New `KEEL_INTEGRATION_TEST_POPULATED80`; historical identity, membership, request receipt and code state assertions passed. |
+| Migration rehearsal `--mode phase1a` | 79 baseline + migration 80; repeat 0 | New `KEEL_INTEGRATION_TEST_PHASE1A80`; historical identity, membership, request receipt and code state assertions passed. |
+| Migration 80 catalog / ACL / application-role checks | Passed in all three databases | All three replacement functions are `SECURITY DEFINER`, owned by the isolated migration role, fixed to `search_path=public, pg_temp`, have no PUBLIC execute grant, and grant execute to `ceopro_app`. Six internal platform tables have RLS enabled and forced with policies. Direct password login as `ceopro_app` succeeded; it is neither superuser nor `BYPASSRLS`. |
+| `python -m scripts.phase1a_verification --database --junitxml phase1a-native-pg80.xml` | 89 passed, 0 failed, 0 skipped | Native PostgreSQL 17 + Redis suite, including native registration/reset/invitation, operator suspension, platform authorization, seat restoration, and concurrency regressions. |
+| `python -m pytest -q src/ai/tests/test_rls_integration_db.py` | 18 passed | Direct restricted-role tenant RLS checks. |
+| `python -m scripts.integration_review --database --junitxml integration-review-pg80.xml` with `PYTHONUTF8=1`, `DATABASE_URL` and `AI_TEST_DATABASE_URL` set to the isolated DB | 154 passed, 0 failed | Native billing, entitlement, usage, HTTP replay and concurrency regression suite. |
+| Legacy auth + auth-contract + stabilization unit suites | 87 passed | Includes both modernized legacy suites, the 34-test auth contract suite and focused stabilization regressions. |
+| `npm test` | 95 passed, 0 failed | Frontend tests, including invitation-error classification and Windows locale paths. |
+| `npm run build` | Passed | Frontend production build. |
+| Targeted ESLint | Passed | `src/features/platform`, `src/features/auth/pendingRegistration.js`, and `tests/phase1a.test.mjs`. |
+| Live refresh / revocation probe | Passed | Refresh preserved `auth_time` and credential version; revoked token was rejected, its durable receipt and Redis TTL extended through JWT expiry, and the refreshed token remained active. |
+| Expiry-after-lock-wait probes | Passed | Real PostgreSQL row-lock waits rejected a password-reset code and a team invitation after expiry. |
+| Dependency-failure probes | Passed | Real Redis outage returned 503 and recovered; refused PostgreSQL loopback connection returned 503 for active-principal, pending-registration and platform-service access. |
+
+The dedicated Compose services were PostgreSQL 17.11 (`server_version_num=170011`) and Redis 7.4.11, bound only to loopback ports 55439 and 56379 and backed by disposable tmpfs. Migrations ran as `keel_billing_test_admin` (the isolated cluster's superuser/schema owner); actual application checks used `ceopro_app` directly and through `SET ROLE`. No existing database was reused: the three new database names were checked absent before creation and match the repository allowlist. The pre-existing disposable databases were left unchanged.
+
+The first billing/integration invocation omitted `DATABASE_URL`; the application correctly rejected protected requests with 503 (33 failed, 121 passed). This was a test-launch environment error, not a production defect. With explicit isolated `DATABASE_URL`/`AI_TEST_DATABASE_URL`, four static source-inspection tests then hit Windows CP1252 decoding errors; rerunning with `PYTHONUTF8=1` passed all 154. An initial lock-probe instrumentation name exceeded PostgreSQL's 63-character `application_name` limit; the bounded probe was corrected and both expiry-after-lock-wait checks passed. An initial Redis outage probe lacked the test-only `JWT_SECRET`; Redis was restored immediately, then the corrected real outage probe returned 503 and Redis recovered. No production source was changed in response to these harness issues.
+
+Migration rehearsal commands, reproduced from `backend/` with a separate newly created allowlisted disposable database for each mode:
+
+```bash
+python -m scripts.phase1a_migration_rehearsal --mode fresh --output stabilization-fresh.json
+python -m scripts.phase1a_migration_rehearsal --mode populated --output stabilization-populated.json
+python -m scripts.phase1a_migration_rehearsal --mode phase1a --output stabilization-phase1a-79-to-80.json
+```
+
+Native migration-80, ACL/RLS and listed runtime checks now pass on the disposable cluster. This does not establish production readiness. Migration ownership/privileges on the actual deployment role, persistent-storage recovery, SMTP, browser journeys, Python 3.11, and external providers remain unverified and are not being retried in this pass.
+
+Historical baseline result (migration 79): native database and Redis verification passed on 2026-10-20 using isolated disposable services. The legacy authentication unit suites passed (42 passed), the approved auth-contract suite passed (34 passed), and the native Phase 1A PostgreSQL suite passed (18 passed). These results do not establish production readiness and do not verify migration 80. SMTP delivery, browser journeys, settings/team suites, Python 3.11, and persistent-storage database outage recovery remain unverified.
 
 ## Exact source and dependencies
 
@@ -25,7 +62,7 @@ npx --no-install eslint src/features/platform src/features/auth/pendingRegistrat
 
 Exact session command arrays, environment isolation, timings and exits are retained in `evidence/phase1a`. The test launcher keeps native tests disabled unless requested, rejects live Stripe keys and uses production metering defaults. DB/Redis/mail doubles prove contract behavior only. This session also removed inherited service credentials and used a scratch TCP fence. Ruff was unavailable; run the repository's configured Python lint before release.
 
-## Disposable services and migrations — completed
+## Historical disposable-service baseline — migration 79
 
 The tested Compose project was `keel-phase1a-native-20261020`, with PostgreSQL bound only to `127.0.0.1:55439` and Redis to `127.0.0.1:56379`. Both services used disposable tmpfs storage. Credentials were generated for this test run, held outside the repository, and were not printed or committed. No shared database, the listener on port 5432, `.env`, Stripe, or external provider was used.
 

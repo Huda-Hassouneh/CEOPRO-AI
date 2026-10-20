@@ -1,6 +1,8 @@
 # Phase 1A delivery and application instructions
 
-This is a reviewable, uncommitted production-source delivery. It is not deployed or native-integration certified. No Phase1B implementation is included.
+> Historical delivery instructions: the original Phase 1A package has already been reconciled into the local `integration/keel-task6-phase1a` branch. Do not reapply the archive over this checkout. The later authentication/platform stabilization overlay is documented in [PHASE1A_NATIVE_VERIFICATION.md](PHASE1A_NATIVE_VERIFICATION.md), with its current source hash in [POST_STABILIZATION_SOURCE_HASHES.json](evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES.json). Historical archive manifests remain unchanged.
+
+At original delivery time, this was a reviewable, uncommitted production-source package; it was not deployed or native-integration certified, and it included no Phase1B implementation.
 
 ## Files supplied
 
