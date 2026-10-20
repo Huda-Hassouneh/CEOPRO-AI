@@ -86,8 +86,21 @@ _IGNORED = {"the", "and", "of", "a", "an", "for", "our", "best", "new", "fresh",
             # French connectors and noise
             "en", "de", "du", "des", "la", "le", "les", "et", "pour", "par",
             # a container or a service tag says how it is sold, not what it is
-            "jar", "bottle", "tin", "bag", "can", "box", "pouch", "sachet", "tube", "service", "services",
+            "platter", "jar", "bottle", "tin", "bag", "can", "box", "pouch", "sachet", "tube", "service", "services",
             "taille", "pointure", "size", "مقاس"}
+
+
+# A colour or material says which variant it is, never what the thing is: "robe lin blanc" / "robe lin sable" are two
+# colours of one dress, "djellaba laine" / "djellaba coton" two fabrics. Used to relate names whose last word differs
+# (French puts the noun first, so the last word is not the head).
+DESCRIPTORS = frozenset({
+    "white", "black", "red", "blue", "green", "yellow", "pink", "grey", "gray", "brown", "beige", "gold", "silver", "navy",
+    "ivory", "cream", "purple", "orange", "wool", "cotton", "linen", "silk", "leather", "denim", "canvas", "velvet",
+    "blanc", "blanche", "noir", "noire", "rouge", "bleu", "vert", "verte", "jaune", "rose", "gris", "grise", "marron",
+    "sable", "ivoire", "creme", "violet", "orange", "emeraude", "bordeaux", "turquoise", "kaki", "camel", "ecru",
+    "laine", "coton", "lin", "soie", "cuir", "toile", "velours", "jean", "satin", "dentelle",
+    "ابيض", "اسود", "احمر", "ازرق", "اخضر", "اصفر", "وردي", "رمادي", "بني", "بيج", "صوف", "قطن", "كتان", "حرير", "جلد",
+})
 
 
 @dataclass(frozen=True)
@@ -152,6 +165,9 @@ def same_word(a: str, b: str) -> bool:
         return True
     la, lb = len(a), len(b)
     if la < 5 or lb < 5:
+        return False
+    # A spec ("110mm" / "160mm", "20000mah" / "10000mah", "e6013" / "e7018") is never a misspelling of another spec.
+    if any(ch.isdigit() for ch in a) or any(ch.isdigit() for ch in b):
         return False
     # A spelling variant is about as long: "beefshawarma" is not a spelling of "shawarma" (the ratio is exactly 0.8).
     # This also means the matcher never has to run for words whose lengths differ this much.

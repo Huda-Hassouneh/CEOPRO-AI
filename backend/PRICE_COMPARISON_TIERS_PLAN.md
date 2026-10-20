@@ -165,3 +165,12 @@ null -> back to the system's reading. Still not built: a premium band learned pe
 * **Links** from scraped pages are only followed when they are http(s).
 * Checked and already fine: correcting or rejecting a price already re-ran matching (and so the ladder) through
   `_match_prices`.
+
+### Follow-up (2026-10-20): accuracy tooling and classifier fixes
+Details, numbers and the remaining plan are in `PRICE_COMPARISON_ACCURACY_PLAN.md`.
+* **Tooling**: `scripts/price_comparison_eval.py` scores the classifier against a labelled CSV
+  (`market_scraper/tests/data/price_comparison_labelled.csv`, dev + holdout splits) and exports a worksheet of a real
+  tenant's pairs to label; `market_scraper/tests/test_price_comparison_accuracy.py` fails if accuracy, EXACT precision,
+  like-for-like precision, false relations or missed relations get worse.
+* **Classifier**: digit-bearing words never fuzzy-match (pipe `110mm`/`160mm`, `20000mAh`/`10000mAh`); half-days are not
+  scaled by a whole multiple; `platter` ignored; colour/fabric-only differences relate as SIMILAR.

@@ -260,3 +260,29 @@ def test_rejecting_a_scraped_price_also_retracts_the_exact_price_recorded_from_i
     conn.commit()
     assert comparisons.get_ladders(conn, tenant_id, [product_id])[product_id]["covered"] is False
     assert data_access.load_competitor_prices(conn, tenant_id, product_id, "JOD") == []
+
+
+def test_category_premium_band_is_observed_from_the_tenants_own_added_value_pairs(conn):
+    tenant_id = _company(conn)
+    ids = [_product(conn, tenant_id, "Extra cheese burger", price) for price in (3.6, 3.9, 4.2, 4.5, 4.8, 5.1)]
+    lone = _product(conn, tenant_id, "Extra cheese pizza", 9.0)
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE products SET category = %s WHERE tenant_id = %s AND product_id = ANY(%s::uuid[]);",
+                       (json.dumps({"en": "Burgers"}), tenant_id, ids))
+        cursor.execute("UPDATE products SET category = %s WHERE tenant_id = %s AND product_id = %s;",
+                       (json.dumps({"en": "Pizza"}), tenant_id, lone))
+    _competitor(conn, tenant_id, "Rival Grill", [("Cheese burger", 3.0), ("Cheese pizza", 6.0)])
+    conn.commit()
+    engine.refresh_for_tenant(conn, tenant_id)
+    conn.commit()
+
+    bands = comparisons.load_category_bands(conn, tenant_id)
+    assert bands["burgers"] == {"band_pct": 57.5, "source": "observed", "samples": 6}
+    assert bands["pizza"]["source"] == "default" and bands["pizza"]["samples"] == 1  # too few pairs to trust
+
+    ladder = comparisons.get_ladders(conn, tenant_id, [ids[0], lone])
+    assert ladder[ids[0]]["premium_band"]["source"] == "observed"
+    assert ladder[ids[0]]["added_value_guidance"]["band_pct"] == 57.5
+    assert ladder[lone]["added_value_guidance"]["band_source"] == "default"
+    lines = comparisons.overview_lines(conn, tenant_id)
+    assert lines and "reference, never an exact competitor price" in lines[0] and any("Extra cheese pizza" in l for l in lines)
