@@ -211,15 +211,26 @@ _GENERIC_NAME_WORDS = frozenset({
 })
 
 
-def _names_match(name: str, *texts: str) -> bool:
+def _singular(word: str) -> str:
+    return word[:-1] if len(word) > 3 and word.endswith("s") else word
+
+
+# What the business sells: people write "Domino's" for "Domino's Pizza", so in a comment the kind of food is optional.
+_CATEGORY_NAME_WORDS = frozenset({"pizza", "burger", "burgers", "chicken", "grill", "kitchen", "house", "bakery", "sweets", "shawarma"})
+
+
+def _names_match(name: str, *texts: str, in_comment: bool = False) -> bool:
     """Does any of the texts actually name the competitor? Every distinctive word of its name must appear
     (generic words such as "coffee" or "company" are not required, unless they are all the name has)."""
     wanted = tokens(name)
     wanted = (wanted - _GENERIC_NAME_WORDS) or wanted
+    if in_comment:
+        wanted = (wanted - _CATEGORY_NAME_WORDS) or wanted
     if not wanted:
         return False
     haystack = tokens(" ".join(t or "" for t in texts))
-    return wanted <= haystack
+    haystack = haystack | {_singular(w) for w in haystack}  # "mcdonalds" names McDonald's
+    return {_singular(w) for w in wanted} <= haystack
 
 
 def web_news(name: str, country_code: Optional[str], search_news: Callable = web_search.search_news) -> List[dict]:
@@ -302,12 +313,29 @@ def _normalised(text: str) -> str:
     return " ".join(_WORDS.findall((text or "").lower()))
 
 
+# Words of a customer describing an experience of a business. Without the competitor's name, a comment on someone
+# else's video is kept only if it reads like that (live sample, 502 comments: 80% of unnamed ones were chatter
+# about the video, the presenter or other things, e.g. "why is he breathing in my ears").
+_EXPERIENCE_CUES = frozenset({
+    "service", "staff", "waiter", "waitress", "price", "prices", "expensive", "cheap", "overpriced", "delivery",
+    "ordered", "menu", "branch", "portion", "portions", "waited", "clean", "dirty", "rude", "slow", "cold", "stale",
+    "fresh", "overcharged", "refund", "reservation",
+    "الخدمة", "خدمة", "الاسعار", "الأسعار", "غالي", "رخيص", "طلبت", "توصيل", "الموظفين", "موظف", "نظيف", "بارد", "بطيء",
+})
+
+
 def keep_comment(text: str, competitor: str, channel_names_it: bool) -> bool:
     """A comment about the business, not just the video: substantive, and either on the competitor's own
-    channel, naming the competitor, or long enough to be a considered opinion."""
+    channel, naming the competitor, or - on someone else's video - a long, considered account of an experience."""
     if not is_substantive(text):
         return False
-    return channel_names_it or _names_match(competitor, text) or len(text) >= OFF_CHANNEL_MIN_CHARS
+    if channel_names_it or _names_match(competitor, text, in_comment=True):
+        return True
+    return len(text) >= OFF_CHANNEL_MIN_CHARS and bool(_WORDS_LOWER(text) & _EXPERIENCE_CUES)
+
+
+def _WORDS_LOWER(text: str) -> set:
+    return set(_WORDS.findall((text or "").lower()))
 
 
 def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Callable = _get,
