@@ -1,6 +1,6 @@
 # Price comparison — accuracy, regression gate and next features
 
-Status: **A, B, C, D1, D2, D3 built and verified 2026-10-20 (§5); still open: real-data labelling, UI for the new fields.** Builds on `PRICE_COMPARISON_TIERS_PLAN.md`.
+Status: **A, B, C, D1, D2, D3 built and verified 2026-10-20 (§5); real-data labelling needs a person (tooling ready).** Builds on `PRICE_COMPARISON_TIERS_PLAN.md`.
 
 ## 1. Where we are (baseline, before any change in this plan)
 
@@ -87,4 +87,11 @@ Gate test in CI; dev ≥ 85 % with no precision regression; holdout re-run once 
   min 5 pairs, 20-150 % clamp, default otherwise, labelled with sample size). They are not learned from `recommendation_outcomes`: that table only records
   whether an owner accepted a suggestion, not the effect on sales, and spec S19 keeps learned pricing off. No migration needed (computed at read time).
 * 2026-10-20 — ladder shows the justified range, band source and sample size (en + ar); frontend 102 tests, lint, build ok.
-* Not done: a screen/export for `GET /reports/price-comparison`; an owner-set band per category.
+* 2026-10-20 — **Report screen done**: `/pricing/report` (linked from Pricing): products with evidence, best tier, counts per tier, position, justified range; CSV download that neutralises formula-like names.
+* 2026-10-20 — **Owner-set bands done**: migration `20261027000000` (+ rollback), `GET/PUT /pricing/premium-bands` (PUT owner/admin only, 5-300 %, null clears), owner > observed > default in `load_category_bands`, editor in the ladder; source shown as owner / observed / default. Verified on live Postgres incl. the rollback.
+* 2026-10-20 — **Real-data labelling: tooling done, labels need a person.** Added `merge` (validates, assigns ids, skips duplicates, sets split/company). Labelling a real company's pairs is ground truth only its owner/staff can supply; I did not invent labels. See pending #109.
+
+### How to label a real company's pairs (the one remaining step)
+1. `python -m scripts.price_comparison_eval export --tenant <id> --out sheet.csv --limit 300` (read-only).
+2. For each row decide what the competitor's item is to the company's product: EXACT (same thing, same size), EQUIVALENT (same thing, a quantity that scales cleanly), SIMILAR (same kind, not like for like; set `direction`: own_richer / own_leaner / same), ADDED_VALUE (ours is theirs plus something), NONE (unrelated). Mark `kind` = judgement when a reasonable person could disagree.
+3. `score --csv sheet.csv` for the honest number, then `merge --csv sheet.csv --company "<name>" --split holdout`, `score --split all`, and raise the floors.

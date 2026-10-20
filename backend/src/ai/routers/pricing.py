@@ -216,3 +216,65 @@ def pricing_comparison_override(product_id: UUID, body: ComparisonOverride, ctx:
         raise
     finally:
         conn.close()
+
+
+class PremiumBandBody(BaseModel):
+    category: Optional[str] = Field(default=None, max_length=120, description="Lower-cased product category; null = products without one.")
+    band_pct: Optional[float] = Field(default=None, ge=5, le=300, description="Premium (% over the competitor's base item) that still reads as justified; null clears your setting.")
+
+
+def _bands_payload(conn, tenant_id: str) -> dict:
+    observed = price_comparisons.load_observed_bands(conn, tenant_id)
+    chosen = price_comparisons.load_category_bands(conn, tenant_id)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT DISTINCT category FROM products WHERE tenant_id = %s AND deleted_at IS NULL;", (tenant_id,))
+        keys = {price_comparisons.data_access._category_key(r[0]) for r in cursor.fetchall()}
+    keys |= set(chosen)
+    rows = [{"category": key, "band": chosen.get(key) or price_comparisons.premium_bands.default_band(),
+             "observed": observed.get(key) or price_comparisons.premium_bands.default_band()}
+            for key in sorted(keys, key=lambda k: (k is None, k or ""))]
+    return {"default_band_pct": price_comparisons.premium_bands.default_band()["band_pct"], "categories": rows}
+
+
+@router.get("/premium-bands")
+def pricing_premium_bands(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """The added-value premium band per category: `band` is what the ladder uses (source owner | observed | default),
+    `observed` what the company's own comparisons alone would give."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        payload = _bands_payload(conn, ctx.tenant_id)
+        conn.commit()
+        return payload
+    finally:
+        conn.close()
+
+
+@router.put("/premium-bands")
+def pricing_set_premium_band(body: PremiumBandBody, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Owner/admin only: set (or, with band_pct null, clear) the premium band for one category."""
+    key = (body.category or "").strip().lower() or price_comparisons.premium_bands.UNCATEGORISED
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT role_key FROM tenant_users WHERE tenant_id = %s AND user_id = %s AND removed_at IS NULL;",
+                           (ctx.tenant_id, ctx.user_id))
+            row = cursor.fetchone()
+            if row is None or row[0] not in ("owner", "admin"):
+                raise HTTPException(status_code=403, detail="You do not have permission to perform this action.")
+            if body.band_pct is None:
+                cursor.execute("DELETE FROM price_premium_band_overrides WHERE tenant_id = %s AND category_key = %s;", (ctx.tenant_id, key))
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO price_premium_band_overrides (tenant_id, category_key, band_pct, set_by) VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (tenant_id, category_key) DO UPDATE SET band_pct = EXCLUDED.band_pct, set_by = EXCLUDED.set_by,
+                                                                        set_at = CURRENT_TIMESTAMP;
+                    """, (ctx.tenant_id, key, body.band_pct, ctx.user_id))
+        payload = _bands_payload(conn, ctx.tenant_id)
+        conn.commit()
+        return payload
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

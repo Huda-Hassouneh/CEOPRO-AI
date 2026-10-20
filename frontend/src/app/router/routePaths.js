@@ -22,6 +22,7 @@ export const routePaths = {
   productDetail: '/products/:productId',
   sales: '/sales',
   pricing: '/pricing',
+  pricingReport: '/pricing/report',
   market: '/market',
   marketCompetitors: '/market/competitors',
   marketCompetitorDetail: '/market/competitors/:competitorId',

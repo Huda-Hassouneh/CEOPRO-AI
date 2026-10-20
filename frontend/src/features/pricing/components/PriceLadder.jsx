@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { Pill } from '../../../shared/components/apex/Apex.jsx';
@@ -26,8 +26,9 @@ export function TierPill({ tier, t }) {
 // The ladder for one product (GET /pricing/comparisons/{id}): four tiers, each competitor item with its own price,
 // the comparable price (scaled to your quantity when it differs), how far you are from it, and why it sits in that
 // tier. A tier with nothing in it says so - the tiers are the explanation of how the market was read.
-export function PriceLadder({ ladder, onDecide, busy = false }) {
+export function PriceLadder({ ladder, onDecide, onSetBand, busy = false }) {
   const { t, locale } = useI18n();
+  const [bandInput, setBandInput] = useState('');
   const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
   const money = (amount) => (amount == null ? '—' : new Intl.NumberFormat(locale, { style: 'currency', currency: ladder.currency }).format(amount));
@@ -71,10 +72,24 @@ export function PriceLadder({ ladder, onDecide, busy = false }) {
           })}{' '}
           {t(`pricing.ladder.guidance.position.${ladder.added_value_guidance.position}`)}{' '}
           <span className="apex-muted">
-            {ladder.added_value_guidance.band_source === 'observed'
-              ? t('pricing.ladder.guidance.observed', { count: ladder.added_value_guidance.band_samples })
-              : t('pricing.ladder.guidance.default')}
+            {ladder.added_value_guidance.band_source === 'owner' ? t('pricing.ladder.guidance.owner')
+              : ladder.added_value_guidance.band_source === 'observed'
+                ? t('pricing.ladder.guidance.observed', { count: ladder.added_value_guidance.band_samples })
+                : t('pricing.ladder.guidance.default')}
           </span>
+          {onSetBand && (
+            <span className="price-ladder__band-editor">
+              <label>
+                <span className="apex-muted">{t('pricing.ladder.guidance.setLabel')}</span>{' '}
+                <input type="number" min="5" max="300" step="1" value={bandInput} onChange={(event) => setBandInput(event.target.value)} aria-label={t('pricing.ladder.guidance.setLabel')} />
+              </label>{' '}
+              <button type="button" className="price-ladder__link" disabled={busy || !bandInput || Number(bandInput) < 5 || Number(bandInput) > 300}
+                onClick={() => { onSetBand(ladder.category ?? null, Number(bandInput)); setBandInput(''); }}>{t('pricing.ladder.guidance.save')}</button>
+              {ladder.added_value_guidance.band_source === 'owner' && (
+                <button type="button" className="price-ladder__link" disabled={busy} onClick={() => onSetBand(ladder.category ?? null, null)}>{t('pricing.ladder.guidance.clear')}</button>
+              )}
+            </span>
+          )}
         </p>
       ) : null}
 
