@@ -14,6 +14,12 @@ RECENT = (NOW - timedelta(days=3)).strftime("%a, %d %b %Y %H:%M:%S +0000")
 OLD = (NOW - timedelta(days=900)).strftime("%a, %d %b %Y %H:%M:%S +0000")
 
 
+@pytest.fixture(autouse=True)
+def _no_real_redis_for_the_youtube_cap(monkeypatch):
+    from src.market_scraper import youtube_quota
+    monkeypatch.setattr(youtube_quota, "take_search", lambda limit=None: True)
+
+
 def _rss(*items):
     body = "".join(f"<item><title>{t}</title><link>{l}</link><pubDate>{d}</pubDate><description>{s}</description></item>" for t, l, d, s in items)
     return f'<?xml version="1.0"?><rss version="2.0"><channel><title>Blog</title>{body}</channel></rss>'
@@ -147,7 +153,7 @@ def _thread(comment_id, text, likes, replies=()):
 def test_youtube_comments_come_only_from_videos_naming_the_competitor_with_likes_and_replies():
     get = _yt(
         [_video("v1", "Rival Burger review"), _video("v2", "Best pasta in town"), _video("v3", "Visit", channel="Rival Burger Official")],
-        {"v1": {"items": [_thread("c1", "Terrible service", 400, replies=[("r1", "Same here")])]}, "v3": {"items": []}},
+        {"v1": {"items": [_thread("c1", "Terrible service and very long waits", 400, replies=[("r1", "Same here, we waited too")])]}, "v3": {"items": []}},
     )
     comments = cm.youtube_comments("Rival Burger", "Amman", "KEY", get=get)
     assert [(c["external_id"], c["parent_external_id"], c["likes"]) for c in comments] == [("c1", None, 400), ("r1", "c1", 0)]
@@ -157,7 +163,7 @@ def test_youtube_comments_come_only_from_videos_naming_the_competitor_with_likes
 
 def test_youtube_skips_a_video_with_comments_off_and_classifies_key_and_quota_errors_without_leaking_the_key():
     off = (403, {"error": {"errors": [{"reason": "commentsDisabled"}], "message": "disabled"}})
-    get = _yt([_video("v1", "Rival Burger"), _video("v2", "Rival Burger 2")], {"v1": off, "v2": {"items": [_thread("c9", "Nice", 1)]}})
+    get = _yt([_video("v1", "Rival Burger"), _video("v2", "Rival Burger 2")], {"v1": off, "v2": {"items": [_thread("c9", "Nice food and friendly staff there", 1)]}})
     assert [c["external_id"] for c in cm.youtube_comments("Rival Burger", None, "KEY", get=get)] == ["c9"]
 
     def failing(status, reason, message="boom KEY"):
@@ -286,7 +292,7 @@ def test_no_matching_video_and_provider_errors_are_distinct_outcomes(monkeypatch
 
 def test_replies_are_only_stored_under_a_comment_that_was_stored():
     cursor = MagicMock()
-    cursor.fetchone.side_effect = [("rid1", True), ("rid2", True)]
+    cursor.fetchone.side_effect = [None, ("rid1", True), None, ("rid2", True)]  # (lookup of an existing copy, upsert) per comment
     conn = MagicMock()
     conn.cursor.return_value.__enter__.return_value = cursor
     comments = [
@@ -295,5 +301,97 @@ def test_replies_are_only_stored_under_a_comment_that_was_stored():
         {"external_id": "r2", "parent_external_id": "missing", "author": "L", "text": "orphan", "likes": 0, "published_at": None, "reply_count": None},
     ]
     new = ce._save_comments(conn, "t1", "comp", "src", "YouTube", comments)
-    assert new == 2 and cursor.execute.call_count == 2  # top first, its reply second, the orphan skipped
-    assert cursor.execute.call_args_list[1].args[1][-1] == "rid1"  # the reply's parent_review_id
+    assert new == 2 and cursor.execute.call_count == 4  # top first, its reply second, the orphan skipped
+    assert cursor.execute.call_args_list[3].args[1][-2] == "rid1"  # the reply's parent_review_id (the source url follows it)
+
+
+# ---- which comments are worth keeping (P2) ---------------------------------------------------
+
+@pytest.mark.parametrize("text,keep", [
+    ("first!", False), ("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥", False), ("nice nice", False), ("+1 +1 +1 +1 +1 +1", False),
+    ("The waiter was rude and the food came cold", True),
+    ("الخدمة بطيئة جدا والأسعار مرتفعة", True),  # Arabic counts letters and words the same way
+])
+def test_only_substantive_comments_are_kept(text, keep):
+    assert cm.is_substantive(text) is keep
+
+
+def test_an_unnamed_comment_on_someone_elses_channel_must_be_a_real_opinion():
+    short = "great video, loved the music"  # 28 chars, does not name the business
+    long = "Went there last week and the burgers were dry, the service was slow and they overcharged us"
+    assert cm.keep_comment(short, "Rival Burger", channel_names_it=False) is False
+    assert cm.keep_comment(long, "Rival Burger", channel_names_it=False) is True
+    assert cm.keep_comment(short, "Rival Burger", channel_names_it=True) is True   # their own channel
+    assert cm.keep_comment("Rival Burger was fine honestly", "Rival Burger", channel_names_it=False) is True  # names them
+
+
+def test_youtube_comments_drop_noise_and_duplicates():
+    def get(url, params, secret=None):
+        if "search" in url:
+            return 200, {"items": [{"id": {"videoId": "v1"}, "snippet": {"title": "Rival Burger review", "channelTitle": "Foodie"}}]}
+        opinion = "Rival Burger was cold and the staff ignored us for twenty minutes"
+        return 200, {"items": [
+            {"snippet": {"topLevelComment": {"id": "a", "snippet": {"textOriginal": opinion, "likeCount": 4}}, "totalReplyCount": 0}},
+            {"snippet": {"topLevelComment": {"id": "b", "snippet": {"textOriginal": opinion.upper(), "likeCount": 1}}, "totalReplyCount": 0}},  # duplicate
+            {"snippet": {"topLevelComment": {"id": "c", "snippet": {"textOriginal": "first!", "likeCount": 99}}, "totalReplyCount": 0}},
+        ]}
+    assert [c["external_id"] for c in cm.youtube_comments("Rival Burger", None, "KEY", get=get)] == ["a"]
+
+
+def test_a_bad_request_that_is_not_about_the_key_is_not_reported_as_a_rejected_key():
+    get = lambda url, params, secret=None: (400, {"error": {"errors": [{"reason": "invalidVideoId"}], "message": "bad id"}})
+    with pytest.raises(cm.SourceError) as err:
+        cm.youtube_comments("Rival Burger", None, "KEY", get=get)
+    assert err.value.code == cm.PROVIDER_ERROR
+
+
+def test_quota_running_out_midway_keeps_the_comments_already_collected():
+    quota = (403, {"error": {"errors": [{"reason": "quotaExceeded"}], "message": "q"}})
+    get = _yt([_video("v1", "Rival Burger"), _video("v2", "Rival Burger 2")],
+              {"v1": {"items": [_thread("c1", "Terrible service and very long waits", 3)]}, "v2": quota})
+    assert [c["external_id"] for c in cm.youtube_comments("Rival Burger", None, "KEY", get=get)] == ["c1"]
+
+
+def test_httpx_request_urls_carrying_api_keys_are_not_logged_at_info():
+    import logging
+    assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
+
+
+def test_videos_naming_the_place_are_read_first_and_the_region_is_sent():
+    seen = {}
+    base = _yt([_video("far", "Rival Burger review"), _video("near", "Rival Burger Amman tour")],
+               {"far": {"items": [_thread("c1", "Terrible service and very long waits", 1)]},
+                "near": {"items": [_thread("c2", "Lovely staff and quick service here", 1)]}})
+
+    def get(url, params, secret=None):
+        if url == cm.YOUTUBE_SEARCH_URL:
+            seen.update(params)
+        return base(url, params, secret)
+    out = cm.youtube_comments("Rival Burger", "Amman", "KEY", get=get, max_videos=1, country_code="jo")
+    assert [c["external_id"] for c in out] == ["c2"] and seen["regionCode"] == "JO"
+    seen.clear()
+    cm.youtube_comments("Rival Burger", None, "KEY", get=get, country_code="Jordan")
+    assert "regionCode" not in seen
+
+
+def test_generic_words_in_a_competitor_name_are_not_required_to_match():
+    assert cm._names_match("Starbucks Coffee Company", "Starbucks in Amman")
+    assert not cm._names_match("Rival Burger", "Rival Pizza")
+    assert cm._names_match("Coffee", "best coffee in town")  # a name made only of generic words still has to appear
+
+
+@pytest.mark.parametrize("text,keep", [
+    ("why is he breathing in my ears, this is so funny to watch", False),        # chatter about the video
+    ("We do this in Japan but in a different way at home with family", False),   # long, but not about the business
+    ("The staff were rude and the delivery took over an hour to arrive", True),   # an experience, unnamed
+    ("I work at Dominos in Australia and we make the dough in store", True),      # names them without 'pizza'
+    ("McDonalds fries are not what they used to be anymore", True),               # plural / possessive spelling
+])
+def test_comments_on_someone_elses_video_are_kept_only_if_about_the_business(text, keep):
+    name = "Domino's Pizza" if "Dominos" in text else "McDonald's"
+    assert cm.keep_comment(text, name, channel_names_it=False) is keep
+
+
+def test_the_kind_of_food_is_optional_in_a_comment_but_not_when_choosing_videos():
+    assert cm._names_match("Domino's Pizza", "dominos is bad", in_comment=True)
+    assert not cm._names_match("Domino's Pizza", "dominos is bad")

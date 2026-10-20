@@ -1,10 +1,72 @@
-# Phase 1A verification runbook
+# Phase 1A and upstream reconciliation verification
 
-## Current local stabilization overlay
+## Current local reconciliation — no merge commit
 
-The integration branch `integration/keel-task6-phase1a` now contains a local, uncommitted stabilization overlay on top of the preserved six commits. The original candidate digest `d7cebce04a816b21d9e0c139610edad08358f1352e88ab07450cdccafb82eca3` remains historical evidence; the separately recorded merged-source digest is in [POST_STABILIZATION_SOURCE_HASHES.json](evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES.json). The overlay adds authentication/platform source corrections, forward-only migration `20261025000200_auth_platform_stabilization.sql`, and regression coverage. It does not change pricing, entitlement policy, billing authorities, or AI algorithms.
+This record supersedes the pre-upstream results below for the combined repository. Work remains only in `C:\Users\Mohamamd-P\Desktop\Mahmoud\Orange Summer Challenge\KEEL\CEOPRO-AI-reconcile` on `reconcile/keel-origin-main-20261020`.
 
-Latest local verification on migration 80:
+| Identity | Value |
+|---|---|
+| Integration `HEAD` | `d98bdedf4ee86173dce5e543cd70aadca2debb4f` |
+| `MERGE_HEAD` (`origin/main`) | `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c` |
+| Common ancestor | `1de393c77dfc6db9d8722d8a611d2384d64d12c0` |
+| Divergence | 9 integration commits and 33 upstream commits |
+| Merge commit | Not created; original integration branch remains unchanged |
+
+The only Git-reported conflict was `backend/src/ai/core/security.py`; its resolution retains active-principal/credential-version checks, durable token revocation, and upstream Redis fail-closed behavior for billing. Report replay uses the existing Python quota, idempotency, fingerprint, and usage-release authority. Operator/platform routes, price-comparison and competitor-comment features, RAG, frontend routing, and both locale key sets remain present.
+
+The combined source digest and exact path map are recorded in [POST_RECONCILIATION_SOURCE_HASHES.json](evidence/POST_RECONCILIATION_SOURCE_HASHES.json). The digest covers the final working-tree source bytes under the documented non-recursive source-path set; dynamic verification summaries and the evidence directory are excluded.
+
+### Security finding and forward-only remediation
+
+Catalog inspection confirmed that `auth_email_verified(uuid)`, `auth_join_tenant(uuid, uuid, character varying, bigint)`, `auth_lookup_user_by_email(text)`, and `auth_mark_email_verified(uuid)` were SECURITY DEFINER functions with unqualified sensitive table references and a path that did not explicitly put `pg_temp` last. Because the application role can create temporary tables, caller-side name shadowing was a real concern.
+
+Added `backend/src/infrastructure/database/migrations/20261028000000_harden_auth_definer_search_paths.sql`. It changes only the four existing function configurations to `search_path=pg_catalog, public, pg_temp`; signatures, bodies, ownership, and legitimate grants remain unchanged. No applied migration was edited or renamed. The new native regression checks inspect the actual PostgreSQL catalog and exercise temporary-table shadowing under `SET ROLE ceopro_app`.
+
+The four functions remain owned by `keel_billing_test_admin`, executable by `ceopro_app`, and not executable by PUBLIC. `ceopro_app` is neither superuser nor `BYPASSRLS`; it has TEMP but not `CREATE` on `public`. The PUBLIC EXECUTE grant on `get_current_tenant()` remains the reviewed RLS helper behavior, with its existing `search_path=public, pg_temp`. The focused SECURITY DEFINER regression passed 2/2 tests; direct RLS tests passed 18/18.
+
+### Combined migration matrix
+
+The repository's filename-sorted runner was used on isolated PostgreSQL 17.11 databases. None was `KEEL_DEV`, production, or shared.
+
+| Path | Database | Baseline → final history | Repeat | Data preservation |
+|---|---|---:|---:|---|
+| Fresh combined installation | `KEEL_INTEGRATION_TEST_RECON88R4FRESH` | 0 → 88 (88 applied) | 0 | Fresh schema |
+| Common pre-integration baseline | `KEEL_INTEGRATION_TEST_RECON88R4COMMON` | 77 → 88 (11 applied) | 0 | Seeded identity, membership, receipt, and token state preserved |
+| Existing upstream `main` state | `KEEL_INTEGRATION_TEST_RECON88R4UPSTREAM` | 84 → 88 (4 applied) | 0 | Seeded identity, membership, receipt, and token state preserved |
+| Local Phase 1A state with migration 80 | `KEEL_INTEGRATION_TEST_RECON88R4LOCAL80` | 80 → 88 (8 applied) | 0 | Seeded identity, membership, receipt, and token state preserved |
+
+Each database finished with 88 migration-history rows. Repeated execution applied zero files. Filename history was not rewritten; no migration loss, duplicate application, or destructive data operation was found. The hardening migration is forward-only.
+
+### Test execution and triage
+
+| Scope | Result |
+|---|---|
+| Native PostgreSQL/Redis stabilization suite on migration 88 | 93 passed |
+| Billing, entitlement, usage, and integration review | 154 passed |
+| Direct PostgreSQL RLS suite on the triage database | 18 passed |
+| SECURITY DEFINER catalog and restricted-role shadowing regression | 2 passed |
+| Re-run of modules containing every previous broad integration failure | 104 passed, 4 skipped |
+| Broad offline backend suite after optional dependencies were installed | 2,623 passed, 900 skipped, 0 failed; 5 collection errors |
+| The five backend test directories that failed monolithic collection, run separately with the backend import path | 127 passed, 118 skipped |
+| Frontend unit suite | 115 passed |
+| Frontend production build and applicable targeted ESLint | Passed |
+| Arabic poster-shaping tests after dependency restoration | 18 passed |
+
+The previous full `*_integration_db.py` run had 555 passed, 12 skipped, 45 failed, and 2 setup errors. All 47 problematic outcomes were inventoried: 3 environment/dependency failures (scikit-learn, reportlab, and FAISS), 41 fixtures still assuming the removed immediate-signup/access-token flow, 1 malformed-email assertion expecting 400 rather than request-validation 422, and 2 market-discovery API tests using a background-service identity instead of an active human member. Missing optional packages were installed only in the disposable Python environment. Test fixtures now perform the real pending-registration and email-verification flow; the API tests use active members. Every formerly failing module was re-run in the 104-pass/4-skip focused batch. No confirmed production regression or baseline-only upstream failure remains from that inventory.
+
+The one-shot broad backend command still reports five pytest collection/import errors for `tests.billing`, `tests.entitlements`, `tests.integration_review`, `tests.keel_integration`, and `tests.remediation`. These same directories collected and ran separately (127 passed, 118 skipped); the database-backed billing/integration review and native suites also passed. Treat this as a monolithic test-discovery limitation, not a passing all-in-one run.
+
+The broad backend run has 900 skips, including database, MinIO, real-model and external-service cases gated off in the offline run. No SMTP, browser, or external-provider test was repeatedly retried. The credential-version refresh/reset logic has focused contract coverage, but a real concurrent refresh-versus-password-reset request race was not demonstrated. Membership restore passed missing/insufficient/sufficient seat-limit checks, but simultaneous restores racing for the final seat remain unverified. Browser credentials for a completed-setup account, real SMTP/provider checks, Python 3.11, production-role ownership, and persistent-storage recovery remain blocked or unverified.
+
+The npm audit reported two HIGH advisories: `follow-redirects` (Axios's Node adapter dependency; not present in the browser bundle examined) and Vite/launch-editor development tooling. No dependency was upgraded. Only harmless trailing blank lines were removed from `backend/.env.example`, `backend/COMPETITOR_COMMENTS_AND_RETRY_PLAN.md`, and `backend/PRICE_COMPARISON_ACCURACY_PLAN.md`.
+
+**Recommendation:** after the final staged whitespace, secret, and merge-state checks, the tree is suitable to request approval for a local merge commit and a **DRAFT** PR review only. It is not ready to merge or release and is not production-ready. The real concurrent refresh/reset and last-seat races, along with the blocked release-level checks above, remain explicit review gates. No commit, push, remote merge, deployment, or Phase 1B work is authorized or performed.
+
+## Historical local stabilization overlay (before upstream reconciliation)
+
+The following migration-80 evidence records the earlier local candidate and remains historical. The original candidate digest `d7cebce04a816b21d9e0c139610edad08358f1352e88ab07450cdccafb82eca3` is retained in [POST_STABILIZATION_SOURCE_HASHES.json](evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES.json); it is not the identity of the merged repository.
+
+Historical verification on migration 80:
 
 | Check | Result | Scope |
 |---|---|---|

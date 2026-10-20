@@ -1,23 +1,42 @@
-# KEEL — Unified File Change Ledger
+# KEEL â€” Unified File Change Ledger
 
 Destination: Python/FastAPI main. Node reference strictly read-only. **Phase: 0 (documentation/evidence only).**
 
 Incoming Git HEAD: `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. Verified clean post-Task-6 commit: **UNAVAILABLE / SOURCE-001 BLOCKED**. Current implementation commit: none created. Frozen byte baseline: evidence/SUPPLIED_CONTENT_HASHES.json; ZIP hashes: INPUT_ARCHIVE_HASHES.json.
 
-## Later local stabilization overlay (separate from the historical ledger below)
+## Current upstream reconciliation (local, uncommitted)
 
-The ledger rows below describe the original delivery and remain historical; they are not a complete inventory of the later local overlay. The local branch `integration/keel-task6-phase1a` preserves all six prior commits and newer native-verification work. The current uncommitted overlay is classified here:
+Worktree: `C:\Users\Mohamamd-P\Desktop\Mahmoud\Orange Summer Challenge\KEEL\CEOPRO-AI-reconcile`; branch `reconcile/keel-origin-main-20261020`. The merge is in progress without a merge commit: integration `HEAD` is `d98bdedf4ee86173dce5e543cd70aadca2debb4f`, upstream `MERGE_HEAD` is `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c`, and the common ancestor is `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. The original nine integration commits and 33 upstream commits are preserved; upstream reachability will become part of the branch ancestry only after an approved merge commit.
+
+The sole Git conflict, `backend/src/ai/core/security.py`, was resolved by combining active-principal validation, credential versions and durable token revocation with upstream Redis fail-closed handling for billing. Other changes preserve both the operator/platform routes, price-comparison and competitor-comment functionality, frontend routes/locales, and Task 6 report replay/usage protections. The `/reports/price-comparison` endpoint uses the existing Python monthly-report quota, idempotency, fingerprint and refund logic; it adds no separate billing or entitlement authority.
+
+| Class | Scope | Reconciliation result |
+|---|---|---|
+| Upstream product and market features | Price-comparison engine, premium-band overrides, competitor comments/themes, review completeness, enrichment, market scraping, RAG/structured summaries, frontend pricing and comments | Retained with Task 6/Phase 1A functionality. Focused backend, native database/API and frontend tests passed; broader test failures and unavailable external dependencies are recorded in the verification report. |
+| Database migrations | Seven upstream additions, local migrations through stabilization migration 80, and forward-only auth hardening migration 88; combined history is 88 files | Fresh 0â†’88, common 77â†’88, upstream 84â†’88, and local 80â†’88 rehearsals passed; every repeat applied zero. No historical migration was renamed or rewritten. |
+| Authentication/billing conflict | `backend/src/ai/core/security.py`, `backend/src/ai/routers/reports.py` | Both security behaviors and existing Python usage authority retained. Redis outage on billing fails closed; durable lookup failure returns 503. |
+| Regression/native tests | Backend auth, contract, stabilization, billing, pricing, competitor-comment, RLS, PostgreSQL and Redis tests | Focused suites passed as recorded in the verification report. Real concurrent registration, verification, owner-transfer and billing/usage scenarios passed; membership restore seat limits passed sequential native tests, while real concurrent refresh/reset and simultaneous last-seat restoration remain unverified. |
+| Frontend | Router, pricing/market-intelligence pages, operator setup, Arabic/English locales and tests | Upstream and Phase 1A pages/keys retained; 115 frontend tests, production build and targeted ESLint passed. |
+| Documentation/evidence | Native verification, this ledger, source-hash manifest and changed-path inventory | Updated with the combined migration matrix, test results, outstanding gates and exact local source identity. |
+
+Combined working-tree source digest: `60b4dbf352f6e49d400b7737f541c0f5e3e2846fcdb0852d7d0c3e91f4c726c5` over 1,447 paths. It uses the exact-byte SHA-256 path-map method documented in [POST_RECONCILIATION_SOURCE_HASHES.json](evidence/POST_RECONCILIATION_SOURCE_HASHES.json); it supersedes neither the original archive digest nor the historical pre-upstream digest. The exact changed-path inventory contains 153 paths and is [RECONCILIATION_CHANGED_PATHS.txt](evidence/RECONCILIATION_CHANGED_PATHS.txt).
+
+**Security remediation:** forward-only migration 88 hardens the four auth SECURITY DEFINER function search paths and its restricted-role shadowing regression passed 2/2. The combined migration matrix passed through version 88. The broad backend and integration-db suites were not clean; Python 3.11, SMTP, browser credentials, persistent-storage recovery, deployment-role ownership, real concurrent refresh/reset and simultaneous last-seat restoration remain unavailable or unverified. Five full-suite collection errors and two HIGH npm audit advisories remain documented. This reconciliation is ready for review for a local merge commit, but is not ready to merge or release. See [PHASE1A_NATIVE_VERIFICATION.md](PHASE1A_NATIVE_VERIFICATION.md) for results and limitations.
+
+## Historical local stabilization overlay (before upstream reconciliation)
+
+The ledger rows below describe the original delivery and remain historical; they are not a complete inventory of the later local overlay. At the earlier pre-stabilization checkpoint, `integration/keel-task6-phase1a` had six commits; three stabilization commits were subsequently added, bringing the local integration history to nine. The table below describes that pre-upstream stabilization overlay, not the current reconciliation.
 
 | Class | Paths | Summary / status |
 |---|---|---|
 | Production security correction | `backend/src/ai/core/pending_registration.py`, `backend/src/ai/core/security.py`, `backend/src/ai/platform/service.py`, `backend/src/ai/routers/auth.py`, `backend/src/ai/routers/platform.py`, `backend/src/ai/routers/settings.py` | Credential-version consistency, revocation expiry/durable acknowledgement, guarded DB connection failures, platform suspension/reactivation and membership/seat restoration, current-time code/invitation expiry, and password-byte preservation. Native PG/Redis and contract checks passed; deployment-role ownership and persistent storage remain unverified. |
-| Database migration | `backend/src/infrastructure/database/migrations/20261025000200_auth_platform_stabilization.sql` | Forward-only replacement of the platform command/acceptance and team-invitation acceptance functions. Source SHA-256 matches the historical candidate file (`decc04d15aac3a0f825aea981b571959dd9d759678b197749dc0b3af1502a2b`). PostgreSQL 17.11 rehearsals passed fresh 80, populated 78→80 and Phase 1A 79→80; all repeat runs applied zero. Catalog/ACL/RLS checks passed on all three isolated databases. |
+| Database migration | `backend/src/infrastructure/database/migrations/20261025000200_auth_platform_stabilization.sql` | Forward-only replacement of the platform command/acceptance and team-invitation acceptance functions. Source SHA-256 matches the historical candidate file (`decc04d15aac3a0f825aea981b571959dd9d759678b197749dc0b3af1502a2b`). PostgreSQL 17.11 rehearsals passed fresh 80, populated 78â†’80 and Phase 1A 79â†’80; all repeat runs applied zero. Catalog/ACL/RLS checks passed on all three isolated databases. |
 | Regression/native test | `backend/tests/keel_integration/test_stabilization.py`, `backend/tests/keel_integration/test_native_phase1a.py`, `backend/src/ai/tests/test_auth.py`, `backend/src/ai/tests/test_auth_completeness.py` | Focused regressions and compatibility updates for the single-snapshot login identity. Native Phase 1A suite 89 passed, direct RLS 18 passed, billing/integration-review 154 passed, auth/contract/stabilization 87 passed. Expiry-after-lock-wait and refresh/revocation checks passed. |
 | Test/rehearsal infrastructure | `backend/scripts/phase1a_migration_rehearsal.py`, `frontend/tests/phase1a.test.mjs` | Adds guarded `phase1a` migration rehearsal mode and invitation-error contract coverage. Three fresh allowlisted disposable databases were created for verification and were not production/shared databases. |
 | Frontend correction | `frontend/src/features/platform/PlatformInvitation.jsx`, `frontend/src/features/platform/platformApi.js` | Classifies invitation expiry, credentials, conflicts and dependency failures for actionable UI handling. Frontend tests/build pass. |
 | Documentation/evidence | `docs/keel-integration/PHASE1A_NATIVE_VERIFICATION.md`, `PHASE1A_IMPLEMENTATION_REPORT.md`, `PHASE1A_APPLY_INSTRUCTIONS.md`, `README.md`, this ledger, and `evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES.json` | Records current test outcomes, unverified gates, provenance and merged source digest without rewriting historical delivery manifests. |
 
-Current source digest: `418086e5345252e7d60d069aaf906264dce0111e6c1cca3d7db16f121be732eb` over 1,310 paths; see [POST_STABILIZATION_SOURCE_HASHES.json](evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES.json). Latest complete results: 89 native Phase 1A PG/Redis checks, 18 direct RLS, 154 billing/integration-review, 87 auth/contract/stabilization, and 95 frontend tests passed; build and targeted ESLint passed. No confirmed production defect. An initial integration-review launch missed `DATABASE_URL`, and the subsequent Windows source-inspection run required `PYTHONUTF8=1`; corrected runs passed. SMTP, browser, persistence and actual deployment-role ownership remain unverified. No commit or production readiness is claimed.
+Historical pre-upstream source digest: `418086e5345252e7d60d069aaf906264dce0111e6c1cca3d7db16f121be732eb` over 1,310 paths; see [POST_STABILIZATION_SOURCE_HASHES.json](evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES.json). These migration-80 results predate the origin/main reconciliation and are not the latest combined test results. SMTP, browser, persistence and actual deployment-role ownership were unverified in that earlier pass.
 
 This ledger covers the incremental Phase 0 ADD paths below. Existing archive Task 6 code/migration/tests and CRLF differences were present before this task, captured separately in evidence/INCOMING_GIT_STATUS.txt and INCOMING_SEMANTIC_DIFF.txt. They are not attributed to Phase 0. A whole integration diff against clean post-Task-6 commit cannot be certified until SOURCE-001 resolves.
 
@@ -102,7 +121,7 @@ Phase 0 expected incremental change: **66 ADD, 0 MODIFY, 0 DELETE, 0 RENAME**. A
 |---|---|---|
 | Phase 0 delivered docs versus scoped Git paths and ledger | Frozen incoming byte manifest | See evidence/PHASE0_VERIFICATION.json; require zero missing/stale/action mismatch |
 | Python and Node original files | Frozen incoming manifests | See evidence/SOURCE_INTEGRITY_FINAL.json; require zero modified/deleted originals |
-| Entire integration against clean post-Task-6 commit | Not supplied | BLOCKED SOURCE-001; incoming archive changes are not this task’s diff |
+| Entire integration against clean post-Task-6 commit | Not supplied | BLOCKED SOURCE-001; incoming archive changes are not this taskâ€™s diff |
 
 For later phases replace baseline with approved clean phase-base SHA and record every committed/staged/unstaged/untracked ADD/MODIFY/DELETE and both rename endpoints, source behavior reason, IDs, API/schema compatibility, migration/test results and commit. Reconcile exact path/action set and review prose, not only counts. Failed/skipped applicable acceptance checks block DONE; no phase production tests are claimed by this documentation-only ledger.
 
@@ -213,7 +232,7 @@ Baseline: 66 document hashes in evidence/phase0r/DOCUMENT_BASELINE_PHASE0R.json,
 | 0R | TRACE-001; WOO | `docs/keel-integration/traces/TRACE-WOO.md` | ADD | Join atomic behavior for domain review | Per-capability Node/Python roots, mounted/current UI boundary, real schema, absent or unequal operation and proposed acceptance | All original source bytes preserved | Documentation only; no effective SQL/API change | PHASE0R-VERIFY: PHASE0R_VERIFICATION.json; GIT_DOCUMENT_DIFF_PHASE0R.txt | Uncommitted; owner PENDING; implementation BLOCKED |
 
 
-## Phase 0R owner-policy reconciliation — 2026-10-20
+## Phase 0R owner-policy reconciliation â€” 2026-10-20
 
 Authority: supplied owner register; all 13 policies SELECTED, detailed PENDING values preserved. Implementation/release not authorized. Prior 129-document baseline frozen in evidence/owner-decisions/DOCUMENT_BASELINE_OWNER_RECONCILIATION.json. Earlier ledger rows describe their historical phase, not the current approval state.
 
@@ -248,7 +267,7 @@ Authority: supplied owner register; all 13 policies SELECTED, detailed PENDING v
 | 0R-OWNER | DOCS-001 | `docs/keel-integration/reference/KEEL_PHASE0R_OWNER_ARCHITECTURE_DECISION_REGISTER.md` | ADD | Reconcile explicit owner selections without implementing them | Retain exact uploaded owner authority and interpretation/authorization constraints byte-for-byte | All original source bytes preserved | Documentation only; no executable/schema contract changed | OWNER-VERIFY: OWNER_RECONCILIATION_VERIFICATION.json; GIT_DOCUMENT_DIFF_OWNER_RECONCILIATION.txt | Policy SELECTED; implementation NOT AUTHORIZED; no commit |
 
 
-## Phase 0V — verification attempted; overall BLOCKED
+## Phase 0V â€” verification attempted; overall BLOCKED
 
 Baseline: prior 136-document approved-owner Phase 0R archive; hashes in evidence/phase0v/DOCUMENT_BASELINE_PHASE0V.json. All original source content unchanged; the incoming Task 6 repair is not this phase's code change. PASS in document verification means integrity/ledger consistency, not native/runtime readiness. No commits or production implementation.
 
@@ -304,7 +323,7 @@ Baseline: prior 136-document approved-owner Phase 0R archive; hashes in evidence
 | 0V | DOCS-001 | `docs/keel-integration/reference/KEEL_PHASE0V_WORK_PROMPT_20261020.md` | ADD | Preserve genuine verification/provenance and bounded next action | Preserve uploaded bounded Phase 0V requirements unchanged | All original Python/Node bytes and selected policies preserved | Documentation/evidence only; no applied SQL or API change | PHASE0V-DOC-VERIFY; TEST_RESULTS_SUMMARY.json; GIT_DOCUMENT_DIFF_PHASE0V.txt | Uncommitted; overall BLOCKED; no implementation permission |
 
 
-## Phase 1A production implementation — isolated branch keel-phase1a-20261020
+## Phase 1A production implementation â€” isolated branch keel-phase1a-20261020
 
 The incremental base is the exact 1,461-file starting manifest plus preserved incoming Task6 changes, not HEAD alone. Starting source-plus-Git snapshot SHA256: `82553c872bbfee88e293d492f550becf3b8131610706650f0d72e7c222665909`. No commit/reset/push/deploy. Current authorization is the owner's Begin Phase1A instruction; historical Phase0 restrictions remain historical. Every incremental path below reconciles to actual `git diff --no-index --no-renames --name-status` against the starting content. Incoming tracked CRLF/Task6 differences and 178 prior architecture files are not Phase1A additions.
 

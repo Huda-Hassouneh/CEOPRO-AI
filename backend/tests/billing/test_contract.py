@@ -321,7 +321,11 @@ def test_revoked_main_token_is_rejected_before_billing_database(client, monkeypa
     token, _ = security.create_access_token(
         str(uuid.uuid4()), str(uuid.uuid4()), email_verified=True
     )
-    monkeypatch.setattr(security, "is_token_revoked", lambda token_id: True)
+    monkeypatch.setattr(
+        security,
+        "is_token_revoked",
+        lambda token_id, fail_closed=False: True,
+    )
     monkeypatch.setattr(
         db,
         "app_role_connection",

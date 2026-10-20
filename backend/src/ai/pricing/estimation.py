@@ -4,6 +4,11 @@ KEEL - Market Price Estimation Fallbacks.
 Product policy: a product must never end up with "no market data". When no
 in-region (same-currency, tracked) competitor price exists, the decision is
 still made, from the best evidence available, in this order:
+  COMPARABLE_ESTIMATE  in-region competitors' items that are not the same
+                     product but stand in for it (price_comparison/ ladder):
+                     EQUIVALENT (same item, another quantity, scaled to ours)
+                     first, otherwise SIMILAR. Local evidence from a tracked
+                     competitor, so it ranks above any out-of-region reference.
   MARKET_REFERENCE   same-currency market reference prices (price_lookup/:
                      a seller's public page, a public price database, a
                      shopping search) - used as found, no adjustment.
@@ -36,6 +41,7 @@ from src.ai.core.money import format_money, round_money
 from src.ai.pricing import currency as currency_service
 from src.ai.pricing import data_access
 
+COMPARABLE_ESTIMATE = "COMPARABLE_ESTIMATE"
 MARKET_REFERENCE = "MARKET_REFERENCE"
 REGIONAL_ESTIMATE = "REGIONAL_ESTIMATE"
 PEER_ESTIMATE = "PEER_ESTIMATE"
@@ -47,6 +53,8 @@ DEFAULT_REGIONAL_FACTOR = float(os.getenv("PRICING_DEFAULT_REGIONAL_FACTOR", "1.
 MIN_REGIONAL_FACTOR, MAX_REGIONAL_FACTOR = 0.25, 4.0
 MIN_PEERS_FOR_CATEGORY_SCOPE = 2
 
+# Equivalent items are the same product in another quantity (a clean scale); similar ones are a looser stand-in.
+COMPARABLE_CONFIDENCE_CAP = {"EQUIVALENT": 0.55, "SIMILAR": 0.40}
 CONFIDENCE_CAP = {MARKET_REFERENCE: 0.50, REGIONAL_ESTIMATE: 0.45, PEER_ESTIMATE: 0.30, INTERNAL_ONLY: 0.15}
 UNCALIBRATED_CONFIDENCE_CAP = 0.30
 
@@ -62,6 +70,7 @@ class Estimate:
     note: str = ""
     competitor_price_ids: List[str] = field(default_factory=list)
     market_observation_ids: List[str] = field(default_factory=list)
+    comparison_ids: List[str] = field(default_factory=list)  # product_price_comparisons rows behind a COMPARABLE_ESTIMATE
 
 
 def convert_amount(conn, amount: float, from_currency: str, to_currency: str) -> Optional[float]:
@@ -126,10 +135,34 @@ def peer_market_price(
     return None
 
 
+def _comparable_estimate(conn, tenant_id: str, product_id: str, own_currency: str) -> Optional[Estimate]:
+    """Equivalent items when there are any (they scale cleanly), otherwise similar ones; None when neither exists."""
+    records = data_access.load_comparable_prices(conn, tenant_id, product_id, own_currency)
+    for tier, label in (("EQUIVALENT", "equivalent"), ("SIMILAR", "similar")):
+        chosen = [r for r in records if r["tier"] == tier]
+        if not chosen:
+            continue
+        names = sorted({r["competitor_name"] for r in chosen})
+        how = ("the same item in another quantity, scaled to this product's" if tier == "EQUIVALENT"
+               else "a close variant, size or quantity, not like for like")
+        return Estimate(
+            COMPARABLE_ESTIMATE, chosen, COMPARABLE_CONFIDENCE_CAP[tier],
+            f"No competitor sells exactly this product, so the estimate uses {len(chosen)} {label} competitor "
+            f"item(s) ({', '.join(names)}): {how}.",
+            comparison_ids=[r["price_entry_id"] for r in chosen],
+        )
+    return None
+
+
 def build_estimate(conn, tenant_id: str, product_id: str, own: dict) -> Estimate:
     """Always returns an Estimate - the last rung is INTERNAL_ONLY."""
     own_currency = own["currency"]
     money = lambda amount: format_money(amount, own_currency)  # noqa: E731
+
+    comparable = _comparable_estimate(conn, tenant_id, product_id, own_currency)
+    if comparable is not None:
+        return comparable
+
     references = data_access.load_reference_competitor_prices(conn, tenant_id, product_id)
     snapshot = None
 

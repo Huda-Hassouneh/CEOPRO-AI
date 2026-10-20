@@ -3,13 +3,12 @@ import os
 import uuid
 from urllib.parse import urlsplit
 import pytest
-from fastapi import HTTPException
 from src.ai.core import security
 
 pytestmark=pytest.mark.skipif(not os.getenv('PHASE1A_REDIS_TEST_URL') or os.getenv('BILLING_DATABASE_TESTS')!='1',reason='BLOCKED: isolated Redis URL not supplied')
 
 
-def test_real_revocation_persists_with_ttl_and_outage_is_not_permission(monkeypatch):
+def test_real_revocation_persists_with_ttl_and_durable_receipt_survives_cache_outage(monkeypatch):
     import redis
     url=os.environ['PHASE1A_REDIS_TEST_URL'];parts=urlsplit(url)
     assert os.getenv('PHASE1A_ISOLATED_REDIS')=='YES'and parts.hostname in {'127.0.0.1','localhost','::1'}and parts.port
@@ -27,6 +26,6 @@ def test_real_revocation_persists_with_ttl_and_outage_is_not_permission(monkeypa
         assert security.is_token_revoked(token_id)is True  # Durable receipt survives a cache reset.
         def unavailable():raise ConnectionError('isolated outage boundary')
         monkeypatch.setattr(security,'_revocation_store',unavailable)
-        with pytest.raises(HTTPException)as error:security.is_token_revoked(token_id)
-        assert error.value.status_code==503
+        assert security.is_token_revoked(token_id)is True
+        assert security.is_token_revoked(uuid.uuid4().hex)is False  # A healthy durable authority can confirm a cache miss.
     finally:client.delete(key+':'+token_id);client.close()

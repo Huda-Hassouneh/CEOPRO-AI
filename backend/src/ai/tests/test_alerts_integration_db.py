@@ -8,6 +8,8 @@ import psycopg2
 import pytest
 from fastapi.testclient import TestClient
 
+from src.ai.tests.signup_helpers import create_verified_test_account
+
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not ADMIN_DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
                                 reason="AI_TEST_DATABASE_URL and/or APP_DB_PASSWORD not set")
@@ -23,8 +25,8 @@ def _admin(sql, params=()):
 
 def _signup(client):
     email = f"alerts+{uuid.uuid4().hex[:8]}@example.com"
-    body = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Alert Co", "email": email,
-                                              "country_code": "JO", "primary_currency": "JOD", "password": "Alerts!Test2026"}).json()
+    body = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Alert Co", "email": email,
+                                                  "country_code": "JO", "primary_currency": "JOD", "password": "Alerts!Test2026"})
     return body, email
 
 
