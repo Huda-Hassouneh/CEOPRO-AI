@@ -33,7 +33,7 @@ export function PriceComparisonReportPage() {
 
   return <DashboardLayout><div className="pricing-page pricing-report">
     <PageHeader title={t('pricing.report.title')} subtitle={t('pricing.report.subtitle')} actions={<>
-      <Link to={routePaths.pricing}>{t('pricing.report.back')}</Link>
+      <Link className="pricing-link" to={routePaths.pricing}>{t('pricing.report.back')}</Link>
       <Button size="sm" variant="outline" onClick={download} disabled={products.length === 0}><Download size={14} aria-hidden="true" /> {t('pricing.report.download')}</Button>
     </>} />
     {query.isPending && <Skeleton />}
