@@ -47,6 +47,25 @@ def test_explicit_local_disposable_database_is_accepted():
     )
 
 
+@pytest.mark.parametrize(
+    "name",
+    ["KEEL_INTEGRATION_TEST", "KEEL_INTEGRATION_TEST_UPGRADE"],
+)
+def test_explicit_keel_integration_database_names_are_accepted(name):
+    url = f"postgresql://tester@127.0.0.1:55439/{name}"
+    assert (
+        validate_test_environment({"BILLING_TEST_DATABASE_URL": url}, database=True)
+        == url
+    )
+
+
+@pytest.mark.parametrize("name", ["KEEL_DEV", "keel_integration_test"])
+def test_non_test_database_names_are_refused(name):
+    url = f"postgresql://tester@127.0.0.1:55439/{name}"
+    with pytest.raises(VerificationRefused):
+        validate_test_environment({"BILLING_TEST_DATABASE_URL": url}, database=True)
+
+
 @pytest.mark.parametrize("apply", [False, True])
 def test_catalog_delegates_to_existing_main_sync_in_test_mode(monkeypatch, apply):
     from types import SimpleNamespace

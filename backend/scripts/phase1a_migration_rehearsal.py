@@ -13,7 +13,7 @@ import uuid
 from urllib.parse import urlsplit
 import psycopg2
 from scripts import apply_migrations as runner
-from scripts.billing_verification import validate_test_environment
+from scripts.billing_verification import is_test_database_name, validate_test_environment
 
 MIGRATION='20261025000100_integration_principal_permissions.sql'
 
@@ -32,7 +32,7 @@ def main():
         with conn.cursor()as cur:
             cur.execute("SELECT current_database(),current_setting('server_version_num')::integer,current_user")
             database,version,owner=cur.fetchone()
-            assert database.startswith('keel_billing_test')and 170000<=version<180000 and owner=='keel_billing_test_admin'
+            assert is_test_database_name(database)and 170000<=version<180000 and owner=='keel_billing_test_admin'
             cur.execute("SELECT to_regclass('public.companies')");assert cur.fetchone()[0]is None,'Refuse nonempty fixture database'
         conn.commit()
         previous=runner.MIGRATIONS_DIR

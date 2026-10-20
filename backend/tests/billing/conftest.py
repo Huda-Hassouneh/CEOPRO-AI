@@ -4,7 +4,7 @@ import os
 import uuid
 
 import pytest
-from scripts.billing_verification import validate_test_environment
+from scripts.billing_verification import is_test_database_name, validate_test_environment
 
 # Do this before any protected billing/security module is imported.
 validate_test_environment(
@@ -55,7 +55,7 @@ def owner_db():
     )
     with conn.cursor() as cur:
         cur.execute("SELECT current_database()")
-        assert cur.fetchone()[0].startswith("keel_billing_test"), (
+        assert is_test_database_name(cur.fetchone()[0]), (
             "Refuse mismatched database"
         )
     conn.commit()
