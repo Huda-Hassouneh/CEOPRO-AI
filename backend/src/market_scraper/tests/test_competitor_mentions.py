@@ -292,7 +292,7 @@ def test_no_matching_video_and_provider_errors_are_distinct_outcomes(monkeypatch
 
 def test_replies_are_only_stored_under_a_comment_that_was_stored():
     cursor = MagicMock()
-    cursor.fetchone.side_effect = [("rid1", True), ("rid2", True)]
+    cursor.fetchone.side_effect = [None, ("rid1", True), None, ("rid2", True)]  # (lookup of an existing copy, upsert) per comment
     conn = MagicMock()
     conn.cursor.return_value.__enter__.return_value = cursor
     comments = [
@@ -301,8 +301,8 @@ def test_replies_are_only_stored_under_a_comment_that_was_stored():
         {"external_id": "r2", "parent_external_id": "missing", "author": "L", "text": "orphan", "likes": 0, "published_at": None, "reply_count": None},
     ]
     new = ce._save_comments(conn, "t1", "comp", "src", "YouTube", comments)
-    assert new == 2 and cursor.execute.call_count == 2  # top first, its reply second, the orphan skipped
-    assert cursor.execute.call_args_list[1].args[1][-2] == "rid1"  # the reply's parent_review_id (the source url follows it)
+    assert new == 2 and cursor.execute.call_count == 4  # top first, its reply second, the orphan skipped
+    assert cursor.execute.call_args_list[3].args[1][-2] == "rid1"  # the reply's parent_review_id (the source url follows it)
 
 
 # ---- which comments are worth keeping (P2) ---------------------------------------------------
