@@ -16,7 +16,7 @@ Guidance never produces a price: for a product that only has added-value compari
 read as justified in, and where the current price sits against it.
 """
 import statistics
-from typing import Dict, Iterable, List, Optional
+from typing import Iterable, List, Optional
 
 from src.market_scraper.price_comparison import tiers
 
