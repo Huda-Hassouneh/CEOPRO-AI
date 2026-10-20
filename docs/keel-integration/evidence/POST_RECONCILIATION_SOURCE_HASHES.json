@@ -1,13 +1,13 @@
 {
   "artifact": "Local origin/main reconciliation source hash manifest",
-  "source_content_sha256": "033bee076fcf40e539997a4af4d9f372a03dd476d0d5c9d6bf00b07b4ffdb7a7",
-  "method": "SHA256 of canonical compact UTF-8 JSON mapping sorted repository-relative paths to SHA256 of exact working-tree file bytes; source path set comes from git ls-files --cached --others --exclude-standard; excludes docs/keel-integration/evidence (including this manifest), dynamic verification summaries (UNIFIED_FILE_CHANGE_LEDGER.md and PHASE1A_NATIVE_VERIFICATION.md), PHASE1A_DELIVERY_MANIFEST.json, generated dependency/build/cache directories and Python bytecode",
-  "path_count": 1445,
+  "source_content_sha256": "78ab167a507f3287d3423fb52753c5c1181c104575be347aff5bab2cff4f9c78",
+  "method": "SHA256 of canonical compact UTF-8 JSON mapping sorted repository-relative paths to SHA256 of exact working-tree bytes. Candidate paths are existing regular files tracked at HEAD; independent enumerations from git ls-files --cached and git ls-tree -r HEAD must produce identical path maps.",
+  "path_count": 1444,
   "reconciliation_branch": "reconcile/keel-origin-main-20261020",
   "integration_head": "d98bdedf4ee86173dce5e543cd70aadca2debb4f",
   "upstream_merge_head": "81ac008d6f1288ec4bbf9c8996bc80222f76ef2c",
   "common_ancestor": "1de393c77dfc6db9d8722d8a611d2384d64d12c0",
-  "merge_commit_created": false,
+  "merge_commit_created": true,
   "paths": {
     ".devcontainer/devcontainer.json": "f610b29f46ed05e039ba3eb9946245b00184967a291c01584595c41f6fe2f491",
     ".devcontainer/env_utils.sh": "9f79fa78e95bf1345bd74a16ac555c7686ba6f0cce27593bd60b1a1dfcc5109c",
@@ -26,7 +26,6 @@
     ".github/workflows/staging-deployment.yml": "78ad0a721212da3438d65d1b8f46b8c76aec285b85037affc819b0a709f73d13",
     ".gitignore": "5546e292acabf3c0b22ab36a0e636120379bbe1fcfa24eb3746aace87911d267",
     ".gitleaks.toml": "a0c87143e22f3805c2e00ac778f5b7a5394ce4be7d88221d37ea34ef39aa0018",
-    ".refresh_reconciliation_evidence.py": "a1ee2273cb669f575fb83188196f2248c94b2a558f131a0ed570711d23508baf",
     "CODESPACES_DEVELOPMENT.md": "a8ab2993ab62e845a7b6068535132bb4e506da95af0d8f56db44bf2d414709d1",
     "CURRENT_STATUS.md": "abf0857ecb66860590a9dc49f80184f92dcaf02229531eadc0c9bd1269b4a093",
     "README.md": "f7bd60b8bce9434b0059c9dd938781c7cc9cd9066047815d55e74b39335e4041",
@@ -1454,5 +1453,15 @@
     "frontend/vite.config.js": "0901571f39569da05299d5b6122dea5f597616b337ba609adb03d11e2fa971cf",
     "keel": "b67d3a78f9b2052913b2ff141d7e291b1ea6847984af7adaf1b87de8956892fb",
     "render.yaml": "08840a3db29a48e5c22daf81d4c978b8b62c05afb0fbb86b2ac8cfe52bf461d4"
-  }
+  },
+  "source_path_exclusions": [
+    "docs/keel-integration/evidence/** (including this manifest)",
+    "docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md",
+    "docs/keel-integration/PHASE1A_NATIVE_VERIFICATION.md",
+    "**/PHASE1A_DELIVERY_MANIFEST.json",
+    "generated directories: node_modules, dist, build, coverage, __pycache__, .pytest_cache, .next, .venv, venv, .cache, .turbo",
+    "**/*.pyc and **/*.pyo",
+    "all untracked paths, including temporary scripts and tools; only HEAD-tracked paths are candidates"
+  ],
+  "reconciliation_merge_commit": "47f2f1bed3623179ce506d934de9403924d814ff"
 }

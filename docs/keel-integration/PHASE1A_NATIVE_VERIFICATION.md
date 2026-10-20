@@ -1,20 +1,21 @@
 # Phase 1A and upstream reconciliation verification
 
-## Current local reconciliation — no merge commit
+## Current local reconciliation — merge commit recorded
 
 This record supersedes the pre-upstream results below for the combined repository. Work remains only in `C:\Users\Mohamamd-P\Desktop\Mahmoud\Orange Summer Challenge\KEEL\CEOPRO-AI-reconcile` on `reconcile/keel-origin-main-20261020`.
 
 | Identity | Value |
 |---|---|
-| Integration `HEAD` | `d98bdedf4ee86173dce5e543cd70aadca2debb4f` |
-| `MERGE_HEAD` (`origin/main`) | `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c` |
+| Merge commit | `47f2f1bed3623179ce506d934de9403924d814ff` |
+| First parent (integration) | `d98bdedf4ee86173dce5e543cd70aadca2debb4f` |
+| Second parent (upstream main) | `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c` |
 | Common ancestor | `1de393c77dfc6db9d8722d8a611d2384d64d12c0` |
 | Divergence | 9 integration commits and 33 upstream commits |
-| Merge commit | Not created; original integration branch remains unchanged |
+| Merge status | Local merge commit recorded; original integration branch remains unchanged |
 
 The only Git-reported conflict was `backend/src/ai/core/security.py`; its resolution retains active-principal/credential-version checks, durable token revocation, and upstream Redis fail-closed behavior for billing. Report replay uses the existing Python quota, idempotency, fingerprint, and usage-release authority. Operator/platform routes, price-comparison and competitor-comment features, RAG, frontend routing, and both locale key sets remain present.
 
-The combined source digest and exact path map are recorded in [POST_RECONCILIATION_SOURCE_HASHES.json](evidence/POST_RECONCILIATION_SOURCE_HASHES.json). The digest covers the final working-tree source bytes under the documented non-recursive source-path set; dynamic verification summaries and the evidence directory are excluded.
+The combined source digest is `78ab167a507f3287d3423fb52753c5c1181c104575be347aff5bab2cff4f9c78` over 1,444 paths. Its exact path map is recorded in [POST_RECONCILIATION_SOURCE_HASHES.json](evidence/POST_RECONCILIATION_SOURCE_HASHES.json). The deterministic source set uses existing files tracked at the merge commit; the manifest documents the exclusions, including dynamic summaries, evidence, generated paths, and untracked temporary tools.
 
 ### Security finding and forward-only remediation
 
@@ -60,7 +61,7 @@ The broad backend run has 900 skips, including database, MinIO, real-model and e
 
 The npm audit reported two HIGH advisories: `follow-redirects` (Axios's Node adapter dependency; not present in the browser bundle examined) and Vite/launch-editor development tooling. No dependency was upgraded. Only harmless trailing blank lines were removed from `backend/.env.example`, `backend/COMPETITOR_COMMENTS_AND_RETRY_PLAN.md`, and `backend/PRICE_COMPARISON_ACCURACY_PLAN.md`.
 
-**Recommendation:** after the final staged whitespace, secret, and merge-state checks, the tree is suitable to request approval for a local merge commit and a **DRAFT** PR review only. It is not ready to merge or release and is not production-ready. The real concurrent refresh/reset and last-seat races, along with the blocked release-level checks above, remain explicit review gates. No commit, push, remote merge, deployment, or Phase 1B work is authorized or performed.
+**Recommendation:** the local reconciliation merge commit is recorded for review. It is not ready for release or production. The real concurrent refresh/reset and last-seat races, along with the blocked release-level checks above, remain explicit review gates. No push, remote merge, deployment, or Phase 1B work was performed.
 
 ## Historical local stabilization overlay (before upstream reconciliation)
 
