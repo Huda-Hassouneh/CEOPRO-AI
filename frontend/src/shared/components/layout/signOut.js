@@ -1,13 +1,9 @@
 import { authApi } from '../../../features/auth/api/authApi.js';
 
-// Revokes the token server-side, then always clears the local session -
-// signing out must never depend on the network.
+// Always clear this device. Tell the user if server revocation was not confirmed.
 export async function signOut(clearSession, navigate) {
-  try {
-    await authApi.logout();
-  } catch {
-    // ignored on purpose
-  }
+  let confirmed = false;
+  try { const result = await authApi.logout(); confirmed = result?.revoked === true; } catch { /* Local sign-out still works. */ }
   clearSession();
-  navigate('/login', { replace: true });
+  navigate('/login', { replace: true, state: confirmed ? {} : { authNotice: 'logout-unconfirmed' } });
 }
