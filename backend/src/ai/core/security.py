@@ -85,8 +85,11 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     user_id = claims.get("user_id")
     if not tenant_id or not user_id:
         raise HTTPException(status_code=401, detail="Token is missing tenant_id/user_id claims.")
-    if claims.get("jti") and is_token_revoked(claims["jti"]):
-        raise HTTPException(status_code=401, detail="This session has been signed out.")
+    if claims.get("jti"):
+        # Money routes fail closed: if Redis is down a signed-out token is refused rather than trusted.
+        strict = request is not None and request.url.path.startswith(FAIL_CLOSED_PATH_PREFIXES)
+        if is_token_revoked(claims["jti"], fail_closed=strict):
+            raise HTTPException(status_code=401, detail="This session has been signed out.")
 
     # Until the address is confirmed, only the sign-in endpoints (verify,
     # renew, sign out, switch company) work. Older tokens carry no "ev"
@@ -115,6 +118,8 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
 # infrastructure blip never signs every user out.
 
 _REVOKED_PREFIX = "apex:revoked-token:"
+# Routes that move money or change entitlements: a Redis outage must not let a signed-out token through.
+FAIL_CLOSED_PATH_PREFIXES = ("/billing",)
 _security_logger = logging.getLogger("CEOPRO_AI_SECURITY")
 
 
@@ -136,12 +141,12 @@ def revoke_token(token_id: str, expires_at_epoch) -> bool:
         return False
 
 
-def is_token_revoked(token_id: str) -> bool:
+def is_token_revoked(token_id: str, fail_closed: bool = False) -> bool:
     try:
         return bool(_revocation_store().exists(_REVOKED_PREFIX + token_id))
-    except Exception as err:  # noqa: BLE001 - fail open, see above
+    except Exception as err:  # noqa: BLE001 - fail open unless the caller asks to fail closed
         _security_logger.warning("Could not check signed-out tokens: %s", err)
-        return False
+        return fail_closed
 
 
 def create_access_token(tenant_id: str, user_id: str, auth_time: "Optional[int]" = None,
