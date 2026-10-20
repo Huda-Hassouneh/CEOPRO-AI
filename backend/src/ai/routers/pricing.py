@@ -218,6 +218,9 @@ def pricing_comparison_override(product_id: UUID, body: ComparisonOverride, ctx:
         conn.close()
 
 
+MAX_PREMIUM_BAND_CATEGORIES = 200
+
+
 class PremiumBandBody(BaseModel):
     category: Optional[str] = Field(default=None, max_length=120, description="Lower-cased product category; null = products without one.")
     band_pct: Optional[float] = Field(default=None, ge=5, le=300, description="Premium (% over the competitor's base item) that still reads as justified; null clears your setting.")
@@ -261,6 +264,12 @@ def pricing_set_premium_band(body: PremiumBandBody, ctx: TenantContext = Depends
             row = cursor.fetchone()
             if row is None or row[0] not in ("owner", "admin"):
                 raise HTTPException(status_code=403, detail="You do not have permission to perform this action.")
+            if body.band_pct is not None:
+                cursor.execute("SELECT COUNT(*), COALESCE(BOOL_OR(category_key = %s), FALSE) FROM price_premium_band_overrides WHERE tenant_id = %s;",
+                               (key, ctx.tenant_id))
+                count, exists = cursor.fetchone()
+                if not exists and count >= MAX_PREMIUM_BAND_CATEGORIES:
+                    raise HTTPException(status_code=409, detail=f"At most {MAX_PREMIUM_BAND_CATEGORIES} categories can have their own band.")
             if body.band_pct is None:
                 cursor.execute("DELETE FROM price_premium_band_overrides WHERE tenant_id = %s AND category_key = %s;", (ctx.tenant_id, key))
             else:

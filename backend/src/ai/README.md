@@ -32,6 +32,15 @@ changes required.
   instead of training/serving an XGBoost model.
 - `evidence.py` — writes `demand_forecasts` + `evidence_records` (category `PREDICTION`) rows, and a
   `model_versions` row whenever a model is actually trained.
+- `comparisons.py`, `premium_bands.py` — the price comparison ladder (read side). How a product relates to what competitors sell, in
+  four tiers (EXACT / EQUIVALENT / SIMILAR / ADDED_VALUE; classifier in `src/market_scraper/price_comparison/`, design in
+  `backend/PRICE_COMPARISON_TIERS_PLAN.md`). Routes: `GET /pricing/comparisons`, `GET /pricing/comparisons/{id}`,
+  `POST /pricing/comparisons/refresh`, `PUT /pricing/comparisons/{id}/override`, `GET|PUT /pricing/premium-bands`, and
+  `GET /reports/price-comparison` (first 500 products, at most `limit` rows). The added-value premium band is per category:
+  owner-set, else observed from the company's own pairs (at least 5), else `PRICE_COMPARISON_PREMIUM_BAND_PCT`. A product
+  with only added-value comparisons gets `added_value_guidance`, a justified range and never a price. The assistant reads the
+  ladder through the `price_ladder` fact section. Accuracy is measured with `scripts/price_comparison_eval.py` and guarded by
+  `market_scraper/tests/test_price_comparison_accuracy.py`.
 - `pipeline.py` — orchestrates the above: load → cold-start check → baseline (+ XGBoost if enough
   data) → pick whichever beats the baseline → persist.
 - `consumer.py` — Redis Streams consumer for the `demand_forecast_requested` event contract
