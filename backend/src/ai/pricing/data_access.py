@@ -230,7 +230,7 @@ def load_tenant_market_snapshot(conn, tenant_id: str, max_age_days: int = None) 
     products = {
         str(r[0]): {
             "product_id": str(r[0]),
-            "category": _category_key(r[1]),
+            "category": category_key(r[1]),
             "cost": float(r[2]) if r[2] is not None else None,
             "current_price": float(r[3]),
             "currency": r[4],
@@ -244,7 +244,7 @@ def load_tenant_market_snapshot(conn, tenant_id: str, max_age_days: int = None) 
     return list(products.values())
 
 
-def _category_key(category) -> Optional[str]:
+def category_key(category) -> Optional[str]:
     if isinstance(category, dict):
         text = category.get("en") or next((v for v in category.values() if isinstance(v, str) and v), None)
     else:

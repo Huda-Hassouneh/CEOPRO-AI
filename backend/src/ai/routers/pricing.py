@@ -11,6 +11,8 @@ from src.ai.core import usage
 from src.ai.core.entitlements import requires
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.pricing import comparisons as price_comparisons
+from src.ai.pricing import data_access as price_comparison_data_access
+from src.ai.pricing import premium_bands
 from src.ai.pricing import pipeline as pricing_pipeline
 from src.market_scraper.price_comparison import adjudicate as comparison_adjudicate
 from src.market_scraper.market_discovery import offerings as comparison_offerings
@@ -231,12 +233,12 @@ def _bands_payload(conn, tenant_id: str) -> dict:
     chosen = price_comparisons.load_category_bands(conn, tenant_id)
     with conn.cursor() as cursor:
         cursor.execute("SELECT DISTINCT category FROM products WHERE tenant_id = %s AND deleted_at IS NULL;", (tenant_id,))
-        keys = {price_comparisons.data_access._category_key(r[0]) for r in cursor.fetchall()}
+        keys = {price_comparison_data_access.category_key(r[0]) for r in cursor.fetchall()}
     keys |= set(chosen)
-    rows = [{"category": key, "band": chosen.get(key) or price_comparisons.premium_bands.default_band(),
-             "observed": observed.get(key) or price_comparisons.premium_bands.default_band()}
+    rows = [{"category": key, "band": chosen.get(key) or premium_bands.default_band(),
+             "observed": observed.get(key) or premium_bands.default_band()}
             for key in sorted(keys, key=lambda k: (k is None, k or ""))]
-    return {"default_band_pct": price_comparisons.premium_bands.default_band()["band_pct"], "categories": rows}
+    return {"default_band_pct": premium_bands.default_band()["band_pct"], "categories": rows}
 
 
 @router.get("/premium-bands")
@@ -255,7 +257,7 @@ def pricing_premium_bands(ctx: TenantContext = Depends(get_tenant_context)) -> d
 @router.put("/premium-bands")
 def pricing_set_premium_band(body: PremiumBandBody, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """Owner/admin only: set (or, with band_pct null, clear) the premium band for one category."""
-    key = (body.category or "").strip().lower() or price_comparisons.premium_bands.UNCATEGORISED
+    key = (body.category or "").strip().lower() or premium_bands.UNCATEGORISED
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         with conn.cursor() as cursor:

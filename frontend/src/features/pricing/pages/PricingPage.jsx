@@ -110,7 +110,7 @@ export function PricingPage() {
             const markup = markupOverCostPct(product.current_price, product.cost_price);
             const headline = summaries[product.product_id]?.headline;
             return <tr key={product.product_id}>
-              <td><strong>{product.product_name}</strong>{product.brand && <span className="pricing-table-sub">{product.brand}</span>}</td>
+              <td><strong dir="auto">{product.product_name}</strong>{product.brand && <span className="pricing-table-sub">{product.brand}</span>}</td>
               <td>{currencyFormatter(product.current_price, product.currency)}</td>
               <td>{currencyFormatter(product.cost_price, product.currency)}</td>
               <td>{markup != null ? `${percentFormatter.format(markup)}%` : t('products.common.notAvailable')}</td>

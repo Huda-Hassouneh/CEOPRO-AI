@@ -59,3 +59,37 @@ test('each band source is named, and the editor appears only when the screen can
 test('no guidance block when the product has like-for-like evidence', async () => {
   assert.doesNotMatch(await ladderHtml(ladder(null)), /added-value-guidance/);
 });
+
+const row = (over = {}) => ({
+  product_id: 'p1', name: 'Double extra cheese burger', currency: 'JOD', your_price: 4.2,
+  headline: { tier: 'ADDED_VALUE', count: 1, median_comparable: 3, position_pct: 40 },
+  tiers: { EXACT: tier(0), EQUIVALENT: tier(0), SIMILAR: tier(0), ADDED_VALUE: tier(1) },
+  added_value_guidance: guidance(), ...over,
+});
+
+async function reportHtml(query) {
+  return render(async () => {
+    const { PriceComparisonReportView } = await vite.ssrLoadModule('/src/features/pricing/pages/PriceComparisonReportPage.jsx');
+    return React.createElement(PriceComparisonReportView, { query });
+  });
+}
+
+test('the report shows its rows with the justified range, and no position for added-value rows', async () => {
+  const html = await reportHtml({ isPending: false, isError: false, data: { products: [
+    row(),
+    row({ product_id: 'p2', name: 'Cheese burger', your_price: 3.5, headline: { tier: 'EXACT', count: 1, position_pct: 16.7 }, tiers: { EXACT: tier(1), EQUIVALENT: tier(0), SIMILAR: tier(0), ADDED_VALUE: tier(0) }, added_value_guidance: null }),
+  ] } });
+  assert.match(html, /<caption[^>]*>Price comparison report/); // a table is announced by its caption
+  assert.match(html, /<th scope="row" dir="auto"[^>]*>Double extra cheese burger/);
+  assert.match(html, /JOD\s?3\.06 – JOD\s?4\.80|JOD\s?3\.06/);
+  assert.match(html, /Your price is inside that range/);
+  assert.match(html, /17% above|16\.7% above|17 % above/);
+});
+
+test('the report says so when it is loading, empty or failed, and offers Retry on failure', async () => {
+  assert.doesNotMatch(await reportHtml({ isPending: true }), /<table/);
+  assert.match(await reportHtml({ isPending: false, isError: false, data: { products: [] } }), /No product has competitor evidence yet/);
+  const failed = await reportHtml({ isPending: false, isError: true, refetch: () => {} });
+  assert.match(failed, /The report could not be loaded/);
+  assert.match(failed, />Retry</);
+});
