@@ -26,6 +26,7 @@ export function LoginPage() {
   const [touched, setTouched] = useState({});
   const [requestMessage, setRequestMessage] = useState(
     {
+      'logout-unconfirmed': { tone: 'error', key: 'auth.success.logoutUnconfirmed' },
       'password-reset': { tone: 'success', key: 'auth.success.passwordReset' },
       'company-deleted': { tone: 'success', key: 'auth.success.companyDeleted' },
       'email-verified': { tone: 'success', key: 'auth.success.emailVerified' },

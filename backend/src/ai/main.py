@@ -39,6 +39,7 @@ from src.ai.core.exceptions import register_exception_handlers
 from src.ai.core.rate_limit import RateLimitMiddleware
 from src.infrastructure.monitoring.error_tracking import init_error_tracking
 from src.infrastructure.request_language import RequestLanguageMiddleware
+from src.ai.routers import platform
 from src.ai.routers import (
     alerts, auth, billing, competitor_enrichment, competitors, dashboard, discovery, extraction, forecasting, health, marketing, mpi, onboarding, pricing, products, rag, reports,
     reviews, sales, sentiment, settings,
@@ -169,6 +170,7 @@ async def _forget_cached_views_after_writes(request, call_next):
 # to every plan and simply have no competitor or forecast data on Starter.
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(platform.router)
 app.include_router(pricing.router)
 app.include_router(sentiment.router, dependencies=[requires(usage.MARKET_INTELLIGENCE)])
 app.include_router(mpi.router, dependencies=[requires(usage.MARKET_INTELLIGENCE)])

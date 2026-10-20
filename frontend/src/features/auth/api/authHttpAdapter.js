@@ -49,7 +49,7 @@ function toSignupRequest(payload) {
 
 export const authHttpAdapter = Object.freeze({
   login: (payload) => unwrap(httpClient.post(authEndpoints.login, payload)).then((body) => ({ session: toSession(body) })),
-  signup: (payload) => unwrap(httpClient.post(authEndpoints.signup, toSignupRequest(payload))).then((body) => ({ session: toSession(body) })),
+  signup: (payload) => unwrap(httpClient.post(authEndpoints.signup, toSignupRequest(payload))).then((body) => ({ session: toSession(body), pendingRegistration: body.status === 'pending_verification' ? body : null })),
   forgotPassword: (payload) => unwrap(httpClient.post(authEndpoints.forgotPassword, payload)),
   verifyResetCode: (payload) => unwrap(httpClient.post(authEndpoints.verifyResetCode, payload)),
   resetPassword: (payload) => unwrap(httpClient.post(authEndpoints.resetPassword, payload)),

@@ -382,7 +382,8 @@ def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
                            (f"keel_metered:{tenant_id}:{feature_code}",))
             if actor_user_id is not None:
                 cursor.execute("SELECT 1 FROM tenant_users WHERE tenant_id=%s AND user_id=%s "
-                               "AND removed_at IS NULL FOR SHARE;", (tenant_id, actor_user_id))
+                               "AND removed_at IS NULL AND keel_active_principal(%s,%s) FOR SHARE;",
+                               (tenant_id, actor_user_id, actor_user_id, tenant_id))
                 if cursor.fetchone() is None:
                     raise HTTPException(status_code=403, detail="An active company membership is required.")
         plan = get_plan(conn, tenant_id)
