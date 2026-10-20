@@ -763,7 +763,7 @@ def change_password(body: ChangePasswordRequest, ctx: TenantContext = Depends(ge
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT password_hash FROM users WHERE user_id = %s;", (ctx.user_id,))
+            cursor.execute("SELECT password_hash FROM users WHERE user_id = %s FOR UPDATE;", (ctx.user_id,))
             row = cursor.fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="User not found.")

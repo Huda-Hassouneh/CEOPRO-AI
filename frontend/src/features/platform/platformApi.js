@@ -27,3 +27,12 @@ export const platformApi = Object.freeze({
   invitation: (token) => unwrap(httpClient.get(`/platform/invitations/${id(token)}`)),
   accept: (token, body) => unwrap(httpClient.post(`/platform/invitations/${id(token)}/accept`, body)),
 });
+
+// Dependency failures are retryable; they are not evidence that an invitation is invalid.
+export const platformInvitationErrorKey = (error) => {
+  const status = error?.response?.status;
+  if (status === 422) return 'platform.newCredentials';
+  if (status === 409) return 'platform.conflict';
+  if (status === 404) return 'platform.invitationInvalid';
+  return 'platform.failed';
+};
