@@ -197,3 +197,13 @@ def test_override_null_clears_the_decision_and_unknown_targets_are_404():
     conn.cursor.return_value.__enter__.return_value.fetchone.side_effect = [("owner",), None, (1,)]
     with patch(f"{R}.db.app_role_connection", return_value=conn):
         assert client.put(f"/pricing/comparisons/{PID}/override", json=BODY, headers=_auth()).status_code == 404
+
+
+def test_price_comparison_report_needs_auth_and_returns_the_overview():
+    assert client.get("/reports/price-comparison").status_code == 401
+    entry = {"name": "Burger", **comparisons.build_ladder(PRODUCT, [_row("EXACT", "a", 5.0)], [])}
+    with patch("src.ai.routers.reports.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.reports.price_comparisons.ladder_overview", return_value=[entry]) as overview:
+        body = client.get("/reports/price-comparison?limit=5", headers=_auth()).json()
+    assert body["count"] == 1 and body["products"][0]["name"] == "Burger"
+    assert overview.call_args.args[2] == 5

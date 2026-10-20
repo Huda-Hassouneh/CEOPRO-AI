@@ -54,10 +54,10 @@ U = understanding
 # Which live fact sections (structured_context.py) each intent needs.
 _SECTIONS_FOR_INTENT = {
     U.SALES: ("sales", "insights"), U.FINANCIALS: ("sales", "insights"), U.PRODUCTS: ("sales", "price_gaps"),
-    U.PRICING: ("price_gaps", "sales"), U.INVENTORY: ("forecasts",), U.FORECAST: ("forecasts",),
-    U.COMPETITORS: ("competitors", "price_gaps", "competitor_activity"), U.REVIEWS: ("sentiment",),
+    U.PRICING: ("price_gaps", "price_ladder", "sales"), U.INVENTORY: ("forecasts",), U.FORECAST: ("forecasts",),
+    U.COMPETITORS: ("competitors", "price_gaps", "price_ladder", "competitor_activity"), U.REVIEWS: ("sentiment",),
     U.CUSTOMER_PREFERENCE: ("sentiment", "competitors"), U.MARKET_RESEARCH: ("competitors", "sales"),
-    U.ADVICE: ("sales", "insights", "price_gaps", "forecasts", "sentiment"),
+    U.ADVICE: ("sales", "insights", "price_gaps", "price_ladder", "forecasts", "sentiment"),
 }
 _PRIVATE_ONLY = frozenset({U.SALES, U.FINANCIALS, U.INVENTORY, U.FORECAST, U.MARKETING, U.DOCUMENTS, U.PRODUCTS,
                            U.PRICING})
