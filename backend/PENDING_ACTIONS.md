@@ -259,6 +259,8 @@ Design: `COMPETITOR_COMMENTS_AND_RETRY_PLAN.md`.
 | 117 | **Native-speaker review** of the new Arabic strings and the Arabic theme keywords (with #94). | Arabic reviewer | 🟠 Open |
 | 118 | **Instagram / Facebook comments** are not collected (they need the paid social provider, a separate facet). | Product | 🟡 Not planned |
 | 119 | **Open the pull request** once the competitor-comments and price-comparison work are both finished (the commits share one branch). | Dev | 🟠 Waiting |
+| 121 | **Run the live YouTube check** (needs a real `YOUTUBE_API_KEY`, which only a person can create; Google Cloud -> enable YouTube Data API v3 -> API key). From `backend/`: `YOUTUBE_API_KEY=<key> PYTHONPATH=. python scripts/youtube_comments_check.py "<competitor name>" "<city>"` (the script is `scripts/youtube_comments_check.py`: it calls `competitor_mentions.youtube_comments` and prints the counts and two samples). Paste or share the output. The only run so far used a placeholder key and proved just that a rejected key is reported clearly; comment parsing against the real API is unverified. | Operator / owner | 🟠 Open - needs a person
+| 122 | **Run the full backend suite in the real CI environment.** The verification here used a slim virtualenv and a throwaway Postgres: 3,048 tests passed and 60 failed, none in competitor or comment code (billing / credits / subscription-limit tests that need the full service stack, document-retrieval tests that need the ML libraries, and PDF tests that need `reportlab`). Confirm they pass where those dependencies exist. | Dev / CI | 🟠 Open
 
 ## How to update this file
 
