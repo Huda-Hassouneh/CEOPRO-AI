@@ -86,4 +86,5 @@ Gate test in CI; dev ≥ 85 % with no precision regression; holdout re-run once 
 * 2026-10-20 — **D3 done, differently from the sketch**: bands are *observed* per category from the tenant's own added-value premiums (75th percentile,
   min 5 pairs, 20-150 % clamp, default otherwise, labelled with sample size). They are not learned from `recommendation_outcomes`: that table only records
   whether an owner accepted a suggestion, not the effect on sales, and spec S19 keeps learned pricing off. No migration needed (computed at read time).
-* Not done: frontend display of `premium_band` / `added_value_guidance` (API only for now); an owner-set band per category.
+* 2026-10-20 — ladder shows the justified range, band source and sample size (en + ar); frontend 102 tests, lint, build ok.
+* Not done: a screen/export for `GET /reports/price-comparison`; an owner-set band per category.
