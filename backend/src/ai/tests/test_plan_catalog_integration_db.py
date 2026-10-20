@@ -369,6 +369,31 @@ def test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_cou
     assert refused.json()["detail"]["feature_code"] == "marketing_image_generation"
 
 
+@requires_minio
+def test_a_designed_poster_counts_as_one_image_of_the_monthly_allowance(client, monkeypatch):
+    # Decision (PENDING_ACTIONS #76): when no AI image can be made, the locally
+    # drawn poster is still a delivered image and uses one allowance.
+    from src.ai.marketing import image_generation
+    from src.ai.rag import llm_client
+    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+
+    session, headers = _company(client, "starter")
+    tenant = session["tenant_id"]
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    campaign = client.post("/marketing/campaigns", json={"text": "Olive oil", "strategy_type": "SALES_DRIVEN"}, headers=headers).json()
+    url = f"/marketing/campaigns/{campaign['campaign_id']}/generate-image"
+
+    def fail(prompt, **kw):
+        raise image_generation.ImageGenerationError("PROVIDER_ERROR", "provider down")
+    monkeypatch.setattr(image_generation, "generate_campaign_image", fail)
+
+    result = client.post(url, headers=headers).json()
+    assert result["image_generation_status"] == "COMPLETED"
+    assert result["image_generation_provider"] == "designed"
+    [(used,)] = _admin("SELECT used FROM tenant_usage_counters WHERE tenant_id = %s AND feature_code = 'marketing_image_generation';", (tenant,))
+    assert used == 1
+
+
 def test_review_imports_count_toward_monthly_uploads_and_storage_rows_stay_private(client, monkeypatch):
     from src.ai.routers import reviews
 
