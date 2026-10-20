@@ -2,6 +2,18 @@
 
 Status: **IMPLEMENTED within the bounded authentication/platform foundation; TESTED at isolated unit/endpoint/frontend-contract level; INTEGRATION BLOCKED; production release NOT AUTHORIZED.** This is an uncommitted production-source delivery, not a Phase 0 architecture audit or native verification certificate. Broader catalog, commercial execution and notification capabilities are explicitly incomplete below.
 
+## Later local stabilization overlay
+
+The content below records the original implementation delivery and its historical evidence. The local branch `integration/keel-task6-phase1a` now has a separate uncommitted stabilization overlay with eight corrections, the forward-only `20261025000200_auth_platform_stabilization.sql` migration, regression tests and a rehearsal-script extension. It preserves the six local commits, native database-isolation guards, newer authentication tests and current verification evidence. No price, effective entitlement, billing authority, or AI algorithm changed.
+
+The current source digest is `418086e5345252e7d60d069aaf906264dce0111e6c1cca3d7db16f121be732eb` over 1,310 repository-relative source paths. Its exact path/hash mapping and method are recorded separately in [POST_STABILIZATION_SOURCE_HASHES.json](evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES.json). Historical manifests and candidate digests are unchanged and are not expected to match this merged local tree.
+
+Native verification now ran on three new allowlisted disposable PostgreSQL 17.11 databases: fresh applied 80 migrations, populated applied 78+2, and Phase 1A applied 79+1; each repeat run applied zero. Historical identity/password/version, membership, request receipt/fingerprint and code-state assertions passed. Catalog checks passed for function ownership, `SECURITY DEFINER`, fixed `search_path`, PUBLIC revocation, `ceopro_app` grants, and six forced-RLS platform tables. `ceopro_app` direct login passed and confirmed the role is neither superuser nor `BYPASSRLS`.
+
+Latest results: native Phase 1A PostgreSQL/Redis suite 89 passed; direct RLS 18 passed; billing/entitlement/usage/integration-review 154 passed; modernized legacy auth + auth contract + focused stabilization 87 passed; frontend 95 passed, build passed, targeted ESLint passed. Real expiry-after-lock-wait, JWT refresh/revocation-through-expiry, Redis outage/recovery, and PostgreSQL connection-refusal probes passed. No confirmed production defect was found. A first integration-review launch omitted `DATABASE_URL` (33 failed/121 passed with expected 503s); after fixing the test environment, four static checks required `PYTHONUTF8=1`; the final run passed 154/154. No production source changed for those environment issues.
+
+Persistent-storage recovery, deployment-role ownership proof, SMTP, browser journeys, Python 3.11 and external providers remain unverified. See [PHASE1A_NATIVE_VERIFICATION.md](PHASE1A_NATIVE_VERIFICATION.md) for test boundaries and exact commands. Native success does not certify production readiness.
+
 ## Exact source and authorization
 
 The latest user instruction, “Begin Phase 1A Production Implementation,” authorizes the isolated production changes, forward-only migration and tests. It supersedes historical Phase 0R/0V implementation-permission gates for this bounded task. All thirteen approved policy paragraphs remain verbatim; no economic or commercial-policy choice was silently resolved.
