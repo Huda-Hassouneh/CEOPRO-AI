@@ -378,3 +378,20 @@ def test_generic_words_in_a_competitor_name_are_not_required_to_match():
     assert cm._names_match("Starbucks Coffee Company", "Starbucks in Amman")
     assert not cm._names_match("Rival Burger", "Rival Pizza")
     assert cm._names_match("Coffee", "best coffee in town")  # a name made only of generic words still has to appear
+
+
+@pytest.mark.parametrize("text,keep", [
+    ("why is he breathing in my ears, this is so funny to watch", False),        # chatter about the video
+    ("We do this in Japan but in a different way at home with family", False),   # long, but not about the business
+    ("The staff were rude and the delivery took over an hour to arrive", True),   # an experience, unnamed
+    ("I work at Dominos in Australia and we make the dough in store", True),      # names them without 'pizza'
+    ("McDonalds fries are not what they used to be anymore", True),               # plural / possessive spelling
+])
+def test_comments_on_someone_elses_video_are_kept_only_if_about_the_business(text, keep):
+    name = "Domino's Pizza" if "Dominos" in text else "McDonald's"
+    assert cm.keep_comment(text, name, channel_names_it=False) is keep
+
+
+def test_the_kind_of_food_is_optional_in_a_comment_but_not_when_choosing_videos():
+    assert cm._names_match("Domino's Pizza", "dominos is bad", in_comment=True)
+    assert not cm._names_match("Domino's Pizza", "dominos is bad")
