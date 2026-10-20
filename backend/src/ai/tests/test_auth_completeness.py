@@ -3,7 +3,7 @@ Unit tests for the new auth endpoints in routers/auth.py (signup, logout,
 password reset, email verification, team invitations) - offline, same
 convention as test_auth.py: DB calls mocked (the router's own helper
 functions, not raw SQL - matching how test_auth.py already mocks
-_fetch_user_by_email/_fetch_user_memberships rather than cursor-level SQL).
+_fetch_login_identity/_fetch_user_memberships rather than cursor-level SQL).
 """
 import os
 from unittest.mock import MagicMock, patch
@@ -459,7 +459,7 @@ def test_login_is_throttled_per_email_after_repeated_wrong_passwords_and_a_429_r
     store = _CounterStore()
     monkeypatch.setattr(auth_throttle, "_redis", lambda: store)
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=None):
+         patch("src.ai.routers.auth._fetch_login_identity", return_value=None):
         statuses = [client.post("/auth/login", json={"email": "nobody@example.com", "password": "x"}).status_code
                     for _ in range(auth_throttle.LOGIN_MAX_FAILURES + 1)]
         other = client.post("/auth/login", json={"email": "someone-else@example.com", "password": "x"}).status_code

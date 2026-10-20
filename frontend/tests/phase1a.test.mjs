@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import httpClient from '../src/shared/lib/httpClient.js';
-import { platformApi } from '../src/features/platform/platformApi.js';
+import { platformApi, platformInvitationErrorKey } from '../src/features/platform/platformApi.js';
 import { toSession } from '../src/features/auth/api/authHttpAdapter.js';
 import { savePendingRegistration, readPendingRegistration, clearPendingRegistration, registrationFields } from '../src/features/auth/pendingRegistration.js';
 const storage = () => { const map = new Map(); return { getItem: (key) => map.get(key) ?? null, setItem: (key, value) => map.set(key, value), removeItem: (key) => map.delete(key) }; };
@@ -45,4 +45,12 @@ test('platform public invitation and owner approval preserve distinct endpoints 
     assert.throws(() => platformApi.read('billing-activate'));
     assert.throws(() => platformApi.invitationAction('id', 'promote-owner', 'invalid'));
   } finally { httpClient.defaults.adapter = original; }
+});
+
+test('invitation errors distinguish expiry, credentials, conflicts and dependency failures', () => {
+  assert.equal(platformInvitationErrorKey({ response: { status: 404 } }), 'platform.invitationInvalid');
+  assert.equal(platformInvitationErrorKey({ response: { status: 422 } }), 'platform.newCredentials');
+  assert.equal(platformInvitationErrorKey({ response: { status: 409 } }), 'platform.conflict');
+  assert.equal(platformInvitationErrorKey({ response: { status: 503 } }), 'platform.failed');
+  assert.equal(platformInvitationErrorKey(new Error('network down')), 'platform.failed');
 });
