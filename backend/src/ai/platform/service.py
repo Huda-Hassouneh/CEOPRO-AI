@@ -2,7 +2,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
-from psycopg2 import IntegrityError
+from psycopg2 import IntegrityError, Error as DatabaseError
 from psycopg2.extras import Json
 from src.ai import db
 from src.ai.core import notifications, security
@@ -12,6 +12,8 @@ ERRORS = {"forbidden": (403, "Platform permission required."), "not_found": (404
     "already_member": (409, "This user is already an active platform operator."),
     "idempotency_conflict": (409, "This request ID was already used for different approval terms."),
     "new_credentials_required": (422, "Full name and password are required for a new operator account."),
+    "operator_inactive": (409, "Only the Platform Owner can reactivate an existing operator."),
+    "seat_capacity": (402, "The customer workspace has no available team seat."),
     "not_configured": (503, "Platform administration has not been bootstrapped.")}
 
 
@@ -23,23 +25,47 @@ def _error(result):
 
 
 def record_attempt(ctx, action, subject, reason, outcome="denied"):
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    conn = None
     try:
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
         with conn.cursor() as cur:
             cur.execute("SELECT keel_platform_record_attempt(%s,%s,%s,%s);", (action, subject, reason, outcome))
         conn.commit()
+    except DatabaseError:
+        if conn is not None:
+            conn.rollback()
+        raise HTTPException(503, "Platform administration is temporarily unavailable.") from None
     except Exception:
-        conn.rollback()
+        if conn is not None:
+            conn.rollback()
         raise
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
 
 
 def command(ctx, action, payload=None):
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    payload = payload or {}
+    conn = None
+    payload = dict(payload or {})
     try:
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
         with conn.cursor() as cur:
+            if action == "membership_status" and payload.get("active") is True:
+                # SQL authorizes and holds authority/commercial/capacity locks before
+                # the existing Python billing authority supplies the current seat limit.
+                cur.execute("SELECT keel_platform_command(%s,%s);", ("membership_restore_scope", Json(payload)))
+                scope = cur.fetchone()[0]
+                if scope.get("error"):
+                    conn.commit()  # Persist permission denial before HTTP mapping.
+                    _error(scope)
+                from src.ai.routers.auth import _seat_limit
+                try:
+                    payload["_seat_limit"] = _seat_limit(scope["tenant_id"])
+                except HTTPException as exc:
+                    cur.execute("SELECT keel_platform_record_attempt(%s,%s,%s,'denied');",
+                                (action, str(payload.get("id")), "Existing entitlement authority refused: " + str(exc.status_code)))
+                    conn.commit()
+                    raise
             cur.execute("SELECT keel_platform_command(%s,%s);", (action, Json(payload)))
             result = cur.fetchone()[0]
             if isinstance(result, dict) and result.get("error") and result["error"] != "forbidden":
@@ -51,11 +77,17 @@ def command(ctx, action, payload=None):
         conn.rollback()
         record_attempt(ctx, action, str(payload.get("id", "platform")), "Constraint rejected mutation")
         raise HTTPException(409, "This change conflicts with an existing record.") from None
+    except DatabaseError:
+        if conn is not None:
+            conn.rollback()
+        raise HTTPException(503, "Platform administration is temporarily unavailable.") from None
     except Exception:
-        conn.rollback()
+        if conn is not None:
+            conn.rollback()
         raise
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
     return _error(result)
 
 
@@ -78,8 +110,9 @@ def invite(ctx, payload, invitation_id=None):
 
 
 def invitation(token, payload=None):
-    conn = db.auth_lookup_connection()
+    conn = None
     try:
+        conn = db.auth_lookup_connection()
         with conn.cursor() as cur:
             cur.execute("SELECT keel_platform_accept(%s,%s,%s);",
                         (security.hash_token(token), Json(payload or {}), payload is not None))
@@ -88,9 +121,15 @@ def invitation(token, payload=None):
     except IntegrityError:
         conn.rollback()
         raise HTTPException(409, "This account changed while the invitation was accepted. Try signing in.") from None
+    except DatabaseError:
+        if conn is not None:
+            conn.rollback()
+        raise HTTPException(503, "Platform administration is temporarily unavailable.") from None
     except Exception:
-        conn.rollback()
+        if conn is not None:
+            conn.rollback()
         raise
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
     return _error(result)

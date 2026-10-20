@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def _call(action, payload):
-    conn = db.auth_lookup_connection()
+    conn = None
     try:
+        conn = db.auth_lookup_connection()
         with conn.cursor() as cursor:
             cursor.execute("SELECT keel_pending_registration(%s, %s);", (action, Json(payload)))
             result = cursor.fetchone()[0]
@@ -24,14 +25,17 @@ def _call(action, payload):
         conn.commit()
         return result
     except DatabaseError as exc:
-        conn.rollback()
+        if conn is not None:
+            conn.rollback()
         status = 409 if exc.pgcode == "23505" else 422 if exc.pgcode in {"23514", "22001"} else 503
         raise HTTPException(status, "Registration could not be completed. Check your details or try again later.") from None
     except Exception:
-        conn.rollback()
+        if conn is not None:
+            conn.rollback()
         raise
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
 
 
 def _limits():

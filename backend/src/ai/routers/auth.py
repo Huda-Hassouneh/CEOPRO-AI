@@ -63,6 +63,14 @@ def _fetch_user_by_email(conn, email: str):
         return cursor.fetchone()
 
 
+def _fetch_login_identity(conn, email: str):
+    # One PostgreSQL statement/snapshot binds the password to its credential version.
+    # A concurrent reset cannot attach its newer version to the old password proof.
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT u.*, auth_credential_version(u.user_id) FROM auth_lookup_user_by_email(%s) u;", (email,))
+        return cursor.fetchone()
+
+
 def _email_verified(conn, user_id) -> bool:
     with conn.cursor() as cursor:
         cursor.execute("SELECT auth_email_verified(%s);", (str(user_id),))
@@ -137,12 +145,12 @@ def login(body: LoginRequest) -> dict:
     auth_throttle.ensure_allowed("login", body.email)
     conn = db.auth_lookup_connection()
     try:
-        user_row = _fetch_user_by_email(conn, body.email)
+        user_row = _fetch_login_identity(conn, body.email)
         if user_row is None:
             auth_throttle.record_failure("login", body.email)
             raise HTTPException(status_code=401, detail=_INVALID_CREDENTIALS_DETAIL)
 
-        user_id, password_hash, full_name, preferred_language = user_row
+        user_id, password_hash, full_name, preferred_language, password_version = user_row
         if not verify_password(body.password, password_hash):
             auth_throttle.record_failure("login", body.email)
             raise HTTPException(status_code=401, detail=_INVALID_CREDENTIALS_DETAIL)
@@ -175,7 +183,7 @@ def login(body: LoginRequest) -> dict:
         tenant_id, role_key, business_name = membership
         email_verified = _email_verified(conn, user_id)
         access_token, expires_in = create_access_token(tenant_id=str(tenant_id), user_id=str(user_id),
-                                                       email_verified=email_verified, credential_version=_credential_version(conn, user_id))
+                                                       email_verified=email_verified, credential_version=password_version)
 
         return {
             "access_token": access_token,
@@ -262,11 +270,13 @@ MAX_OWNED_WORKSPACES = 10
 
 
 def _session(tenant_id: str, user_id: str, role_key: str, business_name: str, full_name, language, email=None,
-             auth_time=None) -> dict:
+             auth_time=None, credential_version=None) -> dict:
     lookup = db.auth_lookup_connection()
     try:
         email_verified = _email_verified(lookup, user_id)
         version = _credential_version(lookup, user_id)
+        if credential_version is not None and credential_version != version:
+            raise HTTPException(401, "Your password changed. Please sign in again.")
     finally:
         lookup.close()
     access_token, expires_in = create_access_token(tenant_id=tenant_id, user_id=user_id, auth_time=auth_time,
@@ -321,7 +331,7 @@ def switch_workspace(body: SwitchWorkspaceRequest, ctx: TenantContext = Depends(
     # Same sign-in, another company: keeps the sign-in's start time, so
     # switching can't extend a session past SESSION_MAX_HOURS.
     session = _session(body.tenant_id, ctx.user_id, membership[1], membership[2], full_name, language, email,
-                       auth_time=getattr(ctx, "auth_time", None))
+                       auth_time=getattr(ctx, "auth_time", None), credential_version=getattr(ctx, "credential_version", 0))
     security.revoke_token(getattr(ctx, "token_id", None), getattr(ctx, "token_expires_at", None))
     return session
 
@@ -370,7 +380,8 @@ def create_workspace(body: CreateWorkspaceRequest, ctx: TenantContext = Depends(
     finally:
         conn.close()
     _start_free_trial(tenant_id, ctx.user_id)
-    return _session(tenant_id, ctx.user_id, "owner", business_name, full_name, language or "en", email)
+    return _session(tenant_id, ctx.user_id, "owner", business_name, full_name, language or "en", email,
+                    credential_version=getattr(ctx, "credential_version", 0))
 
 
 @router.post("/logout")
@@ -396,6 +407,8 @@ def refresh(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         memberships = _fetch_user_memberships(conn, ctx.user_id)
         email_verified = _email_verified(conn, ctx.user_id)
         version = _credential_version(conn, ctx.user_id)
+        if version != getattr(ctx, "credential_version", 0):
+            raise HTTPException(401, "Your password changed. Please sign in again.")
     finally:
         conn.close()
     if not any(str(m[0]) == str(ctx.tenant_id) for m in memberships):
@@ -500,7 +513,7 @@ def _active_code_or_reject(conn, token_type: str, email: str, code: str):
 
 def _consume_token(conn, token_id) -> None:
     with conn.cursor() as cursor:
-        cursor.execute("UPDATE auth_tokens SET used_at = NOW() WHERE token_id = %s AND used_at IS NULL AND expires_at>NOW() RETURNING token_id;", (token_id,))
+        cursor.execute("UPDATE auth_tokens SET used_at = NOW() WHERE token_id = %s AND used_at IS NULL AND expires_at>clock_timestamp() RETURNING token_id;", (token_id,))
         if cursor.fetchone() is None:
             raise HTTPException(status_code=400, detail="This token was already used or has expired.")
     conn.commit()
