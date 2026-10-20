@@ -356,6 +356,13 @@ AI_TEST_MINIO_ENDPOINT="localhost:9002" \
 docker rm -f ceopro_minio_aitest
 ```
 
+Other MinIO-backed tests (`test_plan_catalog_integration_db.py`, `test_marketing_lifecycle_integration_db.py`) read the app's own
+variables instead: `MINIO_ENDPOINT` as a **URL** (`http://localhost:9002`, not `host:port`), `MINIO_ROOT_USER` and
+`MINIO_ROOT_PASSWORD`, plus `DATABASE_URL`. Set `REDIS_URL` too if Redis is not on port 6379.
+
+The real-model suites (`AI_TEST_EMBEDDINGS`, `AI_TEST_RERANKING`, `AI_TEST_SENTIMENT`) turn off the conftest's default
+`HF_HUB_OFFLINE=1` so they can download their model; an `HF_HUB_OFFLINE` you export yourself always wins.
+
 `test_rag_embeddings.py` and the hybrid-retrieval test in `test_rag_integration.py` additionally
 need `AI_TEST_EMBEDDINGS=1` — they download/load the real ~470MB embedding model (network access
 required, ~140s first time, ~20-30s per fresh process even cached). Not required for the rest of the
