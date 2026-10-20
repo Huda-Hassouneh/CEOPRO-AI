@@ -5,6 +5,7 @@
 //   APP_URL=http://localhost:5173 API_URL=http://localhost:8000 \
 //   E2E_EMAIL=... E2E_PASSWORD=... [E2E_LOCALE=ar] [E2E_WIDTH=390] [E2E_THEME=dark] \
 //   [CHROMIUM_PATH=/path/to/chrome] node tests/browser/smoke.mjs
+import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const BASE = process.env.APP_URL || 'http://localhost:5173';
@@ -63,6 +64,41 @@ for (const route of routes) {
   failures += issues.length ? 1 : 0;
   console.log(`${issues.length ? '✗' : '✓'} ${route}${issues.map((i) => `\n    ${i}`).join('')}`);
 }
+// The price-recommendation dialog: a fresh company has no market data, so answer POST /pricing/recommend with a fixed
+// estimate (and then an "unknown" result with the 3-year window) and check the wording shown in this language.
+let dialogFailures = 0;
+if (product) {
+  const messages = JSON.parse(readFileSync(new URL('../../src/assets/locales/' + locale + '.json', import.meta.url), 'utf8')).pricing;
+  const estimate = {
+    status: 'OK', action: 'hold', current_price: 10, suggested_price: 10, matched_competitor_count: 0, confidence_score: 0.4,
+    data_basis: 'PEER_ESTIMATE', max_price_age_days: 1095,
+  };
+  const cases = [
+    ['estimate note', estimate, messages.modal.estimate.PEER_ESTIMATE],
+    ['3-year period', { status: 'UNKNOWN', max_price_age_days: 1095 }, new Intl.NumberFormat(locale, { style: 'unit', unit: 'year', unitDisplay: 'long' }).format(3)],
+  ];
+  let modalCurrent = cases[0];
+  await page.route('**/pricing/recommend*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(modalCurrent[1]) }));
+  for (const testCase of cases) {
+    modalCurrent = testCase;
+    problems = [];
+    await page.goto(`${BASE}/pricing`, { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+    await page.getByRole('button', { name: messages.list.getRecommendation }).first().click({ timeout: 10000 }).catch((e) => problems.push(`recommendation button: ${String(e).slice(0, 120)}`));
+    const compact = (text) => text.replace(/\s+/g, ' ');
+    const expected = compact(testCase[2]);
+    const dialog = page.locator('[role="dialog"]').first();
+    // The dialog opens on a skeleton and fills in when the (stubbed) answer arrives.
+    await page.waitForFunction(([text]) => {
+      const el = document.querySelector('[role="dialog"]');
+      return Boolean(el) && el.innerText.replace(/\s+/g, ' ').includes(text);
+    }, [expected], { timeout: 10000 }).catch(() => {});
+    const dialogText = await dialog.innerText({ timeout: 3000 }).catch(() => '');
+    const issues = [...problems, ...(compact(dialogText).includes(expected) ? [] : [`dialog does not show "${expected}"; it shows "${compact(dialogText).slice(0, 200)}"`])];
+    dialogFailures += issues.length ? 1 : 0;
+    console.log(`${issues.length ? '✗' : '✓'} price recommendation dialog: ${testCase[0]}${issues.map((i) => `\n    ${i}`).join('')}`);
+  }
+}
 await browser.close();
-console.log(`\n${routes.length - failures}/${routes.length} screens clean (${locale}, ${width}px${theme ? `, ${theme}` : ''})`);
-process.exit(failures ? 1 : 0);
+console.log(`\n${routes.length - failures}/${routes.length} screens clean${dialogFailures ? `, ${dialogFailures} dialog check(s) failed` : ''} (${locale}, ${width}px${theme ? `, ${theme}` : ''})`);
+process.exit(failures || dialogFailures ? 1 : 0);
