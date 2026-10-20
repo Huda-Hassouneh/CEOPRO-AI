@@ -45,3 +45,17 @@ export function useComparisonOverride(productId) {
     },
   });
 }
+
+// Sets (or clears, with bandPct null) the owner's premium band for a category; every ladder is re-read afterwards.
+export function useSetPremiumBand() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: pricingApi.setPremiumBand,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+// The report: every product that has competitor evidence, with its ladder.
+export function usePriceComparisonReport(limit = 50) {
+  return useQuery({ queryKey: [...KEY, 'report', limit], queryFn: () => pricingApi.comparisonReport(limit), staleTime: 60_000 });
+}

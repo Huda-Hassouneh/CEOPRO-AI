@@ -207,3 +207,35 @@ def test_price_comparison_report_needs_auth_and_returns_the_overview():
         body = client.get("/reports/price-comparison?limit=5", headers=_auth()).json()
     assert body["count"] == 1 and body["products"][0]["name"] == "Burger"
     assert overview.call_args.args[2] == 5
+
+
+PAYLOAD = {"default_band_pct": 60.0, "categories": []}
+
+
+def test_premium_bands_need_auth_and_the_set_endpoint_is_owner_or_admin_only():
+    assert client.get("/pricing/premium-bands").status_code == 401
+    assert client.put("/pricing/premium-bands", json={"category": "burgers", "band_pct": 40}).status_code == 401
+    assert client.put("/pricing/premium-bands", json={"category": "burgers", "band_pct": 2}, headers=_auth()).status_code == 422
+    assert client.put("/pricing/premium-bands", json={"category": "burgers", "band_pct": 900}, headers=_auth()).status_code == 422
+    conn, _ = _override_conn("staff")
+    with patch(f"{R}.db.app_role_connection", return_value=conn):
+        assert client.put("/pricing/premium-bands", json={"category": "burgers", "band_pct": 40}, headers=_auth()).status_code == 403
+
+
+def test_setting_and_clearing_a_premium_band():
+    conn, cursor = _override_conn("owner")
+    with patch(f"{R}.db.app_role_connection", return_value=conn), patch(f"{R}._bands_payload", return_value=PAYLOAD):
+        response = client.put("/pricing/premium-bands", json={"category": " Burgers ", "band_pct": 40}, headers=_auth())
+    assert response.status_code == 200 and response.json() == PAYLOAD
+    insert = next(c for c in cursor.execute.call_args_list if "INSERT INTO price_premium_band_overrides" in c.args[0])
+    assert insert.args[1][1] == "burgers" and insert.args[1][2] == 40
+    conn, cursor = _override_conn("admin")
+    with patch(f"{R}.db.app_role_connection", return_value=conn), patch(f"{R}._bands_payload", return_value=PAYLOAD):
+        assert client.put("/pricing/premium-bands", json={"category": None, "band_pct": None}, headers=_auth()).status_code == 200
+    delete = next(c for c in cursor.execute.call_args_list if "DELETE FROM price_premium_band_overrides" in c.args[0])
+    assert delete.args[1][1] == "__none__"
+
+
+def test_read_premium_bands():
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), patch(f"{R}._bands_payload", return_value=PAYLOAD):
+        assert client.get("/pricing/premium-bands", headers=_auth()).json() == PAYLOAD

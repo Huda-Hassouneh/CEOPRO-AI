@@ -73,3 +73,26 @@ def test_colour_or_fabric_variants_are_similar(own, item):
 def test_a_different_garment_in_the_same_colour_is_not_a_colour_variant():
     result = classify("Robe en lin Blanc - Taille M", 100, "Robe de soirée Blanc Taille M", 100)
     assert result is None or result.reasons[0]["code"] != "variant_differs" or result.tier == tiers.SIMILAR
+
+
+def _labelled(own, item, label, direction=""):
+    return {"id": "w1", "own_name": own, "own_name_alt": "", "own_price": 5.0, "item_name": item, "item_price": 5.0,
+            "label": label, "direction": direction, "kind": ""}
+
+
+def test_merging_a_worksheet_assigns_ids_skips_duplicates_and_keeps_the_split():
+    existing = [{**_labelled("Cheese burger", "Cheese burger", "EXACT"), "id": "pc041"}]
+    new = [_labelled("Cheese burger", " cheese  BURGER ", "EXACT"), _labelled("Tea 100g", "Tea 100g", "EXACT"),
+           _labelled("Tea 100g", "Tea 200g", "SIMILAR", "own_leaner")]
+    added, skipped = evaluate.merge_labelled(existing, new, "Acme (JO)", "holdout")
+    assert skipped == 1 and [r["id"] for r in added] == ["pc042", "pc043"]
+    assert all(r["split"] == "holdout" and r["company"] == "Acme (JO)" and r["kind"] == "clear" for r in added)
+    again, skipped_again = evaluate.merge_labelled(existing + added, new, "Acme (JO)")
+    assert again == [] and skipped_again == 3
+
+
+def test_merge_rejects_a_bad_split_or_direction():
+    with pytest.raises(ValueError):
+        evaluate.merge_labelled([], [_labelled("a b", "a c", "EXACT")], "x", "all")
+    with pytest.raises(ValueError):
+        evaluate.merge_labelled([], [_labelled("a b", "a c", "SIMILAR", "sideways")], "x")

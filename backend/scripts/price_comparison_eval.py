@@ -8,6 +8,8 @@ Accuracy of the price comparison tiers, and a worksheet to label YOUR OWN data.
       relates, plus a share of unrelated pairs, with its prediction in `predicted`. Fill the `label` column
       (EXACT | EQUIVALENT | SIMILAR | ADDED_VALUE | NONE; `direction` for SIMILAR) and score the file with
       `score --csv worksheet.csv`. Read-only; nothing is written to the database.
+  python -m scripts.price_comparison_eval merge --csv worksheet.csv --company "Acme Foods (JO)" [--split holdout|dev]
+      Adds the labelled rows (unlabelled ones are ignored) to the committed set with fresh ids; pairs already there are skipped.
 """
 import argparse
 import csv
@@ -84,6 +86,24 @@ def _export(args) -> int:
     return 0
 
 
+def _merge(args) -> int:
+    """Folds a labelled worksheet (from `export`) into the committed set. Unlabelled rows are ignored."""
+    target = Path(args.into)
+    existing = evaluate.load_labelled(target)
+    new = evaluate.load_labelled(args.csv)
+    added, skipped = evaluate.merge_labelled(existing, new, args.company, args.split)
+    if not added:
+        print(f"nothing to add ({skipped} already in {target.name})")
+        return 0
+    with open(target, "a", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=evaluate.COLUMNS)
+        for row in added:
+            writer.writerow(row)
+    print(f"added {len(added)} {args.split} pairs from {args.company} to {target.name} ({skipped} already present). "
+          "Re-run `score --split all`, then raise FLOORS in test_price_comparison_accuracy.py if the numbers allow.")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -98,8 +118,13 @@ def main(argv=None) -> int:
     export.add_argument("--limit", type=int, default=300)
     export.add_argument("--negatives", type=float, default=0.25)
     export.add_argument("--seed", type=int, default=7)
+    merge = sub.add_parser("merge", help="add a labelled worksheet to the committed set")
+    merge.add_argument("--csv", required=True)
+    merge.add_argument("--company", required=True, help="who the pairs come from, e.g. 'Acme Foods (JO)'")
+    merge.add_argument("--split", choices=["dev", "holdout"], default="holdout")
+    merge.add_argument("--into", default=str(DEFAULT_CSV))
     args = parser.parse_args(argv)
-    return _score(args) if args.command == "score" else _export(args)
+    return {"score": _score, "export": _export, "merge": _merge}[args.command](args)
 
 
 if __name__ == "__main__":
