@@ -68,6 +68,19 @@ jobs:
       # confirmed passing against a real local Postgres.
       SCRAPER_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
       SCRAPER_ACTOR_USER_ID: "00000000-0000-0000-0000-000000000000"
+      # MinIO is built from source in the step below (no registry serves a prebuilt
+      # image any more, so it cannot be a `services:` container). Closes the
+      # MinIO-backed tests that were skipped for lack of a server (PENDING_ACTIONS
+      # #66). Throwaway credentials for this ephemeral container only. The AI_TEST_*
+      # endpoint has no scheme and MINIO_ENDPOINT has one: the tests expect those formats.
+      AI_TEST_MINIO_ENDPOINT: localhost:9000
+      AI_TEST_MINIO_ACCESS_KEY: minio_admin
+      AI_TEST_MINIO_SECRET_KEY: ci_test_minio_password
+      AI_TEST_MINIO_ROOT_USER: minio_admin
+      AI_TEST_MINIO_ROOT_PASSWORD: ci_test_minio_password
+      MINIO_ENDPOINT: http://localhost:9000
+      MINIO_ROOT_USER: minio_admin
+      MINIO_ROOT_PASSWORD: ci_test_minio_password
     steps:
       - uses: actions/checkout@v4
 
@@ -116,6 +129,21 @@ jobs:
           # soon as Twisted publishes a fix; every other finding still fails the job.
           pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off \
             --ignore-vuln CVE-2026-106454
+
+      # Same source build docker-compose.yml uses (Dockerfile.minio, pinned version).
+      - name: Build and start MinIO
+        working-directory: backend
+        run: |
+          docker build -f src/infrastructure/Dockerfile.minio -t ceopro-minio-ci src/infrastructure
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER="$MINIO_ROOT_USER" -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
+            ceopro-minio-ci server /data
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:9000/minio/health/live && exit 0
+            sleep 2
+          done
+          docker logs minio
+          exit 1
 
       - name: Apply database migrations
         working-directory: backend
