@@ -722,3 +722,4 @@ html .apex-panel.price-coverage.price-coverage { --t: var(--gl-sky); --a: 0.08; 
 .competitor-comments__theme-neg { color: var(--apex-warning); }
 .competitor-comment__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .competitor-comment__actions [aria-pressed="true"] { border-color: var(--apex-accent-border); background: var(--apex-accent-tint); }
+.competitor-comments__error { margin: 0 0 8px; font-size: 12.5px; color: var(--apex-danger, #b42318); }

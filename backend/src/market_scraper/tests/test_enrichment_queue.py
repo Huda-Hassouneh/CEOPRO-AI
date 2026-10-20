@@ -162,7 +162,9 @@ def test_a_comments_job_runs_the_refresh_with_the_shared_budget_and_needs_a_clie
         w.process_job({"tenant_id": T, "mode": "comments"})
 
 
-def test_the_comments_sweep_runs_once_a_day_and_queues_one_job_per_stale_tenant():
+def test_the_comments_sweep_runs_once_a_day_and_queues_one_job_per_stale_tenant(monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "k")
+    monkeypatch.setenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "ops-1")
     client = MagicMock()
     client.exists.return_value = 0
     conn = MagicMock()
@@ -173,3 +175,11 @@ def test_the_comments_sweep_runs_once_a_day_and_queues_one_job_per_stale_tenant(
     assert enqueue.call_args_list[0].kwargs == {"mode": "comments"} and client.set.called
     client.exists.return_value = 1
     assert w.run_comments_sweep(client) == {"skipped": "already_ran_today"}
+
+
+def test_the_comments_sweep_queues_nothing_when_collection_is_not_set_up(monkeypatch):
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    client = MagicMock()
+    with patch.object(w.enrichment_queue, "enqueue_enrichment") as enqueue:
+        assert w.run_comments_sweep(client) == {"skipped": "not_configured"}
+    enqueue.assert_not_called()
