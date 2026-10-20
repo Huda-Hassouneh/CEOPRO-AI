@@ -178,4 +178,6 @@ All breaking changes, database constraint adjustments, and API/Event contract mo
 - **API (new)** - `GET /reports/price-comparison?limit=` (default 50, max 200): `{products: [{name, ...ladder}], count}`, read-only, tenant-scoped.
 - Assistant: a `price_ladder` fact section is offered for pricing, competitor and advice questions.
 - Premium bands are computed per category at read time from the tenant's own added-value premiums (75th percentile, at least 5 pairs, clamped to 20-150 %); otherwise `PRICE_COMPARISON_PREMIUM_BAND_PCT`. No schema change.
+- **DB** - migration `20261027000000_add_price_premium_band_overrides.sql` (rollback in `database/rollback/`): table `price_premium_band_overrides` (tenant, `category_key`, `band_pct` 5-300, set_by/at), RLS `get_current_tenant()`, FK to `companies` with cascade. Code deployed before it simply has no owner-set bands.
+- **API (new)** - `GET /pricing/premium-bands` -> `{default_band_pct, categories: [{category, band, observed}]}` (`band.source`: owner | observed | default); `PUT /pricing/premium-bands` `{category, band_pct}` (owner/admin only, `403` otherwise; `band_pct` 5-300 else `422`; `null` clears). Ladders gain `category`, and `premium_band.source` / `added_value_guidance.band_source` may now be `owner`.
 

@@ -154,6 +154,22 @@
       "title": "Pricing & Margins",
       "subtitle": "Compare your prices and costs against real market data, product by product."
     },
+    "report": {
+      "title": "Price comparison report",
+      "subtitle": "Every product with competitor evidence, by how close the competitor's item is. Similar and added-value items are references, not exact prices.",
+      "open": "Full report",
+      "back": "Back to pricing",
+      "download": "Download CSV",
+      "empty": "No product has competitor evidence yet.",
+      "loadError": "The report could not be loaded.",
+      "product": "Product",
+      "yourPrice": "Your price",
+      "bestTier": "Best evidence",
+      "counts": "Items per tier",
+      "position": "You vs the middle",
+      "range": "Justified range (added value)",
+      "band": "Band"
+    },
     "list": {
       "searchPlaceholder": "Search by name or brand",
       "getRecommendation": "Get Recommendation",
@@ -256,6 +272,11 @@
           "above_range": "Your price is above that range — make sure the extra justifies it."
         },
         "observed": "Band taken from {{count}} comparisons in your category.",
+        "owner": "Band set by you.",
+        "setLabel": "Set your band (%)",
+        "save": "Save",
+        "clear": "Use the market band",
+        "saved": "Premium band saved.",
         "default": "Default band — not enough comparisons in your category yet."
       },
       "premiumStatus": {

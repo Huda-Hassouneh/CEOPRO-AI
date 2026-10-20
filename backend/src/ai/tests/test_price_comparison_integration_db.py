@@ -286,3 +286,31 @@ def test_category_premium_band_is_observed_from_the_tenants_own_added_value_pair
     assert ladder[lone]["added_value_guidance"]["band_source"] == "default"
     lines = comparisons.overview_lines(conn, tenant_id)
     assert lines and "reference, never an exact competitor price" in lines[0] and any("Extra cheese pizza" in l for l in lines)
+
+
+def test_an_owner_set_band_wins_over_the_observed_one_and_clearing_it_restores_it(conn):
+    tenant_id = _company(conn)
+    ids = [_product(conn, tenant_id, "Extra cheese burger", price) for price in (3.6, 3.9, 4.2, 4.5, 4.8, 5.1)]
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE products SET category = %s WHERE tenant_id = %s;", (json.dumps({"en": "Burgers"}), tenant_id))
+    _competitor(conn, tenant_id, "Rival Grill", [("Cheese burger", 3.0)])
+    conn.commit()
+    engine.refresh_for_tenant(conn, tenant_id)
+    conn.commit()
+    assert comparisons.load_category_bands(conn, tenant_id)["burgers"]["source"] == "observed"
+
+    with conn.cursor() as cursor:
+        cursor.execute("INSERT INTO price_premium_band_overrides (tenant_id, category_key, band_pct) VALUES (%s, 'burgers', 25);", (tenant_id,))
+    conn.commit()
+    assert comparisons.load_category_bands(conn, tenant_id)["burgers"] == {"band_pct": 25.0, "source": "owner", "samples": 6}
+    ladder = comparisons.get_ladders(conn, tenant_id, [ids[0]])[ids[0]]
+    assert ladder["category"] == "burgers" and ladder["premium_band"]["source"] == "owner"
+    assert ladder["added_value_guidance"]["band_source"] == "owner"
+    assert ladder["tiers"]["ADDED_VALUE"]["items"][0]["premium"]["status"] == "within_range"  # 3.6 vs 3.0 is +20 %, inside 25 %
+    top = comparisons.get_ladders(conn, tenant_id, [ids[-1]])[ids[-1]]  # 5.1 vs 3.0 is +70 %, past 25 %
+    assert top["tiers"]["ADDED_VALUE"]["items"][0]["premium"]["status"] == "above_range"
+
+    with conn.cursor() as cursor:
+        cursor.execute("DELETE FROM price_premium_band_overrides WHERE tenant_id = %s;", (tenant_id,))
+    conn.commit()
+    assert comparisons.load_category_bands(conn, tenant_id)["burgers"]["source"] == "observed"

@@ -80,6 +80,7 @@ def build_ladder(product: dict, comparison_rows: Iterable[dict], exact_price_row
     }
     return {
         "product_id": str(product["product_id"]), "currency": product["currency"], "your_price": your_price,
+        "category": product.get("category"),
         "tiers": tiers, "headline": headline, "covered": best is not None,
         "premium_band": band,
         # Only when added value is all there is: a range your price reads as justified in, never a price.
@@ -177,7 +178,7 @@ def load_exact_price_rows(conn, tenant_id: str, products: List[dict]) -> Dict[st
     return out
 
 
-def load_category_bands(conn, tenant_id: str) -> Dict[Optional[str], dict]:
+def load_observed_bands(conn, tenant_id: str) -> Dict[Optional[str], dict]:
     """{category: band} from the premiums the tenant's own added-value comparisons carry (premium_bands.py)."""
     rows = _rows(
         conn,
@@ -197,6 +198,17 @@ def load_category_bands(conn, tenant_id: str) -> Dict[Optional[str], dict]:
     for category, pct in rows:
         by_category.setdefault(data_access._category_key(category), []).append(float(pct))
     return {category: premium_bands.derive_band(values) for category, values in by_category.items()}
+
+
+def load_category_bands(conn, tenant_id: str) -> Dict[Optional[str], dict]:
+    """The band per category: the owner's own where set, else observed (or the default when too few pairs)."""
+    bands = load_observed_bands(conn, tenant_id)
+    for key, pct in _rows(conn, "SELECT category_key, band_pct FROM price_premium_band_overrides WHERE tenant_id = %s;", (tenant_id,)):
+        category = None if key == premium_bands.UNCATEGORISED else key
+        observed = bands.get(category)
+        bands[category] = {"band_pct": float(pct), "source": premium_bands.OWNER_SOURCE,
+                           "samples": observed["samples"] if observed else 0}
+    return bands
 
 
 def get_ladders(conn, tenant_id: str, product_ids: List[str]) -> Dict[str, dict]:

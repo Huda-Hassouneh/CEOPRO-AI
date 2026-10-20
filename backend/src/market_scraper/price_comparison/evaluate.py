@@ -37,6 +37,37 @@ def load_labelled(path: str) -> List[dict]:
     return rows
 
 
+COLUMNS = ["id", "split", "company", "own_name", "own_name_alt", "own_price", "item_name", "item_price", "label", "direction", "kind", "note"]
+
+
+def _pair_key(row: dict) -> tuple:
+    norm = lambda text: " ".join((text or "").lower().split())  # noqa: E731
+    return (norm(row["own_name"]), norm(row.get("own_name_alt")), float(row["own_price"]), norm(row["item_name"]), float(row["item_price"]))
+
+
+def merge_labelled(existing: List[dict], new: List[dict], company: str, split: str = "holdout") -> tuple:
+    """(rows to add, number skipped as already present). New rows get the next free pcNNN id, the given company and
+    split; labels are validated by load_labelled. A pair already in the set (same names and prices) is skipped, so a
+    worksheet can be merged twice without doubling it."""
+    if split not in ("dev", "holdout"):
+        raise ValueError("split must be dev or holdout")
+    seen = {_pair_key(r) for r in existing}
+    last = max((int(r["id"][2:]) for r in existing if str(r.get("id", "")).startswith("pc") and r["id"][2:].isdigit()), default=0)
+    added, skipped = [], 0
+    for row in new:
+        key = _pair_key(row)
+        if key in seen:
+            skipped += 1
+            continue
+        seen.add(key)
+        last += 1
+        if row["label"] == tiers.SIMILAR and row.get("direction") not in ("", None, "own_richer", "own_leaner", "same"):
+            raise ValueError(f"{row.get('id')}: direction must be own_richer, own_leaner or same")
+        added.append({**{c: row.get(c, "") for c in COLUMNS}, "id": f"pc{last:03d}", "split": split, "company": company,
+                      "kind": row.get("kind") or "clear"})
+    return added, skipped
+
+
 def predict(row: dict, judge: Optional[Callable] = None) -> dict:
     """{"tier": a tier | NONE | HELD, "direction": ..., "ambiguous": ...} for one labelled row."""
     product = {"product_id": row.get("id") or "x", "name": row["own_name"], "name_alt": row.get("own_name_alt") or None,
