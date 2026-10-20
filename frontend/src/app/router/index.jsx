@@ -26,6 +26,7 @@ const WelcomePage = page(() => import('../../features/system/pages/WelcomePage.j
 const CommandCenterPage = page(() => import('../../features/dashboard/pages/CommandCenterPage.jsx').then((m) => ({ default: m.CommandCenterPage })));
 const ProductsListPage = page(() => import('../../features/products/pages/ProductsListPage.jsx').then((m) => ({ default: m.ProductsListPage })));
 const ProductFormPage = page(() => import('../../features/products/pages/ProductFormPage.jsx').then((m) => ({ default: m.ProductFormPage })));
+const PriceComparisonReportPage = page(() => import('../../features/pricing/pages/PriceComparisonReportPage.jsx').then((m) => ({ default: m.PriceComparisonReportPage })));
 const PricingPage = page(() => import('../../features/pricing/pages/PricingPage.jsx').then((m) => ({ default: m.PricingPage })));
 const ProductDetailPage = page(() => import('../../features/products/pages/ProductDetailPage.jsx').then((m) => ({ default: m.ProductDetailPage })));
 const ProductHubPage = page(() => import('../../features/products/pages/ProductHubPage.jsx').then((m) => ({ default: m.ProductHubPage })));
@@ -202,6 +203,10 @@ const routes = [
   {
     path: routePaths.pricing,
     element: <ProtectedRoute><PricingPage /></ProtectedRoute>,
+  },
+  {
+    path: routePaths.pricingReport,
+    element: <ProtectedRoute><PriceComparisonReportPage /></ProtectedRoute>,
   },
   {
     path: routePaths.market,

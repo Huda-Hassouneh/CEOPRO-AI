@@ -41,7 +41,7 @@ from src.infrastructure.monitoring.error_tracking import init_error_tracking
 from src.infrastructure.request_language import RequestLanguageMiddleware
 from src.ai.routers import platform
 from src.ai.routers import (
-    alerts, auth, billing, competitor_enrichment, competitors, dashboard, discovery, extraction, forecasting, health, marketing, mpi, onboarding, pricing, products, rag, reports,
+    alerts, auth, billing, competitor_enrichment, competitors, dashboard, discovery, extraction, forecasting, health, marketing, mpi, onboarding, operator, pricing, products, rag, reports,
     reviews, sales, sentiment, settings,
 )
 
@@ -185,6 +185,7 @@ app.include_router(discovery.router, dependencies=[requires(usage.COMPETITOR_MAN
 app.include_router(alerts.router)
 app.include_router(products.router)
 app.include_router(settings.router)
+app.include_router(operator.router)
 app.include_router(marketing.router)
 app.include_router(reports.router)
 app.include_router(reviews.router)

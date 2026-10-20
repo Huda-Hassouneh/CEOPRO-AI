@@ -83,6 +83,7 @@ def test_wrong_code_counter_is_committed_before_http_rejection(monkeypatch):
 def test_revocation_outage_is_503_not_unrevoked(monkeypatch):
     store=MagicMock();store.exists.side_effect=OSError('redis down')
     monkeypatch.setattr(security,'_revocation_store',lambda:store)
+    monkeypatch.setattr(security,'_durable_revocation',lambda *a:(_ for _ in ()).throw(OSError('database unavailable')))
     with pytest.raises(HTTPException)as error:security.is_token_revoked('jti')
     assert error.value.status_code==503 and error.value.headers['X-Auth-Reason']=='revocation-unavailable'
 
@@ -95,7 +96,7 @@ def test_failed_revocation_write_is_not_success(monkeypatch):
 
 
 def test_protected_request_fails_closed_before_handler_when_revocation_is_unknown(api,monkeypatch,token):
-    def unknown(*args):raise HTTPException(503,'Session verification unavailable')
+    def unknown(*args,**kwargs):raise HTTPException(503,'Session verification unavailable')
     monkeypatch.setattr(security,'is_token_revoked',unknown)
     monkeypatch.setattr(auth,'_fetch_user_memberships',lambda *a:pytest.fail('Protected handler ran'))
     assert api.get('/auth/workspaces',headers=token).status_code==503
@@ -109,7 +110,7 @@ def test_active_principal_is_rechecked_and_unknown_db_fails_closed(monkeypatch):
 
 def test_legacy_token_without_jti_receives_stable_revocable_identity(monkeypatch):
     raw=jwt.encode({'tenant_id':'t','user_id':'u','exp':datetime.now(timezone.utc)+timedelta(minutes=5)},security._JWT_SECRET,algorithm='HS256')
-    checked=[];monkeypatch.setattr(security,'is_token_revoked',lambda x:(checked.append(x)or False))
+    checked=[];monkeypatch.setattr(security,'is_token_revoked',lambda x,**kwargs:(checked.append(x)or False))
     monkeypatch.setattr(security,'assert_active_principal',lambda *a:None)
     ctx=security.get_tenant_context(authorization='Bearer '+raw)
     assert ctx.token_id==checked[0] and ctx.token_id.startswith('legacy:')
@@ -126,6 +127,7 @@ def test_registered_email_verification_still_uses_existing_token_authority(api,m
 @pytest.mark.parametrize('answer',[None,'0',2])
 def test_unverified_revocation_response_fails_closed(monkeypatch,answer):
     store=MagicMock();store.exists.return_value=answer;monkeypatch.setattr(security,'_revocation_store',lambda:store)
+    monkeypatch.setattr(security,'_durable_revocation',lambda *a:(_ for _ in ()).throw(OSError('database unavailable')))
     with pytest.raises(HTTPException)as error:security.is_token_revoked('jti')
     assert error.value.status_code==503
 

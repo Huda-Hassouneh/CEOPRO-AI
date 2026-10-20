@@ -20,8 +20,10 @@ os.environ.setdefault("DISCOVERY_ENRICH_MAX_SITES", "0")
 # loaded in one process, torch ops (e.g. softmax in sentiment/model.py) can
 # deadlock. Single-threaded OpenMP avoids it. Must be set before either imports.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
-# Model loaders are mocked in tests: skip the hub reachability probe.
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# Model loaders are mocked in tests: skip the hub reachability probe - unless a real-model suite is opted in
+# (AI_TEST_EMBEDDINGS / AI_TEST_RERANKING / AI_TEST_SENTIMENT), which must be able to download its model.
+if not any(os.getenv(name) for name in ("AI_TEST_EMBEDDINGS", "AI_TEST_RERANKING", "AI_TEST_SENTIMENT")):
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
 # Onboarding's connect endpoints refuse (503) without a credential-vault key;
 # give unit tests a throwaway one so they don't depend on the developer's shell.
 os.environ.setdefault("CREDENTIAL_VAULT_KMS_BACKEND", "local")
@@ -38,6 +40,26 @@ import time
 import pytest
 
 from src.ai.core import auth_throttle
+
+
+@pytest.fixture(autouse=True)
+def _offline_principal_and_revocation_authorities(request, monkeypatch):
+    """Keep endpoint unit tests offline; native integration suites exercise PostgreSQL and Redis."""
+    if request.module.__name__.endswith("_integration_db"):
+        return
+
+    from src.ai.core import security
+
+    revoked = set()
+
+    def durable_revocation(token_id, expires_at=None):
+        if expires_at is not None:
+            revoked.add(token_id)
+            return True
+        return token_id in revoked
+
+    monkeypatch.setattr(security, "assert_active_principal", lambda *args: None)
+    monkeypatch.setattr(security, "_durable_revocation", durable_revocation)
 
 
 class _InMemoryRedis:
@@ -114,7 +136,8 @@ def _no_plan_limits_for_mocked_connections(request, monkeypatch):
     """Router/unit tests run on MagicMock connections, which can't answer
     the usage queries; plan enforcement itself is covered against a real
     database in test_usage_integration_db.py (left unpatched)."""
-    if request.module.__name__.endswith(("test_usage_integration_db", "test_billing_integration_db",
+    if request.module.__name__.endswith("_integration_db") or request.module.__name__.endswith(
+            ("test_usage_integration_db", "test_billing_integration_db",
                                           "test_plan_catalog_integration_db", "test_credits_integration_db",
                                           "test_subscription_limits_integration_db")):
         return

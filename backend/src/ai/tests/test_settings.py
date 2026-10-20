@@ -103,7 +103,7 @@ def test_get_company_returns_the_tenants_real_row():
 
 def test_update_company_is_rejected_for_a_staff_caller():
     conn = _fake_conn()
-    _cursor(conn).fetchone.side_effect = [("staff",)]  # _require_role's own SELECT
+    _cursor(conn).fetchone.side_effect = [(False,), ("staff",)]  # platform workspace check, then membership role
 
     with patch("src.ai.routers.settings.db.app_role_connection", return_value=conn):
         response = client.patch(
@@ -149,7 +149,7 @@ def test_get_search_scope_returns_the_tenants_real_profile():
 
 def test_update_search_scope_is_rejected_for_a_staff_caller():
     conn = _fake_conn()
-    _cursor(conn).fetchone.side_effect = [("staff",)]  # _require_role's own SELECT
+    _cursor(conn).fetchone.side_effect = [(False,), ("staff",)]  # platform workspace check, then membership role
 
     with patch("src.ai.routers.settings.db.app_role_connection", return_value=conn):
         response = client.patch(
@@ -221,7 +221,7 @@ def test_get_target_markets_is_an_empty_list_when_nothing_declared():
 
 def test_update_target_markets_is_rejected_for_a_staff_caller():
     conn = _fake_conn()
-    _cursor(conn).fetchone.side_effect = [("staff",)]  # _require_role's own SELECT
+    _cursor(conn).fetchone.side_effect = [(False,), ("staff",)]  # platform workspace check, then membership role
 
     with patch("src.ai.routers.settings.db.app_role_connection", return_value=conn):
         response = client.put(

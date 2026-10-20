@@ -63,3 +63,8 @@
 .settings-notification-table input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--ceopro-primary); cursor: pointer; }
 .settings-notification-table input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .45; }
 @media (max-width: 560px) { .settings-notification-frequency { grid-template-columns: 1fr; } .settings-notification-table th[scope="col"]:not(:first-child), .settings-notification-table td { width: 70px; } }
+
+.service-setup { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.service-setup__row { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid var(--apex-border, rgba(128, 128, 128, 0.25)); }
+.service-setup__row p { margin: 4px 0 0; }
+@media (max-width: 600px) { .service-setup__row { flex-direction: column; } }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import {
-  canReviewPrices, competitorDataApi, completenessTone, facetActions, facetTone, intelChannel, intelOrigin, needsCheck, onRequestAction,
+  canReviewPrices, competitorDataApi, completenessTone, facetActions, facetGaps, facetNextStep, facetsWorthRetrying, facetTone, nextStepKey, retryFindings, intelChannel, intelOrigin, needsCheck, onRequestAction,
   parseCorrectedPrice, reasonKey, REASON_CODES, RETRYABLE_FACETS, retryableFacets, retryOutcome, withOverview,
 } from '../src/features/market-intelligence/api/competitorDataApi.js';
 import { discoveryApi } from '../src/features/market-intelligence/api/discoveryApi.js';
@@ -230,4 +230,68 @@ test('a corrected price must be a plain number; Arabic digits and a decimal comm
   assert.equal(parseCorrectedPrice('3,5'), 3.5);
   assert.equal(parseCorrectedPrice('٣٫٥'.replace('٫', '.')), 3.5);
   for (const bad of ['', 'abc', '-1', '1.23456', '3 JD', null, undefined, '1e3']) assert.equal(parseCorrectedPrice(bad), null, String(bad));
+});
+
+
+test('every gap carries its reason, detail and who can fix it', () => {
+  const completeness = { facets: {
+    PROFILE: { status: 'SUCCEEDED', can_retry: true },
+    COMMENTS: { status: 'BLOCKED', reason_code: 'NO_CREDENTIALS', reason_detail: 'YOUTUBE_API_KEY is not set.', can_retry: true, next_step: 'admin' },
+    NEWS: { status: 'FAILED', reason_code: 'NO_NEWS', can_retry: true },
+    SOCIAL_LINKS: { status: 'NOT_APPLICABLE', reason_code: 'NO_WEBSITE', can_retry: false },
+  } };
+  assert.deepEqual(facetGaps(completeness), [
+    { name: 'NEWS', status: 'FAILED', reasonCode: 'NO_NEWS', detail: null, nextStep: 'retry' },
+    { name: 'COMMENTS', status: 'BLOCKED', reasonCode: 'NO_CREDENTIALS', detail: 'YOUTUBE_API_KEY is not set.', nextStep: 'admin' },
+  ]);
+  assert.deepEqual(facetGaps(null), []);
+});
+
+test('next step falls back sensibly for a server that does not send it yet', () => {
+  assert.equal(facetNextStep({ status: 'FAILED', can_retry: true }), 'retry');
+  assert.equal(facetNextStep({ status: 'FAILED', can_retry: false }), 'none');
+  assert.equal(facetNextStep({ status: 'SUCCEEDED', can_retry: true }), 'none');
+  assert.equal(facetNextStep({ status: 'BLOCKED', next_step: 'wait' }), 'wait');
+  assert.equal(nextStepKey('admin'), 'competitorData.nextStep.admin');
+  assert.equal(nextStepKey('surprise'), 'competitorData.nextStep.retry');
+});
+
+test('a retry reports the reason for each facet that did not succeed, not the throttled ones', () => {
+  const response = { results: {
+    PROFILE: { status: 'SUCCEEDED' },
+    COMMENTS: { status: 'BLOCKED', reason_code: 'NO_CREDENTIALS', reason_detail: 'YOUTUBE_API_KEY is not set.', next_step: 'admin' },
+    NEWS: { status: 'THROTTLED', retry_after_seconds: 12 },
+  } };
+  assert.deepEqual(retryFindings(response), [
+    { name: 'COMMENTS', status: 'BLOCKED', reasonCode: 'NO_CREDENTIALS', detail: 'YOUTUBE_API_KEY is not set.', nextStep: 'admin' },
+  ]);
+  assert.deepEqual(retryFindings(undefined), []);
+});
+
+test('the comments request sends the sentiment filter only when one is chosen', async (t) => {
+  const seen = await serve(t, (_req, res) => res.end('{"comments":[],"next_offset":null}'));
+  await competitorDataApi.comments('c1', { sentiment: 'negative' });
+  await competitorDataApi.comments('c1');
+  assert.equal(seen[0].url, '/competitors/c1/reviews?sort=helpful&limit=20&offset=0&sentiment=negative');
+  assert.equal(seen[1].url, '/competitors/c1/reviews?sort=helpful&limit=20&offset=0');
+});
+
+test('a plain retry skips facets that need the administrator or have nothing to do', () => {
+  const completeness = { facets: {
+    PROFILE: { status: 'FAILED', can_retry: true, next_step: 'retry' },
+    COMMENTS: { status: 'BLOCKED', can_retry: true, next_step: 'admin' },
+    NEWS: { status: 'FAILED', can_retry: true, next_step: 'wait' },
+    REVIEWS: { status: 'SUCCEEDED', can_retry: true, next_step: 'none' },
+  } };
+  assert.deepEqual(facetsWorthRetrying(completeness), ['PROFILE']);
+});
+
+test('comment filters and the action mark send the real requests', async (t) => {
+  const seen = await serve(t, (_req, res) => res.end('{"comments":[],"next_offset":null}'));
+  await competitorDataApi.comments('c1', { platform: 'YouTube', theme: 'price', action: 'open' });
+  await competitorDataApi.setCommentAction('c1', 'r1', 'acted_on');
+  await competitorDataApi.setCommentAction('c1', 'r1', null);
+  assert.equal(seen[0].url, '/competitors/c1/reviews?sort=helpful&limit=20&offset=0&platform=YouTube&theme=price&action=open');
+  assert.deepEqual([seen[1].method, seen[1].url, seen[1].body], ['PUT', '/competitors/c1/reviews/r1/action', { status: 'acted_on' }]);
+  assert.deepEqual(seen[2].body, { status: null });
 });

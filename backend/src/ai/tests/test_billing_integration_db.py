@@ -262,6 +262,7 @@ def test_a_failed_renewal_records_the_payment_and_removes_access(client, sys_con
         "id": f"in_{uuid.uuid4().hex[:10]}", "object": "invoice", "subscription": sub_id, "customer": customer,
         "amount_due": 4900, "amount_paid": 0, "currency": "usd", "hosted_invoice_url": "https://invoice.stripe.com/i/1",
     }
+    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda invoice_id: invoice)
     payload = json.dumps(_event("invoice.payment_failed", invoice)).encode()
     assert client.post("/billing/webhook", content=payload, headers={"Stripe-Signature": _signed(payload)}).status_code == 200
     plan = usage.get_plan(sys_conn, tenant)

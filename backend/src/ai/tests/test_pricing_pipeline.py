@@ -43,9 +43,10 @@ def test_missing_product_raises(fake_conn):
             pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
 
 
-def _no_local_data(own, references=None, snapshot=None):
+def _no_local_data(own, references=None, snapshot=None, comparable=None):
     """Patches for a product with no tracked in-region competitor price."""
     return (
+        patch.object(pipeline.data_access, "load_comparable_prices", return_value=comparable or []),
         patch.object(pipeline.data_access, "load_own_product", return_value=own),
         patch.object(pipeline.data_access, "load_competitor_prices", return_value=[]),
         patch.object(pipeline.data_access, "load_reference_competitor_prices", return_value=references or []),
@@ -53,8 +54,8 @@ def _no_local_data(own, references=None, snapshot=None):
     )
 
 
-def _run_without_local_data(fake_conn, own, references=None, snapshot=None, convert=None):
-    patches = list(_no_local_data(own, references, snapshot))
+def _run_without_local_data(fake_conn, own, references=None, snapshot=None, convert=None, comparable=None):
+    patches = list(_no_local_data(own, references, snapshot, comparable))
     if convert is not None:
         patches.append(patch.object(pipeline.estimation, "convert_amount", side_effect=convert))
     evidence_patch = patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1")
@@ -109,6 +110,33 @@ def test_same_currency_market_reference_price_is_used_without_adjustment(fake_co
     assert result["action"] == "lower"
     assert mock_evidence.call_args.args[5] <= 0.50  # confidence is capped for a reference price
     assert mock_evidence.call_args.args[4]["market_observation_ids"] == ["o1"]
+
+
+def _comparable(entry_id, price, tier):
+    return {**_competitor_price(entry_id, "c2", price), "tier": tier}
+
+
+def test_equivalent_competitor_items_are_used_before_any_reference_or_peer_estimate(fake_conn):
+    # A market reference exists too, but a tracked local competitor's equivalent item ranks above it.
+    reference = [{**_competitor_price("o1", None, 99.0), "source": "market_reference"}]
+    comparable = [_comparable("cmp1", 20.0, "EQUIVALENT"), _comparable("cmp2", 22.0, "SIMILAR")]
+
+    result, mock_evidence = _run_without_local_data(fake_conn, _own_product(30.0), references=reference, comparable=comparable)
+
+    assert result["data_basis"] == "COMPARABLE_ESTIMATE"
+    assert result["market"]["average"] == 20.0  # the similar item is not blended into the equivalent tier
+    assert result["action"] == "lower"
+    assert result["confidence_score"] <= 0.55
+    assert result["matched_competitor_count"] == 1
+    assert "[COMPARABLE_ESTIMATE]" in mock_evidence.call_args.args[6] and "equivalent" in mock_evidence.call_args.args[6]
+    assert mock_evidence.call_args.args[4]["price_comparison_ids"] == ["cmp1"]
+
+
+def test_similar_items_alone_carry_a_lower_confidence_cap(fake_conn):
+    result, _ = _run_without_local_data(fake_conn, _own_product(30.0), comparable=[_comparable("cmp2", 22.0, "SIMILAR")])
+
+    assert result["data_basis"] == "COMPARABLE_ESTIMATE"
+    assert result["confidence_score"] <= 0.40
 
 
 def test_old_competitor_price_still_produces_recommendation_with_date_note(fake_conn):

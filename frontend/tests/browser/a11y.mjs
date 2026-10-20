@@ -57,10 +57,29 @@ await page.fill('input[type="email"]', email);
 await page.fill('input[type="password"]', password);
 await page.click('button[type="submit"]');
 await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30000 });
-const routes = ['/dashboard', '/products', '/products/new', '/demand', '/pricing', '/reports', '/market', '/market/competitors/new',
+const routes = ['/dashboard', '/products', '/products/new', '/demand', '/pricing', '/pricing/report', '/reports', '/market', '/market/competitors/new',
   '/market/search-scope', '/market/sources', '/market/leaderboard', '/market/trends', '/marketing', '/ai-advisor', '/connect-data',
   '/billing', '/workspaces/new', ...['profile', 'company', 'team', 'notifications', 'preferences', 'security'].map((tab) => `/settings?tab=${tab}`)];
 for (const route of routes) record(route, await audit(route));
+
+// The price comparison dialog (ladder, added-value guidance, band editor) exists only for a company that has competitor
+// evidence; audit each product's dialog when there are any.
+await page.goto(`${BASE}/pricing`, { waitUntil: 'domcontentloaded' });
+await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+const compare = page.locator('button:has-text("Compare market"), button:has-text("قارن السوق")');
+const dialogs = Math.min(await compare.count(), 6);
+for (let i = 0; i < dialogs; i += 1) {
+  await compare.nth(i).click();
+  await page.waitForSelector('[role="dialog"] .price-ladder', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(600);
+  await page.addScriptTag({ content: AXE });
+  record(`/pricing (comparison dialog ${i + 1})`, await page.evaluate(async () => (await window.axe.run(document, {
+    runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] }, resultTypes: ['violations'],
+  })).violations));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+}
+console.log(`audited ${dialogs} comparison dialog(s)`);
 await browser.close();
 
 let failing = 0;
