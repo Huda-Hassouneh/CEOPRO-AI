@@ -18,13 +18,15 @@ PG="live_db_pg_$SUFFIX"
 RD="live_db_redis_$SUFFIX"
 
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 2; }
-PYTHONPATH=. "$PYTHON" -c "import pytest, psycopg2, redis; import src.ai.db" 2>"${TMPDIR:-/tmp}/live_db_import.err" \
-  || { cat "${TMPDIR:-/tmp}/live_db_import.err" >&2; echo "$PYTHON cannot import the test dependencies: install src/ai/requirements.txt or set PYTHON" >&2; exit 2; }
+IMPORT_ERR="$(mktemp)"
+PYTHONPATH=. "$PYTHON" -c "import pytest, psycopg2, redis; import src.ai.db" 2>"$IMPORT_ERR" \
+  || { cat "$IMPORT_ERR" >&2; rm -f "$IMPORT_ERR"; echo "$PYTHON cannot import the test dependencies: install src/ai/requirements.txt or set PYTHON" >&2; exit 2; }
+rm -f "$IMPORT_ERR"
 
 cleanup() { docker rm -f "$PG" "$RD" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-ADMIN_PW=ci_test_admin_password
+ADMIN_PW=ci_test_admin_password  # throwaway container only; same test value CI uses
 docker run -d --name "$PG" -e POSTGRES_USER=ceopro_admin -e POSTGRES_PASSWORD="$ADMIN_PW" \
   -e POSTGRES_DB=ceopro_platform -p 127.0.0.1::5432 pgvector/pgvector:pg15 >/dev/null
 docker run -d --name "$RD" -p 127.0.0.1::6379 redis:7-alpine >/dev/null
@@ -58,7 +60,9 @@ if [ "$#" -eq 0 ]; then
          src/ai/tests/test_pricing_competitor_classification_integration_db.py
 elif [ "$1" = "all" ]; then
   shift
-  set -- $(find src -name '*_integration_db.py' | sort) "$@"
+  FILES=()
+  while IFS= read -r f; do FILES+=("$f"); done < <(find src -name '*_integration_db.py' | sort)
+  set -- "${FILES[@]}" "$@"
 fi
 
 "$PYTHON" -m pytest -q --no-header "$@"
