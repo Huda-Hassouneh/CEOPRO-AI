@@ -62,6 +62,21 @@ Canonical prices, event timestamps, aggregate scores, and non-personal provenanc
 for trend analysis according to the tenant's contractual retention policy. Deletion requests or
 legal holds override automatic retention and must be handled by the platform privacy owner.
 
+## Competitor comments (added 2026-10-20)
+
+Public comments about a competitor (today: YouTube, through the official API) are stored only after the operator has
+recorded approval (`EXTERNAL_COMMENTS_APPROVAL_REFERENCE`) and only if they pass the content-safety scan; comments the
+scan holds back are counted but never shown or counted as collected.
+
+- **Retention:** YouTube comments are deleted 30 days after they were first stored (`enforce_comment_retention()`); a
+  weekly refresh re-collects them while the competitor is tracked, so the stored set is a rolling window, not an archive.
+- **Stored per comment:** the text, the author's public display name, likes, the public link to the original comment
+  (`source_url`) and the owner's own mark (`action_status`, who and when). Nothing is generated or inferred about the author.
+- **Minimisation:** very short, emoji-only and duplicate comments, and unrelated comments on other people's videos, are
+  not stored.
+- **Erasure:** deleting a company, or a competitor's tracking row, removes its comments and the owner's marks with them (database cascade).
+  A platform's own takedown shows on the next refresh only for comments still returned by the API (stored copies expire at 30 days).
+
 ## Access and tenant isolation
 
 PostgreSQL Row-Level Security is mandatory. Runtime services use the restricted `ceopro_app` role,
