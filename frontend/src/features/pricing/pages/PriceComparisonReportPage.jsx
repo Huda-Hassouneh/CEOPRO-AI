@@ -48,7 +48,7 @@ export function PriceComparisonReportPage() {
         </tr></thead>
         <tbody>{products.map((p) => (
           <tr key={p.product_id}>
-            <td>{p.name}</td>
+            <td dir="auto">{p.name}</td>
             <td className="apex-table__num">{money(p.your_price, p.currency)}</td>
             <td><TierPill tier={p.headline.tier} t={t} /></td>
             <td>{TIERS.filter((tier) => p.tiers[tier].count).map((tier) => <span key={tier} className="pricing-coverage__item"><TierPill tier={tier} t={t} /> <strong>{number.format(p.tiers[tier].count)}</strong></span>)}</td>

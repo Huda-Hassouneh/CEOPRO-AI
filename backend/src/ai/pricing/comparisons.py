@@ -233,7 +233,7 @@ def summarize(ladder: dict) -> dict:
 
 TIER_WORDS = {
     EXACT: "the same product", EQUIVALENT: "the same item in another quantity, scaled to yours",
-    SIMILAR: "a similar item (a reference, not like for like)", ADDED_VALUE: "the base item that yours adds something to",
+    SIMILAR: "a reference, not like for like", ADDED_VALUE: "the base item that yours adds something to",
 }
 
 
@@ -260,13 +260,14 @@ def describe(entry: dict) -> str:
     for tier in TIERS:
         t = entry["tiers"][tier]
         if t["count"]:
-            parts.append(f"{t['count']} {tier.lower().replace('_', '-')} ({money(t['low'])} to {money(t['high'])}, "
-                         f"{TIER_WORDS[tier]})")
+            noun = f"{t['count']} {tier.lower().replace('_', '-')} item{'' if t['count'] == 1 else 's'}"
+            price = money(t["low"]) if t["low"] == t["high"] else f"{money(t['low'])} to {money(t['high'])}"
+            parts.append(f"{noun} at {price} ({TIER_WORDS[tier]})")
     text = f"- {entry['name']}: you charge {money(entry['your_price'])}; competitor evidence: " + "; ".join(parts) + "."
-    if head["position_pct"] is not None and head["tier"] != ADDED_VALUE:
-        side = "above" if head["position_pct"] > 0 else "below" if head["position_pct"] < 0 else "level with"
-        text += f" Against the {head['tier'].lower()} middle you are {abs(head['position_pct']):.0f}% {side}" \
-                f"{'' if head['position_pct'] == 0 else ' it'}."
+    pct = head["position_pct"]
+    if pct is not None and head["tier"] != ADDED_VALUE:
+        how = "level with it" if round(pct) == 0 else f"{abs(pct):.0f}% {'above' if pct > 0 else 'below'} it"
+        text += f" Against the {head['tier'].lower()} middle you are {how}."
     g = entry.get("added_value_guidance")
     if g:
         text += (f" Your extra reads as justified between {money(g['range_low'])} and {money(g['range_high'])} "
