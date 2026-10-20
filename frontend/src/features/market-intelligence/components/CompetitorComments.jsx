@@ -6,6 +6,8 @@ import { facetNextStep } from '../api/competitorDataApi.js';
 import { useCommentAction, useCompetitorComments, useCompetitorDataStatus } from '../hooks/useCompetitorData.js';
 import { FacetReason, RetryFindings, retryNoticeKey, useRetryNotice } from './DataCompleteness.jsx';
 
+// Only web links are opened from stored data (the server stores nothing else, this keeps it that way).
+const safeHref = (url) => (/^https?:\/\//i.test(url || '') ? url : null);
 const SORTS = ['helpful', 'recent'];
 const ACTIONS = [{ status: 'noted', icon: Eye }, { status: 'acted_on', icon: Check }];
 const SENTIMENT_FILTERS = ['negative', 'positive', 'neutral'];
@@ -19,7 +21,7 @@ function Comment({ comment, t, number, date, onAction, busy, reply = false }) {
       <div className="competitor-comment__head">
         <strong dir="auto">{comment.author || t('competitorData.comments.anonymous')}</strong>
         {comment.rating != null && <span className="apex-num" aria-label={`${comment.rating} / 5`}>★ {number.format(comment.rating)}</span>}
-        {comment.url && <a className="competitor-comment__source" href={comment.url} target="_blank" rel="noreferrer noopener" dir="ltr">{t('competitorData.comments.openSource')}<ExternalLink size={11} aria-hidden="true" /></a>}
+        {safeHref(comment.url) && <a className="competitor-comment__source" href={safeHref(comment.url)} target="_blank" rel="noreferrer noopener" dir="ltr">{t('competitorData.comments.openSource')}<ExternalLink size={11} aria-hidden="true" /></a>}
         {comment.sentiment && <Pill tone={TONE[comment.sentiment] || 'neutral'}>{t(`competitorData.comments.sentiment.${comment.sentiment}`)}</Pill>}
         {comment.signal && <Pill tone={SIGNAL_TONE[comment.signal] || 'neutral'}>{t(`competitorData.comments.signal.${comment.signal}`)}</Pill>}
         <span className="apex-muted">{[comment.platform, comment.date ? date.format(new Date(comment.date)) : null].filter(Boolean).join(' · ')}</span>
@@ -146,6 +148,7 @@ export function CompetitorComments({ competitorId }) {
                   </div>
                 )}
                 {counts?.not_analysed > 0 && <p className="apex-muted competitor-comments__summary">{t('competitorData.comments.notAnalysed', { count: number.format(counts.not_analysed) })}</p>}
+                {mark.isError && <p className="competitor-comments__error" role="alert">{t('competitorData.comments.action.error')}</p>}
                 {comments.length === 0 && <p className="apex-muted">{t('competitorData.comments.noneOfKind')}</p>}
                 <ul className="competitor-comments">
                   {comments.map((comment) => <Comment key={comment.id} comment={comment} t={t} number={number} date={date} busy={mark.isPending} onAction={(reviewId, status) => mark.mutate({ reviewId, status })} />)}

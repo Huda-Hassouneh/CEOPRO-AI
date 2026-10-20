@@ -1230,7 +1230,8 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
                 restricted_sources.setdefault(str(cid), []).append(str(source_id))
 
         cursor.execute(
-            "SELECT competitor_id, COUNT(*) FILTER (WHERE source_platform = %s), COUNT(*) FILTER (WHERE source_platform <> %s) "
+            "SELECT competitor_id, COUNT(*) FILTER (WHERE source_platform = %s), "
+            "COUNT(*) FILTER (WHERE source_platform <> %s AND source_status = 'ALLOWED' AND COALESCE(safety_status, 'SAFE') = 'SAFE') "
             "FROM reviews WHERE tenant_id = %s AND subject_type = 'COMPETITOR' GROUP BY competitor_id;",
             (GOOGLE_REVIEW_PLATFORM, GOOGLE_REVIEW_PLATFORM, tenant_id),
         )

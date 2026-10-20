@@ -81,3 +81,14 @@ test('comments show sentiment counts, opportunity markers and a link to the orig
   assert.match(html, /collected Oct 18, 2026/);
   assert.match(html, /aria-pressed="true"[^>]*>[^<]*<svg[^>]*>.*?Noted/s); // the comment is marked as noted
 });
+
+test('a stored link that is not a web link is never opened from a comment', async () => {
+  const html = await render(async ({ React, client }) => {
+    const comment = { id: 'r1', author: 'Sam', text: 'Cold food and slow', sentiment: 'neutral', signal: null, people_agreeing: 0, url: 'javascript:alert(1)', replies: [], reply_count: 0, platform: 'YouTube', date: null, rating: null };
+    client.setQueryData(['competitor-comments', 'c1', 'helpful', null, null, null, null], { pages: [{ summary: { comments: 1, replies: 0, people_agreeing: 0, held_back_for_safety: 0, platforms: { YouTube: 1 }, themes: [], sentiment: { positive: 0, negative: 0, neutral: 1, not_analysed: 0 } }, comments: [comment], next_offset: null }], pageParams: [0] });
+    const { CompetitorComments } = await vite.ssrLoadModule('/src/features/market-intelligence/components/CompetitorComments.jsx');
+    return React.createElement(CompetitorComments, { competitorId: 'c1' });
+  });
+  assert.match(html, /Cold food and slow/);
+  assert.doesNotMatch(html, /javascript:/);
+});
