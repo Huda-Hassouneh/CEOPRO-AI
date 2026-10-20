@@ -282,3 +282,19 @@ def overview_lines(conn, tenant_id: str, limit: int = 12) -> List[str]:
     return ["How your prices compare with what competitors sell, by how close the item is (source: price comparison "
             "tiers; a similar or added-value item is a reference, never an exact competitor price):",
             *[describe(e) for e in entries]]
+
+
+def safe_overview_lines(conn, tenant_id: str, limit: int = 12) -> List[str]:
+    """overview_lines for callers that add it as extra context (the assistant): any failure leaves the caller's
+    transaction exactly as it was (a savepoint, not a rollback) and returns no lines."""
+    with conn.cursor() as cursor:
+        cursor.execute("SAVEPOINT price_ladder_overview;")
+    try:
+        lines = overview_lines(conn, tenant_id, limit)
+    except Exception:  # noqa: BLE001 - context only
+        with conn.cursor() as cursor:
+            cursor.execute("ROLLBACK TO SAVEPOINT price_ladder_overview;")
+        return []
+    with conn.cursor() as cursor:
+        cursor.execute("RELEASE SAVEPOINT price_ladder_overview;")
+    return lines

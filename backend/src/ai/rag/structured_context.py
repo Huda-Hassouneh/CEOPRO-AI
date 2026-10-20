@@ -370,11 +370,7 @@ def _build_price_ladder_lines(conn, tenant_id: str) -> list:
     """Tiered competitor price evidence (pricing/comparisons.py); never fails the question it is added to."""
     from src.ai.pricing import comparisons
 
-    try:
-        return comparisons.overview_lines(conn, tenant_id)
-    except Exception:  # noqa: BLE001 - extra context only
-        conn.rollback()
-        return []
+    return comparisons.safe_overview_lines(conn, tenant_id)
 
 
 def _build_forecast_lines(conn, tenant_id: str) -> list:
