@@ -20,8 +20,10 @@ os.environ.setdefault("DISCOVERY_ENRICH_MAX_SITES", "0")
 # loaded in one process, torch ops (e.g. softmax in sentiment/model.py) can
 # deadlock. Single-threaded OpenMP avoids it. Must be set before either imports.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
-# Model loaders are mocked in tests: skip the hub reachability probe.
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# Model loaders are mocked in tests: skip the hub reachability probe - unless a real-model suite is opted in
+# (AI_TEST_EMBEDDINGS / AI_TEST_RERANKING / AI_TEST_SENTIMENT), which must be able to download its model.
+if not any(os.getenv(name) for name in ("AI_TEST_EMBEDDINGS", "AI_TEST_RERANKING", "AI_TEST_SENTIMENT")):
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
 # Onboarding's connect endpoints refuse (503) without a credential-vault key;
 # give unit tests a throwaway one so they don't depend on the developer's shell.
 os.environ.setdefault("CREDENTIAL_VAULT_KMS_BACKEND", "local")

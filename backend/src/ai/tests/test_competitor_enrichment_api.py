@@ -193,7 +193,7 @@ def test_competitor_reviews_endpoint_returns_comments_and_validates_input():
          patch(f"{R}.competitor_comments.list_competitor_comments", return_value=result) as listing:
         response = client.get(f"/competitors/{COMP}/reviews?sort=recent&limit=5&offset=10", headers=_auth())
     assert response.status_code == 200 and response.json() == {"competitor_id": COMP, **result}
-    listing.assert_called_once_with(conn, "t1", COMP, "recent", 5, 10)
+    listing.assert_called_once_with(conn, "t1", COMP, "recent", 5, 10, None, None, None, None)
 
 
 def test_competitor_reviews_is_404_for_a_competitor_the_tenant_does_not_track():
@@ -234,3 +234,35 @@ def test_a_deep_read_is_always_queued_even_when_the_caller_did_not_ask_for_backg
     assert response.status_code == 202 and response.json()["queued"] is True
     direct.assert_not_called()  # nothing ran inside the request
     assert enqueue.call_args.args[-1] == "deep"
+
+
+def test_competitor_reviews_forwards_a_sentiment_filter_and_rejects_an_unknown_one():
+    assert client.get(f"/competitors/{COMP}/reviews?sentiment=angry", headers=_auth()).status_code == 422
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.competitor_comments.list_competitor_comments", return_value={"summary": {}, "comments": [], "next_offset": None}) as listing:
+        assert client.get(f"/competitors/{COMP}/reviews?sentiment=negative", headers=_auth()).status_code == 200
+    assert listing.call_args.args[-4] == "negative"
+
+
+def test_comment_filters_are_validated_and_forwarded():
+    for bad in ("theme=weather", "action=maybe"):
+        assert client.get(f"/competitors/{COMP}/reviews?{bad}", headers=_auth()).status_code == 422
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.competitor_comments.list_competitor_comments", return_value={"summary": {}, "comments": [], "next_offset": None}) as listing:
+        assert client.get(f"/competitors/{COMP}/reviews?platform=YouTube&theme=price&action=open", headers=_auth()).status_code == 200
+    assert listing.call_args.args[-3:] == ("YouTube", "price", "open")
+
+
+def test_marking_a_comment_needs_a_valid_status_and_an_existing_comment():
+    url = f"/competitors/{COMP}/reviews/{COMP}/action"
+    assert client.put(url, json={"status": "noted"}).status_code == 401
+    assert client.put(url, json={"status": "done"}, headers=_auth()).status_code == 422
+    assert client.put(f"/competitors/{COMP}/reviews/nope/action", json={"status": "noted"}, headers=_auth()).status_code == 422
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.competitor_comments.set_comment_action", return_value={"id": COMP, "action_status": "noted", "action_at": "x"}) as setter:
+        assert client.put(url, json={"status": "noted"}, headers=_auth()).json()["action_status"] == "noted"
+        client.put(url, json={}, headers=_auth())  # clearing
+    assert setter.call_args_list[1].args[4] is None
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.competitor_comments.set_comment_action", return_value=None):
+        assert client.put(url, json={"status": "noted"}, headers=_auth()).status_code == 404
