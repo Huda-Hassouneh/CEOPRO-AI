@@ -244,6 +244,21 @@ Design and verification: `PRICE_COMPARISON_TIERS_PLAN.md`. Status of each item b
 | 110 | **Product decisions on the next features** (built 2026-10-20, review them): added-value guidance is a range, never a price; category premium bands are observed from the company's own pairs (not from recommendation outcomes, which cannot support it yet) and fall back to the 60 % default under 5 pairs. Confirm, or ask for an owner-set band per category. See `PRICE_COMPARISON_ACCURACY_PLAN.md`. | Product owner | 🟡 Open |
 | 111 | **Show the new fields in the UI**: the ladder now shows the justified range (`added_value_guidance`) with its band source and sample size, in en + ar. Still not shown: the `GET /reports/price-comparison` report has no screen or export button. | Frontend | ✅ Resolved 2026-10-20 (ladder); report screen still open |
 
+## Competitor comments (added 2026-10-20)
+
+Design: `COMPETITOR_COMMENTS_AND_RETRY_PLAN.md`.
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 112 | **Apply migrations** `20261025000000_add_review_source_url`, `20261026000000_add_comment_action_status` and `20261026010000_add_comments_refresh_function` (nullable columns and one lookup function; no data change). Until applied, the comments list errors on the missing columns. | Infra/DB | 🟠 Open |
+| 113 | **Set `YOUTUBE_API_KEY` and `EXTERNAL_COMMENTS_APPROVAL_REFERENCE`** on the service (free quota; steps in `KEYS_AND_ACCOUNTS_NEEDED.md`), then run one real collection (`scratchpad` check script, or press Retry on a tracked competitor). Without them COMMENTS stays blocked and the owner is told to ask the operator. | Service operator | 🟠 Open |
+| 114 | **Tune the comment filter on real comments**: `COMMENT_MIN_LETTERS` (12), `COMMENT_MIN_WORDS` (3), `COMMENT_OFF_CHANNEL_MIN_CHARS` (30). They are reasoned guesses, never run against live YouTube data. | AI/ML + operator | 🟠 Open |
+| 115 | **Run the enrichment worker** (`./keel workers`) so the weekly comments refresh happens, and confirm `YOUTUBE_DAILY_SEARCH_BUDGET` (40 searches = 4,000 of 10,000 units) leaves room for owners pressing Retry. | Operator | 🟠 Open |
+| 116 | **Product decisions**: a comment counts as an "opportunity / strength" at 3 or more people agreeing; the negative-comments alert fires at 5+ analysed comments in 14 days and 60%+ negative; the eight themes and their EN/AR keywords. Confirm or change. | Product | 🟠 Open |
+| 117 | **Native-speaker review** of the new Arabic strings and the Arabic theme keywords (with #94). | Arabic reviewer | 🟠 Open |
+| 118 | **Instagram / Facebook comments** are not collected (they need the paid social provider, a separate facet). | Product | 🟡 Not planned |
+| 119 | **Open the pull request** once the competitor-comments and price-comparison work are both finished (the commits share one branch). | Dev | 🟠 Waiting |
+
 ## How to update this file
 
 - Resolving an item: change its Status cell (e.g. `🔴 Open` → `✅ Resolved 2026-08-10 — <one-line note, link to commit/PR if applicable>`). Don't delete the row.
