@@ -4,6 +4,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.ai import db
+from src.ai.core import usage
+from src.ai.core.entitlements import requires
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import activity as dashboard_activity
 from src.ai.dashboard import competitor_activity as dashboard_competitor_activity
@@ -395,7 +397,7 @@ def dashboard_inventory_recommendations_endpoint(
         conn.close()
 
 
-@router.post("/products/{product_id}/forecast")
+@router.post("/products/{product_id}/forecast", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def dashboard_generate_product_forecast_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """
     Synchronously generates a real forecast for one product, mirroring

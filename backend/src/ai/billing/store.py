@@ -273,6 +273,9 @@ def apply_subscription(
     customer = stripe_sub.get("customer")
     customer = customer.get("id") if isinstance(customer, dict) else customer
     with sys_conn.cursor() as cursor:
+        # Different subscription objects share one commercial assignment.
+        cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                       ("keel_billing_tenant:" + str(tenant_id),))
         cursor.execute(
             f"""
             INSERT INTO billing_subscriptions
@@ -295,6 +298,7 @@ def apply_subscription(
                                              ELSE billing_subscriptions.scheduled_period_code END,
                 last_event_at = GREATEST(billing_subscriptions.last_event_at, EXCLUDED.last_event_at),
                 updated_at = CURRENT_TIMESTAMP
+            WHERE billing_subscriptions.tenant_id = EXCLUDED.tenant_id
             RETURNING {_SUB_COLUMNS};
             """,
             (
@@ -303,7 +307,18 @@ def apply_subscription(
                 _ts(stripe_sub.get("canceled_at")), event_created,
             ),
         )
-        row = _sub_row(cursor.fetchone())
+        saved = cursor.fetchone()
+        if saved is None:
+            raise ValueError("subscription is already assigned to another company")
+        row = _sub_row(saved)
+        cursor.execute(
+            "SELECT 1 FROM billing_subscriptions WHERE tenant_id=%s "
+            "AND stripe_subscription_id<>%s AND status=ANY(%s);",
+            (tenant_id, stripe_sub["id"], list(config.CURRENT_STATUSES)),
+        )
+        if cursor.fetchone():
+            # Preserve history without revoking a replacement subscription.
+            return row
         # The company's plan follows its live subscription. A subscription that
         # ended only replaces the plan if it was the one in force.
         cursor.execute(
@@ -361,7 +376,9 @@ def record_payment(sys_conn, tenant_id: str, invoice: dict, subscription_id: Opt
             ON CONFLICT (stripe_invoice_id) DO UPDATE SET
                 amount = EXCLUDED.amount, status = EXCLUDED.status, paid_at = EXCLUDED.paid_at,
                 failure_reason = EXCLUDED.failure_reason, hosted_invoice_url = EXCLUDED.hosted_invoice_url,
-                invoice_pdf_url = EXCLUDED.invoice_pdf_url;
+                invoice_pdf_url = EXCLUDED.invoice_pdf_url
+            WHERE billing_payments.tenant_id = EXCLUDED.tenant_id
+              AND (billing_payments.status <> 'succeeded' OR EXCLUDED.status = 'succeeded');
             """,
             (
                 tenant_id, invoice["id"], subscription_id, _minor_to_major(amount_minor or 0, currency), currency, status,

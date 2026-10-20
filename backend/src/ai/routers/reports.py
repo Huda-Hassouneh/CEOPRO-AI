@@ -109,10 +109,11 @@ def report_key(ctx: TenantContext, idempotency_key: Optional[str], *parts) -> st
     return "auto:" + hashlib.sha256(material.encode()).hexdigest()[:48]
 
 
-def count_report(ctx: TenantContext, key: str) -> Optional[dict]:
+def count_report(ctx: TenantContext, key: str, fingerprint: Optional[str] = None) -> Optional[dict]:
     """One report against the plan's monthly allowance (402 when used up)."""
     try:
-        return usage.reserve_request(ctx.tenant_id, usage.MONTHLY_REPORTS, key, ctx.user_id)
+        return usage.reserve_request(ctx.tenant_id, usage.MONTHLY_REPORTS, key, ctx.user_id,
+                                     request_fingerprint=fingerprint)
     except usage.PlanLimitReached as err:
         raise err.as_http()
 
@@ -131,7 +132,9 @@ def export_sales_report(
     the period (dashboard/sales_pdf.py). Each export counts as one report
     against the plan's monthly allowance; a failed export is given back."""
     _check_range(start_date, end_date)
-    counted = count_report(ctx, report_key(ctx, idempotency_key, "sales", format, lang, start_date, end_date))
+    parts = ("sales", format, lang, start_date, end_date)
+    fingerprint = hashlib.sha256(json.dumps(parts, default=str, ensure_ascii=True).encode()).hexdigest()
+    counted = count_report(ctx, report_key(ctx, idempotency_key, *parts), fingerprint)
     try:
         conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     except Exception:
