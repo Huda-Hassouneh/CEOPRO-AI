@@ -76,6 +76,6 @@ def guidance_sentence(g: dict, money) -> str:
              "above_range": "above that range (the extra may be priced beyond what the market usually supports)"}[g["position"]]
     basis = ("the band you set" if g["band_source"] == OWNER_SOURCE else f"the usual premium for this category from {g['band_samples']} comparisons" if g["band_source"] == OBSERVED_SOURCE
              else "a default premium band (not enough comparisons in this category yet)")
-    return (f"Added-value guidance (not a market price, and not averaged into the figures above): competitors sell the base "
+    return (f"Added-value guidance (not a market price, and not used to set the suggested price): competitors sell the base "
             f"item at about {money(g['base_price'])}; with the extra, {money(g['range_low'])} to {money(g['range_high'])} reads as "
             f"justified, using {basis} of up to +{g['band_pct']:.0f}%. Your price is {where}.")

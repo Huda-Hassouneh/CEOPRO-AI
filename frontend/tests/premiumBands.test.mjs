@@ -37,13 +37,13 @@ test('premium band and report calls send the right requests', async (t) => {
 test('the report CSV has one row per product and neutralises formulas in names', () => {
   const tier = (count) => ({ count });
   const csv = reportCsv([{
-    name: '=HYPERLINK("x")', currency: 'JOD', your_price: 4, headline: { tier: 'ADDED_VALUE', position_pct: null },
+    name: '=HYPERLINK("x")', currency: 'JOD', your_price: 4, headline: { tier: 'ADDED_VALUE', position_pct: 40 },
     tiers: { EXACT: tier(0), EQUIVALENT: tier(0), SIMILAR: tier(1), ADDED_VALUE: tier(2) },
     added_value_guidance: { range_low: 3.06, range_high: 4.8, band_pct: 60, band_source: 'owner' },
   }]);
   const lines = csv.split('\n');
   assert.equal(lines.length, 2);
   assert.ok(lines[0].startsWith('"product","currency"'));
-  assert.ok(lines[1].startsWith('"\'=HYPERLINK(""x"")","JOD","4","ADDED_VALUE","0","0","1","2"'));
+  assert.ok(lines[1].startsWith('"\'=HYPERLINK(""x"")","JOD","4","ADDED_VALUE","0","0","1","2",""'));
   assert.ok(lines[1].endsWith('"3.06","4.8","60","owner"'));
 });
