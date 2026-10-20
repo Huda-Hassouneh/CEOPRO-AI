@@ -101,10 +101,15 @@ def list_competitor_comments(
         cursor.execute(
             f"""
             SELECT COUNT(*) FILTER (WHERE r.parent_review_id IS NULL), COUNT(*) FILTER (WHERE r.parent_review_id IS NOT NULL),
-                   COALESCE(SUM(r.like_count), 0), MAX(r.created_at)
+                   COALESCE(SUM(r.like_count), 0),
+                   -- the newest of: a comment first stored, or the last successful collection (a refresh that only
+                   -- updates likes inserts nothing new but is still a fresh read)
+                   GREATEST(MAX(r.created_at), (SELECT MAX(ce.last_attempt_at) FROM competitor_enrichment ce
+                            WHERE ce.tenant_id = %s AND ce.global_competitor_id = %s
+                              AND ce.facet IN ('COMMENTS', 'REVIEWS') AND ce.status IN ('SUCCEEDED', 'PARTIAL')))
             FROM reviews r WHERE {mine} AND {_VISIBLE};
             """,
-            (tenant_id, competitor_id),
+            (tenant_id, competitor_id, tenant_id, competitor_id),
         )
         top_level, replies, likes, last_collected = cursor.fetchone()
         cursor.execute(

@@ -138,3 +138,30 @@ browser check ran the real components against canned responses).
 - Filtering in P2 is a heuristic. It drops "first!"-style noise and duplicates, and keeps an unnamed comment on someone
   else's video only when it is a real opinion. Expect to tune the three constants once real comments are seen.
 - Not covered by an automated test: one full live YouTube run (no key in the build environment).
+
+### 10.2 Audit before commit (2026-10-20)
+
+Fixed: held-back (quarantined) comments counted toward the COMMENTS facet; the daily sweep queued jobs when YouTube was not
+configured; the "collected" date stayed at the first insert after a refresh that stored nothing new. Documented: contract
+changelog entry, rollback scripts for the three migrations (run and re-applied against Postgres), env settings in
+`KEYS_AND_ACCOUNTS_NEEDED.md`, a comments section in `MARKET_DATA_PRIVACY_AND_RETENTION.md`.
+Known and accepted: marking a comment has no role gate (any signed-in member); themes read the 500 most-agreed comments; replies
+are not covered by the sentiment counts or filters; the comment filter thresholds are untuned (PENDING_ACTIONS #114).
+
+### 10.3 Second pass (2026-10-20)
+
+Found: `reviews` had no index for competitor reads (only product and parent), and the alerts bell now reads it on every poll;
+fixed with a partial index (plan checked with EXPLAIN on 60,000 product rows). Frontend: a stored link is opened only if it is
+http(s) (defence in depth over the database check), a failed "noted / acted on" save now says so, and the empty-filter
+message no longer talks about sentiment only.
+
+### 10.4 Release readiness (2026-10-20)
+
+Verified: static checks (pyflakes) clean on every file touched; `docker compose config` parses with the new worker and API
+settings passed through; all migrations apply from empty and the four new ones roll back and re-apply; the endpoints work
+end to end as the restricted app role under row-level security with two real sign-ups (own data visible and markable,
+another company gets 404) - `test_competitor_comments_api_integration_db.py`; the refresh stops for the day on a rejected
+key or exhausted quota. Added to `.env.example`, `docker-compose.yml` (worker and API), `CURRENT_STATUS.md`.
+Deliberately not done: the two earlier migrations (`...source_url`, `...action_status`) were not rewritten to use
+`NOT VALID` / `VALIDATE`, because they were already pushed; on a very large `reviews` table apply them off-peak.
+
