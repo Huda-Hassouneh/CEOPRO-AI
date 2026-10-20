@@ -28,6 +28,16 @@ or simulated.
   source. Competitors' own websites are read (robots.txt respected) for
   business type, description and social profiles. Discovery re-runs on its
   own every 7 days for companies that use it.
+- **Competitor comments:** public YouTube comments (with likes) and Google
+  reviews about each tracked competitor, filtered for noise, grouped into
+  themes (service, waiting time, price, quality...), with sentiment, "an
+  opportunity / a strength to match" markers, a link to the original and
+  "noted / acted on" marks. Comments are kept 30 days and refreshed weekly by
+  the enrichment worker within a daily YouTube search budget; a competitor
+  whose recent comments turn mostly negative raises an alert. Where something
+  is missing the screen says why and who can fix it (needs
+  `YOUTUBE_API_KEY` and `EXTERNAL_COMMENTS_APPROVAL_REFERENCE`; see
+  `backend/COMPETITOR_COMMENTS_AND_RETRY_PLAN.md`).
 - **Sessions:** a sign-in stays alive while it's being used - the app
   renews its 2-hour access token in the background (`POST /auth/refresh`),
   an untouched tab signs out after 2 hours, and every sign-in ends after

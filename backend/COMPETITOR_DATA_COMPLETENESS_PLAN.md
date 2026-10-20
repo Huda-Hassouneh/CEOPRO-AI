@@ -1,5 +1,7 @@
 # Competitor data completeness — root causes and fix plan
 
+Update 2026-10-19: the comments "0%" and the invisible Retry reasons are fixed - see `COMPETITOR_COMMENTS_AND_RETRY_PLAN.md`.
+
 Status: Phases 1-3 are built on `main` (ledger, PROFILE / SOCIAL_LINKS / REVIEWS / NEWS / COMMENTS facets, retry endpoints, worker). Section 8 below is the v2 roadmap and its progress log (menus + OCR, PRICES facet, deeper loads). Sections 1-7 are the original plan, kept for the reasoning.
 Findings below come from reading the code; Phase 0 confirms them against the live DB before any build.
 
@@ -139,3 +141,16 @@ Social-post facts (V7) carry `channel` and are excluded from automatic price mat
 * `collect()` gains optional parameters only; every existing call keeps its behaviour. `_safe_get` gains optional `max_bytes` / `accept`.
 * New env settings (all optional): `DISCOVERY_VISION_OCR`, `DISCOVERY_VISION_MAX_FILES`, `DISCOVERY_VISION_MODEL`, `SOCIAL_CONTENT_APPROVAL_REFERENCE`, `SOCIAL_CONTENT_POSTS`, `SOCIAL_CONTENT_POSTS_DEEP`, `SOCIAL_CONTENT_IMAGES`, `SOCIAL_CONTENT_IMAGES_DEEP`, `DISCOVERY_OCR_LANGS`, `DISCOVERY_MENU_MEDIA_MAX_FILES`, `DISCOVERY_MENU_MEDIA_MAX_BYTES`, `DISCOVERY_MENU_MEDIA_MAX_PDF_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_PAGES`, `DISCOVERY_INTEL_DEEP_MAX_ITEMS`.
 * Dockerfile.ai installs `tesseract-ocr` (+ara, eng); without it pictures are reported as skipped, never an error.
+
+## 9. Enhancements
+
+### Operator Service setup (not built)
+
+Built (commit `c2ba244`): Settings > Service setup for operators (`OPERATOR_EMAILS`) - status, Test connection, a once-a-day alert. No key value is ever shown.
+
+| # | Enhancement | Notes | Status |
+|---|-------------|-------|--------|
+| E1 | Masked key hint on Service setup (for example `...a1b2`, last 4 characters only) so an operator can tell which key is live after a rotation | Safer to leave out unless rotations get confusing. Never show more than 4 characters, never for keys under 12 characters, never log it | PROPOSED |
+| E2 | Number of companies affected by a rejected key or used-up quota, in the alert and on the status page | Needs a cross-company read of `competitor_enrichment`, so it needs a deliberate, narrow aggregate (a SECURITY DEFINER function returning counts only), not a widened table grant. Skipped on purpose for now | PROPOSED |
+| E3 | Owner-facing wording (shipped in the working tree, not yet committed): "Ask the service operator" plus a copyable request, instead of the variable name | Edits sit inside `DataCompleteness.jsx`, `CompetitorComments.jsx`, the `competitorData.nextStep` locale block and `competitorRender.test.mjs`; commit them together with the rest of this plan's uncommitted work | PENDING COMMIT |
+| E4 | Set `OPERATOR_EMAILS` as a `sync: false` key in `render.yaml` so it is tracked per environment | Config only | PROPOSED |

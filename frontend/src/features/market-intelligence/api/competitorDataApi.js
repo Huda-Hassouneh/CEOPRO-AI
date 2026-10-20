@@ -8,15 +8,20 @@ export const competitorDataApi = {
   // One bulk read for every tracked competitor, keyed by competitor_id.
   overview: async () => (await httpClient.get('/competitor-data/overview')).data.competitors,
 
-  // The real comments collected about one competitor. sort: 'helpful' | 'recent'.
-  comments: async (id, { sort = 'helpful', limit = 20, offset = 0 } = {}) => {
+  // The real comments collected about one competitor. sort: 'helpful' | 'recent'; sentiment: 'positive' | 'negative' | 'neutral'.
+  comments: async (id, { sort = 'helpful', limit = 20, offset = 0, sentiment, platform, theme, action } = {}) => {
     try {
-      return (await httpClient.get(`/competitors/${encodeURIComponent(id)}/reviews`, { params: { sort, limit, offset } })).data;
+      return (await httpClient.get(`/competitors/${encodeURIComponent(id)}/reviews`, { params: { sort, limit, offset, sentiment: sentiment || undefined, platform: platform || undefined, theme: theme || undefined, action: action || undefined } })).data;
     } catch (error) {
       if (error?.response?.status === 404) return null;
       throw error;
     }
   },
+
+  // What was done about one comment: 'noted' | 'acted_on' | null (clears it).
+  setCommentAction: async (competitorId, reviewId, status) => (await httpClient.put(
+    `/competitors/${encodeURIComponent(competitorId)}/reviews/${encodeURIComponent(reviewId)}/action`, { status: status || null },
+  )).data,
 
   dataStatus: async (id) => (await httpClient.get(`/competitors/${encodeURIComponent(id)}/data-status`)).data,
 
@@ -49,6 +54,8 @@ export const competitorDataApi = {
   // Saves (or clears, with null) a product's barcode - the exact key for market prices.
   setBarcode: async (productId, barcode) => (await httpClient.patch(`/products/${encodeURIComponent(productId)}`, { barcode: barcode || null })).data,
 };
+
+export const THEMES = ['service', 'waiting', 'price', 'quality', 'cleanliness', 'staff', 'delivery', 'availability'];
 
 export const FACET_ORDER = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS', 'COMMENTS', 'PRICES', 'SOCIAL_CONTENT'];
 // Facets the plain Retry button re-collects (free or already-budgeted sources); sent explicitly so the button keeps
@@ -93,6 +100,11 @@ export function retryableFacets(completeness) {
   });
 }
 
+// Facets a plain Retry should run: those where trying again can help (not a missing key, not "nothing to do").
+export function facetsWorthRetrying(completeness) {
+  return retryableFacets(completeness).filter((name) => facetNextStep(completeness.facets[name]) === 'retry');
+}
+
 // A gap the owner can fix with a click somewhere else (review a source's terms).
 export function facetActions(completeness) {
   if (!completeness?.facets) return [];
@@ -124,6 +136,42 @@ export function retryOutcome(response) {
   if (results.length && results.every((r) => r.status === 'SUCCEEDED')) return 'succeeded';
   if (results.some((r) => r.status === 'SUCCEEDED' || r.status === 'PARTIAL')) return 'partial';
   return 'failed';
+}
+
+// Who has to act for a facet to fill, as the server reports it (`next_step`): 'retry' (trying again may help),
+// 'wait' (retried automatically), 'owner' (a click elsewhere), 'admin' (service setup), 'none' (nothing to do).
+export const NEXT_STEPS = ['none', 'retry', 'wait', 'owner', 'admin'];
+
+export function nextStepKey(step) {
+  return `competitorData.nextStep.${NEXT_STEPS.includes(step) ? step : 'retry'}`;
+}
+
+// A facet's next step; servers that predate the field fall back to "retry" when Retry is possible.
+export function facetNextStep(facet) {
+  if (!facet) return 'none';
+  if (NEXT_STEPS.includes(facet.next_step)) return facet.next_step;
+  if (facet.status === 'SUCCEEDED' || facet.status === 'NOT_APPLICABLE') return 'none';
+  return facet.can_retry ? 'retry' : 'none';
+}
+
+// Facets that are not collected, with why: the list shown under a competitor and after a Retry.
+export function facetGaps(completeness) {
+  if (!completeness?.facets) return [];
+  return FACET_ORDER
+    .map((name) => ({ name, facet: completeness.facets[name] }))
+    .filter(({ facet }) => facet && facet.status !== 'SUCCEEDED' && facet.status !== 'NOT_APPLICABLE')
+    .map(({ name, facet }) => ({
+      name, status: facet.status, reasonCode: facet.reason_code, detail: facet.reason_detail || null, nextStep: facetNextStep(facet),
+    }));
+}
+
+// What a Retry answered, facet by facet: the reason and detail for each one that did not fully succeed.
+export function retryFindings(response) {
+  return Object.entries(response?.results || {})
+    .filter(([, r]) => r && r.status !== 'SUCCEEDED' && r.status !== 'THROTTLED')
+    .map(([name, r]) => ({
+      name, status: r.status, reasonCode: r.reason_code, detail: r.reason_detail || null, nextStep: facetNextStep(r),
+    }));
 }
 
 // Merges the bulk overview onto discovery rows by competitor id (rows without data stay untouched).

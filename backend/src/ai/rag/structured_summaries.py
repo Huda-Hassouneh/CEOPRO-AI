@@ -331,7 +331,13 @@ def generate_market_pricing_summary(conn, tenant_id: str) -> str:
         )
         rows = cursor.fetchall()
 
+    from src.ai.pricing import comparisons
+
+    ladder_lines = comparisons.safe_overview_lines(conn, tenant_id)
+
     if not rows:
+        if ladder_lines:
+            return "\n".join(ladder_lines)
         return "Market pricing comparison (source: products.current_price vs. competitor_prices): no real competitor price observations yet."
 
     lines = ["Your price vs. observed competitor prices (source: products.current_price vs. latest competitor_prices.scraped_price):"]
@@ -345,7 +351,7 @@ def generate_market_pricing_summary(conn, tenant_id: str) -> str:
             f"{avg_competitor_price:.2f} {currency} ({int(competitor_count)} observation(s)) - "
             f"you are {abs(gap_pct):.0f}% {direction} the market."
         )
-    return "\n".join(lines)
+    return "\n".join(lines + ladder_lines)
 
 
 def _plain_confidence_label(confidence_score: Optional[float]) -> str:
