@@ -186,9 +186,18 @@ def approve(body: Approval, ctx: Ctx):
 
 
 class Accept(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(extra="forbid")
     full_name: str | None = Field(default=None, min_length=1, max_length=150)
     password: str | None = None
+
+    @field_validator("full_name")
+    @classmethod
+    def nonblank_name(cls, value):
+        if value is not None:
+            value = value.strip()
+            if not value:
+                raise ValueError("Full name is required")
+        return value
 
 
 @router.get("/invitations/{token}")

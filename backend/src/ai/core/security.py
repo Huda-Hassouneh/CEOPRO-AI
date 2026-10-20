@@ -19,6 +19,7 @@ changes.
 
 import hashlib
 import logging
+import math
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -105,6 +106,7 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     if request is not None:
         # Lets main.py's write middleware drop this company's cached views.
         request.state.tenant_id = tenant_id
+    ctx.credential_version = credential_version
     ctx.token_id = token_id
     ctx.token_expires_at = claims.get("exp")
     # When this sign-in started; renewals keep it. Older tokens didn't carry
@@ -174,9 +176,13 @@ def _durable_revocation(token_id: str, expires_at=None) -> bool:
 def revoke_token(token_id: str, expires_at_epoch) -> bool:
     if not token_id:
         return False
-    ttl = int(expires_at_epoch - datetime.now(timezone.utc).timestamp()) if expires_at_epoch else JWT_EXPIRE_MINUTES * 60
     try:
-        _durable_revocation(token_id, datetime.now(timezone.utc) + timedelta(seconds=max(ttl, 1)))
+        now = datetime.now(timezone.utc)
+        expiry = (datetime.fromtimestamp(float(expires_at_epoch), timezone.utc) if expires_at_epoch is not None
+                  else now + timedelta(minutes=JWT_EXPIRE_MINUTES))
+        ttl = max(1, math.ceil((expiry - now).total_seconds()))
+        if _durable_revocation(token_id, expiry) is not True:
+            raise RuntimeError("Durable revocation write was not acknowledged")
         if _revocation_store().set(_REVOKED_PREFIX + token_id, "1", ex=max(ttl, 1)) is not True:
             raise RuntimeError("Revocation write was not acknowledged")
         return True
