@@ -39,3 +39,27 @@ def test_billing_routes_fail_closed_when_redis_is_down(monkeypatch):
     monkeypatch.setattr(security, "_revocation_store", boom)
     assert security.is_token_revoked("x") is False
     assert security.is_token_revoked("x", fail_closed=True) is True
+
+
+def test_only_billing_paths_refuse_a_token_when_the_store_is_down(monkeypatch):
+    import types
+
+    import pytest
+    from fastapi import HTTPException
+
+    from src.ai.core import security
+
+    def boom():
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(security, "_revocation_store", boom)
+    token, _ = security.create_access_token("t-1", "u-1", email_verified=True)
+    header = f"Bearer {token}"
+
+    def request(path):
+        return types.SimpleNamespace(url=types.SimpleNamespace(path=path), state=types.SimpleNamespace())
+
+    assert security.get_tenant_context(request("/pricing/comparisons"), header).tenant_id == "t-1"
+    with pytest.raises(HTTPException) as err:
+        security.get_tenant_context(request("/billing/checkout"), header)
+    assert err.value.status_code == 401
