@@ -15,7 +15,7 @@ import logging
 from datetime import datetime, timezone
 
 from src.ai.core.money import format_money
-from src.ai.pricing import currency, data_access, estimation, evidence, guardrails, recommendation
+from src.ai.pricing import comparisons, currency, data_access, estimation, evidence, guardrails, premium_bands, recommendation
 
 logger = logging.getLogger("CEOPRO_AI_PRICING_PIPELINE")
 
@@ -65,6 +65,17 @@ def _build_cross_currency_reference(conn, tenant_id: str, product_id: str, own_c
             f"{own_currency}, so those competitor prices couldn't be converted for reference."
         )
     return note
+
+
+def _added_value_guidance(conn, tenant_id: str, product_id: str):
+    """The justified-range guidance for a product whose only comparisons are added-value ones, else None.
+    Advisory text: any failure to read it leaves the recommendation unchanged."""
+    try:
+        ladder = comparisons.get_ladders(conn, tenant_id, [product_id]).get(str(product_id))
+    except Exception:  # noqa: BLE001
+        logger.exception("added-value guidance unavailable (tenant=%s product=%s)", tenant_id, product_id)
+        return None
+    return ladder["added_value_guidance"] if ladder else None
 
 
 HORIZON_DAYS = 30
@@ -139,6 +150,11 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         rec.source_record_ids = estimate.competitor_price_ids
         rec.basis = estimate.basis
         rec.explanation = f"[{estimate.basis}] {estimate.note} {rec.explanation}"
+    guidance = None
+    if not competitor_prices and (estimate is None or estimate.basis != estimation.COMPARABLE_ESTIMATE):
+        guidance = _added_value_guidance(conn, tenant_id, product_id)
+        if guidance:
+            rec.explanation += " " + premium_bands.guidance_sentence(guidance, money)
     change_guardrail = guardrails.apply_price_change_guardrail(
         own["current_price"], rec.raw_suggested_price, currency=own_currency
     )
@@ -262,6 +278,7 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         "market_action": market_action,
         "hold_reason": hold_reason,
         "demand": demand,
+        "added_value_guidance": guidance,
         "market": (
             None if rec.basis == estimation.INTERNAL_ONLY
             else {"average": rec.market_avg, "median": rec.market_median, "min": rec.market_min, "max": rec.market_max}

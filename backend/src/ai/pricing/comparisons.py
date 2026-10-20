@@ -18,7 +18,7 @@ tier exists - the company's richer product is not what the market average measur
 import statistics
 from typing import Dict, Iterable, List, Optional
 
-from src.ai.pricing import data_access
+from src.ai.pricing import data_access, premium_bands
 from src.market_scraper.price_comparison.tiers import ADDED_VALUE, EQUIVALENT, EXACT, SIMILAR, TIERS
 
 MAX_PRODUCTS_PER_REQUEST = 100
@@ -45,12 +45,15 @@ def _tier_summary(your_price: float, items: List[dict]) -> dict:
     }
 
 
-def build_ladder(product: dict, comparison_rows: Iterable[dict], exact_price_rows: Iterable[dict]) -> dict:
-    """`product`: {product_id, current_price, currency}. Rows are plain dicts (see the loaders).
+def build_ladder(product: dict, comparison_rows: Iterable[dict], exact_price_rows: Iterable[dict], band: Optional[dict] = None) -> dict:
+    """`product`: {product_id, current_price, currency}. `band`: the category premium band (premium_bands.py); the global default when omitted. Rows are plain dicts (see the loaders).
     A competitor with a recorded exact price and an EXACT comparison row is listed once."""
     your_price = float(product["current_price"])
     by_tier: Dict[str, List[dict]] = {tier: [] for tier in TIERS}
+    band = band or premium_bands.default_band()
     for row in comparison_rows:
+        if row["tier"] == ADDED_VALUE:
+            row = {**row, "premium": premium_bands.apply_band(row.get("premium"), band)}
         by_tier[row["tier"]].append(row)
     exact_seen = {r["competitor_id"] for r in by_tier[EXACT]}
     for row in exact_price_rows:
@@ -78,6 +81,10 @@ def build_ladder(product: dict, comparison_rows: Iterable[dict], exact_price_row
     return {
         "product_id": str(product["product_id"]), "currency": product["currency"], "your_price": your_price,
         "tiers": tiers, "headline": headline, "covered": best is not None,
+        "premium_band": band,
+        # Only when added value is all there is: a range your price reads as justified in, never a price.
+        "added_value_guidance": (premium_bands.guidance(your_price, tiers[ADDED_VALUE]["items"], band)
+                                 if best == ADDED_VALUE else None),
     }
 
 
@@ -101,11 +108,12 @@ def _rows(conn, sql: str, params: tuple) -> list:
 def load_products(conn, tenant_id: str, product_ids: List[str]) -> List[dict]:
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT product_id, current_price, currency FROM products "
+            "SELECT product_id, current_price, currency, category FROM products "
             "WHERE tenant_id = %s AND deleted_at IS NULL AND product_id = ANY(%s::uuid[]);",
             (tenant_id, product_ids),
         )
-        return [{"product_id": str(r[0]), "current_price": float(r[1]), "currency": r[2]} for r in cursor.fetchall()]
+        return [{"product_id": str(r[0]), "current_price": float(r[1]), "currency": r[2], "category": data_access._category_key(r[3])}
+                for r in cursor.fetchall()]
 
 
 def load_comparison_rows(conn, tenant_id: str, product_ids: List[str]) -> Dict[str, List[dict]]:
@@ -169,12 +177,36 @@ def load_exact_price_rows(conn, tenant_id: str, products: List[dict]) -> Dict[st
     return out
 
 
+def load_category_bands(conn, tenant_id: str) -> Dict[Optional[str], dict]:
+    """{category: band} from the premiums the tenant's own added-value comparisons carry (premium_bands.py)."""
+    rows = _rows(
+        conn,
+        """
+        SELECT p.category, (c.premium->>'premium_pct')::numeric
+        FROM product_price_comparisons c
+        JOIN products p ON p.tenant_id = c.tenant_id AND p.product_id = c.product_id
+        JOIN tenant_competitors tc ON tc.tenant_id = c.tenant_id AND tc.global_competitor_id = c.global_competitor_id
+        JOIN global_competitors gc ON gc.global_competitor_id = c.global_competitor_id
+        WHERE c.tenant_id = %s AND c.tier = 'ADDED_VALUE' AND c.premium ? 'premium_pct' AND p.deleted_at IS NULL
+          AND tc.is_tracked = TRUE AND gc.is_manufacturer = FALSE
+          AND c.observed_at >= NOW() - (%s || ' days')::interval;
+        """,
+        (tenant_id, str(data_access.MAX_PRICE_AGE_DAYS)),
+    )
+    by_category: Dict[Optional[str], List[float]] = {}
+    for category, pct in rows:
+        by_category.setdefault(data_access._category_key(category), []).append(float(pct))
+    return {category: premium_bands.derive_band(values) for category, values in by_category.items()}
+
+
 def get_ladders(conn, tenant_id: str, product_ids: List[str]) -> Dict[str, dict]:
     """{product_id: ladder} for the tenant's products among product_ids (unknown ids are absent)."""
     products = load_products(conn, tenant_id, product_ids)
+    bands = load_category_bands(conn, tenant_id) if products else {}
     comparisons = load_comparison_rows(conn, tenant_id, [p["product_id"] for p in products])
     exact = load_exact_price_rows(conn, tenant_id, products)
-    return {p["product_id"]: build_ladder(p, comparisons.get(p["product_id"], []), exact.get(p["product_id"], []))
+    return {p["product_id"]: build_ladder(p, comparisons.get(p["product_id"], []), exact.get(p["product_id"], []),
+                                          bands.get(p.get("category")))
             for p in products}
 
 
@@ -185,3 +217,55 @@ def summarize(ladder: dict) -> dict:
         "covered": ladder["covered"], "headline": ladder["headline"],
         "counts": {tier: ladder["tiers"][tier]["count"] for tier in TIERS},
     }
+
+
+TIER_WORDS = {
+    EXACT: "the same product", EQUIVALENT: "the same item in another quantity, scaled to yours",
+    SIMILAR: "a similar item (a reference, not like for like)", ADDED_VALUE: "the base item that yours adds something to",
+}
+
+
+def ladder_overview(conn, tenant_id: str, limit: int = 20) -> List[dict]:
+    """Ladders with the product's name, for products that have any competitor evidence, strongest evidence first.
+    Used by the assistant and the reports; read-only."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT product_id, COALESCE(product_name->>'en', product_name->>'ar', product_name::text) FROM products "
+            "WHERE tenant_id = %s AND deleted_at IS NULL;", (tenant_id,))
+        names = {str(r[0]): r[1] for r in cursor.fetchall()}
+    ladders = get_ladders(conn, tenant_id, list(names)[:MAX_PRODUCTS_PER_REQUEST * 5]) if names else {}
+    rank = {EXACT: 0, EQUIVALENT: 1, SIMILAR: 2, ADDED_VALUE: 3}
+    covered = [{"name": names[pid], **ladder} for pid, ladder in ladders.items() if ladder["covered"]]
+    covered.sort(key=lambda e: (rank[e["headline"]["tier"]], -e["headline"]["count"], e["name"] or ""))
+    return covered[:limit]
+
+
+def describe(entry: dict) -> str:
+    """One plain sentence for a ladder entry: never calls a similar or added-value item an exact price."""
+    money = lambda v: f"{v:.2f} {entry['currency']}"  # noqa: E731
+    head = entry["headline"]
+    parts = []
+    for tier in TIERS:
+        t = entry["tiers"][tier]
+        if t["count"]:
+            parts.append(f"{t['count']} {tier.lower().replace('_', '-')} ({money(t['low'])} to {money(t['high'])}, "
+                         f"{TIER_WORDS[tier]})")
+    text = f"- {entry['name']}: you charge {money(entry['your_price'])}; competitor evidence: " + "; ".join(parts) + "."
+    if head["position_pct"] is not None and head["tier"] != ADDED_VALUE:
+        side = "above" if head["position_pct"] > 0 else "below" if head["position_pct"] < 0 else "level with"
+        text += f" Against the {head['tier'].lower()} middle you are {abs(head['position_pct']):.0f}% {side}" \
+                f"{'' if head['position_pct'] == 0 else ' it'}."
+    g = entry.get("added_value_guidance")
+    if g:
+        text += (f" Your extra reads as justified between {money(g['range_low'])} and {money(g['range_high'])} "
+                 f"(up to +{g['band_pct']:.0f}% over the base item, {g['band_source']} band); you are {g['position'].replace('_', ' ')}.")
+    return text
+
+
+def overview_lines(conn, tenant_id: str, limit: int = 12) -> List[str]:
+    entries = ladder_overview(conn, tenant_id, limit)
+    if not entries:
+        return []
+    return ["How your prices compare with what competitors sell, by how close the item is (source: price comparison "
+            "tiers; a similar or added-value item is a reference, never an exact competitor price):",
+            *[describe(e) for e in entries]]

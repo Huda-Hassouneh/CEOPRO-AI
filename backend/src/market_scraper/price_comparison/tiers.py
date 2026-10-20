@@ -22,7 +22,7 @@ import os
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from src.market_scraper.price_comparison.attributes import Offer, Quantity, contains_word, overlap, reconcile_compounds
+from src.market_scraper.price_comparison.attributes import DESCRIPTORS, Offer, Quantity, contains_word, overlap, reconcile_compounds
 
 EXACT = "EXACT"
 EQUIVALENT = "EQUIVALENT"
@@ -109,7 +109,11 @@ def classify(own: Offer, item: Offer, own_price: float, item_price: float) -> Op
     # One name holding every word of the other ("Kunafa" / "Kunafa Nabulsi") is related too: whether the extra word is an
     # extra or only a kind is the ambiguity settled further down.
     contained = (all(contains_word(w, item.words) for w in own.words) or all(contains_word(w, own.words) for w in item.words))
-    if score < RELATED_MIN_SCORE or not (head_shared or contained or score >= EXACT_MIN_SCORE):
+    # Two names that differ only by a colour or a fabric on each side ("... Blanc" / "... Sable") are variants of one item.
+    left = [w for w in own.core if not contains_word(w, item.words)]
+    right = [w for w in item.core if not contains_word(w, own.words)]
+    descriptor_variant = bool(left and right and score >= 0.5 and all(w in DESCRIPTORS for w in left + right))
+    if score < RELATED_MIN_SCORE or not (head_shared or contained or descriptor_variant or score >= EXACT_MIN_SCORE):
         return None
 
     reasons: List[dict] = []
@@ -140,9 +144,11 @@ def classify(own: Offer, item: Offer, own_price: float, item_price: float) -> Op
     quantity_kind, factor = "none", 1.0
     if oq and iq:
         ratio = oq.amount / iq.amount
+        # A part of a day or month ("demi-journee") is not priced pro rata, so it never scales by a whole multiple.
+        fractional_period = oq.dimension in ("day", "month") and min(oq.amount, iq.amount) < 1
         if abs(ratio - 1) <= 0.02:
             quantity_kind = "same"
-        elif _whole_multiple(ratio) and not assumed:
+        elif _whole_multiple(ratio) and not assumed and not fractional_period:
             quantity_kind, factor = "multiple", ratio
         elif NEAR_QUANTITY_RATIO[0] <= ratio <= NEAR_QUANTITY_RATIO[1]:
             quantity_kind, factor = "near", ratio
