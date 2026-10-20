@@ -85,7 +85,8 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     user_id = claims.get("user_id")
     if not tenant_id or not user_id:
         raise HTTPException(status_code=401, detail="Token is missing tenant_id/user_id claims.")
-    if claims.get("jti") and is_token_revoked(claims["jti"]):
+    token_id = claims.get("jti") or ("legacy:" + hashlib.sha256(token.encode()).hexdigest())
+    if is_token_revoked(token_id):
         raise HTTPException(status_code=401, detail="This session has been signed out.")
 
     # Until the address is confirmed, only the sign-in endpoints (verify,
@@ -96,11 +97,15 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
         raise HTTPException(status_code=403, detail="Please confirm your email address to continue.",
                             headers={"X-Auth-Reason": EMAIL_VERIFICATION_REASON})
 
+    credential_version = claims.get("cv", 0)
+    if isinstance(credential_version, bool) or not isinstance(credential_version, int) or credential_version < 0:
+        raise HTTPException(status_code=401, detail="Invalid session version.")
+    assert_active_principal(tenant_id, user_id, credential_version)
     ctx = TenantContext(tenant_id=tenant_id, user_id=user_id)
     if request is not None:
         # Lets main.py's write middleware drop this company's cached views.
         request.state.tenant_id = tenant_id
-    ctx.token_id = claims.get("jti")
+    ctx.token_id = token_id
     ctx.token_expires_at = claims.get("exp")
     # When this sign-in started; renewals keep it. Older tokens didn't carry
     # it, so count from when they were issued.
@@ -108,11 +113,32 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     return ctx
 
 
+def assert_active_principal(tenant_id: str, user_id: str, credential_version: int = 0) -> None:
+    """Revalidate human membership and platform suspension for every protected request."""
+    from src.ai import db
+    conn = None
+    try:
+        conn = db.auth_lookup_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT keel_active_principal(%s, %s), auth_credential_version(%s);", (user_id, tenant_id, user_id))
+            row = cursor.fetchone()
+        if not row or row[0] is not True:
+            raise HTTPException(status_code=403, detail="This account or workspace is no longer active.")
+        if row[1] != credential_version:
+            raise HTTPException(status_code=401, detail="Your password changed. Please sign in again.")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="Account verification is temporarily unavailable.") from None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 # --- Sign-out ---------------------------------------------------------------
 # Tokens are stateless, so signing out records the token's id (jti) as
 # revoked until the token would have expired anyway. Redis holds the list;
-# if Redis can't be reached the check fails open (logged), so an
-# infrastructure blip never signs every user out.
+# protected operations fail closed when Redis cannot confirm revocation.
 
 _REVOKED_PREFIX = "apex:revoked-token:"
 _security_logger = logging.getLogger("CEOPRO_AI_SECURITY")
@@ -124,28 +150,56 @@ def _revocation_store():
     return get_redis_client(socket_connect_timeout=0.5, socket_timeout=0.5)
 
 
+def _durable_revocation(token_id: str, expires_at=None) -> bool:
+    """Existing Python identity owns the receipt; Redis is never an allow authority."""
+    from src.ai import db
+    conn = db.auth_lookup_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT keel_token_revocation(%s,%s,%s);", (
+                "record" if expires_at is not None else "check",
+                hashlib.sha256(token_id.encode()).hexdigest(), expires_at))
+            row = cursor.fetchone()
+        conn.commit()
+        if not row or not isinstance(row[0], bool):
+            raise RuntimeError("Revocation receipt was not verified")
+        return row[0]
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def revoke_token(token_id: str, expires_at_epoch) -> bool:
     if not token_id:
         return False
     ttl = int(expires_at_epoch - datetime.now(timezone.utc).timestamp()) if expires_at_epoch else JWT_EXPIRE_MINUTES * 60
     try:
-        _revocation_store().set(_REVOKED_PREFIX + token_id, "1", ex=max(ttl, 1))
+        _durable_revocation(token_id, datetime.now(timezone.utc) + timedelta(seconds=max(ttl, 1)))
+        if _revocation_store().set(_REVOKED_PREFIX + token_id, "1", ex=max(ttl, 1)) is not True:
+            raise RuntimeError("Revocation write was not acknowledged")
         return True
     except Exception as err:  # noqa: BLE001 - see the comment above
-        _security_logger.warning("Could not record a signed-out token: %s", err)
-        return False
+        _security_logger.warning("Token revocation write unavailable")
+        raise HTTPException(status_code=503, detail="Sign-out could not be confirmed. Please try again.",
+                            headers={"Retry-After": "5", "X-Auth-Reason": "revocation-unavailable"}) from None
 
 
 def is_token_revoked(token_id: str) -> bool:
     try:
-        return bool(_revocation_store().exists(_REVOKED_PREFIX + token_id))
-    except Exception as err:  # noqa: BLE001 - fail open, see above
-        _security_logger.warning("Could not check signed-out tokens: %s", err)
-        return False
+        result = _revocation_store().exists(_REVOKED_PREFIX + token_id)
+        if not isinstance(result, (int, bool)) or result not in (0, 1):
+            raise RuntimeError("Revocation read was not verified")
+        return bool(result) or _durable_revocation(token_id)
+    except Exception:  # noqa: BLE001 - an unknown revocation decision is not permission
+        _security_logger.warning("Token revocation service unavailable")
+        raise HTTPException(status_code=503, detail="Session verification is temporarily unavailable. Please try again.",
+                            headers={"Retry-After": "5", "X-Auth-Reason": "revocation-unavailable"}) from None
 
 
 def create_access_token(tenant_id: str, user_id: str, auth_time: "Optional[int]" = None,
-                        email_verified: bool = False) -> "tuple[str, int]":
+                        email_verified: bool = False, credential_version: int = 0) -> "tuple[str, int]":
     """
     Returns (token, expires_in_seconds). Claims: tenant_id/user_id (what
     get_tenant_context() reads), exp (PyJWT rejects the token after it),
@@ -160,7 +214,7 @@ def create_access_token(tenant_id: str, user_id: str, auth_time: "Optional[int]"
     token = jwt.encode(
         {"tenant_id": str(tenant_id), "user_id": str(user_id), "exp": now + expires_delta,
          "iat": now, "auth_time": int(auth_time if auth_time is not None else now.timestamp()),
-         "jti": secrets.token_hex(16), "ev": bool(email_verified), "evr": email_verification_required()},
+         "jti": secrets.token_hex(16), "cv": int(credential_version), "ev": bool(email_verified), "evr": email_verification_required()},
         _JWT_SECRET, algorithm="HS256",
     )
     return token, int(expires_delta.total_seconds())

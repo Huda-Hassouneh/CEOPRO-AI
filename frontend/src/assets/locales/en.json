@@ -895,15 +895,17 @@
       "invalidCode": "The verification code is incorrect.",
       "expiredCode": "This verification code has expired.",
       "resendFailed": "We couldn't resend the code. Please try again.",
-      "emailInUse": "An account with this email already exists.",
-      "invitationUnavailable": "We couldn't load this invitation. Please try again."
+      "emailInUse": "This address has an account or pending registration. Sign in, use your original verification tab, or start again after that request expires.",
+      "invitationUnavailable": "We couldn't load this invitation. Please try again.",
+      "deliveryUnavailable": "We could not deliver the verification email. Try resending the code; no company has been created yet."
     },
     "success": {
       "codeResent": "A new verification code has been sent.",
       "invitationAccepted": "Invitation accepted.",
       "passwordReset": "Your password has been reset. You can now log in.",
       "companyDeleted": "The company and all its data were deleted.",
-      "emailVerified": "Your email is confirmed. You can sign in now."
+      "emailVerified": "Your email is confirmed. You can sign in now.",
+      "logoutUnconfirmed": "Signed out on this device. Server sign-out could not be confirmed; the previous token may remain valid until it expires."
     },
     "workspaces": {
       "title": "Choose a company",
@@ -1213,16 +1215,33 @@
         "topUpsUnavailable": "Extra credits can't be bought yet.",
         "historyTitle": "Recent usage",
         "historyEmpty": "Nothing has used credits this period yet.",
-        "historyColumns": { "when": "When", "what": "What", "budget": "Budget", "credits": "Credits", "status": "Status" },
+        "historyColumns": {
+          "when": "When",
+          "what": "What",
+          "budget": "Budget",
+          "credits": "Credits",
+          "status": "Status"
+        },
         "operations": {
-          "assistant_question": "Assistant question", "competitor_analysis": "Competitor analysis", "marketing_campaign": "Marketing content",
-          "marketing_image": "Marketing image", "market_discovery": "Competitor discovery", "competitor_intel": "Competitor websites",
-          "competitor_enrichment": "Competitor details", "product_discovery": "Product discovery", "price_lookup": "Market prices",
-          "web_research": "Web research", "other": "Other"
+          "assistant_question": "Assistant question",
+          "competitor_analysis": "Competitor analysis",
+          "marketing_campaign": "Marketing content",
+          "marketing_image": "Marketing image",
+          "market_discovery": "Competitor discovery",
+          "competitor_intel": "Competitor websites",
+          "competitor_enrichment": "Competitor details",
+          "product_discovery": "Product discovery",
+          "price_lookup": "Market prices",
+          "web_research": "Web research",
+          "other": "Other"
         },
         "statuses": {
-          "reserved": "In progress", "consumed": "Done", "released": "Not charged", "failed_charged": "Failed (charged by provider)",
-          "pending_reconciliation": "Awaiting final cost", "reconciled": "Done"
+          "reserved": "In progress",
+          "consumed": "Done",
+          "released": "Not charged",
+          "failed_charged": "Failed (charged by provider)",
+          "pending_reconciliation": "Awaiting final cost",
+          "reconciled": "Done"
         }
       },
       "startTrial": "Start {{days}}-day free trial",
@@ -3053,7 +3072,10 @@
     "payment_failed": "Your last payment failed - update your payment method in Billing",
     "credits_low": "You've used {{percent}}% of this period's {{budget}} - they renew on {{date}}",
     "credits_exhausted": "This period's {{budget}} are used up - they renew on {{date}}; upgrade in Billing for more",
-    "budget": { "data": "Data Credits", "ai": "AI Credits" }
+    "budget": {
+      "data": "Data Credits",
+      "ai": "AI Credits"
+    }
   },
   "intel": {
     "citation": "Source {{n}}: {{text}}",
@@ -3562,5 +3584,73 @@
       "open": "Open listing",
       "competitorDetails": "Competitor details"
     }
+  },
+  "platform": {
+    "title": "Platform administration",
+    "back": "Customer dashboard",
+    "forbidden": "You do not have permission to administer the platform.",
+    "conflict": "This change conflicts with an existing or protected record. Refresh and try again.",
+    "failed": "The request could not be completed. Try again.",
+    "retry": "Try again",
+    "saved": "Change saved.",
+    "deliveryFailed": "Invitation saved, but email delivery failed. Use Resend after delivery is restored.",
+    "owner": "Platform Owner",
+    "admin": "Platform Admin",
+    "overview": "Overview",
+    "companies": "Companies",
+    "users": "Users",
+    "active_operators": "Active operators",
+    "team": "Operators",
+    "audit": "Audit trail",
+    "settings": "Platform settings",
+    "approvals": "Exceptional approvals",
+    "name": "Name",
+    "status": "Status",
+    "actions": "Actions",
+    "active": "Active",
+    "suspended": "Suspended",
+    "removed": "Removed",
+    "details": "Details",
+    "notes": "Internal notes",
+    "metadata": "Edit company notes",
+    "changeStatus": "Change status",
+    "companyStatus": "Change company status",
+    "userStatus": "Change account access across all workspaces",
+    "invite": "Invite a Platform Admin",
+    "invitations": "Pending invitations",
+    "resend": "Resend invitation",
+    "cancel": "Cancel",
+    "remove": "Remove operator",
+    "removeMember": "Remove operator",
+    "suspendMember": "Change operator status",
+    "transfer": "Transfer platform ownership",
+    "transferWarning": "This transfers exceptional financial authority to the selected admin. Your platform role becomes admin.",
+    "supportEmail": "Support email",
+    "edit": "Edit",
+    "resetPassword": "Reset my password",
+    "previous": "Previous",
+    "next": "Next",
+    "email": "Email",
+    "reason": "Reason for this change",
+    "confirm": "Confirm change",
+    "approvalNotice": "This records an owner authorization only. It does not activate unpaid access, set a quote price, or change a provider spending limit. Those changes require the relevant approved workflow.",
+    "kind": "Exception type",
+    "reference": "Quote, contract or provider reference",
+    "terms": "Exact approved terms and restrictions",
+    "expires": "Authorization expiry",
+    "below_floor_price": "Below-floor price authorization",
+    "manual_access": "Manual access authorization",
+    "provider_spending": "Provider spending authorization",
+    "inviteTitle": "KEEL platform invitation",
+    "inviteExplanation": "Accepting grants platform admin access. Existing account holders can leave name and password blank; existing passwords are preserved. New account holders must enter their name and a strong password.",
+    "accept": "Accept platform invitation",
+    "newCredentials": "A full name and strong password are required for a new operator account.",
+    "invitationInvalid": "This invitation is invalid, expired or already used. Ask the platform owner for a new invitation.",
+    "backToLogin": "Back to sign in",
+    "membershipStatus": "Change access to this workspace",
+    "account": "My account",
+    "signOut": "Sign out",
+    "expired": "Expired",
+    "pending": "Pending"
   }
 }
