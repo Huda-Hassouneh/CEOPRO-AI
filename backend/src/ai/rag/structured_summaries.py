@@ -333,11 +333,7 @@ def generate_market_pricing_summary(conn, tenant_id: str) -> str:
 
     from src.ai.pricing import comparisons
 
-    try:
-        ladder_lines = comparisons.overview_lines(conn, tenant_id)
-    except Exception:  # noqa: BLE001 - extra context only
-        conn.rollback()
-        ladder_lines = []
+    ladder_lines = comparisons.safe_overview_lines(conn, tenant_id)
 
     if not rows:
         if ladder_lines:
