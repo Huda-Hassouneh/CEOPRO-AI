@@ -154,9 +154,26 @@
       "title": "Pricing & Margins",
       "subtitle": "Compare your prices and costs against real market data, product by product."
     },
+    "report": {
+      "title": "Price comparison report",
+      "subtitle": "Every product with competitor evidence, by how close the competitor's item is. Similar and added-value items are references, not exact prices.",
+      "open": "Full report",
+      "back": "Back to pricing",
+      "download": "Download CSV",
+      "empty": "No product has competitor evidence yet.",
+      "loadError": "The report could not be loaded.",
+      "product": "Product",
+      "yourPrice": "Your price",
+      "bestTier": "Best evidence",
+      "counts": "Items per tier",
+      "position": "You vs the middle",
+      "range": "Justified range (added value)",
+      "band": "Band"
+    },
     "list": {
       "searchPlaceholder": "Search by name or brand",
       "getRecommendation": "Get Recommendation",
+      "compare": "Compare market",
       "loadError": "Could not load products",
       "retry": "Retry",
       "emptyTitle": "No products yet",
@@ -169,7 +186,118 @@
       "currentPrice": "Current Price",
       "cost": "Cost",
       "markup": "Markup Over Cost",
+      "position": "Market position",
       "actions": "Actions"
+    },
+    "ladder": {
+      "inLine": "In line",
+      "above": "{{pct}}% above",
+      "below": "{{pct}}% below",
+      "tier": {
+        "EXACT": {
+          "name": "Exact match",
+          "hint": "The same product at the same size."
+        },
+        "EQUIVALENT": {
+          "name": "Equivalent",
+          "hint": "The same product in another quantity, compared at your quantity (a 1-hour class against two 30-minute classes)."
+        },
+        "SIMILAR": {
+          "name": "Similar",
+          "hint": "The same kind of product but not like for like: another variant, size or nearby quantity."
+        },
+        "ADDED_VALUE": {
+          "name": "Added value",
+          "hint": "Your product is their base item plus something extra, so a higher price can be justified."
+        }
+      },
+      "marker": {
+        "extra": "extra",
+        "double": "double",
+        "triple": "triple",
+        "premium": "premium",
+        "loaded": "loaded",
+        "combo": "combo / meal"
+      },
+      "reason": {
+        "variant_differs": "Different variant — yours: {{own}}; theirs: {{competitor}}.",
+        "own_has_extras": "Yours adds: {{extras}}.",
+        "competitor_has_extras": "Theirs adds: {{extras}}.",
+        "quantity_scaled": "Scaled ×{{factor}}: yours {{own}}, theirs {{competitor}}.",
+        "quantity_pro_rata": "Priced pro rata: yours {{own}}, theirs {{competitor}}.",
+        "specificity_own": "Yours is more specific than theirs ({{words}}). It could be an extra or just a variant, so it is shown as similar until checked.",
+        "specificity_competitor": "Theirs is more specific than yours ({{words}}). It could be an extra or just a variant, so it is shown as similar until checked.",
+        "ai_addition": "Checked by AI: “{{words}}” reads as something added.",
+        "ai_variant": "Checked by AI: “{{words}}” reads as a different variant, not an extra.",
+        "owner_addition": "You decided this is something added.",
+        "owner_variant": "You decided this is only a different variant.",
+        "size_differs": "Different size.",
+        "quantity_unit_assumed": "The unit of your quantity is assumed to match theirs.",
+        "quantity_not_stated_on_one_side": "The quantity is stated on one side only.",
+        "recorded_price": "A price recorded for this exact product."
+      },
+      "headlineInLine": "Against {{count}} {{tier}} competitor price(s) you are in line with the middle ({{median}}).",
+      "headlineAbove": "Against {{count}} {{tier}} competitor price(s) you are {{pct}}% above the middle ({{median}}).",
+      "headlineBelow": "Against {{count}} {{tier}} competitor price(s) you are {{pct}}% below the middle ({{median}}).",
+      "noneAtAll": "No competitor sells this product or anything comparable yet. Add a competitor price, or let discovery read more competitor menus and sites.",
+      "tierEmpty": "No competitor items in this tier.",
+      "direction": {
+        "own_richer": "Yours has more in it",
+        "own_leaner": "Yours has less in it"
+      },
+      "decide": {
+        "title": "Correct this comparison",
+        "addition": "It's an extra",
+        "variant": "Just a variant",
+        "notComparable": "Not comparable",
+        "undo": "Undo",
+        "byYou": "Decided by you",
+        "saved": "Saved. The comparison was updated.",
+        "failed": "Could not save your decision.",
+        "forbidden": "Only an owner or admin can correct comparisons."
+      },
+      "competitor": "Competitor",
+      "theirPrice": "Their price",
+      "basePrice": "Their base price",
+      "comparable": "Comparable price",
+      "premium": "Your premium",
+      "vsYou": "You vs them",
+      "why": "Why it is here",
+      "scaled": "their price × {{factor}}",
+      "guidance": {
+        "text": "Competitors sell the base item at about {{base}}. With your extra, {{low}} to {{high}} reads as justified (up to +{{band}}%). This is a range, not a recommended price.",
+        "position": {
+          "below_range": "Your price is at or below the bottom of that range — you may be under-pricing the extra.",
+          "within_range": "Your price is inside that range.",
+          "above_range": "Your price is above that range — make sure the extra justifies it."
+        },
+        "observed": "Band taken from {{count}} comparisons in your category.",
+        "owner": "Band set by you.",
+        "setLabel": "Set your band (%)",
+        "save": "Save",
+        "clear": "Use the market band",
+        "saved": "Premium band saved.",
+        "default": "Default band — not enough comparisons in your category yet."
+      },
+      "premiumStatus": {
+        "underpriced": "You charge about the same for more — room to price up.",
+        "within_range": "Within the usual premium (up to {{band}}%).",
+        "above_range": "Above the usual premium (up to {{band}}%) — make sure the extras justify it."
+      },
+      "openSource": "Open {{name}}'s page",
+      "note": "Comparable prices are estimates read from the names and quantities on competitors' own menus and pages. Only exact matches feed your market average; equivalent and similar prices are shown for reference and used for a recommendation only when no exact price exists.",
+      "loading": "Loading the comparison…",
+      "loadError": "Could not load the comparison",
+      "modalTitle": "Market comparison — {{name}}",
+      "refresh": "Refresh comparisons",
+      "refreshing": "Refreshing…",
+      "refreshed": "Comparisons refreshed: {{rows}} from {{competitors}} competitor(s).",
+      "refreshedPending": "Comparisons refreshed: {{rows}} from {{competitors}} competitor(s). The AI is checking {{pending}} unclear pair(s) in the background; refresh again in a minute to see its answers.",
+      "refreshFailed": "Could not refresh the comparisons.",
+      "sectionTitle": "Market comparison by tier",
+      "coverageTitle": "Market comparison on this page",
+      "noComparison": "No comparison yet",
+      "basedOn": "{{count}} competitor(s)"
     },
     "modal": {
       "title": "Price Recommendation — {{name}}",
@@ -180,6 +308,7 @@
       "unknownDescription": "No competitor prices for this product were recorded in the last {{period}}. Record a competitor price under Competitors to get a recommendation.",
       "basis": "Compared with {{count}} competitor price(s) recorded in the last {{period}}.",
       "estimate": {
+        "COMPARABLE_ESTIMATE": "Estimated from competitors' items that are close to this product (equivalent or similar), because no competitor sells exactly this product.",
         "MARKET_REFERENCE": "Estimated from market reference prices found for this product; no tracked competitor price exists for it yet.",
         "REGIONAL_ESTIMATE": "Estimated from prices found outside your region, converted to your currency and adjusted for your local market.",
         "PEER_ESTIMATE": "Estimated from this product's cost and how comparable products are priced in your market.",
@@ -925,7 +1054,33 @@
       "team": "Team Members",
       "notifications": "Notifications",
       "preferences": "Preferences",
-      "security": "Security"
+      "security": "Security",
+      "service": "Service setup"
+    },
+    "service": {
+      "title": "Service setup",
+      "subtitle": "Provider keys are held by the service operator in the environment settings. This page shows their status only; no key is ever shown or entered here.",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "unlocks": "Unlocks",
+      "variable": "Set in the environment",
+      "cost": "Cost",
+      "test": "Test connection",
+      "testing": "Testing...",
+      "recent": "Recently reported: {{problem}}",
+      "result": {
+        "valid": "Valid: the provider accepted the key.",
+        "rejected": "Rejected: the provider refused the key. Check it and that the API is enabled.",
+        "quota_exhausted": "Quota used up: the key works but the limit was reached.",
+        "not_configured": "Not configured: set the variable first.",
+        "too_soon": "Please wait a few seconds before testing again.",
+        "error": "Could not reach the provider or got an unexpected answer."
+      },
+      "problem": {
+        "CREDENTIALS_REJECTED": "key rejected",
+        "QUOTA_EXHAUSTED": "quota used up"
+      },
+      "loadFailed": "Could not load the service status."
     },
     "common": {
       "notAvailable": "Not available",
@@ -3061,6 +3216,7 @@
       "down": "{{competitor}} cut {{product}} by {{pct}}% to {{price}}",
       "up": "{{competitor}} raised {{product}} by {{pct}}% to {{price}}"
     },
+    "competitor_comments_negative": "Customers are unhappy with {{competitor}}: {{pct}}% of its last {{count}} comments are negative - a chance to stand out",
     "restock": "{{product}} runs out in about {{days}} days - reorder about {{quantity}}",
     "price_gap": {
       "above": "{{product}} is {{pct}}% above the market (cheapest: {{competitor}})",
@@ -3375,6 +3531,18 @@
     "retryAllHint": "Re-tries every competitor detail that failed or is missing. It runs in the background.",
     "lastTry": "Last tried {{date}}",
     "never": "Not tried yet",
+    "retryThis": "Retry this",
+    "whyMissing": "Why is something missing? ({{count}})",
+    "nextStep": {
+      "none": "Nothing more to do here.",
+      "retry": "Retrying may find it.",
+      "wait": "It will be retried automatically; no action needed.",
+      "owner": "You can fix this: use the button next to it.",
+      "admin": "Ask the service operator to enable this. Retrying will not help until they do.",
+      "askOperator": "Copy request for the operator",
+      "requestCopied": "Request copied",
+      "requestMessage": "Hello, please enable \"{{what}}\" for our company in the service setup. Competitor data that needs it is missing. Thank you."
+    },
     "reviewTerms": "Review terms",
     "actions": {
       "retryPrices": "Read prices",
@@ -3388,6 +3556,7 @@
       "subtitle": "What KEEL has collected about this competitor, what is missing and why. Retry only adds data; it never removes what is already stored.",
       "score": "{{score}}% complete",
       "unknown": "Not checked yet",
+      "needsSetup": "Waiting on your administrator to finish the service setup: {{parts}}. This holds the score down; retrying will not raise it.",
       "items": "{{count}} found"
     },
     "facet": {
@@ -3470,7 +3639,23 @@
       "heldBack": "Held back by the safety check: {{count}}",
       "loadMore": "Show more",
       "empty": "No comments collected yet",
-      "emptyHint": "Use Retry above to collect Google reviews. Social comments need a connected social data provider.",
+      "emptyHint": "No comments have been collected for this competitor yet.",
+      "filter": "Filter by sentiment",
+      "all": "All",
+      "noneOfKind": "No comments match these filters.",
+      "notAnalysed": "{{count}} not analysed yet - they are counted but have no sentiment.",
+      "openSource": "Open original",
+      "collected": "collected {{date}}",
+      "themes": "What customers talk about:",
+      "themeNegative": "{{count}} negative",
+      "toReview": "To review",
+      "action": {"label": "What you did about this comment", "noted": "Noted", "acted_on": "Acted on",
+        "error": "Could not save that. Please try again."
+      },
+      "theme": {"service": "Service", "waiting": "Waiting time", "price": "Price", "quality": "Quality", "cleanliness": "Cleanliness", "staff": "Staff", "delivery": "Delivery", "availability": "Availability"},
+      "collectNow": "Collect comments now",
+      "signal": {"opportunity": "Opportunity", "threat": "Strength to match"},
+      "signalHint": {"opportunity": "Customers who agree are unhappy with this competitor - a chance to stand out on exactly this.", "threat": "Customers who agree praise this competitor - know what you are up against."},
       "error": "The comments could not be loaded.",
       "sentiment": {
         "positive": "Positive",

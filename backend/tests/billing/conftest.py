@@ -26,7 +26,9 @@ def no_external_network(monkeypatch):
     # Redis revocation is substituted, not treated as verified infrastructure.
     from src.ai.core import security
 
-    monkeypatch.setattr(security, "is_token_revoked", lambda token: False)
+    monkeypatch.setattr(
+        security, "is_token_revoked", lambda token, fail_closed=False: False
+    )
 
 
 @pytest.fixture

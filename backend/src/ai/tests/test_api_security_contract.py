@@ -37,6 +37,8 @@ _PUBLIC = {
     ("POST", "/auth/email/verify"),
     ("GET", "/auth/invitations/{token}"),
     ("POST", "/auth/invitations/{token}/accept"),
+    ("GET", "/platform/invitations/{token}"),
+    ("POST", "/platform/invitations/{token}/accept"),
     ("GET", "/billing/plans"),
 }
 
@@ -85,7 +87,14 @@ def test_every_non_public_route_rejects_a_forged_token(method, path):
     assert response.status_code == 401, f"{method} {path} accepted a token signed with the wrong secret"
 
 
-def test_public_routes_are_exactly_the_documented_set():
+def test_public_routes_are_exactly_the_documented_set(monkeypatch):
+    from fastapi import HTTPException
+    from src.ai.platform import service
+
+    def reject_invalid_invitation_token(token, payload=None):
+        raise HTTPException(status_code=404, detail="Invitation not found.")
+
+    monkeypatch.setattr(service, "invitation", reject_invalid_invitation_token)
     open_routes = {
         (method, path)
         for method, path in _all_operations()

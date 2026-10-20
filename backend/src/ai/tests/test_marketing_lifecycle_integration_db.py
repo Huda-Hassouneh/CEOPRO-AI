@@ -16,6 +16,8 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from src.ai.tests.signup_helpers import create_verified_test_account
+
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
                                 reason="AI_TEST_DATABASE_URL/APP_DB_PASSWORD not set - skipping live-DB integration test")
@@ -60,10 +62,9 @@ def setup(monkeypatch):
 
     def company():
         email = f"lifecycle+{uuid.uuid4().hex[:8]}@example.com"
-        assert client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Lifecycle Bakery", "email": email,
-                                                 "country_code": "JO", "primary_currency": "JOD",
-                                                 "password": "Lifecycle!Test-2026"}).status_code in (200, 201)
-        session = client.post("/auth/login", json={"email": email, "password": "Lifecycle!Test-2026"}).json()
+        session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Lifecycle Bakery", "email": email,
+                                                         "country_code": "JO", "primary_currency": "JOD",
+                                                         "password": "Lifecycle!Test-2026"})
         return session, {"Authorization": f"Bearer {session['access_token']}"}
 
     return client, calls, company

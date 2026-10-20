@@ -22,6 +22,7 @@ pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AI_TEST_DATABASE_URL n
 
 from src.ai.billing import admin, service, store, stripe_api  # noqa: E402
 from src.ai.core import entitlements, usage  # noqa: E402
+from src.ai.tests.signup_helpers import create_verified_test_account
 
 PASSWORD = "Limits!Test-2026"
 
@@ -72,8 +73,8 @@ def _company(conn, plan_key="starter", members=1) -> str:
 
 def _signed_up(client, plan_key="starter"):
     email = f"limits+{uuid.uuid4().hex[:8]}@example.com"
-    session = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Limits Co", "email": email,
-                                                 "country_code": "JO", "primary_currency": "JOD", "password": PASSWORD}).json()
+    session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Limits Co", "email": email,
+                                                     "country_code": "JO", "primary_currency": "JOD", "password": PASSWORD})
     if plan_key:
         _sql("UPDATE tenant_plan_assignments SET plan_key = %s, status = 'active', source = 'manual' WHERE tenant_id = %s;",
              (plan_key, session["tenant_id"]))

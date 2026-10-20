@@ -7,6 +7,7 @@ import jwt
 import pytest
 from fastapi import HTTPException
 from psycopg2 import OperationalError
+from starlette.requests import Request
 
 from src.ai.core import pending_registration, security
 from src.ai.platform import service
@@ -131,6 +132,57 @@ def test_database_connection_failure_has_retryable_contract(api, monkeypatch, to
     assert result.status_code == 503
 
 
+def test_billing_request_fails_closed_when_redis_is_down_but_durable_store_is_clear(monkeypatch):
+    token, _ = security.create_access_token("tenant", "user", email_verified=True)
+
+    def unavailable():
+        raise OSError("Redis unavailable")
+
+    monkeypatch.setattr(security, "_revocation_store", unavailable)
+    monkeypatch.setattr(security, "_durable_revocation", lambda *args: False)
+    monkeypatch.setattr(security, "assert_active_principal", lambda *args: pytest.fail("billing handler reached"))
+    request = Request({
+        "type": "http",
+        "method": "GET",
+        "path": "/billing/plans",
+        "headers": [],
+        "query_string": b"",
+        "server": ("test", 80),
+        "client": ("test", 123),
+        "scheme": "http",
+    })
+
+    with pytest.raises(HTTPException) as error:
+        security.get_tenant_context(request=request, authorization="Bearer " + token)
+
+    assert error.value.status_code == 401
+
+
+def test_general_request_uses_durable_revocation_result_during_redis_outage(monkeypatch):
+    token, _ = security.create_access_token("tenant", "user", email_verified=True)
+
+    def unavailable():
+        raise OSError("Redis unavailable")
+
+    monkeypatch.setattr(security, "_revocation_store", unavailable)
+    monkeypatch.setattr(security, "_durable_revocation", lambda *args: False)
+    monkeypatch.setattr(security, "assert_active_principal", lambda *args: None)
+    request = Request({
+        "type": "http",
+        "method": "GET",
+        "path": "/reports/price-comparison",
+        "headers": [],
+        "query_string": b"",
+        "server": ("test", 80),
+        "client": ("test", 123),
+        "scheme": "http",
+    })
+
+    context = security.get_tenant_context(request=request, authorization="Bearer " + token)
+
+    assert context.user_id == "user"
+
+
 def test_operator_invitation_preserves_password_bytes(api, monkeypatch):
     plain = "  StrongPass1!  "
     seen = []
@@ -209,7 +261,7 @@ def test_membership_restore_refusal_is_audited_without_domain_mutation(monkeypat
 
 def test_real_context_keeps_validated_credential_version(monkeypatch):
     raw, _ = security.create_access_token("t", "u", credential_version=4)
-    monkeypatch.setattr(security, "is_token_revoked", lambda *args: False)
+    monkeypatch.setattr(security, "is_token_revoked", lambda *args, **kwargs: False)
     seen = []
     monkeypatch.setattr(security, "assert_active_principal", lambda *args: seen.append(args))
 

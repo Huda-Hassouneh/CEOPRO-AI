@@ -19,7 +19,8 @@ DEDUPE_SECONDS = int(os.getenv("ENRICHMENT_DEDUPE_SECONDS", "600"))
 MODE_DUE = "due"      # never attempted, or a scheduled retry is due
 MODE_FORCE = "force"  # also failed/partial regardless of schedule, and setup-blocked (key now fixed?)
 MODE_PRICES = "prices"  # tenant-wide open-market price lookup for products with no price (price_lookup/)
-MODES = (MODE_DUE, MODE_FORCE, MODE_PRICES)
+MODE_COMMENTS = "comments"  # tenant-wide weekly refresh of competitor comments, within a daily search budget
+MODES = (MODE_DUE, MODE_FORCE, MODE_PRICES, MODE_COMMENTS)
 
 
 def inflight_key(tenant_id: str, competitor_id: Optional[str], mode: str) -> str:

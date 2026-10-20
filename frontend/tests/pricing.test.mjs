@@ -34,3 +34,68 @@ test('pricingApi.recommend sends product_id as a query param and returns the rea
   assert.equal(result.suggested_price, 25.5);
   assert.equal(result.explanation, 'Real explanation text.');
 });
+
+// The comparison ladder endpoints (backend/src/ai/routers/pricing.py): a summary for a page of products, the full
+// ladder for one, and a refresh that recomputes from stored competitor items.
+test('pricingApi comparison calls send the right requests and unwrap the responses', async (t) => {
+  const seen = [];
+  const server = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const url = new URL(req.url, 'http://localhost');
+    seen.push(`${req.method} ${url.pathname}${url.search}`);
+    if (url.pathname === '/pricing/comparisons' && req.method === 'GET') {
+      return res.end(JSON.stringify({ products: { p1: { counts: { EXACT: 0, EQUIVALENT: 1, SIMILAR: 0, ADDED_VALUE: 0 }, headline: { tier: 'EQUIVALENT' } } } }));
+    }
+    if (url.pathname === '/pricing/comparisons/p%201' && req.method === 'GET') {
+      return res.end(JSON.stringify({ product_id: 'p 1', covered: true, tiers: {} }));
+    }
+    if (url.pathname === '/pricing/comparisons/refresh' && req.method === 'POST') {
+      return res.end(JSON.stringify({ competitors: 2, rows: 5 }));
+    }
+    res.statusCode = 404;
+    res.end(JSON.stringify({ detail: 'not found' }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const originalBaseURL = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = originalBaseURL; server.close(); });
+
+  const summary = await pricingApi.comparisons(['p1', 'p2']);
+  assert.equal(summary.p1.headline.tier, 'EQUIVALENT');
+  assert.ok(seen[0].includes('product_ids=p1%2Cp2') || seen[0].includes('product_ids=p1,p2'));
+
+  const ladder = await pricingApi.ladder('p 1');
+  assert.equal(ladder.covered, true);
+
+  const refreshed = await pricingApi.refreshComparisons();
+  assert.deepEqual(refreshed, { competitors: 2, rows: 5 });
+});
+
+test('pricingApi.setComparisonOverride PUTs the decision (null clears it) and returns the new ladder', async (t) => {
+  const bodies = [];
+  const server = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      res.setHeader('Content-Type', 'application/json');
+      if (req.method === 'PUT' && req.url === '/pricing/comparisons/p1/override') {
+        bodies.push(JSON.parse(raw));
+        return res.end(JSON.stringify({ product_id: 'p1', covered: true }));
+      }
+      res.statusCode = 404;
+      res.end('{}');
+    });
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const originalBaseURL = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = originalBaseURL; server.close(); });
+
+  const ladder = await pricingApi.setComparisonOverride('p1', { competitorId: 'c1', itemName: '30 min class', verdict: 'ADDITION' });
+  assert.equal(ladder.covered, true);
+  await pricingApi.setComparisonOverride('p1', { competitorId: 'c1', itemName: '30 min class' });
+  assert.deepEqual(bodies, [
+    { competitor_id: 'c1', item_name: '30 min class', verdict: 'ADDITION' },
+    { competitor_id: 'c1', item_name: '30 min class', verdict: null },
+  ]);
+});

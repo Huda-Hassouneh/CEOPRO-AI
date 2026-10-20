@@ -1845,6 +1845,27 @@ Everything in the pending list that code could close was closed on `feat/competi
 What remains is human-only (secrets rotation #102, Render env and cost rows #95 / #97, migration #90, images #85, provider
 accounts #91 / #92, real menu photos #86, native-speaker Arabic review #94, name-matcher tuning data #93).
 
+## 2026-10-20 (competitor comments: why 0%, why no reason, and keeping comments alive)
+
+Design, causes and as-built notes: `COMPETITOR_COMMENTS_AND_RETRY_PLAN.md` (sections 2-10.1).
+- **Why the comments part sat at 0%**: the COMMENTS facet read only its own attempt log (stored comments never counted)
+  and Google reviews and YouTube comments were counted together; the facet is also YouTube-only and setup-gated, so
+  without the keys it stays blocked. Now: data wins, reviews and comments are counted separately.
+- **Why the Retry reason was invisible**: the detail was only in a hover tooltip, the list row showed none, and the Retry
+  response's per-facet reasons were discarded. Now every facet and Retry outcome carries `next_step`
+  (none / retry / wait / owner / admin); reasons are visible text; Retry is offered only where it can help; the empty
+  comments panel shows the live reason.
+- **Comments made useful**: sentiment / platform / theme / action filters, deterministic EN+AR themes, opportunity and
+  strength markers, link to the original, noted / acted-on status, "collected on" date, an alert for a competitor whose
+  recent comments turn mostly negative (bell and digest).
+- **Comments kept alive**: stored comments were deleted after 30 days and never re-collected. A weekly refresh now runs
+  in the enrichment worker within a daily YouTube search budget (default 40 of the 10,000 free units); noise and
+  duplicates are dropped at collection.
+- **Testing**: 900 backend tests pass (DB-backed ones on a throwaway Postgres with all migrations applied), 102 frontend
+  tests, lint and build clean; the screens were also exercised in the browser pane (en, ar, dark, 390 px). One failure
+  needs a live Redis and is unrelated. **Not tested**: any live YouTube call - the build environment has no key.
+- **Not done**: Instagram / Facebook comments (paid social provider).
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).

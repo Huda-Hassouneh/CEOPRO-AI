@@ -1,5 +1,11 @@
 .pricing-page { width: 100%; min-width: 0; display: grid; gap: 18px; }
-.pricing-filters { max-width: 360px; }
+.pricing-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pricing-filters { flex: 1 1 280px; max-width: 360px; }
+.pricing-coverage { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; padding: 10px 14px; border: 1px solid var(--ceopro-border-soft); border-radius: 9px; background: var(--apex-glass); font-size: 12px; }
+.pricing-coverage__title { color: var(--ceopro-text-secondary); font-weight: 600; }
+.pricing-coverage__item { display: inline-flex; align-items: center; gap: 6px; }
+.pricing-position { min-width: 150px; }
+.pricing-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .pricing-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; border: 1px solid var(--ceopro-border); border-radius: 9px; }
 .pricing-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; }
 .pricing-table th, .pricing-table td { padding: 12px 14px; border-bottom: 1px solid var(--ceopro-border-soft); text-align: start; }
@@ -19,6 +25,33 @@
 .pricing-recommendation-guardrail-note { margin: 0 0 10px; padding: 8px 10px; border-radius: 6px; background: var(--apex-glass); color: var(--apex-warning); font-size: 12px; }
 .pricing-recommendation-explanation { margin: 0; color: var(--ceopro-text-secondary); font-size: 13px; line-height: 1.55; }
 
+/* Price comparison ladder */
+.price-ladder { display: grid; gap: 16px; }
+.price-ladder__guidance { margin: 0; padding: 10px 12px; border-radius: 8px; border: 1px dashed var(--apex-border, currentColor); font-size: 13px; }
+.price-ladder__headline { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--apex-glass); color: var(--ceopro-text-primary); font-size: 14px; font-weight: 600; }
+.price-ladder__tier { display: grid; gap: 8px; }
+.price-ladder__tier-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; }
+.price-ladder__count { margin-inline-start: auto; font-weight: 700; color: var(--ceopro-text-primary); }
+.price-ladder__empty { margin: 0; font-size: 12.5px; }
+.price-ladder__why { font-size: 12px; line-height: 1.5; max-width: 320px; }
+.price-ladder__decide { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; }
+.price-ladder__decide button { border: none; background: none; padding: 0; color: var(--ceopro-primary); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.price-ladder__decide button:hover:not(:disabled) { text-decoration: underline; }
+.price-ladder__decide button:disabled { opacity: 0.5; cursor: default; }
+.price-ladder__by-you { color: var(--apex-success); font-size: 11.5px; font-weight: 600; }
+.price-ladder__note { margin: 0; font-size: 11.5px; line-height: 1.5; }
+
 @media (max-width: 760px) {
   .pricing-filters { max-width: none; }
 }
+
+.price-ladder__band-editor { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-inline-start: 8px; }
+/* the glass field style (keel-glass.css) has a transparent border and a very high specificity; a visible edge is needed on the white dialog */
+.price-ladder__band-editor input[type="number"] { width: 64px; padding: 2px 6px; border-radius: 6px; border-color: color-mix(in srgb, var(--ceopro-text-primary) 40%, transparent) !important; }
+.pricing-report__table-wrap { overflow-x: auto; }
+.price-ladder__link { border: none; background: none; padding: 0; color: var(--ceopro-primary); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.price-ladder__link:hover:not(:disabled) { text-decoration: underline; }
+.price-ladder__link:disabled { opacity: 0.5; cursor: default; }
+
+.pricing-link { color: var(--ceopro-primary); font-size: 13px; font-weight: 600; text-decoration: none; }
+.pricing-link:hover { text-decoration: underline; }

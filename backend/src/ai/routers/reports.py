@@ -16,6 +16,7 @@ from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import financial_summary as dashboard_financial_summary
 from src.ai.dashboard import reports as dashboard_reports
 from src.ai.dashboard import sales_pdf
+from src.ai.pricing import comparisons as price_comparisons
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -191,5 +192,35 @@ def financial_summary_report(
         result = dashboard_financial_summary.get_profitability_summary(conn, ctx.tenant_id, window_days=window_days)
         conn.commit()
         return result
+    finally:
+        conn.close()
+
+
+@router.get("/price-comparison")
+def price_comparison_report(
+    limit: int = Query(default=50, ge=1, le=200),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    Every product that has competitor evidence, with its tiered ladder (EXACT / EQUIVALENT / SIMILAR / ADDED_VALUE),
+    per-tier low / median / high, the headline position and, for added-value-only products, the justified range.
+    The same data as GET /pricing/comparisons/{id}, for all products at once. Read-only.
+    """
+    parts = ("price-comparison", limit)
+    fingerprint = hashlib.sha256(json.dumps(parts, default=str, ensure_ascii=True).encode()).hexdigest()
+    counted = count_report(ctx, report_key(ctx, idempotency_key, *parts), fingerprint)
+    try:
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    except Exception:
+        usage.release_request(counted)
+        raise
+    try:
+        entries = price_comparisons.ladder_overview(conn, ctx.tenant_id, limit)
+        conn.commit()
+        return {"products": entries, "count": len(entries)}
+    except Exception:
+        usage.release_request(counted)
+        raise
     finally:
         conn.close()

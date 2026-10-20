@@ -11,7 +11,7 @@ from src.ai.routers import auth, platform
 @pytest.fixture
 def api(monkeypatch):
     # Explicit infrastructure boundary doubles; neither Redis nor PostgreSQL is certified here.
-    monkeypatch.setattr(security,'is_token_revoked',lambda token:False)
+    monkeypatch.setattr(security,'is_token_revoked',lambda token,fail_closed=False:False)
     monkeypatch.setattr(security,'assert_active_principal',lambda *args:None)
     from src.ai.core import auth_throttle
     monkeypatch.setattr(auth_throttle,'ensure_allowed',lambda *a:None)

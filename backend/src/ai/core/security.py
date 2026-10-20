@@ -87,7 +87,8 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     if not tenant_id or not user_id:
         raise HTTPException(status_code=401, detail="Token is missing tenant_id/user_id claims.")
     token_id = claims.get("jti") or ("legacy:" + hashlib.sha256(token.encode()).hexdigest())
-    if is_token_revoked(token_id):
+    strict_revocation = request is not None and request.url.path.startswith(FAIL_CLOSED_PATH_PREFIXES)
+    if is_token_revoked(token_id, fail_closed=strict_revocation):
         raise HTTPException(status_code=401, detail="This session has been signed out.")
 
     # Until the address is confirmed, only the sign-in endpoints (verify,
@@ -143,6 +144,8 @@ def assert_active_principal(tenant_id: str, user_id: str, credential_version: in
 # protected operations fail closed when Redis cannot confirm revocation.
 
 _REVOKED_PREFIX = "apex:revoked-token:"
+# Routes that move money or change entitlements: a Redis outage must not let a signed-out token through.
+FAIL_CLOSED_PATH_PREFIXES = ("/billing",)
 _security_logger = logging.getLogger("CEOPRO_AI_SECURITY")
 
 
@@ -192,14 +195,30 @@ def revoke_token(token_id: str, expires_at_epoch) -> bool:
                             headers={"Retry-After": "5", "X-Auth-Reason": "revocation-unavailable"}) from None
 
 
-def is_token_revoked(token_id: str) -> bool:
+def is_token_revoked(token_id: str, fail_closed: bool = False) -> bool:
     try:
         result = _revocation_store().exists(_REVOKED_PREFIX + token_id)
         if not isinstance(result, (int, bool)) or result not in (0, 1):
             raise RuntimeError("Revocation read was not verified")
-        return bool(result) or _durable_revocation(token_id)
-    except Exception:  # noqa: BLE001 - an unknown revocation decision is not permission
-        _security_logger.warning("Token revocation service unavailable")
+    except Exception:  # noqa: BLE001 - durable receipts remain authoritative during Redis outages
+        _security_logger.warning("Token revocation cache unavailable")
+        try:
+            durable_revoked = _durable_revocation(token_id)
+        except Exception:
+            _security_logger.warning("Durable token revocation check unavailable")
+            raise HTTPException(status_code=503, detail="Session verification is temporarily unavailable. Please try again.",
+                                headers={"Retry-After": "5", "X-Auth-Reason": "revocation-unavailable"}) from None
+        if durable_revoked:
+            return True
+        if fail_closed:
+            return True
+        return False
+    if result:
+        return True
+    try:
+        return _durable_revocation(token_id)
+    except Exception:
+        _security_logger.warning("Durable token revocation check unavailable")
         raise HTTPException(status_code=503, detail="Session verification is temporarily unavailable. Please try again.",
                             headers={"Retry-After": "5", "X-Auth-Reason": "revocation-unavailable"}) from None
 
