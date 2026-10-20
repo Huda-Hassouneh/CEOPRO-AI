@@ -14,6 +14,12 @@ RECENT = (NOW - timedelta(days=3)).strftime("%a, %d %b %Y %H:%M:%S +0000")
 OLD = (NOW - timedelta(days=900)).strftime("%a, %d %b %Y %H:%M:%S +0000")
 
 
+@pytest.fixture(autouse=True)
+def _no_real_redis_for_the_youtube_cap(monkeypatch):
+    from src.market_scraper import youtube_quota
+    monkeypatch.setattr(youtube_quota, "take_search", lambda limit=None: True)
+
+
 def _rss(*items):
     body = "".join(f"<item><title>{t}</title><link>{l}</link><pubDate>{d}</pubDate><description>{s}</description></item>" for t, l, d, s in items)
     return f'<?xml version="1.0"?><rss version="2.0"><channel><title>Blog</title>{body}</channel></rss>'
@@ -330,3 +336,45 @@ def test_youtube_comments_drop_noise_and_duplicates():
             {"snippet": {"topLevelComment": {"id": "c", "snippet": {"textOriginal": "first!", "likeCount": 99}}, "totalReplyCount": 0}},
         ]}
     assert [c["external_id"] for c in cm.youtube_comments("Rival Burger", None, "KEY", get=get)] == ["a"]
+
+
+def test_a_bad_request_that_is_not_about_the_key_is_not_reported_as_a_rejected_key():
+    get = lambda url, params, secret=None: (400, {"error": {"errors": [{"reason": "invalidVideoId"}], "message": "bad id"}})
+    with pytest.raises(cm.SourceError) as err:
+        cm.youtube_comments("Rival Burger", None, "KEY", get=get)
+    assert err.value.code == cm.PROVIDER_ERROR
+
+
+def test_quota_running_out_midway_keeps_the_comments_already_collected():
+    quota = (403, {"error": {"errors": [{"reason": "quotaExceeded"}], "message": "q"}})
+    get = _yt([_video("v1", "Rival Burger"), _video("v2", "Rival Burger 2")],
+              {"v1": {"items": [_thread("c1", "Terrible service and very long waits", 3)]}, "v2": quota})
+    assert [c["external_id"] for c in cm.youtube_comments("Rival Burger", None, "KEY", get=get)] == ["c1"]
+
+
+def test_httpx_request_urls_carrying_api_keys_are_not_logged_at_info():
+    import logging
+    assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
+
+
+def test_videos_naming_the_place_are_read_first_and_the_region_is_sent():
+    seen = {}
+    base = _yt([_video("far", "Rival Burger review"), _video("near", "Rival Burger Amman tour")],
+               {"far": {"items": [_thread("c1", "Terrible service and very long waits", 1)]},
+                "near": {"items": [_thread("c2", "Lovely staff and quick service here", 1)]}})
+
+    def get(url, params, secret=None):
+        if url == cm.YOUTUBE_SEARCH_URL:
+            seen.update(params)
+        return base(url, params, secret)
+    out = cm.youtube_comments("Rival Burger", "Amman", "KEY", get=get, max_videos=1, country_code="jo")
+    assert [c["external_id"] for c in out] == ["c2"] and seen["regionCode"] == "JO"
+    seen.clear()
+    cm.youtube_comments("Rival Burger", None, "KEY", get=get, country_code="Jordan")
+    assert "regionCode" not in seen
+
+
+def test_generic_words_in_a_competitor_name_are_not_required_to_match():
+    assert cm._names_match("Starbucks Coffee Company", "Starbucks in Amman")
+    assert not cm._names_match("Rival Burger", "Rival Pizza")
+    assert cm._names_match("Coffee", "best coffee in town")  # a name made only of generic words still has to appear

@@ -49,6 +49,7 @@ from src.market_scraper.name_matching import name_similarity
 from src.market_scraper import direct_search
 from src.market_scraper import competitor_mentions as mentions
 from src.market_scraper import web_search
+from src.market_scraper import youtube_quota
 from src.market_scraper.category_taxonomy import categorize
 from src.market_scraper.content_safety import scan_external_text
 from src.market_scraper.discovery import SOCIAL_PLATFORM_HOSTS
@@ -118,6 +119,8 @@ _RETRY_AFTER = timedelta(hours=int(os.getenv("ENRICHMENT_RETRY_AFTER_HOURS", "6"
 # Minimum gap between two manual attempts at the same facet (stops a double
 # click or a script from hammering a paid API).
 MIN_SECONDS_BETWEEN_ATTEMPTS = int(os.getenv("ENRICHMENT_MIN_RETRY_SECONDS", "30"))
+# Comments cost a 100-unit YouTube search against a shared daily quota, so their manual retries wait longer.
+COMMENTS_MIN_SECONDS_BETWEEN_ATTEMPTS = int(os.getenv("COMMENTS_MIN_RETRY_SECONDS", "300"))
 
 _FIND_PLACE_URL = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
 _DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
@@ -782,8 +785,12 @@ def _comments_outcome(conn, tenant_id, competitor_id, competitor, actor_user_id)
     actor = actor_user_id or os.getenv("SCRAPER_ACTOR_USER_ID") or os.getenv("AI_SERVICE_ACTOR_USER_ID")
     if not actor:
         return STATUS_FAILED, SERVICE_MISCONFIGURED, "No acting user is configured for this service (SCRAPER_ACTOR_USER_ID).", 0, None
+    if not youtube_quota.take_search():
+        return (STATUS_FAILED, QUOTA_EXHAUSTED,
+                "KEEL's daily YouTube search allowance is used up; comments will be collected again after it resets.", 0, None)
     try:
-        comments = mentions.youtube_comments(competitor["name"], competitor["city"], api_key)
+        comments = mentions.youtube_comments(competitor["name"], competitor["city"], api_key,
+                                             country_code=competitor.get("country"))
     except mentions.SourceError as exc:
         return STATUS_FAILED, exc.code, exc.detail, 0, None
     if not comments:
@@ -948,7 +955,8 @@ def _recent_attempt_wait(conn, tenant_id: str, competitor_id: str, facet: str) -
     if not row or not row[0]:
         return 0
     elapsed = (datetime.now(timezone.utc) - row[0]).total_seconds()
-    return max(0, int(MIN_SECONDS_BETWEEN_ATTEMPTS - elapsed))
+    minimum = COMMENTS_MIN_SECONDS_BETWEEN_ATTEMPTS if facet == FACET_COMMENTS else MIN_SECONDS_BETWEEN_ATTEMPTS
+    return max(0, int(minimum - elapsed))
 
 
 @credits.metered("competitor_enrichment")

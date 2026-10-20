@@ -25,7 +25,7 @@ from typing import Optional
 
 import redis
 
-from src.market_scraper import data_access, enrichment_queue
+from src.market_scraper import data_access, enrichment_queue, youtube_quota
 from src.market_scraper.competitor_enrichment import COMMENTS_REFRESH_DAYS, enrich_competitor, enrich_tenant_comments, enrich_tenant_competitors
 
 STREAM = enrichment_queue.STREAM
@@ -47,13 +47,10 @@ COMMENTS_DAILY_SEARCH_BUDGET = int(os.getenv("YOUTUBE_DAILY_SEARCH_BUDGET", "40"
 
 
 def daily_search_reserve(client, budget: int = COMMENTS_DAILY_SEARCH_BUDGET):
-    """A callable that takes one search from today's shared budget (a Redis counter) and says whether one was left."""
-    key = f"market.comments.budget:{datetime.now(timezone.utc):%Y%m%d}"
+    """A callable that takes one search from today's (Pacific-day) scheduled-refresh budget and says whether one was left."""
 
     def reserve() -> bool:
-        used = int(client.incr(key))
-        client.expire(key, 172800)
-        return used <= budget
+        return youtube_quota.take(client, "budget", budget)
     return reserve
 
 

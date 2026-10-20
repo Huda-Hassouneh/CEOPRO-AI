@@ -351,3 +351,22 @@ def test_every_retry_outcome_carries_a_next_step():
 def test_only_http_links_are_stored_as_a_comments_source():
     assert ce._http_url("https://www.youtube.com/watch?v=x&lc=y") == "https://www.youtube.com/watch?v=x&lc=y"
     assert ce._http_url("javascript:alert(1)") is None and ce._http_url(None) is None and ce._http_url("") is None
+
+
+def test_comments_are_not_collected_once_the_daily_youtube_allowance_is_spent(monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "k")
+    monkeypatch.setenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "ref")
+    monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", "u")
+    with patch.object(ce.youtube_quota, "take_search", return_value=False), \
+         patch.object(ce.mentions, "youtube_comments") as search:
+        status, code, detail, items, _ = ce._comments_outcome(MagicMock(), TENANT, COMP, {"name": "X", "city": None}, None)
+    assert (status, code, items) == (ce.STATUS_FAILED, ce.QUOTA_EXHAUSTED, 0) and "daily" in detail
+    search.assert_not_called()
+
+
+def test_manual_comment_retries_wait_longer_than_other_facets():
+    from datetime import datetime, timedelta, timezone
+    conn = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (datetime.now(timezone.utc) - timedelta(seconds=60),)
+    assert ce._recent_attempt_wait(conn, TENANT, COMP, ce.FACET_COMMENTS) > 200
+    assert ce._recent_attempt_wait(conn, TENANT, COMP, ce.FACET_NEWS) == 0
