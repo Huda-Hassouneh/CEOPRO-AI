@@ -42,6 +42,10 @@ from src.market_scraper.price_lookup.providers import fetch_html
 
 logger = logging.getLogger("KEEL_COMPETITOR_MENTIONS")
 
+# httpx logs every request URL at INFO, and the YouTube/other API keys travel in the query string.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 TIMEOUT = float(os.getenv("MENTIONS_TIMEOUT_SECONDS", "20"))
 NEWS_MAX_AGE_DAYS = int(os.getenv("NEWS_MAX_AGE_DAYS", "180"))
 MAX_ITEMS = 10
@@ -199,9 +203,19 @@ def read_own_site_news(website_url: str, fetch_document: Callable = fetch_html) 
 
 # ------------------------------------------------------------------------- news search
 
+# Words that say what kind of business it is, not which one: "Starbucks Coffee Company" is named by "Starbucks".
+_GENERIC_NAME_WORDS = frozenset({
+    "coffee", "company", "co", "corp", "corporation", "inc", "llc", "ltd", "limited", "group", "restaurant",
+    "restaurants", "cafe", "cafes", "shop", "store", "stores", "the", "and", "&",
+    "مطعم", "مقهى", "كافيه", "شركة", "مجموعة",
+})
+
+
 def _names_match(name: str, *texts: str) -> bool:
-    """Does any of the texts actually name the competitor? Every meaningful word of its name must appear."""
+    """Does any of the texts actually name the competitor? Every distinctive word of its name must appear
+    (generic words such as "coffee" or "company" are not required, unless they are all the name has)."""
     wanted = tokens(name)
+    wanted = (wanted - _GENERIC_NAME_WORDS) or wanted
     if not wanted:
         return False
     haystack = tokens(" ".join(t or "" for t in texts))
@@ -264,7 +278,8 @@ def _youtube_error(status: int, payload: dict, key: str) -> Optional[SourceError
     message = str(error.get("message") or "")[:200].replace(key, "***")
     if reasons & {"quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"}:
         return SourceError(QUOTA_EXHAUSTED, f"YouTube quota exceeded. {message}".strip())
-    if reasons & {"keyInvalid", "forbidden", "accessNotConfigured", "ipRefererBlocked"} or status in (400, 401, 403):
+    if reasons & {"keyInvalid", "forbidden", "accessNotConfigured", "ipRefererBlocked"} or status in (401, 403) \
+            or (status == 400 and not reasons):
         return SourceError(CREDENTIALS_REJECTED, f"YouTube rejected the key ({status}). {message}".strip())
     return SourceError(PROVIDER_ERROR, f"YouTube returned {status}. {message}".strip())
 
@@ -296,13 +311,17 @@ def keep_comment(text: str, competitor: str, channel_names_it: bool) -> bool:
 
 
 def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Callable = _get,
-                     max_videos: int = 3, per_video: int = 50) -> List[dict]:
+                     max_videos: int = 3, per_video: int = 50, country_code: Optional[str] = None) -> List[dict]:
     """Comments (top-level first, replies after) on videos whose title or channel names the competitor.
+    Videos that also name the place come first, so a chain's local branch beats a same-name video elsewhere.
     An empty list means no matching video or none with comments - a real answer."""
-    status, payload = get(YOUTUBE_SEARCH_URL, {
+    params = {
         "part": "snippet", "q": " ".join(p for p in (name, place_hint) if p), "type": "video",
         "maxResults": 8, "order": "relevance", "key": api_key,
-    }, api_key)
+    }
+    if country_code and len(country_code.strip()) == 2 and country_code.strip().isalpha():
+        params["regionCode"] = country_code.strip().upper()
+    status, payload = get(YOUTUBE_SEARCH_URL, params, api_key)
     error = _youtube_error(status, payload, api_key)
     if error:
         raise error
@@ -311,10 +330,17 @@ def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Ca
         snippet = item.get("snippet") or {}
         video_id = (item.get("id") or {}).get("videoId")
         if video_id and _names_match(name, snippet.get("title"), snippet.get("channelTitle")):
-            videos.append((video_id, snippet.get("title") or "", _names_match(name, snippet.get("channelTitle"))))
+            local = bool(place_hint) and _names_match(place_hint, snippet.get("title"), snippet.get("channelTitle"))
+            videos.append((video_id, snippet.get("title") or "", _names_match(name, snippet.get("channelTitle")), local))
+    videos.sort(key=lambda v: not v[3])  # stable: place-naming videos first, search order otherwise
+    videos = [v[:3] for v in videos]
     comments: List[dict] = []
     seen_text = set()
-    for video_id, title, own_channel in videos[:max_videos]:
+    productive = 0
+    for video_id, title, own_channel in videos:
+        if productive >= max_videos:
+            break  # a video with no comments costs 1 quota unit and does not count
+        before = len(comments)
         status, payload = get(YOUTUBE_COMMENTS_URL, {
             "part": "snippet,replies", "videoId": video_id, "maxResults": per_video, "order": "relevance",
             "textFormat": "plainText", "key": api_key,
@@ -326,6 +352,8 @@ def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Ca
             continue
         error = _youtube_error(status, payload, api_key)
         if error:
+            if error.code == QUOTA_EXHAUSTED and comments:
+                break  # keep what earlier videos already gave
             raise error
         for thread in payload.get("items") or []:
             top = (thread.get("snippet") or {}).get("topLevelComment") or {}
@@ -350,6 +378,8 @@ def youtube_comments(name: str, place_hint: Optional[str], api_key: str, get: Ca
                         "text": rtext, "likes": rs.get("likeCount"), "published_at": rs.get("publishedAt"),
                         "reply_count": None, "context": title, "url": f"https://www.youtube.com/watch?v={video_id}&lc={reply['id']}",
                     })
+        if len(comments) > before:
+            productive += 1
     return comments
 
 
