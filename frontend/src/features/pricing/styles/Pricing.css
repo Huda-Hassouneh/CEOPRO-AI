@@ -27,6 +27,7 @@
 
 /* Price comparison ladder */
 .price-ladder { display: grid; gap: 16px; }
+.price-ladder__guidance { margin: 0; padding: 10px 12px; border-radius: 8px; border: 1px dashed var(--apex-border, currentColor); font-size: 13px; }
 .price-ladder__headline { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--apex-glass); color: var(--ceopro-text-primary); font-size: 14px; font-weight: 600; }
 .price-ladder__tier { display: grid; gap: 8px; }
 .price-ladder__tier-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; }
