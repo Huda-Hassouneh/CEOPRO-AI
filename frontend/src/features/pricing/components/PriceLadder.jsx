@@ -63,6 +63,21 @@ export function PriceLadder({ ladder, onDecide, busy = false }) {
         </p>
       ) : <p className="price-ladder__headline apex-muted">{t('pricing.ladder.noneAtAll')}</p>}
 
+      {ladder.added_value_guidance ? (
+        <p className="price-ladder__guidance" data-testid="added-value-guidance">
+          {t('pricing.ladder.guidance.text', {
+            base: money(ladder.added_value_guidance.base_price), low: money(ladder.added_value_guidance.range_low),
+            high: money(ladder.added_value_guidance.range_high), band: number.format(ladder.added_value_guidance.band_pct),
+          })}{' '}
+          {t(`pricing.ladder.guidance.position.${ladder.added_value_guidance.position}`)}{' '}
+          <span className="apex-muted">
+            {ladder.added_value_guidance.band_source === 'observed'
+              ? t('pricing.ladder.guidance.observed', { count: ladder.added_value_guidance.band_samples })
+              : t('pricing.ladder.guidance.default')}
+          </span>
+        </p>
+      ) : null}
+
       {TIERS.map((tier) => {
         const data = ladder.tiers[tier];
         return (

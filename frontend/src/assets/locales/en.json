@@ -248,6 +248,16 @@
       "vsYou": "You vs them",
       "why": "Why it is here",
       "scaled": "their price × {{factor}}",
+      "guidance": {
+        "text": "Competitors sell the base item at about {{base}}. With your extra, {{low}} to {{high}} reads as justified (up to +{{band}}%). This is a range, not a recommended price.",
+        "position": {
+          "below_range": "Your price is at or below the bottom of that range — you may be under-pricing the extra.",
+          "within_range": "Your price is inside that range.",
+          "above_range": "Your price is above that range — make sure the extra justifies it."
+        },
+        "observed": "Band taken from {{count}} comparisons in your category.",
+        "default": "Default band — not enough comparisons in your category yet."
+      },
       "premiumStatus": {
         "underpriced": "You charge about the same for more — room to price up.",
         "within_range": "Within the usual premium (up to {{band}}%).",
