@@ -1,0 +1,299 @@
+--- a/backend/src/ai/billing/webhooks.py
++++ b/backend/src/ai/billing/webhooks.py
+@@ -73,7 +73,13 @@
+ 
+ def sync_subscription(sys_conn, subscription_id: str, event_created: datetime, hint: Optional[str] = None) -> Optional[str]:
+     """Re-reads the subscription from Stripe and stores it. Returns the tenant."""
++    # Serialize snapshots for one subscription across distinct event IDs.
++    with sys_conn.cursor() as cursor:
++        cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
++                       ("keel_stripe_subscription:" + subscription_id,))
+     stripe_sub = stripe_api.retrieve_subscription(subscription_id)
++    if stripe_sub.get("id") != subscription_id:
++        raise WebhookRetry("subscription identity does not match the requested object")
+     tenant_id = _resolve_tenant(sys_conn, stripe_sub, hint)
+     if not tenant_id:
+         # Not one of ours (yet): fail so Stripe retries once checkout's own
+@@ -85,7 +91,10 @@
+         raise WebhookRetry(f"price {price_id} is not in the plan catalog")
+     plan_key, period_code = resolved
+     customer = _id(stripe_sub.get("customer"))
+-    if customer and not store.tenant_for_customer(sys_conn, customer):
++    customer_tenant = store.tenant_for_customer(sys_conn, customer) if customer else None
++    if customer_tenant and str(customer_tenant) != str(tenant_id):
++        raise WebhookRetry("subscription customer belongs to another company")
++    if customer and not customer_tenant:
+         store.save_customer(sys_conn, tenant_id, customer)
+     store.apply_subscription(sys_conn, tenant_id, stripe_sub, plan_key, period_code, event_created)
+     entitlements.forget(tenant_id)  # the new plan's modules apply at once
+@@ -159,13 +168,30 @@
+         elif event_type in SUBSCRIPTION_EVENTS:
+             tenant_id = sync_subscription(sys_conn, obj["id"], created)
+         elif event_type in INVOICE_EVENTS:
+-            subscription_id = _invoice_subscription_id(obj)
++            # Authenticated event snapshots can still be stale. Fetch current
++            # invoice truth while serialized against other invoice events.
++            invoice_id = obj["id"]
++            with sys_conn.cursor() as cursor:
++                cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
++                               ("keel_stripe_invoice:" + invoice_id,))
++            invoice = stripe_api.retrieve_invoice(invoice_id)
++            if invoice.get("id") != invoice_id:
++                raise WebhookRetry("invoice identity does not match the requested object")
++            subscription_id = _invoice_subscription_id(invoice)
++            event_subscription = _invoice_subscription_id(obj)
++            if event_subscription and event_subscription != subscription_id:
++                raise WebhookRetry("invoice subscription identity changed")
+             if subscription_id:
+-                tenant_id = sync_subscription(sys_conn, subscription_id, created, _invoice_tenant_hint(obj))
+-                if event_type == "invoice.payment_failed":
+-                    store.record_payment(sys_conn, tenant_id, obj, subscription_id, "failed", _failure_reason(obj))
+-                elif (obj.get("amount_paid") or 0) > 0:
+-                    store.record_payment(sys_conn, tenant_id, obj, subscription_id, "succeeded")
++                tenant_id = sync_subscription(sys_conn, subscription_id, created, _invoice_tenant_hint(invoice))
++                customer = _id(invoice.get("customer"))
++                if customer and str(store.tenant_for_customer(sys_conn, customer)) != str(tenant_id):
++                    raise WebhookRetry("invoice customer belongs to another company")
++                if invoice.get("status") == "paid" or invoice.get("paid") is True:
++                    store.record_payment(sys_conn, tenant_id, invoice, subscription_id, "succeeded")
++                elif event_type == "invoice.payment_failed":
++                    store.record_payment(sys_conn, tenant_id, invoice, subscription_id, "failed", _failure_reason(invoice))
++                else:
++                    raise WebhookRetry("paid invoice is not yet reconciled by the provider")
+         elif event_type in SCHEDULE_EVENTS:
+             subscription_id = _id(obj.get("released_subscription")) or _id(obj.get("subscription"))
+             if subscription_id:
+--- a/backend/src/ai/billing/store.py
++++ b/backend/src/ai/billing/store.py
+@@ -273,6 +273,9 @@
+     customer = stripe_sub.get("customer")
+     customer = customer.get("id") if isinstance(customer, dict) else customer
+     with sys_conn.cursor() as cursor:
++        # Different subscription objects share one commercial assignment.
++        cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
++                       ("keel_billing_tenant:" + str(tenant_id),))
+         cursor.execute(
+             f"""
+             INSERT INTO billing_subscriptions
+@@ -295,6 +298,7 @@
+                                              ELSE billing_subscriptions.scheduled_period_code END,
+                 last_event_at = GREATEST(billing_subscriptions.last_event_at, EXCLUDED.last_event_at),
+                 updated_at = CURRENT_TIMESTAMP
++            WHERE billing_subscriptions.tenant_id = EXCLUDED.tenant_id
+             RETURNING {_SUB_COLUMNS};
+             """,
+             (
+@@ -303,7 +307,18 @@
+                 _ts(stripe_sub.get("canceled_at")), event_created,
+             ),
+         )
+-        row = _sub_row(cursor.fetchone())
++        saved = cursor.fetchone()
++        if saved is None:
++            raise ValueError("subscription is already assigned to another company")
++        row = _sub_row(saved)
++        cursor.execute(
++            "SELECT 1 FROM billing_subscriptions WHERE tenant_id=%s "
++            "AND stripe_subscription_id<>%s AND status=ANY(%s);",
++            (tenant_id, stripe_sub["id"], list(config.CURRENT_STATUSES)),
++        )
++        if cursor.fetchone():
++            # Preserve history without revoking a replacement subscription.
++            return row
+         # The company's plan follows its live subscription. A subscription that
+         # ended only replaces the plan if it was the one in force.
+         cursor.execute(
+@@ -361,7 +376,9 @@
+             ON CONFLICT (stripe_invoice_id) DO UPDATE SET
+                 amount = EXCLUDED.amount, status = EXCLUDED.status, paid_at = EXCLUDED.paid_at,
+                 failure_reason = EXCLUDED.failure_reason, hosted_invoice_url = EXCLUDED.hosted_invoice_url,
+-                invoice_pdf_url = EXCLUDED.invoice_pdf_url;
++                invoice_pdf_url = EXCLUDED.invoice_pdf_url
++            WHERE billing_payments.tenant_id = EXCLUDED.tenant_id
++              AND (billing_payments.status <> 'succeeded' OR EXCLUDED.status = 'succeeded');
+             """,
+             (
+                 tenant_id, invoice["id"], subscription_id, _minor_to_major(amount_minor or 0, currency), currency, status,
+--- a/backend/src/ai/core/usage.py
++++ b/backend/src/ai/core/usage.py
+@@ -335,6 +335,8 @@
+     current period, or raises PlanLimitReached (QUOTA_EXHAUSTED). The caller
+     commits the reservation before doing the work, and calls release() if
+     the work then fails. Returns the reservation for release()."""
++    if isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0:
++        raise ValueError("Usage amount must be a positive integer.")
+     plan = get_plan(conn, tenant_id)
+     _require_active(plan, feature_code)
+     feature = plan["features"].get(feature_code)
+@@ -361,7 +363,8 @@
+ 
+ 
+ def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
+-                    actor_user_id: Optional[str] = None, conn_factory=None) -> Optional[dict]:
++                    actor_user_id: Optional[str] = None, conn_factory=None, *,
++                    request_fingerprint: Optional[str] = None) -> Optional[dict]:
+     """Counts one request (e.g. a report export) against a metered allowance,
+     once per idempotency key per period: a retried or replayed request with
+     the same key is not counted again (returns None). Raises PlanLimitReached
+@@ -372,30 +375,61 @@
+ 
+     conn = (conn_factory or db.system_connection)()
+     try:
+-        plan = get_plan(conn, tenant_id)
+         with conn.cursor() as cursor:
+             cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
++                           ("keel_billing_tenant:" + str(tenant_id),))
++            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                            (f"keel_metered:{tenant_id}:{feature_code}",))
++            if actor_user_id is not None:
++                cursor.execute("SELECT 1 FROM tenant_users WHERE tenant_id=%s AND user_id=%s "
++                               "AND removed_at IS NULL FOR SHARE;", (tenant_id, actor_user_id))
++                if cursor.fetchone() is None:
++                    raise HTTPException(status_code=403, detail="An active company membership is required.")
++        plan = get_plan(conn, tenant_id)
++        _require_active(plan, feature_code)
++        feature = plan["features"].get(feature_code)
++        limit = feature["limit"] if feature else _missing_limit(feature_code)
++        if limit == 0:
++            raise PlanLimitReached("QUOTA_EXHAUSTED", feature_code, 0, 0,
++                                   "billing_period", plan["period_end"])
++        with conn.cursor() as cursor:
+             cursor.execute(
+-                "SELECT 1 FROM metered_request_keys WHERE tenant_id = %s AND feature_code = %s AND idempotency_key = %s;",
+-                (tenant_id, feature_code, idempotency_key),
++                "SELECT actor_user_id,request_fingerprint FROM metered_request_keys "
++                "WHERE tenant_id=%s AND feature_code=%s AND period_start=%s AND idempotency_key=%s;",
++                (tenant_id, feature_code, plan["period_start"], idempotency_key),
+             )
+-            if cursor.fetchone():
+-                conn.rollback()
++            previous = cursor.fetchone()
++            if previous:
++                if ((str(previous[0]) if previous[0] is not None else None) !=
++                        (str(actor_user_id) if actor_user_id is not None else None)):
++                    raise HTTPException(status_code=409, detail="This request key belongs to another user.")
++                if previous[1] != request_fingerprint:
++                    raise HTTPException(status_code=409, detail="Use a new request key for a different report.")
++                # A parallel replay may succeed when the original fails; its
++                # original receipt is no longer sufficient evidence to refund.
++                cursor.execute(
++                    "UPDATE metered_request_keys SET replayed=TRUE WHERE tenant_id=%s "
++                    "AND feature_code=%s AND period_start=%s AND idempotency_key=%s;",
++                    (tenant_id, feature_code, plan["period_start"], idempotency_key),
++                )
++                conn.commit()
+                 return None
+         reservation = reserve(conn, tenant_id, feature_code, 1)
+         with conn.cursor() as cursor:
+             cursor.execute(
+                 """
+-                INSERT INTO metered_request_keys (tenant_id, feature_code, idempotency_key, period_start, actor_user_id)
+-                VALUES (%s, %s, %s, %s, %s);
++                INSERT INTO metered_request_keys
++                    (tenant_id,feature_code,idempotency_key,period_start,actor_user_id,request_fingerprint)
++                VALUES (%s,%s,%s,%s,%s,%s) RETURNING request_id;
+                 """,
+-                (tenant_id, feature_code, idempotency_key, plan["period_start"], actor_user_id),
++                (tenant_id, feature_code, idempotency_key, reservation["period_start"], actor_user_id, request_fingerprint),
+             )
++            request_id = str(cursor.fetchone()[0])
+         conn.commit()
+         reservation["idempotency_key"] = idempotency_key
++        reservation["request_id"] = request_id
+         return reservation
+-    except PlanLimitReached:
++    except Exception:  # noqa: BLE001 -- rollback and propagate every accounting failure
+         conn.rollback()
+         raise
+     finally:
+@@ -411,12 +445,23 @@
+ 
+     conn = (conn_factory or db.system_connection)()
+     try:
+-        release(conn, reservation)
++        # Old in-flight receipts fail closed rather than refund a new attempt.
++        if not reservation.get("request_id"):
++            conn.rollback()
++            return
+         with conn.cursor() as cursor:
++            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
++                           (f"keel_metered:{reservation['tenant_id']}:{reservation['feature_code']}",))
+             cursor.execute(
+-                "DELETE FROM metered_request_keys WHERE tenant_id = %s AND feature_code = %s AND idempotency_key = %s;",
+-                (reservation["tenant_id"], reservation["feature_code"], reservation["idempotency_key"]),
++                "DELETE FROM metered_request_keys WHERE tenant_id=%s AND feature_code=%s "
++                "AND period_start=%s AND idempotency_key=%s AND request_id=%s "
++                "AND replayed=FALSE RETURNING request_id;",
++                (reservation["tenant_id"], reservation["feature_code"], reservation["period_start"],
++                 reservation["idempotency_key"], reservation["request_id"]),
+             )
++            deleted = cursor.fetchone() is not None
++        if deleted:
++            release(conn, reservation)
+         conn.commit()
+     except Exception:  # noqa: BLE001 - the unit stays counted; never fail the response over it
+         conn.rollback()
+--- a/backend/src/ai/routers/reports.py
++++ b/backend/src/ai/routers/reports.py
+@@ -109,10 +109,11 @@
+     return "auto:" + hashlib.sha256(material.encode()).hexdigest()[:48]
+ 
+ 
+-def count_report(ctx: TenantContext, key: str) -> Optional[dict]:
++def count_report(ctx: TenantContext, key: str, fingerprint: Optional[str] = None) -> Optional[dict]:
+     """One report against the plan's monthly allowance (402 when used up)."""
+     try:
+-        return usage.reserve_request(ctx.tenant_id, usage.MONTHLY_REPORTS, key, ctx.user_id)
++        return usage.reserve_request(ctx.tenant_id, usage.MONTHLY_REPORTS, key, ctx.user_id,
++                                     request_fingerprint=fingerprint)
+     except usage.PlanLimitReached as err:
+         raise err.as_http()
+ 
+@@ -131,7 +132,9 @@
+     the period (dashboard/sales_pdf.py). Each export counts as one report
+     against the plan's monthly allowance; a failed export is given back."""
+     _check_range(start_date, end_date)
+-    counted = count_report(ctx, report_key(ctx, idempotency_key, "sales", format, lang, start_date, end_date))
++    parts = ("sales", format, lang, start_date, end_date)
++    fingerprint = hashlib.sha256(json.dumps(parts, default=str, ensure_ascii=True).encode()).hexdigest()
++    counted = count_report(ctx, report_key(ctx, idempotency_key, *parts), fingerprint)
+     try:
+         conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+     except Exception:
+--- a/backend/src/ai/routers/dashboard.py
++++ b/backend/src/ai/routers/dashboard.py
+@@ -4,6 +4,8 @@
+ from fastapi import APIRouter, Depends, HTTPException, Query
+ 
+ from src.ai import db
++from src.ai.core import usage
++from src.ai.core.entitlements import requires
+ from src.ai.core.security import TenantContext, get_tenant_context
+ from src.ai.dashboard import activity as dashboard_activity
+ from src.ai.dashboard import competitor_activity as dashboard_competitor_activity
+@@ -395,7 +397,7 @@
+         conn.close()
+ 
+ 
+-@router.post("/products/{product_id}/forecast")
++@router.post("/products/{product_id}/forecast", dependencies=[requires(usage.DEMAND_PREDICTION)])
+ def dashboard_generate_product_forecast_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+     """
+     Synchronously generates a real forecast for one product, mirroring
+--- /dev/null
++++ b/backend/src/infrastructure/database/migrations/20261024000000_report_request_identity.sql
+@@ -0,0 +1,14 @@
++-- Forward repair; existing migration runner applies this file transactionally.
++-- Quiesce report writers and deploy with period-aware accounting code.
++ALTER TABLE metered_request_keys
++    ADD COLUMN request_fingerprint VARCHAR(64),
++    ADD COLUMN replayed BOOLEAN NOT NULL DEFAULT FALSE,
++    ADD COLUMN request_id UUID NOT NULL DEFAULT gen_random_uuid();
++
++ALTER TABLE metered_request_keys
++    DROP CONSTRAINT metered_request_keys_pkey,
++    ADD CONSTRAINT metered_request_keys_pkey
++        PRIMARY KEY (tenant_id, feature_code, period_start, idempotency_key);
++
++-- Retain historical keys, ownership, grants, RLS and FORCE RLS unchanged.
++-- Never delete cross-period history merely to restore the old primary key.

@@ -1,0 +1,26 @@
+{
+  "status": "PASS: SOURCE / POLICY / ID / LINK / INCREMENTAL GIT-LEDGER RECONCILIATION ONLY",
+  "phase_status": "IMPLEMENTED bounded foundation; unit/contract TESTED; native INTEGRATION BLOCKED; phase/release not fully complete",
+  "head": "1de393c77dfc6db9d8722d8a611d2384d64d12c0",
+  "branch": "keel-phase1a-20261020",
+  "source_content_sha256": "9b7331f67221ce06b7d2850becd1edef9f1e24fcda3cbed861b73c69526fb848",
+  "original_python_starting_files_unchanged": 1461,
+  "node_files_unchanged": 2839,
+  "owner_policy_paragraphs_preserved": 13,
+  "capabilities_preserved": 129,
+  "acceptance_ids_preserved": 125,
+  "incremental_paths": 93,
+  "operations": {
+    "ADD": 61,
+    "MODIFY": 32
+  },
+  "ledger_matches_actual_no_index_git_diff": true,
+  "incoming_index_unchanged": true,
+  "incoming_task6_other_four_source_files_migration_and_tests_unchanged": true,
+  "usage_task6_extension": "Only existing actor predicate adds keel_active_principal under original locks",
+  "relative_markdown_links": "PASS",
+  "commits_created": false,
+  "push_merge_deploy": false,
+  "native_services": "NOT RUN / INTEGRATION BLOCKED",
+  "not_certified": "No native SQL execution, migration, RLS, service availability, full application regression, SMTP or browser certificate"
+}

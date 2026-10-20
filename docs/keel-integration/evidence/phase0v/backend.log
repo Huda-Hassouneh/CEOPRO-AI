@@ -1,0 +1,4 @@
+COMMAND: ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "-m", "scripts.integration_review", "--junitxml", "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/docs/keel-integration/evidence/phase0v/backend-offline.xml"]
+CWD: /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/backend
+PROFILE: clean allowlisted environment; no inherited DB/provider secrets; Python TCP fence; metering enabled/unassigned none
+....................s

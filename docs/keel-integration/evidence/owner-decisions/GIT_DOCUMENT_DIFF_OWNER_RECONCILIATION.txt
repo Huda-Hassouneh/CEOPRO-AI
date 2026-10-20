@@ -1,0 +1,29 @@
+# Actual git diff --no-index --name-status, normalized to Python repo paths.
+# Prior 129-document archive hash-checked; no Git index changes.
+MODIFY	docs/keel-integration/DECISION_REGISTER.md
+MODIFY	docs/keel-integration/NEXT_TASK.md
+MODIFY	docs/keel-integration/OWNER_DECISION_WORKSHEET.md
+ADD	docs/keel-integration/OWNER_RECONCILIATION_REPORT.md
+MODIFY	docs/keel-integration/PHASE0R_README.md
+MODIFY	docs/keel-integration/README.md
+MODIFY	docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md
+MODIFY	docs/keel-integration/architecture/ADR-ACCOUNTING-001-partial-failure-replay-and-crash-charging.md
+MODIFY	docs/keel-integration/architecture/ADR-AUTH-001-identity-bootstrap-and-session-policy.md
+MODIFY	docs/keel-integration/architecture/ADR-AUTH-002-platform-authority-and-role-boundaries.md
+MODIFY	docs/keel-integration/architecture/ADR-CATALOG-001-catalog-trials-and-existing-contracts.md
+MODIFY	docs/keel-integration/architecture/ADR-CUSTOM-001-quote-acceptance-versus-activation.md
+MODIFY	docs/keel-integration/architecture/ADR-CUSTOM-002-quote-economics-provider-costs-and-fx.md
+MODIFY	docs/keel-integration/architecture/ADR-ENT-001-feature-rights-units-and-credit-crosswalk.md
+MODIFY	docs/keel-integration/architecture/ADR-IMPORT-001-canonical-identity-stock-and-invoice-ownership.md
+MODIFY	docs/keel-integration/architecture/ADR-MPI-001-mpi-eligibility-sample-and-public-reliability.md
+MODIFY	docs/keel-integration/architecture/ADR-PRICE-001-pricing-evidence-freshness-and-fallback.md
+MODIFY	docs/keel-integration/architecture/ADR-PRIVACY-001-provider-privacy-and-retained-business-records.md
+MODIFY	docs/keel-integration/architecture/ADR-PROMO-001-promotion-authority-redemption-and-stacking.md
+MODIFY	docs/keel-integration/architecture/ADR-TRANSITION-001-effective-grants-and-mixed-plan-change.md
+ADD	docs/keel-integration/evidence/owner-decisions/DOCUMENT_BASELINE_OWNER_RECONCILIATION.json
+ADD	docs/keel-integration/evidence/owner-decisions/GIT_DOCUMENT_DIFF_OWNER_RECONCILIATION.txt
+ADD	docs/keel-integration/evidence/owner-decisions/OWNER_RECONCILIATION_VERIFICATION.json
+ADD	docs/keel-integration/evidence/owner-decisions/OWNER_SELECTIONS.json
+ADD	docs/keel-integration/evidence/owner-decisions/verify_owner_decisions.py
+MODIFY	docs/keel-integration/evidence/verify_phase0.py
+ADD	docs/keel-integration/reference/KEEL_PHASE0R_OWNER_ARCHITECTURE_DECISION_REGISTER.md

@@ -1,0 +1,3 @@
+COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "-m", "ruff", "check", "src/ai/core/pending_registration.py", "src/ai/core/authorization.py", "src/ai/platform", "src/ai/routers/platform.py", "scripts/bootstrap_platform_owner.py", "tests/keel_integration"]
+Clean offline environment; TCP fence, no live service credentials; current test dependencies in scratch
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python: No module named ruff
