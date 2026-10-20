@@ -28,3 +28,14 @@ def test_revocation_fails_open_when_the_store_is_unreachable(monkeypatch):
     monkeypatch.setattr(security, "_revocation_store", broken)
     assert security.is_token_revoked("abc") is False
     assert security.revoke_token("abc", None) is False
+
+
+def test_billing_routes_fail_closed_when_redis_is_down(monkeypatch):
+    from src.ai.core import security
+
+    def boom():
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(security, "_revocation_store", boom)
+    assert security.is_token_revoked("x") is False
+    assert security.is_token_revoked("x", fail_closed=True) is True

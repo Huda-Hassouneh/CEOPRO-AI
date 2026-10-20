@@ -112,6 +112,14 @@ jobs:
           sudo docker image prune -a -f
           df -h /
 
+      # Same packages Dockerfile.ai installs; lets test_menu_media_real_ocr.py run
+      # (English, Arabic, scanned PDF) instead of skipping.
+      - name: Install tesseract (Arabic + English) and a Unicode font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-ara tesseract-ocr-eng fonts-dejavu-core
+          tesseract --list-langs
+
       - name: Install backend dependencies
         working-directory: backend
         run: pip install --no-cache-dir -r src/ai/requirements.txt
