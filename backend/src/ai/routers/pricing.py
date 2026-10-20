@@ -1,10 +1,25 @@
-from fastapi import HTTPException, APIRouter, Depends
+from typing import Literal, Optional
+from uuid import UUID
+
+import logging
+
+from fastapi import BackgroundTasks, HTTPException, APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 
 from src.ai import db
+from src.ai.core import usage
+from src.ai.core.entitlements import requires
 from src.ai.core.security import TenantContext, get_tenant_context
+from src.ai.pricing import comparisons as price_comparisons
+from src.ai.pricing import data_access as price_comparison_data_access
+from src.ai.pricing import premium_bands
 from src.ai.pricing import pipeline as pricing_pipeline
+from src.market_scraper.price_comparison import adjudicate as comparison_adjudicate
+from src.market_scraper.market_discovery import offerings as comparison_offerings
+from src.market_scraper.price_comparison import engine as comparison_engine
 
 router = APIRouter(prefix="/pricing", tags=["pricing"])
+logger = logging.getLogger("CEOPRO_AI_PRICING_ROUTER")
 
 
 @router.post("/recommend")
@@ -32,6 +47,243 @@ def pricing_recommend_all(ctx: TenantContext = Depends(get_tenant_context)) -> d
         result = pricing_pipeline.run_price_recommendations_for_all(conn, ctx.tenant_id)
         conn.commit()
         return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _uuid_list(raw: str) -> list:
+    try:
+        ids = [str(UUID(part.strip())) for part in raw.split(",") if part.strip()]
+    except ValueError:
+        raise HTTPException(status_code=422, detail="product_ids must be a comma-separated list of UUIDs.")
+    if not ids:
+        raise HTTPException(status_code=422, detail="product_ids is empty.")
+    if len(ids) > price_comparisons.MAX_PRODUCTS_PER_REQUEST:
+        raise HTTPException(status_code=422, detail=f"At most {price_comparisons.MAX_PRODUCTS_PER_REQUEST} products per request.")
+    return ids
+
+
+@router.get("/comparisons")
+def pricing_comparisons_summary(
+    product_ids: str = Query(..., description="Comma-separated product ids (at most 100)."),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """
+    Per product: how many competitors sit in each comparison tier (EXACT / EQUIVALENT / SIMILAR /
+    ADDED_VALUE) and the headline - your price against the middle of the best tier available. Products
+    that are not the caller's are absent. For the per-item detail use GET /pricing/comparisons/{product_id}.
+    """
+    ids = _uuid_list(product_ids)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        ladders = price_comparisons.get_ladders(conn, ctx.tenant_id, ids)
+        conn.commit()
+        return {"products": {pid: price_comparisons.summarize(ladder) for pid, ladder in ladders.items()}}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.get("/comparisons/{product_id}")
+def pricing_comparison_ladder(product_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The comparison ladder for one product: competitors' items in four tiers, each with the competitor's
+    own price, the comparable price (scaled to your quantity when it differs: a 1-hour class against a
+    30-minute class is compared at twice the listed price), how far you are from it, and why the item was
+    placed in that tier. ADDED_VALUE items carry the premium you charge over the competitor's base item.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        ladders = price_comparisons.get_ladders(conn, ctx.tenant_id, [str(product_id)])
+        conn.commit()
+        ladder = ladders.get(str(product_id))
+        if ladder is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        return ladder
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _ai_comparison_pass(tenant_id: str, user_id: str) -> None:
+    """Background: asks the AI model about the pairs the rules left unsettled, then stores its answers. Own
+    connection (the request's is closed by now); never raises - a failure leaves the pairs unsettled."""
+    from src.market_scraper.market_discovery.relevance import ai_hints_enabled
+
+    if not ai_hints_enabled():
+        return
+    conn = None
+    try:
+        conn = db.dedicated_tenant_connection(tenant_id, user_id)
+        result = comparison_engine.refresh_for_tenant(conn, tenant_id, judge=comparison_adjudicate.model_judge)
+        conn.commit()
+        logger.info("price comparison AI pass done tenant=%s rows=%s unsettled_left=%s", tenant_id, result["rows"], result["unsettled"])
+    except Exception:  # noqa: BLE001
+        logger.exception("price comparison AI pass failed tenant=%s", tenant_id)
+        if conn is not None:
+            conn.rollback()
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+@router.post("/comparisons/refresh", dependencies=[requires(usage.COMPETITOR_MANAGEMENT)])
+def pricing_comparisons_refresh(background: BackgroundTasks, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    Recomputes the ladder for every tracked competitor from the items already stored (no crawl, no external
+    request) and answers at once. Earlier AI verdicts and owner decisions are reused. Pairs the rules cannot place
+    (`unsettled`) are then checked by the AI model in the background when one is configured (`ai_pending` says
+    how many); call this again, or reload, a little later to see the answers.
+    """
+    from src.market_scraper.market_discovery.relevance import ai_hints_enabled
+
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = comparison_engine.refresh_for_tenant(conn, ctx.tenant_id)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    pending = result["unsettled"] if ai_hints_enabled() else 0
+    if pending:
+        background.add_task(_ai_comparison_pass, ctx.tenant_id, ctx.user_id)
+    return {**result, "ai_pending": pending}
+
+
+class ComparisonOverride(BaseModel):
+    competitor_id: UUID
+    item_name: str = Field(min_length=1, max_length=200)
+    # ADDITION: ours adds something to their item. VARIANT: only a different variant. NOT_COMPARABLE: never compare
+    # these two. null: remove the decision and let the system decide again.
+    verdict: Optional[Literal["ADDITION", "VARIANT", "NOT_COMPARABLE"]] = None
+
+
+@router.put("/comparisons/{product_id}/override", dependencies=[requires(usage.COMPETITOR_MANAGEMENT)])
+def pricing_comparison_override(product_id: UUID, body: ComparisonOverride, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """
+    The owner's correction of one comparison: "this is an extra", "this is only a variant", "these are not
+    comparable" (or null to clear it). Owner/admin only. The decision is kept by item name, so it survives every
+    re-read of the competitor's site; the competitor's rows are recomputed at once and the product's new ladder is
+    returned.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT role_key FROM tenant_users WHERE tenant_id = %s AND user_id = %s AND removed_at IS NULL;",
+                           (ctx.tenant_id, ctx.user_id))
+            row = cursor.fetchone()
+            if row is None or row[0] not in ("owner", "admin"):
+                raise HTTPException(status_code=403, detail="You do not have permission to perform this action.")
+            cursor.execute("SELECT 1 FROM products WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;",
+                           (ctx.tenant_id, str(product_id)))
+            found_product = cursor.fetchone()
+            cursor.execute("SELECT 1 FROM tenant_competitors WHERE tenant_id = %s AND global_competitor_id = %s;",
+                           (ctx.tenant_id, str(body.competitor_id)))
+            found_competitor = cursor.fetchone()
+            if not found_product or not found_competitor:
+                raise HTTPException(status_code=404, detail="Product or competitor not found")
+            key = comparison_engine.name_key(body.item_name)
+            if body.verdict is None:
+                cursor.execute(
+                    "DELETE FROM product_price_comparison_overrides WHERE tenant_id = %s AND product_id = %s "
+                    "AND global_competitor_id = %s AND name_key = %s;",
+                    (ctx.tenant_id, str(product_id), str(body.competitor_id), key))
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO product_price_comparison_overrides
+                        (tenant_id, product_id, global_competitor_id, name_key, item_name, verdict, decided_by)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (tenant_id, product_id, global_competitor_id, name_key)
+                    DO UPDATE SET verdict = EXCLUDED.verdict, item_name = EXCLUDED.item_name,
+                                  decided_by = EXCLUDED.decided_by, decided_at = CURRENT_TIMESTAMP;
+                    """,
+                    (ctx.tenant_id, str(product_id), str(body.competitor_id), key, body.item_name, body.verdict, ctx.user_id))
+        products = comparison_offerings.company_products(conn, ctx.tenant_id)
+        comparison_engine.refresh_for_competitor(conn, ctx.tenant_id, str(body.competitor_id), products)
+        ladder = price_comparisons.get_ladders(conn, ctx.tenant_id, [str(product_id)]).get(str(product_id))
+        conn.commit()
+        return ladder
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+MAX_PREMIUM_BAND_CATEGORIES = 200
+
+
+class PremiumBandBody(BaseModel):
+    category: Optional[str] = Field(default=None, max_length=120, description="Lower-cased product category; null = products without one.")
+    band_pct: Optional[float] = Field(default=None, ge=5, le=300, description="Premium (% over the competitor's base item) that still reads as justified; null clears your setting.")
+
+
+def _bands_payload(conn, tenant_id: str) -> dict:
+    observed = price_comparisons.load_observed_bands(conn, tenant_id)
+    chosen = price_comparisons.load_category_bands(conn, tenant_id)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT DISTINCT category FROM products WHERE tenant_id = %s AND deleted_at IS NULL;", (tenant_id,))
+        keys = {price_comparison_data_access.category_key(r[0]) for r in cursor.fetchall()}
+    keys |= set(chosen)
+    rows = [{"category": key, "band": chosen.get(key) or premium_bands.default_band(),
+             "observed": observed.get(key) or premium_bands.default_band()}
+            for key in sorted(keys, key=lambda k: (k is None, k or ""))]
+    return {"default_band_pct": premium_bands.default_band()["band_pct"], "categories": rows}
+
+
+@router.get("/premium-bands")
+def pricing_premium_bands(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """The added-value premium band per category: `band` is what the ladder uses (source owner | observed | default),
+    `observed` what the company's own comparisons alone would give."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        payload = _bands_payload(conn, ctx.tenant_id)
+        conn.commit()
+        return payload
+    finally:
+        conn.close()
+
+
+@router.put("/premium-bands")
+def pricing_set_premium_band(body: PremiumBandBody, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Owner/admin only: set (or, with band_pct null, clear) the premium band for one category."""
+    key = (body.category or "").strip().lower() or premium_bands.UNCATEGORISED
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT role_key FROM tenant_users WHERE tenant_id = %s AND user_id = %s AND removed_at IS NULL;",
+                           (ctx.tenant_id, ctx.user_id))
+            row = cursor.fetchone()
+            if row is None or row[0] not in ("owner", "admin"):
+                raise HTTPException(status_code=403, detail="You do not have permission to perform this action.")
+            if body.band_pct is not None:
+                cursor.execute("SELECT COUNT(*), COALESCE(BOOL_OR(category_key = %s), FALSE) FROM price_premium_band_overrides WHERE tenant_id = %s;",
+                               (key, ctx.tenant_id))
+                count, exists = cursor.fetchone()
+                if not exists and count >= MAX_PREMIUM_BAND_CATEGORIES:
+                    raise HTTPException(status_code=409, detail=f"At most {MAX_PREMIUM_BAND_CATEGORIES} categories can have their own band.")
+            if body.band_pct is None:
+                cursor.execute("DELETE FROM price_premium_band_overrides WHERE tenant_id = %s AND category_key = %s;", (ctx.tenant_id, key))
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO price_premium_band_overrides (tenant_id, category_key, band_pct, set_by) VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (tenant_id, category_key) DO UPDATE SET band_pct = EXCLUDED.band_pct, set_by = EXCLUDED.set_by,
+                                                                        set_at = CURRENT_TIMESTAMP;
+                    """, (ctx.tenant_id, key, body.band_pct, ctx.user_id))
+        payload = _bands_payload(conn, ctx.tenant_id)
+        conn.commit()
+        return payload
     except Exception:
         conn.rollback()
         raise

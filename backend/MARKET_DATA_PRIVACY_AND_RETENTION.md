@@ -37,6 +37,17 @@ events, or alerts. Product/page-text quarantine blocks price promotion. Reviews 
 records: a flagged review is stored as `QUARANTINED` and excluded from sentiment/LLM consumers, but
 does not invalidate a separately verified safe product price.
 
+## Price comparison tiers (added 2026-10-19)
+
+`product_price_comparisons` and `product_price_comparison_overrides` hold derived data only: names and prices the company
+already stores (its own products, competitor items read under the existing source policy) and the owner's decisions.
+They are tenant-isolated (RLS), deleted with the product or competitor, and rebuilt from `competitor_intel`.
+
+When an AI model is configured (`DISCOVERY_AI_HINTS`), a pair whose names the rules cannot place is sent to the
+configured provider as **two item names and the extra words** (for example "Conversation class" / "30 min class") and
+nothing else: no prices, no company or customer data, no URLs. Answers are cached per pair and stored with the
+comparison. Set `DISCOVERY_AI_HINTS=false` to send nothing; those pairs then stay unsettled and out of recommendations.
+
 ## Retention
 
 Each source has a reviewed `retention_days` value (default 90, allowed range 1–3650). The maintenance
@@ -50,6 +61,21 @@ worker periodically:
 Canonical prices, event timestamps, aggregate scores, and non-personal provenance may be retained
 for trend analysis according to the tenant's contractual retention policy. Deletion requests or
 legal holds override automatic retention and must be handled by the platform privacy owner.
+
+## Competitor comments (added 2026-10-20)
+
+Public comments about a competitor (today: YouTube, through the official API) are stored only after the operator has
+recorded approval (`EXTERNAL_COMMENTS_APPROVAL_REFERENCE`) and only if they pass the content-safety scan; comments the
+scan holds back are counted but never shown or counted as collected.
+
+- **Retention:** YouTube comments are deleted 30 days after they were first stored (`enforce_comment_retention()`); a
+  weekly refresh re-collects them while the competitor is tracked, so the stored set is a rolling window, not an archive.
+- **Stored per comment:** the text, the author's public display name, likes, the public link to the original comment
+  (`source_url`) and the owner's own mark (`action_status`, who and when). Nothing is generated or inferred about the author.
+- **Minimisation:** very short, emoji-only and duplicate comments, and unrelated comments on other people's videos, are
+  not stored.
+- **Erasure:** deleting a company, or a competitor's tracking row, removes its comments and the owner's marks with them (database cascade).
+  A platform's own takedown shows on the next refresh only for comments still returned by the API (stored copies expire at 30 days).
 
 ## Access and tenant isolation
 

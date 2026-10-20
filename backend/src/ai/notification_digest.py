@@ -42,6 +42,7 @@ _TEXT = {
         "restock": "{product} runs out in about {days} days - reorder about {quantity}",
         "price_gap_above": "{product} is {pct}% above the market (cheapest: {competitor})",
         "price_gap_below": "{product} is {pct}% below the market - room to raise it",
+        "competitor_comments_negative": "Customers are unhappy with {competitor}: {negative_pct}% of its last {count} comments are negative - a chance to stand out",
         "new_competitors": "The market scan found {count} new competitors ({tracked} now tracked)",
         "import_failed": "An import failed: {name}",
         "trial_ending": "Your trial ends in {days} days - choose a plan to keep access",
@@ -61,6 +62,7 @@ _TEXT = {
         "restock": "سينفد {product} خلال {days} يومًا تقريبًا - أعد طلب نحو {quantity}",
         "price_gap_above": "سعر {product} أعلى من السوق بنسبة {pct}٪ (الأرخص: {competitor})",
         "price_gap_below": "سعر {product} أقل من السوق بنسبة {pct}٪ - يمكنك رفعه",
+        "competitor_comments_negative": "العملاء غير راضين عن {competitor}: {negative_pct}% من آخر {count} تعليقًا سلبية - فرصة للتميّز",
         "new_competitors": "وجد مسح السوق {count} منافسين جدد ({tracked} قيد المتابعة الآن)",
         "import_failed": "فشل استيراد: {name}",
         "trial_ending": "تنتهي فترتك التجريبية خلال {days} أيام - اختر خطة للاستمرار",
@@ -100,7 +102,7 @@ def alert_line(alert: dict, lang: str) -> str:
     if kind in ("credits_low", "credits_exhausted"):
         budget = text["budget_ai" if p.get("budget") == "ai" else "budget_data"]
         return text[kind].format(budget=budget, percent=_num(p.get("percent"), 0), resets_on=p.get("resets_on") or "?")
-    if kind in ("new_competitors", "import_failed", "trial_ending", "payment_failed"):
+    if kind in ("new_competitors", "import_failed", "trial_ending", "payment_failed", "competitor_comments_negative"):
         return text[kind].format(**{k: (v if v is not None else "?") for k, v in p.items()})
     return kind
 

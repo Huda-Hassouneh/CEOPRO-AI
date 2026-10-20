@@ -184,6 +184,13 @@ SERPAPI_API_KEY=
 | `YOUTUBE_API_KEY` | competitors' YouTube comments | Google Cloud -> YouTube Data API v3 | **FREE** (quota) |
 | `SERPAPI_API_KEY` | shopping prices | serpapi.com | **PAID** |
 
+Competitor comments also need `EXTERNAL_COMMENTS_APPROVAL_REFERENCE` (the operator's recorded approval to store public
+comments; any non-empty reference, e.g. a ticket id) next to `YOUTUBE_API_KEY`. Optional tuning, with defaults:
+`COMMENTS_REFRESH_DAYS=7`, `COMMENTS_REFRESH_MAX_PER_RUN=10`, `YOUTUBE_DAILY_SEARCH_BUDGET=40` (one search = 100 of the
+10,000 free daily units, so 40 leaves room for owners pressing Retry), `COMMENT_MIN_LETTERS=12`, `COMMENT_MIN_WORDS=3`,
+`COMMENT_OFF_CHANNEL_MIN_CHARS=30`. The weekly refresh runs inside the enrichment worker (`./keel workers`).
+A one-off live check: `scripts/youtube_comments_check.py`.
+
 Search order: `WEB_SEARCH_PROVIDERS` (the first configured one answers).
 **Each paid provider also needs a confirmed price** recorded with
 `billing_admin set-price --budget data ...`, or its calls are refused.

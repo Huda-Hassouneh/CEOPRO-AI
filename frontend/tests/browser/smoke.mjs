@@ -37,7 +37,7 @@ const product = (await get('/products?limit=1'))?.products?.[0];
 const competitor = (await get('/discovery/competitors?limit=1'))?.competitors?.[0];
 
 const routes = ['/dashboard', '/products', '/products/new', product && `/products/${product.product_id}`, product && `/products/${product.product_id}/edit`,
-  '/demand', '/pricing', '/reports', '/market', competitor && `/market/competitors/${competitor.competitor_id}`, '/market/competitors/new',
+  '/demand', '/pricing', '/pricing/report', '/reports', '/market', competitor && `/market/competitors/${competitor.competitor_id}`, '/market/competitors/new',
   '/market/search-scope', '/market/sources', '/market/leaderboard', '/market/trends', '/marketing', '/ai-advisor', '/connect-data', '/billing',
   '/workspaces/new', ...['profile', 'company', 'team', 'notifications', 'preferences', 'security'].map((tab) => `/settings?tab=${tab}`)].filter(Boolean);
 // Text that looks like a translation key ("section.item.label"), not a domain or file name.
