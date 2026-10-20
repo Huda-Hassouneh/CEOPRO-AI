@@ -202,6 +202,9 @@ def build_fact_sections(conn, tenant_id: str, allowed: Optional[Callable[..., bo
     if wanted(access.COMPETITORS, access.CATALOG):
         add("price_gaps", _build_price_gap_lines(conn, tenant_id), (access.COMPETITORS, access.CATALOG), "/pricing")
 
+    if wanted(access.COMPETITORS, access.CATALOG):
+        add("price_ladder", _build_price_ladder_lines(conn, tenant_id), (access.COMPETITORS, access.CATALOG), "/pricing")
+
     if wanted(access.FORECASTS):
         add("forecasts", _build_forecast_lines(conn, tenant_id), (access.FORECASTS,), "/demand")
 
@@ -361,6 +364,13 @@ def _build_price_gap_lines(conn, tenant_id: str) -> list:
             lines.append(f"- {name}: you charge {float(own_price):.2f} {currency}; {who} charges {float(competitor_price):.2f} {currency}.")
 
     return lines
+
+
+def _build_price_ladder_lines(conn, tenant_id: str) -> list:
+    """Tiered competitor price evidence (pricing/comparisons.py); never fails the question it is added to."""
+    from src.ai.pricing import comparisons
+
+    return comparisons.safe_overview_lines(conn, tenant_id)
 
 
 def _build_forecast_lines(conn, tenant_id: str) -> list:

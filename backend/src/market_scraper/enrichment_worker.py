@@ -20,12 +20,13 @@ logged, not retried. The in-flight dedupe key is released when the job ends.
 import logging
 import os
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 import redis
 
-from src.market_scraper import data_access, enrichment_queue
-from src.market_scraper.competitor_enrichment import enrich_competitor, enrich_tenant_competitors
+from src.market_scraper import data_access, enrichment_queue, youtube_quota
+from src.market_scraper.competitor_enrichment import COMMENTS_REFRESH_DAYS, enrich_competitor, enrich_tenant_comments, enrich_tenant_competitors
 
 STREAM = enrichment_queue.STREAM
 GROUP = "ceopro-market-enrichment"
@@ -40,13 +41,30 @@ logger = logging.getLogger(__name__)
 _SWEEP_CONTEXT_TENANT_ID = "00000000-0000-0000-0000-000000000000"
 
 
-def process_job(payload: dict) -> dict:
+# YouTube's free quota is 10,000 units a day and one search costs 100. The scheduled refresh may use this many
+# searches a day (default 40 = 4,000 units), leaving the rest for owners pressing Retry.
+COMMENTS_DAILY_SEARCH_BUDGET = int(os.getenv("YOUTUBE_DAILY_SEARCH_BUDGET", "40"))
+
+
+def daily_search_reserve(client, budget: int = COMMENTS_DAILY_SEARCH_BUDGET):
+    """A callable that takes one search from today's (Pacific-day) scheduled-refresh budget and says whether one was left."""
+
+    def reserve() -> bool:
+        return youtube_quota.take(client, "budget", budget)
+    return reserve
+
+
+def process_job(payload: dict, client=None) -> dict:
     tenant_id = payload["tenant_id"]
     competitor_id = payload.get("competitor_id") or None
     facets = [f for f in (payload.get("facets") or "").split(",") if f] or None
     mode = payload.get("mode") or enrichment_queue.MODE_DUE
     conn = data_access.get_tenant_connection(tenant_id)
     try:
+        if mode == enrichment_queue.MODE_COMMENTS:
+            if client is None:
+                raise ValueError("a comments refresh needs the shared budget counter")
+            return enrich_tenant_comments(conn, tenant_id, daily_search_reserve(client))
         if mode == enrichment_queue.MODE_PRICES:
             from src.market_scraper.price_lookup.pipeline import lookup_missing_prices
             return lookup_missing_prices(conn, tenant_id)
@@ -71,7 +89,7 @@ def _release(client, payload: dict) -> None:
 def handle_message(client, message_id: str, payload: dict) -> None:
     attempts_key = f"{STREAM}:attempts"
     try:
-        result = process_job(payload)
+        result = process_job(payload, client)
     except ValueError as exc:  # permanent: bad payload / unknown competitor / unsupported facet
         logger.error("enrichment %s rejected, not retrying: %s", message_id, exc)
         client.xack(STREAM, GROUP, message_id)
@@ -105,6 +123,29 @@ def list_tenants_with_due_enrichment() -> list:
             return [str(row[0]) for row in cursor.fetchall()]
     finally:
         conn.close()
+
+
+def run_comments_sweep(client) -> dict:
+    """Once a day: queue the weekly comments refresh for tenants that have comments gone stale. Never raises."""
+    marker = f"market.comments.sweep:{datetime.now(timezone.utc):%Y%m%d}"
+    if not os.getenv("YOUTUBE_API_KEY", "").strip() or not os.getenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "").strip():
+        return {"skipped": "not_configured"}  # nothing can be collected, so do not queue jobs that would only say so
+    try:
+        if client.exists(marker):
+            return {"skipped": "already_ran_today"}
+        conn = data_access.get_tenant_connection(_SWEEP_CONTEXT_TENANT_ID)
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM list_tenants_with_due_comments_refresh(%s);", (COMMENTS_REFRESH_DAYS,))
+                tenants = [str(row[0]) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+        queued = sum(1 for t in tenants if enrichment_queue.enqueue_enrichment(client, t, mode=enrichment_queue.MODE_COMMENTS))
+        client.set(marker, "1", ex=90000)
+        return {"tenants_with_stale_comments": len(tenants), "jobs_queued": queued}
+    except Exception:  # noqa: BLE001
+        logger.exception("comments sweep failed; it will be tried at the next interval")
+        return {"error": "comments_sweep_failed"}
 
 
 def run_sweep(client) -> dict:
@@ -146,6 +187,7 @@ def run_forever():
     while True:
         if last_sweep is None or time.monotonic() - last_sweep >= SWEEP_INTERVAL_SECONDS:
             logger.info("enrichment sweep: %s", run_sweep(client))
+            logger.info("comments sweep: %s", run_comments_sweep(client))
             last_sweep = time.monotonic()
         messages = _claimed_messages(client, consumer)
         if not messages:

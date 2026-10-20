@@ -164,6 +164,7 @@ def test_replace_document_chunks_handles_zero_chunks_without_error(conn, seeded_
     assert data_access.load_tenant_chunks(conn, seeded_tenant) == []
 
 
+@_needs_embeddings
 def test_ingest_persists_chunks_and_embeddings_not_just_status(conn, minio_client, seeded_tenant):
     """
     Regression test for audit finding P1: ingestion must actually write to
