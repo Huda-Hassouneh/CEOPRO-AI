@@ -113,7 +113,7 @@ def load_products(conn, tenant_id: str, product_ids: List[str]) -> List[dict]:
             "WHERE tenant_id = %s AND deleted_at IS NULL AND product_id = ANY(%s::uuid[]);",
             (tenant_id, product_ids),
         )
-        return [{"product_id": str(r[0]), "current_price": float(r[1]), "currency": r[2], "category": data_access._category_key(r[3])}
+        return [{"product_id": str(r[0]), "current_price": float(r[1]), "currency": r[2], "category": data_access.category_key(r[3])}
                 for r in cursor.fetchall()]
 
 
@@ -196,7 +196,7 @@ def load_observed_bands(conn, tenant_id: str) -> Dict[Optional[str], dict]:
     )
     by_category: Dict[Optional[str], List[float]] = {}
     for category, pct in rows:
-        by_category.setdefault(data_access._category_key(category), []).append(float(pct))
+        by_category.setdefault(data_access.category_key(category), []).append(float(pct))
     return {category: premium_bands.derive_band(values) for category, values in by_category.items()}
 
 
