@@ -1337,3 +1337,28 @@ The panel consumes the actual backend routes: `GET /extraction/import-drafts`, `
 ### Acceptance and follow-up
 
 Updated original `AT-CONNECT-003?005`, `AT-STORE-001/003?007`, `AT-SHOP-004/005`, and `AT-WOO-004?006` rows. The rows distinguish Shopify identity/inventory evidence from canonical promotion and record native-verification skips. O-PROVIDER, O-IMPORT/O-SOURCE, U6 and O-ECON gates remain intact. No Migration 98 was created. Any M98 proposal should be limited to allowlisted provider product/order value staging and adapter-to-worker cursor continuation only if the approved M97 contracts cannot express them; it must not duplicate M95 identity, M96 inventory, canonical financial authorities or accounting.
+
+## Shopify worker native verification and transaction hardening — 2026-10-22
+
+### Native verification
+
+- Disposable PostgreSQL 17 with pgvector 0.8.7 ran the real migration runner on an empty database through migrations 1–97. A second invocation applied **0 migrations**. The focused suite below used the restricted ceopro_app role for application paths and confirmed FORCE RLS. No migration file was changed; no schema migration is needed for these corrections.
+- Focused suite: **122 passed, 0 failed, 0 skipped** across provider synchronization, Shopify GraphQL adapter, M94 lifecycle/receipts, M95 identities, M96 inventory, M97 typed imports, generic connector and API-worker regressions.
+- The native Shopify worker test dispatches through the existing connector scheduler/worker. It verifies the synthetic authenticated provider identity/scopes fixture, tenant/source attribution, product/variant/order/line identities, location and named inventory quantities, duplicates, source-level receipt/job reuse, and atomic completion of all three streams.
+- A provider read failure or evidence persistence failure does not advance any checkpoint. A failed multi-row persistence rolls back its earlier row. Retry reuses the failed job/receipt and idempotently records evidence. In-flight credential rotation invalidates the source fence; the stale worker writes no evidence, completion or checkpoint.
+- Canonical products, stock, transactions, invoices, usage counters and usage ledger remained unchanged. The test confirmed current role ceopro_app, no superuser/BYPASSRLS, and FORCE RLS on provider identities. No credits, charges, live merchant credentials or production data were used.
+
+### Production corrections
+
+- Fixed malformed SQL in expired-receipt recovery that prevented PostgreSQL from dispatching the scheduler recovery path.
+- Restricted the provider-binding lookup row lock to the mutable data_sources row. M94 intentionally grants the application role SELECT-only access to provider-binding evidence; the old lock requested a stronger privilege and failed under ceopro_app.
+- Changed Shopify scheduling from one ENT-008 source receipt per stream to one source-level receipt/job for products, orders and inventory. All evidence writes, successful job status and three stream checkpoints commit together under lease/configuration fencing. This prevents one stream's retryable receipt from being reused as another stream's completed job.
+- The Shopify checkpoint is explicitly a **completed full scan** with an empty continuation. The adapter consumes page cursors internally; incremental cursor handoff and resume are not implemented. A fetch is not canonical promotion.
+
+### Provider boundaries and remaining work
+
+- Shopify worker execution is database-backed and native-tested only with synthetic preverified source bindings and contract-shaped provider fixtures. Shopify OAuth/distribution model, live registration, token lifecycle, merchant activation and live certification remain inactive and owner/Phase 6 gated.
+- WooCommerce remains fail-closed. Official REST API documentation provides API access and site URL information but does not establish a durable installation identity: a returned site URL is not a stable installation identifier. Recommended owner approval: a small companion WooCommerce plugin that creates an opaque random installation UUID stored in WordPress options and exposes it from a read-only authenticated identity endpoint; bind only after authenticated API-key verification over HTTPS. Do not deploy a plugin or treat a user-supplied URL/API key as verified store identity.
+- Provider product/order payload values still lack a compatible typed M97 category; current durable evidence is provider identity/revision (M95) and supported inventory observations (M96), not canonical product/order staging. Grouped invoice/order/refund reconciliation, webhook receiver activation, privacy processing and canonical commerce writes remain blocked.
+- M97 browser E2E and server-side idempotency for separate upload POST retries remain outstanding. No frontend changes were made.
+- Upstream metadata refresh remains unavailable through the configured proxy. Last locally known origin/main is c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90; teammate comparison may be stale.

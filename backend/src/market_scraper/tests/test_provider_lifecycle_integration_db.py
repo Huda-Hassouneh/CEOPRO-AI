@@ -8,6 +8,7 @@ from urllib.parse import urlparse, urlunparse
 import psycopg2
 import pytest
 
+from src.ai.core import operation_receipts
 from src.market_scraper.provider_lifecycle import (
     advance_completed_checkpoint,
     authenticate_and_record_shopify_delivery,
@@ -94,6 +95,51 @@ def _verified(conn, tenant, source):
             "api_version": "2026-10",
         },
     )
+
+
+def test_expired_shopify_receipt_recovery_executes_in_native_database(lifecycle_seed):
+    """Exercise all three recovery statements, including verified Shopify replay."""
+    admin, tenants = lifecycle_seed
+    tenant, actor, source = tenants[0]
+    app_conn = _tenant_app_connection(tenant, actor)
+    try:
+        _verified(app_conn, tenant, source)
+        app_conn.commit()
+        _apply_context(app_conn, tenant, actor)
+        with admin.cursor() as cur:
+            cur.execute(
+                "UPDATE data_sources SET policy_status='ALLOWED',approval_reference='synthetic-test',"
+                "approved_by=%s,approved_at=now(),privacy_reviewed_at=now() "
+                "WHERE tenant_id=%s::uuid AND source_id=%s::uuid",
+                (actor, tenant, source),
+            )
+            receipt_id = str(uuid.uuid4())
+            cur.execute(
+                "INSERT INTO keel_operation_receipts "
+                "(receipt_id,tenant_id,source_id,operation_type,principal_kind,actor_user_id,period_start,"
+                "request_fingerprint,idempotency_key,state,lease_owner,lease_expires_at,lease_generation,"
+                "provider_started_at,provider_outcome,target_kind,target_id) "
+                "VALUES(%s::uuid,%s::uuid,%s::uuid,'scheduled_connector_sync','service',%s::uuid,current_date,"
+                "repeat('a',64),%s::uuid,'provider_started','stale-worker',now()-interval '1 second',1,"
+                "now(),'unknown','source',%s::uuid)",
+                (receipt_id, tenant, source, actor, str(uuid.uuid4()), source),
+            )
+        _apply_context(app_conn, tenant, actor)
+
+        assert operation_receipts.recover_expired(app_conn, tenant) == {
+            "retryable": 1,
+            "reconciliation_required": 0,
+        }
+        _apply_context(app_conn, tenant, actor)
+        with app_conn.cursor() as cur:
+            cur.execute(
+                "SELECT state,provider_started_at,provider_outcome FROM keel_operation_receipts "
+                "WHERE tenant_id=%s::uuid AND receipt_id=%s::uuid",
+                (tenant, receipt_id),
+            )
+            assert cur.fetchone() == ("retryable", None, "not_started")
+    finally:
+        app_conn.close()
 
 
 def test_restricted_role_provider_binding_reconnect_is_tenant_scoped_and_delete_restricted(lifecycle_seed):
