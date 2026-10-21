@@ -1280,3 +1280,30 @@ The existing `Recent Data Activity` view can consume the legacy `/extraction/imp
 ### Migration 98 boundary
 
 No Migration 98 is required for the preview/review API itself. Stable request-level idempotency across separate HTTP upload POSTs is a distinct open requirement because a retry currently creates a new ingestion job and M97 batch; a narrow tenant/source-scoped request-receipt migration may be required if the owner wants durable retry identity. Existing `invoices`, `invoice_items`, and `transactions` remain the canonical financial authorities; M95 `keel_provider_record_identities` already stores provider order/line identities and optional canonical invoice/transaction targets; M97 stores typed drafts and reviews. Grouped invoice/order reconciliation remains a separate conditional schema proposal: if a reviewed reconciliation contract needs durable group/line links not expressible by those existing keys, add one tenant/source-scoped group table linking a M97 batch/revision and M95 provider order identity to an existing invoice, plus a line-link table from M97 draft rows/M95 order-line identities to existing invoice items/transactions, with unique source identities, composite tenant FKs, FORCE RLS, restricted audited writes and append-only reconciliation events. It must not duplicate invoice totals or payment state. Neither proposal is approved or required by this API batch. Invoice numbering, item grouping, fractional quantities, tax, discount allocation, payment/settlement, refund, cancellation and provider order revision semantics remain decisions/blockers before any posting implementation.
+## M97 import-review frontend checkpoint — 2026-10-21
+
+The existing `/connect-data` page now includes a typed-import history and review panel backed by the already implemented M97 APIs. No migration or backend API change was made; migrations 1–97 remain unchanged.
+
+### User workflow
+
+- Lists tenant import drafts with offset pagination, sales/invoice/inventory filtering, source, creation time, validation/review counts, review state, and canonical-posting state. Loading, empty, retry, and API error states are provided.
+- Opens the selected draft for typed row preview with findings adjacent to the affected row, identity ambiguity messaging, revision selection, review history, and row pagination (25 rows per page). Product/location IDs are not displayed; only whether a reference exists is shown. The UI uses the backend's allowlisted typed values and fields.
+- Owner/admin controls follow the existing role utility and are additionally enforced by backend authorization. Review decisions require an explicit reason and confirmation, disable controls while pending, retain the same request idempotency key after an uncertain response, refresh after server confirmation, and show 401/403/404/409/422-specific feedback. Historical revisions are read-only.
+- The interface prominently states that review is not posting. Invoice approval does not create/settle a canonical invoice; inventory approval does not change stock; sales already committed by the existing import path are not posted again by review. Review history omits reviewer IDs and shows decision, time, and reason.
+- The existing upload action invalidates the draft list after a successful upload. English and Arabic labels were added to the existing locale bundles. Responsive table wrappers, keyboard focus, labeled regions, semantic table headers, dialog confirmation, and status/error roles use the existing design components and styles.
+
+### API and verification
+
+The panel consumes the actual backend routes: `GET /extraction/import-drafts`, `GET /extraction/import-drafts/{batch_id}`, `GET /extraction/import-drafts/{batch_id}/revisions`, `GET /extraction/import-drafts/{batch_id}/revisions/{revision_id}`, `GET /extraction/import-drafts/{batch_id}/reviews`, and `POST /extraction/import-drafts/{batch_id}/reviews`. The client sends the implemented `revision_id`, `decision`, `idempotency_key`, `reason_code`, and optional `row_id`; authenticated tenant and actor authority continue to come from the server.
+
+- Frontend suite: **118 passed, 0 failed, 0 skipped**. This includes API contract/request encoding, error mapping, component server-render smoke with semantic table/focus-region assertions, existing extraction/upload regressions, and English/Arabic locale parity.
+- `npm run lint`: **passed**.
+- `npm run build`: **passed** (Vite production build, 2,965 modules transformed).
+- Browser E2E and browser axe were **not run**: this checkout has no authenticated E2E account configured and no local frontend/backend listeners on ports 5173/8000. Thus upload-to-preview and review against a live disposable database, 401/403/409 browser handling, and responsive visual behavior remain unverified in a browser. No production or shared service was contacted.
+
+### Remaining limits
+
+- Distinct upload POST retries still create separate ingestion jobs/batches; client button state cannot establish server-side upload idempotency. No new schema was added.
+- The existing upload request remains synchronous and has no crash-resume worker contract; this frontend does not claim upload recovery after a process interruption.
+- Review approval remains review-only for invoice and inventory drafts. Grouped invoice/order reconciliation, tax/payment/refund semantics, canonical inventory updates, and frontend flows for those downstream operations remain out of scope.
+- The UI exposes no upload retry identity and makes no claim that a reviewed invoice, inventory draft, or ambiguous product has been canonically posted.
