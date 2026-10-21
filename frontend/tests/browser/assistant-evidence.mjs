@@ -1,7 +1,7 @@
 // The assistant when the server could not write an answer (no model price, no
-// key): the reply is shown from the cited evidence, with the "shown without an
-// AI summary" banner and, when the cause is a missing set-up, a note that tells
-// the person to ask their administrator. The /rag/query reply is served by the
+// key): the reply is shown from the cited evidence, with the "shown without
+// AI writing" banner and, when the cause is a missing set-up, a note that tells the
+// person to ask their administrator. The /rag/query reply is served by the
 // test, so no language model is called. Needs the app running and any account.
 //
 //   APP_URL=http://localhost:5173 E2E_EMAIL=... E2E_PASSWORD=... [E2E_LOCALE=ar] \
@@ -20,7 +20,11 @@ const reply = (writing) => ({
   session_id: '11111111-1111-1111-1111-111111111111',
   answer: 'You have 10 products.¹',
   answer_mode: 'evidence',
-  answer_blocks: [{ type: 'paragraph', claims: [{ text: 'You have 10 products.', kind: 'fact', refs: [1], verified: true, notes: [] }] }],
+  answer_summary: { text: 'You have 10 products.', refs: [1], claims: [{ text: 'You have 10 products.', kind: 'fact', refs: [1], verified: true, notes: [] }] },
+  answer_blocks: [
+    { type: 'paragraph', claims: [{ text: 'The writing service is unavailable, so this is the evidence KEEL found:', kind: 'general', refs: [], verified: true, notes: [] }] },
+    { type: 'list', ordered: false, items: [[{ text: 'Your product catalogue: You have 10 products.', kind: 'fact', refs: [1], verified: true, notes: [] }]] },
+  ],
   references: [{ n: 1, evidence_id: 'E1', kind: 'company_record', title: 'Your product catalogue', excerpt: 'You have 10 products.', route: '/products', used_as: ['supports_fact'], limitations: [] }],
   evidence_status: [{ need: 'answer_writing', status: writing }],
   follow_up_questions: [],
@@ -59,8 +63,16 @@ async function ask(text) {
 }
 
 const configured = await ask('How many products do I have?');
-check(await configured.locator('.rag-evidence-note').count() === 1, 'no "shown without an AI summary" banner');
+check(await configured.locator('.rag-evidence-note').count() === 1, 'no "shown without AI writing" banner');
 check(await configured.locator('.rag-cite button').count() > 0, 'the evidence answer has no reference marker');
+// The short answer is read first; the evidence behind it is one disclosure away, and its label follows its state.
+check((await configured.locator('.rag-answer-summary').textContent().catch(() => '')).includes('10 products'), 'no summary above the evidence');
+const toggle = configured.locator('.rag-answer-details > summary');
+check(await configured.locator('.rag-answer-details li').first().isHidden(), 'the evidence list is not collapsed behind the summary');
+const closedLabel = await toggle.textContent();
+await toggle.click();
+check(await configured.locator('.rag-answer-details li').first().isVisible(), 'the toggle does not reveal the full answer');
+check(await toggle.textContent() !== closedLabel, 'the toggle label does not change when it opens');
 const adminNote = (await configured.locator('.rag-status-notes').textContent().catch(() => '')) || '';
 check(/administrator|مسؤول/.test(adminNote), `no "ask your administrator" note when answer writing is not configured: "${adminNote}"`);
 
