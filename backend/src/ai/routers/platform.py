@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.ai import db
+from src.ai.billing import promotions
 from src.ai.core import auth_throttle, security
 from src.ai.core.authorization import require_platform_permission
 from src.ai.core.security import TenantContext, get_tenant_context
@@ -69,6 +71,107 @@ class Approval(Reason):
         if len(json.dumps(value).encode()) > 16384:
             raise ValueError("Approval terms are too large")
         return value
+
+
+class PromotionDraft(Reason):
+    code: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2000)
+    terms: dict = Field(default_factory=dict)
+    plan_keys: list[str] = Field(default_factory=list, max_length=50)
+
+    @field_validator("terms")
+    @classmethod
+    def bounded_terms(cls, value):
+        import json
+        if len(json.dumps(value, default=str).encode()) > 8192:
+            raise ValueError("Promotion terms are too large")
+        return value
+
+
+def _promotion_operator(ctx: TenantContext) -> None:
+    result = service.command(ctx, "me")
+    require_platform_permission(result["role"], "promotion_management")
+
+
+def _promotion_error(error: promotions.PromotionError) -> HTTPException:
+    return HTTPException(error.status, detail={"reason": error.code, "message": error.message})
+
+
+@router.get("/billing/promotions")
+def promotion_definitions(ctx: Ctx):
+    _promotion_operator(ctx)
+    conn = db.system_connection()
+    try:
+        result = promotions.list_definitions(conn, ctx.user_id)
+        conn.commit()
+        return {"items": result}
+    except promotions.PromotionError as exc:
+        conn.rollback()
+        raise _promotion_error(exc)
+    finally:
+        conn.close()
+
+
+@router.post("/billing/promotions", status_code=201)
+def create_promotion_draft(body: PromotionDraft, ctx: Ctx):
+    _promotion_operator(ctx)
+    conn = db.system_connection()
+    try:
+        result = promotions.save_draft(conn, actor_user_id=ctx.user_id, code=body.code, name=body.name,
+                                       description=body.description, terms=body.terms,
+                                       plan_keys=body.plan_keys, reason=body.reason)
+        conn.commit()
+        return result
+    except promotions.PromotionError as exc:
+        conn.rollback()
+        raise _promotion_error(exc)
+    except Exception as exc:
+        conn.rollback()
+        from psycopg2 import IntegrityError
+        if isinstance(exc, IntegrityError):
+            raise HTTPException(409, detail={"reason": "promotion_conflict", "message": "Promotion definition conflicts with an existing record."}) from None
+        raise
+    finally:
+        conn.close()
+
+
+@router.patch("/billing/promotions/{promotion_id}")
+def update_promotion_draft(promotion_id: UUID, body: PromotionDraft, ctx: Ctx):
+    _promotion_operator(ctx)
+    conn = db.system_connection()
+    try:
+        result = promotions.save_draft(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id),
+                                       code=body.code, name=body.name, description=body.description,
+                                       terms=body.terms, plan_keys=body.plan_keys, reason=body.reason)
+        conn.commit()
+        return result
+    except promotions.PromotionError as exc:
+        conn.rollback()
+        raise _promotion_error(exc)
+    except Exception as exc:
+        conn.rollback()
+        from psycopg2 import IntegrityError
+        if isinstance(exc, IntegrityError):
+            raise HTTPException(409, detail={"reason": "promotion_conflict", "message": "Promotion definition conflicts with an existing record."}) from None
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/billing/promotions/{promotion_id}/disable")
+def disable_promotion(promotion_id: UUID, body: Reason, ctx: Ctx):
+    _promotion_operator(ctx)
+    conn = db.system_connection()
+    try:
+        result = promotions.disable(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id), reason=body.reason)
+        conn.commit()
+        return result
+    except promotions.PromotionError as exc:
+        conn.rollback()
+        raise _promotion_error(exc)
+    finally:
+        conn.close()
 
     @field_validator("expires_at")
     @classmethod

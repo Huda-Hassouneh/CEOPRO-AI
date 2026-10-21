@@ -13,10 +13,10 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.ai import db
-from src.ai.billing import config, credits, service, store, stripe_api, webhooks
+from src.ai.billing import config, credits, promotions, service, store, stripe_api, webhooks
 from src.ai.core import feature_rights, usage
 from src.ai.core.security import TenantContext, get_tenant_context
 
@@ -47,6 +47,17 @@ PeriodCode = Literal["monthly", "three-months", "six-months", "yearly"]
 
 class PlanChoice(BaseModel):
     plan_key: str
+    period_code: PeriodCode = "monthly"
+
+
+class CheckoutChoice(PlanChoice):
+    promotion_code: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class PromotionValidation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=100)
+    plan_key: str = Field(min_length=1, max_length=50)
     period_code: PeriodCode = "monthly"
 
 
@@ -279,14 +290,27 @@ def _company(conn, tenant_id: str, user_id: str) -> tuple:
     return (company[0] if company else ""), (user[0] if user else "")
 
 
+@router.post("/promotions/validate")
+def validate_promotion(body: PromotionValidation, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        result = promotions.validate(conn, ctx.tenant_id, body.code, body.plan_key, body.period_code)
+        conn.commit()
+        return result
+    finally:
+        conn.close()
+
+
 @router.post("/checkout")
-def start_checkout(body: PlanChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def start_checkout(body: CheckoutChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     sys_conn = db.system_connection()
     try:
         _require_billing_role(conn, ctx)
         company_name, email = _company(conn, ctx.tenant_id, ctx.user_id)
-        return service.create_checkout(conn, sys_conn, ctx.tenant_id, email, company_name, body.plan_key, body.period_code)
+        return service.create_checkout(conn, sys_conn, ctx.tenant_id, email, company_name,
+                                       body.plan_key, body.period_code, body.promotion_code, ctx.user_id)
     except service.BillingError as err:
         raise _to_http(err)
     except HTTPException:
