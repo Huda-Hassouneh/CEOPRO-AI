@@ -127,6 +127,24 @@ def _fingerprint(rows: Sequence[Mapping[str, Any]]) -> str:
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
+def _database_rows(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Keep nullable JSONB columns SQL NULL, not the distinct JSONB `null`.
+
+    The M97 database write functions read ``product_candidate`` with JSONB's
+    ``->`` operator. A present key whose JSON value is null becomes JSONB
+    ``null`` and violates the established object-or-SQL-NULL constraint.
+    Omitting only that absent candidate preserves the validation/API shape
+    while keeping invalid source rows durably representable.
+    """
+    result = []
+    for row in rows:
+        persisted = dict(row)
+        if persisted.get("product_candidate") is None:
+            persisted.pop("product_candidate", None)
+        result.append(persisted)
+    return result
+
+
 def persist_import_draft(conn, *, tenant_id: str, actor_id: str, source_id: str, job_id: str,
                          category: str, rows: Sequence[Mapping[str, Any]], schema_version: str = "1",
                          idempotency_key: str | None = None, provenance: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -158,7 +176,7 @@ def persist_import_draft(conn, *, tenant_id: str, actor_id: str, source_id: str,
         cursor.execute(
             "SELECT * FROM public.keel_import_batch_create97(%s::uuid,%s::uuid,%s,%s,%s,%s,%s::jsonb,%s::jsonb)",
             (source_id, job_id, category, schema_version, idem, digest,
-             json.dumps(validated, separators=(",", ":")), json.dumps(dict(provenance or {}), separators=(",", ":"))),
+             json.dumps(_database_rows(validated), separators=(",", ":")), json.dumps(dict(provenance or {}), separators=(",", ":"))),
         )
         batch_id, revision_id, duplicate = cursor.fetchone()
     return {"batch_id": str(batch_id), "revision_id": str(revision_id), "duplicate": bool(duplicate),
@@ -241,7 +259,8 @@ def create_import_revision(conn, *, batch_id: str, category: str, rows: Sequence
     digest = _fingerprint(validated)
     with conn.cursor() as cursor:
         cursor.execute("SELECT * FROM public.keel_import_revision_create97(%s::uuid,%s,%s,%s,%s::jsonb,%s::jsonb)",
-                       (batch_id, schema_version, idempotency_key, digest, json.dumps(validated), json.dumps(dict(provenance or {}))))
+                       (batch_id, schema_version, idempotency_key, digest,
+                        json.dumps(_database_rows(validated), separators=(",", ":")), json.dumps(dict(provenance or {}))))
         revision_id, duplicate = cursor.fetchone()
     return {"revision_id": str(revision_id), "duplicate": bool(duplicate), "row_count": len(validated)}
 
