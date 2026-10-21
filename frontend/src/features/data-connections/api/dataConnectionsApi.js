@@ -71,4 +71,7 @@ export const dataConnectionsApi = Object.freeze({
   completeShopifyConnect: async (ticket) => (await httpClient.post('/onboarding/connect/shopify/complete', { ticket })).data,
   syncNow: async (sourceId) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/sync`)).data,
   disconnect: async (sourceId) => (await httpClient.delete(`/onboarding/sources/${encodeURIComponent(sourceId)}`)).data,
+  providerRecords: async (sourceId, params = {}) => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records`, { params })).data,
+  providerRecordHistory: async (sourceId, identityId) => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records/${encodeURIComponent(identityId)}/revisions`)).data,
+  reviewProviderRecord: async (sourceId, request) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records/reviews`, request)).data,
 });

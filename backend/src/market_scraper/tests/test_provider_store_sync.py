@@ -64,6 +64,9 @@ def test_sync_shopify_stream_persists_identities_and_advances_only_provider_chec
     monkeypatch.setattr(sync.data_access, "create_or_reuse_receipt_ingestion_job", lambda *_, **__: "job-1")
     monkeypatch.setattr(sync.operation_receipts, "begin_provider", lambda *_: None)
     monkeypatch.setattr(sync, "persist_shopify_records", Mock(return_value=[{"mapping_status": "pending_review"}]))
+    staging = Mock(return_value={"records_seen": 1, "revisions_created": 1, "duplicates": 0,
+                                 "invalid": 1, "review_required": 0, "valid": 0})
+    monkeypatch.setattr(sync, "stage_provider_business_records", staging)
     finish = Mock()
     monkeypatch.setattr(sync.data_access, "finish_ingestion_job", finish)
     receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC, "receipt_id": "receipt-1"}
@@ -72,10 +75,14 @@ def test_sync_shopify_stream_persists_identities_and_advances_only_provider_chec
                                       client_factory=lambda *args, **kwargs: client)
 
     assert result == {"source_id": "source-1", "job_id": "job-1", "stream": "products",
-                      "records_persisted": 1, "checkpoint_advanced": True, "canonical_promotion": False}
+                      "records_persisted": 1, "checkpoint_advanced": True, "canonical_promotion": False,
+                      "business_staging": {"records_seen": 1, "revisions_created": 1, "duplicates": 0,
+                                            "invalid": 1, "review_required": 0, "valid": 0},
+                      "business_records_staged": 1}
     sync.persist_shopify_records.assert_called_once()
     assert sync.persist_shopify_records.call_args.args[0]._conn is conn
     assert sync.persist_shopify_records.call_args.args[1:] == ("source-1", [record])
+    staging.assert_called_once()
     assert finish.call_args.kwargs["status"] == "COMPLETED"
     assert finish.call_args.kwargs["provider_checkpoint"] == {
         "source_id": "source-1", "stream_key": "products", "continuation": {},
@@ -124,6 +131,9 @@ def test_woocommerce_worker_persists_provider_evidence_and_full_scan_checkpoints
     inventory = Mock(return_value=[{"reconciliation_status": "unmatched_product"}])
     monkeypatch.setattr(sync, "persist_woocommerce_records", identities)
     monkeypatch.setattr(sync, "persist_woocommerce_inventory_records", inventory)
+    business = Mock(return_value={"records_seen": 3, "revisions_created": 3, "duplicates": 0,
+                                 "invalid": 3, "review_required": 0, "valid": 0})
+    monkeypatch.setattr(sync, "stage_provider_business_records", business)
     finish = Mock()
     monkeypatch.setattr(sync.data_access, "finish_ingestion_job", finish)
     receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC, "receipt_id": "receipt-woo"}
@@ -136,6 +146,8 @@ def test_woocommerce_worker_persists_provider_evidence_and_full_scan_checkpoints
     identities.assert_called_once_with(identities.call_args.args[0], "source-woo", [*products, *orders],
                                        ingestion_job_id="job-woo")
     inventory.assert_called_once()
+    business.assert_called_once()
+    assert result["business_records_staged"] == 3
     assert {item["stream_key"] for item in finish.call_args.kwargs["provider_checkpoints"]} == {
         "products", "orders", "inventory",
     }
@@ -324,11 +336,17 @@ def test_worker_uses_real_shopify_graphql_client_with_contract_fixture(monkeypat
             transport_factory=lambda _ip: httpx.MockTransport(handler), sleeper=lambda _delay: None, **kwargs,
         )
 
-    persisted = Mock(return_value=[{"mapping_status": "pending_review"}, {"mapping_status": "pending_review"}])
+    persisted = Mock(return_value=[
+        {"identity_id": "identity-product", "entity_type": "product", "provider_record_id": "gid://shopify/Product/42", "mapping_status": "pending_review"},
+        {"identity_id": "identity-variant", "entity_type": "variant", "provider_record_id": "gid://shopify/ProductVariant/43", "mapping_status": "pending_review"},
+    ])
     monkeypatch.setattr(sync.data_access, "load_source", lambda *_: loaded)
     monkeypatch.setattr(sync.data_access, "create_or_reuse_receipt_ingestion_job", lambda *_, **__: "job-1")
     monkeypatch.setattr(sync.operation_receipts, "begin_provider", lambda *_: None)
     monkeypatch.setattr(sync, "persist_shopify_records", persisted)
+    staging = Mock(return_value={"records_seen": 2, "revisions_created": 2, "duplicates": 0,
+                                 "invalid": 0, "review_required": 2, "valid": 0})
+    monkeypatch.setattr(sync, "stage_provider_business_records", staging)
     finish = Mock()
     monkeypatch.setattr(sync.data_access, "finish_ingestion_job", finish)
     receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC, "receipt_id": "receipt-1"}
@@ -337,6 +355,8 @@ def test_worker_uses_real_shopify_graphql_client_with_contract_fixture(monkeypat
 
     assert result["records_persisted"] == 2
     assert result["canonical_promotion"] is False
+    assert result["business_records_staged"] == 2
+    staging.assert_called_once()
     assert len(requests) == 3  # two authenticated shop verifications and one bounded product page
     records = persisted.call_args.args[2]
     assert [(record.entity_type, record.provider_id) for record in records] == [
