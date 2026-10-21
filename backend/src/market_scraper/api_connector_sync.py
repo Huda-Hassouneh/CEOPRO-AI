@@ -41,9 +41,9 @@ import httpx
 from src.market_scraper.network_security import assert_connector_target
 
 from src.ai.extraction.adapters.api_adapter import read_paginated_api
-from src.ai.extraction.ingestion_pipeline import process_records
+from src.ai.extraction.ingestion_pipeline import job_completion_state, process_records
 from src.ai.core import operation_receipts
-from src.market_scraper.connector_sync import is_due_for_sync
+from src.market_scraper.connector_sync import is_due_for_sync, safe_connector_error
 from src.market_scraper.data_access import (
     create_or_reuse_receipt_ingestion_job, finish_ingestion_job, load_source,
 )
@@ -195,6 +195,7 @@ def sync_api_connector_source(conn, tenant_id: str, source_id: str, receipt: dic
     if source is None:
         raise ValueError(f"source not found, inactive, or not ALLOWED: {source_id!r}")
 
+    receipt["source_execution_fingerprint"] = source["source_execution_fingerprint"]
     config = source["collector_config"] or {}
     missing_config = [key for key in _REQUIRED_CONFIG_KEYS if key not in config]
     if missing_config:
@@ -206,20 +207,30 @@ def sync_api_connector_source(conn, tenant_id: str, source_id: str, receipt: dic
         operation_receipts.begin_provider(conn, receipt)
         fetch_page = build_api_fetch_page(config, source["connection_credentials"])
         headers, rows = read_paginated_api(fetch_page, max_pages=max_pages)
+    except operation_receipts.ReceiptSourceChanged:
+        from src.market_scraper.data_access import fail_source_changed_ingestion_job
+        fail_source_changed_ingestion_job(conn, tenant_id, receipt)
+        raise
     except Exception as e:
-        finish_ingestion_job(conn, tenant_id, job_id, status="FAILED", processed=0, failed=0, error=str(e), receipt=receipt)
+        finish_ingestion_job(conn, tenant_id, job_id, status="FAILED", processed=0, failed=0, error=safe_connector_error(e, "Connector API request"), receipt=receipt)
         raise
 
-    summary = process_records(
-        tenant_id=tenant_id, job_id=job_id, source_name=source["source_name"],
-        headers=headers, rows=rows, trusted_field_mapping=config["field_mapping"],
-        conn=operation_receipts.FencedConnection(conn, receipt), commit_every=500,
-    )
+    try:
+        summary = process_records(
+            tenant_id=tenant_id, job_id=job_id, source_name=source["source_name"],
+            headers=headers, rows=rows, trusted_field_mapping=config["field_mapping"],
+            conn=operation_receipts.FencedConnection(conn, receipt), commit_every=500,
+        )
+    except operation_receipts.ReceiptSourceChanged:
+        from src.market_scraper.data_access import fail_source_changed_ingestion_job
+        fail_source_changed_ingestion_job(conn, tenant_id, receipt)
+        raise
 
+    status, status_error = job_completion_state(summary)
     finish_ingestion_job(
-        conn, tenant_id, job_id, status="COMPLETED",
+        conn, tenant_id, job_id, status=status,
         processed=summary.rows_processed, failed=summary.rows_failed,
-        receipt=receipt,
+        error=status_error, receipt=receipt,
     )
 
     return {
@@ -253,13 +264,15 @@ def run_due_api_connector_syncs(conn, tenant_id: str) -> list:
         except Exception as e:  # noqa: BLE001 - one source's failure must not stop the batch
             if receipt is not None:
                 try:
+                    source_changed = isinstance(e, operation_receipts.ReceiptSourceChanged)
                     operation_receipts.finish(
                         conn, receipt,
-                        "reconciliation_required" if receipt.get("provider_started") else "retryable",
-                        "CONNECTOR_SYNC_FAILED",
+                        "failed" if source_changed else
+                        ("reconciliation_required" if receipt.get("provider_started") else "retryable"),
+                        "SOURCE_CONFIGURATION_CHANGED" if source_changed else "CONNECTOR_SYNC_FAILED",
                     )
                 except operation_receipts.ReceiptError:
                     conn.rollback()
-            logger.warning("api connector sync failed for source_id=%s: %s", due["source_id"], e)
-            results.append({"source_id": due["source_id"], "error": str(e)})
+            logger.warning("api connector sync failed for source_id=%s error_type=%s", due["source_id"], type(e).__name__)
+            results.append({"source_id": due["source_id"], "error": safe_connector_error(e)})
     return results
