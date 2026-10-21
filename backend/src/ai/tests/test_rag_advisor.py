@@ -527,3 +527,62 @@ def test_a_heading_only_reply_that_the_retry_fixes_is_an_ai_answer(model, monkey
     result, fake = _answer_with_sales(model, monkeypatch, heading_only,
                                       _reply(("Revenue was 20,016.928 JOD in the last 30 days.", "fact", ["E1"])))
     assert result["answer_mode"] == "ai" and len(fake.prompts) == 2
+
+
+# --- the short answer shown first ---------------------------------------------
+
+_LONG_DETAIL = " Further detail, kept for those who want the whole picture." * 6
+
+
+def _summarised(summary, *detail, follow_ups=()):
+    return json.dumps({"summary": [{"text": t, "kind": k, "evidence": ids} for t, k, ids in summary],
+                       "blocks": [{"type": "paragraph", "claims": [
+                           {"text": t, "kind": k, "evidence": ids} for t, k, ids in detail]}],
+                       "follow_up_questions": list(follow_ups)})
+
+
+def test_a_long_answer_carries_the_models_summary_numbered_first(model, monkeypatch):
+    result, _ = _answer_with_sales(model, monkeypatch, _summarised(
+        [("Revenue was 20,016.928 JOD in the last 30 days.", "fact", ["E1"])],
+        ("Revenue fell by 219.935 JOD." + _LONG_DETAIL, "calculation", ["E1"])))
+    assert result["answer_mode"] == "ai" and result["citation_check"] == {"issues": 0, "repaired": False}
+    summary = result["answer_summary"]
+    assert summary["text"] == "Revenue was 20,016.928 JOD in the last 30 days." and summary["refs"] == [1]
+    assert summary["claims"][0]["verified"] is True
+    assert "Further detail" in result["answer"]  # the raw answer is kept whole
+
+
+def test_a_summary_the_evidence_does_not_support_is_dropped_without_another_model_call(model, monkeypatch):
+    result, fake = _answer_with_sales(model, monkeypatch, _summarised(
+        [("Revenue was 99,999 JOD.", "fact", ["E1"])],
+        ("Revenue fell by 219.935 JOD." + _LONG_DETAIL, "calculation", ["E1"])))
+    assert len(fake.prompts) == 1  # no repair round was spent on the summary
+    assert result["citation_check"] == {"issues": 0, "repaired": False}
+    assert "99,999" not in json.dumps(result["answer_summary"])
+    assert result["answer_summary"]["text"].startswith("Revenue fell by 219.935 JOD.")  # the answer's own first claim
+
+
+def test_a_short_answer_has_no_summary_to_repeat_it(model, monkeypatch):
+    result, _ = _answer_with_sales(model, monkeypatch, _reply(("Revenue was 20,016.928 JOD.", "fact", ["E1"])))
+    assert result["answer_summary"] is None
+
+
+def test_a_summary_alone_is_a_complete_answer(model, monkeypatch):
+    reply = json.dumps({"summary": [{"text": "Revenue was 20,016.928 JOD.", "kind": "fact", "evidence": ["E1"]}],
+                        "blocks": []})
+    result, fake = _answer_with_sales(model, monkeypatch, reply)
+    assert result["answer_mode"] == "ai" and len(fake.prompts) == 1
+    assert result["answer_blocks"][0]["claims"][0]["text"] == "Revenue was 20,016.928 JOD."
+    assert result["answer_summary"] is None  # short: nothing to summarise
+
+
+def test_the_contract_asks_for_the_summary_first_and_for_less_detail():
+    contract = citations.DRAFT_CONTRACT
+    assert contract.index('"summary"') < contract.index('"blocks"')
+    assert "leave it empty" in contract.replace("\n", " ")
+
+
+def test_the_evidence_mode_summary_is_stored_with_the_message_fields():
+    from src.ai.routers import rag
+
+    assert "answer_summary" in rag._STORED_ANSWER_FIELDS

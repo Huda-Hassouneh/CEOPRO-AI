@@ -236,3 +236,38 @@ def test_evidence_mode_keeps_the_matched_document_among_many_records():
     assert len(shown) == 8
     assert shown[-1].startswith("leave_policy.pdf")  # still after the records, as ranked
     assert shown[0].startswith("Record 0")
+
+
+def test_evidence_mode_leads_with_the_one_sentence_that_answers_the_question():
+    from src.ai.rag import advisor
+    from src.ai.rag import evidence as ev
+
+    registry = ev.EvidenceRegistry()
+    supplier = registry.add(ev.COMPANY_DOCUMENT, "supplier_agreement.pdf",
+                            "Supplier agreement summary. Our supplier delivers every Tuesday. Payment terms are net 45 days.",
+                            ev.COMPANY, ev.OBSERVED)
+    leave = registry.add(ev.COMPANY_DOCUMENT, "leave_policy.pdf",
+                         "Staff handbook, time off. Every employee receives 21 days of paid annual leave each year.",
+                         ev.COMPANY, ev.OBSERVED)
+    draft = advisor._evidence_mode(registry, "en", question="How many days of annual leave does an employee get?")
+    assert [c.text for c in draft.summary] == ["Every employee receives 21 days of paid annual leave each year."]
+    assert draft.summary[0].evidence == [leave.id]
+    shown = [claim[0].evidence[0] for claim in draft.blocks[1]["items"]]
+    assert shown == [leave.id, supplier.id]  # the relevant item first, not retrieval order
+
+
+def test_evidence_mode_drops_items_that_share_nothing_with_the_question_when_others_do():
+    from src.ai.rag import advisor
+    from src.ai.rag import evidence as ev
+
+    registry = ev.EvidenceRegistry()
+    registry.add(ev.COMPANY_DOCUMENT, "supplier_agreement.pdf", "Our supplier delivers every Tuesday.",
+                 ev.COMPANY, ev.OBSERVED)
+    registry.add(ev.COMPANY_DOCUMENT, "leave_policy.pdf", "Every employee receives 21 days of paid annual leave.",
+                 ev.COMPANY, ev.OBSERVED)
+    draft = advisor._evidence_mode(registry, "en", question="How many days of annual leave does an employee get?")
+    shown = [claim[0].text for claim in draft.blocks[1]["items"]]
+    assert len(shown) == 1 and shown[0].startswith("leave_policy.pdf")
+    # Nothing shares a word (a question in another language): every item stays.
+    draft = advisor._evidence_mode(registry, "ar", question="كم يوم إجازة سنوية يحصل عليها الموظف؟")
+    assert len(draft.blocks[1]["items"]) == 2
