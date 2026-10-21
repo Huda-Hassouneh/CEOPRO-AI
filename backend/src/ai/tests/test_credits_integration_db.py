@@ -735,3 +735,11 @@ def test_a_companys_exhausted_credits_still_stop_the_assistant(sys_conn, ai, mon
     with pytest.raises(credits.BudgetError) as refused:
         _ask_the_assistant(tenant, monkeypatch)
     assert refused.value.reason == "BUDGET_EXHAUSTED"
+
+def test_groq_has_visible_price_rows(sys_conn):
+    """Migration 20261028000000: operators see the Groq model needs a price
+    (a row exists, priced or still NULL), so a missing row is never the cause."""
+    with sys_conn.cursor() as cursor:
+        cursor.execute("SELECT unit FROM provider_cost_schedules WHERE budget_kind = 'ai' AND provider = 'groq';")
+        units = {row[0] for row in cursor.fetchall()}
+    assert {"input_token", "output_token"} <= units
