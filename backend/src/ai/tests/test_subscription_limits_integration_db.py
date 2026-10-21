@@ -365,6 +365,231 @@ def test_a_downgrade_waits_for_the_end_of_the_paid_period(sys_conn, stripe_price
     assert usage.get_plan(sys_conn, tenant)["plan_key"] == "enterprise", "the paid plan stays until the period ends"
 
 
+def test_mixed_rights_change_schedules_the_entire_plan_at_period_end(sys_conn, stripe_prices, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    with sys_conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT feature_code, limit_value, trial_limit_value FROM usage_plan_limits "
+            "WHERE plan_key='growth' AND feature_code IN ('tracked_products', 'sentiment_analysis');"
+        )
+        original = {code: (limit, trial) for code, limit, trial in cursor.fetchall()}
+        cursor.execute("UPDATE usage_plan_limits SET limit_value=50 WHERE plan_key='growth' AND feature_code='tracked_products';")
+        cursor.execute("UPDATE usage_plan_limits SET limit_value=20000 WHERE plan_key='growth' AND feature_code='sentiment_analysis';")
+    sys_conn.commit()
+
+    tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
+    start, end = int(time.time()), int(time.time()) + 30 * 86400
+    phase = {"start_date": start, "end_date": end,
+             "items": [{"price": stripe_prices[("starter", "monthly")], "quantity": 1}]}
+    modified = {}
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda *args, **kwargs: pytest.fail("mixed changes must not apply immediately"))
+    monkeypatch.setattr(stripe_api, "create_schedule_from_subscription", lambda sid: {"id": "sched_mixed"})
+    monkeypatch.setattr(stripe_api, "retrieve_schedule", lambda sid: {
+        "current_phase": {"start_date": start, "end_date": end}, "phases": [phase],
+    })
+    monkeypatch.setattr(stripe_api, "modify_schedule", lambda sid, **kw: modified.update(kw))
+    try:
+        current_rights = usage.get_plan(sys_conn, tenant)
+        target_rights = store.configured_plan_rights(sys_conn, tenant, "growth")
+        assert current_rights["features"]["tracked_products"]["limit"] == 100
+        assert target_rights["features"]["tracked_products"]["limit"] == 50
+        assert current_rights["features"]["sentiment_analysis"]["limit"] == 5000
+        assert target_rights["features"]["sentiment_analysis"]["limit"] == 20000
+        assert service._classify_rights_change(current_rights, target_rights) == ("mixed", ())
+        result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+        assert result["state"] == "scheduled" and result["timing"] == "period_end"
+        assert modified["phases"][1]["items"][0]["price"] == stripe_prices[("growth", "monthly")]
+        assert usage.get_plan(sys_conn, tenant)["plan_key"] == "starter"
+    finally:
+        with sys_conn.cursor() as cursor:
+            for code, (limit, trial) in original.items():
+                cursor.execute(
+                    "UPDATE usage_plan_limits SET limit_value=%s, trial_limit_value=%s "
+                    "WHERE plan_key='growth' AND feature_code=%s;", (limit, trial, code),
+                )
+        sys_conn.commit()
+
+
+def test_cheaper_lower_tier_plan_with_more_rights_is_still_an_upgrade(sys_conn, stripe_prices, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    with sys_conn.cursor() as cursor:
+        cursor.execute("SELECT tier_level FROM usage_plans WHERE plan_key='growth';")
+        old_tier = cursor.fetchone()[0]
+        cursor.execute("SELECT amount FROM billing_plan_prices WHERE plan_key='growth' AND period_code='monthly' AND retired_at IS NULL;")
+        old_amount = cursor.fetchone()[0]
+        cursor.execute("SELECT amount FROM billing_plan_prices WHERE plan_key='starter' AND period_code='monthly' AND retired_at IS NULL;")
+        starter_amount = cursor.fetchone()[0]
+        cursor.execute("UPDATE usage_plans SET tier_level=0 WHERE plan_key='growth';")
+        cursor.execute("UPDATE billing_plan_prices SET amount=%s WHERE plan_key='growth' AND period_code='monthly' AND retired_at IS NULL;",
+                       (starter_amount - 1,))
+    sys_conn.commit()
+
+    tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
+    calls = {}
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or {})
+    try:
+        result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+        assert result == {"state": "applied", "timing": "immediate"}
+        assert calls["proration_behavior"] == "always_invoice"
+        assert calls["items"][0]["price"] == stripe_prices[("growth", "monthly")]
+    finally:
+        with sys_conn.cursor() as cursor:
+            cursor.execute("UPDATE usage_plans SET tier_level=%s WHERE plan_key='growth';", (old_tier,))
+            cursor.execute("UPDATE billing_plan_prices SET amount=%s WHERE plan_key='growth' AND period_code='monthly' AND retired_at IS NULL;",
+                           (old_amount,))
+        sys_conn.commit()
+
+
+def test_same_rights_longer_billing_period_keeps_existing_immediate_rule(sys_conn, stripe_prices, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    six_months_price = f"price_growth_6_{uuid.uuid4().hex[:6]}"
+    with sys_conn.cursor() as cursor:
+        cursor.execute("SELECT stripe_price_id FROM billing_plan_prices WHERE plan_key='growth' AND period_code='six-months' AND retired_at IS NULL;")
+        old_price_id = cursor.fetchone()[0]
+        cursor.execute("UPDATE billing_plan_prices SET stripe_price_id=%s WHERE plan_key='growth' AND period_code='six-months' AND retired_at IS NULL;",
+                       (six_months_price,))
+    sys_conn.commit()
+    tenant, sub = _subscribed(sys_conn, "growth", stripe_prices)
+    calls = {}
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or {})
+    try:
+        result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "six-months")
+        assert result == {"state": "applied", "timing": "immediate"}
+        assert calls["proration_behavior"] == "always_invoice"
+        assert calls["items"][0]["price"] == six_months_price
+    finally:
+        with sys_conn.cursor() as cursor:
+            cursor.execute("UPDATE billing_plan_prices SET stripe_price_id=%s WHERE plan_key='growth' AND period_code='six-months' AND retired_at IS NULL;",
+                           (old_price_id,))
+        sys_conn.commit()
+
+
+def test_trial_plan_change_preserves_the_existing_trial_end(sys_conn, stripe_prices, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
+    trial_end = int(time.time()) + 7 * 86400
+    sub["status"] = "trialing"
+    sub["trial_end"] = trial_end
+    with sys_conn.cursor() as cursor:
+        cursor.execute("UPDATE billing_subscriptions SET status='trialing', trial_end=to_timestamp(%s) WHERE tenant_id=%s;",
+                       (trial_end, tenant))
+        cursor.execute("UPDATE tenant_plan_assignments SET status='trialing' WHERE tenant_id=%s;", (tenant,))
+    sys_conn.commit()
+    calls = {}
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or {})
+    result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+    assert result == {"state": "applied", "timing": "immediate"}
+    assert int(calls["trial_end"]) == trial_end and calls["proration_behavior"] == "none"
+    assert usage.get_plan(sys_conn, tenant)["plan_key"] == "starter"
+
+
+def test_pending_payment_keeps_existing_rights_until_confirmation(sys_conn, stripe_prices, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: {
+        "pending_update": {"expires_at": int(time.time()) + 3600}, "latest_invoice": {"id": "in_sca"},
+    })
+    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda invoice_id: {"hosted_invoice_url": "https://stripe.test/in_sca"})
+    result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+    assert result == {
+        "state": "payment_required", "timing": "immediate", "payment_url": "https://stripe.test/in_sca",
+    }
+    assert usage.get_plan(sys_conn, tenant)["plan_key"] == "starter"
+
+
+def test_missing_target_limit_fails_closed_without_provider_changes(sys_conn, stripe_prices, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    with sys_conn.cursor() as cursor:
+        cursor.execute("SELECT limit_value, trial_limit_value "
+                       "FROM usage_plan_limits l JOIN usage_features f USING (feature_code) "
+                       "WHERE l.plan_key='growth' AND l.feature_code='web_searches';")
+        limit_value, trial_limit = cursor.fetchone()
+        cursor.execute("DELETE FROM usage_plan_limits WHERE plan_key='growth' AND feature_code='web_searches';")
+    sys_conn.commit()
+
+    tenant, _sub = _subscribed(sys_conn, "starter", stripe_prices)
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: pytest.fail("provider must not be changed"))
+    try:
+        with pytest.raises(service.BillingError) as err:
+            service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+        assert err.value.status == 409 and err.value.code == "plan_transition_unclassified"
+    finally:
+        with sys_conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO usage_plan_limits(plan_key, feature_code, limit_value, trial_limit_value) "
+                "VALUES ('growth', 'web_searches', %s, %s);", (limit_value, trial_limit),
+            )
+        sys_conn.commit()
+
+
+def test_private_custom_contract_transition_is_blocked_before_provider_change(sys_conn, stripe_prices, monkeypatch):
+    tenant = _company(sys_conn, "custom")
+    admin.set_custom_contract(
+        sys_conn, tenant_id=tenant, contract_ref=f"phase2a-{uuid.uuid4().hex}",
+        approved_by="phase2a-test", reason="transition compatibility test",
+        limits={"tracked_products": 900}, monthly_price=Decimal("120.00"),
+    )
+    sys_conn.commit()
+    now = int(time.time())
+    private_subscription = {
+        "id": f"sub_{uuid.uuid4().hex[:8]}", "customer": f"cus_{uuid.uuid4().hex[:8]}",
+        "status": "active", "cancel_at_period_end": False, "canceled_at": None,
+        "trial_end": None, "schedule": None, "metadata": {},
+        "items": {"data": [{"id": "si_private", "price": {"id": "price_private"},
+                             "current_period_start": now, "current_period_end": now + 30 * 86400}]},
+    }
+    store.apply_subscription(sys_conn, tenant, private_subscription, "custom", "monthly", datetime.now(timezone.utc))
+    sys_conn.commit()
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: pytest.fail("private terms need review first"))
+    with pytest.raises(service.BillingError) as err:
+        service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+    assert err.value.status == 409 and err.value.code == "plan_transition_unclassified"
+
+
+def test_conflicting_manual_assignment_and_active_stripe_subscription_fail_closed(sys_conn, stripe_prices, monkeypatch):
+    """Do not choose which grant wins when persisted Stripe and effective rights disagree."""
+    tenant, _sub = _subscribed(sys_conn, "starter", stripe_prices)
+    with sys_conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE tenant_plan_assignments SET plan_key='enterprise', source='manual' WHERE tenant_id=%s;",
+            (tenant,),
+        )
+    sys_conn.commit()
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    monkeypatch.setattr(
+        stripe_api, "retrieve_subscription",
+        lambda sid: pytest.fail("conflicting grants must be isolated before provider access"),
+    )
+
+    with pytest.raises(service.BillingError) as err:
+        service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+
+    assert err.value.status == 409 and err.value.code == "plan_transition_conflict"
+    assert usage.get_plan(sys_conn, tenant)["plan_key"] == "enterprise"
+
+
+def test_nonconflicting_manual_assignment_is_not_rejected_by_source_alone(sys_conn, stripe_prices, monkeypatch):
+    tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
+    with sys_conn.cursor() as cursor:
+        cursor.execute("UPDATE tenant_plan_assignments SET source='manual' WHERE tenant_id=%s;", (tenant,))
+    sys_conn.commit()
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
+    calls = {}
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or {})
+
+    result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+
+    assert result == {"state": "applied", "timing": "immediate"}
+    assert calls["items"][0]["price"] == stripe_prices[("growth", "monthly")]
+
+
 def test_cancelling_keeps_access_until_the_period_ends(sys_conn, stripe_prices, monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
     tenant, sub = _subscribed(sys_conn, "growth", stripe_prices)

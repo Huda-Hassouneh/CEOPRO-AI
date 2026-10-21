@@ -101,6 +101,52 @@ def plan_tier(conn, plan_key: str) -> int:
     return int(row[0]) if row else 0
 
 
+def configured_plan_rights(conn, tenant_id: str, plan_key: str, *, trialing: bool = False) -> dict:
+    """Read a plan's configured rights using the same catalog and tenant
+    overrides consumed by the entitlement evaluator.
+
+    Missing limit rows are kept absent so callers cannot mistake an
+    unconfigured feature for either zero or unlimited. ``None`` in an
+    existing limit row retains the catalog's established unlimited meaning.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT f.feature_code, f.unit, f.aggregation_type, f.reset_cycle,
+                   l.limit_value, l.trial_limit_value, o.limit_value
+            FROM usage_plan_limits l
+            JOIN usage_features f ON f.feature_code = l.feature_code
+            LEFT JOIN tenant_entitlement_overrides o
+              ON o.tenant_id = %s AND o.feature_code = l.feature_code
+            WHERE l.plan_key = %s;
+            """,
+            (tenant_id, plan_key),
+        )
+        rows = cursor.fetchall()
+        cursor.execute("SELECT feature_code FROM usage_plan_entitlements WHERE plan_key = %s;", (plan_key,))
+        entitlements = {row[0] for row in cursor.fetchall()}
+    features = {}
+    for code, unit, aggregation, reset_cycle, limit, trial_limit, override in rows:
+        if override is not None:
+            limit = override
+        elif trialing and trial_limit is not None:
+            limit = trial_limit
+        features[code] = {
+            "unit": unit,
+            "aggregation_type": aggregation,
+            "reset_cycle": reset_cycle,
+            "limit": None if limit is None else int(limit),
+        }
+    return {"features": features, "entitlements": entitlements}
+
+
+def has_custom_contract(conn, tenant_id: str) -> bool:
+    """Private contracts carry terms outside the public plan-rights vector."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT 1 FROM tenant_custom_contracts WHERE tenant_id = %s;", (tenant_id,))
+        return cursor.fetchone() is not None
+
+
 def resolve_price(conn, stripe_price_id: str) -> Optional[tuple]:
     """Stripe price id -> (plan_key, period_code), retired prices included."""
     with conn.cursor() as cursor:
