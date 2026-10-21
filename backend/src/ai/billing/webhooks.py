@@ -19,7 +19,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.ai.billing import store, stripe_api
+from src.ai.billing import promotions, store, stripe_api
 from src.ai.core import entitlements
 
 logger = logging.getLogger("APEX_BILLING_WEBHOOKS")
@@ -165,6 +165,9 @@ def _handle_locked(sys_conn, event: dict) -> dict:
                 if obj.get("customer") and hint and not store.tenant_for_customer(sys_conn, obj["customer"]):
                     store.save_customer(sys_conn, hint, obj["customer"])
                 tenant_id = sync_subscription(sys_conn, _id(obj["subscription"]), created, hint)
+                promotions.checkout_completed(sys_conn, session=obj, tenant_id=tenant_id, stripe_event_id=event["id"])
+        elif event_type == "checkout.session.expired":
+            promotions.checkout_expired(sys_conn, session=obj, stripe_event_id=event["id"])
         elif event_type in SUBSCRIPTION_EVENTS:
             tenant_id = sync_subscription(sys_conn, obj["id"], created)
         elif event_type in INVOICE_EVENTS:
@@ -188,8 +191,16 @@ def _handle_locked(sys_conn, event: dict) -> dict:
                     raise WebhookRetry("invoice customer belongs to another company")
                 if invoice.get("status") == "paid" or invoice.get("paid") is True:
                     store.record_payment(sys_conn, tenant_id, invoice, subscription_id, "succeeded")
+                    promotions.invoice_event(
+                        sys_conn, tenant_id=tenant_id, invoice=invoice, subscription_id=subscription_id,
+                        stripe_event_id=event["id"], payment_succeeded=True,
+                    )
                 elif event_type == "invoice.payment_failed":
                     store.record_payment(sys_conn, tenant_id, invoice, subscription_id, "failed", _failure_reason(invoice))
+                    promotions.invoice_event(
+                        sys_conn, tenant_id=tenant_id, invoice=invoice, subscription_id=subscription_id,
+                        stripe_event_id=event["id"], payment_succeeded=False,
+                    )
                 else:
                     raise WebhookRetry("paid invoice is not yet reconciled by the provider")
         elif event_type in SCHEDULE_EVENTS:

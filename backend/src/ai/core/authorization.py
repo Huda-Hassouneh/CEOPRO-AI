@@ -4,7 +4,7 @@ from fastapi import HTTPException
 ORDINARY_ACTIONS = frozenset({"me", "overview", "companies", "company", "company_metadata", "company_status",
     "users", "user", "user_status", "membership_status", "team", "invite", "invitation_resend", "invitation_cancel", "audit",
     "settings", "settings_update"})
-OWNER_ACTIONS = frozenset({"member_update", "owner_transfer", "financial_approval"})
+OWNER_ACTIONS = frozenset({"member_update", "owner_transfer", "financial_approval", "promotion_management"})
 
 
 def require_platform_permission(role, action):

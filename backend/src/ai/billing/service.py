@@ -19,7 +19,7 @@ with a live subscription can't open a second checkout.
 """
 import hashlib
 import time
-from src.ai.billing import config, store, stripe_api
+from src.ai.billing import config, promotions, store, stripe_api
 from src.ai.billing.stripe_api import PaymentsNotConfigured
 from src.ai.core import usage
 
@@ -62,11 +62,21 @@ def _ensure_customer(conn, sys_conn, tenant_id: str, email: str, company_name: s
 
 
 def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
-                    plan_key: str, period_code: str) -> dict:
+                    plan_key: str, period_code: str, promotion_code: str | None = None,
+                    actor_user_id: str | None = None) -> dict:
     _require_payments()
     if store.current_subscription(conn, tenant_id):
         raise BillingError(409, "subscription_exists", "Your company already has a subscription. Change plan instead.")
     price = _price_or_error(conn, plan_key, period_code)
+    promotion = None
+    reservation = None
+    if promotion_code:
+        try:
+            promotion = promotions.require_checkout_eligibility(
+                conn, tenant_id, promotion_code, plan_key, period_code,
+            )
+        except promotions.PromotionError as err:
+            raise BillingError(err.status, err.code, err.message) from err
     customer = _ensure_customer(conn, sys_conn, tenant_id, email, company_name)
 
     subscription_data = {"metadata": {"tenant_id": tenant_id, "plan_key": plan_key, "period_code": period_code}}
@@ -86,7 +96,10 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
         "metadata": {"tenant_id": tenant_id, "plan_key": plan_key, "period_code": period_code},
         "subscription_data": subscription_data,
         "payment_method_collection": "always",
-        "allow_promotion_codes": True,
+        # Existing Stripe-hosted code entry remains enabled for the legacy
+        # checkout path. Managed promotions are mutually exclusive with that
+        # entry field so a second Stripe code cannot stack in the same session.
+        "allow_promotion_codes": promotion is None,
         "success_url": f"{base}/billing?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
         "cancel_url": f"{base}/billing?checkout=cancelled",
     }
@@ -96,8 +109,73 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
     # Same company, plan and period within ~10 minutes -> the same session,
     # so a double click never opens two checkouts.
     bucket = int(time.time() // 600)
-    key = hashlib.sha256(f"{tenant_id}:{plan_key}:{period_code}:{bucket}".encode()).hexdigest()[:40]
-    session = stripe_api.create_checkout_session(params, idempotency_key=f"apex-checkout-{key}")
+    promotion_id = promotion["promotion_id"] if promotion else "legacy"
+    key = hashlib.sha256(f"{tenant_id}:{plan_key}:{period_code}:{promotion_id}:{bucket}".encode()).hexdigest()[:40]
+    if promotion:
+        reservation_key = "checkout:" + key
+        try:
+            reservation = promotions.reserve(
+                sys_conn, tenant_id=tenant_id, actor_user_id=actor_user_id or "",
+                code=promotion_code, plan_key=plan_key, period_code=period_code,
+                request_key=reservation_key,
+            )
+            sys_conn.commit()
+        except promotions.PromotionError as err:
+            sys_conn.rollback()
+            raise BillingError(err.status, err.code, err.message) from err
+        if reservation.get("session_id"):
+            try:
+                existing = stripe_api.retrieve_checkout_session(reservation["session_id"])
+            except Exception as err:
+                raise BillingError(502, "checkout_reconciliation_required",
+                                   "The existing checkout could not be verified. Please try again later.") from err
+            if existing.get("id") != reservation["session_id"] or existing.get("status") != "open" or not existing.get("url"):
+                raise BillingError(409, "checkout_reconciliation_required",
+                                   "The existing checkout is no longer open and needs reconciliation.")
+            return {"url": existing["url"], "session_id": existing["id"]}
+        try:
+            promotions.begin_checkout_request(
+                sys_conn, tenant_id=tenant_id, redemption_id=reservation["redemption_id"],
+            )
+            sys_conn.commit()
+        except promotions.PromotionError as err:
+            sys_conn.rollback()
+            raise BillingError(err.status, err.code, err.message) from err
+        params["discounts"] = [{"promotion_code": promotion["stripe_promotion_code_id"]}]
+        params["metadata"]["keel_promotion_redemption_id"] = reservation["redemption_id"]
+        params["subscription_data"]["metadata"]["keel_promotion_redemption_id"] = reservation["redemption_id"]
+    try:
+        provider_key = f"apex-promo-checkout-{reservation['redemption_id']}" if reservation else f"apex-checkout-{key}"
+        session = stripe_api.create_checkout_session(params, idempotency_key=provider_key)
+    except Exception:
+        if reservation:
+            try:
+                promotions.provider_outcome_unknown(
+                    sys_conn, tenant_id=tenant_id, redemption_id=reservation["redemption_id"],
+                )
+                sys_conn.commit()
+            except Exception:
+                sys_conn.rollback()
+        raise
+    if reservation:
+        try:
+            promotions.attach_checkout(
+                sys_conn, tenant_id=tenant_id, redemption_id=reservation["redemption_id"],
+                session_id=session["id"],
+            )
+            sys_conn.commit()
+        except Exception:
+            sys_conn.rollback()
+            # Stripe created a session, but local identity was not durably
+            # attached. Do not issue a second provider action or free the slot.
+            try:
+                promotions.provider_outcome_unknown(
+                    sys_conn, tenant_id=tenant_id, redemption_id=reservation["redemption_id"],
+                )
+                sys_conn.commit()
+            except Exception:
+                sys_conn.rollback()
+            raise
     return {"url": session["url"], "session_id": session["id"]}
 
 
