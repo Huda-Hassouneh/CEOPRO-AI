@@ -6,6 +6,7 @@ import os
 import redis
 from scrapy import signals
 
+from src.ai.core import operation_receipts
 from src.market_scraper import cost_ledger, data_access, market_repository
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,18 @@ class PostgresPricePipeline:
         try:
             if self.connection is None:
                 self.connection = data_access.get_tenant_connection(item["tenant_id"])
+            spider = self.crawler.spider
+            receipt = {
+                "tenant_id": str(spider.tenant_id),
+                "source_id": str(spider.source_id),
+                "receipt_id": str(spider.operation_receipt_id),
+                "actor_user_id": str(spider.operation_actor_user_id),
+                "period_start": spider.operation_period_start,
+                "worker_id": str(spider.operation_worker_id),
+                "lease_generation": int(spider.operation_lease_generation),
+                "lease_seconds": int(spider.operation_lease_seconds),
+            }
+            operation_receipts.assert_fence(self.connection, receipt)
             persisted = market_repository.save_market_record(self.connection, item)
             # Real spend happened whether this item landed in reviews/
             # competitor_prices or got quarantined - a quarantined item is a
@@ -40,6 +53,7 @@ class PostgresPricePipeline:
             # attempt either way (see cost_ledger.py's own docstring on why
             # a missing row would hide an unmetered collector's real cost
             # rather than honestly showing it as unknown).
+            operation_receipts.assert_fence(self.connection, receipt)
             cost_ledger.record_scrape_cost(
                 self.connection, item["tenant_id"], item["mapping_id"], self.crawler.spider.name,
             )
@@ -80,6 +94,16 @@ class PostgresPricePipeline:
             self.failed,
             self.last_error or (None if status == "COMPLETED" else reason),
             quarantined=self.quarantined,
+            receipt={
+                "tenant_id": str(spider.tenant_id),
+                "source_id": str(spider.source_id),
+                "receipt_id": str(spider.operation_receipt_id),
+                "actor_user_id": str(spider.operation_actor_user_id),
+                "period_start": spider.operation_period_start,
+                "worker_id": str(spider.operation_worker_id),
+                "lease_generation": int(spider.operation_lease_generation),
+                "lease_seconds": int(spider.operation_lease_seconds),
+            },
         )
         self.connection.close()
         if self.review_count:

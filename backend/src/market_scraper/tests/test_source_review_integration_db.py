@@ -368,9 +368,12 @@ def test_enqueue_collection_succeeds_for_an_allowed_source_and_writes_a_real_red
     assert result["status"] == "ALLOWED"
 
     redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-    stream_key = os.getenv("SCRAPER_STREAM_KEY", "market.scrape.requested")
+    stream_key = enqueue.RECEIPT_STREAM
 
-    with patch("src.market_scraper.enqueue.data_access.get_tenant_connection", return_value=_NonClosingConnProxy(conn)):
+    receipt = {"receipt_id": str(uuid.uuid4()), "state": "dispatch_pending", "period_start": None}
+    with patch("src.market_scraper.enqueue.data_access.get_tenant_connection", return_value=_NonClosingConnProxy(conn)), \
+         patch("src.market_scraper.enqueue.operation_receipts.create_or_get_collection", return_value=receipt), \
+         patch("src.market_scraper.enqueue.operation_receipts.mark_queued"):
         message_id = enqueue.enqueue_collection(tenant_id, source_id, redis_client=redis_client)
 
     try:
@@ -380,5 +383,6 @@ def test_enqueue_collection_succeeds_for_an_allowed_source_and_writes_a_real_red
         _, fields = entries[0]
         assert fields["tenant_id"] == tenant_id
         assert fields["source_id"] == source_id
+        assert fields["receipt_id"] == receipt["receipt_id"]
     finally:
         redis_client.xdel(stream_key, message_id)

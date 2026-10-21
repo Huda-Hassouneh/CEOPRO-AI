@@ -33,7 +33,7 @@ def _get_pool() -> TenantConnectionPool:
     return _POOL
 
 
-def get_tenant_connection(tenant_id: str) -> PooledTenantConnection:
+def get_tenant_connection(tenant_id: str, actor_user_id: Optional[str] = None) -> PooledTenantConnection:
     """
     Pooled tenant-scoped connection (production-hardening audit follow-up -
     see src/infrastructure/db_pool.py's own docstring for why a pooled
@@ -41,7 +41,7 @@ def get_tenant_connection(tenant_id: str) -> PooledTenantConnection:
     issue, to stay RLS-safe across reuse). No caller needs to change: this
     still returns something that duck-types a plain psycopg2 connection.
     """
-    actor_user_id = os.getenv("SCRAPER_ACTOR_USER_ID")
+    actor_user_id = actor_user_id or os.getenv("SCRAPER_ACTOR_USER_ID")
     if not actor_user_id:
         raise RuntimeError("SCRAPER_ACTOR_USER_ID must identify an active tenant service principal")
     return _get_pool().get_tenant_connection(tenant_id, actor_user_id)
@@ -255,7 +255,7 @@ def count_tenant_sources_by_status(conn, tenant_id: str) -> dict:
     return counts
 
 
-def create_ingestion_job(conn, tenant_id: str, source_id: str) -> str:
+def create_ingestion_job(conn, tenant_id: str, source_id: str, receipt: dict | None = None) -> str:
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -272,6 +272,9 @@ def create_ingestion_job(conn, tenant_id: str, source_id: str) -> str:
         row = cursor.fetchone()
     if not row:
         raise ValueError("source is missing, inactive, or not ALLOWED")
+    if receipt is not None:
+        from src.ai.core import operation_receipts
+        operation_receipts.attach_ingestion_job(conn, receipt, str(row[0]))
     conn.commit()
     return str(row[0])
 
@@ -321,8 +324,14 @@ def recover_stale_ingestion_jobs(conn, tenant_id: str, stale_minutes: int = 30) 
 
 def finish_ingestion_job(
     conn, tenant_id: str, job_id: str, status: str, processed: int,
-    failed: int, error=None, quarantined: int = 0,
+    failed: int, error=None, quarantined: int = 0, receipt: dict | None = None,
+    receipt_allow_pre_provider: bool = False,
 ):
+    if receipt is not None:
+        from src.ai.core import operation_receipts
+        operation_receipts.assert_fence(
+            conn, receipt, allow_pre_provider=receipt_allow_pre_provider,
+        )
     with conn.cursor() as cursor:
         cursor.execute(
             """
