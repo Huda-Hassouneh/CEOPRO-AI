@@ -89,3 +89,59 @@
 .connect-mapping { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .connect-mapping label { display: grid; gap: 4px; font-size: 12.5px; color: var(--apex-text-2); }
 @media (max-width: 720px) { .connected-systems li { grid-template-columns: auto minmax(0, 1fr); } .connected-systems__actions, .connected-systems li > .apex-pill { grid-column: 1 / -1; } }
+
+.import-drafts { overflow: hidden; }
+.import-drafts-notice, .import-draft-warning { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--apex-warning); border-radius: 9px; background: var(--apex-warning-bg); color: var(--ceopro-text-primary); font-size: 12px; line-height: 1.55; }
+.import-draft-warning { display: grid; margin: 0; }
+.import-draft-warning strong { color: var(--apex-warning); }
+.import-drafts-toolbar, .import-draft-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+.import-drafts-toolbar label, .import-draft-controls label { color: var(--ceopro-text-secondary); font-size: 12px; font-weight: 700; }
+.import-drafts-toolbar select, .import-draft-controls select, .import-draft-confirm textarea { max-width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--ceopro-border); border-radius: 7px; background: var(--apex-glass-solid); color: var(--ceopro-text-primary); font: inherit; }
+.import-drafts-table-wrap, .import-draft-rows-wrap { margin-top: 8px; }
+.import-drafts-list-table { min-width: 780px; }
+.import-draft-detail { display: grid; gap: 14px; margin-top: 20px; padding: 16px; border: 1px solid var(--ceopro-border); border-radius: 12px; background: var(--apex-glass); }
+.import-draft-detail__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.import-draft-detail__heading h3, .import-draft-detail__heading p { margin: 0; }
+.import-draft-detail__heading h3 { color: var(--ceopro-text-primary); font-size: 15px; }
+.import-draft-detail__heading p { margin-top: 4px; color: var(--ceopro-text-muted); font-size: 12px; }
+.import-draft-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.import-draft-summary > div { display: grid; gap: 5px; min-width: 0; padding: 10px; border-radius: 8px; background: var(--apex-glass-strong); }
+.import-draft-summary > div > span:first-child { color: var(--ceopro-text-muted); font-size: 10px; }
+.import-draft-summary strong { color: var(--ceopro-text-primary); font-size: 12px; overflow-wrap: anywhere; }
+.import-draft-state, .import-draft-review { display: inline-flex; align-items: center; gap: 4px; width: fit-content; padding: 4px 8px; border-radius: 999px; background: var(--apex-glass-strong); color: var(--ceopro-text-secondary); font-size: 10px; font-weight: 750; line-height: 1.3; }
+.import-draft-state.is-approved, .import-draft-review.is-approve { background: var(--apex-success-bg); color: var(--apex-success); }
+.import-draft-state.is-rejected, .import-draft-state.is-failed, .import-draft-state.is-invalid, .import-draft-review.is-reject { background: var(--apex-danger-bg); color: var(--apex-danger); }
+.import-draft-state.is-review_required, .import-draft-state.is-partially_committed, .import-draft-state.is-not_committed { background: var(--apex-warning-bg); color: var(--apex-warning); }
+.import-draft-state.is-committed { background: var(--apex-success-bg); color: var(--apex-success); }
+.import-draft-fields { display: grid; gap: 5px; min-width: 185px; max-width: 320px; margin: 0; }
+.import-draft-fields > div { display: grid; grid-template-columns: minmax(74px, .65fr) minmax(0, 1fr); gap: 8px; }
+.import-draft-fields dt { color: var(--ceopro-text-muted); font-size: 10px; overflow-wrap: anywhere; }
+.import-draft-fields dd { margin: 0; color: var(--ceopro-text-primary); font-size: 11px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.import-draft-findings { min-width: 170px; max-width: 310px; margin: 0; padding-inline-start: 18px; color: var(--apex-danger); font-size: 11px; line-height: 1.45; }
+.import-draft-findings li + li { margin-top: 4px; }
+.import-draft-stale { display: block; margin-top: 5px; color: var(--apex-warning); font-size: 11px; font-weight: 700; }
+.import-draft-muted { color: var(--ceopro-text-muted); font-size: 11px; }
+.import-draft-row-actions, .import-draft-batch-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.import-draft-batch-actions { justify-content: flex-end; padding-top: 12px; border-top: 1px solid var(--ceopro-border); }
+.import-drafts-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.import-drafts-pagination > span { margin-inline-end: auto; color: var(--ceopro-text-muted); font-size: 11px; }
+.import-draft-history { padding-top: 10px; border-top: 1px solid var(--ceopro-border); }
+.import-draft-history h4 { display: flex; align-items: center; gap: 7px; margin: 0 0 9px; color: var(--ceopro-text-primary); font-size: 13px; }
+.import-draft-history ol { display: grid; gap: 7px; margin: 0; padding-inline-start: 20px; }
+.import-draft-history li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border-radius: 7px; background: var(--apex-glass-strong); color: var(--ceopro-text-secondary); font-size: 11px; }
+.import-draft-history time { color: var(--ceopro-text-muted); }
+.import-drafts-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--apex-danger); font-size: 12px; }
+.import-drafts-skeleton { display: grid; gap: 12px; }
+.import-draft-no-rows { padding: 14px; }
+.import-draft-confirm { display: grid; gap: 12px; color: var(--ceopro-text-secondary); font-size: 13px; line-height: 1.5; }
+.import-draft-confirm p { margin: 0; }
+.import-draft-confirm label { color: var(--ceopro-text-primary); font-size: 12px; font-weight: 700; }
+.import-draft-confirm textarea { width: 100%; resize: vertical; }
+.import-drafts button:focus-visible, .import-drafts select:focus-visible, .import-draft-confirm textarea:focus-visible { outline: 2px solid var(--ceopro-primary); outline-offset: 2px; }
+@media (max-width: 600px) {
+  .import-draft-detail { padding: 12px; }
+  .import-draft-detail__heading { align-items: flex-start; }
+  .import-draft-detail__heading .ceopro-button { white-space: nowrap; }
+  .import-drafts-pagination { justify-content: space-between; }
+  .import-drafts-pagination > span { flex-basis: 100%; }
+}

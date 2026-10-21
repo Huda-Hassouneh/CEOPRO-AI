@@ -12,6 +12,7 @@ import { FileUploadDropzone } from '../../data-ingestion/components/FileUploadDr
 import { DATA_TEMPLATE_OPTIONS } from '../../data-ingestion/config/dataTemplateOptions.js';
 import { ingestionApi } from '../../data-ingestion/api/ingestionApi.js';
 import { summarizeImport } from '../../data-ingestion/utils/importSummary.js';
+import { ImportDraftsPanel } from '../../data-ingestion/components/ImportDraftsPanel.jsx';
 import { ConnectSystemForm } from '../components/ConnectSystemForm.jsx';
 import { ApexButton, Pill } from '../../../shared/components/apex/Apex.jsx';
 import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge.jsx';
@@ -111,6 +112,7 @@ export function ConnectDataPage() {
       }
       // Failed files are recorded too, so refresh the import history either way.
       queryClient.invalidateQueries({ queryKey: ['data-connections'] });
+      queryClient.invalidateQueries({ queryKey: ['import-drafts'] });
       setNotice(summarizeImport(result.files, t, number.format));
       if (result.uploaded) setFiles([]);
     } finally {
@@ -157,6 +159,8 @@ export function ConnectDataPage() {
         <div><h3>{t('connectData.upload.files')}</h3><FileUploadDropzone files={files} onFilesChange={setFiles} />{files.length > 0 && <Button className="connect-data-prepare" size="sm" onClick={prepareImport} loading={importing} loadingLabel={t('connectData.actions.preparingImport')}>{t('connectData.actions.prepareImport')}</Button>}</div>
       </div>
     </section>
+
+    <ImportDraftsPanel t={t} locale={locale} />
 
     <section className="connect-data-section">
       <div className="connect-data-section__header"><div><h2>{t('connectData.activity.title')}</h2><p>{t('connectData.activity.subtitle')}</p></div></div>
