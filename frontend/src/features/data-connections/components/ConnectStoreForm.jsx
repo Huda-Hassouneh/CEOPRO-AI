@@ -50,7 +50,8 @@ export function ConnectStoreForm({ provider, t, onDone, onCancel }) {
       onDone();
     } catch (err) {
       const status = err?.response?.status;
-      setError(status === 403 ? t('connectData.store.adminOnly')
+      setError(status === 402 ? t('connectData.store.capacityReached')
+        : status === 403 ? t('connectData.store.adminOnly')
         : status === 409 ? t('connectData.store.conflict')
           : status === 422 ? t('connectData.store.invalid') : t('connectData.store.failed'));
       setBusy(false);

@@ -36,7 +36,8 @@ const ADD_OPTIONS = [
 export function ConnectDataPage() {
   const { t, locale, dir } = useI18n();
   const queryClient = useQueryClient();
-  const query = useDataConnections();
+  const [syncWatch, setSyncWatch] = useState(null);
+  const query = useDataConnections({ pollWhileSyncQueued: Boolean(syncWatch) });
   const [addOpen, setAddOpen] = useState(false);
   const [connectKind, setConnectKind] = useState(null);
   const [files, setFiles] = useState([]);
@@ -50,6 +51,21 @@ export function ConnectDataPage() {
   const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }), [locale]);
   const localize = (value) => value && typeof value === 'object' ? value[locale] || value.en : value;
   const formatDate = (value) => date.format(new Date(value));
+
+  useEffect(() => {
+    if (!syncWatch) return undefined;
+    const current = query.data?.connectedSources?.find((source) => source.source_id === syncWatch.sourceId);
+    const run = current?.last_run;
+    if (run?.job_id && run.job_id !== syncWatch.previousJobId && ['COMPLETED', 'FAILED'].includes(run.status)) {
+      setSyncWatch(null);
+    }
+  }, [query.data, syncWatch]);
+
+  useEffect(() => {
+    if (!syncWatch) return undefined;
+    const timeout = globalThis.setTimeout(() => setSyncWatch(null), 120000);
+    return () => globalThis.clearTimeout(timeout);
+  }, [syncWatch]);
 
   useEffect(() => {
     const query = new URLSearchParams(globalThis.location.search);
@@ -97,6 +113,7 @@ export function ConnectDataPage() {
     setBusySource(source.source_id);
     try {
       if (action === 'sync') {
+        setSyncWatch({ sourceId: source.source_id, previousJobId: source.last_run?.job_id ?? null });
         await dataConnectionsApi.syncNow(source.source_id);
         setNotice({ variant: 'success', message: t('connectData.system.syncQueued') });
       } else {
@@ -105,6 +122,7 @@ export function ConnectDataPage() {
       }
       queryClient.invalidateQueries({ queryKey: ['data-connections'] });
     } catch (error) {
+      if (action === 'sync') setSyncWatch(null);
       setNotice({ variant: 'error', message: t(error?.response?.status === 403 ? 'connectData.system.adminOnly' : 'connectData.system.actionFailed') });
     } finally {
       setBusySource(null);
@@ -172,12 +190,15 @@ export function ConnectDataPage() {
               <div>
                 <strong>{source.name}</strong>
                 <span className="apex-muted">{t(source.kind === 'woocommerce' || source.kind === 'shopify' ? `connectData.store.${source.kind}` : `connectData.system.kind.${source.kind}`)} · {t(`connectData.system.every.${[15, 60, 360, 1440].includes(source.sync_frequency_minutes) ? source.sync_frequency_minutes : 1440}`)}</span>
+                {(source.kind === 'woocommerce' || source.kind === 'shopify') && <span className="apex-muted">{t(`connectData.store.status.${source.connection_status || 'active'}`)}{source.verified_at ? ` · ${t('connectData.store.verifiedAt', { date: formatDate(source.verified_at) })}` : ''}</span>}
                 <span className="apex-muted">{source.last_synced_at ? t('connectData.system.lastSynced', { date: formatDate(source.last_synced_at) }) : t('connectData.system.notSyncedYet')}
                   {source.last_run && ` · ${t('connectData.system.lastRun', { rows: number.format(source.last_run.rows_processed || 0) })}`}</span>
               </div>
-              {source.last_run?.status && <Pill tone={source.last_run.status === 'COMPLETED' ? 'success' : source.last_run.status === 'FAILED' ? 'danger' : 'neutral'}>{statusLabel(source.last_run.status)}</Pill>}
+              {(source.last_run?.status || syncWatch?.sourceId === source.source_id) && <Pill tone={source.last_run?.status === 'COMPLETED' ? 'success' : source.last_run?.status === 'FAILED' ? 'danger' : 'neutral'}>{syncWatch?.sourceId === source.source_id && (!source.last_run?.job_id || source.last_run.job_id === syncWatch.previousJobId) ? t('connectData.store.status.QUEUED') : statusLabel(source.last_run?.status || 'QUEUED')}</Pill>}
               <div className="connected-systems__actions">
-                <ApexButton size="sm" variant="secondary" icon={RefreshCw} loading={busySource === source.source_id} onClick={() => runSourceAction('sync', source)}>{t('connectData.system.syncNow')}</ApexButton>
+                {['shopify', 'woocommerce'].includes(source.kind) && source.connection_status !== 'verified'
+                  ? <ApexButton size="sm" variant="secondary" icon={source.kind === 'shopify' ? Store : ShoppingBag} onClick={() => { setConnectKind(source.kind); setAddOpen(true); }}>{t('connectData.store.reconnect')}</ApexButton>
+                  : <ApexButton size="sm" variant="secondary" icon={RefreshCw} loading={busySource === source.source_id} disabled={syncWatch?.sourceId === source.source_id} onClick={() => runSourceAction('sync', source)}>{t('connectData.system.syncNow')}</ApexButton>}
                 <ApexButton size="sm" variant="ghost" icon={Unplug} disabled={busySource === source.source_id} onClick={() => runSourceAction('disconnect', source)}>{t('connectData.system.disconnect')}</ApexButton>
               </div>
             </li>
