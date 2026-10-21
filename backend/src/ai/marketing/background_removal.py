@@ -38,11 +38,15 @@ MARKETING_AI_CAPABILITIES.md for the full investigation and the two real
 paths to actually enabling it later (a paid Render plan with real RAM
 headroom, or running this as a separate process/service).
 
-rembg itself is imported lazily, inside _remove_via_rembg() only - never
-at this module's top level - so merely having the dependency installed
-(backend/src/ai/requirements.txt) costs nothing until this specific
-provider is both configured AND actually invoked.
+rembg is an OPT-IN extra, not part of the default install
+(backend/src/ai/requirements-rembg.txt, Dockerfile.ai's INSTALL_REMBG build
+arg): it pins pillow<13, which would otherwise block Pillow's security
+fixes. When it is not installed the provider reports itself unavailable
+instead of failing at request time. It is also imported lazily, inside
+_remove_via_rembg() only - never at this module's top level - so having it
+installed costs nothing until the provider is configured AND invoked.
 """
+import importlib.util
 import logging
 import os
 from dataclasses import dataclass
@@ -85,6 +89,16 @@ class RemovedBackgroundImage:
     provider: str
 
 
+def _rembg_installed() -> bool:
+    return importlib.util.find_spec("rembg") is not None
+
+
+_NOT_INSTALLED_MESSAGE = (
+    "Background removal provider 'rembg' is configured but the rembg package is not installed in this "
+    "build (it is an opt-in extra - see requirements-rembg.txt / Dockerfile.ai INSTALL_REMBG)."
+)
+
+
 def _remove_via_rembg(image_bytes: bytes) -> bytes:
     """The one real provider implementation - isolated into its own
     function specifically so tests can patch this exact call site rather
@@ -124,6 +138,8 @@ def remove_background(image_bytes: bytes, provider: Optional[str] = None) -> Rem
             f"MARKETING_BACKGROUND_REMOVAL_PROVIDER={selected!r} is not a recognized provider (expected one of {sorted(_KNOWN_PROVIDERS)}).",
         )
 
+    if not _rembg_installed():
+        raise BackgroundRemovalError("NOT_CONFIGURED", _NOT_INSTALLED_MESSAGE)
     if not image_bytes:
         raise BackgroundRemovalError("PROVIDER_ERROR", "No source image to remove the background from.")
     if len(image_bytes) > _MAX_IMAGE_BYTES:
@@ -148,4 +164,6 @@ def get_background_removal_capability() -> dict:
     selected = os.getenv("MARKETING_BACKGROUND_REMOVAL_PROVIDER", "").strip().lower()
     if not selected or selected not in _KNOWN_PROVIDERS:
         return {"available": False, "provider": None, "reason": _NOT_CONFIGURED_MESSAGE}
+    if not _rembg_installed():
+        return {"available": False, "provider": selected, "reason": _NOT_INSTALLED_MESSAGE}
     return {"available": True, "provider": selected, "reason": None}

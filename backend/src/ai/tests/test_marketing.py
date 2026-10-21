@@ -344,6 +344,7 @@ def test_marketing_options_reports_image_generation_available_when_configured(mo
 
 def test_marketing_options_reports_background_removal_available_when_configured(monkeypatch):
     monkeypatch.setenv("MARKETING_BACKGROUND_REMOVAL_PROVIDER", "rembg")
+    monkeypatch.setattr("src.ai.marketing.background_removal._rembg_installed", lambda: True)  # opt-in extra, not in the default build
     response = client.get("/marketing/options", headers=_auth())
     assert response.status_code == 200
     assert response.json()["capabilities"]["background_removal"] == {"available": True, "provider": "rembg", "reason": None}

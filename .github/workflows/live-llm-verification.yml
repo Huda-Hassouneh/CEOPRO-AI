@@ -58,10 +58,9 @@ jobs:
 
       # Same fix pr-checks.yml already needed for this identical
       # requirements.txt: torch's default Linux wheel bundles a full
-      # CUDA/nvidia-* stack (~4.6GB) this CPU-only job never uses, and
-      # this workflow's requirements now also include PR #6's rembg
-      # (opencv/onnxruntime/scikit-image - more disk on top) - without
-      # this, "Install backend dependencies" fails with "No space left
+      # CUDA/nvidia-* stack (~4.6GB) this CPU-only job never uses, plus
+      # the other ML/scientific dependencies' disk - without this,
+      # "Install backend dependencies" fails with "No space left
       # on device" on a stock GitHub-hosted runner's ~14GB free disk.
       - name: Free disk space (unused preinstalled toolchains this job never touches)
         run: |

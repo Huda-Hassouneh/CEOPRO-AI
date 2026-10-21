@@ -21,7 +21,7 @@ httpx>=0.27,<1.0
 
 # Menu PDFs / pictures and social-post pictures (market_discovery/menu_media.py), read by the enrichment and
 # discovery workers; pytesseract also needs the tesseract binary installed in Dockerfile.market-scraper.
-Pillow>=10.1,<13.0
+Pillow>=13.0,<14.0
 pdfplumber>=0.11,<0.12
 pytesseract>=0.3.10,<0.4
 # Arabic OCR output comes back in visual order from some tesseract builds; menu_media.fix_visual_order restores it.
