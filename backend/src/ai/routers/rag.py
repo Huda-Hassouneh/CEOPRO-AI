@@ -48,7 +48,7 @@ _MAX_HISTORY_JSON_LENGTH = int(os.getenv("RAG_MAX_HISTORY_JSON_LENGTH", "20000")
 
 # An answer's claims, references and calculations, kept with the message
 # so a reopened conversation shows exactly what the user saw.
-_STORED_ANSWER_FIELDS = ("answer_blocks", "references", "calculations", "evidence_status", "research",
+_STORED_ANSWER_FIELDS = ("answer_summary", "answer_blocks", "references", "calculations", "evidence_status", "research",
                          "follow_up_questions", "answer_mode")
 
 # Why a question got no answer, for the chat to explain it in the user's
