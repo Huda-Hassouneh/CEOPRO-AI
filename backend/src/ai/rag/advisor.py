@@ -286,6 +286,14 @@ def _semantic_check(question: str, texts: List[str]) -> Optional[Callable[[str],
     return close
 
 
+def _chunk_filter(question: str, texts: List[str]) -> Callable[[str], bool]:
+    """text -> does this retrieved chunk answer `question`: it shares its words, or is the closest in meaning.
+    Closeness is measured against every retrieved chunk, the word-matched ones included - against the leftovers
+    alone the best of them always passed (a supplier agreement shown for a leave question)."""
+    close = _semantic_check(question, texts) if any(not _relevant(question, t) for t in texts) else None
+    return lambda text: _relevant(question, text) or (close is not None and close(text))
+
+
 def _status(statuses: List[dict], need: str, status: str, detail: str = "") -> None:
     statuses.append({"need": need, "status": status, **({"detail": detail} if detail else {})})
 
@@ -332,10 +340,7 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
         )
         rows = {str(row[0]): row for row in cursor.fetchall()}
     added, withheld = 0, 0
-    close = None
-    unmatched = [row[2] for row in rows.values() if not _relevant(question, row[2])]
-    if unmatched:
-        close = _semantic_check(question, unmatched)
+    admits = _chunk_filter(question, [row[2] for row in rows.values()])
     for source in context.sources:
         row = rows.get(source["chunk_id"])
         if row is None:
@@ -347,7 +352,7 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
             continue
         if added >= top_k:
             continue
-        if not _relevant(question, text) and (close is None or not close(text)):
+        if not admits(text):
             continue
         summary = (path or "").startswith("_generated/")
         title = (_w("summary_title", language, name=file_name.rsplit('.', 1)[0].replace('_', ' ')) if summary

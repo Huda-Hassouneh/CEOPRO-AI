@@ -198,6 +198,21 @@ def test_advisor_keeps_a_chunk_close_in_meaning_even_with_no_shared_word(monkeyp
     assert not close("summer campaign")
 
 
+def test_a_word_matched_chunk_stops_the_best_leftover_passing_as_relevant(monkeypatch):
+    """Retrieval returned the leave policy (shares words) and a supplier agreement (shares one). The agreement
+    is the best of the leftovers, which used to be enough to show it for a leave question."""
+    from src.ai.rag import advisor
+
+    question = "How many days of annual leave does an employee get?"
+    leave = "Staff handbook, time off. Every employee receives 21 days of paid annual leave each year."
+    supplier = "Supplier agreement summary. The payment terms are net 45 days."
+    vectors = {question: [1.0, 0.0], leave: [0.9, 0.44], supplier: [0.3, 0.95]}
+    monkeypatch.setattr(embeddings, "try_embed", lambda texts: np.array([vectors[t] for t in texts], dtype=np.float32))
+    admits = advisor._chunk_filter(question, [leave, supplier])
+    assert admits(leave)
+    assert not admits(supplier)
+
+
 def test_advisor_semantic_check_is_off_without_an_embedding_model(monkeypatch):
     from src.ai.rag import advisor
 
