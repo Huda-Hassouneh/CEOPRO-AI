@@ -20,6 +20,7 @@ from src.ai.extraction.template_contract import TEMPLATE_ID
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
+from src.ai.extraction import typed_imports
 from src.ai.extraction import minio_persistence
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.rag import pipeline as rag_pipeline
@@ -474,6 +475,13 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
             commit_every=_EXTRACTION_COMMIT_EVERY,
             storage_preupload_callback=_track_extraction_result_before_put(ctx.tenant_id, ctx.user_id, minio_client)
             if minio_client is not None else None,
+        )
+
+        # Persist the validated typed view alongside the existing raw staging
+        # rows. This is review evidence only; the established sales promotion
+        # path below remains the sole canonical-write authority.
+        typed_imports.record_sales_extraction_draft(
+            conn, tenant_id=ctx.tenant_id, actor_id=ctx.user_id, job_id=job_id, summary=summary,
         )
 
         currency_resolution = geo_currency.resolve_company_currency(conn, ctx.tenant_id)
