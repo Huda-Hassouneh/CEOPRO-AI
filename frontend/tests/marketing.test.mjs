@@ -166,3 +166,52 @@ test('studio calls: one press = one request key, the campaign language, edits an
   assert.equal(seen[1].language, 'en', 'other requests follow the screen language');
   assert.equal(seen[3].url, '/marketing/campaigns?limit=8&offset=16&q=kunafa');
 });
+
+test('image gallery api calls send the backend request shapes', async (t) => {
+  const seen = [];
+  const server = http.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      const raw = Buffer.concat(chunks).toString('utf8');
+      seen.push({ method: req.method, url: req.url, body: raw ? JSON.parse(raw) : null });
+      res.setHeader('Content-Type', 'application/json');
+      if (req.url === '/marketing/campaigns/c1/assets' && req.method === 'GET') {
+        return res.end(JSON.stringify({ campaign_id: 'c1', assets: [{ asset_id: 'a1', image_format: 'STORY', attached: true }] }));
+      }
+      if (req.url === '/marketing/campaigns/c1/assets/a1/image') {
+        res.setHeader('Content-Type', 'image/png');
+        return res.end(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+      }
+      return res.end(JSON.stringify({ ok: true, asset: { asset_id: 'a2' } }));
+    });
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => server.close());
+  const previous = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = previous; });
+
+  await marketingApi.generateImage('c1');
+  await marketingApi.generateImage('c1', { imageFormat: 'STORY', prompt: '  a cake  ', channel: 'TIKTOK', attach: false });
+  assert.deepEqual(seen[0], { method: 'POST', url: '/marketing/campaigns/c1/generate-image', body: null });
+  assert.deepEqual(seen[1].body, { image_format: 'STORY', prompt: 'a cake', channel: 'TIKTOK', attach: false });
+
+  const listed = await marketingApi.listAssets('c1');
+  assert.equal(listed.assets[0].image_format, 'STORY');
+  const blob = await marketingApi.getAssetImageBlob('c1', 'a1');
+  assert.ok(blob);
+
+  await marketingApi.updateAsset('c1', 'a1', { attach: true, channel: 'INSTAGRAM' });
+  await marketingApi.updateAsset('c1', 'a1', { channel: null });
+  await marketingApi.deleteAsset('c1', 'a1');
+  const [attach, clear, remove] = seen.slice(-3);
+  assert.deepEqual(attach, { method: 'PATCH', url: '/marketing/campaigns/c1/assets/a1', body: { attach: true, channel: 'INSTAGRAM' } });
+  assert.deepEqual(clear.body, { clear_channel: true });
+  assert.deepEqual([remove.method, remove.url], ['DELETE', '/marketing/campaigns/c1/assets/a1']);
+
+  await marketingApi.createCampaign({ text: 'Cake', generateImage: true, imageFormat: 'PORTRAIT' });
+  assert.equal(seen.at(-1).body.image_format, 'PORTRAIT');
+  await marketingApi.createCampaign({ text: 'Cake', imageFormat: 'PORTRAIT' });
+  assert.equal(seen.at(-1).body.image_format, undefined); // no image asked for: no format sent
+});

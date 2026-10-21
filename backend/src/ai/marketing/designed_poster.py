@@ -237,19 +237,22 @@ def _product_layer(photo: Image.Image, box: Tuple[int, int]) -> Image.Image:
     return photo.resize((max(1, int(photo.width * scale)), max(1, int(photo.height * scale))), Image.LANCZOS)
 
 
-def render_designed_poster(campaign: dict, reference_image: Optional[bytes] = None) -> bytes:
-    """PNG bytes of the designed poster. Never raises for a bad reference photo (it is just skipped)."""
+def render_designed_poster(campaign: dict, reference_image: Optional[bytes] = None,
+                           size: Tuple[int, int] = SIZE) -> bytes:
+    """PNG bytes of the designed poster at `size` (any shape: square, portrait,
+    story, landscape). Never raises for a bad reference photo (it is just skipped)."""
     style_name = THEME_TO_STYLE.get(campaign.get("creative_theme") or "", "minimal")
     st = STYLES[style_name]
-    width, height = SIZE
+    width, height = size
+    unit = min(width, height)  # type and spacing follow the short side, so wide formats don't get giant text
     seed = zlib.crc32(str(campaign.get("campaign_id") or campaign.get("campaign_brief") or "").encode())
-    canvas = procedural_scene(style_name, SIZE, seed).convert("RGBA")
+    canvas = procedural_scene(style_name, size, seed).convert("RGBA")
     headline, cta = pick_copy(campaign)
-    margin = int(width * 0.07)
+    margin = int(unit * 0.07)
     draw = ImageDraw.Draw(canvas)
-    head_font, head_lines = _fit(draw, headline, int(width * 0.095), width - 2 * margin, 3)
+    head_font, head_lines = _fit(draw, headline, int(unit * 0.095), width - 2 * margin, 3)
     head_h = margin + int(len(head_lines) * head_font.size * 1.18)
-    cta_font = _font(int(width * 0.04))
+    cta_font = _font(int(unit * 0.04))
     foot_h = (int(cta_font.size * 1.9) + margin) if cta else margin
     product = None
     if reference_image:
@@ -267,7 +270,7 @@ def render_designed_poster(campaign: dict, reference_image: Optional[bytes] = No
         sil = Image.new("RGBA", product.size, (0, 0, 0, 110))
         sil.putalpha(product.getchannel("A").point(lambda v: int(v * 0.43)))
         shadow.paste(sil, (px, py + int(product.height * 0.03)), sil)
-        canvas = Image.alpha_composite(canvas, shadow.filter(ImageFilter.GaussianBlur(width // 70)))
+        canvas = Image.alpha_composite(canvas, shadow.filter(ImageFilter.GaussianBlur(unit // 70)))
         canvas.alpha_composite(product, (px, py))
         draw = ImageDraw.Draw(canvas)
         y = margin
@@ -278,7 +281,7 @@ def render_designed_poster(campaign: dict, reference_image: Optional[bytes] = No
         y += int(head_font.size * 1.18)
     if cta:
         text = _shape(cta)
-        w = int(draw.textlength(text, font=cta_font)) + int(width * 0.08)
+        w = int(draw.textlength(text, font=cta_font)) + int(unit * 0.08)
         h = int(cta_font.size * 1.9)
         x0, y0 = (width - w) // 2, height - margin - h
         draw.rounded_rectangle((x0, y0, x0 + w, y0 + h), radius=h // 2, fill=st.accent)
