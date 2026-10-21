@@ -954,4 +954,11 @@ Verification outcomes by run: pre-correction baseline **77 passed**; after the c
 
 Read-only refresh recorded `origin/main` at `c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90`, merge base `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c`, with nine upstream-only commits. No upstream change modifies `backend/src/ai/pricing/pipeline.py`, `data_access.py`, `evidence.py`, or the pricing router. There is adjacent overlap: upstream commit `c1d7f5e` changes `core/usage.py`; upstream commit `b39b292` changes `core/entitlements.py` and `core/usage.py`; upstream pricing-comparison commits (`01ff0e0`, `891ea10`, `b41d9cf`) touch `test_pricing_comparisons.py`. In particular, the current origin versions remove pieces of the integration branch's ENT-009 cache version/trial-expiry checks and weaken `reserve_request` identity/failure guards. These changes were not merged or copied and must be reconciled before any later Phase 5 work uses those authorities. The pricing-comparison test changes concern the monthly comparison report, not recommendation orchestration.
 
+Local checkpoints on `integration/keel-full-migration`:
+
+- `24251c5ed7f72db8a936b421be697647cf61a75f` - record the Phase 5A source/evidence reconciliation and initial focused verification.
+- `fb5f1bb39eb604c21959b111b4c28d49ef7e1ec7` - add fail-closed confidence validation, regression coverage, and post-change acceptance evidence.
+
+Both commits are local; no migration or production activation was performed.
+
 Phase 5A is **partially complete, not production-ready**. Existing recommendation algorithms and guardrails are preserved and verified, but entitlement/metering, durable idempotency, O-PRICE specifics, evidence constraint coverage, and history/UI acceptance remain open. Phase 5B should not begin until the owner decides the `ai_pricing` mapping/charging boundary and O-PRICE eligibility semantics, or explicitly carves out independent MPI work that consumes only its own approved market inputs and does not depend on pricing recommendation identity or unresolved freshness.
