@@ -54,6 +54,74 @@ def pricing_recommend_all(ctx: TenantContext = Depends(get_tenant_context)) -> d
         conn.close()
 
 
+@router.get("/history/{product_id}")
+def pricing_recommendation_history(
+    product_id: UUID,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """Read this tenant's persisted recommendation evidence for one product.
+
+    This is a read-only projection over the existing shared evidence and
+    recommendation-outcome tables. It does not create a second history store
+    or imply that a recommendation was applied to the product price.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM products WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;",
+                (ctx.tenant_id, str(product_id)),
+            )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Product not found")
+            cursor.execute(
+                """
+                SELECT outcome.recommendation_id, evidence.evidence_id, evidence.generated_at,
+                       outcome.recommended_action, outcome.user_decision,
+                       evidence.confidence_score, evidence.explanation_text,
+                       evidence.source_record_ids ->> 'data_basis'
+                FROM evidence_records AS evidence
+                LEFT JOIN recommendation_outcomes AS outcome
+                  ON outcome.tenant_id = evidence.tenant_id
+                 AND outcome.evidence_id = evidence.evidence_id
+                WHERE evidence.tenant_id = %s
+                  AND evidence.category = 'RECOMMENDATION'
+                  AND evidence.source_module = %s
+                  AND evidence.source_record_ids ->> 'product_id' = %s
+                ORDER BY evidence.generated_at DESC, evidence.evidence_id DESC
+                LIMIT %s OFFSET %s;
+                """,
+                (ctx.tenant_id, pricing_pipeline.SOURCE_MODULE, str(product_id), limit + 1, offset),
+            )
+            rows = cursor.fetchall()
+        conn.commit()
+        has_more = len(rows) > limit
+        items = [
+            {
+                "recommendation_id": str(row[0]) if row[0] else None,
+                "evidence_id": str(row[1]),
+                "generated_at": row[2].isoformat() if row[2] else None,
+                "recommended_action": row[3],
+                "user_decision": row[4],
+                "confidence_score": float(row[5]) if row[5] is not None else None,
+                "explanation": row[6],
+                "data_basis": row[7],
+            }
+            for row in rows[:limit]
+        ]
+        return {"items": items, "limit": limit, "offset": offset, "has_more": has_more}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def _uuid_list(raw: str) -> list:
     try:
         ids = [str(UUID(part.strip())) for part in raw.split(",") if part.strip()]
