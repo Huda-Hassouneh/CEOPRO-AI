@@ -231,10 +231,14 @@ def test_partial_api_connector_result_is_not_reported_as_completed(conn):
     with patch("src.market_scraper.api_connector_sync.httpx.get", side_effect=[
              _fake_api_response([{"name":"Widget","qty":1,"price":2}]), _fake_api_response([])]), \
          patch("src.market_scraper.api_connector_sync.process_records", return_value=partial):
-        result = _run_with_receipt(conn, tenant_id, source_id)
+        results = run_due_api_connector_syncs(conn, tenant_id)
+    assert len(results) == 1 and results[0]["source_id"] == source_id
+    assert "error" in results[0]
     with conn.cursor() as cursor:
-        cursor.execute("SELECT job_status,error_log,last_synced_at FROM ingestion_jobs j JOIN data_sources ds USING (tenant_id,source_id) WHERE j.tenant_id=%s AND j.job_id=%s;", (tenant_id, result["job_id"]))
+        cursor.execute("SELECT job_status,error_log,last_synced_at FROM ingestion_jobs j JOIN data_sources ds USING (tenant_id,source_id) WHERE j.tenant_id=%s AND j.job_id=%s;", (tenant_id, results[0]["job_id"]))
         status, error, synced_at = cursor.fetchone()
+        cursor.execute("SELECT state,error_code FROM keel_operation_receipts WHERE tenant_id=%s::uuid AND source_id=%s::uuid;", (tenant_id, source_id))
+        receipt_state, receipt_error = cursor.fetchone()
     assert status == "FAILED"
-    assert error
-    assert synced_at is None
+    assert error and synced_at is None
+    assert (receipt_state, receipt_error) == ("failed", "CONNECTOR_ROWS_NOT_FULLY_PROCESSED")
