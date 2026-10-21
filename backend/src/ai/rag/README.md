@@ -122,6 +122,7 @@ Main fields of `result`:
 | Field | Meaning |
 |---|---|
 | `answer` | Plain text with superscript markers (¹ ² …), for clients that cannot render blocks. |
+| `answer_summary` | The short answer (one or two checked claims) shown first when the full answer is long; `null` when the answer is already short. The model writes it as the first field of its JSON; otherwise it is the answer's first statements. In evidence mode it is the one sentence that best matches the question. `answer` and `answer_blocks` stay the full answer. |
 | `answer_blocks` | Headings, paragraphs, lists and tables made of claims; each claim lists its reference numbers, its kind (fact, calculation, regulation, recommendation, …) and whether it was verified. |
 | `references` | Numbered by first use: title, kind, credibility, excerpt, page or screen link, source URL, publication and retrieval dates, limitations, and the calculation trace for calculated figures. |
 | `calculations` | Deterministic landed-cost results (steps, inputs, missing inputs, assumptions, sensitivity). |
