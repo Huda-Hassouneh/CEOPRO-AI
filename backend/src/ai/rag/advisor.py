@@ -29,10 +29,12 @@ import json
 import logging
 import os
 import re
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Callable, Dict, List, Optional
 
+from src.ai.billing import credits
 from src.ai.rag import access as acl
 from src.ai.rag import business_analysis, citations, evidence as ev, llm_client, product_guide, understanding, untrusted
 from src.ai.rag.business_tools import build_financial_facts_block
@@ -732,6 +734,34 @@ def _messages(question: str, u: understanding.Understanding, company: dict, acce
             {"role": "user", "content": _prompt(question, u, company, access, registry, statuses, compact)}]
 
 
+# Refusals by AI Credits that are about the server, not the company: the model
+# has no confirmed price, or its provider is switched off / over its platform
+# cap. The company did nothing wrong and has plenty of credits, so the question
+# still gets its evidence (the same fallback as a provider outage) instead of a
+# bare error. A company's own plan or credit limit (SUBSCRIPTION_INACTIVE,
+# BUDGET_EXHAUSTED, ...) is deliberately not here: that refusal is the answer.
+_SERVER_SIDE_REFUSALS = {"COST_NOT_CONFIGURED": llm_client.LLMNotConfiguredError,
+                         "PROVIDER_DISABLED": llm_client.LLMError, "PROVIDER_CAP_REACHED": llm_client.LLMError}
+
+
+@contextmanager
+def _server_refusals_as_llm_errors():
+    try:
+        yield
+    except credits.BudgetError as err:
+        error_type = _SERVER_SIDE_REFUSALS.get(err.reason)
+        if error_type is None:
+            raise
+        raise error_type(f"AI call refused by the server's billing setup: {err.reason} ({err.detail})") from err
+
+
+def _guarded(ask):
+    def call(*args, **kwargs):
+        with _server_refusals_as_llm_errors():
+            return ask(*args, **kwargs)
+    return call
+
+
 def _call(messages: list, usage: dict, max_tokens: int = MAX_TOKENS) -> str:
     text, call_usage = llm_client._chat_completion_with_usage(messages, max_tokens=max_tokens, json_mode=True,
                                                               temperature=0.1)
@@ -881,7 +911,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
 
     ask = None
     if llm_client.provider_configured():
-        ask = llm_client.chat_completion
+        ask = _guarded(llm_client.chat_completion)
     research_result = None
     # "Price" or "cost" alone is not a private question: "the average water price" is about the world.
     private_only = bool(u.intents) and set(u.intents) <= _PRIVATE_ONLY and not u.public_scope
@@ -907,8 +937,9 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     regulatory = bool({U.REGULATION, U.TRADE, U.LANDED_COST} & set(u.intents))
     mode, repaired, issue_count = "ai", False, 0
     try:
-        draft, mode, issue_count, repaired = _draft(question, u, company, access, registry, statuses, history,
-                                                    usage, regulatory, language)
+        with _server_refusals_as_llm_errors():
+            draft, mode, issue_count, repaired = _draft(question, u, company, access, registry, statuses, history,
+                                                        usage, regulatory, language)
     except llm_client.LLMError as err:
         if not len(registry):
             raise
