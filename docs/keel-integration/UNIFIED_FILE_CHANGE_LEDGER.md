@@ -1307,3 +1307,33 @@ The panel consumes the actual backend routes: `GET /extraction/import-drafts`, `
 - The existing upload request remains synchronous and has no crash-resume worker contract; this frontend does not claim upload recovery after a process interruption.
 - Review approval remains review-only for invoice and inventory drafts. Grouped invoice/order reconciliation, tax/payment/refund semantics, canonical inventory updates, and frontend flows for those downstream operations remain out of scope.
 - The UI exposes no upload retry identity and makes no claim that a reviewed invoice, inventory draft, or ambiguous product has been canonically posted.
+
+
+## Operational commerce connector-to-evidence integration ? 2026-10-21
+
+### Implementation
+
+- Added `backend/src/market_scraper/provider_store_sync.py` and wired it into the existing scheduled connector worker and tenant discovery. Only active, policy-ALLOWED Shopify sources with an M94 `verified` binding are dispatched. The adapter uses the M94 verified shop domain and the existing credential vault token; it performs an authenticated shop identity check before each stream. API version and page count remain bounded by the existing Shopify client.
+- Separate `products`, `orders`, and `inventory` streams use existing ENT-008 source receipts and ingestion jobs. Product, variant, order, and line-item IDs/revisions are persisted by M95; Shopify locations and distinct `available`/`on_hand` inventory observations are persisted by M96. No raw order/product/customer payload is stored. Identity conflicts stay in M95 review states; inventory conflicts stay in M96 reconciliation states.
+- Each stream's evidence writes, completed ingestion job, `last_synced_at`, and M94 checkpoint advance share one transaction guarded by the current ENT-008 lease and source credential/configuration fingerprint. Checkpoints currently record completed full scans with an empty continuation because the Shopify adapter consumes GraphQL cursors but does not expose its final cursor to the worker. Retried runs repeat the full bounded read; M95/M96 writes are idempotent.
+- Expired provider-started receipts return to retryable only for active, policy-ALLOWED, M94-verified Shopify reads handled by this worker. It performs read-only GraphQL and idempotent M95/M96 persistence. Other uncertain provider operations retain `reconciliation_required`. Safe retry reopens the receipt's own FAILED ingestion job under the current pre-provider lease instead of creating an unattached replacement. Failed evidence persistence does not advance a checkpoint.
+- WooCommerce is discovered by the scheduler but blocked before receipt creation/provider access unless stable verified M94 identity exists. Its current Python verification confirms REST access only and cannot safely bind a store.
+
+### Verification
+
+- Focused suite: **59 passed, 39 skipped, 0 failed** across new orchestration tests, Shopify/Woo adapters, M94 lifecycle, M95 identities, M96 inventory, generic API worker regressions, and M97 typed-import service tests. The 39 skips require native PostgreSQL credentials.
+- A real-dependency test venv was installed in the OS temp directory. No repository dependency manifest changed.
+- Native PostgreSQL/RLS verification was attempted but not executed: Docker Desktop denied its named pipe; the local PostgreSQL 17 service requires an unavailable password, and its local PostgreSQL distribution lacks the pgvector extension files. The service was not modified. No native RLS, concurrency, lease-fencing, or checkpoint SQL claim is made for this batch.
+- No real merchant requests/credentials, connection activation, webhook activation, canonical writes, quota changes, billing, usage or Credit changes occurred.
+
+### Remaining operational gaps
+
+- Shopify OAuth/app distribution, token issuance/refresh, registration routes and live activation remain O-PROVIDER gates. The worker expects the vaulted credential object to expose `access_token`; this was exercised only with synthetic in-memory credentials.
+- WooCommerce remains fail-closed because current official REST auth/API behavior and the Python adapter do not yield a stable verified store identifier. Woo provider reads, identity, inventory and orders are not dispatched.
+- M95 stores provider identity/revision evidence, not normalized product/order values. M97 has no provider product/order typed draft category; the worker therefore does not claim full business-record staging. A separate schema/API approval may be needed if these values cannot fit approved typed contracts.
+- Inventory evidence is Shopify-only here. No canonical stock changes, location aggregation, source authority inference, Woo physical locations, invoice/order posting, refunds or cross-source mapping occur.
+- No webhook-to-worker routing or public receiver activation was added. M97 browser E2E, upload POST request-level retry identity, native worker crash/restart verification and provider certification remain outstanding.
+
+### Acceptance and follow-up
+
+Updated original `AT-CONNECT-003?005`, `AT-STORE-001/003?007`, `AT-SHOP-004/005`, and `AT-WOO-004?006` rows. The rows distinguish Shopify identity/inventory evidence from canonical promotion and record native-verification skips. O-PROVIDER, O-IMPORT/O-SOURCE, U6 and O-ECON gates remain intact. No Migration 98 was created. Any M98 proposal should be limited to allowlisted provider product/order value staging and adapter-to-worker cursor continuation only if the approved M97 contracts cannot express them; it must not duplicate M95 identity, M96 inventory, canonical financial authorities or accounting.

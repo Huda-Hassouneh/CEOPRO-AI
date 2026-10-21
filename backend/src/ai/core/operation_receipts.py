@@ -170,7 +170,10 @@ def authorize_operation(conn, operation_type: str, tenant_id: str, target_kind: 
             cursor.execute(
                 "SELECT 1 FROM public.data_sources WHERE tenant_id=%s::uuid AND source_id=%s::uuid "
                 "AND is_active IS TRUE AND policy_status='ALLOWED' "
-                "AND collector_key IN ('db_connector','api_connector');",
+                "AND (collector_key IN ('db_connector','api_connector') OR "
+                "(collector_key='shopify' AND EXISTS (SELECT 1 FROM public.keel_provider_sources p "
+                "WHERE p.tenant_id=data_sources.tenant_id AND p.source_id=data_sources.source_id "
+                "AND p.provider='shopify' AND p.connection_state='verified')));",
                 (tenant_id, target_id),
             )
             if cursor.fetchone() is None:
@@ -461,22 +464,40 @@ def assert_fence(conn, receipt: dict, allow_pre_provider: bool = False) -> None:
     authorize_operation(conn, row[2], receipt["tenant_id"], row[3], str(row[4]), str(row[0]), row[1])
 
 
-def finish(conn, receipt: dict, state: str, error_code: str | None = None) -> None:
+def finish(conn, receipt: dict, state: str, error_code: str | None = None, *,
+           replay_safe_provider_read: bool = False) -> None:
     if state not in {"completed", "retryable", "reconciliation_required", "failed", "denied"}:
         raise ValueError("invalid terminal receipt transition")
+    if replay_safe_provider_read:
+        if state != "retryable" or receipt.get("operation_type") != SCHEDULED_CONNECTOR_SYNC:
+            raise ReceiptAuthorizationError("safe provider-read replay is only valid for retryable connector reads")
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM public.data_sources ds JOIN public.keel_provider_sources ps "
+                "ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id "
+                "WHERE ds.tenant_id=%s::uuid AND ds.source_id=%s::uuid "
+                "AND ds.is_active IS TRUE AND ds.policy_status='ALLOWED' "
+                "AND ds.collector_key='shopify' AND ps.provider='shopify' "
+                "AND ps.connection_state='verified';",
+                (receipt["tenant_id"], receipt["source_id"]),
+            )
+            if cursor.fetchone() is None:
+                raise ReceiptAuthorizationError("source is not eligible for safe provider-read replay")
     if state == "completed":
         authorize_operation(conn, receipt["operation_type"], receipt["tenant_id"], receipt["target_kind"],
                             receipt["target_id"], receipt["actor_user_id"], receipt["period_start"])
     with conn.cursor() as cursor:
         cursor.execute(
             "UPDATE public.keel_operation_receipts SET state=%s, error_code=%s, "
-            "provider_outcome=CASE WHEN provider_started_at IS NOT NULL AND %s='completed' THEN 'completed' "
+            "provider_outcome=CASE WHEN %s THEN 'not_started' "
+            "WHEN provider_started_at IS NOT NULL AND %s='completed' THEN 'completed' "
             "WHEN provider_started_at IS NOT NULL THEN 'unknown' ELSE 'not_started' END, "
+            "provider_started_at=CASE WHEN %s THEN NULL ELSE provider_started_at END, "
             "lease_owner=NULL, lease_expires_at=NULL, completed_at=CASE WHEN %s='completed' THEN NOW() ELSE NULL END, "
             "updated_at=NOW() WHERE tenant_id=%s::uuid AND receipt_id=%s::uuid "
             "AND lease_owner=%s AND lease_generation=%s AND state IN ('authorized','provider_started');",
-            (state, error_code, state, state, receipt["tenant_id"], receipt["receipt_id"],
-             receipt["worker_id"], receipt["lease_generation"]),
+            (state, error_code, replay_safe_provider_read, state, replay_safe_provider_read, state,
+             receipt["tenant_id"], receipt["receipt_id"], receipt["worker_id"], receipt["lease_generation"]),
         )
         if cursor.rowcount != 1:
             conn.rollback()
@@ -485,7 +506,12 @@ def finish(conn, receipt: dict, state: str, error_code: str | None = None) -> No
 
 
 def recover_expired(conn, tenant_id: str) -> dict[str, int]:
-    """Expire pre-send claims for retry; never retry uncertain provider work."""
+    """Expire claims safely; only verified Shopify read/evidence syncs replay.
+
+    Other provider operations retain reconciliation-required handling for an
+    uncertain outcome. Shopify replay is restricted to active verified store
+    bindings whose worker performs read-only GraphQL and idempotent M95/M96 writes.
+    """
     with conn.cursor() as cursor:
         cursor.execute(
             "UPDATE public.keel_operation_receipts SET state='retryable', lease_owner=NULL, "
@@ -497,9 +523,30 @@ def recover_expired(conn, tenant_id: str) -> dict[str, int]:
         cursor.execute(
             "UPDATE public.keel_operation_receipts SET state='reconciliation_required', "
             "provider_outcome='unknown', lease_owner=NULL, lease_expires_at=NULL, updated_at=NOW() "
-            "WHERE tenant_id=%s::uuid AND state='provider_started' AND lease_expires_at < NOW();",
-            (tenant_id,),
+            "WHERE tenant_id=%s::uuid AND state='provider_started' AND lease_expires_at < NOW() "
+            "AND NOT (operation_type=%s AND target_kind='source' AND EXISTS ("
+            "SELECT 1 FROM public.data_sources ds JOIN public.keel_provider_sources ps "
+            "ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id "
+            "WHERE ds.tenant_id=keel_operation_receipts.tenant_id "
+            "AND ds.source_id=keel_operation_receipts.target_id AND ds.is_active IS TRUE "
+            "AND ds.policy_status='ALLOWED' AND ds.collector_key='shopify' "
+            "AND ps.provider='shopify' AND ps.connection_state='verified'));",
+            (tenant_id, SCHEDULED_CONNECTOR_SYNC),
         )
         uncertain = cursor.rowcount
+        cursor.execute(
+            "UPDATE public.keel_operation_receipts SET state='retryable',provider_started_at=NULL, "
+            "provider_outcome='not_started',lease_owner=NULL,lease_expires_at=NULL,updated_at=NOW() "
+            "WHERE tenant_id=%s::uuid AND state='provider_started' AND lease_expires_at < NOW() "
+            "AND operation_type=%s AND target_kind='source' AND EXISTS ("
+            "SELECT 1 FROM public.data_sources ds JOIN public.keel_provider_sources ps "
+            "ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id "
+            "WHERE ds.tenant_id=keel_operation_receipts.tenant_id "
+            "AND ds.source_id=keel_operation_receipts.target_id AND ds.is_active IS TRUE "
+            "AND ds.policy_status='ALLOWED' AND ds.collector_key='shopify' "
+            "AND ps.provider='shopify' AND ps.connection_state='verified'));",
+            (tenant_id, SCHEDULED_CONNECTOR_SYNC),
+        )
+        retryable += cursor.rowcount
     conn.commit()
     return {"retryable": retryable, "reconciliation_required": uncertain}

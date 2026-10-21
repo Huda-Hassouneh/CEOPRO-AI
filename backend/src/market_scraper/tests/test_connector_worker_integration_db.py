@@ -126,14 +126,17 @@ def test_run_connector_syncs_for_tenant_runs_both_connector_types_independently(
     tenant_id = _insert_active_connector(admin_conn, connector_worker.connector_sync.DB_CONNECTOR_COLLECTOR_KEY)
 
     with patch("src.market_scraper.connector_worker.connector_sync.run_due_connector_syncs", return_value=[{"source_id": "s1"}]) as mock_db, \
-         patch("src.market_scraper.connector_worker.api_connector_sync.run_due_api_connector_syncs", return_value=[{"source_id": "s2"}]) as mock_api:
+         patch("src.market_scraper.connector_worker.api_connector_sync.run_due_api_connector_syncs", return_value=[{"source_id": "s2"}]) as mock_api, \
+         patch("src.market_scraper.connector_worker.provider_store_sync.run_due_provider_syncs", return_value=[]) as mock_provider:
         result = connector_worker.run_connector_syncs_for_tenant(tenant_id)
 
     mock_db.assert_called_once()
     mock_api.assert_called_once()
+    mock_provider.assert_called_once()
     assert mock_db.call_args.args[1] == tenant_id
     assert mock_api.call_args.args[1] == tenant_id
-    assert result == {"db_connector": [{"source_id": "s1"}], "api_connector": [{"source_id": "s2"}]}
+    assert result == {"db_connector": [{"source_id": "s1"}], "api_connector": [{"source_id": "s2"}],
+                      "provider_store": []}
 
 
 def test_run_connector_syncs_for_tenant_isolates_db_connector_failure_from_api_connector(admin_conn):
@@ -144,10 +147,12 @@ def test_run_connector_syncs_for_tenant_isolates_db_connector_failure_from_api_c
     tenant_id = _insert_active_connector(admin_conn, connector_worker.connector_sync.DB_CONNECTOR_COLLECTOR_KEY)
 
     with patch("src.market_scraper.connector_worker.connector_sync.run_due_connector_syncs", side_effect=RuntimeError("boom")), \
-         patch("src.market_scraper.connector_worker.api_connector_sync.run_due_api_connector_syncs", return_value=[{"source_id": "s2"}]) as mock_api:
+         patch("src.market_scraper.connector_worker.api_connector_sync.run_due_api_connector_syncs", return_value=[{"source_id": "s2"}]) as mock_api, \
+         patch("src.market_scraper.connector_worker.provider_store_sync.run_due_provider_syncs", return_value=[]) as mock_provider:
         result = connector_worker.run_connector_syncs_for_tenant(tenant_id)
 
     mock_api.assert_called_once()  # still ran despite the DB-connector batch crashing
+    mock_provider.assert_called_once()
     assert "error" in result["db_connector"][0]
     assert result["api_connector"] == [{"source_id": "s2"}]
 
@@ -156,15 +161,18 @@ def test_receipt_rollout_gate_off_skips_connector_dispatch(monkeypatch):
     monkeypatch.setenv("KEEL_ENT008_STAGE2_ENABLED", "false")
     with patch("src.market_scraper.connector_worker.data_access.get_tenant_connection") as connection, \
          patch("src.market_scraper.connector_worker.connector_sync.run_due_connector_syncs") as db_sync, \
-         patch("src.market_scraper.connector_worker.api_connector_sync.run_due_api_connector_syncs") as api_sync:
+         patch("src.market_scraper.connector_worker.api_connector_sync.run_due_api_connector_syncs") as api_sync, \
+         patch("src.market_scraper.connector_worker.provider_store_sync.run_due_provider_syncs") as provider_sync:
         result = connector_worker.run_connector_syncs_for_tenant("tenant-1")
 
     connection.assert_not_called()
     db_sync.assert_not_called()
     api_sync.assert_not_called()
+    provider_sync.assert_not_called()
     assert result == {
         "db_connector": {"skipped": "receipt_worker_rollout_disabled"},
         "api_connector": {"skipped": "receipt_worker_rollout_disabled"},
+        "provider_store": {"skipped": "receipt_worker_rollout_disabled"},
     }
 
 

@@ -1,6 +1,6 @@
 """
-KEEL - Scheduled worker for both connector types (direct-database and
-generic API/POS/ERP) - the real running process that was missing entirely
+KEEL - Scheduled worker for database, generic API, and verified store connectors -
+the real running process that was missing entirely
 until now. connector_sync.py's DB-connector sync path
 (run_due_connector_syncs()) was fully built and tested but never called
 by anything in the deployed system; api_connector_sync.py (this same
@@ -39,7 +39,7 @@ import logging
 import os
 import time
 
-from src.market_scraper import api_connector_sync, connector_sync, data_access
+from src.market_scraper import api_connector_sync, connector_sync, data_access, provider_store_sync
 from src.market_scraper.enrichment_queue import receipt_operations_enabled
 
 logger = logging.getLogger("CEOPRO_AI_CONNECTOR_WORKER")
@@ -61,6 +61,8 @@ _DISCOVERY_CONTEXT_TENANT_ID = "00000000-0000-0000-0000-000000000000"
 _CONNECTOR_COLLECTOR_KEYS = [
     connector_sync.DB_CONNECTOR_COLLECTOR_KEY,
     api_connector_sync.API_CONNECTOR_COLLECTOR_KEY,
+    provider_store_sync.SHOPIFY_COLLECTOR_KEY,
+    provider_store_sync.WOOCOMMERCE_COLLECTOR_KEY,
 ]
 
 
@@ -80,8 +82,7 @@ def discover_tenants_with_connectors() -> list:
 
 def run_connector_syncs_for_tenant(tenant_id: str) -> dict:
     """
-    Runs every due source of both connector types for one tenant, on one
-    real RLS-scoped connection. Each connector type's own run_due_*_
+    Runs every due connector source for one tenant on one RLS-scoped connection. Each connector type's own run_due_*_
     connector_syncs() already isolates one source's failure from another
     within that type; this isolates the two connector TYPES from each
     other the same way - an API connector outage must never block an
@@ -90,7 +91,8 @@ def run_connector_syncs_for_tenant(tenant_id: str) -> dict:
     """
     if not receipt_operations_enabled():
         return {"db_connector": {"skipped": "receipt_worker_rollout_disabled"},
-                "api_connector": {"skipped": "receipt_worker_rollout_disabled"}}
+                "api_connector": {"skipped": "receipt_worker_rollout_disabled"},
+                "provider_store": {"skipped": "receipt_worker_rollout_disabled"}}
     conn = data_access.get_tenant_connection(tenant_id)
     try:
         db_results = connector_sync.run_due_connector_syncs(conn, tenant_id)
@@ -102,9 +104,15 @@ def run_connector_syncs_for_tenant(tenant_id: str) -> dict:
     except Exception as e:  # noqa: BLE001 - see above, symmetrically
         logger.warning("api connector sync batch failed for tenant=%s error_type=%s", tenant_id, type(e).__name__)
         api_results = [{"error": f"API connector batch failed ({type(e).__name__})."}]
+    try:
+        provider_results = provider_store_sync.run_due_provider_syncs(conn, tenant_id)
+    except Exception as e:  # noqa: BLE001 - keep provider failures isolated from generic connectors
+        logger.warning("provider store sync batch failed for tenant=%s error_type=%s", tenant_id, type(e).__name__)
+        provider_results = [{"error": f"Provider store sync batch failed ({type(e).__name__})."}]
     finally:
         conn.close()
-    return {"db_connector": db_results, "api_connector": api_results}
+    return {"db_connector": db_results, "api_connector": api_results,
+            "provider_store": provider_results}
 
 
 def run_once() -> dict:
