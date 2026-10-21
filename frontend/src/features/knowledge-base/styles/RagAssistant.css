@@ -129,6 +129,13 @@
 .rag-answer-copy h4 { margin: 10px 0 6px; font-size: 13px; }
 .rag-evidence-note { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px; padding: 4px 10px; border-radius: 999px; font-size: 11px; color: var(--ceopro-text-secondary); background: var(--apex-glass); border: 1px solid var(--ceopro-border-soft); }
 
+/* A long answer opens on its short summary; the full answer is a disclosure. */
+.rag-answer-summary { margin: 0 0 6px; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.65; overflow-wrap: anywhere; color: var(--ceopro-text-primary); }
+.rag-answer-details { margin-top: 4px; }
+.rag-answer-details > summary { display: inline-flex; align-items: center; gap: 6px; padding: 3px 0; cursor: pointer; color: var(--ceopro-primary); font-size: 11px; font-weight: 600; }
+.rag-answer-details > summary:focus-visible { outline: 2px solid var(--ceopro-primary); outline-offset: 2px; border-radius: 4px; }
+.rag-answer-details[open] > summary { margin-bottom: 6px; }
+
 /* Claim-level references (rag/advisor.py): markers beside claims, the
    numbered reference list and the reference panel. Logical properties keep
    every part correct in right-to-left layouts. */
