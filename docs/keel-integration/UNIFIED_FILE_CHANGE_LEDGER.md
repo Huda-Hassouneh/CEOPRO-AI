@@ -1170,3 +1170,35 @@ The migration adds only a composite unique index on existing operation receipt `
 - Customer connected-source counts and rights were not changed. Hard tenant deletion will now be blocked while provider bindings/checkpoints/deliveries remain; the future tenant-erasure workflow must explicitly handle that evidence.
 
 This advances the provider lifecycle foundation but does not make WooCommerce or Shopify production-operational and does not complete Phases 3–5. Store scheduling, staging/review, identity mappings, inventory/order reconciliation, privacy handling and live provider certification remain prerequisites for production activation.
+
+## Provider record identity and reviewed association — Migration 95 — 2026-10-21
+
+The owner explicitly authorized Migration 95 and its implementation on 2026-10-21. Migration `20261028000700_provider_record_identity.sql` is the next chronological migration after M94. Migrations 1–94 remain unchanged. O-IMPORT, O-SOURCE, U6, and the approved safe PRIVACY-001 foundation are incorporated as approved; this migration implements only the product/variant/order/line identity and reviewed-association portion of O-IMPORT.
+
+### Schema and enforcement
+
+- Added `keel_provider_record_identities`, uniquely keyed by tenant, M94 verified source, provider, entity type, and provider record ID. Provider IDs remain source-namespaced; Shopify GIDs are entity-typed and WooCommerce IDs are positive decimal provider IDs. Product names, SKUs, and barcodes are not identity keys.
+- Added same-tenant/source/provider parent and related-identity constraints for variants, orders and line items; composite links preserve optional ingestion-job provenance and optional canonical product, transaction or invoice references. Canonical targets are association references only; no canonical write or promotion occurs.
+- Added `keel_provider_record_revisions` for append-only, deduplicated revision fingerprints and `keel_provider_record_reviews` for one immutable explicit association decision with database-derived reviewer identity and safe reason/evidence metadata.
+- New tables have FORCE RLS. `ceopro_app` receives tenant-filtered SELECT only; narrowly scoped SECURITY DEFINER observe/associate functions use a hardened search path, trusted tenant/actor context, verified M94 source binding, active-principal checks, existing tenant owner/admin review roles, concurrency locks and explicit EXECUTE grants. Direct application-role writes are denied.
+- Restrictive foreign keys protect tenant, source, parent identity, revisions, review actor, and canonical targets from hard deletion while dependent evidence exists. Disconnection/deactivation does not delete identity evidence. No cascade, anonymization, retention timer, backfill, PII, raw provider payload, credential or accounting record was added.
+- On duplicate observations, identical versioned revisions are idempotent; a strictly newer timestamp can advance non-reviewed revision metadata; stale observations do not replace newer revisions; equal-time incompatible revisions or changed parent/provider references mark the identity conflict while retaining any reviewed canonical association. Repeated observations without any provider revision marker are treated as ambiguous and held as conflict because unchanged content cannot be proven without storing provider payloads. Missing provider IDs fail before persistence.
+
+### Python integration and boundaries
+
+`src/market_scraper/provider_identity.py` consumes existing Shopify and WooCommerce adapter records and persists only provider IDs, parent/related provider references, revision metadata/fingerprints and optional ingestion-job identity. It does not persist source payloads/customer information, create new connections, change capacity, write canonical business data, reconcile order/refund semantics, update inventory, or expose a new public review/admin route. Internal association persistence is available only through the existing tenant owner/admin database authorization contract; no reviewer ID is accepted from the caller. A WooCommerce numeric ID normalization defect discovered by native tests was corrected so the helper safely accepts its own canonical decimal representation on repeated normalization.
+
+### Verification evidence
+
+- Fresh disposable PostgreSQL 17/pgvector install applied migrations 1–95; a repeat run applied 0 migrations.
+- Populated disposable 94→95 upgrade passed with seeded company, `data_sources`, product and verified provider-source counts unchanged (`1,1,1,1`); repeat applied 0 migrations.
+- `test_provider_identity.py`: 7 passed using actual restricted `ceopro_app`; covered RLS/direct-write denial, provider/source namespace separation, concurrent replay, product/variant/order/line persistence, reviewed and idempotent association, conflict preservation for incompatible and unversioned records, cross-source parent rejection, cross-tenant invisibility/association denial, PII non-persistence, and tenant/source/parent/canonical deletion restrictions.
+- `test_provider_lifecycle_integration_db.py`: 6 passed against the database at M95, preserving M94 registration/checkpoint/delivery behavior.
+- Existing `test_shopify_adapter.py` and `test_woocommerce_adapter.py`: 25 passed, confirming the read-only provider adapter contracts remain compatible.
+- Tests used synthetic fixtures and disposable services only; no live provider certification or production activation is claimed. Subscription-capacity and usage/Credit rows were not changed by migration 95 or its helpers; provider sync activation remains disabled.
+
+### Remaining boundaries
+
+M95 does not implement inventory location/ownership observations, typed import drafts, canonical product/order/invoice promotion, refunds/order revisions, webhook/privacy persistence, Shopify OAuth, or live provider activation. Those remain in later separately authorized schema/contract batches. Provider-specific identity verification and app/credential flows remain O-PROVIDER gated. Existing canonical associations require explicit review and cannot be overwritten by later syncs. No Migration 96 work is started.
+
+This checkpoint is verified locally and is intended for a scoped local commit after final diff review. Upstream comparison remains stale at `origin/main=c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90`; the previous proxy/FETCH_HEAD issue prevented safe refresh. No upstream changes were merged or copied.
