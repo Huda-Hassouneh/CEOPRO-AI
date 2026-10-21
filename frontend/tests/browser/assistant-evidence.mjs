@@ -72,7 +72,10 @@ check(await configured.locator('.rag-answer-details li').first().isHidden(), 'th
 const closedLabel = await toggle.textContent();
 await toggle.click();
 check(await configured.locator('.rag-answer-details li').first().isVisible(), 'the toggle does not reveal the full answer');
-check(await toggle.textContent() !== closedLabel, 'the toggle label does not change when it opens');
+const relabelled = await page.waitForFunction(
+  (label) => [...document.querySelectorAll('.rag-answer-details > summary')].some((el) => el.textContent !== label),
+  closedLabel, { timeout: 3000 }).then(() => true, () => false);
+check(relabelled, 'the toggle label does not change when it opens');
 const adminNote = (await configured.locator('.rag-status-notes').textContent().catch(() => '')) || '';
 check(/administrator|مسؤول/.test(adminNote), `no "ask your administrator" note when answer writing is not configured: "${adminNote}"`);
 
