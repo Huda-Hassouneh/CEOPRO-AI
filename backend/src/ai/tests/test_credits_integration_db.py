@@ -673,3 +673,65 @@ def test_set_price_if_missing_records_a_missing_price_and_keeps_an_existing_one(
     # Without if_missing an operator's new price still replaces the old one.
     assert admin.set_price(sys_conn, unit_cost_usd=Decimal("0.000002"), **common) is True
     assert credits.schedule(sys_conn, "ai", name, "model-x")["input_token"]["cost"] == Decimal("0.000002")
+
+
+# --- the assistant through the real credits gate ---------------------------------------
+
+def _ask_the_assistant(tenant, monkeypatch, reply=None):
+    """advisor.answer() with the company's records stubbed but the model call
+    going through the real metering path; returns (result, http_calls)."""
+    from src.ai.rag import access as acl
+    from src.ai.rag import advisor, llm_client
+
+    def gather(conn, tenant_id, u, access, registry, statuses):
+        registry.add_fact_lines(["Sales in the last 30 days:", "- Revenue 20016.928 JOD from 3000 invoices."],
+                                route="/sales", capabilities=frozenset({acl.SALES}))
+        return 1
+    monkeypatch.setattr(advisor, "_fact_sections", gather)
+    for name in ("_documents", "_analysis", "_reviews"):
+        monkeypatch.setattr(advisor, name, lambda *a, **k: 0)
+    monkeypatch.setattr(advisor, "_company", lambda conn, tenant_id: {"currency": "JOD", "country_code": "JO"})
+    monkeypatch.setattr(advisor, "_catalog", lambda conn, tenant_id, access: [])
+    http_calls = []
+    monkeypatch.setattr(llm_client, "_post_with_retry", lambda *a, **k: http_calls.append(1) or _answer(reply or "{}"))
+    with credits.metering(tenant, "assistant_question", usage_class="simple_question"):
+        result = advisor.answer(object(), tenant, "How were my sales this month?", access=acl.FULL_ACCESS,
+                                enable_research=False)
+    return result, http_calls
+
+
+def test_an_unpriced_model_still_gives_the_assistant_s_evidence(sys_conn, monkeypatch):
+    """The reported bug: no confirmed price for the model used to fail the
+    whole question; it now answers with the evidence found, calls nothing and charges nothing."""
+    from src.ai.rag import llm_client
+
+    tenant = _company(sys_conn, "starter")
+    monkeypatch.setattr(llm_client, "active_provider", lambda: f"unpriced_{uuid.uuid4().hex[:6]}")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+    result, http_calls = _ask_the_assistant(tenant, monkeypatch)
+    assert http_calls == []
+    assert result["answer_mode"] == "evidence" and result["references"]
+    assert {"need": "answer_writing", "status": "not_configured"} in result["evidence_status"]
+    assert _ledger(sys_conn, tenant) == [] and _balance(sys_conn, tenant, "ai") in ((Decimal("0"), Decimal("0")), None)
+
+
+def test_a_priced_model_answers_and_is_charged(sys_conn, ai, monkeypatch):
+    import json
+
+    tenant = _company(sys_conn, "starter")
+    reply = json.dumps({"blocks": [{"type": "paragraph", "claims": [
+        {"text": "Revenue was 20,016.928 JOD.", "kind": "fact", "evidence": ["E1"]}]}], "follow_up_questions": []})
+    result, http_calls = _ask_the_assistant(tenant, monkeypatch, reply)
+    assert len(http_calls) == 1 and result["answer_mode"] == "ai"
+    assert [row[0] for row in _ledger(sys_conn, tenant)] == ["consumed"]
+
+
+def test_a_companys_exhausted_credits_still_stop_the_assistant(sys_conn, ai, monkeypatch):
+    tenant = _company(sys_conn, "starter")
+    limit = Decimal(str(usage.get_plan(sys_conn, tenant)["features"]["ai_credits"]["limit"]))
+    admin.adjust_credits(sys_conn, tenant_id=tenant, budget_kind="ai", credits_delta=limit,
+                         reference=f"t-{uuid.uuid4().hex[:6]}", approved_by="test", reason="test")
+    sys_conn.commit()
+    with pytest.raises(credits.BudgetError) as refused:
+        _ask_the_assistant(tenant, monkeypatch)
+    assert refused.value.reason == "BUDGET_EXHAUSTED"
