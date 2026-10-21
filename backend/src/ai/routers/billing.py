@@ -11,6 +11,7 @@ catalog and usage still work and every payment action answers 503
 import logging
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -65,6 +66,12 @@ class CustomOfferConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
     limits: dict[str, object] = Field(default_factory=dict)
     refresh_frequency: Literal["hourly", "daily", "weekly"] | None = None
+
+
+class CustomQuoteTransition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=1)
+    idempotency_key: str = Field(min_length=1, max_length=200)
 
 
 def _scaled(value, factor):
@@ -468,3 +475,72 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(defaul
     finally:
         sys_conn.close()
     return {"received": True, **result}
+
+@router.get("/custom-offers/quotes/{quote_id}")
+def get_custom_offer_quote(quote_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Read a quote only inside the authenticated tenant; private economics stay hidden."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        result = custom_offers.quote_detail(conn, str(quote_id), include_private=False)
+        if result is None or result["tenant_id"] != ctx.tenant_id:
+            raise HTTPException(status_code=404, detail="Quote not found.")
+        conn.commit()
+        return result
+    finally:
+        conn.close()
+
+
+@router.post("/custom-offers/quotes/{quote_id}/accept")
+def accept_custom_offer_quote(quote_id: UUID, body: CustomQuoteTransition,
+                              ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.transition(conn, "accept", tenant_id=ctx.tenant_id,
+                                          quote_id=str(quote_id), expected_revision=body.expected_revision,
+                                          idempotency_key=body.idempotency_key)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+
+@router.post("/custom-offers/quotes/{quote_id}/reject")
+def reject_custom_offer_quote(quote_id: UUID, body: CustomQuoteTransition,
+                              ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.transition(conn, "reject", tenant_id=ctx.tenant_id,
+                                          quote_id=str(quote_id), expected_revision=body.expected_revision,
+                                          idempotency_key=body.idempotency_key)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+
+
+@router.post("/custom-offers/quotes/{quote_id}/checkout-attempts")
+def prepare_custom_offer_checkout_attempt(quote_id: UUID, body: CustomQuoteTransition,
+                                         ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Persist an idempotent quote identity only; no Stripe or payment call is made."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        result = custom_offers.prepare_checkout_attempt(
+            conn, tenant_id=ctx.tenant_id, quote_id=str(quote_id),
+            idempotency_key=body.idempotency_key,
+        )
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
