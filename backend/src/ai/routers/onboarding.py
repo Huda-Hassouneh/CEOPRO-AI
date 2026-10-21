@@ -1,6 +1,7 @@
 from typing import Optional
 import json
 import os
+from uuid import UUID
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -14,6 +15,7 @@ from src.market_scraper import api_connector_sync, connector_sync, price_coverag
 from src.market_scraper import data_access as market_scraper_data_access
 from src.market_scraper.woocommerce import WooCommerceClient, canonical_store_url, WooCommerceError
 from src.market_scraper.provider_lifecycle import bind_verified_provider_source, woocommerce_verified_store_id
+from src.market_scraper import provider_business_staging
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
@@ -94,6 +96,14 @@ class ShopifyAuthorizeRequest(BaseModel):
 
 class ShopifyFinishRequest(BaseModel):
     ticket: str = Field(max_length=20000)
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderBusinessReviewRequest(BaseModel):
+    business_revision_id: UUID
+    decision: str
+    idempotency_key: str = Field(min_length=1, max_length=180)
+    reason_code: str = Field(min_length=1, max_length=100)
     model_config = ConfigDict(extra="forbid")
 
 
@@ -460,3 +470,78 @@ def disconnect_source(source_id: str, ctx: TenantContext = Depends(get_tenant_co
         UPDATE data_sources SET is_active = FALSE, connection_credentials_vault = NULL
         WHERE tenant_id = %s AND source_id = %s AND collector_key = ANY(%s) AND is_active;""")
     return {**result, "disconnected": True}
+
+
+@router.get("/sources/{source_id}/provider-records")
+def list_provider_business_records(source_id: UUID, limit: int = 50, offset: int = 0,
+                                   entity_type: Optional[str] = None,
+                                   ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """List current source-scoped provider evidence; nothing here is canonical posting."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM data_sources WHERE tenant_id=%s::uuid AND source_id=%s::uuid AND collector_key=ANY(%s)",
+                           (ctx.tenant_id, str(source_id), ["shopify", "woocommerce"]))
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Provider connection not found.")
+        try:
+            return provider_business_staging.list_provider_business_records(
+                conn, str(source_id), limit=limit, offset=offset, entity_type=entity_type,
+            )
+        except provider_business_staging.ProviderBusinessStagingError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+    finally:
+        conn.close()
+
+
+@router.get("/sources/{source_id}/provider-records/{identity_id}/revisions")
+def provider_business_record_history(source_id: UUID, identity_id: UUID,
+                                     ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = provider_business_staging.get_provider_business_history(conn, str(source_id), str(identity_id))
+        if result is None:
+            raise HTTPException(status_code=404, detail="Provider record not found.")
+        return result
+    finally:
+        conn.close()
+
+
+@router.post("/sources/{source_id}/provider-records/reviews")
+def review_provider_business_record(source_id: UUID, body: ProviderBusinessReviewRequest,
+                                    ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_admin(conn, ctx)
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM public.keel_provider_business_revisions WHERE tenant_id=%s::uuid "
+                           "AND source_id=%s::uuid AND business_revision_id=%s::uuid",
+                           (ctx.tenant_id, str(source_id), str(body.business_revision_id)))
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Provider record revision not found.")
+        result = provider_business_staging.decide_provider_business_review(
+            conn, str(body.business_revision_id), decision=body.decision,
+            idempotency_key=body.idempotency_key, reason_code=body.reason_code,
+        )
+        conn.commit()
+        return {**result, "review_status": "recorded", "canonical_write_performed": False}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except provider_business_staging.ProviderBusinessStagingError as exc:
+        conn.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except Exception as exc:
+        conn.rollback()
+        code = getattr(exc, "pgcode", None)
+        if code == "42501":
+            raise HTTPException(status_code=403, detail="An owner or admin role is required to review provider records.") from None
+        if code == "22023":
+            raise HTTPException(status_code=422, detail="Provider review request is invalid.") from None
+        if code in {"23505", "55000", "23514"}:
+            raise HTTPException(status_code=409, detail="The provider revision is stale or already reviewed.") from None
+        if code == "23503":
+            raise HTTPException(status_code=404, detail="Provider record revision not found.") from None
+        raise HTTPException(status_code=500, detail="Provider review could not be recorded.") from None
+    finally:
+        conn.close()

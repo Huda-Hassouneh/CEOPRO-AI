@@ -194,6 +194,7 @@ def normalize_woocommerce_record(entity_type: str, payload: Mapping[str, Any], *
         quantity = payload.get("quantity")
         if isinstance(quantity, bool) or not isinstance(quantity, int):
             raise ProviderBusinessValueError("line item quantity is invalid")
+        line_currency = _currency_code(payload.get("currency"), "currency")
         values = {"title": _text(payload.get("name"), "name", limit=500), "quantity": quantity,
                   "sku": _text(payload.get("sku"), "sku", limit=255),
                   "product_provider_id": _text(str(payload.get("product_id")) if payload.get("product_id") else None,
@@ -203,7 +204,7 @@ def normalize_woocommerce_record(entity_type: str, payload: Mapping[str, Any], *
                   "provider_amounts": {key: _decimal_text(payload.get(provider_key), provider_key) for key, provider_key in (
                       ("subtotal", "subtotal"), ("total", "total"),
                       ("subtotal_tax", "subtotal_tax"), ("total_tax", "total_tax"))},
-                  "currency_code": currency}
+                  "currency_code": line_currency}
     else:
         raise ProviderBusinessValueError("unsupported WooCommerce provider record type")
     return values, _findings_for_identity(entity_type, values)

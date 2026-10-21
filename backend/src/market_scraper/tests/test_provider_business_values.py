@@ -68,6 +68,17 @@ def test_woocommerce_preserves_decimal_values_without_inventing_currency():
     assert "billing" not in values and "email" not in str(values)
 
 
+def test_woocommerce_variation_keeps_approved_revision_timestamps():
+    values, findings = normalize_woocommerce_record("variant", {
+        "name": "Coffee 1kg", "type": "variation", "sku": "C-1-1KG",
+        "price": "15.00", "date_created_gmt": "2026-10-20T12:00:00",
+        "date_modified_gmt": "2026-10-21T12:00:00",
+    }, store_currency="USD")
+    assert values["created_at"] == "2026-10-20T12:00:00"
+    assert values["updated_at"] == "2026-10-21T12:00:00"
+    assert findings == []
+
+
 def test_woocommerce_order_preserves_status_totals_and_nonpi_refund_reference():
     values, findings = normalize_woocommerce_record("order", {
         "status": "processing", "currency": "GBP", "total": "42.10", "discount_total": "2.00",
@@ -93,6 +104,13 @@ def test_woocommerce_line_items_keep_source_ids_without_customer_fields():
     assert values["provider_amounts"]["total"] == "9.00"
     assert "meta_data" not in values and "email" not in str(values)
     assert findings == []
+
+
+def test_woocommerce_line_item_does_not_infer_historical_currency_from_current_store():
+    values, _ = normalize_woocommerce_record(
+        "order_line_item", {"name": "Tea", "quantity": 1, "product_id": 5}, store_currency="CAD",
+    )
+    assert values["currency_code"] is None
 
 
 @pytest.mark.parametrize("payload", [
