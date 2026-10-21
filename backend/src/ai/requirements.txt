@@ -1,6 +1,6 @@
 xgboost>=2.0,<3.0
 pandas>=2.0,<3.0
-numpy>=2.3,<3.0  # rembg >=2.0.75 (security fix) needs numpy 2.3+
+numpy>=2.3,<3.0  # numpy 2.3+ also required by rembg (opt-in extra)
 # Never import sklearn directly - this is here because xgboost.XGBRegressor
 # (model.py) hard-requires it internally and raises ImportError without it,
 # confirmed by testing in a venv with xgboost but no scikit-learn installed.
@@ -127,7 +127,11 @@ prometheus-client>=0.20,<1.0
 # all already resident for RAG/sentiment) is added on top. NOT safe to
 # enable on the current $0 Render staging plan - kept off by default,
 # documented in MARKETING_AI_CAPABILITIES.md.
-rembg>=2.0.75,<3.0
+# rembg (opt-in background removal) is deliberately NOT installed by default:
+# it is off by default, does not fit the current free-tier RAM budget, and every
+# release pins pillow<13 (which would block Pillow's security fixes). See
+# requirements-rembg.txt and the INSTALL_REMBG build arg in Dockerfile.ai.
+# (onnxruntime stays: rag/embeddings.py needs it.)
 onnxruntime>=1.30,<2.0
 # billing/ - Stripe Checkout, customer portal and signed webhooks.
 stripe==15.6.1
@@ -139,7 +143,7 @@ reportlab>=4.2,<5.0
 arabic-reshaper>=3.0,<4.0
 python-bidi>=0.6,<1.0
 # marketing/designed_poster.py + image_generation.py (explicit; previously only transitive)
-Pillow>=10.1,<13.0
+Pillow>=13.0,<14.0
 
 # Menu pictures and scanned PDFs (market_discovery/menu_media.py): Python wrapper for the tesseract binary
 # installed in Dockerfile.ai. Optional at runtime - without the binary, pictures are reported as skipped.
