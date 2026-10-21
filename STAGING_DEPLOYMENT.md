@@ -13,8 +13,9 @@ up for it at all.
 
 **Background workers** (competitor price collection, analysis, discovery
 after a data upload, connector sync and data retention) run as one paid
-Render service, `keel-workers-staging` - see "Background workers" at the
-bottom. Render has no free background workers; everything else here is
+Render service, `keel-workers-staging`, which is commented out in
+`render.yaml` until a paid plan is approved - see "Background workers" at
+the bottom. Render has no free background workers; everything else here is
 free.
 
 Every step below that needs YOU to create an account, generate a key, or
@@ -247,7 +248,9 @@ restart a healthy API.
 
 ## Background workers [ACTION NEEDED: paid plan]
 
-`render.yaml` defines `keel-workers-staging`: one container
+`render.yaml` defines `keel-workers-staging`, commented out so that a
+Blueprint sync never creates a paid service on its own; uncomment it once
+the paid plan is approved. It is one container
 (`backend/src/infrastructure/Dockerfile.market-workers`) running all five
 workers under `src/market_scraper/supervisor.py`, which restarts any
 worker that exits (backoff 1 s up to 60 s) and stops them all cleanly on a
