@@ -1,15 +1,17 @@
-"""Scheduled, read-only Shopify synchronization into provider evidence.
+"""Scheduled, read-only Shopify and WooCommerce synchronization into evidence.
 
 This worker uses the existing connector receipt, ingestion-job, M95 identity,
 and M96 inventory authorities. It does not persist provider payloads or write
-canonical products, orders, invoices, or stock. WooCommerce remains blocked at
-source verification until its adapter yields a stable store identity.
+canonical products, orders, invoices, or stock. WooCommerce preserves the
+original URL + REST-key onboarding contract; its URL is bound only after
+authenticated product, order, and currency reads succeed.
 """
 from __future__ import annotations
 
 import logging
 import os
 import uuid
+import hashlib
 from typing import Callable
 
 from src.ai.core import operation_receipts
@@ -18,6 +20,9 @@ from src.market_scraper.connector_sync import is_due_for_sync, safe_connector_er
 from src.market_scraper.provider_identity import persist_shopify_records
 from src.market_scraper.inventory_provenance import persist_shopify_inventory_records
 from src.market_scraper.provider_lifecycle import ProviderLifecycleError
+from src.market_scraper.provider_identity import persist_woocommerce_records
+from src.market_scraper.inventory_provenance import persist_woocommerce_inventory_records
+from src.market_scraper.woocommerce import WooCommerceClient, WooCommerceError, canonical_store_url
 from src.market_scraper.shopify import (
     DEFAULT_API_VERSION, DEFAULT_MAX_PAGES, ShopifyError, ShopifyGraphQLClient,
 )
@@ -73,7 +78,33 @@ def _client_for(source: dict, loaded: dict, client_factory: Callable = ShopifyGr
         raise ValueError("Shopify page bound is invalid")
     return client_factory(
         source["verified_store_domain"], token, api_version=api_version, max_pages=max_pages,
+        include_test_orders=credentials.get("include_test_orders") is True,
     )
+
+
+def _woocommerce_client_for(source: dict, loaded: dict, client_factory: Callable = WooCommerceClient):
+    """Build the original URL + consumer key/secret connection from the vault."""
+    if source.get("collector_key") != WOOCOMMERCE_COLLECTOR_KEY or source.get("provider") != "woocommerce":
+        raise ProviderLifecycleError("source is not bound to a verified WooCommerce identity")
+    if source.get("connection_state") != "verified" or not source.get("verified_store_id"):
+        raise ProviderLifecycleError("WooCommerce source is not currently verified")
+    config = loaded.get("collector_config") or {}
+    credentials = loaded.get("connection_credentials") or {}
+    store_url = config.get("store_url") or config.get("base_url")
+    if not isinstance(store_url, str):
+        raise ProviderLifecycleError("WooCommerce store URL is unavailable")
+    try:
+        canonical = canonical_store_url(store_url)
+    except Exception as exc:
+        raise ProviderLifecycleError("WooCommerce store URL is invalid") from exc
+    expected_id = "url-sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    if expected_id != source.get("verified_store_id"):
+        raise ProviderLifecycleError("WooCommerce store URL differs from its verified binding")
+    consumer_key, consumer_secret = credentials.get("consumer_key"), credentials.get("consumer_secret")
+    if not isinstance(consumer_key, str) or not isinstance(consumer_secret, str):
+        raise WooCommerceError("invalid_credentials", "WooCommerce credentials are unavailable in the credential vault")
+    return client_factory(canonical, consumer_key, consumer_secret,
+                          max_pages=config.get("max_pages", 100))
 
 
 def _stream_records(client, stream: str):
@@ -83,7 +114,7 @@ def _stream_records(client, stream: str):
         return list(client.iter_orders())
     if stream == "inventory":
         return list(client.iter_inventory())
-    raise ValueError("unsupported Shopify provider stream")
+    raise ValueError("unsupported provider stream")
 
 
 def sync_shopify_stream(conn, tenant_id: str, source: dict, stream: str, receipt: dict, *,
@@ -287,20 +318,99 @@ def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
     }
 
 
-def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = ShopifyGraphQLClient) -> list[dict]:
-    """Run due preverified Shopify streams; report unsupported Woo binding closed."""
+def sync_woocommerce_source(conn, tenant_id: str, source: dict, receipt: dict, *,
+                            client_factory: Callable = WooCommerceClient) -> dict:
+    """Full read scan into M95 identities and M96 observations, never canonical tables."""
+    if not receipt or receipt.get("operation_type") != operation_receipts.SCHEDULED_CONNECTOR_SYNC:
+        raise operation_receipts.ReceiptAuthorizationError("WooCommerce sync requires an ENT-008 source receipt")
+    loaded = data_access.load_source(conn, tenant_id, source["source_id"])
+    if loaded is None or loaded.get("collector_key") != WOOCOMMERCE_COLLECTOR_KEY:
+        raise operation_receipts.ReceiptAuthorizationError("WooCommerce source is inactive or no longer approved")
+    receipt["source_execution_fingerprint"] = loaded["source_execution_fingerprint"]
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT ps.provider,ps.verified_store_id,ps.verified_store_domain,ps.connection_state, "
+            "ps.configuration_version FROM public.keel_provider_sources ps "
+            "JOIN public.data_sources ds ON ds.tenant_id=ps.tenant_id AND ds.source_id=ps.source_id "
+            "WHERE ps.tenant_id=%s::uuid AND ps.source_id=%s::uuid "
+            "AND ds.is_active IS TRUE AND ds.policy_status='ALLOWED' FOR SHARE OF ds;",
+            (tenant_id, source["source_id"]),
+        )
+        binding = cursor.fetchone()
+    if (not binding or binding[0] != "woocommerce" or binding[3] != "verified"
+            or binding[1] != source["verified_store_id"]
+            or int(binding[4]) != int(source["configuration_version"])):
+        raise operation_receipts.ReceiptAuthorizationError("WooCommerce source verification changed before sync")
+    job_id = data_access.create_or_reuse_receipt_ingestion_job(
+        conn, tenant_id, source["source_id"], receipt, replay_safe_provider_read=True,
+    )
+    try:
+        operation_receipts.begin_provider(conn, receipt)
+        client = _woocommerce_client_for(source, loaded, client_factory)
+        verification = client.verify_connection()
+        canonical = canonical_store_url((loaded.get("collector_config") or {}).get("store_url")
+                                        or (loaded.get("collector_config") or {}).get("base_url", ""))
+        expected_id = "url-sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        if verification.get("verified") is not True or verification.get("canonical_store_url") != canonical \
+                or expected_id != source["verified_store_id"]:
+            raise WooCommerceError("store_mismatch", "Authenticated WooCommerce endpoint differs from its verified source")
+        products = list(client.iter_products())
+        orders = list(client.iter_orders())
+    except operation_receipts.ReceiptSourceChanged:
+        data_access.fail_source_changed_ingestion_job(conn, tenant_id, receipt)
+        raise
+    except Exception as exc:
+        try:
+            data_access.finish_ingestion_job(conn, tenant_id, job_id, status="FAILED", processed=0, failed=0,
+                                             error=safe_connector_error(exc, "WooCommerce provider read"), receipt=receipt)
+        except Exception:
+            conn.rollback()
+        raise
+
+    fenced = operation_receipts.FencedConnection(conn, receipt)
+    try:
+        identities = persist_woocommerce_records(fenced, source["source_id"], [*products, *orders],
+                                                 ingestion_job_id=job_id)
+        inventory = persist_woocommerce_inventory_records(
+            fenced, source["source_id"], products, ingestion_job_id=job_id,
+            receipt_id=receipt["receipt_id"],
+        )
+        checkpoints = [{"source_id": source["source_id"], "stream_key": stream,
+                        "continuation": {}, "configuration_version": int(source["configuration_version"])}
+                       for stream in ("products", "orders", "inventory")]
+        data_access.finish_ingestion_job(
+            conn, tenant_id, job_id, status="COMPLETED",
+            processed=len(identities) + len(inventory), failed=0, error=None,
+            receipt=receipt, provider_checkpoints=checkpoints,
+        )
+    except operation_receipts.ReceiptSourceChanged:
+        conn.rollback()
+        data_access.fail_source_changed_ingestion_job(conn, tenant_id, receipt)
+        raise
+    except Exception as exc:
+        conn.rollback()
+        data_access.finish_ingestion_job(conn, tenant_id, job_id, status="FAILED", processed=0, failed=0,
+                                         error=safe_connector_error(exc, "WooCommerce evidence persistence"), receipt=receipt)
+        raise
+    return {"source_id": source["source_id"], "job_id": job_id,
+            "stream_results": {"products": sum(1 for r in products if r.entity_type == "product"),
+                               "orders": len(orders), "inventory": len(inventory)},
+            "records_persisted": len(identities) + len(inventory), "checkpoint_advanced": True,
+            "full_scan": True, "canonical_promotion": False, "provider": "woocommerce"}
+
+
+def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = ShopifyGraphQLClient,
+                            woocommerce_client_factory: Callable = WooCommerceClient) -> list[dict]:
+    """Run due Shopify and authenticated URL-bound WooCommerce sources."""
     service_actor = os.getenv("SCRAPER_ACTOR_USER_ID", "").strip()
     if not service_actor:
         raise RuntimeError("SCRAPER_ACTOR_USER_ID must identify an active tenant service principal")
     operation_receipts.recover_expired(conn, tenant_id)
     results: list[dict] = []
     for source in load_due_provider_sources(conn, tenant_id):
-        if source["collector_key"] == WOOCOMMERCE_COLLECTOR_KEY:
-            results.append({"source_id": source["source_id"], "provider": "woocommerce",
-                            "blocked": "stable_verified_store_identity_unavailable"})
-            continue
-        if source.get("provider") != "shopify" or source.get("connection_state") != "verified":
-            results.append({"source_id": source["source_id"], "provider": "shopify",
+        provider = source.get("provider")
+        if provider not in {"shopify", "woocommerce"} or source.get("connection_state") != "verified":
+            results.append({"source_id": source["source_id"], "provider": provider or source["collector_key"],
                             "blocked": "verified_provider_source_binding_required"})
             continue
         receipt = None
@@ -312,9 +422,13 @@ def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = S
             receipt = operation_receipts.claim(
                 conn, tenant_id, intent["receipt_id"], f"shopify-sync-{uuid.uuid4()}",
             )
-            result = sync_shopify_source(conn, tenant_id, source, receipt, client_factory=client_factory)
+            if provider == "woocommerce":
+                result = sync_woocommerce_source(conn, tenant_id, source, receipt,
+                                                 client_factory=woocommerce_client_factory)
+            else:
+                result = sync_shopify_source(conn, tenant_id, source, receipt, client_factory=client_factory)
             operation_receipts.finish(conn, receipt, "completed")
-            result["provider"] = "shopify"
+            result["provider"] = provider
             results.append(result)
         except Exception as exc:  # isolate one provider source without masking others
             if receipt is not None:
@@ -322,13 +436,13 @@ def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = S
                     changed = isinstance(exc, operation_receipts.ReceiptSourceChanged)
                     operation_receipts.finish(
                         conn, receipt, "failed" if changed else "retryable",
-                        "SOURCE_CONFIGURATION_CHANGED" if changed else "SHOPIFY_READ_SYNC_FAILED",
+                        "SOURCE_CONFIGURATION_CHANGED" if changed else f"{provider.upper()}_READ_SYNC_FAILED",
                         replay_safe_provider_read=not changed,
                     )
                 except operation_receipts.ReceiptError:
                     conn.rollback()
-            logger.warning("Shopify sync failed source_id=%s error_type=%s",
-                           source["source_id"], type(exc).__name__)
-            results.append({"source_id": source["source_id"], "provider": "shopify",
+            logger.warning("Provider sync failed source_id=%s provider=%s error_type=%s",
+                           source["source_id"], provider, type(exc).__name__)
+            results.append({"source_id": source["source_id"], "provider": provider,
                             "error": safe_connector_error(exc, "Shopify synchronization")})
     return results

@@ -8,8 +8,9 @@ import httpx
 import pytest
 
 from src.market_scraper import data_access, provider_store_sync as sync
-from src.market_scraper.provider_lifecycle import ProviderLifecycleError
+from src.market_scraper.provider_lifecycle import ProviderLifecycleError, woocommerce_verified_store_id
 from src.market_scraper.shopify import ShopifyError, ShopifyGraphQLClient, ShopifyRecord
+from src.market_scraper.woocommerce import WooRecord
 
 
 def test_client_uses_only_verified_store_identity_and_vault_token():
@@ -28,7 +29,8 @@ def test_client_uses_only_verified_store_identity_and_vault_token():
         "collector_config": {"api_version": "2026-10", "max_pages": 3},
     }, factory)
     assert result is not None
-    assert captured == {"domain": "shop.myshopify.com", "token": "test-secret", "api_version": "2026-10", "max_pages": 3}
+    assert captured == {"domain": "shop.myshopify.com", "token": "test-secret", "api_version": "2026-10",
+                        "max_pages": 3, "include_test_orders": False}
     with pytest.raises(ProviderLifecycleError):
         sync._client_for({**source, "connection_state": "verification_required"},
                          {"connection_credentials": {"access_token": "test-secret"}}, factory)
@@ -81,7 +83,7 @@ def test_sync_shopify_stream_persists_identities_and_advances_only_provider_chec
     }
 
 
-def test_due_woocommerce_sources_are_reported_blocked_without_receipt_or_provider_call(monkeypatch):
+def test_unverified_woocommerce_sources_remain_blocked_without_receipt_or_provider_call(monkeypatch):
     source = {"source_id": "source-woo", "collector_key": "woocommerce", "provider": None,
               "verified_store_id": None, "verified_store_domain": None, "connection_state": None}
     monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", "service-principal")
@@ -92,8 +94,62 @@ def test_due_woocommerce_sources_are_reported_blocked_without_receipt_or_provide
     result = sync.run_due_provider_syncs(object(), "tenant-1")
 
     assert result == [{"source_id": "source-woo", "provider": "woocommerce",
-                       "blocked": "stable_verified_store_identity_unavailable"}]
+                       "blocked": "verified_provider_source_binding_required"}]
     receipt.create_or_get_operation.assert_not_called()
+
+
+def test_woocommerce_worker_persists_provider_evidence_and_full_scan_checkpoints(monkeypatch):
+    conn = Mock()
+    conn.cursor.return_value = MagicMock()
+    verified_store_id = woocommerce_verified_store_id("https://shop.example.test")
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (
+        "woocommerce", verified_store_id, "shop.example.test", "verified", 3,
+    )
+    source = {"source_id": "source-woo", "collector_key": "woocommerce", "provider": "woocommerce",
+              "verified_store_id": verified_store_id, "verified_store_domain": "shop.example.test",
+              "connection_state": "verified", "configuration_version": 3}
+    loaded = {"collector_key": "woocommerce", "collector_config": {"store_url": "https://shop.example.test"},
+              "connection_credentials": {"consumer_key": "ck_test", "consumer_secret": "cs_test"},
+              "source_execution_fingerprint": "fingerprint"}
+    products = [WooRecord("product", 10, {"id": 10, "manage_stock": True, "stock_quantity": 4})]
+    orders = [WooRecord("order", 20, {"id": 20, "line_items": [{"id": 30, "product_id": 10}]})]
+    client = SimpleNamespace(verify_connection=lambda: {
+        "verified": True, "api": "wc/v3", "products_accessible": True, "orders_accessible": True,
+        "currency_code": "USD", "canonical_store_url": "https://shop.example.test",
+    }, iter_products=lambda: iter(products), iter_orders=lambda: iter(orders))
+    monkeypatch.setattr(sync.data_access, "load_source", lambda *_: loaded)
+    monkeypatch.setattr(sync.data_access, "create_or_reuse_receipt_ingestion_job", lambda *_, **__: "job-woo")
+    monkeypatch.setattr(sync.operation_receipts, "begin_provider", lambda *_: None)
+    identities = Mock(return_value=[{"mapping_status": "pending_review"}] * 3)
+    inventory = Mock(return_value=[{"reconciliation_status": "unmatched_product"}])
+    monkeypatch.setattr(sync, "persist_woocommerce_records", identities)
+    monkeypatch.setattr(sync, "persist_woocommerce_inventory_records", inventory)
+    finish = Mock()
+    monkeypatch.setattr(sync.data_access, "finish_ingestion_job", finish)
+    receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC, "receipt_id": "receipt-woo"}
+
+    result = sync.sync_woocommerce_source(conn, "tenant-1", source, receipt,
+                                         client_factory=lambda *_args, **_kwargs: client)
+
+    assert result["provider"] == "woocommerce" and result["canonical_promotion"] is False
+    assert result["full_scan"] is True and result["checkpoint_advanced"] is True
+    identities.assert_called_once_with(identities.call_args.args[0], "source-woo", [*products, *orders],
+                                       ingestion_job_id="job-woo")
+    inventory.assert_called_once()
+    assert {item["stream_key"] for item in finish.call_args.kwargs["provider_checkpoints"]} == {
+        "products", "orders", "inventory",
+    }
+    assert finish.call_args.kwargs["status"] == "COMPLETED"
+
+
+def test_woocommerce_client_requires_bound_url_and_vault_credentials():
+    source = {"collector_key": "woocommerce", "provider": "woocommerce", "connection_state": "verified",
+              "verified_store_id": "url-sha256:invalid"}
+    factory = Mock()
+    with pytest.raises(ProviderLifecycleError):
+        sync._woocommerce_client_for(source, {"collector_config": {"store_url": "https://shop.example"},
+                                              "connection_credentials": {"consumer_key": "ck", "consumer_secret": "cs"}}, factory)
+    factory.assert_not_called()
 
 
 def test_failed_identity_persistence_fails_job_without_advancing_checkpoint(monkeypatch):
@@ -167,7 +223,7 @@ class _ReceiptConnection:
         self.committed = True
 
 
-def test_expired_receipt_recovery_only_replays_verified_shopify_reads():
+def test_expired_receipt_recovery_replays_only_verified_read_only_store_syncs():
     conn = _ReceiptConnection()
     result = sync.operation_receipts.recover_expired(conn, "tenant-1")
     statements = [query for query, _ in conn.calls]
@@ -175,18 +231,21 @@ def test_expired_receipt_recovery_only_replays_verified_shopify_reads():
     assert "state='reconciliation_required'" in statements[1]
     assert "AND NOT (operation_type=%s" in statements[1]
     assert "state='retryable',provider_started_at=NULL" in statements[2]
-    assert "ds.collector_key='shopify'" in statements[2]
+    assert "ds.collector_key IN ('shopify','woocommerce')" in statements[2]
+    assert "ps.provider=ds.collector_key" in statements[2]
     assert "ps.connection_state='verified'" in statements[2]
     assert conn.committed is True
 
 
-def test_safe_read_retry_requires_verified_shopify_binding():
+def test_safe_read_retry_requires_verified_store_binding():
     conn = _ReceiptConnection(authorized=False)
     receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC,
                "tenant_id": "tenant-1", "source_id": "source-1"}
     with pytest.raises(sync.operation_receipts.ReceiptAuthorizationError):
         sync.operation_receipts.finish(conn, receipt, "retryable", replay_safe_provider_read=True)
     assert len(conn.calls) == 1
+    assert "ds.collector_key IN ('shopify','woocommerce')" in conn.calls[0][0]
+    assert "ps.provider=ds.collector_key" in conn.calls[0][0]
 
 
 def test_safe_retry_reopens_the_same_failed_job_under_the_receipt_fence(monkeypatch):

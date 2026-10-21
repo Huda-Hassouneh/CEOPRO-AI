@@ -171,9 +171,9 @@ def authorize_operation(conn, operation_type: str, tenant_id: str, target_kind: 
                 "SELECT 1 FROM public.data_sources WHERE tenant_id=%s::uuid AND source_id=%s::uuid "
                 "AND is_active IS TRUE AND policy_status='ALLOWED' "
                 "AND (collector_key IN ('db_connector','api_connector') OR "
-                "(collector_key='shopify' AND EXISTS (SELECT 1 FROM public.keel_provider_sources p "
+                "(collector_key IN ('shopify','woocommerce') AND EXISTS (SELECT 1 FROM public.keel_provider_sources p "
                 "WHERE p.tenant_id=data_sources.tenant_id AND p.source_id=data_sources.source_id "
-                "AND p.provider='shopify' AND p.connection_state='verified')));",
+                "AND p.provider=data_sources.collector_key AND p.connection_state='verified')));",
                 (tenant_id, target_id),
             )
             if cursor.fetchone() is None:
@@ -477,7 +477,7 @@ def finish(conn, receipt: dict, state: str, error_code: str | None = None, *,
                 "ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id "
                 "WHERE ds.tenant_id=%s::uuid AND ds.source_id=%s::uuid "
                 "AND ds.is_active IS TRUE AND ds.policy_status='ALLOWED' "
-                "AND ds.collector_key='shopify' AND ps.provider='shopify' "
+                "AND ds.collector_key IN ('shopify','woocommerce') AND ps.provider=ds.collector_key "
                 "AND ps.connection_state='verified';",
                 (receipt["tenant_id"], receipt["source_id"]),
             )
@@ -506,11 +506,12 @@ def finish(conn, receipt: dict, state: str, error_code: str | None = None, *,
 
 
 def recover_expired(conn, tenant_id: str) -> dict[str, int]:
-    """Expire claims safely; only verified Shopify read/evidence syncs replay.
+    """Expire claims safely; verified read-only store syncs may replay.
 
     Other provider operations retain reconciliation-required handling for an
-    uncertain outcome. Shopify replay is restricted to active verified store
-    bindings whose worker performs read-only GraphQL and idempotent M95/M96 writes.
+    uncertain outcome. Shopify GraphQL and WooCommerce REST replay is restricted
+    to active verified store bindings whose workers perform provider reads and
+    idempotent M95/M96 evidence writes.
     """
     with conn.cursor() as cursor:
         cursor.execute(
@@ -529,8 +530,8 @@ def recover_expired(conn, tenant_id: str) -> dict[str, int]:
             "ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id "
             "WHERE ds.tenant_id=keel_operation_receipts.tenant_id "
             "AND ds.source_id=keel_operation_receipts.target_id AND ds.is_active IS TRUE "
-            "AND ds.policy_status='ALLOWED' AND ds.collector_key='shopify' "
-            "AND ps.provider='shopify' AND ps.connection_state='verified'));",
+            "AND ds.policy_status='ALLOWED' AND ds.collector_key IN ('shopify','woocommerce') "
+            "AND ps.provider=ds.collector_key AND ps.connection_state='verified'));",
             (tenant_id, SCHEDULED_CONNECTOR_SYNC),
         )
         uncertain = cursor.rowcount
@@ -543,8 +544,8 @@ def recover_expired(conn, tenant_id: str) -> dict[str, int]:
             "ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id "
             "WHERE ds.tenant_id=keel_operation_receipts.tenant_id "
             "AND ds.source_id=keel_operation_receipts.target_id AND ds.is_active IS TRUE "
-            "AND ds.policy_status='ALLOWED' AND ds.collector_key='shopify' "
-            "AND ps.provider='shopify' AND ps.connection_state='verified');",
+            "AND ds.policy_status='ALLOWED' AND ds.collector_key IN ('shopify','woocommerce') "
+            "AND ps.provider=ds.collector_key AND ps.connection_state='verified');",
             (tenant_id, SCHEDULED_CONNECTOR_SYNC),
         )
         retryable += cursor.rowcount

@@ -50,3 +50,20 @@ def test_connector_source_fingerprint_changes_with_config_or_encrypted_credentia
     assert baseline == connector_source_fingerprint({"base_url": "https://pos.example/sales"}, "ciphertext-v1")
     assert baseline != connector_source_fingerprint({"base_url": "https://pos.example/orders"}, "ciphertext-v1")
     assert baseline != connector_source_fingerprint({"base_url": "https://pos.example/sales"}, "ciphertext-v2")
+
+
+@pytest.mark.parametrize("provider", ["shopify", "woocommerce"])
+def test_verified_store_providers_share_existing_connector_receipt_authority(monkeypatch, provider):
+    conn = _Connection((1,))
+    monkeypatch.setattr(operation_receipts, "_principal_is_active", lambda *_: True)
+    monkeypatch.setattr(operation_receipts.usage, "get_plan", lambda *_: {"period_start": None})
+    monkeypatch.setattr(operation_receipts.usage, "_require_active", lambda *_: None)
+
+    operation_receipts.authorize_operation(
+        conn, operation_receipts.SCHEDULED_CONNECTOR_SYNC, "tenant", "source", "source",
+        "service-actor",
+    )
+
+    statement = conn.cursor_instance.sql[-1][0]
+    assert "collector_key IN ('shopify','woocommerce')" in statement
+    assert "p.provider=data_sources.collector_key" in statement

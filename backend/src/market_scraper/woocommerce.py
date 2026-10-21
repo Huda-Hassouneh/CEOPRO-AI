@@ -251,11 +251,26 @@ class WooCommerceClient:
             raise UnsafeTargetError("WooCommerce pagination attempted query-string credentials")
 
     def verify_connection(self) -> Mapping[str, Any]:
-        """Verify REST access by making an actual bounded products request."""
-        data, _ = self._get_json(f"{self._api_root}/products?per_page=1&page=1")
-        if not isinstance(data, list):
+        """Verify the read contract used by the original KEEL connection flow.
+
+        The v3 system-status endpoint exposes a site URL, not a provider-issued
+        immutable installation ID. KEEL therefore uses the canonical HTTPS
+        endpoint as its logical store identity only after these authenticated
+        product, order, and currency reads succeed.
+        """
+        products, _ = self._get_json(f"{self._api_root}/products?per_page=1&page=1")
+        if not isinstance(products, list):
             raise WooCommerceError("invalid_response", "WooCommerce products response was not a list")
-        return {"verified": True, "api": "wc/v3", "products_accessible": True}
+        orders, _ = self._get_json(f"{self._api_root}/orders?per_page=1&page=1")
+        if not isinstance(orders, list):
+            raise WooCommerceError("invalid_response", "WooCommerce orders response was not a list")
+        setting, _ = self._get_json(f"{self._api_root}/settings/general/woocommerce_currency")
+        currency = setting.get("value") if isinstance(setting, dict) else None
+        if not isinstance(currency, str) or not re.fullmatch(r"[A-Z]{3}", currency):
+            raise WooCommerceError("invalid_response", "WooCommerce currency setting was invalid")
+        return {"verified": True, "api": "wc/v3", "products_accessible": True,
+                "orders_accessible": True, "currency_code": currency,
+                "canonical_store_url": self.store_url}
 
     def _pages(self, url: str) -> Iterator[list[Mapping[str, Any]]]:
         next_url: str | None = url

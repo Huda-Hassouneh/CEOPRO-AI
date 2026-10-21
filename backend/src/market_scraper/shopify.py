@@ -228,7 +228,7 @@ def verify_privacy_webhook(
     )
 
 
-SHOP_QUERY = """query KeelVerifyShop { shop { id myshopifyDomain currencyCode } currentAppInstallation { accessScopes { handle } } }"""
+SHOP_QUERY = """query KeelVerifyShop { shop { id myshopifyDomain currencyCode plan { partnerDevelopment } } currentAppInstallation { accessScopes { handle } } }"""
 PRODUCTS_QUERY = """query KeelProducts($first:Int!,$after:String,$variantFirst:Int!){ products(first:$first,after:$after) { edges { cursor node { id title handle status vendor createdAt updatedAt variants(first:$variantFirst) { edges { cursor node { id title sku barcode updatedAt inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
 PRODUCT_VARIANTS_QUERY = """query KeelProductVariants($id:ID!,$first:Int!,$after:String){ product(id:$id) { variants(first:$first,after:$after) { edges { cursor node { id title sku barcode updatedAt inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } }"""
 ORDERS_QUERY = """query KeelOrders($first:Int!,$after:String,$lineFirst:Int!){ orders(first:$first,after:$after,sortKey:UPDATED_AT) { edges { cursor node { id name createdAt updatedAt currencyCode displayFinancialStatus displayFulfillmentStatus cancelledAt test totalPriceSet { shopMoney { amount currencyCode } } totalTaxSet { shopMoney { amount currencyCode } } totalShippingPriceSet { shopMoney { amount currencyCode } } totalDiscountsSet { shopMoney { amount currencyCode } } lineItems(first:$lineFirst) { edges { cursor node { id title quantity sku variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
@@ -255,6 +255,7 @@ class ShopifyGraphQLClient:
         resolver: Callable[..., list[tuple[Any, ...]]] = socket.getaddrinfo,
         transport_factory: Callable[[str], httpx.BaseTransport] = _pinned_transport,
         sleeper: Callable[[float], None] = time.sleep,
+        include_test_orders: bool = False,
     ):
         self.shop_domain = canonical_shop_domain(shop_domain)
         if not access_token or len(access_token) > 8192:
@@ -265,6 +266,8 @@ class ShopifyGraphQLClient:
             raise ValueError("Shopify request bounds are invalid")
         if max_retries < 0 or max_retries > 5 or not 0 <= max_retry_delay <= 30:
             raise ValueError("Shopify retry bounds are invalid")
+        if not isinstance(include_test_orders, bool):
+            raise ValueError("Shopify test-order setting must be boolean")
         self.api_version = api_version
         self._token = access_token
         self._page_size = page_size
@@ -276,6 +279,7 @@ class ShopifyGraphQLClient:
         self._resolver = resolver
         self._transport_factory = transport_factory
         self._sleeper = sleeper
+        self._include_test_orders = include_test_orders
         self._endpoint = f"https://{self.shop_domain}/admin/api/{api_version}/graphql.json"
 
     def execute_query(self, query: str, variables: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
@@ -400,6 +404,8 @@ class ShopifyGraphQLClient:
             "shop_domain": returned_domain,
             "shop_id": str(shop["id"]),
             "currency_code": shop.get("currencyCode"),
+            "development_store": (shop.get("plan") or {}).get("partnerDevelopment") is True
+            if isinstance(shop.get("plan") or {}, dict) else False,
             "api_version": self.api_version,
             "granted_scopes": scopes,
             "orders_readable": "read_orders" in scopes,
@@ -440,6 +446,8 @@ class ShopifyGraphQLClient:
         self.require_scopes(self.verify_connection(), ("read_orders",))
         nested_page = min(self._page_size, 250)
         for order in self._iterate_connection(ORDERS_QUERY, ("orders",), {"lineFirst": nested_page}):
+            if order.get("test") is True and not self._include_test_orders:
+                continue
             order_id = _gid(order.get("id"), "order")
             yield ShopifyRecord("order", order_id, order)
             lines = order.get("lineItems")

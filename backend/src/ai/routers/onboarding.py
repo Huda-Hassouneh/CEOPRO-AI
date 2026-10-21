@@ -1,13 +1,19 @@
 from typing import Optional
+import json
+import os
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.ai import db
 from src.ai.core import usage
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.market_scraper import api_connector_sync, connector_sync, price_coverage
 from src.market_scraper import data_access as market_scraper_data_access
+from src.market_scraper.woocommerce import WooCommerceClient, canonical_store_url, WooCommerceError
+from src.market_scraper.provider_lifecycle import bind_verified_provider_source, woocommerce_verified_store_id
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
@@ -66,6 +72,29 @@ class ApiConnectorRequest(BaseModel):
     auth_scheme: Optional[str] = None
     credentials: Optional[dict] = None
     sync_frequency_minutes: Optional[int] = None
+
+
+class WooCommerceConnectorRequest(BaseModel):
+    """Original KEEL store onboarding contract, adapted to Python authorities."""
+    url: str = Field(max_length=2048)
+    consumer_key: str = Field(alias="consumerKey", min_length=43, max_length=43)
+    consumer_secret: str = Field(alias="consumerSecret", min_length=43, max_length=43)
+    consent: bool
+    sync_frequency_minutes: int = Field(default=60, alias="syncFrequencyMinutes", ge=15, le=10080)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class ShopifyAuthorizeRequest(BaseModel):
+    url: str = Field(max_length=2048)
+    consent: bool
+    include_test_orders: bool = Field(default=False, alias="includeTestOrders")
+    sync_frequency_minutes: int = Field(default=60, alias="syncFrequencyMinutes", ge=15, le=10080)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class ShopifyFinishRequest(BaseModel):
+    ticket: str = Field(max_length=20000)
+    model_config = ConfigDict(extra="forbid")
 
 
 @router.get("/status")
@@ -174,9 +203,173 @@ def onboarding_connect_api(
         conn.close()
 
 
+@router.post("/connect/woocommerce")
+def onboarding_connect_woocommerce(
+    request: WooCommerceConnectorRequest, ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """Verify then bind the original WooCommerce URL + REST key connection.
+
+    The URL is not accepted as proof by itself: M94 binding follows a real
+    authenticated wc/v3 product, order and currency verification.
+    """
+    import re
+    from src.market_scraper.network_security import UnsafeTargetError
+
+    if request.consent is not True:
+        raise HTTPException(status_code=422, detail="Connection consent is required.")
+    if not re.fullmatch(r"ck_[a-fA-F0-9]{40}", request.consumer_key) \
+            or not re.fullmatch(r"cs_[a-fA-F0-9]{40}", request.consumer_secret):
+        raise HTTPException(status_code=422, detail="WooCommerce REST credentials are invalid.")
+    try:
+        canonical = canonical_store_url(request.url)
+        parts = urlsplit(canonical)
+        if parts.port is not None or "%" in parts.path or "\\" in parts.path:
+            raise UnsafeTargetError("store URL does not match the approved connection URL contract")
+    except UnsafeTargetError:
+        raise HTTPException(status_code=422, detail="Use the public HTTPS store URL without a port or encoded path.")
+    _require_vault({"consumer_key": request.consumer_key, "consumer_secret": request.consumer_secret})
+
+    # Authenticate and authorize before spending provider requests. Re-check
+    # authorization in the write transaction in case membership changed.
+    check = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_admin(check, ctx)
+    finally:
+        check.close()
+    try:
+        verification = dict(WooCommerceClient(canonical, request.consumer_key, request.consumer_secret).verify_connection())
+    except Exception as exc:
+        raise HTTPException(status_code=422 if isinstance(exc, (ValueError, UnsafeTargetError))
+                            or getattr(exc, "code", None) == "authentication_failed" else 502,
+                            detail="WooCommerce connection could not be verified.")
+    if verification.get("verified") is not True:
+        raise HTTPException(status_code=422, detail="WooCommerce connection could not be verified.")
+
+    tenant_conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_admin(tenant_conn, ctx)
+        with tenant_conn.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
+                           ("connected-data-sources:" + str(ctx.tenant_id),))
+            identity_id = woocommerce_verified_store_id(canonical)
+            cursor.execute(
+                "SELECT ps.source_id,ds.collector_key,ds.is_active,ds.collector_config "
+                "FROM public.keel_provider_sources ps JOIN public.data_sources ds "
+                "ON ds.tenant_id=ps.tenant_id AND ds.source_id=ps.source_id "
+                "WHERE ps.tenant_id=%s::uuid AND ps.provider='woocommerce' AND ps.verified_store_id=%s "
+                "FOR UPDATE OF ds",
+                (ctx.tenant_id, identity_id),
+            )
+            existing = cursor.fetchone()
+        if existing and existing[1] != "woocommerce":
+            raise HTTPException(status_code=409, detail="This verified store is bound to a different source type.")
+        source_id = str(existing[0]) if existing else None
+        if existing and (existing[3] or {}).get("store_url", (existing[3] or {}).get("base_url")) != canonical:
+            raise HTTPException(status_code=409, detail="The verified store binding requires operator review.")
+        if not existing:
+            usage.ensure_capacity(tenant_conn, ctx.tenant_id, usage.CONNECTED_DATA_SOURCES)
+            config = {"provider": "woocommerce", "store_url": canonical, "max_pages": 100}
+            source_id = market_scraper_data_access.register_self_service_data_source(
+                tenant_conn, ctx.tenant_id, ctx.user_id, parts.hostname, "woocommerce", config,
+                {"consumer_key": request.consumer_key, "consumer_secret": request.consumer_secret},
+                request.sync_frequency_minutes, source_url=canonical, commit=False,
+            )
+        else:
+            if not existing[2]:
+                usage.ensure_capacity(tenant_conn, ctx.tenant_id, usage.CONNECTED_DATA_SOURCES)
+            with tenant_conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE public.data_sources SET is_active=TRUE,policy_status='ALLOWED',source_url=%s,"
+                    "collector_config=%s::jsonb,source_name=%s,sync_frequency_minutes=%s,last_synced_at=NULL "
+                    "WHERE tenant_id=%s::uuid AND source_id=%s::uuid",
+                    (canonical, json.dumps({"provider": "woocommerce", "store_url": canonical,
+                                                            "max_pages": 100}), parts.hostname,
+                     request.sync_frequency_minutes, ctx.tenant_id, source_id),
+                )
+            market_scraper_data_access.set_source_credentials(
+                tenant_conn, ctx.tenant_id, source_id,
+                {"consumer_key": request.consumer_key, "consumer_secret": request.consumer_secret}, commit=False,
+            )
+        verification.update({"canonical_store_url": canonical})
+        binding = bind_verified_provider_source(
+            tenant_conn, tenant_id=ctx.tenant_id, source_id=source_id, provider="woocommerce",
+            verification=verification,
+        )
+        tenant_conn.commit()
+        return {"source_id": source_id, "provider": "woocommerce", "connection_status": "verified",
+                "reconnected": bool(binding.get("reconnected")), "currency_code": verification["currency_code"]}
+    except Exception:
+        tenant_conn.rollback()
+        raise
+    finally:
+        tenant_conn.close()
+
+
+@router.post("/connect/shopify/authorize")
+def onboarding_shopify_authorize(request: ShopifyAuthorizeRequest,
+                                 ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Begin the Node-compatible signed-state Shopify installation flow."""
+    if request.consent is not True:
+        raise HTTPException(status_code=422, detail="Connection consent is required.")
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_admin(conn, ctx)
+    finally:
+        conn.close()
+    from src.market_scraper.shopify_oauth import begin_authorization
+    return begin_authorization(tenant_id=ctx.tenant_id, user_id=ctx.user_id, shop_input=request.url,
+                               sync_frequency_minutes=request.sync_frequency_minutes,
+                               include_test_orders=request.include_test_orders)
+
+
+@router.get("/shopify/callback")
+def onboarding_shopify_callback(request: Request) -> RedirectResponse:
+    """Validate Shopify's signed callback and return a short-lived finish ticket.
+
+    The callback does not exchange/store a token. The initiating authenticated
+    tenant session must submit the ticket to the finish endpoint.
+    """
+    pairs = list(request.query_params.multi_items())
+    if len({key for key, _ in pairs}) != len(pairs):
+        raise HTTPException(status_code=400, detail="Shopify callback contains duplicate parameters.")
+    from src.market_scraper.shopify_oauth import create_callback_ticket
+    from urllib.parse import urlencode
+    try:
+        ticket = create_callback_ticket(dict(pairs))
+        destination = os.getenv("FRONTEND_URL", "").rstrip("/") + "/connect-data#" + urlencode(
+            {"shopify_ticket": ticket["ticket"], "shopify_state": ticket["state"]}
+        )
+    except HTTPException:
+        frontend = os.getenv("FRONTEND_URL", "").rstrip("/")
+        if not frontend:
+            raise
+        destination = frontend + "/connect-data?shopify=error"
+    return RedirectResponse(destination, status_code=303, headers={"Cache-Control": "no-store",
+                                                                   "Referrer-Policy": "no-referrer"})
+
+
+@router.post("/connect/shopify/complete")
+def onboarding_shopify_complete(request: ShopifyFinishRequest,
+                                ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_admin(conn, ctx)
+        from src.market_scraper.shopify_oauth import finish_authorization
+        result = finish_authorization(conn, tenant_id=ctx.tenant_id, user_id=ctx.user_id,
+                                      ticket=request.ticket)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 # --- Connected business systems: list, sync now, disconnect ---------------
 
-_CONNECTOR_KEYS = (connector_sync.DB_CONNECTOR_COLLECTOR_KEY, api_connector_sync.API_CONNECTOR_COLLECTOR_KEY)
+_CONNECTOR_KEYS = (connector_sync.DB_CONNECTOR_COLLECTOR_KEY, api_connector_sync.API_CONNECTOR_COLLECTOR_KEY,
+                   "woocommerce", "shopify")
 _ADMIN_ROLES = {"owner", "admin"}
 
 
@@ -212,7 +405,7 @@ def list_connected_sources(ctx: TenantContext = Depends(get_tenant_context)) -> 
             )
             rows = cursor.fetchall()
         return {"sources": [{
-            "source_id": str(r[0]), "name": r[1], "kind": "database" if r[2] == connector_sync.DB_CONNECTOR_COLLECTOR_KEY else "api",
+            "source_id": str(r[0]), "name": r[1], "kind": r[2],
             "sync_frequency_minutes": r[3], "last_synced_at": r[4].isoformat() if r[4] else None,
             "created_at": r[5].isoformat() if r[5] else None,
             "last_run": None if r[7] is None else {"status": r[7], "rows_processed": r[8], "rows_failed": r[9],

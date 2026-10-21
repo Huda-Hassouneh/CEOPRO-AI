@@ -4,6 +4,7 @@ from src.market_scraper.provider_lifecycle import (
     ProviderLifecycleError,
     advance_completed_checkpoint,
     bind_verified_provider_source,
+    woocommerce_verified_store_id,
 )
 
 
@@ -51,6 +52,33 @@ def test_shopify_binding_requires_provider_verified_stable_identity():
     assert result["reconnected"] is False
     assert "bind_verified" in conn._cursor.calls[0][0]
     assert "Shop/123" in conn._cursor.calls[0][1][0]
+
+
+def test_woocommerce_binding_uses_verified_canonical_url_identity():
+    conn = _Connection({"source_id": "source", "reconnected": False})
+    verification = {
+        "verified": True, "api": "wc/v3", "products_accessible": True,
+        "orders_accessible": True, "currency_code": "USD",
+        "canonical_store_url": "https://shop.example/store",
+    }
+    result = bind_verified_provider_source(
+        conn, tenant_id="tenant", source_id="source", provider="woocommerce", verification=verification,
+    )
+    command = conn._cursor.calls[0][1][0]
+    assert result["reconnected"] is False
+    assert '"provider": "woocommerce"' in command
+    assert woocommerce_verified_store_id("https://shop.example/store") in command
+    assert "authenticated_store_identity" in command
+
+
+def test_woocommerce_binding_rejects_unverified_url_or_incomplete_reads():
+    conn = _Connection()
+    with pytest.raises(ProviderLifecycleError):
+        bind_verified_provider_source(
+            conn, tenant_id="tenant", source_id="source", provider="woocommerce",
+            verification={"verified": True, "canonical_store_url": "https://shop.example"},
+        )
+    assert conn._cursor.calls == []
 
 
 @pytest.mark.parametrize("provider,verification", [
