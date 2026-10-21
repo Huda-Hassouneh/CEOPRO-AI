@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { parseMarkdown } from '../utils/markdown.js';
 import { CitationMarkers } from './CitationMarker.jsx';
 
@@ -60,7 +61,23 @@ function MarkdownAnswer({ text }) {
 
 // An answer with claim-level references renders claim by claim; an older
 // answer (saved before references existed) renders as the Markdown it was.
-export function AssistantResponse({ content, blocks, onOpenRef, activeRef, t }) {
+// A long answer opens on its short summary; the full answer is one click
+// away (a native disclosure: keyboard and screen-reader friendly, no state).
+function SummarisedAnswer({ summary, blocks, onOpenRef, activeRef, t }) {
+  const [open, setOpen] = useState(false);
+  return <>
+    <p className="rag-answer-summary"><Claims claims={summary.claims} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></p>
+    <details className="rag-answer-details" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary>{t(open ? 'ragAssistant.chat.hideFullAnswer' : 'ragAssistant.chat.showFullAnswer')}</summary>
+      <CitedBlocks blocks={blocks} onOpenRef={onOpenRef} activeRef={activeRef} t={t} />
+    </details>
+  </>;
+}
+
+export function AssistantResponse({ content, blocks, summary, onOpenRef, activeRef, t }) {
+  if (Array.isArray(blocks) && blocks.length && summary?.claims?.length) {
+    return <SummarisedAnswer summary={summary} blocks={blocks} onOpenRef={onOpenRef} activeRef={activeRef} t={t} />;
+  }
   if (Array.isArray(blocks) && blocks.length) return <CitedBlocks blocks={blocks} onOpenRef={onOpenRef} activeRef={activeRef} t={t} />;
   return <MarkdownAnswer text={typeof content === 'string' ? content : ''} />;
 }
