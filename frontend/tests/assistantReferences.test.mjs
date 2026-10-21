@@ -71,3 +71,11 @@ test('claims keep their kind and verification state', () => {
   assert.equal(blocks[0].claims[1].kind, 'general');
   assert.equal(mapBlocks([]), null);
 });
+
+test('a long answer carries its short summary, and a short one has none', () => {
+  const long = mapAnswer({ ...response, answer_summary: { text: 'Short.', refs: [1], claims: [{ text: 'Short.', kind: 'fact', refs: [1], verified: true, notes: [] }] } });
+  assert.equal(long.summary.claims[0].text, 'Short.');
+  assert.deepEqual(long.summary.claims[0].refs, [1]);
+  assert.equal(mapAnswer(response).summary, null);
+  assert.equal(mapAnswer({ ...response, answer_summary: { claims: [] } }).summary, null);
+});

@@ -30,7 +30,7 @@ export function ChatMessage({ message, t, formatTime, formatSize, locale, dir, o
       {!isUser && offline && <p className="rag-evidence-note" role="note"><FileSearch size={14} aria-hidden="true" />{t(`ragAssistant.chat.${message.answerMode === 'evidence' ? 'evidenceNote' : 'unverifiedNote'}`)}</p>}
       {message.status === 'generating'
         ? <div className="rag-generating" role="status"><i /><i /><i /><span>{t('ragAssistant.chat.generating')}</span></div>
-        : <AssistantResponse content={message.content} blocks={message.blocks} onOpenRef={openRef} activeRef={activeRef} t={t} />}
+        : <AssistantResponse content={message.content} blocks={message.blocks} summary={message.summary} onOpenRef={openRef} activeRef={activeRef} t={t} />}
       {!isUser && message.calculations?.[0] && <CalculationCard calculation={message.calculations[0]} onOpenRef={openRef} activeRef={activeRef} t={t} />}
       {notes.length > 0 && <ul className="rag-status-notes">{notes.map((key) => <li key={key}><Info size={13} aria-hidden="true" />{t(`ragAssistant.status.${key}`)}</li>)}</ul>}
       {isUser && <MessageAttachments attachments={message.attachments} formatSize={formatSize} t={t} />}
