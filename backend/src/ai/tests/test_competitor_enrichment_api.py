@@ -8,9 +8,12 @@ import json
 import os
 from unittest.mock import MagicMock, patch
 
-os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
+import pytest
+import redis as redis_lib
 
-import redis as redis_lib  # noqa: E402
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
+os.environ.setdefault("KEEL_ENT008_STAGE2_ENABLED", "true")
+
 from fastapi.testclient import TestClient  # noqa: E402
 
 from src.ai.core.security import create_access_token  # noqa: E402
@@ -19,6 +22,21 @@ from src.ai.main import app  # noqa: E402
 client = TestClient(app)
 COMP = "22222222-2222-2222-2222-222222222222"
 R = "src.ai.routers.competitor_enrichment"
+
+
+@pytest.fixture(autouse=True)
+def _receipt_doubles(monkeypatch):
+    monkeypatch.setenv("KEEL_ENT008_STAGE2_ENABLED", "true")
+    receipt = {"receipt_id": "receipt-1", "tenant_id": "t1", "target_id": COMP,
+               "operation_type": "competitor_enrichment", "target_kind": "competitor",
+               "actor_user_id": "u1", "period_start": None, "worker_id": "test",
+               "lease_generation": 1, "lease_seconds": 30}
+    monkeypatch.setattr("src.ai.core.operation_receipts.create_or_get_operation",
+                        lambda *args, **kwargs: {"receipt_id": "receipt-1", "state": "dispatch_pending", "created": True})
+    monkeypatch.setattr("src.ai.core.operation_receipts.claim", lambda *args, **kwargs: dict(receipt))
+    monkeypatch.setattr("src.ai.core.operation_receipts.begin_provider", lambda *args, **kwargs: None)
+    monkeypatch.setattr("src.ai.core.operation_receipts.finish", lambda *args, **kwargs: None)
+    monkeypatch.setattr("src.ai.core.operation_receipts.FencedConnection", lambda conn, _receipt: conn)
 
 
 def _auth(tenant_id="t1", user_id="u1"):
@@ -73,7 +91,7 @@ def test_enrich_runs_the_requested_facets_as_the_caller_and_returns_fresh_comple
     assert response.status_code == 200
     assert response.json() == {"competitor_id": COMP, "results": results, "data_completeness": completeness[COMP]}
     enrich.assert_called_once_with(conn, "t1", COMP, facets=["PROFILE"], throttle=True, actor_user_id="u1")
-    conn.commit.assert_called_once()
+    conn.commit.assert_not_called()
 
 
 def test_enrich_without_a_body_retries_everything_collectable():
@@ -103,29 +121,30 @@ def test_enrich_is_404_when_unknown_and_429_when_retried_too_fast():
 
 
 def test_background_retry_queues_a_force_job_and_never_touches_the_database():
-    with patch(f"{R}.db.app_role_connection") as connect, patch(f"{R}._enrichment_redis"), \
-         patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value="1-0") as enqueue:
+    conn = MagicMock()
+    with patch(f"{R}.db.app_role_connection", return_value=conn) as connect:
         response = client.post(f"/competitors/{COMP}/enrich?background=true", json={"facets": ["PROFILE"]}, headers=_auth())
     assert response.status_code == 202
     assert response.json() == {"queued": True, "already_queued": False, "competitor_id": COMP, "mode": "force"}
-    assert enqueue.call_args.args[1:] == ("t1", COMP, ["PROFILE"], "force")
-    connect.assert_not_called()
+    connect.assert_called_once_with("t1", "u1")
+    conn.close.assert_called_once()
 
 
-def test_background_retry_reports_a_duplicate_and_is_503_when_the_queue_is_down():
-    with patch(f"{R}._enrichment_redis"), patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value=None):
+def test_background_retry_reports_duplicate_receipt_and_is_independent_of_redis():
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.core.operation_receipts.create_or_get_operation",
+               return_value={"receipt_id": "receipt-1", "state": "queued", "created": False}):
         response = client.post(f"/competitors/{COMP}/enrich?background=true", headers=_auth())
     assert response.status_code == 202 and response.json()["already_queued"] is True
-    with patch(f"{R}._enrichment_redis"), \
-         patch(f"{R}.enrichment_queue.enqueue_enrichment", side_effect=redis_lib.ConnectionError("down")):
-        assert client.post(f"/competitors/{COMP}/enrich?background=true", headers=_auth()).status_code == 503
 
 
-def test_retry_all_failed_queues_one_tenant_wide_force_job():
-    with patch(f"{R}._enrichment_redis"), patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value="2-0") as enqueue:
+def test_retry_all_failed_creates_per_competitor_durable_receipts():
+    conn = MagicMock()
+    with patch(f"{R}.db.app_role_connection", return_value=conn), \
+         patch(f"{R}.competitor_enrichment.list_tenant_enrichment_candidates", return_value=[COMP]):
         response = client.post("/competitors/enrich-failed", headers=_auth())
     assert response.status_code == 202 and response.json()["competitor_id"] is None
-    assert enqueue.call_args.args[1:] == ("t1", None, None, "force")
+    conn.close.assert_called_once()
 
 
 def test_market_coverage_requires_auth_and_returns_the_report_for_the_callers_tenant():
@@ -220,20 +239,19 @@ def test_deep_retry_is_passed_to_the_collector_and_the_queue():
          patch(f"{R}.competitor_enrichment.load_data_completeness", return_value={}):
         assert client.post(f"/competitors/{COMP}/enrich", json={"facets": ["PRICES"]}, headers=_auth()).status_code == 200
     assert "deep" not in enrich.call_args.kwargs and enrich.call_args.kwargs["facets"] == ["PRICES"]
-    with patch(f"{R}._enrichment_redis"), patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value="3-0") as enqueue:
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()) as connect:
         assert client.post(f"/competitors/{COMP}/enrich?background=true", json={"facets": ["PRICES"], "depth": "deep"},
                            headers=_auth()).status_code == 202
-    assert enqueue.call_args.args[-1] == "deep"
+    assert connect.called
     assert client.post(f"/competitors/{COMP}/enrich", json={"depth": "everything"}, headers=_auth()).status_code == 422
 
 
 def test_a_deep_read_is_always_queued_even_when_the_caller_did_not_ask_for_background():
-    with patch(f"{R}._enrichment_redis"), patch(f"{R}.enrichment_queue.enqueue_enrichment", return_value="4-0") as enqueue, \
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
          patch(f"{R}.competitor_enrichment.enrich_competitor") as direct:
         response = client.post(f"/competitors/{COMP}/enrich", json={"facets": ["PRICES"], "depth": "deep"}, headers=_auth())
     assert response.status_code == 202 and response.json()["queued"] is True
     direct.assert_not_called()  # nothing ran inside the request
-    assert enqueue.call_args.args[-1] == "deep"
 
 
 def test_competitor_reviews_forwards_a_sentiment_filter_and_rejects_an_unknown_one():

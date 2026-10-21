@@ -17,6 +17,9 @@ from fastapi import HTTPException
 from src.ai.core import usage
 
 OPERATION_TYPE = "reviewed_source_collection"
+COMPETITOR_ENRICHMENT = "competitor_enrichment"
+SCHEDULED_CONNECTOR_SYNC = "scheduled_connector_sync"
+SUPPORTED_OPERATION_TYPES = (OPERATION_TYPE, COMPETITOR_ENRICHMENT, SCHEDULED_CONNECTOR_SYNC)
 ACTIVE_STATES = (
     "dispatch_pending", "queued", "claimed", "authorized", "provider_started",
     "retryable", "reconciliation_required",
@@ -43,11 +46,40 @@ class ReceiptUncertain(ReceiptError):
     pass
 
 
+class FencedConnection:
+    """Connection proxy that fences every canonical transaction commit."""
+
+    def __init__(self, conn, receipt: dict):
+        self._conn = conn
+        self._receipt = receipt
+
+    def commit(self):
+        try:
+            assert_fence(self._conn, self._receipt)
+        except Exception:
+            self._conn.rollback()
+            raise
+        return self._conn.commit()
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
 def source_fingerprint(tenant_id: str, source_id: str) -> str:
     payload = json.dumps(
         {"operation": OPERATION_TYPE, "tenant_id": str(tenant_id), "source_id": str(source_id)},
         sort_keys=True,
         separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def operation_fingerprint(operation_type: str, tenant_id: str, target_kind: str,
+                          target_id: str, request_payload: dict | None = None) -> str:
+    payload = json.dumps(
+        {"operation": operation_type, "tenant_id": str(tenant_id), "target_kind": target_kind,
+         "target_id": str(target_id), "request": request_payload or {}},
+        sort_keys=True, separators=(",", ":"),
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -86,65 +118,136 @@ def authorize_collection(conn, tenant_id: str, source_id: str, actor_user_id: st
     return plan
 
 
-def create_or_get_collection(conn, tenant_id: str, source_id: str, actor_user_id: str,
-                             principal_kind: str = "user") -> dict:
-    """Commit durable intent before any Redis delivery attempt."""
-    if principal_kind not in {"user", "service"} or not actor_user_id:
-        raise ReceiptAuthorizationError("authenticated user or service provenance is required")
-    plan = authorize_collection(conn, tenant_id, source_id, actor_user_id)
-    fingerprint = source_fingerprint(tenant_id, source_id)
+def authorize_operation(conn, operation_type: str, tenant_id: str, target_kind: str,
+                        target_id: str, actor_user_id: str,
+                        expected_period: date | None = None) -> dict:
+    """Revalidate the operation-specific existing Python authorization."""
+    if operation_type == OPERATION_TYPE and target_kind == "source":
+        return authorize_collection(conn, tenant_id, target_id, actor_user_id, expected_period)
+    if operation_type not in SUPPORTED_OPERATION_TYPES or not _principal_is_active(conn, tenant_id, actor_user_id):
+        raise ReceiptAuthorizationError("active tenant principal required")
+
+    plan = usage.get_plan(conn, tenant_id)
+    if operation_type == COMPETITOR_ENRICHMENT and target_kind == "competitor":
+        try:
+            usage._require_active(plan, usage.COMPETITOR_MANAGEMENT)
+        except (usage.PlanLimitReached, KeyError) as exc:
+            raise ReceiptAuthorizationError("competitor enrichment is not currently authorized") from exc
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM public.tenant_competitors tc "
+                "JOIN public.global_competitors gc ON gc.global_competitor_id=tc.global_competitor_id "
+                "WHERE tc.tenant_id=%s::uuid AND tc.global_competitor_id=%s::uuid "
+                "AND tc.is_tracked IS TRUE AND gc.visibility='PRIVATE' AND gc.added_by_tenant_id=tc.tenant_id;",
+                (tenant_id, target_id),
+            )
+            if cursor.fetchone() is None:
+                raise ReceiptAuthorizationError("competitor is not tracked by this tenant")
+    elif operation_type == SCHEDULED_CONNECTOR_SYNC and target_kind == "source":
+        # Capacity is consumed when a persistent connection is created, not when it syncs.
+        try:
+            usage._require_active(plan, usage.CONNECTED_DATA_SOURCES)
+        except (usage.PlanLimitReached, KeyError) as exc:
+            raise ReceiptAuthorizationError("connector synchronization requires an active subscription") from exc
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM public.data_sources WHERE tenant_id=%s::uuid AND source_id=%s::uuid "
+                "AND is_active IS TRUE AND policy_status='ALLOWED' "
+                "AND collector_key IN ('db_connector','api_connector');",
+                (tenant_id, target_id),
+            )
+            if cursor.fetchone() is None:
+                raise ReceiptAuthorizationError("source is not an active approved connector for this tenant")
+    else:
+        raise ReceiptAuthorizationError("operation target does not match its operation type")
+
+    if expected_period is not None and plan["period_start"] != expected_period:
+        raise ReceiptAuthorizationError("billing period changed after enqueue")
+    return plan
+
+
+def _validate_request_payload(operation_type: str, request_payload: dict | None) -> dict:
+    payload = dict(request_payload or {})
+    if operation_type == COMPETITOR_ENRICHMENT:
+        if set(payload) - {"facets", "depth", "mode"}:
+            raise ReceiptError("unsupported competitor enrichment receipt parameter")
+        if "facets" in payload and (not isinstance(payload["facets"], list)
+                                     or any(not isinstance(value, str) for value in payload["facets"])):
+            raise ReceiptError("facets must be a list of strings")
+        if payload.get("depth", "standard") not in {"standard", "deep"}:
+            raise ReceiptError("unsupported enrichment depth")
+        if payload.get("mode", "single") not in {"single", "due", "force", "comments"}:
+            raise ReceiptError("unsupported enrichment mode")
+    elif payload:
+        raise ReceiptError("this operation does not accept request parameters")
+    return payload
+
+
+def create_or_get_operation(conn, operation_type: str, tenant_id: str, target_kind: str,
+                            target_id: str, actor_user_id: str,
+                            principal_kind: str = "user", request_payload: dict | None = None) -> dict:
+    """Persist sanitized, tenant-scoped intent before signaling a worker."""
+    if operation_type not in SUPPORTED_OPERATION_TYPES or principal_kind not in {"user", "service"} or not actor_user_id:
+        raise ReceiptAuthorizationError("supported operation and authenticated tenant principal required")
+    if ((operation_type == COMPETITOR_ENRICHMENT and target_kind != "competitor")
+            or (operation_type != COMPETITOR_ENRICHMENT and target_kind != "source")):
+        raise ReceiptAuthorizationError("operation target does not match its operation type")
+    params = _validate_request_payload(operation_type, request_payload)
+    plan = authorize_operation(conn, operation_type, tenant_id, target_kind, target_id, actor_user_id)
+    fingerprint = (source_fingerprint(tenant_id, target_id) if operation_type == OPERATION_TYPE
+                   else operation_fingerprint(operation_type, tenant_id, target_kind, target_id, params))
+    active_states = list(ACTIVE_STATES)
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT receipt_id, actor_user_id, request_fingerprint, state, period_start "
-            "FROM public.keel_operation_receipts "
-            "WHERE tenant_id = %s::uuid AND source_id = %s::uuid "
-            "AND state = ANY(%s) FOR UPDATE;",
-            (tenant_id, source_id, list(ACTIVE_STATES)),
+            "SELECT receipt_id,actor_user_id,request_fingerprint,state,period_start "
+            "FROM public.keel_operation_receipts WHERE tenant_id=%s::uuid AND operation_type=%s "
+            "AND target_kind=%s AND target_id=%s::uuid AND state=ANY(%s) FOR UPDATE;",
+            (tenant_id, operation_type, target_kind, target_id, active_states),
         )
         previous = cursor.fetchone()
         if previous:
-            if str(previous[1]) != str(actor_user_id) or previous[2] != fingerprint:
+            if str(previous[1]) != str(actor_user_id) or previous[2] != fingerprint or previous[4] != plan["period_start"]:
                 raise ReceiptConflict("active operation identity does not match this request")
-            if previous[4] != plan["period_start"]:
-                raise ReceiptConflict("active operation belongs to a prior billing period")
             conn.commit()
-            return {"receipt_id": str(previous[0]), "state": previous[3], "period_start": previous[4]}
-        receipt_id = str(uuid.uuid4())
-        key = str(uuid.uuid4())
-        with conn.cursor() as cursor:
+            return {"receipt_id": str(previous[0]), "state": previous[3], "period_start": previous[4], "created": False}
+
+        receipt_id, key = str(uuid.uuid4()), str(uuid.uuid4())
+        source_id = target_id if target_kind == "source" else None
+        cursor.execute(
+            "INSERT INTO public.keel_operation_receipts "
+            "(receipt_id,tenant_id,source_id,operation_type,target_kind,target_id,request_payload, "
+            "principal_kind,actor_user_id,period_start,idempotency_key,request_fingerprint,state,provider_outcome) "
+            "VALUES (%s::uuid,%s::uuid,%s::uuid,%s,%s,%s::uuid,%s::jsonb,%s,%s::uuid,%s,%s::uuid,%s,'dispatch_pending','not_started') "
+            "ON CONFLICT (tenant_id,operation_type,target_kind,target_id) WHERE state IN "
+            "('dispatch_pending','queued','claimed','authorized','provider_started','retryable','reconciliation_required') "
+            "DO NOTHING RETURNING receipt_id,state,period_start;",
+            (receipt_id, tenant_id, source_id, operation_type, target_kind, target_id,
+             json.dumps(params, sort_keys=True, separators=(",", ":")), principal_kind, actor_user_id,
+             plan["period_start"], key, fingerprint),
+        )
+        row = cursor.fetchone()
+        if row is None:
             cursor.execute(
-                "INSERT INTO public.keel_operation_receipts "
-                "(receipt_id, tenant_id, source_id, operation_type, principal_kind, actor_user_id, "
-                "period_start, idempotency_key, request_fingerprint, state, provider_outcome) "
-                "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s::uuid, %s, %s::uuid, %s, "
-                "'dispatch_pending', 'not_started') "
-                "ON CONFLICT (tenant_id, source_id) WHERE state IN "
-                "('dispatch_pending','queued','claimed','authorized','provider_started','retryable','reconciliation_required') "
-                "DO NOTHING RETURNING receipt_id, state, period_start;",
-                (receipt_id, tenant_id, source_id, OPERATION_TYPE, principal_kind, actor_user_id,
-                 plan["period_start"], key, fingerprint),
+                "SELECT receipt_id,actor_user_id,request_fingerprint,state,period_start "
+                "FROM public.keel_operation_receipts WHERE tenant_id=%s::uuid AND operation_type=%s "
+                "AND target_kind=%s AND target_id=%s::uuid AND state=ANY(%s) FOR UPDATE;",
+                (tenant_id, operation_type, target_kind, target_id, active_states),
             )
-            row = cursor.fetchone()
-            if row is None:
-                cursor.execute(
-                    "SELECT receipt_id, actor_user_id, request_fingerprint, state, period_start "
-                    "FROM public.keel_operation_receipts WHERE tenant_id=%s::uuid AND source_id=%s::uuid "
-                    "AND state = ANY(%s) FOR UPDATE;",
-                    (tenant_id, source_id, list(ACTIVE_STATES)),
-                )
-                previous = cursor.fetchone()
-                if not previous:
-                    conn.rollback()
-                    raise ReceiptConflict("concurrent receipt creation could not be resolved")
-                if str(previous[1]) != str(actor_user_id) or previous[2] != fingerprint:
-                    conn.rollback()
-                    raise ReceiptConflict("active operation identity does not match this request")
-                if previous[4] != plan["period_start"]:
-                    conn.rollback()
-                    raise ReceiptConflict("active operation belongs to a prior billing period")
-                row = (previous[0], previous[3], previous[4])
+            previous = cursor.fetchone()
+            if not previous or str(previous[1]) != str(actor_user_id) or previous[2] != fingerprint or previous[4] != plan["period_start"]:
+                conn.rollback()
+                raise ReceiptConflict("concurrent operation identity could not be resolved")
+            row = (previous[0], previous[3], previous[4])
     conn.commit()
-    return {"receipt_id": str(row[0]), "state": row[1], "period_start": row[2]}
+    return {"receipt_id": str(row[0]), "state": row[1], "period_start": row[2],
+            "created": str(row[0]) == receipt_id}
+
+
+def create_or_get_collection(conn, tenant_id: str, source_id: str, actor_user_id: str,
+                             principal_kind: str = "user") -> dict:
+    """Backward-compatible Stage 1 entry point over the generalized receipt."""
+    return create_or_get_operation(conn, OPERATION_TYPE, tenant_id, "source", source_id,
+                                   actor_user_id, principal_kind, {})
 
 
 def mark_queued(conn, tenant_id: str, receipt_id: str) -> None:
@@ -157,17 +260,21 @@ def mark_queued(conn, tenant_id: str, receipt_id: str) -> None:
     conn.commit()
 
 
-def dispatch_pending(conn, tenant_id: str, limit: int = 25) -> list[dict]:
+def dispatch_pending(conn, tenant_id: str, limit: int = 25,
+                     operation_types: tuple[str, ...] = (OPERATION_TYPE,)) -> list[dict]:
     """Return current-tenant outbox rows; Redis remains only a delivery signal."""
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT receipt_id, source_id FROM public.keel_operation_receipts "
-            "WHERE tenant_id=%s::uuid AND state IN ('dispatch_pending','retryable') "
+            "SELECT receipt_id, source_id, operation_type, target_kind, target_id, request_payload "
+            "FROM public.keel_operation_receipts "
+            "WHERE tenant_id=%s::uuid AND operation_type=ANY(%s) AND state IN ('dispatch_pending','retryable') "
             "ORDER BY created_at LIMIT %s;",
-            (tenant_id, limit),
+            (tenant_id, list(operation_types), limit),
         )
         rows = cursor.fetchall()
-    return [{"receipt_id": str(row[0]), "source_id": str(row[1])} for row in rows]
+    return [{"receipt_id": str(row[0]), "source_id": str(row[1]) if row[1] else None,
+             "operation_type": row[2], "target_kind": row[3], "target_id": str(row[4]),
+             "request_payload": row[5]} for row in rows]
 
 
 def attach_ingestion_job(conn, receipt: dict, job_id: str) -> None:
@@ -192,7 +299,8 @@ def claim(conn, tenant_id: str, receipt_id: str, worker_id: str,
     with conn.cursor() as cursor:
         cursor.execute(
             "SELECT source_id, actor_user_id, principal_kind, period_start, state, "
-            "lease_generation, lease_expires_at, provider_started_at, ingestion_job_id "
+            "lease_generation, lease_expires_at, provider_started_at, ingestion_job_id, "
+            "operation_type, target_kind, target_id, request_payload "
             "FROM public.keel_operation_receipts "
             "WHERE tenant_id=%s::uuid AND receipt_id=%s::uuid FOR UPDATE;",
             (tenant_id, receipt_id),
@@ -200,7 +308,8 @@ def claim(conn, tenant_id: str, receipt_id: str, worker_id: str,
         row = cursor.fetchone()
         if row is None:
             raise ReceiptError("receipt not found")
-        source_id, actor_id, principal_kind, period, state, generation, lease_until, provider_started, job_id = row
+        (source_id, actor_id, principal_kind, period, state, generation, lease_until,
+         provider_started, job_id, operation_type, target_kind, target_id, request_payload) = row
         if state in {"completed", "denied", "failed", "reconciliation_required"}:
             conn.commit()
             raise ReceiptError(f"receipt is terminal or requires reconciliation: {state}")
@@ -233,7 +342,7 @@ def claim(conn, tenant_id: str, receipt_id: str, worker_id: str,
             conn.rollback()
             raise ReceiptConflict("receipt claim raced with another worker")
     try:
-        authorize_collection(conn, tenant_id, str(source_id), str(actor_id), period)
+        authorize_operation(conn, operation_type, tenant_id, target_kind, str(target_id), str(actor_id), period)
     except ReceiptAuthorizationError:
         with conn.cursor() as cursor:
             cursor.execute(
@@ -258,7 +367,10 @@ def claim(conn, tenant_id: str, receipt_id: str, worker_id: str,
             conn.rollback()
             raise ReceiptLeaseLost("claim was fenced before authorization completed")
     conn.commit()
-    return {"receipt_id": receipt_id, "tenant_id": tenant_id, "source_id": str(source_id),
+    return {"receipt_id": receipt_id, "tenant_id": tenant_id,
+            "source_id": str(source_id) if source_id else None,
+            "operation_type": operation_type, "target_kind": target_kind, "target_id": str(target_id),
+            "request_payload": request_payload or {},
             "actor_user_id": str(actor_id), "principal_kind": principal_kind,
             "period_start": period, "worker_id": worker_id, "lease_generation": generation,
             "ingestion_job_id": str(job_id) if job_id else None, "lease_seconds": lease_seconds}
@@ -278,6 +390,7 @@ def begin_provider(conn, receipt: dict) -> None:
             conn.rollback()
             raise ReceiptLeaseLost("worker lease expired before provider work")
     conn.commit()
+    receipt["provider_started"] = True
 
 
 def assert_fence(conn, receipt: dict, allow_pre_provider: bool = False) -> None:
@@ -296,22 +409,22 @@ def assert_fence(conn, receipt: dict, allow_pre_provider: bool = False) -> None:
             "UPDATE public.keel_operation_receipts SET lease_expires_at=NOW() + (%s * INTERVAL '1 second'), "
             f"updated_at=NOW() WHERE tenant_id=%s::uuid AND receipt_id=%s::uuid AND {state_predicate} "
             "AND lease_owner=%s AND lease_generation=%s AND lease_expires_at > NOW() "
-            "RETURNING actor_user_id, period_start;",
+            "RETURNING actor_user_id, period_start, operation_type, target_kind, target_id;",
             (receipt.get("lease_seconds", 1800), receipt["tenant_id"], receipt["receipt_id"],
              receipt["worker_id"], receipt["lease_generation"]),
         )
         row = cursor.fetchone()
     if row is None:
         raise ReceiptLeaseLost("canonical write rejected by receipt lease fence")
-    authorize_collection(conn, receipt["tenant_id"], receipt["source_id"], str(row[0]), row[1])
+    authorize_operation(conn, row[2], receipt["tenant_id"], row[3], str(row[4]), str(row[0]), row[1])
 
 
 def finish(conn, receipt: dict, state: str, error_code: str | None = None) -> None:
     if state not in {"completed", "retryable", "reconciliation_required", "failed", "denied"}:
         raise ValueError("invalid terminal receipt transition")
     if state == "completed":
-        authorize_collection(conn, receipt["tenant_id"], receipt["source_id"], receipt["actor_user_id"],
-                             receipt["period_start"])
+        authorize_operation(conn, receipt["operation_type"], receipt["tenant_id"], receipt["target_kind"],
+                            receipt["target_id"], receipt["actor_user_id"], receipt["period_start"])
     with conn.cursor() as cursor:
         cursor.execute(
             "UPDATE public.keel_operation_receipts SET state=%s, error_code=%s, "

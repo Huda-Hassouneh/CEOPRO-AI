@@ -18,6 +18,7 @@ import psycopg2
 import pytest
 from cryptography.fernet import Fernet
 
+from src.ai.core import operation_receipts
 from src.market_scraper.connector_sync import (
     DB_CONNECTOR_COLLECTOR_KEY, load_due_db_connector_sources, run_due_connector_syncs,
     sync_db_connector_source,
@@ -25,6 +26,7 @@ from src.market_scraper.connector_sync import (
 from src.market_scraper.data_access import set_source_credentials
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
+_SERVICE_ACTORS = {}
 
 pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AI_TEST_DATABASE_URL not set - skipping live-DB integration test")
 
@@ -41,17 +43,61 @@ def conn():
 @pytest.fixture(autouse=True)
 def _local_kms_master_key(monkeypatch):
     monkeypatch.setenv("CREDENTIAL_VAULT_MASTER_KEY", Fernet.generate_key().decode())
+    monkeypatch.setenv("KEEL_ENT008_STAGE2_ENABLED", "true")
 
 
 def _insert_company(conn) -> str:
     tenant_id = str(uuid.uuid4())
+    actor_id = str(uuid.uuid4())
     with conn.cursor() as cursor:
         cursor.execute(
             "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) "
             "VALUES (%s, %s, 'JO', 'JOD');",
             (tenant_id, f"Test Co {tenant_id[:8]}"),
         )
+        cursor.execute("SELECT role_key FROM system_roles LIMIT 1;")
+        role = cursor.fetchone()
+        if role:
+            role_key = role[0]
+        else:
+            cursor.execute("INSERT INTO system_roles (role_key,role_name) VALUES ('OWNER','Owner');")
+            role_key = "OWNER"
+        cursor.execute(
+            "INSERT INTO users (user_id,email,password_hash,full_name) VALUES (%s,%s,'x','Connector service');",
+            (actor_id, f"connector-{actor_id}@example.invalid"),
+        )
+        cursor.execute("INSERT INTO tenant_users (tenant_id,user_id,role_key) VALUES (%s,%s,%s);",
+                       (tenant_id, actor_id, role_key))
+    os.environ["SCRAPER_ACTOR_USER_ID"] = actor_id
+    _SERVICE_ACTORS[tenant_id] = actor_id
     return tenant_id
+
+
+def _receipt(conn, tenant_id, source_id):
+    actor = _SERVICE_ACTORS[tenant_id]
+    intent = operation_receipts.create_or_get_operation(
+        conn, operation_receipts.SCHEDULED_CONNECTOR_SYNC, tenant_id,
+        "source", source_id, actor, "service", {},
+    )
+    return operation_receipts.claim(conn, tenant_id, intent["receipt_id"], f"test-{uuid.uuid4()}")
+
+
+def _run_with_receipt(conn, tenant_id, source_id):
+    receipt = _receipt(conn, tenant_id, source_id)
+    try:
+        result = sync_db_connector_source(conn, tenant_id, source_id, receipt)
+        operation_receipts.finish(conn, receipt, "completed")
+        return result
+    except Exception:
+        try:
+            operation_receipts.finish(
+                conn, receipt,
+                "reconciliation_required" if receipt.get("provider_started") else "failed",
+                "TEST_SYNC_FAILED",
+            )
+        except operation_receipts.ReceiptError:
+            conn.rollback()
+        raise
 
 
 def _insert_allowed_db_connector_source(
@@ -98,6 +144,24 @@ _VALID_CONFIG = {
 }
 
 
+def _billing_accounting_snapshot(conn, tenant_id):
+    snapshot = []
+    queries = (
+        ("SELECT plan_key,status,current_period_start,current_period_end FROM tenant_plan_assignments WHERE tenant_id=%s ORDER BY plan_key;",),
+        ("SELECT feature_code,period_start,used FROM tenant_usage_counters WHERE tenant_id=%s ORDER BY feature_code,period_start;",),
+        ("SELECT budget_kind,period_start,period_end,reserved_credits,consumed_credits,consumed_cost_usd "
+         "FROM tenant_credit_balances WHERE tenant_id=%s ORDER BY budget_kind,period_start;",),
+        ("SELECT budget_kind,operation_id,operation_type,provider,provider_operation,status,"
+         "estimated_cost_usd,actual_cost_usd,reserved_credits,consumed_credits FROM usage_ledger "
+         "WHERE tenant_id=%s ORDER BY ledger_id;",),
+    )
+    with conn.cursor() as cursor:
+        for (query,) in queries:
+            cursor.execute(query, (tenant_id,))
+            snapshot.append(tuple(cursor.fetchall()))
+    return tuple(snapshot)
+
+
 def test_load_due_db_connector_sources_includes_a_never_synced_source(conn):
     tenant_id = _insert_company(conn)
     source_id = _insert_allowed_db_connector_source(conn, tenant_id, _VALID_CONFIG, last_synced_at=None)
@@ -128,7 +192,7 @@ def test_sync_rejects_a_source_missing_required_config(conn):
     source_id = _insert_allowed_db_connector_source(conn, tenant_id, {"host": "x"})  # missing most keys
     set_source_credentials(conn, tenant_id, source_id, {"user": "u", "password": "p"})
     with pytest.raises(ValueError, match="missing required key"):
-        sync_db_connector_source(conn, tenant_id, source_id)
+        _run_with_receipt(conn, tenant_id, source_id)
 
 
 def test_sync_rejects_a_source_missing_credentials(conn):
@@ -136,7 +200,7 @@ def test_sync_rejects_a_source_missing_credentials(conn):
     source_id = _insert_allowed_db_connector_source(conn, tenant_id, _VALID_CONFIG)
     # no set_source_credentials() call at all
     with pytest.raises(ValueError, match="must include 'user' and 'password'"):
-        sync_db_connector_source(conn, tenant_id, source_id)
+        _run_with_receipt(conn, tenant_id, source_id)
 
 
 def _fake_client_connection(rows):
@@ -157,13 +221,14 @@ def test_sync_processes_real_rows_and_advances_the_watermark(conn):
     tenant_id = _insert_company(conn)
     source_id = _insert_allowed_db_connector_source(conn, tenant_id, _VALID_CONFIG, last_synced_at=None)
     set_source_credentials(conn, tenant_id, source_id, {"user": "readonly_user", "password": "s3cret"})
+    accounting_before = _billing_accounting_snapshot(conn, tenant_id)
 
     fake_client_conn = _fake_client_connection([
         ("Espresso Machine", 2, 45.5, "JOD", "2026-09-10"),
     ])
 
     with patch("src.market_scraper.connector_sync.psycopg2.connect", return_value=fake_client_conn) as mock_connect:
-        result = sync_db_connector_source(conn, tenant_id, source_id)
+        result = _run_with_receipt(conn, tenant_id, source_id)
 
     # Connected with the real config/credentials, never the platform's own conn
     mock_connect.assert_called_once_with(
@@ -184,6 +249,7 @@ def test_sync_processes_real_rows_and_advances_the_watermark(conn):
     with conn.cursor() as cursor:
         cursor.execute("SELECT job_status FROM ingestion_jobs WHERE tenant_id = %s AND job_id = %s;", (tenant_id, result["job_id"]))
         assert cursor.fetchone()[0] == "COMPLETED"
+    assert _billing_accounting_snapshot(conn, tenant_id) == accounting_before
 
 
 def test_sync_does_not_advance_the_watermark_on_a_client_connection_failure(conn):
@@ -193,7 +259,7 @@ def test_sync_does_not_advance_the_watermark_on_a_client_connection_failure(conn
 
     with patch("src.market_scraper.connector_sync.psycopg2.connect", side_effect=RuntimeError("connection refused")):
         with pytest.raises(RuntimeError, match="connection refused"):
-            sync_db_connector_source(conn, tenant_id, source_id)
+            _run_with_receipt(conn, tenant_id, source_id)
 
     with conn.cursor() as cursor:
         cursor.execute("SELECT last_synced_at FROM data_sources WHERE tenant_id = %s AND source_id = %s;", (tenant_id, source_id))

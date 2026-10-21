@@ -33,6 +33,8 @@ dialect DB driver (MySQL, SQL Server, Oracle, ...) is the "Universal
 Connector Layer" - a distinct, larger piece of work, not built here.
 """
 import logging
+import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -42,7 +44,10 @@ from src.market_scraper.network_security import assert_connector_target
 
 from src.ai.extraction.adapters.db_adapter import read_db_query
 from src.ai.extraction.ingestion_pipeline import process_records
-from src.market_scraper.data_access import create_ingestion_job, finish_ingestion_job, load_source
+from src.ai.core import operation_receipts
+from src.market_scraper.data_access import (
+    create_or_reuse_receipt_ingestion_job, finish_ingestion_job, load_source,
+)
 
 logger = logging.getLogger("CEOPRO_AI_CONNECTOR_SYNC")
 
@@ -100,7 +105,7 @@ def load_due_db_connector_sources(conn, tenant_id: str) -> list:
     ]
 
 
-def sync_db_connector_source(conn, tenant_id: str, source_id: str) -> dict:
+def sync_db_connector_source(conn, tenant_id: str, source_id: str, receipt: dict) -> dict:
     """
     Runs one real connector sync end-to-end:
     1. Loads the source's real config - collector_config holds the client
@@ -133,6 +138,8 @@ def sync_db_connector_source(conn, tenant_id: str, source_id: str) -> dict:
     required key, or its credentials are missing user/password - a
     misconfigured connector must surface loudly, not silently skip.
     """
+    if not receipt or receipt.get("operation_type") != operation_receipts.SCHEDULED_CONNECTOR_SYNC:
+        raise operation_receipts.ReceiptAuthorizationError("connector sync requires its durable operation receipt")
     source = load_source(conn, tenant_id, source_id)
     if source is None:
         raise ValueError(f"source not found, inactive, or not ALLOWED: {source_id!r}")
@@ -146,9 +153,10 @@ def sync_db_connector_source(conn, tenant_id: str, source_id: str) -> dict:
     if "user" not in credentials or "password" not in credentials:
         raise ValueError("db_connector credentials must include 'user' and 'password'")
 
-    job_id = create_ingestion_job(conn, tenant_id, source_id)
+    job_id = create_or_reuse_receipt_ingestion_job(conn, tenant_id, source_id, receipt)
 
     try:
+        operation_receipts.begin_provider(conn, receipt)
         assert_connector_target(f"https://{config['host']}:{int(config['port'])}")
         client_conn = psycopg2.connect(
             host=config["host"], port=config["port"], dbname=config["dbname"],
@@ -156,7 +164,7 @@ def sync_db_connector_source(conn, tenant_id: str, source_id: str) -> dict:
             connect_timeout=15,
         )
     except Exception as e:
-        finish_ingestion_job(conn, tenant_id, job_id, status="FAILED", processed=0, failed=0, error=str(e))
+        finish_ingestion_job(conn, tenant_id, job_id, status="FAILED", processed=0, failed=0, error=str(e), receipt=receipt)
         raise
 
     try:
@@ -166,18 +174,19 @@ def sync_db_connector_source(conn, tenant_id: str, source_id: str) -> dict:
         finally:
             client_conn.close()
     except Exception as e:
-        finish_ingestion_job(conn, tenant_id, job_id, status="FAILED", processed=0, failed=0, error=str(e))
+        finish_ingestion_job(conn, tenant_id, job_id, status="FAILED", processed=0, failed=0, error=str(e), receipt=receipt)
         raise
 
     summary = process_records(
         tenant_id=tenant_id, job_id=job_id, source_name=source["source_name"],
         headers=headers, rows=rows, trusted_field_mapping=config["field_mapping"],
-        conn=conn, commit_every=500,
+        conn=operation_receipts.FencedConnection(conn, receipt), commit_every=500,
     )
 
     finish_ingestion_job(
         conn, tenant_id, job_id, status="COMPLETED",
         processed=summary.rows_processed, failed=summary.rows_failed,
+        receipt=receipt,
     )
 
     return {
@@ -196,10 +205,33 @@ def run_due_connector_syncs(conn, tenant_id: str) -> list:
     in this codebase (one bad row/record/source must not sink the rest).
     """
     results = []
+    service_actor = os.getenv("SCRAPER_ACTOR_USER_ID", "").strip()
+    if not service_actor:
+        raise RuntimeError("SCRAPER_ACTOR_USER_ID must identify an active tenant service principal")
+    operation_receipts.recover_expired(conn, tenant_id)
     for due in load_due_db_connector_sources(conn, tenant_id):
+        receipt = None
         try:
-            results.append(sync_db_connector_source(conn, tenant_id, due["source_id"]))
+            intent = operation_receipts.create_or_get_operation(
+                conn, operation_receipts.SCHEDULED_CONNECTOR_SYNC, tenant_id, "source",
+                due["source_id"], service_actor, "service", {},
+            )
+            receipt = operation_receipts.claim(
+                conn, tenant_id, intent["receipt_id"], f"db-connector-{uuid.uuid4()}",
+            )
+            result = sync_db_connector_source(conn, tenant_id, due["source_id"], receipt)
+            operation_receipts.finish(conn, receipt, "completed")
+            results.append(result)
         except Exception as e:  # noqa: BLE001 - one source's failure must not stop the batch
+            if receipt is not None:
+                try:
+                    operation_receipts.finish(
+                        conn, receipt,
+                        "reconciliation_required" if receipt.get("provider_started") else "retryable",
+                        "CONNECTOR_SYNC_FAILED",
+                    )
+                except operation_receipts.ReceiptError:
+                    conn.rollback()
             logger.warning("connector sync failed for source_id=%s: %s", due["source_id"], e)
             results.append({"source_id": due["source_id"], "error": str(e)})
     return results

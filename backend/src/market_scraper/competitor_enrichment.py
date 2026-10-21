@@ -55,6 +55,7 @@ from src.market_scraper.content_safety import scan_external_text
 from src.market_scraper.discovery import SOCIAL_PLATFORM_HOSTS
 from src.market_scraper.policy import is_public_http_url
 from src.ai.billing import credits
+from src.ai.core import operation_receipts
 
 logger = logging.getLogger("CEOPRO_AI_COMPETITOR_ENRICHMENT")
 
@@ -1020,6 +1021,8 @@ def enrich_competitor(
             else:
                 results[facet] = enrich_social_links(conn, tenant_id, competitor_id, competitor)
         except Exception as exc:  # noqa: BLE001 - one facet failing must not stop the rest
+            if isinstance(exc, operation_receipts.ReceiptLeaseLost):
+                raise
             conn.rollback()
             logger.exception("enrichment %s failed for competitor %s", facet, competitor_id)
             _write_ledger(conn, tenant_id, competitor_id, facet, STATUS_FAILED, PROVIDER_ERROR, f"{type(exc).__name__}", None, 0, None)
@@ -1098,25 +1101,14 @@ _FORCE_CONDITION = """ce.facet IS NULL
                      OR (ce.status = 'BLOCKED' AND ce.reason_code IN ('NO_CREDENTIALS', 'CREDENTIALS_REJECTED', 'PLATFORM_APPROVAL_MISSING'))"""
 
 
-@credits.metered("competitor_enrichment")
-def enrich_tenant_competitors(
-    conn, tenant_id: str, limit: Optional[int] = None, places_api_key: Optional[str] = None,
-    mode: str = "due",
-) -> dict:
-    """Enriches this tenant's tracked competitors that still need it, best
-    confidence first, capped by limit so one run has a bounded paid-API cost.
-
-    mode="due" (discovery pass and the scheduled sweep): never attempted, or a
-    transient failure whose scheduled retry time has passed. A permanent miss
-    (NO_MATCH, NO_SOCIAL_LINKS) is NOT re-tried automatically - that would
-    spend the same API calls forever for the same answer.
-    mode="force" (owner's "retry all failed"): additionally every FAILED /
-    PARTIAL / PENDING facet regardless of schedule, and facets blocked only by
-    a missing or rejected key. SUCCEEDED and human-action blocks stay alone."""
+def list_tenant_enrichment_candidates(conn, tenant_id: str, mode: str = "due",
+                                     limit: Optional[int] = None) -> list[str]:
+    """Return the exact existing due/force population without performing work."""
     if mode not in ("due", "force"):
         raise ValueError("mode must be 'due' or 'force'")
     if limit is None:
-        limit = int(os.getenv("ENRICHMENT_MAX_BULK" if mode == "force" else "ENRICHMENT_MAX_PER_RUN", "200" if mode == "force" else "50"))
+        limit = int(os.getenv("ENRICHMENT_MAX_BULK" if mode == "force" else "ENRICHMENT_MAX_PER_RUN",
+                              "200" if mode == "force" else "50"))
     condition = _FORCE_CONDITION if mode == "force" else _DUE_CONDITION
     with conn.cursor() as cursor:
         cursor.execute(
@@ -1137,7 +1129,51 @@ def enrich_tenant_competitors(
             """,
             (tenant_id, tenant_id, limit),
         )
-        competitor_ids = [str(row[0]) for row in cursor.fetchall()]
+        return [str(row[0]) for row in cursor.fetchall()]
+
+
+def list_tenant_comment_candidates(conn, tenant_id: str, max_age_days: Optional[int] = None,
+                                   limit: Optional[int] = None) -> list[str]:
+    max_age_days = COMMENTS_REFRESH_DAYS if max_age_days is None else max_age_days
+    limit = COMMENTS_REFRESH_MAX_PER_RUN if limit is None else limit
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT ce.global_competitor_id FROM competitor_enrichment ce "
+            "JOIN tenant_competitors tc ON tc.tenant_id=ce.tenant_id "
+            "AND tc.global_competitor_id=ce.global_competitor_id "
+            "JOIN global_competitors gc ON gc.global_competitor_id=tc.global_competitor_id "
+            "WHERE ce.tenant_id=%s AND ce.facet='COMMENTS' AND tc.is_tracked IS TRUE "
+            "AND gc.visibility='PRIVATE' AND gc.added_by_tenant_id=tc.tenant_id "
+            "AND ce.last_attempt_at < NOW()-make_interval(days => %s) "
+            "AND (ce.status IN ('SUCCEEDED','PARTIAL') OR EXISTS ("
+            "SELECT 1 FROM reviews r WHERE r.tenant_id=ce.tenant_id "
+            "AND r.competitor_id=ce.global_competitor_id AND r.subject_type='COMPETITOR' "
+            "AND r.source_platform='YouTube')) ORDER BY ce.last_attempt_at ASC LIMIT %s;",
+            (tenant_id, max_age_days, limit),
+        )
+        return [str(row[0]) for row in cursor.fetchall()]
+
+
+@credits.metered("competitor_enrichment")
+def enrich_tenant_competitors(
+    conn, tenant_id: str, limit: Optional[int] = None, places_api_key: Optional[str] = None,
+    mode: str = "due",
+) -> dict:
+    """Enriches this tenant's tracked competitors that still need it, best
+    confidence first, capped by limit so one run has a bounded paid-API cost.
+
+    mode="due" (discovery pass and the scheduled sweep): never attempted, or a
+    transient failure whose scheduled retry time has passed. A permanent miss
+    (NO_MATCH, NO_SOCIAL_LINKS) is NOT re-tried automatically - that would
+    spend the same API calls forever for the same answer.
+    mode="force" (owner's "retry all failed"): additionally every FAILED /
+    PARTIAL / PENDING facet regardless of schedule, and facets blocked only by
+    a missing or rejected key. SUCCEEDED and human-action blocks stay alone."""
+    if mode not in ("due", "force"):
+        raise ValueError("mode must be 'due' or 'force'")
+    if limit is None:
+        limit = int(os.getenv("ENRICHMENT_MAX_BULK" if mode == "force" else "ENRICHMENT_MAX_PER_RUN", "200" if mode == "force" else "50"))
+    competitor_ids = list_tenant_enrichment_candidates(conn, tenant_id, mode, limit)
 
     attempted = 0
     outcomes: dict = {}

@@ -279,6 +279,26 @@ def create_ingestion_job(conn, tenant_id: str, source_id: str, receipt: dict | N
     return str(row[0])
 
 
+def create_or_reuse_receipt_ingestion_job(conn, tenant_id: str, source_id: str, receipt: dict) -> str:
+    """Reuse an unfinished job when a durable pre-provider receipt is retried."""
+    if not receipt or str(receipt.get("tenant_id")) != str(tenant_id):
+        raise ValueError("tenant-scoped operation receipt required")
+    existing_job_id = receipt.get("ingestion_job_id")
+    if existing_job_id:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT source_id,job_status FROM ingestion_jobs "
+                "WHERE tenant_id=%s::uuid AND job_id=%s::uuid;",
+                (tenant_id, existing_job_id),
+            )
+            row = cursor.fetchone()
+        if row and str(row[0]) != str(source_id):
+            raise ValueError("receipt ingestion job belongs to a different source")
+        if row and row[1] == "PROCESSING":
+            return str(existing_job_id)
+    return create_ingestion_job(conn, tenant_id, source_id, receipt=receipt)
+
+
 def load_ingestion_job_status(conn, tenant_id: str, job_id: str) -> Optional[str]:
     with conn.cursor() as cursor:
         cursor.execute(
