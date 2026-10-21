@@ -1,4 +1,4 @@
-from src.ai.extraction.typed_imports import TypedImportError, validate_typed_import_row
+from src.ai.extraction.typed_imports import TypedImportError, _database_rows, validate_typed_import_row
 
 
 def test_sales_row_allowlists_fields_and_normalizes_types():
@@ -36,3 +36,18 @@ def test_unknown_category_has_no_invented_contract():
     except TypedImportError:
         return
     raise AssertionError("unknown import category must be rejected")
+
+
+def test_database_serialization_omits_null_product_candidate_but_keeps_public_shape():
+    row = validate_typed_import_row(
+        "sales",
+        {"quantity": 1, "unit_price": 1, "currency": "JOD", "transaction_date": "bad"},
+        source_row_key="row-1",
+    )
+    assert row["product_candidate"] is None
+    persisted = _database_rows([row])[0]
+    assert "product_candidate" not in persisted
+    assert persisted["validation_findings"] == [
+        {"field": "product_name", "code": "required"},
+        {"field": "transaction_date", "code": "invalid_date"},
+    ]

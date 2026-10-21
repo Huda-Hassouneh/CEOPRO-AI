@@ -23,8 +23,11 @@ client = TestClient(app, raise_server_exceptions=False)
 _SECRET = os.environ["JWT_SECRET"]
 
 # Routes that are intentionally reachable without a Bearer token: liveness,
-# the sign-in / password / e-mail-verification / invitation flows, and the
-# public plan list. Anything else showing up unauthenticated is a defect.
+# the sign-in / password / e-mail-verification / invitation flows, the signed
+# one-use Shopify OAuth callback, and the public plan list. The callback
+# authenticates Shopify and binds its result to the initiating user's
+# authenticated one-use state. Anything else showing up unauthenticated is a
+# defect.
 _PUBLIC = {
     ("GET", "/health"),
     ("GET", "/health/ready"),
@@ -39,6 +42,7 @@ _PUBLIC = {
     ("POST", "/auth/invitations/{token}/accept"),
     ("GET", "/platform/invitations/{token}"),
     ("POST", "/platform/invitations/{token}/accept"),
+    ("GET", "/onboarding/shopify/callback"),
     ("GET", "/billing/plans"),
 }
 
