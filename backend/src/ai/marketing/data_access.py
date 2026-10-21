@@ -372,3 +372,154 @@ def delete_campaign(conn, tenant_id: str, campaign_id: str) -> bool:
     with conn.cursor() as cursor:
         cursor.execute("DELETE FROM campaigns WHERE tenant_id = %s AND campaign_id = %s RETURNING campaign_id;", (tenant_id, campaign_id))
         return cursor.fetchone() is not None
+
+
+# --- Image gallery (campaign_image_assets) -----------------------------------
+# Every image made for a campaign. campaigns.generated_image_key is the one
+# ATTACHED to it (its post uses that image); an asset is attached when its
+# image_key equals it. provider/model are stored for operators only and are
+# never returned by these readers.
+
+ASSET_CHANNELS = ("INSTAGRAM", "FACEBOOK", "TIKTOK", "GOOGLE_ADS", "WEBSITE", "PRINT", "OTHER")
+
+_ASSET_COLUMNS = ("asset_id, image_key, image_format, channel, mode, prompt, width, height, content_type, "
+                  "size_bytes, used_reference, created_at")
+
+
+def _asset_row(row, attached_key: Optional[str]) -> dict:
+    (asset_id, image_key, image_format, channel, mode, prompt, width, height, content_type,
+     size_bytes, used_reference, created_at) = row
+    return {
+        "asset_id": str(asset_id), "image_format": image_format, "channel": channel, "mode": mode,
+        "prompt": prompt, "width": width, "height": height, "content_type": content_type,
+        "size_bytes": int(size_bytes) if size_bytes is not None else None,
+        "used_reference": bool(used_reference), "created_at": created_at.isoformat() if created_at else None,
+        "attached": bool(attached_key) and image_key == attached_key,
+    }
+
+
+def add_image_asset(
+    conn, tenant_id: str, campaign_id: str, *, image_key: str, image_format: str, mode: str,
+    provider: Optional[str], model: Optional[str], prompt: Optional[str], width: Optional[int],
+    height: Optional[int], content_type: Optional[str], size_bytes: int, used_reference: bool,
+    channel: Optional[str], created_by: Optional[str],
+) -> str:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO campaign_image_assets
+                (tenant_id, campaign_id, image_key, image_format, channel, mode, provider, model, prompt,
+                 width, height, content_type, size_bytes, used_reference, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING asset_id;
+            """,
+            (tenant_id, campaign_id, image_key, image_format, channel, mode, (provider or "")[:40] or None,
+             (model or "")[:120] or None, prompt, width, height, content_type, size_bytes, used_reference, created_by),
+        )
+        return str(cursor.fetchone()[0])
+
+
+def list_image_assets(conn, tenant_id: str, campaign_id: str) -> Optional[list]:
+    """None when the campaign doesn't exist (for this company)."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT generated_image_key FROM campaigns WHERE tenant_id = %s AND campaign_id = %s;",
+                       (tenant_id, campaign_id))
+        campaign = cursor.fetchone()
+        if campaign is None:
+            return None
+        cursor.execute(
+            f"SELECT {_ASSET_COLUMNS} FROM campaign_image_assets "
+            "WHERE tenant_id = %s AND campaign_id = %s ORDER BY created_at DESC, asset_id;",
+            (tenant_id, campaign_id),
+        )
+        return [_asset_row(row, campaign[0]) for row in cursor.fetchall()]
+
+
+def get_image_asset(conn, tenant_id: str, campaign_id: str, asset_id: str) -> Optional[dict]:
+    """The asset with its storage key (for streaming/deleting), or None."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT {', '.join('a.' + c.strip() for c in _ASSET_COLUMNS.split(','))}, c.generated_image_key
+            FROM campaign_image_assets a
+            JOIN campaigns c ON c.tenant_id = a.tenant_id AND c.campaign_id = a.campaign_id
+            WHERE a.tenant_id = %s AND a.campaign_id = %s AND a.asset_id = %s;
+            """,
+            (tenant_id, campaign_id, asset_id),
+        )
+        row = cursor.fetchone()
+    if row is None:
+        return None
+    asset = _asset_row(row[:-1], row[-1])
+    asset["image_key"] = row[1]
+    return asset
+
+
+def attach_image_asset(conn, tenant_id: str, campaign_id: str, image_key: str, mode: str,
+                       used_reference: bool = False) -> None:
+    """Makes this stored image the one the campaign uses."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE campaigns
+            SET generated_image_key = %s, image_generation_status = 'COMPLETED', image_generation_provider = %s,
+                image_generation_error = NULL, image_generation_used_reference = %s
+            WHERE tenant_id = %s AND campaign_id = %s;
+            """,
+            (image_key, mode, used_reference, tenant_id, campaign_id),
+        )
+
+
+def set_image_asset_channel(conn, tenant_id: str, campaign_id: str, asset_id: str, channel: Optional[str]) -> bool:
+    if channel is not None and channel not in ASSET_CHANNELS:
+        raise ValueError(f"channel must be one of {list(ASSET_CHANNELS)}")
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE campaign_image_assets SET channel = %s WHERE tenant_id = %s AND campaign_id = %s AND asset_id = %s "
+            "RETURNING asset_id;",
+            (channel, tenant_id, campaign_id, asset_id),
+        )
+        return cursor.fetchone() is not None
+
+
+def delete_image_asset(conn, tenant_id: str, campaign_id: str, asset_id: str) -> Optional[dict]:
+    """Deletes the record; when it was the attached image, the newest
+    remaining one is attached instead (or none). Returns the deleted asset
+    (with image_key) so the caller removes the file, or None."""
+    asset = get_image_asset(conn, tenant_id, campaign_id, asset_id)
+    if asset is None:
+        return None
+    with conn.cursor() as cursor:
+        cursor.execute("DELETE FROM campaign_image_assets WHERE tenant_id = %s AND asset_id = %s;", (tenant_id, asset_id))
+        if asset["attached"]:
+            cursor.execute(
+                "SELECT image_key, mode, used_reference FROM campaign_image_assets WHERE tenant_id = %s AND campaign_id = %s "
+                "ORDER BY created_at DESC, asset_id LIMIT 1;",
+                (tenant_id, campaign_id),
+            )
+            successor = cursor.fetchone()
+            if successor:
+                attach_image_asset(conn, tenant_id, campaign_id, successor[0], successor[1], bool(successor[2]))
+            else:
+                cursor.execute(
+                    "UPDATE campaigns SET generated_image_key = NULL, image_generation_status = NULL, "
+                    "image_generation_provider = NULL, image_generation_used_reference = FALSE, "
+                    "image_generation_reference_note = NULL WHERE tenant_id = %s AND campaign_id = %s;",
+                    (tenant_id, campaign_id),
+                )
+    return asset
+
+
+def get_image_asset_public(conn, tenant_id: str, campaign_id: str, asset_id: str) -> Optional[dict]:
+    """The asset as the API returns it (no storage key)."""
+    asset = get_image_asset(conn, tenant_id, campaign_id, asset_id)
+    if asset is not None:
+        asset.pop("image_key", None)
+    return asset
+
+
+def set_image_prompt(conn, tenant_id: str, campaign_id: str, prompt: str) -> None:
+    """The owner's edited image prompt: the next image starts from it."""
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE campaigns SET image_prompt = %s WHERE tenant_id = %s AND campaign_id = %s;",
+                       (prompt, tenant_id, campaign_id))
