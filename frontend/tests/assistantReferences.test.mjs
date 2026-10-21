@@ -60,6 +60,8 @@ test('evidence states become notes the user can read, never silent', () => {
   assert.deepEqual(statusNotes(response.evidence_status), ['researchNotConfigured', 'notPermitted']);
   assert.deepEqual(statusNotes([{ need: 'landed_cost_calculation', status: 'missing_inputs' }]), ['calculationMissing']);
   assert.deepEqual(statusNotes([{ need: 'public_research', status: 'found' }]), []);
+  assert.deepEqual(statusNotes([{ need: 'answer_writing', status: 'not_configured' }]), ['answerNotConfigured']);
+  assert.deepEqual(statusNotes([{ need: 'answer_writing', status: 'provider_busy' }]), [], 'a busy provider is temporary, not an admin task');
 });
 
 test('claims keep their kind and verification state', () => {

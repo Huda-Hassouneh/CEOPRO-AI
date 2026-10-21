@@ -132,10 +132,10 @@ class Evidence:
     capabilities: FrozenSet[str] = frozenset()
     data: Optional[dict] = None
 
-    def prompt_block(self, max_chars: Optional[int] = None) -> str:
+    def prompt_block(self, max_chars: Optional[int] = None, title: Optional[str] = None) -> str:
         """How the item is shown to the model: id, provenance, then the text
         (shortened to max_chars when the prompt has to be compact)."""
-        facts = [self.kind.replace("_", " "), self.title]
+        facts = [self.kind.replace("_", " "), title or self.title]
         for label, value in (("published", self.published_at), ("effective", self.effective_at),
                              ("observed", self.observed_at), ("retrieved", self.retrieved_at)):
             if value:

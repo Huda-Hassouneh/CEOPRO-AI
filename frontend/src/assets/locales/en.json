@@ -2179,6 +2179,7 @@
       "listSeparator": ", "
     },
     "status": {
+      "answerNotConfigured": "The AI writing service isn't set up on this server. Please ask your administrator to enable it.",
       "researchNotConfigured": "Public research isn't set up on this server, so this answer uses only your own data and documents.",
       "researchBudget": "Today's public research allowance is used up, so this answer could not check public sources.",
       "researchFailed": "Public research couldn't be completed right now, so public sources weren't checked.",

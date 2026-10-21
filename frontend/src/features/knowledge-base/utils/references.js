@@ -119,6 +119,7 @@ const STATUS_NOTES = {
     no_results: 'researchNoResults',
     pages_unreadable: 'researchUnreadable',
   },
+  answer_writing: { not_configured: 'answerNotConfigured' },
   landed_cost_calculation: { missing_inputs: 'calculationMissing' },
   company_records: { none_found: 'companyRecordsNone' },
   customer_reviews: { none_recorded: 'reviewsNone', not_permitted: 'notPermitted' },
