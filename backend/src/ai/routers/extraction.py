@@ -346,6 +346,17 @@ def _summary_response(
     return response
 
 
+def _ingestion_job_completion(summary, promotion_summary) -> tuple[str, str | None]:
+    """Return an existing truthful terminal state for row-level outcomes."""
+    has_unresolved_rows = bool(
+        summary.rows_partial or summary.rows_failed or promotion_summary.rows_skipped_incomplete
+        or promotion_summary.rows_failed
+    )
+    if has_unresolved_rows:
+        return "PARTIAL", "Some rows were not promoted and need correction or review."
+    return "COMPLETED", None
+
+
 @router.post("/upload")
 def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """
@@ -472,7 +483,10 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
             default_currency=currency_resolution["currency"],
         )
 
-        job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "COMPLETED")
+        final_status, final_error = _ingestion_job_completion(summary, promotion_summary)
+        job_management.finalize_ingestion_job(
+            conn, ctx.tenant_id, job_id, final_status, error=final_error,
+        )
         conn.commit()
 
         rag_document_status = None
