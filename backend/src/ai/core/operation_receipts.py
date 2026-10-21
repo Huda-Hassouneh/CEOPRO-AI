@@ -42,6 +42,10 @@ class ReceiptLeaseLost(ReceiptError):
     pass
 
 
+class ReceiptSourceChanged(ReceiptAuthorizationError):
+    """The connector configuration changed while its sync was running."""
+
+
 class ReceiptUncertain(ReceiptError):
     pass
 
@@ -80,6 +84,19 @@ def operation_fingerprint(operation_type: str, tenant_id: str, target_kind: str,
         {"operation": operation_type, "tenant_id": str(tenant_id), "target_kind": target_kind,
          "target_id": str(target_id), "request": request_payload or {}},
         sort_keys=True, separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def connector_source_fingerprint(collector_config: dict | None, encrypted_credentials: str | None) -> str:
+    """Fingerprint persisted connector settings without exposing credentials.
+
+    Credentials enter this value only as their already-encrypted vault envelope.
+    The digest is runtime fencing metadata, never an authorization credential.
+    """
+    payload = json.dumps(
+        {"config": collector_config or {}, "encrypted_credentials": encrypted_credentials or ""},
+        sort_keys=True, separators=(",", ":"), default=str,
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -290,6 +307,7 @@ def attach_ingestion_job(conn, receipt: dict, job_id: str) -> None:
         )
         if cursor.rowcount != 1:
             raise ReceiptLeaseLost("ingestion job could not be bound to the authorized receipt")
+    receipt["ingestion_job_id"] = str(job_id)
 
 
 def claim(conn, tenant_id: str, receipt_id: str, worker_id: str,
@@ -389,6 +407,18 @@ def begin_provider(conn, receipt: dict) -> None:
         if cursor.rowcount != 1:
             conn.rollback()
             raise ReceiptLeaseLost("worker lease expired before provider work")
+        expected_fingerprint = receipt.get("source_execution_fingerprint")
+        if receipt.get("operation_type") == SCHEDULED_CONNECTOR_SYNC and expected_fingerprint:
+            cursor.execute(
+                "SELECT collector_config, connection_credentials_vault FROM public.data_sources "
+                "WHERE tenant_id=%s::uuid AND source_id=%s::uuid AND is_active IS TRUE "
+                "AND policy_status='ALLOWED' FOR SHARE;",
+                (receipt["tenant_id"], receipt["source_id"]),
+            )
+            source = cursor.fetchone()
+            if source is None or connector_source_fingerprint(source[0], source[1]) != expected_fingerprint:
+                conn.rollback()
+                raise ReceiptSourceChanged("connector configuration or credentials changed before provider work")
     conn.commit()
     receipt["provider_started"] = True
 
@@ -416,6 +446,18 @@ def assert_fence(conn, receipt: dict, allow_pre_provider: bool = False) -> None:
         row = cursor.fetchone()
     if row is None:
         raise ReceiptLeaseLost("canonical write rejected by receipt lease fence")
+    expected_fingerprint = receipt.get("source_execution_fingerprint")
+    if row[2] == SCHEDULED_CONNECTOR_SYNC and expected_fingerprint:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT collector_config, connection_credentials_vault FROM public.data_sources "
+                "WHERE tenant_id=%s::uuid AND source_id=%s::uuid AND is_active IS TRUE "
+                "AND policy_status='ALLOWED' FOR SHARE;",
+                (receipt["tenant_id"], row[4]),
+            )
+            source = cursor.fetchone()
+        if source is None or connector_source_fingerprint(source[0], source[1]) != expected_fingerprint:
+            raise ReceiptSourceChanged("connector configuration or credentials changed during synchronization")
     authorize_operation(conn, row[2], receipt["tenant_id"], row[3], str(row[4]), str(row[0]), row[1])
 
 

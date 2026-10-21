@@ -79,6 +79,7 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
         credentials = {}
     else:
         credentials = decrypt_credentials(row[16], get_default_kms_backend())
+    from src.ai.core.operation_receipts import connector_source_fingerprint
     return {
         "source_id": str(row[0]),
         "source_name": row[1],
@@ -97,6 +98,7 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
         "retention_days": row[14],
         "contains_personal_data": row[15],
         "connection_credentials": credentials,
+        "source_execution_fingerprint": connector_source_fingerprint(row[10], row[16]),
     }
 
 
@@ -340,6 +342,39 @@ def recover_stale_ingestion_jobs(conn, tenant_id: str, stale_minutes: int = 30) 
         recovered = [str(row[0]) for row in cursor.fetchall()]
     conn.commit()
     return recovered
+
+
+def fail_source_changed_ingestion_job(conn, tenant_id: str, receipt: dict) -> bool:
+    """Mark this receipt-owned job failed after its source settings changed.
+
+    This updates only the job status, never staged/canonical data, and requires
+    the same live receipt generation so an old worker cannot overwrite a newer
+    claim.
+    """
+    job_id = receipt.get("ingestion_job_id")
+    if not job_id:
+        return False
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT 1 FROM public.keel_operation_receipts WHERE tenant_id=%s::uuid "
+            "AND receipt_id=%s::uuid AND lease_owner=%s AND lease_generation=%s "
+            "AND state IN ('authorized','provider_started') AND lease_expires_at > NOW() FOR UPDATE;",
+            (tenant_id, receipt["receipt_id"], receipt["worker_id"], receipt["lease_generation"]),
+        )
+        owns_live_lease = cursor.fetchone() is not None
+        if not owns_live_lease:
+            conn.rollback()
+            return False
+        cursor.execute(
+            "UPDATE public.ingestion_jobs SET job_status='FAILED', "
+            "error_log='Connector settings changed during synchronization; no further rows were committed.', "
+            "ended_at=NOW(), heartbeat_at=NOW() WHERE tenant_id=%s::uuid AND job_id=%s::uuid "
+            "AND job_status='PROCESSING';",
+            (tenant_id, job_id),
+        )
+        updated = cursor.rowcount == 1
+    conn.commit()
+    return updated
 
 
 def finish_ingestion_job(

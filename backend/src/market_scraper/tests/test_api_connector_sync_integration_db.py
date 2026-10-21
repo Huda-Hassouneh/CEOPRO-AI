@@ -191,8 +191,8 @@ def test_sync_does_not_advance_the_watermark_on_a_request_failure(conn):
     tenant_id = _insert_company(conn)
     source_id = _insert_allowed_api_connector_source(conn, tenant_id, _VALID_CONFIG, last_synced_at=None)
 
-    with patch("src.market_scraper.api_connector_sync.httpx.get", side_effect=RuntimeError("connection refused")):
-        with pytest.raises(RuntimeError, match="connection refused"):
+    with patch("src.market_scraper.api_connector_sync.httpx.get", side_effect=RuntimeError("connection refused api_key=synthetic-secret")):
+        with pytest.raises(RuntimeError):
             _run_with_receipt(conn, tenant_id, source_id)
 
     with conn.cursor() as cursor:
@@ -201,10 +201,12 @@ def test_sync_does_not_advance_the_watermark_on_a_request_failure(conn):
 
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT job_status FROM ingestion_jobs WHERE tenant_id = %s ORDER BY started_at DESC LIMIT 1;",
+            "SELECT job_status,error_log FROM ingestion_jobs WHERE tenant_id = %s ORDER BY started_at DESC LIMIT 1;",
             (tenant_id,),
         )
-        assert cursor.fetchone()[0] == "FAILED"
+        status, error_log = cursor.fetchone()
+        assert status == "FAILED"
+        assert "synthetic-secret" not in error_log and "connection refused" not in error_log
 
 
 def test_run_due_api_connector_syncs_continues_past_one_sources_failure(conn):
@@ -218,3 +220,21 @@ def test_run_due_api_connector_syncs_continues_past_one_sources_failure(conn):
     by_source = {r["source_id"]: r for r in results}
     assert "error" in by_source[bad_source_id]
     assert "error" not in by_source[good_source_id]
+
+def test_partial_api_connector_result_is_not_reported_as_completed(conn):
+    from types import SimpleNamespace
+
+    tenant_id = _insert_company(conn)
+    source_id = _insert_allowed_api_connector_source(conn, tenant_id, _VALID_CONFIG)
+    set_source_credentials(conn, tenant_id, source_id, {"api_key": "synthetic-token"})
+    partial = SimpleNamespace(rows_processed=1, rows_partial=0, rows_failed=1)
+    with patch("src.market_scraper.api_connector_sync.httpx.get", side_effect=[
+             _fake_api_response([{"name":"Widget","qty":1,"price":2}]), _fake_api_response([])]), \
+         patch("src.market_scraper.api_connector_sync.process_records", return_value=partial):
+        result = _run_with_receipt(conn, tenant_id, source_id)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT job_status,error_log,last_synced_at FROM ingestion_jobs j JOIN data_sources ds USING (tenant_id,source_id) WHERE j.tenant_id=%s AND j.job_id=%s;", (tenant_id, result["job_id"]))
+        status, error, synced_at = cursor.fetchone()
+    assert status == "FAILED"
+    assert error
+    assert synced_at is None

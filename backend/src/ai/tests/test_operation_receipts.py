@@ -42,3 +42,11 @@ def test_execution_authorization_fails_closed_for_inactive_principal(monkeypatch
     with pytest.raises(operation_receipts.ReceiptAuthorizationError, match="active principal"):
         operation_receipts.authorize_collection(conn, "tenant-a", "source-1", "user-1")
     assert "keel_active_principal" in conn.cursor_instance.sql[0][0]
+
+def test_connector_source_fingerprint_changes_with_config_or_encrypted_credential():
+    from src.ai.core.operation_receipts import connector_source_fingerprint
+
+    baseline = connector_source_fingerprint({"base_url": "https://pos.example/sales"}, "ciphertext-v1")
+    assert baseline == connector_source_fingerprint({"base_url": "https://pos.example/sales"}, "ciphertext-v1")
+    assert baseline != connector_source_fingerprint({"base_url": "https://pos.example/orders"}, "ciphertext-v1")
+    assert baseline != connector_source_fingerprint({"base_url": "https://pos.example/sales"}, "ciphertext-v2")

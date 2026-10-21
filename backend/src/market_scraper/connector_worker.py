@@ -95,13 +95,13 @@ def run_connector_syncs_for_tenant(tenant_id: str) -> dict:
     try:
         db_results = connector_sync.run_due_connector_syncs(conn, tenant_id)
     except Exception as e:  # noqa: BLE001 - the API connector type must still get its turn
-        logger.warning("db connector sync batch failed for tenant=%s: %s", tenant_id, e)
-        db_results = [{"error": str(e)}]
+        logger.warning("db connector sync batch failed for tenant=%s error_type=%s", tenant_id, type(e).__name__)
+        db_results = [{"error": f"Database connector batch failed ({type(e).__name__})."}]
     try:
         api_results = api_connector_sync.run_due_api_connector_syncs(conn, tenant_id)
     except Exception as e:  # noqa: BLE001 - see above, symmetrically
-        logger.warning("api connector sync batch failed for tenant=%s: %s", tenant_id, e)
-        api_results = [{"error": str(e)}]
+        logger.warning("api connector sync batch failed for tenant=%s error_type=%s", tenant_id, type(e).__name__)
+        api_results = [{"error": f"API connector batch failed ({type(e).__name__})."}]
     finally:
         conn.close()
     return {"db_connector": db_results, "api_connector": api_results}
@@ -116,8 +116,8 @@ def run_once() -> dict:
         try:
             results[tenant_id] = run_connector_syncs_for_tenant(tenant_id)
         except Exception as e:  # noqa: BLE001 - one tenant's failure must never block another's
-            logger.exception("connector sync failed for tenant=%s", tenant_id)
-            results[tenant_id] = {"error": str(e)}
+            logger.error("connector sync failed for tenant=%s error_type=%s", tenant_id, type(e).__name__)
+            results[tenant_id] = {"error": f"Connector synchronization failed ({type(e).__name__})."}
     return results
 
 
