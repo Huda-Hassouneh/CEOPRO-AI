@@ -194,6 +194,21 @@ def client(monkeypatch):
     return TestClient(app)
 
 
+@pytest.fixture
+def billing_http_client():
+    """Mount the production billing router in a small HTTP app for native tests."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from src.ai.core.exceptions import register_exception_handlers
+    from src.ai.routers.billing import router
+
+    app = FastAPI()
+    register_exception_handlers(app)
+    app.include_router(router)
+    with TestClient(app) as test_client:
+        yield test_client
+
+
 def _event(event_type, obj, created=None):
     return {
         "id": f"evt_{uuid.uuid4().hex}", "object": "event", "type": event_type,
@@ -316,6 +331,123 @@ def test_payments_flag_follows_the_secret(monkeypatch):
 
 def test_today_is_a_date():  # guards the trial-expiry comparison type
     assert isinstance(datetime.now(timezone.utc).date(), date)
+
+
+def _tenant_billing_state(conn, tenant_ids):
+    """Stable snapshots for read-only subscription/usage/credit assertions."""
+    tables = (
+        "tenant_plan_assignments",
+        "billing_subscriptions",
+        "billing_trials",
+        "billing_customers",
+        "billing_payments",
+        "tenant_usage_counters",
+        "tenant_credit_balances",
+        "usage_ledger",
+        "usage_ledger_adjustments",
+    )
+    state = {}
+    with conn.cursor() as cursor:
+        for table in tables:
+            cursor.execute(
+                f"SELECT to_jsonb(row_data) FROM {table} AS row_data "
+                "WHERE tenant_id = ANY(%s::uuid[]) ORDER BY to_jsonb(row_data)::text;",
+                (tenant_ids,),
+            )
+            state[table] = [row[0] for row in cursor.fetchall()]
+    return state
+
+
+def test_subscription_effective_rights_are_tenant_isolated_and_read_only(billing_http_client, sys_conn):
+    """Exercise the authenticated route over PostgreSQL with the real app role/RLS."""
+    from src.ai import db
+    from src.ai.core.security import create_access_token
+
+    tenant_a, tenant_b = _company(sys_conn), _company(sys_conn)
+    user_a, user_b, outsider = (str(uuid.uuid4()) for _ in range(3))
+    tenants = [tenant_a, tenant_b]
+    users = [user_a, user_b, outsider]
+    with sys_conn.cursor() as cursor:
+        for user_id, label in ((user_a, "a"), (user_b, "b"), (outsider, "outsider")):
+            cursor.execute(
+                "INSERT INTO users (user_id, email, password_hash, full_name, email_verified_at) "
+                "VALUES (%s, %s, 'not-a-login-password', %s, NOW());",
+                (user_id, f"b3-{label}-{user_id}@example.test", f"B3 {label}"),
+            )
+        cursor.execute(
+            "INSERT INTO tenant_users (tenant_id, user_id, role_key) VALUES (%s, %s, 'owner'), (%s, %s, 'owner');",
+            (tenant_a, user_a, tenant_b, user_b),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_plan_assignments (tenant_id, plan_key, status, source) "
+            "VALUES (%s, 'starter', 'active', 'manual'), (%s, 'growth', 'active', 'manual');",
+            (tenant_a, tenant_b),
+        )
+        cursor.execute(
+            "SELECT plan_key, limit_value FROM usage_plan_limits "
+            "WHERE feature_code = 'tracked_products' AND plan_key IN ('starter', 'growth');"
+        )
+        expected_limits = dict(cursor.fetchall())
+    sys_conn.commit()
+
+    assert set(expected_limits) == {"starter", "growth"}
+    assert expected_limits["starter"] != expected_limits["growth"]
+    token_a, _ = create_access_token(tenant_a, user_a, email_verified=True)
+    token_b, _ = create_access_token(tenant_b, user_b, email_verified=True)
+    forged_cross_tenant_token, _ = create_access_token(tenant_a, user_b, email_verified=True)
+    before = _tenant_billing_state(sys_conn, tenants)
+
+    try:
+        assert billing_http_client.get("/billing/subscription").status_code == 401
+        denied = billing_http_client.get(
+            "/billing/subscription",
+            headers={"Authorization": f"Bearer {forged_cross_tenant_token}"},
+        )
+        assert denied.status_code == 403
+
+        response_a = billing_http_client.get(
+            "/billing/subscription", headers={"Authorization": f"Bearer {token_a}"}
+        )
+        response_b = billing_http_client.get(
+            "/billing/subscription", headers={"Authorization": f"Bearer {token_b}"}
+        )
+        assert response_a.status_code == response_b.status_code == 200
+
+        legacy_fields = {
+            "available", "planId", "planName", "status", "hasAccess", "assigned", "source",
+            "billingPeriod", "periodStart", "periodEnd", "trialEndsAt", "trialUsed", "renewsAt",
+            "endsAt", "cancelAtPeriodEnd", "scheduledChange", "hasSubscription", "hasBillingAccount",
+            "canManageBilling", "paymentsEnabled", "limits", "usage", "features", "entitlements",
+            "credits", "trialAvailable", "trialEndsAtExact",
+        }
+        expected_top_level = legacy_fields | {"effectiveRights"}
+        for response in (response_a.json(), response_b.json()):
+            assert set(response) == expected_top_level
+            rights = response["effectiveRights"]
+            assert set(rights) == {"version", "basis", "items"}
+            assert rights["version"] == 1 and rights["basis"] == "configured_plan"
+            assert all(
+                set(item) == {"featureCode", "state", "unit", "aggregationType", "resetCycle", "limit"}
+                for item in rights["items"]
+            )
+
+        def tracked_product_limit(response):
+            items = response["effectiveRights"]["items"]
+            return next(item["limit"] for item in items if item["featureCode"] == "tracked_products")
+
+        assert tracked_product_limit(response_a.json()) == expected_limits["starter"]
+        assert tracked_product_limit(response_b.json()) == expected_limits["growth"]
+        assert tracked_product_limit(response_a.json()) != tracked_product_limit(response_b.json())
+        assert "tenant_id" not in response_a.json()["effectiveRights"]
+        assert "tenant_id" not in response_b.json()["effectiveRights"]
+        assert _tenant_billing_state(sys_conn, tenants) == before
+    finally:
+        db.close_pool()
+        sys_conn.rollback()
+        with sys_conn.cursor() as cursor:
+            cursor.execute("DELETE FROM companies WHERE tenant_id = ANY(%s::uuid[]);", (tenants,))
+            cursor.execute("DELETE FROM users WHERE user_id = ANY(%s::uuid[]);", (users,))
+        sys_conn.commit()
 
 
 def test_two_simultaneous_deliveries_of_one_event_process_it_once(sys_conn, stripe_prices, monkeypatch):
