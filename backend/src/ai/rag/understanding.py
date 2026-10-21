@@ -106,6 +106,12 @@ _ROUTE = re.compile(r"(?:\bvia|\bthrough|عبر|عن طريق)\s+((?:معبر\s+
 
 _FOLLOW_UP_CUES = ("and ", "what about", "how about", "and what", "same for", "also", "instead", "then", "why?",
                    "و", "طيب", "وماذا", "وشو", "شو عن", "ماذا عن", "وكمان", "وفي", "بدلا", "بدل", "كمان", "ليش؟", "لماذا؟")
+# A short question that points back at the product just discussed ("what is its price?").
+_REFERS_BACK = re.compile(
+    r"(?<![\w])(it|its|it's|that|this|those|these|them|their)(?![\w])|"
+    r"(?<![\w])(that|this|the same)\s+(product|item|one)(?![\w])|"
+    r"(?<![\w])(سعره|سعرها|سعرهم|كميته|مخزونه|مبيعاته|مبيعاتها|هذا المنتج|هاد المنتج|نفس المنتج|هذه|هاي|هاد|هذا)(?![\w])")
+_REFERS_BACK_MAX_WORDS = 8
 
 
 def _norm(text: str) -> str:
@@ -459,8 +465,10 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
     previous_intents = list(previous.get("intents") or [])
     # A follow-up either says so ("and ...", "what about ..."), asks nothing new,
     # or is a short message about the same things as before.
+    refers_back = (len(words) <= _REFERS_BACK_MAX_WORDS and not slots.get("products")
+                   and bool((previous.get("slots") or {}).get("products")) and bool(_REFERS_BACK.search(text)))
     follow_up = bool(previous.get("question")) and (
-        cue or not intents or (len(words) <= 5 and set(intents) <= set(previous_intents)))
+        cue or refers_back or not intents or (len(words) <= 5 and set(intents) <= set(previous_intents)))
     if not follow_up:
         return Understanding(question, intents, slots, False, question,
                              public_scope=is_public_scope(question, intents, slots))
