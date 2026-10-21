@@ -1,0 +1,209 @@
+from types import SimpleNamespace
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
+from src.market_scraper import data_access, provider_store_sync as sync
+from src.market_scraper.provider_lifecycle import ProviderLifecycleError
+from src.market_scraper.shopify import ShopifyError, ShopifyRecord
+
+
+def test_client_uses_only_verified_store_identity_and_vault_token():
+    source = {
+        "collector_key": "shopify", "provider": "shopify", "connection_state": "verified",
+        "verified_store_id": "gid://shopify/Shop/1", "verified_store_domain": "shop.myshopify.com",
+    }
+    captured = {}
+
+    def factory(domain, token, **kwargs):
+        captured.update(domain=domain, token=token, **kwargs)
+        return object()
+
+    result = sync._client_for(source, {
+        "connection_credentials": {"access_token": "test-secret"},
+        "collector_config": {"api_version": "2026-10", "max_pages": 3},
+    }, factory)
+    assert result is not None
+    assert captured == {"domain": "shop.myshopify.com", "token": "test-secret", "api_version": "2026-10", "max_pages": 3}
+    with pytest.raises(ProviderLifecycleError):
+        sync._client_for({**source, "connection_state": "verification_required"},
+                         {"connection_credentials": {"access_token": "test-secret"}}, factory)
+    with pytest.raises(ShopifyError):
+        sync._client_for(source, {"connection_credentials": {}}, factory)
+
+
+def test_sync_shopify_stream_persists_identities_and_advances_only_provider_checkpoint(monkeypatch):
+    conn = Mock()
+    conn.cursor.return_value = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (
+        "shopify", "gid://shopify/Shop/1", "shop.myshopify.com", "verified", 4,
+    )
+    source = {
+        "source_id": "source-1", "collector_key": "shopify", "provider": "shopify",
+        "verified_store_id": "gid://shopify/Shop/1", "verified_store_domain": "shop.myshopify.com",
+        "connection_state": "verified", "configuration_version": 4,
+    }
+    loaded = {"collector_key": "shopify", "collector_config": {},
+              "connection_credentials": {"access_token": "in-memory-test-token"},
+              "source_execution_fingerprint": "fingerprint"}
+    record = ShopifyRecord("product", "gid://shopify/Product/42", {
+        "id": "gid://shopify/Product/42", "updatedAt": "2026-10-20T10:00:00Z",
+    })
+    client = SimpleNamespace(
+        verify_connection=lambda: {"verified": True, "shop_id": source["verified_store_id"],
+                                   "shop_domain": source["verified_store_domain"]},
+        iter_products=lambda: iter([record]),
+    )
+    monkeypatch.setattr(sync.data_access, "load_source", lambda *_: loaded)
+    monkeypatch.setattr(sync.data_access, "create_or_reuse_receipt_ingestion_job", lambda *_, **__: "job-1")
+    monkeypatch.setattr(sync.operation_receipts, "begin_provider", lambda *_: None)
+    monkeypatch.setattr(sync, "persist_shopify_records", Mock(return_value=[{"mapping_status": "pending_review"}]))
+    finish = Mock()
+    monkeypatch.setattr(sync.data_access, "finish_ingestion_job", finish)
+    receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC, "receipt_id": "receipt-1"}
+
+    result = sync.sync_shopify_stream(conn, "tenant-1", source, "products", receipt,
+                                      client_factory=lambda *args, **kwargs: client)
+
+    assert result == {"source_id": "source-1", "job_id": "job-1", "stream": "products",
+                      "records_persisted": 1, "checkpoint_advanced": True, "canonical_promotion": False}
+    sync.persist_shopify_records.assert_called_once()
+    assert sync.persist_shopify_records.call_args.args[0]._conn is conn
+    assert sync.persist_shopify_records.call_args.args[1:] == ("source-1", [record])
+    assert finish.call_args.kwargs["status"] == "COMPLETED"
+    assert finish.call_args.kwargs["provider_checkpoint"] == {
+        "source_id": "source-1", "stream_key": "products", "continuation": {},
+        "configuration_version": 4,
+    }
+
+
+def test_due_woocommerce_sources_are_reported_blocked_without_receipt_or_provider_call(monkeypatch):
+    source = {"source_id": "source-woo", "collector_key": "woocommerce", "provider": None,
+              "verified_store_id": None, "verified_store_domain": None, "connection_state": None}
+    monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", "service-principal")
+    monkeypatch.setattr(sync.operation_receipts, "recover_expired", lambda *_: {})
+    monkeypatch.setattr(sync, "load_due_provider_sources", lambda *_: [source])
+    receipt = Mock()
+
+    result = sync.run_due_provider_syncs(object(), "tenant-1")
+
+    assert result == [{"source_id": "source-woo", "provider": "woocommerce",
+                       "blocked": "stable_verified_store_identity_unavailable"}]
+    receipt.create_or_get_operation.assert_not_called()
+
+
+def test_failed_identity_persistence_fails_job_without_advancing_checkpoint(monkeypatch):
+    conn = Mock()
+    conn.cursor.return_value = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (
+        "shopify", "gid://shopify/Shop/1", "shop.myshopify.com", "verified", 4,
+    )
+    source = {
+        "source_id": "source-1", "collector_key": "shopify", "provider": "shopify",
+        "verified_store_id": "gid://shopify/Shop/1", "verified_store_domain": "shop.myshopify.com",
+        "connection_state": "verified", "configuration_version": 4,
+    }
+    loaded = {"collector_key": "shopify", "collector_config": {},
+              "connection_credentials": {"access_token": "in-memory-test-token"},
+              "source_execution_fingerprint": "fingerprint"}
+    client = SimpleNamespace(
+        verify_connection=lambda: {"verified": True, "shop_id": source["verified_store_id"],
+                                   "shop_domain": source["verified_store_domain"]},
+        iter_products=lambda: iter([ShopifyRecord("product", "gid://shopify/Product/42", {
+            "id": "gid://shopify/Product/42", "updatedAt": "2026-10-20T10:00:00Z",
+        })]),
+    )
+    monkeypatch.setattr(sync.data_access, "load_source", lambda *_: loaded)
+    monkeypatch.setattr(sync.data_access, "create_or_reuse_receipt_ingestion_job", lambda *_, **__: "job-1")
+    monkeypatch.setattr(sync.operation_receipts, "begin_provider", lambda *_: None)
+    monkeypatch.setattr(sync, "persist_shopify_records", Mock(side_effect=RuntimeError("database failure")))
+    finish = Mock()
+    monkeypatch.setattr(sync.data_access, "finish_ingestion_job", finish)
+    receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC, "receipt_id": "receipt-1"}
+
+    with pytest.raises(RuntimeError, match="database failure"):
+        sync.sync_shopify_stream(conn, "tenant-1", source, "products", receipt,
+                                 client_factory=lambda *args, **kwargs: client)
+
+    assert finish.call_args.kwargs["status"] == "FAILED"
+    assert "provider_checkpoint" not in finish.call_args.kwargs
+
+
+class _ReceiptCursor:
+    def __init__(self, connection):
+        self.connection = connection
+        self.rowcount = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def execute(self, query, params=None):
+        self.connection.calls.append((query, params))
+        self.rowcount = 1
+
+    def fetchone(self):
+        if self.connection.authorized is False:
+            return None
+        return (1,)
+
+
+class _ReceiptConnection:
+    def __init__(self, authorized=True):
+        self.calls = []
+        self.committed = False
+        self.authorized = authorized
+
+    def cursor(self):
+        return _ReceiptCursor(self)
+
+    def commit(self):
+        self.committed = True
+
+
+def test_expired_receipt_recovery_only_replays_verified_shopify_reads():
+    conn = _ReceiptConnection()
+    result = sync.operation_receipts.recover_expired(conn, "tenant-1")
+    statements = [query for query, _ in conn.calls]
+    assert result == {"retryable": 2, "reconciliation_required": 1}
+    assert "state='reconciliation_required'" in statements[1]
+    assert "AND NOT (operation_type=%s" in statements[1]
+    assert "state='retryable',provider_started_at=NULL" in statements[2]
+    assert "ds.collector_key='shopify'" in statements[2]
+    assert "ps.connection_state='verified'" in statements[2]
+    assert conn.committed is True
+
+
+def test_safe_read_retry_requires_verified_shopify_binding():
+    conn = _ReceiptConnection(authorized=False)
+    receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC,
+               "tenant_id": "tenant-1", "source_id": "source-1"}
+    with pytest.raises(sync.operation_receipts.ReceiptAuthorizationError):
+        sync.operation_receipts.finish(conn, receipt, "retryable", replay_safe_provider_read=True)
+    assert len(conn.calls) == 1
+
+
+def test_safe_retry_reopens_the_same_failed_job_under_the_receipt_fence(monkeypatch):
+    conn = Mock()
+    cursor = MagicMock()
+    cursor.__enter__.return_value.fetchone.return_value = ("source-1", "FAILED")
+    cursor.__enter__.return_value.rowcount = 1
+    conn.cursor.return_value = cursor
+    monkeypatch.setattr(sync.operation_receipts, "assert_fence", Mock())
+    receipt = {"tenant_id": "tenant-1", "source_id": "source-1",
+               "operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC,
+               "ingestion_job_id": "job-1"}
+
+    job_id = data_access.create_or_reuse_receipt_ingestion_job(
+        conn, "tenant-1", "source-1", receipt, replay_safe_provider_read=True,
+    )
+
+    assert job_id == "job-1"
+    sync.operation_receipts.assert_fence.assert_called_once_with(conn, receipt, allow_pre_provider=True)
+    statements = [call.args[0] for call in cursor.__enter__.return_value.execute.call_args_list]
+    assert "SELECT source_id,job_status" in statements[0]
+    assert "SET job_status='PROCESSING'" in statements[1]
+    assert "ps.connection_state='verified'" in statements[1]
+    conn.commit.assert_called_once()
