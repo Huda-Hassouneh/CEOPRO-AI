@@ -10,10 +10,12 @@ import os
 import tempfile
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 import redis
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 
 from src.ai import db
 from src.ai.extraction.template_contract import TEMPLATE_ID
@@ -130,6 +132,124 @@ def extraction_recent_imports(ctx: TenantContext = Depends(get_tenant_context)) 
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         return {"imports": job_management.list_recent_imports(conn, ctx.tenant_id)}
+    finally:
+        conn.close()
+
+
+class ImportReviewRequest(BaseModel):
+    revision_id: UUID
+    decision: str
+    idempotency_key: str = Field(min_length=1, max_length=180)
+    reason_code: str = Field(min_length=1, max_length=100)
+    row_id: Optional[UUID] = None
+
+
+@router.get("/import-drafts")
+def extraction_import_drafts(limit: int = 50, offset: int = 0, category: Optional[str] = None,
+                             state: Optional[str] = None, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Paginated tenant draft index; the legacy GET /imports response is unchanged."""
+    if category is not None and category not in {"sales", "invoice", "inventory"}:
+        raise HTTPException(status_code=422, detail="Unknown import category.")
+    if state is not None and state not in {"draft", "review_required", "approved", "rejected"}:
+        raise HTTPException(status_code=422, detail="Unknown import review state.")
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        items = typed_imports.list_import_drafts(conn, limit=limit, offset=offset, category=category, state=state)
+        return {"items": items, "limit": limit, "offset": offset}
+    except typed_imports.TypedImportError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    finally:
+        conn.close()
+
+
+@router.get("/import-drafts/{batch_id}")
+def extraction_import_draft_detail(batch_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Preview current typed rows, validation findings, review history, and posting status."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = typed_imports.get_import_draft(conn, str(batch_id))
+        if result is None:
+            raise HTTPException(status_code=404, detail="Import draft not found.")
+        return result
+    finally:
+        conn.close()
+
+
+@router.get("/import-drafts/{batch_id}/revisions")
+def extraction_import_revisions(batch_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if typed_imports.get_import_draft(conn, str(batch_id)) is None:
+            raise HTTPException(status_code=404, detail="Import draft not found.")
+        return {"revisions": typed_imports.get_import_revisions(conn, str(batch_id))}
+    finally:
+        conn.close()
+
+
+@router.get("/import-drafts/{batch_id}/revisions/{revision_id}")
+def extraction_import_revision_detail(batch_id: UUID, revision_id: UUID,
+                                      ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = typed_imports.get_import_draft(conn, str(batch_id), revision_id=str(revision_id))
+        if result is None:
+            raise HTTPException(status_code=404, detail="Import draft revision not found.")
+        return result
+    finally:
+        conn.close()
+
+
+@router.get("/import-drafts/{batch_id}/reviews")
+def extraction_import_reviews(batch_id: UUID, revision_id: Optional[UUID] = None,
+                              ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if typed_imports.get_import_draft(conn, str(batch_id)) is None:
+            raise HTTPException(status_code=404, detail="Import draft not found.")
+        return {"reviews": typed_imports.get_import_review_history(conn, str(batch_id), str(revision_id) if revision_id else None)}
+    finally:
+        conn.close()
+
+
+@router.post("/import-drafts/{batch_id}/reviews")
+def extraction_import_review(batch_id: UUID, body: ImportReviewRequest,
+                             ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Record an owner/admin review. This operation never posts canonical records."""
+    if body.decision not in {"approve", "reject"}:
+        raise HTTPException(status_code=422, detail="Decision must be approve or reject.")
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        current = typed_imports.get_import_draft(conn, str(batch_id))
+        if current is None:
+            raise HTTPException(status_code=404, detail="Import draft not found.")
+        if current["current_revision_id"] != str(body.revision_id):
+            raise HTTPException(status_code=409, detail="Review targets a stale draft revision.")
+        result = typed_imports.decide_import_review(
+            conn, batch_id=str(batch_id), revision_id=str(body.revision_id), row_id=str(body.row_id) if body.row_id else None,
+            decision=body.decision, idempotency_key=body.idempotency_key, reason_code=body.reason_code,
+        )
+        conn.commit()
+        return {**result, "review_status": "recorded", "canonical_write_performed": False,
+                "posting_status": current["posting_status"]}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except typed_imports.TypedImportError as exc:
+        conn.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except Exception as exc:
+        conn.rollback()
+        code = getattr(exc, "pgcode", None)
+        if code == "42501":
+            raise HTTPException(status_code=403, detail="An owner or admin role is required to review imports.") from None
+        if code == "22023":
+            raise HTTPException(status_code=422, detail="Review request is invalid.") from None
+        if code in {"23505", "55000", "23514"}:
+            raise HTTPException(status_code=409, detail="The review conflicts with the current draft state.") from None
+        if code == "23503":
+            raise HTTPException(status_code=404, detail="Import draft row not found.") from None
+        logger.exception("extraction import review failed (tenant=%s batch=%s)", ctx.tenant_id, batch_id)
+        raise HTTPException(status_code=500, detail="Import review could not be recorded.") from None
     finally:
         conn.close()
 
@@ -309,6 +429,7 @@ def _register_pdf_as_rag_document(
 def _summary_response(
     job_id: str, summary, promotion_summary: Optional[promotion.PromotionSummary] = None,
     currency_resolution: Optional[dict] = None, rag_document_status: Optional[str] = None,
+    import_draft: Optional[dict] = None,
 ) -> dict:
     response = {
         "job_id": job_id,
@@ -344,6 +465,12 @@ def _summary_response(
         # set - surfaced here so a real caller can prompt the user to
         # confirm/correct companies.primary_currency, per spec.
         response["currency_resolution"] = currency_resolution
+    if import_draft is not None:
+        response["import_draft"] = {
+            **import_draft,
+            "review_only": True,
+            "canonical_write_performed_by_review": False,
+        }
     return response
 
 
@@ -354,7 +481,10 @@ def _ingestion_job_completion(summary, promotion_summary) -> tuple[str, str | No
         or promotion_summary.rows_failed
     )
     if has_unresolved_rows:
-        return "PARTIAL", "Some rows were not promoted and need correction or review."
+        # ingestion_jobs.job_status intentionally has no PARTIAL value.
+        # Preserve the repository's established truthful representation:
+        # FAILED with row-level counts and staging findings retained.
+        return "FAILED", "Some rows were not promoted and need correction or review."
     return "COMPLETED", None
 
 
@@ -456,6 +586,7 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     job_id = None
     kb_reservation = None
+    import_draft = None
     try:
         # Document processing allowance (plan catalog: KB per billing period,
         # ceil(bytes / 1024)); committed with the job, given back on failure.
@@ -480,7 +611,7 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
         # Persist the validated typed view alongside the existing raw staging
         # rows. This is review evidence only; the established sales promotion
         # path below remains the sole canonical-write authority.
-        typed_imports.record_sales_extraction_draft(
+        import_draft = typed_imports.record_sales_extraction_draft(
             conn, tenant_id=ctx.tenant_id, actor_id=ctx.user_id, job_id=job_id, summary=summary,
         )
 
@@ -534,7 +665,8 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     if getattr(promotion_summary, "rows_promoted", 0):
         _refresh_forecasts(ctx)
 
-    return _summary_response(job_id, summary, promotion_summary, currency_resolution, rag_document_status)
+    return _summary_response(job_id, summary, promotion_summary, currency_resolution, rag_document_status,
+                             import_draft=import_draft)
 
 
 def _refresh_forecasts(ctx: TenantContext) -> None:

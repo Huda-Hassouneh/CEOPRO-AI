@@ -134,7 +134,8 @@ def test_upload_accepts_a_genuine_pdf_magic_header():
          patch("src.ai.routers.extraction.job_management.resolve_or_create_data_source", return_value="src-1"), \
          patch("src.ai.routers.extraction.job_management.create_ingestion_job", return_value="job-1"), \
          patch("src.ai.routers.extraction.job_management.finalize_ingestion_job"), \
-         patch("src.ai.routers.extraction.ingestion_pipeline.process_records", return_value=fake_summary):
+         patch("src.ai.routers.extraction.ingestion_pipeline.process_records", return_value=fake_summary), \
+         patch("src.ai.routers.extraction.typed_imports.record_sales_extraction_draft", return_value={"batch_id": "batch-1", "revision_id": "revision-1"}):
         response = client.post(
             "/extraction/upload",
             files={"file": ("t.pdf", b"%PDF-1.4\n...", "application/pdf")},
@@ -160,7 +161,8 @@ def test_upload_response_surfaces_compliance_and_loss_metrics():
          patch("src.ai.routers.extraction.job_management.resolve_or_create_data_source", return_value="src-1"), \
          patch("src.ai.routers.extraction.job_management.create_ingestion_job", return_value="job-1"), \
          patch("src.ai.routers.extraction.job_management.finalize_ingestion_job"), \
-         patch("src.ai.routers.extraction.ingestion_pipeline.process_records", return_value=fake_summary):
+         patch("src.ai.routers.extraction.ingestion_pipeline.process_records", return_value=fake_summary), \
+         patch("src.ai.routers.extraction.typed_imports.record_sales_extraction_draft", return_value={"batch_id": "batch-1", "revision_id": "revision-1"}):
         response = client.post(
             "/extraction/upload", files={"file": ("t.csv", b"product_name\nx\n", "text/csv")}, headers=_auth()
         )
@@ -196,6 +198,7 @@ def test_upload_publishes_a_discovery_request_when_new_products_are_created():
          patch("src.ai.routers.extraction.job_management.finalize_ingestion_job"), \
          patch("src.ai.routers.extraction.ingestion_pipeline.process_records", return_value=fake_summary), \
          patch("src.ai.routers.extraction.promotion.promote_ingested_rows", return_value=fake_promotion_summary), \
+         patch("src.ai.routers.extraction.typed_imports.record_sales_extraction_draft", return_value={"batch_id": "batch-1", "revision_id": "revision-1"}), \
          patch("src.ai.routers.extraction._publish_discovery_request") as mock_publish:
         response = client.post(
             "/extraction/upload", files={"file": ("t.csv", b"product_name\nx\n", "text/csv")}, headers=_auth()
@@ -222,6 +225,7 @@ def test_upload_does_not_publish_a_discovery_request_when_no_products_were_creat
          patch("src.ai.routers.extraction.job_management.finalize_ingestion_job"), \
          patch("src.ai.routers.extraction.ingestion_pipeline.process_records", return_value=fake_summary), \
          patch("src.ai.routers.extraction.promotion.promote_ingested_rows", return_value=fake_promotion_summary), \
+         patch("src.ai.routers.extraction.typed_imports.record_sales_extraction_draft", return_value={"batch_id": "batch-1", "revision_id": "revision-1"}), \
          patch("src.ai.routers.extraction._publish_discovery_request") as mock_publish:
         response = client.post(
             "/extraction/upload", files={"file": ("t.csv", b"product_name\nx\n", "text/csv")}, headers=_auth()

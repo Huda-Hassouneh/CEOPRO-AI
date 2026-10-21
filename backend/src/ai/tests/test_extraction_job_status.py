@@ -19,7 +19,7 @@ def test_clean_import_is_completed():
     assert _ingestion_job_completion(_summary(), _promotion()) == ("COMPLETED", None)
 
 
-def test_row_level_validation_or_promotion_failures_are_partial():
+def test_row_level_validation_or_promotion_failures_use_supported_failed_status():
     for summary, promotion in (
         (_summary(rows_partial=1), _promotion()),
         (_summary(rows_failed=1), _promotion()),
@@ -27,5 +27,5 @@ def test_row_level_validation_or_promotion_failures_are_partial():
         (_summary(), _promotion(rows_failed=1)),
     ):
         status, error = _ingestion_job_completion(summary, promotion)
-        assert status == "PARTIAL"
+        assert status == "FAILED"
         assert "not promoted" in error
