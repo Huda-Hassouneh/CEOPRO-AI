@@ -20,9 +20,16 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libpq-dev \
     && rm -rf /var/lib/apt/lists/*
-COPY src/ai/requirements.txt .
+COPY src/ai/requirements.txt src/ai/requirements-rembg.txt ./
+# Opt-in background removal (off by default - see requirements-rembg.txt).
+ARG INSTALL_REMBG=false
 RUN pip install --upgrade pip \
-    && pip install --no-cache-dir --user -r requirements.txt
+    && if [ "$INSTALL_REMBG" = "true" ]; then \
+         grep -vi '^pillow' requirements.txt > requirements-no-pillow.txt \
+         && pip install --no-cache-dir --user -r requirements-no-pillow.txt -r requirements-rembg.txt; \
+       else \
+         pip install --no-cache-dir --user -r requirements.txt; \
+       fi
 
 # ==========================================
 # STAGE 2: PRODUCTION RUNTIME
