@@ -175,6 +175,21 @@ def test_missing_stripe_key_has_controlled_failure(monkeypatch):
 @pytest.mark.parametrize("trialing", [False, True])
 def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, trialing):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
+    monkeypatch.setattr(store, "has_custom_contract", lambda *a: False)
+    plan_rights = {
+        "source": "stripe",
+        "features": {
+            "test_feature": {
+                "unit": "items",
+                "aggregation_type": "sum",
+                "reset_cycle": "billing_period",
+                "limit": 10,
+            }
+        },
+        "entitlements": set(),
+    }
+    monkeypatch.setattr(service.usage, "get_plan", lambda *a: plan_rights)
+    monkeypatch.setattr(store, "configured_plan_rights", lambda *a, **kw: plan_rights)
     sub = {
         "stripe_subscription_id": "sub_existing",
         "plan_key": "growth",
@@ -250,6 +265,21 @@ def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, tria
 
 def test_existing_downgrade_is_scheduled_without_replacing_paid_period(monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
+    monkeypatch.setattr(store, "has_custom_contract", lambda *a: False)
+    plan_rights = {
+        "source": "stripe",
+        "features": {
+            "test_feature": {
+                "unit": "items",
+                "aggregation_type": "sum",
+                "reset_cycle": "billing_period",
+                "limit": 10,
+            }
+        },
+        "entitlements": set(),
+    }
+    monkeypatch.setattr(service.usage, "get_plan", lambda *a: plan_rights)
+    monkeypatch.setattr(store, "configured_plan_rights", lambda *a, **kw: plan_rights)
     end = datetime.now(UTC) + timedelta(days=20)
     sub = {
         "stripe_subscription_id": "sub_existing",
