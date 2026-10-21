@@ -902,3 +902,55 @@ Phase 5A pricing orchestration can proceed independently only if it uses existin
 ### Teammate changes
 
 `origin/main` refreshed to `c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90`; merge base remains `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c`, with 9 origin-only commits. No Shopify, OAuth, webhook, migration, privacy, connector-worker, or credential-vault implementation appeared in the upstream-only diff. `bf0b929` updates `backend/src/market_scraper/requirements.txt` for Pillow CVE remediation; it is a shared market-scraper dependency file but does not overlap this adapter (which uses existing HTTPX). Other upstream changes concern marketing/RAG, plan-catalog testing, workflow configuration, pending actions, and frontend lockfile. No teammate changes were integrated or copied.
+
+
+## Phase 5A pricing intelligence implementation and verification - 2026-10-21
+
+Authority: owner authorization for the bounded Phase 5A batch; original `PRICE-001` through `PRICE-008` acceptance rows; approved `ADR-PRICE-001-pricing-evidence-freshness-and-fallback.md`; Phase 5 requirements and dependency/decision matrix. The original acceptance assertions remain unchanged. This batch found no safe production-code change independent of the still-open entitlement, accounting, freshness, and schema decisions. No pricing algorithm, router, migration, frontend, entitlement, usage, credit, or catalog source was modified.
+
+### Existing Python capabilities reused and verified
+
+- `backend/src/ai/routers/pricing.py` exposes authenticated single and bulk recommendation routes using `TenantContext`; the recommendation pipeline reads the product using tenant and product IDs and returns a non-disclosing 404 when it is absent from that tenant. The existing frontend supplies `product_id` as a query parameter.
+- `backend/src/ai/pricing/data_access.py` reads only same-tenant products and observations joined through tenant-scoped competitor mappings. It limits the local market set to exact, ALLOWED, available prices and active mappings/tracked competitors, and currently chooses the latest *qualifying* record. Python historical fallback and the existing configured 1095-day default remain unchanged.
+- `backend/src/ai/pricing/pipeline.py` preserves the existing comparable/regional/internal fallback hierarchy, reference-only cross-currency note, guardrails, demand/stock holds, explanation, and recommendation persistence. Fallback basis is explicitly returned in `data_basis` and explanation; the response does not update the product's current price.
+- `backend/src/ai/pricing/evidence.py` reuses the shared evidence writer and links `recommendation_outcomes` to evidence. Migration inspection confirms evidence category and non-forecast shape constraints; it does not define a confidence-score range check.
+
+### Original acceptance status
+
+| Acceptance | Current result | Remaining blocker or limit |
+|---|---|---|
+| AT-PRICE-001 | PARTIAL. Authenticated routes, 401 for unauthenticated calls, 404 for cross-tenant/unknown product, generic 500 sanitization, and restricted-role product/evidence isolation were verified. | `ai_pricing` is unmapped under U5; there is no safe existing equivalent gate. Pricing usage reservation and bulk settlement do not exist. Do not borrow another feature right or invent a unit under U1-U4/ACCOUNTING-001. |
+| AT-PRICE-002 | PARTIAL. Existing tenant/mapping/status filters and latest qualifying observation behavior passed unit/native checks. | The approved direction does not settle newest-invalid handling. Current query filters invalid observations before choosing the latest; O-PRICE must decide if a newer invalid observation suppresses an older usable one. |
+| AT-PRICE-003 | PARTIAL. Existing cross-currency reference-only behavior and old-observation explanation were exercised; existing configured freshness behavior was preserved. | Maximum age, FX freshness, future observations and newest-invalid selection remain O-PRICE decisions. No historical example window was adopted as new policy. |
+| AT-PRICE-004 | PARTIAL PASS. Existing change/margin guardrail order, final action, and currency minor-unit behavior passed focused tests. | Current margin floor can exceed the change cap because it is applied afterward. Preserve current behavior until the owner approves scoped conflict resolution; no math changed. |
+| AT-PRICE-005 | PARTIAL PASS. Existing comparable/regional/internal fallback, confidence caps, demand/stock holds, and no-market behavior passed focused tests. | No model accuracy validation was performed. No new fallback rule or automatic price change was added. |
+| AT-PRICE-006 | NOT IMPLEMENTED. | Requests have no durable pricing idempotency key, fingerprint, or replay-bound result. Migrations 90 and 91 constrain receipts to source/competitor operations, so they cannot safely represent a pricing/product target. A forward migration extending the existing receipt authority is required. New metering/settlement still requires U1-U4/ACCOUNTING-001 approval. |
+| AT-PRICE-007 | PARTIAL PASS. Shared evidence and outcomes are written and tenant-linked; fresh migration and restricted-role persistence checks passed. | Confidence bounds are not constrained by schema and invalid-confidence persistence was not tested. The original test row labels additional evidence work as a proposal pending architecture approval; do not create a schema change without approval. |
+| AT-PRICE-008 | PARTIAL. Existing query-parameter request and result explanation/provenance fields were preserved. | No recommendation history endpoint or new history/error/unavailable frontend states were added. Frontend work is excluded here; additions in the original proposal were not treated as approved. |
+
+### Focused verification actually executed
+
+All Python checks used the existing isolated Python 3.12 environment and installed real project dependencies:
+
+- `pytest src/ai/tests/test_pricing_pipeline.py src/ai/tests/test_pricing_guardrails.py src/ai/tests/test_pricing_estimation.py src/ai/tests/test_pricing_recommendation.py src/ai/tests/test_pricing_currency.py src/ai/tests/test_pricing_matching.py src/ai/tests/test_pricing_comparisons.py -q` - Result: **77 passed**.
+- Fresh disposable PostgreSQL 17/pgvector database `keel_billing_test` on localhost `55444` was confirmed empty before use. `backend/scripts/apply_migrations.py` applied the base schema plus **93** migrations; no migration was edited. `pytest src/ai/tests/test_pricing_integration_db.py -q` - Result: **19 passed**.
+- Three focused HTTP regressions (cross-tenant/unknown product 404, malformed product identifier 422, and sanitized unexpected pricing failure 500) - Result: **3 passed**.
+- Direct HTTP smoke calls to both `/pricing/recommend` and `/pricing/recommend-all` without authentication returned **401**.
+- A synthetic two-tenant check through `db.app_role_connection`/`ceopro_app` confirmed its active member sees its own product and recommendation evidence, cannot see the other tenant's product, and gets `ProductNotFoundError` for that product. Evidence and outcome were linked; the product's `current_price` remained unchanged. The role preflight confirmed `ceopro_app` is neither superuser nor `BYPASSRLS`. This custom check passed after its initial fixture was corrected to include an active tenant membership.
+- The isolated PostgreSQL project was shut down. The existing Phase 1A PostgreSQL/Redis containers and SearXNG container remained running and untouched.
+
+Total automated tests: **99 passed, 0 failed** (77 focused unit + 19 native DB + 3 HTTP regressions). The direct authentication and restricted-role checks were additional smoke/integration checks, not counted in that test total. No model/service accuracy, live provider, browser, production rollout, or pricing charge was tested.
+
+### Decision gates and migration proposal (not created)
+
+- **U5 / ENT-001:** crosswalk has no `ai_pricing` entitlement. A gate cannot be added by substituting `market_intelligence` or `competitor_management`; that could change existing customer access.
+- **O-PRICE:** decide maximum competitor/reference age, FX/reference freshness, and whether newest-invalid suppresses older qualifying observations. Resolve the existing case where the margin floor may exceed the price-change cap. Until approved, the established Python algorithm/configuration stays intact.
+- **U1-U4 / ACCOUNTING-001:** pricing recommendation units, idempotent reservation, bulk settlement, release after failure, and any compensation are not defined here and are not implemented.
+- **PRICE-006 schema:** if authorized later, the narrowest design appears to extend the existing ENT-008 receipt authority with a `pricing_recommendation` operation targeting a tenant-scoped product, request fingerprint/idempotency identity, and links to the exact evidence/outcome plus a replay-safe response snapshot. This is needed because receipt operation/target constraints in migrations 90 and 91 exclude pricing and current evidence/outcome records do not carry request idempotency identity. A new forward migration must be coordinated with pending migration proposals; no identifier, SQL, or application was assumed.
+- **PRICE-007/008:** any evidence confidence-bound constraint or recommendation history/UI extension needs its own approved acceptance contract. No frontend or shared evidence writer was altered here.
+
+### Teammate change awareness
+
+Read-only refresh recorded `origin/main` at `c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90`, merge base `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c`, with nine upstream-only commits. No upstream change modifies `backend/src/ai/pricing/pipeline.py`, `data_access.py`, `evidence.py`, or the pricing router. There is adjacent overlap: upstream commit `c1d7f5e` changes `core/usage.py`; upstream commit `b39b292` changes `core/entitlements.py` and `core/usage.py`; upstream pricing-comparison commits (`01ff0e0`, `891ea10`, `b41d9cf`) touch `test_pricing_comparisons.py`. In particular, the current origin versions remove pieces of the integration branch's ENT-009 cache version/trial-expiry checks and weaken `reserve_request` identity/failure guards. These changes were not merged or copied and must be reconciled before any later Phase 5 work uses those authorities. The pricing-comparison test changes concern the monthly comparison report, not recommendation orchestration.
+
+Phase 5A is **partially complete, not production-ready**. Existing recommendation algorithms and guardrails are preserved and verified, but entitlement/metering, durable idempotency, O-PRICE specifics, evidence constraint coverage, and history/UI acceptance remain open. Phase 5B should not begin until the owner decides the `ai_pricing` mapping/charging boundary and O-PRICE eligibility semantics, or explicitly carves out independent MPI work that consumes only its own approved market inputs and does not depend on pricing recommendation identity or unresolved freshness.
