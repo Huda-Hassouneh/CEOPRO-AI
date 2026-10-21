@@ -2,7 +2,7 @@
 
 Destination: Python/FastAPI main. Node reference strictly read-only. **Historical phases: 0/1A. B1 incremental changes are recorded below.**
 
-Incoming Git HEAD: `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. Verified clean post-Task-6 commit: **UNAVAILABLE / SOURCE-001 BLOCKED**. Current implementation commit: none created. Frozen byte baseline: evidence/SUPPLIED_CONTENT_HASHES.json; ZIP hashes: INPUT_ARCHIVE_HASHES.json.
+Incoming Git HEAD: `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. Verified clean post-Task-6 commit: **UNAVAILABLE / SOURCE-001 BLOCKED**. B2 implementation checkpoint: `2607de847428d928eed63abf7dd761f62e543775`; B3 changes below are uncommitted. Frozen byte baseline: evidence/SUPPLIED_CONTENT_HASHES.json; ZIP hashes: INPUT_ARCHIVE_HASHES.json.
 
 
 ## Phase 1B B1 — Read-only effective-rights compatibility projection
@@ -25,9 +25,16 @@ The version 1 `effectiveRights` contract is an informational projection of the a
 
 | Phase | Capability | Path | Action | Change and preservation | Verification/status |
 |---|---|---|---|---|---|
-| 1B-B2 | ENT-001; ENT-011 | `backend/src/ai/routers/billing.py` | MODIFY | Adds version 1 configured-plan response from the B1 pure projection; existing billing fields and behavior remain unchanged. | Focused B2+B1 projection tests: `py -3.12 -m pytest --noconftest -q -p no:cacheprovider src/ai/tests/test_billing_effective_rights.py src/ai/tests/test_feature_rights_projection.py` — 10 passed. NOT COMMITTED. |
-| 1B-B2 | ENT-001; ENT-011 | `backend/src/ai/tests/test_billing_effective_rights.py` | ADD | Verifies established-only exposure, units and limit states, legacy response values, one tenant-scoped plan read, and unchanged input plan. | 1 B2 endpoint contract test plus 9 B1 projection tests passed. Mocks only; live HTTP/PostgreSQL/RLS and provider integration remain unverified. NOT COMMITTED. |
-| 1B-B2 | ENT-001; ENT-011; DOCS-001 | `docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md` | MODIFY | Records the approved response contract and B2 implementation evidence. | `git diff --check` PASS. NOT COMMITTED. |
+| 1B-B2 | ENT-001; ENT-011 | `backend/src/ai/routers/billing.py` | MODIFY | Adds version 1 configured-plan response from the B1 pure projection; existing billing fields and behavior remain unchanged. | Focused B2+B1 projection tests: `py -3.12 -m pytest --noconftest -q -p no:cacheprovider src/ai/tests/test_billing_effective_rights.py src/ai/tests/test_feature_rights_projection.py` — 10 passed. COMMITTED: `2607de847428d928eed63abf7dd761f62e543775`. |
+| 1B-B2 | ENT-001; ENT-011 | `backend/src/ai/tests/test_billing_effective_rights.py` | ADD | Verifies established-only exposure, units and limit states, legacy response values, one tenant-scoped plan read, and unchanged input plan. | 1 B2 endpoint contract test plus 9 B1 projection tests passed. Mocks only; native HTTP/PostgreSQL/RLS verification is recorded under B3. COMMITTED: `2607de847428d928eed63abf7dd761f62e543775`. |
+| 1B-B2 | ENT-001; ENT-011; DOCS-001 | `docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md` | MODIFY | Records the approved response contract and B2 implementation evidence. | `git diff --check` PASS. COMMITTED: `2607de847428d928eed63abf7dd761f62e543775`. |
+
+## Phase 1B B3 — Native tenant-isolation verification
+
+| Phase | Capability | Path | Action | Change and preservation | Verification/status |
+|---|---|---|---|---|---|
+| 1B-B3 | ENT-001; ENT-002; ENT-011 | `backend/src/ai/tests/test_billing_integration_db.py` | MODIFY | Exercises the production billing router over authenticated HTTP using the restricted `ceopro_app` role; verifies two tenants receive their own distinct configured rights, unauthenticated and cross-tenant requests are rejected, the legacy response and v1 contract remain intact, and subscription/usage/credit snapshots do not change on reads. | PostgreSQL 17.11 disposable `keel_billing_test` on localhost:55440; empty-target check passed before applying 88 existing migrations; read-only role preflight PASS; focused test `test_subscription_effective_rights_are_tenant_isolated_and_read_only` — 1 passed, 16 deselected. No production changes. |
+| 1B-B3 | DOCS-001 | `docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md` | MODIFY | Corrects B2 commit status and records B3 native verification evidence. | B2 commit confirmed at `2607de847428d928eed63abf7dd761f62e543775`; B3 pre-migration identity, role preflight, and focused test passed; `git diff --check` PASS. B3 changes remain uncommitted. |
 ## Current upstream reconciliation (local merge commit recorded)
 
 Worktree: `C:\Users\Mohamamd-P\Desktop\Mahmoud\Orange Summer Challenge\KEEL\CEOPRO-AI-reconcile`; branch `reconcile/keel-origin-main-20261020`. Local merge commit `47f2f1bed3623179ce506d934de9403924d814ff` has first parent `d98bdedf4ee86173dce5e543cd70aadca2debb4f` and second parent `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c`; common ancestor is `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. The original nine integration commits and all 33 upstream commits remain reachable.
