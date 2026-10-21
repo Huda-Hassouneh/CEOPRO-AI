@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from src.ai import db
 from src.ai.billing import config, credits, service, store, stripe_api, webhooks
-from src.ai.core import usage
+from src.ai.core import feature_rights, usage
 from src.ai.core.security import TenantContext, get_tenant_context
 
 logger = logging.getLogger("APEX_BILLING")
@@ -58,6 +58,35 @@ def _scaled(value, factor):
 
 def _iso(value):
     return value.isoformat() if isinstance(value, datetime) else (value.isoformat() if value else None)
+
+
+def _effective_rights_response(plan: dict) -> dict:
+    """Serialize version 1 of the read-only configured-rights API contract.
+
+    ``state`` is the Python plan configuration state, not an authorization
+    result; callers must also honor the existing top-level ``hasAccess``.
+    Exact established Python codes only are exposed. Limits remain in their
+    native Python units; ``None`` means unlimited only when state is
+    ``unlimited``, while absent rows carry state ``absent``.
+    """
+    projection = feature_rights.project_effective_rights(plan)
+    items = [
+        {
+            "featureCode": right["feature_code"],
+            "state": right["configured_state"],
+            "unit": right["unit"],
+            "aggregationType": right["aggregation_type"],
+            "resetCycle": right["reset_cycle"],
+            "limit": right["limit"],
+        }
+        for right in projection["rights"]
+        if right["mapping_status"] == "established_python_code"
+    ]
+    return {
+        "version": 1,
+        "basis": "configured_plan",
+        "items": items,
+    }
 
 
 def _role(conn, tenant_id: str, user_id: str) -> str:
@@ -157,6 +186,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         "usage": used,
         "features": features,
         "entitlements": plan.get("entitlements", []),
+        "effectiveRights": _effective_rights_response(plan),
         # Data and AI Credits, separately: limit, used, remaining, warning
         # threshold reached and reset date. Never provider prices or costs.
         "credits": budgets,
