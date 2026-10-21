@@ -121,7 +121,11 @@ def test_worker_dispatch_persists_all_streams_atomically_and_recovers(monkeypatc
                 "INSERT INTO users(user_id,email,password_hash,full_name) VALUES(%s,%s,'x','Worker test')",
                 (actor, f"shopify-worker-{actor}@example.test"),
             )
+            staff = str(uuid.uuid4())
+            cursor.execute("INSERT INTO users(user_id,email,password_hash,full_name) VALUES(%s,%s,'x','Worker staff')",
+                           (staff, f"shopify-staff-{staff}@example.test"))
             cursor.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')", (tenant, actor))
+            cursor.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'staff')", (tenant, staff))
             cursor.execute(
                 "INSERT INTO tenant_plan_assignments(tenant_id,plan_key,status,source) "
                 "VALUES(%s,'starter','active','manual')", (tenant,),
@@ -184,6 +188,122 @@ def test_worker_dispatch_persists_all_streams_atomically_and_recovers(monkeypatc
                      ("order", 1), ("order_line_item", 1), ("product", 1), ("variant", 1),
                  ]
     assert _rows("SELECT count(*) FROM keel_inventory_observations WHERE tenant_id=%s", (tenant,))[0][0] == 2
+    assert _rows("SELECT entity_type,count(*) FROM keel_provider_business_revisions WHERE tenant_id=%s "
+                 "GROUP BY entity_type ORDER BY entity_type", (tenant,)) == [
+                     ("order", 1), ("order_line_item", 1), ("product", 1), ("variant", 1),
+                 ]
+    assert _rows("SELECT validation_status,count(*) FROM keel_provider_business_revisions WHERE tenant_id=%s "
+                 "GROUP BY validation_status ORDER BY validation_status", (tenant,)) == [
+                     ("invalid", 3), ("review_required", 1),
+                 ]
+    assert _rows("SELECT relrowsecurity,relforcerowsecurity FROM pg_class "
+                 "WHERE oid='public.keel_provider_business_revisions'::regclass") == [(True, True)]
+    # App role has read-only table grants; writes must pass the fenced M98 command.
+    app_conn = psycopg2.connect(_app_url())
+    with app_conn.cursor() as cursor:
+        cursor.execute("SET LOCAL ROLE ceopro_app")
+        cursor.execute("SELECT set_config('app.current_tenant_id',%s,true)", (tenant,))
+        cursor.execute("SELECT set_config('app.current_user_id',%s,true)", (actor,))
+        with pytest.raises(psycopg2.errors.InsufficientPrivilege):
+            cursor.execute("INSERT INTO keel_provider_business_revisions(tenant_id,source_id,provider,provider_record_identity_id,"
+                           "entity_type,revision_number,provider_identity_revision_sha256,business_values_sha256,typed_values,"
+                           "validation_status,ingestion_job_id) SELECT tenant_id,source_id,provider,provider_record_identity_id,"
+                           "entity_type,1,repeat('a',64),repeat('b',64),'{}','invalid',latest_ingestion_job_id "
+                           "FROM keel_provider_record_identities WHERE tenant_id=%s LIMIT 1", (tenant,))
+        app_conn.rollback()
+    app_conn.close()
+
+    # Review decisions are tenant-owner/admin-only, append-only and idempotent.
+    review_revision = _rows("SELECT business_revision_id FROM keel_provider_business_revisions "
+                            "WHERE tenant_id=%s AND validation_status='review_required'", (tenant,))[0][0]
+    app_conn = psycopg2.connect(_app_url())
+    with app_conn.cursor() as cursor:
+        cursor.execute("SELECT set_config('app.current_tenant_id',%s,false)", (tenant,))
+        cursor.execute("SELECT set_config('app.current_user_id',%s,false)", (actor,))
+        cursor.execute("SELECT * FROM keel_provider_business_review98(%s,'approve','review-key-1','owner_review')",
+                       (review_revision,))
+        review_id, duplicate = cursor.fetchone()
+        assert duplicate is False
+        app_conn.commit()
+        cursor.execute("SELECT * FROM keel_provider_business_review98(%s,'approve','review-key-1','owner_review')",
+                       (review_revision,))
+        assert cursor.fetchone() == (review_id, True)
+        app_conn.commit()
+    app_conn.close()
+
+    # Exercise the actual FastAPI preview/history/review contract over HTTP
+    # against the disposable database and restricted ceopro_app pool.
+    monkeypatch.setenv("JWT_SECRET", "native-m98-test-signing-secret-with-32-bytes-minimum")
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from src.ai import db as api_db
+    from src.ai.core.security import create_access_token
+    from src.ai.routers import onboarding
+    monkeypatch.setattr(api_db, "_POOL", None)
+    http_app = FastAPI()
+    http_app.include_router(onboarding.router)
+    owner_token, _ = create_access_token(tenant, actor, email_verified=True)
+    staff_token, _ = create_access_token(tenant, staff, email_verified=True)
+    with TestClient(http_app) as http:
+        assert http.get(f"/onboarding/sources/{source}/provider-records").status_code == 401
+        response = http.get(f"/onboarding/sources/{source}/provider-records?limit=20&offset=0",
+                            headers={"Authorization": f"Bearer {owner_token}"})
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body["items"]) == 4
+        approved_item = next(row for row in body["items"] if row["business_revision_id"] == str(review_revision))
+        assert approved_item["review_decision"] == "approve"
+        assert approved_item["canonical_status"] == "not_posted"
+        history = http.get(f"/onboarding/sources/{source}/provider-records/"
+                           f"{approved_item['provider_record_identity_id']}/revisions",
+                           headers={"Authorization": f"Bearer {owner_token}"})
+        assert history.status_code == 200 and len(history.json()["revisions"]) == 1
+        repeated_review = http.post(f"/onboarding/sources/{source}/provider-records/reviews", json={
+            "business_revision_id": str(review_revision), "decision": "approve",
+            "idempotency_key": "review-key-1", "reason_code": "owner_review",
+        }, headers={"Authorization": f"Bearer {owner_token}"})
+        assert repeated_review.status_code == 200
+        assert repeated_review.json()["duplicate"] is True
+        denied_review = http.post(f"/onboarding/sources/{source}/provider-records/reviews", json={
+            "business_revision_id": str(review_revision), "decision": "reject",
+            "idempotency_key": "staff-review-1", "reason_code": "staff_not_allowed",
+        }, headers={"Authorization": f"Bearer {staff_token}"})
+        assert denied_review.status_code == 403
+    api_db.close_pool()
+    app_conn = psycopg2.connect(_app_url())
+    with app_conn.cursor() as cursor:
+        cursor.execute("SELECT set_config('app.current_tenant_id',%s,false)", (tenant,))
+        cursor.execute("SELECT set_config('app.current_user_id',%s,false)", (staff,))
+        with pytest.raises(psycopg2.errors.InsufficientPrivilege):
+            cursor.execute("SELECT * FROM keel_provider_business_review98(%s,'reject','staff-review','not_authorized')",
+                           (_rows("SELECT business_revision_id FROM keel_provider_business_revisions WHERE tenant_id=%s "
+                                  "AND validation_status='invalid' ORDER BY business_revision_id LIMIT 1", (tenant,))[0][0],))
+        app_conn.rollback()
+    app_conn.close()
+
+    # M98 evidence remains append-only even for the migration owner, while
+    # ordinary restricted-role reads stay tenant-scoped.
+    app_conn = psycopg2.connect(_app_url())
+    with app_conn.cursor() as cursor:
+        cursor.execute("SET LOCAL ROLE ceopro_app")
+        cursor.execute("SELECT set_config('app.current_tenant_id',%s,true)", (str(uuid.uuid4()),))
+        cursor.execute("SELECT set_config('app.current_user_id',%s,true)", (actor,))
+        cursor.execute("SELECT count(*) FROM keel_provider_business_revisions WHERE tenant_id=%s", (tenant,))
+        assert cursor.fetchone() == (0,)
+    app_conn.rollback()
+    app_conn.close()
+    evidence_conn = psycopg2.connect(ADMIN_URL)
+    with evidence_conn.cursor() as cursor:
+        with pytest.raises(psycopg2.errors.ObjectNotInPrerequisiteState):
+            cursor.execute("UPDATE keel_provider_business_revisions SET typed_values='{}'::jsonb "
+                           "WHERE tenant_id=%s AND business_revision_id=%s", (tenant, review_revision))
+    evidence_conn.rollback()
+    with evidence_conn.cursor() as cursor:
+        with pytest.raises(psycopg2.errors.ObjectNotInPrerequisiteState):
+            cursor.execute("DELETE FROM keel_provider_business_revisions WHERE tenant_id=%s AND business_revision_id=%s",
+                           (tenant, review_revision))
+    evidence_conn.rollback()
+    evidence_conn.close()
 
     before = {
         table: _rows(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (tenant,))[0][0]

@@ -1653,6 +1653,22 @@
       "subtitle": "Sources currently linked to your company workspace.",
       "count": "{{count}} sources"
     },
+    "providerRecords": {
+      "open": "View synced records", "close": "Close records", "title": "Provider records",
+      "notice": "These are fetched source records for review. Review approval does not post canonical products or orders, create invoices, or update stock.",
+      "refresh": "Refresh", "loading": "Loading provider records…", "empty": "No provider business records have been staged yet.",
+      "tableLabel": "Provider business records", "type": "Record type", "providerId": "Provider reference", "values": "Staged values",
+      "validation": "Validation", "review": "Review decision", "actions": "Actions", "history": "History", "loadingHistory": "Loading revision history…",
+      "approve": "Approve review", "reject": "Reject review", "confirmApprove": "Record approval of this staged provider record? This will not post it to canonical data.",
+      "confirmReject": "Record rejection of this staged provider record?", "notPosted": "Canonical status: not posted. Provider records remain source-scoped evidence.",
+      "revision": "Revision {{number}}", "previous": "Previous", "next": "Next", "page": "Page {{page}}",
+      "loadFailed": "Provider records could not be loaded. Try again.", "reviewFailed": "The review could not be saved. Try again.",
+      "sessionExpired": "Your session expired. Sign in again.", "forbidden": "Your role cannot review provider records.",
+      "notFound": "This provider record is unavailable in your workspace.", "conflict": "This revision is stale or already reviewed. Refresh the list.",
+      "entities": { "product": "Product", "variant": "Variant", "order": "Order", "order_line_item": "Order item" },
+      "states": { "valid": "Validated", "invalid": "Invalid", "review_required": "Needs review", "notReviewed": "Not reviewed" },
+      "decisions": { "approve": "Approved for review only", "reject": "Rejected" }
+    },
     "upload": {
       "title": "Upload Files",
       "subtitle": "Add a new version or import additional business data.",

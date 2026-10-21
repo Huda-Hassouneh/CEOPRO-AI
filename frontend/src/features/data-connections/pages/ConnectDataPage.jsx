@@ -13,6 +13,7 @@ import { DATA_TEMPLATE_OPTIONS } from '../../data-ingestion/config/dataTemplateO
 import { ingestionApi } from '../../data-ingestion/api/ingestionApi.js';
 import { summarizeImport } from '../../data-ingestion/utils/importSummary.js';
 import { ImportDraftsPanel } from '../../data-ingestion/components/ImportDraftsPanel.jsx';
+import { ProviderRecordsPanel } from '../components/ProviderRecordsPanel.jsx';
 import { ConnectSystemForm } from '../components/ConnectSystemForm.jsx';
 import { ConnectStoreForm } from '../components/ConnectStoreForm.jsx';
 import { ApexButton, Pill } from '../../../shared/components/apex/Apex.jsx';
@@ -43,6 +44,7 @@ export function ConnectDataPage() {
   const [files, setFiles] = useState([]);
   const [downloadedTemplates, setDownloadedTemplates] = useState([]);
   const [busySource, setBusySource] = useState(null);
+  const [providerRecordsSource, setProviderRecordsSource] = useState(null);
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState(null);
   const shopifyFinishStarted = useRef(false);
@@ -175,6 +177,7 @@ export function ConnectDataPage() {
   if (query.isPending) return <div className="connect-data-loading" aria-busy="true"><Skeleton height="76px" variant="rectangular" /><div>{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} height="220px" variant="rectangular" />)}</div><Skeleton height="300px" variant="rectangular" /></div>;
   if (query.isError) return <EmptyState title={t('connectData.error.title')} description={t('connectData.error.description')} action={<Button size="sm" variant="outline" onClick={() => query.refetch()}>{t('connectData.actions.retry')}</Button>} />;
   const data = query.data;
+  const providerSource = data.connectedSources.find((source) => source.source_id === providerRecordsSource);
 
   return <div className="connect-data-page" dir={dir}>
     <PageHeader title={t('connectData.page.title')} subtitle={t('connectData.page.subtitle')} actions={<Button size="sm" leadingIcon={<Plus size={15} />} onClick={() => setAddOpen(true)}>{t('connectData.actions.addSource')}</Button>} />
@@ -196,6 +199,10 @@ export function ConnectDataPage() {
               </div>
               {(source.last_run?.status || syncWatch?.sourceId === source.source_id) && <Pill tone={source.last_run?.status === 'COMPLETED' ? 'success' : source.last_run?.status === 'FAILED' ? 'danger' : 'neutral'}>{syncWatch?.sourceId === source.source_id && (!source.last_run?.job_id || source.last_run.job_id === syncWatch.previousJobId) ? t('connectData.store.status.QUEUED') : statusLabel(source.last_run?.status || 'QUEUED')}</Pill>}
               <div className="connected-systems__actions">
+                {['shopify', 'woocommerce'].includes(source.kind) && <ApexButton size="sm" variant="ghost" icon={Store}
+                  onClick={() => setProviderRecordsSource((current) => current === source.source_id ? null : source.source_id)}>
+                  {providerRecordsSource === source.source_id ? t('connectData.providerRecords.close') : t('connectData.providerRecords.open')}
+                </ApexButton>}
                 {['shopify', 'woocommerce'].includes(source.kind) && source.connection_status !== 'verified'
                   ? <ApexButton size="sm" variant="secondary" icon={source.kind === 'shopify' ? Store : ShoppingBag} onClick={() => { setConnectKind(source.kind); setAddOpen(true); }}>{t('connectData.store.reconnect')}</ApexButton>
                   : <ApexButton size="sm" variant="secondary" icon={RefreshCw} loading={busySource === source.source_id} disabled={syncWatch?.sourceId === source.source_id} onClick={() => runSourceAction('sync', source)}>{t('connectData.system.syncNow')}</ApexButton>}
@@ -206,6 +213,9 @@ export function ConnectDataPage() {
         </ul>
       ) : <EmptyState title={t('connectData.empty.title')} description={t('connectData.empty.description')} action={<Button size="sm" onClick={() => setAddOpen(true)}>{t('connectData.actions.addSource')}</Button>} />}
     </section>
+
+    {providerSource && <ProviderRecordsPanel source={providerSource}
+      refreshVersion={`${providerSource.last_run?.job_id || ''}:${providerSource.last_run?.status || ''}`} t={t} />}
 
     <section ref={uploadRef} className="connect-data-section connect-data-upload">
       <div className="connect-data-section__header"><div><h2>{t('connectData.upload.title')}</h2><p>{t('connectData.upload.subtitle')}</p></div></div>

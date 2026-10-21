@@ -19,6 +19,7 @@ from src.market_scraper import data_access
 from src.market_scraper.connector_sync import is_due_for_sync, safe_connector_error
 from src.market_scraper.provider_identity import persist_shopify_records
 from src.market_scraper.inventory_provenance import persist_shopify_inventory_records
+from src.market_scraper.provider_business_staging import stage_provider_business_records
 from src.market_scraper.provider_lifecycle import ProviderLifecycleError
 from src.market_scraper.provider_identity import persist_woocommerce_records
 from src.market_scraper.inventory_provenance import persist_woocommerce_inventory_records
@@ -176,16 +177,26 @@ def sync_shopify_stream(conn, tenant_id: str, source: dict, stream: str, receipt
         raise
 
     fenced = operation_receipts.FencedConnection(conn, receipt)
+    business = None
+    persisted_count = 0
     try:
         if stream in {"products", "orders"}:
             persisted = persist_shopify_records(fenced, source["source_id"], records, ingestion_job_id=job_id)
-            processed = len(persisted)
+            business = stage_provider_business_records(
+                fenced, provider="shopify", source_id=source["source_id"],
+                ingestion_job_id=job_id, receipt=receipt,
+                configuration_version=int(source["configuration_version"]),
+                records=records, identity_rows=persisted,
+            )
+            persisted_count = len(persisted)
+            processed = len(persisted) + business["revisions_created"]
         else:
             persisted = persist_shopify_inventory_records(
                 fenced, source["source_id"], records, ingestion_job_id=job_id,
                 receipt_id=receipt["receipt_id"],
             )
             processed = len(persisted)
+            persisted_count = len(persisted)
         checkpoint = {
             "source_id": source["source_id"], "stream_key": stream, "continuation": {},
             "configuration_version": int(source["configuration_version"]),
@@ -206,11 +217,15 @@ def sync_shopify_stream(conn, tenant_id: str, source: dict, stream: str, receipt
         )
         raise
 
-    return {
+    result = {
         "source_id": source["source_id"], "job_id": job_id, "stream": stream,
-        "records_persisted": processed, "checkpoint_advanced": True,
+        "records_persisted": persisted_count, "checkpoint_advanced": True,
         "canonical_promotion": False,
     }
+    if business is not None:
+        result["business_staging"] = business
+        result["business_records_staged"] = business["revisions_created"]
+    return result
 
 
 def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
@@ -272,6 +287,7 @@ def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
 
     fenced = operation_receipts.FencedConnection(conn, receipt)
     stream_results: dict[str, int] = {}
+    business_results: dict[str, dict[str, int]] = {}
     checkpoints = []
     try:
         for stream, records in records_by_stream.items():
@@ -279,11 +295,20 @@ def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
                 persisted = persist_shopify_records(
                     fenced, source["source_id"], records, ingestion_job_id=job_id,
                 )
+                business_results[stream] = stage_provider_business_records(
+                    fenced, provider="shopify", source_id=source["source_id"],
+                    ingestion_job_id=job_id, receipt=receipt,
+                    configuration_version=int(source["configuration_version"]),
+                    records=records, identity_rows=persisted,
+                )
             else:
                 persisted = persist_shopify_inventory_records(
                     fenced, source["source_id"], records, ingestion_job_id=job_id,
                     receipt_id=receipt["receipt_id"],
                 )
+            # Preserve the established stream_results contract (M95/M96
+            # identity/observation counts); M98 typed evidence is reported in
+            # its own additive summary.
             stream_results[stream] = len(persisted)
             checkpoints.append({
                 "source_id": source["source_id"], "stream_key": stream,
@@ -311,7 +336,8 @@ def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
 
     return {
         "source_id": source["source_id"], "job_id": job_id,
-        "stream_results": stream_results,
+        "stream_results": stream_results, "business_staging": business_results,
+        "business_records_staged": sum(v["revisions_created"] for v in business_results.values()),
         "records_persisted": sum(stream_results.values()),
         "checkpoint_advanced": True, "full_scan": True,
         "canonical_promotion": False,
@@ -371,6 +397,17 @@ def sync_woocommerce_source(conn, tenant_id: str, source: dict, receipt: dict, *
     try:
         identities = persist_woocommerce_records(fenced, source["source_id"], [*products, *orders],
                                                  ingestion_job_id=job_id)
+        binding_currency = (loaded.get("collector_config") or {}).get("store_currency")
+        # WooCommerce's authenticated store read returns the configured store
+        # currency; use it only as a provider value qualifier, not an FX rule.
+        verification_currency = verification.get("currency_code")
+        store_currency = verification_currency if isinstance(verification_currency, str) else binding_currency
+        business = stage_provider_business_records(
+            fenced, provider="woocommerce", source_id=source["source_id"],
+            ingestion_job_id=job_id, receipt=receipt,
+            configuration_version=int(source["configuration_version"]),
+            records=[*products, *orders], identity_rows=identities, store_currency=store_currency,
+        )
         inventory = persist_woocommerce_inventory_records(
             fenced, source["source_id"], products, ingestion_job_id=job_id,
             receipt_id=receipt["receipt_id"],
@@ -380,7 +417,7 @@ def sync_woocommerce_source(conn, tenant_id: str, source: dict, receipt: dict, *
                        for stream in ("products", "orders", "inventory")]
         data_access.finish_ingestion_job(
             conn, tenant_id, job_id, status="COMPLETED",
-            processed=len(identities) + len(inventory), failed=0, error=None,
+            processed=len(identities) + len(inventory) + business["revisions_created"], failed=0, error=None,
             receipt=receipt, provider_checkpoints=checkpoints,
         )
     except operation_receipts.ReceiptSourceChanged:
@@ -395,7 +432,9 @@ def sync_woocommerce_source(conn, tenant_id: str, source: dict, receipt: dict, *
     return {"source_id": source["source_id"], "job_id": job_id,
             "stream_results": {"products": sum(1 for r in products if r.entity_type == "product"),
                                "orders": len(orders), "inventory": len(inventory)},
-            "records_persisted": len(identities) + len(inventory), "checkpoint_advanced": True,
+            "records_persisted": len(identities) + len(inventory),
+            "business_records_staged": business["revisions_created"],
+            "business_staging": business, "checkpoint_advanced": True,
             "full_scan": True, "canonical_promotion": False, "provider": "woocommerce"}
 
 
