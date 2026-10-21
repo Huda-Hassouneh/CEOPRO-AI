@@ -962,3 +962,71 @@ Local checkpoints on `integration/keel-full-migration`:
 Both commits are local; no migration or production activation was performed.
 
 Phase 5A is **partially complete, not production-ready**. Existing recommendation algorithms and guardrails are preserved and verified, but entitlement/metering, durable idempotency, O-PRICE specifics, evidence constraint coverage, and history/UI acceptance remain open. Phase 5B should not begin until the owner decides the `ai_pricing` mapping/charging boundary and O-PRICE eligibility semantics, or explicitly carves out independent MPI work that consumes only its own approved market inputs and does not depend on pricing recommendation identity or unresolved freshness.
+
+
+## Phase 5B MPI scope and evidence reliability ? 2026-10-21
+
+Authority: owner authorization for Phase 5B; original MPI-001?010 acceptance rows; approved `ADR-MPI-001-mpi-eligibility-sample-and-public-reliability`; Phase 5 architecture and dependency documents. The accepted policy direction is to suppress unreliable numeric MPI results as UNKNOWN/null. This batch does not choose its unresolved minimum sample, cap, freshness, source, or per-scope reliability values.
+
+### Implementation and evidence matrix
+
+| Original acceptance | Result in this batch | Evidence / remaining gate |
+|---|---|---|
+| MPI-001 BUSINESS identity | PASS for service/API checks | BUSINESS resolves only to the authenticated tenant; a supplied different tenant ID is hidden as 404. Unsupported scope is 422; unauthenticated route is 401. No evidence is written for rejected identity. |
+| MPI-002 PRODUCT ownership | PASS | Active non-deleted product must belong to the tenant. Missing, soft-deleted and cross-tenant products return the same non-disclosing 404 before evidence writes. |
+| MPI-003 COMPETITOR identity | PASS | Competitor must be linked through `tenant_competitors`; country context retains that scoped join. A foreign private competitor is hidden. |
+| MPI-004 Review eligibility | PARTIAL PASS | Input query requires source `ALLOWED`, safety `SAFE`, nonblank text, nonfuture `review_date`, and same-tenant ownership for optional `source_id`; sentiment probabilities must be finite and in [0,1]; review identity is deduplicated defensively. The database's existing one-sentiment-per-review and external-source uniqueness are retained. No sample cap or new freshness/source eligibility rules were added. |
+| MPI-005 Classification lifecycle | PARTIAL | MPI consumes the existing persisted `sentiment_results`; it does not classify reviews or charge on summary reads. Classifier model and retry behavior remain with the sentiment authority and were not rerun here. |
+| MPI-006 Reliability / UNKNOWN | BLOCKED BY O-MPI PARAMETER | Zero usable reviews persist/return UNKNOWN with no numeric MPI. The existing Python low-sample response remains unchanged and can return `OK` plus a numeric score; the selected suppression direction cannot be completed safely until eligible-review minimum and per-scope criteria are selected. |
+| MPI-007 Weighted scoring / comparison | PASS for preserved behavior | Existing Python scorer, weights, volume damping and comparison guard were not changed. Focused unit tests passed and all three scopes persisted native evidence. No model-accuracy claim is made. |
+| MPI-008 Access / no duplicate charge | PARTIAL PASS | Existing authenticated `/mpi/summary` and `market_intelligence` feature dependency remain. No new `market_perception` entitlement, charge, Credit debit or mapping was introduced. U5 gates any separate mapping/charging contract. |
+| MPI-009 Evidence provenance | PARTIAL PASS | Existing `evidence_records.source_record_ids` JSONB stores scope/status, eligible review IDs/count/date range, source platform/source ID/collection method, model version per review, and score contributions. FACT/UNKNOWN categories and native RLS writes passed. No new table or migration was needed. Durable request/replay identity and history are still absent. |
+| MPI-010 Three-scope lifecycle | PARTIAL PASS | BUSINESS, PRODUCT, COMPETITOR run through the existing synchronous endpoint/service with the existing result shape. No dashboard refresh UI or async job lifecycle exists; frontend is excluded. Low-sample suppression remains decision-gated. |
+
+Existing Python authorities reused: `routers/mpi.py` auth/context and route, `market_intelligence` entitlement dependency, `mpi.scoring` and cold-start behavior, existing sentiment collection/classification storage, RLS-scoped review/evidence tables, and `evidence_records`. The MPI input path reads canonical `reviews` only; it does not consume commerce connector staging or unverified Shopify/WooCommerce results. `sentiment_results.review_id` is unique and review provenance remains tenant-bound. Evidence is written transactionally; route failures roll back.
+
+### Production changes in this checkpoint
+
+- `backend/src/ai/mpi/data_access.py`: validated scope ownership, tenant-link competitor identity, eligibility guards for allowed/safe/nonblank/nonfuture rows, tenant-qualified sentiment join, optional `source_id` tenant ownership check, defensive malformed probability rejection, provenance retrieval and duplicate contribution guard.
+- `backend/src/ai/mpi/pipeline.py`: pre-write subject validation and additive persisted evidence provenance (status, eligible IDs/count/date range, source and sentiment model attribution). Numerical scoring and response fields remain unchanged.
+- `backend/src/ai/routers/mpi.py`: maps malformed/unsupported scopes to 422 and absent or non-tenant subjects to a non-disclosing 404; rolls back rejected operations.
+- Focused tests: `backend/src/ai/tests/test_mpi_router.py`, `test_mpi_pipeline.py`, and expanded `test_mpi_integration_db.py`.
+- Evidence only: this ledger section and original `AT-MPI-001`?`AT-MPI-010` execution/blocking-decision columns. Original acceptance IDs, scenarios and assertions were preserved.
+
+No migration was required. Existing `source_record_ids` JSONB supported the evidence additions. No Redis/worker, provider, model, entitlement, billing, usage, Credit, frontend, canonical connector, or scoring-algorithm changes were made. No tests perform real external provider calls or customer data actions.
+
+### Verification actually executed
+
+Disposable test project: `keel-phase5b-mpi-disposable`, PostgreSQL 17/pgvector, database `keel_billing_test` on `127.0.0.1:55444`. Database identity and zero public tables were verified before applying the current base schema and all 93 migrations. The dedicated test used a temporary schema-owner credential and actual `ceopro_app` connections. Role preflight confirmed `ceopro_app` is neither superuser nor `BYPASSRLS`; own-tenant records and evidence were visible while another tenant's product was hidden. The disposable project is shut down after the checks; existing Phase 1A/Postgres, Redis and SearXNG services were left untouched.
+
+Final focused command:
+
+`pytest src/ai/tests/test_mpi_router.py src/ai/tests/test_mpi_pipeline.py src/ai/tests/test_mpi_scoring.py src/ai/tests/test_mpi_cold_start.py src/ai/tests/test_mpi_integration_db.py -q`
+
+Result: **42 passed, 0 failed, 0 skipped**, one Starlette/httpx deprecation warning. Coverage includes subject validation for all three scopes, 401/404/422 mapping, tenant-visible and foreign private entities, deleted/missing product, review safety/status/text/future dates, foreign source attribution, malformed probabilities, uniqueness against duplicate sentiment rows, evidence persistence/provenance and restricted-role RLS. The first RLS attempt omitted an active fixture membership and correctly observed no visible product; the fixture was corrected to follow the existing membership contract and the complete final run passed. This was test setup, not a production change.
+
+No model accuracy, production deployment, live provider, frontend, durable retry/history, or customer-facing low-sample suppression validation was performed.
+
+### O-MPI decision package ? owner response required
+
+The governing source is approved `ADR-MPI-001` and its original requirements MPI-004/MPI-006/MPI-009/MPI-010. The owner has already selected the direction: unreliable numeric scores must be suppressed as UNKNOWN/null. The values and per-scope rules below remain open; they must not be inferred from Python defaults or the Node reference implementation.
+
+| Decision | Current Python behavior | Choices for approval and consequences | Safe proposal (not approved) | Blocked behavior |
+|---|---|---|---|---|
+| Minimum qualified sample per scope | `MPI_MIN_SAMPLE_SIZE` currently defaults to 5; low sample currently returns numeric MPI plus `LOW_SAMPLE_SIZE`. | One common threshold makes scopes comparable but may suppress sparse scopes; separate BUSINESS/PRODUCT/COMPETITOR thresholds fit source availability but yield different disclosure points. Higher values hide more numeric results; lower values expose more. | Select and publish an explicit threshold for each scope (or explicitly choose one shared value), independent of code defaults. | Applying selected UNKNOWN/null suppression to low-sample numeric responses. |
+| Sampling cap and order | Current MPI loads every eligible scored review, ordered newest first; scoring math already applies its existing recency and volume weights. | No hard cap uses all rows; fixed cap bounds work but changes which reviews can affect results; per-scope caps vary effective coverage. Choose deterministic ordering/tie behavior if capped. | Decide whether there is a cap and its scope-specific value/order; do not treat the historical 100-row reference as approved. | Bounded sample completeness/performance contract and any score based on truncated samples. |
+| Freshness / stale reviews | Current algorithm applies Python recency weighting; the ingestion query now excludes future timestamps but has no age cutoff. | Recency weights alone preserve older signal; a hard age window excludes old reviews; per-scope windows can produce different eligible histories. Any cutoff changes historic samples and scores. | Keep existing recency weighting until an explicit per-scope age window is selected. | Excluding older reviews or asserting freshness-qualified MPI results. |
+| Qualified source types | Current query requires source `ALLOWED` and safety `SAFE`; existing reliability weights rank `PUBLIC_API`, `PUBLIC_FEED`, `MANUAL`, and unknown methods use the existing default. | Accept all explicitly allowed/safe rows, define an allowlist by method, or define scope-specific source eligibility. Narrower eligibility reduces sample size and may suppress more scopes. | Approve an explicit source/method allowlist per scope; continue excluding quarantined/blocked content. | New source allowlist/eligibility rules and claims that a source mix is reliable. |
+| Per-scope reliability and suppression result | Existing reliability weights and cold-start status are shared; zero usable reviews already return UNKNOWN; low-sample numeric remains. | Global reliability rules are simpler; scope-specific rules reflect different provenance. Keep response shape and put `mpi: null` with `status: UNKNOWN`, or add a separately versioned typed envelope; changing status semantics affects clients. | Choose scope-specific reliability inputs and use UNKNOWN/null while retaining existing outer fields, subject to an API compatibility check. | Publishing/suppressing numeric scores under the full selected MPI-001 direction and any frontend display contract. |
+
+No decision is requested to reopen the approved MPI-001 direction. These choices only fill its remaining numeric/source parameters.
+
+### Upstream awareness and remaining work
+
+Remote metadata was refreshed read-only: `origin/main=c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90`; merge base `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c`; nine upstream-only commits. No upstream commit changes `backend/src/ai/mpi/`, review evidence persistence, or MPI acceptance rows. Adjacent shared changes include Pillow dependency remediation (`bf0b929`, including `backend/src/market_scraper/requirements.txt`), pricing-modal test commits touching only `test_pricing_comparisons.py`, a RAG understanding update, and a plan-catalog test change. No conflict with this MPI implementation was found. None were integrated or copied.
+
+Phase 5B remains **PARTIAL, not production-ready** because O-MPI numeric/source parameters are unresolved and low-sample numeric suppression is not enabled; frontend dashboard/refresh integration and any durable analysis history/replay contract are also absent. No migration was created. Do not extend migration 90/91 receipts for MPI without a separately approved request-identity and history contract.
+
+Earlier phase gates remain tracked: Phase 1B entitlement/Credit decisions; Phase 2 catalog history, promotion activation, custom-offer economics/activation, platform financial operations and durable notifications; Phase 3 typed import identity/inventory ownership and connector canonical promotion; Phase 4 provider registration/synchronization/privacy. Phase 5A still has O-PRICE, U5, U1?U4, idempotent result-link/history and pricing front-end/release gates. Phase 6 native concurrency, security, migration compatibility, provider/browser/operational verification remains outstanding.
+
+A consolidated production-gap completion stage can begin before Phase 6 if it keeps policy-dependent operations gated, records approvals without rewriting ADR history, and separates development fixes from release-only tests. This recommendation does not declare any earlier phase complete or authorize Phase 6 release/go-live.

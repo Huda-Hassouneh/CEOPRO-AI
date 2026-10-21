@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.ai import db
 from src.ai.core.security import TenantContext, get_tenant_context
@@ -20,6 +20,15 @@ def mpi_summary(
         result = mpi_pipeline.get_subject_mpi(conn, ctx.tenant_id, subject_type, subject_id)
         conn.commit()
         return result
+    except mpi_pipeline.data_access.InvalidSubjectType as exc:
+        conn.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except mpi_pipeline.data_access.InvalidSubjectIdentifier as exc:
+        conn.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except mpi_pipeline.data_access.SubjectNotFoundError:
+        conn.rollback()
+        raise HTTPException(status_code=404, detail="MPI subject not found.") from None
     except Exception:
         conn.rollback()
         raise

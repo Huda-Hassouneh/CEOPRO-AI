@@ -15,6 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 import psycopg2
 import pytest
 
+from src.ai import db
 from src.ai.mpi import data_access, pipeline
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
@@ -111,6 +112,8 @@ def test_load_scored_reviews_reads_seeded_rows(conn, seeded_tenant_product_and_c
     assert len(reviews) == 1
     assert reviews[0]["label"] == "positive"
     assert reviews[0]["collection_method"] == "PUBLIC_API"
+    assert reviews[0]["source_platform"] == "GOOGLE"
+    assert reviews[0]["sentiment_model_version"] == "test-model"
 
 
 def test_load_country_context_for_business_and_competitor(conn, seeded_tenant_product_and_competitor):
@@ -163,6 +166,217 @@ def test_get_subject_mpi_sufficient_sample_writes_fact_with_country_context(conn
         category, country_context = cursor.fetchone()
         assert category == "FACT"
         assert country_context == "JO"
+
+
+def test_all_three_subject_scopes_validate_and_persist_attributed_evidence(
+    conn, seeded_tenant_product_and_competitor
+):
+    tenant_id, product_id, competitor_id = seeded_tenant_product_and_competitor
+    review_ids = {
+        "BUSINESS": _insert_scored_review(conn, tenant_id, "BUSINESS", "positive", .8, .1),
+        "PRODUCT": _insert_scored_review(conn, tenant_id, "PRODUCT", "neutral", .4, .4, product_id=product_id),
+        "COMPETITOR": _insert_scored_review(
+            conn, tenant_id, "COMPETITOR", "negative", .1, .8, competitor_id=competitor_id
+        ),
+    }
+    subjects = (("BUSINESS", None), ("PRODUCT", product_id), ("COMPETITOR", competitor_id))
+
+    for subject_type, subject_id in subjects:
+        result = pipeline.get_subject_mpi(conn, tenant_id, subject_type, subject_id)
+        assert result["status"] == "OK"
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT source_record_ids FROM evidence_records WHERE evidence_id = %s",
+                (result["evidence_id"],),
+            )
+            evidence_payload = cursor.fetchone()[0]
+        expected_review_id = review_ids[subject_type]
+        assert evidence_payload["review_provenance"][0]["review_id"] == expected_review_id
+        assert evidence_payload["review_provenance"][0]["sentiment_model_version"] == "test-model"
+        assert evidence_payload["subject_type"] == subject_type
+
+
+def test_subject_validation_hides_cross_tenant_or_missing_entities_without_evidence(
+    conn, seeded_tenant_product_and_competitor
+):
+    tenant_id, _, _ = seeded_tenant_product_and_competitor
+    other_tenant = str(uuid.uuid4())
+    foreign_product = str(uuid.uuid4())
+    deleted_product = str(uuid.uuid4())
+    foreign_competitor = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) "
+            "VALUES (%s, 'Other MPI Tenant', 'US', 'USD')",
+            (other_tenant,),
+        )
+        cursor.execute(
+            "INSERT INTO products (product_id, tenant_id, product_name, current_price, currency) "
+            "VALUES (%s, %s, %s, 12, 'USD')",
+            (foreign_product, other_tenant, json.dumps({"en": "Private Product"})),
+        )
+        cursor.execute(
+            "INSERT INTO products (product_id, tenant_id, product_name, current_price, currency) "
+            "VALUES (%s, %s, %s, 9, 'USD')",
+            (deleted_product, tenant_id, json.dumps({"en": "Deleted Product"})),
+        )
+        cursor.execute("UPDATE products SET deleted_at=CURRENT_TIMESTAMP WHERE product_id=%s", (deleted_product,))
+        cursor.execute(
+            "INSERT INTO global_competitors "
+            "(global_competitor_id, competitor_name, country_code, visibility, added_by_tenant_id) "
+            "VALUES (%s, 'Private Foreign MPI Competitor', 'US', 'PRIVATE', %s)",
+            (foreign_competitor, other_tenant),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id, global_competitor_id) VALUES (%s, %s)",
+            (other_tenant, foreign_competitor),
+        )
+        cursor.execute("SELECT COUNT(*) FROM evidence_records WHERE tenant_id = %s", (tenant_id,))
+        before = cursor.fetchone()[0]
+    conn.commit()
+
+    for subject_type, subject_id in (
+        ("PRODUCT", foreign_product),
+        ("PRODUCT", deleted_product),
+        ("PRODUCT", str(uuid.uuid4())),
+        ("COMPETITOR", foreign_competitor),
+        ("BUSINESS", other_tenant),
+    ):
+        with pytest.raises(data_access.SubjectNotFoundError):
+            pipeline.get_subject_mpi(conn, tenant_id, subject_type, subject_id)
+
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM evidence_records WHERE tenant_id = %s", (tenant_id,))
+        assert cursor.fetchone()[0] == before
+
+
+def test_mpi_excludes_disallowed_quarantined_blank_and_future_reviews(
+    conn, seeded_tenant_product_and_competitor
+):
+    tenant_id, product_id, _ = seeded_tenant_product_and_competitor
+    allowed_id = _insert_scored_review(conn, tenant_id, "PRODUCT", "positive", .9, .05, product_id=product_id)
+    blocked_id = _insert_scored_review(conn, tenant_id, "PRODUCT", "negative", .05, .9, product_id=product_id)
+    quarantined_id = _insert_scored_review(conn, tenant_id, "PRODUCT", "negative", .05, .9, product_id=product_id)
+    blank_id = _insert_scored_review(conn, tenant_id, "PRODUCT", "negative", .05, .9, product_id=product_id)
+    future_id = _insert_scored_review(conn, tenant_id, "PRODUCT", "negative", .05, .9, product_id=product_id)
+    foreign_source_review_id = _insert_scored_review(
+        conn, tenant_id, "PRODUCT", "negative", .05, .9, product_id=product_id
+    )
+    foreign_source_tenant = str(uuid.uuid4())
+    foreign_source_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) "
+            "VALUES (%s, 'Foreign Source Tenant', 'DE', 'EUR')",
+            (foreign_source_tenant,),
+        )
+        cursor.execute(
+            "INSERT INTO data_sources (source_id, tenant_id, source_name, source_type) "
+            "VALUES (%s, %s, 'Foreign review source', 'GENERIC_API')",
+            (foreign_source_id, foreign_source_tenant),
+        )
+        cursor.execute("UPDATE reviews SET source_status='BLOCKED' WHERE review_id=%s", (blocked_id,))
+        cursor.execute("UPDATE reviews SET safety_status='QUARANTINED' WHERE review_id=%s", (quarantined_id,))
+        cursor.execute("UPDATE reviews SET review_text='   ' WHERE review_id=%s", (blank_id,))
+        cursor.execute("UPDATE reviews SET source_id=%s WHERE review_id=%s", (foreign_source_id, foreign_source_review_id))
+        cursor.execute(
+            "UPDATE reviews SET review_date=CURRENT_TIMESTAMP + INTERVAL '1 hour' WHERE review_id=%s",
+            (future_id,),
+        )
+    conn.commit()
+
+    reviews = data_access.load_scored_reviews(conn, tenant_id, "PRODUCT", product_id)
+    assert [review["review_id"] for review in reviews] == [allowed_id]
+
+
+def test_mpi_ignores_malformed_sentiment_probabilities(conn, seeded_tenant_product_and_competitor):
+    tenant_id, product_id, _ = seeded_tenant_product_and_competitor
+    valid_id = _insert_scored_review(conn, tenant_id, "PRODUCT", "positive", .9, .05, product_id=product_id)
+    malformed_id = _insert_scored_review(conn, tenant_id, "PRODUCT", "negative", .05, .9, product_id=product_id)
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE sentiment_results SET positive_probability = -0.25 WHERE review_id = %s",
+            (malformed_id,),
+        )
+    conn.commit()
+
+    reviews = data_access.load_scored_reviews(conn, tenant_id, "PRODUCT", product_id)
+    assert [review["review_id"] for review in reviews] == [valid_id]
+
+
+def test_unique_sentiment_identity_prevents_duplicate_review_contributions(
+    conn, seeded_tenant_product_and_competitor
+):
+    tenant_id, product_id, _ = seeded_tenant_product_and_competitor
+    review_id = _insert_scored_review(conn, tenant_id, "PRODUCT", "positive", .9, .05, product_id=product_id)
+    with conn.cursor() as cursor:
+        with pytest.raises(psycopg2.IntegrityError):
+            cursor.execute(
+                "INSERT INTO sentiment_results "
+                "(tenant_id, review_id, sentiment_label, sentiment_score, positive_probability, "
+                "neutral_probability, negative_probability, confidence, model_version) "
+                "VALUES (%s, %s, 'POSITIVE', .85, .9, .05, .05, .9, 'test-model-duplicate')",
+                (tenant_id, review_id),
+            )
+    conn.rollback()
+    reviews = data_access.load_scored_reviews(conn, tenant_id, "PRODUCT", product_id)
+    assert [review["review_id"] for review in reviews] == [review_id]
+
+
+def test_restricted_application_role_observes_tenant_scoped_mpi_rows(
+    conn, seeded_tenant_product_and_competitor
+):
+    tenant_id, product_id, _ = seeded_tenant_product_and_competitor
+    _insert_scored_review(conn, tenant_id, "PRODUCT", "positive", .9, .05, product_id=product_id)
+    other_tenant = str(uuid.uuid4())
+    other_product = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO users (user_id, email, password_hash) VALUES (%s, %s, 'test-hash')",
+            (user_id, f"mpi-rls-{user_id}@example.com"),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_users (tenant_id, user_id, role_key) VALUES (%s, %s, 'owner')",
+            (tenant_id, user_id),
+        )
+        cursor.execute(
+            "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) "
+            "VALUES (%s, 'RLS Other Tenant', 'GB', 'GBP')",
+            (other_tenant,),
+        )
+        cursor.execute(
+            "INSERT INTO products (product_id, tenant_id, product_name, current_price, currency) "
+            "VALUES (%s, %s, %s, 10, 'GBP')",
+            (other_product, other_tenant, json.dumps({"en": "Other Product"})),
+        )
+    conn.commit()
+
+    # Use the production restricted-role connection constructor, not the
+    # administrative fixture connection, for the isolation assertion.
+    scoped = db.app_role_connection(tenant_id, user_id)
+    try:
+        with scoped.cursor() as cursor:
+            cursor.execute("SELECT current_user, rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user")
+            role_name, is_superuser, bypass_rls = cursor.fetchone()
+            assert role_name == "ceopro_app"
+            assert is_superuser is False
+            assert bypass_rls is False
+            cursor.execute("SELECT product_id::text FROM products WHERE product_id=%s", (other_product,))
+            assert cursor.fetchone() is None
+        own_result = pipeline.get_subject_mpi(scoped, tenant_id, "PRODUCT", product_id)
+        assert own_result["status"] == "OK"
+        with scoped.cursor() as cursor:
+            cursor.execute(
+                "SELECT source_record_ids->>'subject_type' FROM evidence_records WHERE evidence_id=%s",
+                (own_result["evidence_id"],),
+            )
+            assert cursor.fetchone()[0] == "PRODUCT"
+        with pytest.raises(data_access.SubjectNotFoundError):
+            pipeline.get_subject_mpi(scoped, tenant_id, "PRODUCT", other_product)
+        scoped.rollback()
+    finally:
+        scoped.close()
 
 
 def test_compare_subjects_against_real_db_refuses_below_volume_floor(conn, seeded_tenant_product_and_competitor):

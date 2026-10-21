@@ -78,6 +78,7 @@ def get_subject_mpi(
     conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None, as_of: Optional[date] = None
 ) -> dict:
     as_of = as_of or date.today()
+    data_access.validate_subject(conn, tenant_id, subject_type, subject_id)
     reviews = data_access.load_scored_reviews(conn, tenant_id, subject_type, subject_id)
     country_context = data_access.load_country_context(conn, tenant_id, subject_type, subject_id)
 
@@ -96,7 +97,13 @@ def get_subject_mpi(
             tenant_id,
             "UNKNOWN",
             SOURCE_MODULE,
-            {"subject_type": subject_type, "subject_id": subject_id},
+            {
+                "subject_type": subject_type,
+                "subject_id": subject_id,
+                "status": "UNKNOWN",
+                "review_ids": [],
+                "eligible_review_count": 0,
+            },
             None,
             explanation,
             None,
@@ -124,12 +131,36 @@ def get_subject_mpi(
             f"reliable market conclusion."
         )
 
+    review_provenance = [
+        {
+            "review_id": review["review_id"],
+            "source_platform": review.get("source_platform"),
+            "source_id": review.get("source_id"),
+            "collection_method": review.get("collection_method"),
+            "effective_date": review["effective_date"].isoformat(),
+            "sentiment_model_version": review.get("sentiment_model_version"),
+        }
+        for review in usable_reviews
+    ]
     evidence_id = evidence.insert_evidence_record(
         conn,
         tenant_id,
         "FACT",
         SOURCE_MODULE,
-        {"subject_type": subject_type, "subject_id": subject_id, **result.as_dict()},
+        {
+            "subject_type": subject_type,
+            "subject_id": subject_id,
+            "status": "OK",
+            "eligible_review_count": result.review_count,
+            "eligible_review_ids": [review["review_id"] for review in usable_reviews],
+            "eligible_date_range": {
+                "from": min(review["effective_date"] for review in usable_reviews).isoformat(),
+                "through": max(review["effective_date"] for review in usable_reviews).isoformat(),
+            },
+            "sample_size": sample_assessment.as_dict(),
+            **result.as_dict(),
+            "review_provenance": review_provenance,
+        },
         confidence_score,
         explanation,
         None,
@@ -169,6 +200,7 @@ def compare_subjects(
     as_of = as_of or date.today()
 
     def _score(subject_type: str, subject_id: Optional[str]):
+        data_access.validate_subject(conn, tenant_id, subject_type, subject_id)
         reviews = data_access.load_scored_reviews(conn, tenant_id, subject_type, subject_id)
         usable_reviews = _usable_reviews(reviews)
         contributions = _build_contributions(usable_reviews, as_of)
