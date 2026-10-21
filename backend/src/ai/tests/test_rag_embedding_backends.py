@@ -271,3 +271,48 @@ def test_evidence_mode_drops_items_that_share_nothing_with_the_question_when_oth
     # Nothing shares a word (a question in another language): every item stays.
     draft = advisor._evidence_mode(registry, "ar", question="كم يوم إجازة سنوية يحصل عليها الموظف؟")
     assert len(draft.blocks[1]["items"]) == 2
+
+
+def test_evidence_mode_text_read_from_a_pdf_has_no_line_breaks():
+    from src.ai.rag import advisor
+    from src.ai.rag import evidence as ev
+
+    registry = ev.EvidenceRegistry()
+    registry.add(ev.COMPANY_DOCUMENT, "leave_policy.pdf", "Staff handbook. Every employee receives 21 days\nof paid annual\n leave each\nyear.",
+                 ev.COMPANY, ev.OBSERVED)
+    draft = advisor._evidence_mode(registry, "en", question="How many days of annual leave does an employee get?")
+    assert draft.summary[0].text == "Every employee receives 21 days of paid annual leave each year."
+    assert "\n" not in draft.blocks[1]["items"][0][0].text
+
+
+def test_evidence_mode_never_summarises_with_an_unrelated_record():
+    """An Arabic question shares no word with English records. A document retrieval matched by meaning may
+    lead (its start, not one sentence that could be a title); with none, there is no summary at all."""
+    from src.ai.rag import advisor
+    from src.ai.rag import evidence as ev
+
+    question = "كم يوما من الإجازة السنوية يحصل عليها الموظف؟"
+    registry = ev.EvidenceRegistry()
+    registry.add(ev.COMPANY_RECORD, "Competitors", "Current tracked competitor count by tier: 11 RELEVANT.",
+                 ev.COMPANY, ev.OBSERVED)
+    assert advisor._evidence_mode(registry, "ar", question=question).summary == []
+    leave = registry.add(ev.COMPANY_DOCUMENT, "leave_policy.pdf",
+                         "Staff handbook, time off. Every employee receives 21 days of paid annual leave each year.",
+                         ev.COMPANY, ev.OBSERVED)
+    draft = advisor._evidence_mode(registry, "ar", question=question)
+    assert draft.summary[0].evidence == [leave.id] and "21 days" in draft.summary[0].text
+    assert [item[0].evidence for item in draft.blocks[1]["items"]] == [[leave.id]]  # the record sections are left out
+    assert advisor._evidence_mode(registry, "en").summary == []  # no question, nothing to match against
+
+
+def test_evidence_mode_ranks_a_plural_question_against_a_singular_record():
+    from src.ai.rag import advisor
+    from src.ai.rag import evidence as ev
+
+    registry = ev.EvidenceRegistry()
+    registry.add(ev.COMPANY_RECORD, "Tracked competitors", "11 competitor sites are tracked, all in the relevant tier.",
+                 ev.COMPANY, ev.OBSERVED)
+    registry.add(ev.COMPANY_RECORD, "Opening hours", "The shop opens at nine.", ev.COMPANY, ev.OBSERVED)
+    draft = advisor._evidence_mode(registry, "en", question="Which competitors do I track?")
+    assert draft.summary[0].text.startswith("11 competitor sites")
+    assert len(draft.blocks[1]["items"]) == 1
