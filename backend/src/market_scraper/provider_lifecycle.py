@@ -19,6 +19,7 @@ class ProviderLifecycleError(ValueError):
 
 _SENSITIVE_KEYS = ("secret", "password", "token", "credential", "authorization", "cookie", "api_key")
 _SHOPIFY_PROVENANCE = "shopify_authenticated_shop_query"
+_WOOCOMMERCE_PROVENANCE = "woocommerce_authenticated_store_identity"
 _SHOPIFY_DOMAIN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com$", re.ASCII)
 
 
@@ -29,6 +30,16 @@ def _canonical_shop_domain(value: str) -> str:
     if not _SHOPIFY_DOMAIN.fullmatch(canonical):
         raise ProviderLifecycleError("Shopify shop domain must be a bare myshopify.com hostname")
     return canonical
+
+
+def woocommerce_verified_store_id(store_url: str) -> str:
+    """Return the M94 namespace key for the original authenticated URL model."""
+    from src.market_scraper.woocommerce import canonical_store_url
+    try:
+        canonical = canonical_store_url(store_url)
+    except Exception as exc:
+        raise ProviderLifecycleError("WooCommerce store URL is invalid") from exc
+    return "url-sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _require_safe_metadata(value: Mapping[str, Any]) -> dict[str, Any]:
@@ -56,34 +67,65 @@ def bind_verified_provider_source(
 ) -> dict[str, Any]:
     """Bind an existing source after the provider adapter verifies identity.
 
-    Current WooCommerce verification confirms REST access but does not return
-    a stable provider account ID, so it is deliberately rejected here. A
-    configured host alone is not sufficient U6 identity evidence.
+    Shopify identity comes from its authenticated Shop query. WooCommerce
+    REST has no provider-issued immutable installation ID, so its original
+    KEEL onboarding identity is the canonical HTTPS store URL, bound only
+    after authenticated product/order/currency verification. This preserves
+    URL-based reconnect semantics without treating a submitted URL alone as
+    proof of identity; URL aliases remain distinct pending explicit review.
     """
     if verification.get("verified") is not True:
         raise ProviderLifecycleError("provider identity must be verified before binding")
     if any(any(part in str(key).lower() for part in _SENSITIVE_KEYS) for key in verification):
         raise ProviderLifecycleError("provider verification objects must not contain credentials")
-    if provider != "shopify":
-        raise ProviderLifecycleError("this provider verification contract does not yet expose a stable store ID")
-    shop_id = verification.get("shop_id")
-    domain = verification.get("shop_domain")
-    if not isinstance(shop_id, str) or not shop_id.startswith("gid://shopify/Shop/"):
-        raise ProviderLifecycleError("Shopify verification did not return a stable shop ID")
-    if not isinstance(domain, str) or _canonical_shop_domain(domain) != domain:
-        raise ProviderLifecycleError("Shopify verification did not return a canonical shop domain")
-    evidence = _require_safe_metadata({
-        "api_version": verification.get("api_version"),
-        "currency_code": verification.get("currency_code"),
-    })
+    if provider == "shopify":
+        shop_id = verification.get("shop_id")
+        domain = verification.get("shop_domain")
+        if not isinstance(shop_id, str) or not shop_id.startswith("gid://shopify/Shop/"):
+            raise ProviderLifecycleError("Shopify verification did not return a stable shop ID")
+        if not isinstance(domain, str) or _canonical_shop_domain(domain) != domain:
+            raise ProviderLifecycleError("Shopify verification did not return a canonical shop domain")
+        identity_provenance = _SHOPIFY_PROVENANCE
+        evidence = _require_safe_metadata({
+            "api_version": verification.get("api_version"),
+            "currency_code": verification.get("currency_code"),
+        })
+    elif provider == "woocommerce":
+        from urllib.parse import urlsplit
+        from src.market_scraper.woocommerce import canonical_store_url
+
+        store_url = verification.get("canonical_store_url")
+        if not isinstance(store_url, str):
+            raise ProviderLifecycleError("WooCommerce verification did not return its canonical store URL")
+        try:
+            canonical = canonical_store_url(store_url)
+        except Exception as exc:
+            raise ProviderLifecycleError("WooCommerce verification returned an invalid store URL") from exc
+        if canonical != store_url or verification.get("api") != "wc/v3" \
+                or verification.get("products_accessible") is not True \
+                or verification.get("orders_accessible") is not True:
+            raise ProviderLifecycleError("WooCommerce authenticated read verification is incomplete")
+        currency = verification.get("currency_code")
+        if not isinstance(currency, str) or len(currency) != 3 or not currency.isalpha() or currency != currency.upper():
+            raise ProviderLifecycleError("WooCommerce verification did not return a valid currency code")
+        # M94's Woo identity provenance explicitly represents this verified
+        # URL-based contract. Hash the full canonical URL so path installs
+        # remain distinct without storing credentials or growing the ID field.
+        store_id = woocommerce_verified_store_id(canonical)
+        domain = urlsplit(canonical).hostname
+        identity_provenance = _WOOCOMMERCE_PROVENANCE
+        evidence = _require_safe_metadata({"api": "wc/v3", "currency_code": currency,
+                                           "endpoint_identity": "canonical_https_url"})
+    else:
+        raise ProviderLifecycleError("unsupported provider identity contract")
     command = {
         "tenant_id": str(tenant_id),
         "source_id": str(source_id),
-        "provider": "shopify",
+        "provider": provider,
         "verified": True,
-        "verified_store_id": shop_id,
+        "verified_store_id": store_id if provider == "woocommerce" else shop_id,
         "verified_store_domain": domain,
-        "identity_provenance": _SHOPIFY_PROVENANCE,
+        "identity_provenance": identity_provenance,
         "verification_evidence": evidence,
     }
     with conn.cursor() as cursor:

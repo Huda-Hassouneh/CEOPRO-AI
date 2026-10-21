@@ -40,7 +40,10 @@ def _response(request, payload, *, status=200, headers=None):
 
 
 def _scope_response(request, scopes):
-    return _response(request, {"data": {"shop": {"id": "gid://shopify/Shop/1", "myshopifyDomain": SHOP, "currencyCode": "USD"}, "currentAppInstallation": {"accessScopes": [{"handle": item} for item in scopes]}}}, headers={"X-Shopify-API-Version": "2026-10"})
+    return _response(request, {"data": {"shop": {"id": "gid://shopify/Shop/1", "myshopifyDomain": SHOP,
+                                                    "currencyCode": "USD", "plan": {"partnerDevelopment": True}},
+                                 "currentAppInstallation": {"accessScopes": [{"handle": item} for item in scopes]}}},
+                      headers={"X-Shopify-API-Version": "2026-10"})
 
 
 def _query(request):
@@ -89,7 +92,7 @@ def test_connection_verification_uses_pinned_version_token_header_and_current_sc
         assert "query" in _query(request)
         return _response(
             request,
-            {"data": {"shop": {"id": "gid://shopify/Shop/1", "myshopifyDomain": SHOP, "currencyCode": "USD"}, "currentAppInstallation": {"accessScopes": [{"handle": "read_products"}, {"handle": "read_orders"}, {"handle": "read_all_orders"}]}}},
+            {"data": {"shop": {"id": "gid://shopify/Shop/1", "myshopifyDomain": SHOP, "currencyCode": "USD", "plan": {"partnerDevelopment": True}}, "currentAppInstallation": {"accessScopes": [{"handle": "read_products"}, {"handle": "read_orders"}, {"handle": "read_all_orders"}]}}},
             headers={"X-Shopify-API-Version": "2026-10"},
         )
 
@@ -99,6 +102,7 @@ def test_connection_verification_uses_pinned_version_token_header_and_current_sc
     assert result["shop_id"] == "gid://shopify/Shop/1"
     assert result["granted_scopes"] == {"read_products", "read_orders", "read_all_orders"}
     assert result["order_history_access"] == "all_orders"
+    assert result["development_store"] is True
     assert result["orders_readable"] is True
     recent = _client(lambda request: _scope_response(request, ["read_orders"])).verify_connection()
     assert recent["order_history_access"] == "provider_default_recent_window"
@@ -276,3 +280,23 @@ def test_privacy_verifier_returns_only_minimal_ids_and_never_performs_erasure():
     assert "private@example.com" not in repr(result)
     with pytest.raises(ShopifyError):
         verify_privacy_webhook(body, {**headers, "X-Shopify-Topic": "orders/create"}, secret, expected_shop=SHOP)
+
+
+@pytest.mark.parametrize("include_tests,expected", [(False, ["gid://shopify/Order/2"]),
+                                                     (True, ["gid://shopify/Order/1", "gid://shopify/Order/2"])])
+def test_test_orders_are_only_included_when_explicitly_enabled(include_tests, expected):
+    client = object.__new__(ShopifyGraphQLClient)
+    client._page_size = 10
+    client._include_test_orders = include_tests
+    client.verify_connection = lambda: {"granted_scopes": frozenset({"read_orders"})}
+    items = [
+        {"id": "gid://shopify/Order/1", "test": True,
+         "lineItems": {"edges": [], "pageInfo": {"hasNextPage": False}}},
+        {"id": "gid://shopify/Order/2", "test": False,
+         "lineItems": {"edges": [], "pageInfo": {"hasNextPage": False}}},
+    ]
+    client._iterate_connection = lambda *_args, **_kwargs: iter(items)
+
+    records = list(client.iter_orders())
+
+    assert [record.provider_id for record in records] == expected

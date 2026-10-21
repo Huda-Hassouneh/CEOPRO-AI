@@ -1358,7 +1358,48 @@ Updated original `AT-CONNECT-003?005`, `AT-STORE-001/003?007`, `AT-SHOP-004/005`
 ### Provider boundaries and remaining work
 
 - Shopify worker execution is database-backed and native-tested only with synthetic preverified source bindings and contract-shaped provider fixtures. Shopify OAuth/distribution model, live registration, token lifecycle, merchant activation and live certification remain inactive and owner/Phase 6 gated.
-- WooCommerce remains fail-closed. Official REST API documentation provides API access and site URL information but does not establish a durable installation identity: a returned site URL is not a stable installation identifier. Recommended owner approval: a small companion WooCommerce plugin that creates an opaque random installation UUID stored in WordPress options and exposes it from a read-only authenticated identity endpoint; bind only after authenticated API-key verification over HTTPS. Do not deploy a plugin or treat a user-supplied URL/API key as verified store identity.
+- WooCommerce now preserves the original URL + Consumer Key/Secret onboarding model. The URL is bound as the logical source namespace only after authenticated wc/v3 product, order, and currency reads succeed; it is not treated as proof on its own. A provider-issued immutable installation ID is not exposed by the verified contract, so URL aliases remain distinct. No companion plugin is required for this compatible path.
 - Provider product/order payload values still lack a compatible typed M97 category; current durable evidence is provider identity/revision (M95) and supported inventory observations (M96), not canonical product/order staging. Grouped invoice/order/refund reconciliation, webhook receiver activation, privacy processing and canonical commerce writes remain blocked.
-- M97 browser E2E and server-side idempotency for separate upload POST retries remain outstanding. No frontend changes were made.
+- M97 browser E2E and server-side idempotency for separate upload POST retries remain outstanding. This batch adds store connection forms only; it does not alter the M97 review frontend.
 - Upstream metadata refresh remains unavailable through the configured proxy. Last locally known origin/main is c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90; teammate comparison may be stale.
+- Upstream metadata refresh was attempted with read-only git ls-remote and failed because the configured proxy at 127.0.0.1:9 is unavailable. The last known origin/main is c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90; teammate comparison may be stale. No upstream changes were merged or copied.
+
+## Node store-connection compatibility corrections — 2026-10-22
+
+### Connection-flow comparison
+
+| Flow | Existing Node behavior | Python state before this batch | Compatibility result |
+|---|---|---|---|
+| WooCommerce | Tenant owner/admin connects a public HTTPS store URL with WooCommerce Consumer Key/Secret. KEEL tests authenticated REST access, encrypts the credentials, and reconnects by the existing store/source identity while enforcing connected-source capacity. | Python had an adapter and M94–M96 evidence helpers, but no compatible onboarding or worker path. | Python onboarding now accepts the same URL + ck_/cs_ contract, performs bounded authenticated wc/v3 product, order, and currency reads before M94 binding, stores keys in the existing vault, reconnects to the verified URL namespace, and applies existing capacity checks only for a new or reactivated source. No companion WordPress plugin is required. The URL alone is never treated as proof; it is bound only after provider API verification. URL aliases are not silently consolidated. |
+| Shopify install | Node uses signed tenant/user/shop state with a one-use nonce, verifies the callback signature, exchanges the authorization code, verifies shop GID and scopes, and returns a short-lived ticket to the initiating authenticated KEEL session before encrypted credential storage. | Python had a GraphQL client and provider worker but lacked the OAuth installation flow. | Python now ports the same state/callback/ticket/session-bound exchange model, verifies shop identity and required scopes, stores credentials in the existing vault, and binds/reconnects through M94 by verified Shop GID. This local integration does not require Shopify App Store publication. |
+| Store sync | Node schedules WooCommerce and Shopify reads and applies its existing connector lifecycle and canonical behavior. | Python had durable ENT-008 execution and M94–M97 evidence services, but scheduled provider authorization predicates and dispatch supported Shopify only. | Python scheduler and receipt authorization now support both provider bindings. Both workers reuse existing source configuration fencing, ENT-008 lease claims, M94 checkpoints, M95 identities and supported M96 observations. Results are full-scan evidence only; no unapproved canonical commerce promotion is enabled. |
+
+### Implemented compatibility changes
+
+- Added authenticated WooCommerce URL + REST-key onboarding, source reactivation/reconnect, capacity checks, credential vault storage, and verified M94 binding. Verification reads the actual wc/v3 products, orders and currency endpoints. The verified URL namespace is used only after those reads succeed.
+- Added the Node-compatible Shopify signed OAuth state, one-time callback validation, short-lived callback ticket, initiating-user binding, authorization-code exchange, required-scope verification, M94 binding/reconnect, and encrypted vault persistence.
+- Preserved Node's optional read_all_orders permission and the development-store-only test-order opt-in; default reads still exclude test orders.
+- Connected WooCommerce into the existing provider scheduler, ENT-008 source receipts, M95 product/order identities, supported M96 inventory observations, truthful job result, and full-scan M94 checkpoints.
+- Corrected ENT-008 SQL authorization and recovery predicates to authorize either Shopify or WooCommerce only when the provider binding matches the source collector. Unverified or mismatched bindings remain rejected.
+- Extended existing database registration/credential helpers with optional transaction control so provider identity binding and vaulted credentials commit atomically with onboarding.
+- Added the existing WooCommerce and Shopify connection forms to the Python repository's frontend and wired them to the actual Python onboarding endpoints. The original Node repository remained read-only.
+- Removed two unnecessary architecture blockers from the local integration path: no companion WordPress plugin is required for the original verified Woo URL/key contract, and Shopify App Store publication is not required to implement or locally configure the existing OAuth install/callback flow. Live merchant operation still needs valid app/provider credentials and release certification.
+
+### Verification evidence
+
+- Focused Python suites: 61 passed, 7 skipped, 0 failed. Skips are database-backed tests requiring AI_TEST_DATABASE_URL and APP_DB_PASSWORD; this batch does not claim native PostgreSQL/RLS or database onboarding acceptance.
+- Frontend test suite: 119 passed, 0 failed, 0 skipped.
+- Frontend lint: passed.
+- Frontend production build: passed.
+- No live provider/OAuth connection, browser E2E, merchant certification, production database, migration, or billing/Credit operation was performed.
+- Migrations 1–97 were not changed.
+
+### Remaining boundaries
+
+- Shopify OAuth is implemented for a locally configured app but has not been exercised against a live merchant. App credentials/distribution configuration, token lifecycle, installation activation, and live certification remain release gates. App Store publication is not required for local integration.
+- Shopify access-token refresh is not implemented: ordinary credential mutation changes M94 configuration fencing and places the binding into verification_required; refresh needs an explicit lease-fenced vault update path.
+- WooCommerce binding follows the original URL + key model after successful authenticated provider reads. URL aliases remain distinct logical namespaces; no provider-issued immutable installation identifier was fabricated.
+- Provider reads persist provider identities and supported inventory evidence; typed product/order staging and automatic canonical product/order/invoice/stock writes remain blocked by the existing approved contracts and M97 category boundaries.
+- Provider sync checkpoints represent completed full scans with empty continuation. The adapters consume page cursors during a run; incremental cursor-resume is not implemented.
+- M97 separate-upload POST idempotency and browser E2E remain outstanding. No new schema or migration was introduced.
+- Upstream metadata refresh was attempted with read-only git ls-remote and failed because the configured proxy at 127.0.0.1:9 is unavailable. The last known origin/main is c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90; teammate comparison may be stale. No upstream changes were merged or copied.

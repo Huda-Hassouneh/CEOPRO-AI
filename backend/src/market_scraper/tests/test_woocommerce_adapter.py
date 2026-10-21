@@ -52,18 +52,47 @@ def test_connection_verification_uses_wc_v3_and_https_basic_auth():
 
     def handler(request):
         observed.append(request)
+        if request.url.path.endswith("/settings/general/woocommerce_currency"):
+            return httpx.Response(200, json={"id": "woocommerce_currency", "value": "USD"})
         return httpx.Response(200, json=[])
 
     assert _client(handler).verify_connection() == {
         "verified": True,
         "api": "wc/v3",
         "products_accessible": True,
+        "orders_accessible": True,
+        "currency_code": "USD",
+        "canonical_store_url": "https://shop.example.test",
     }
     request = observed[0]
     assert request.url.path == "/wp-json/wc/v3/products"
     assert dict(request.url.params) == {"per_page": "1", "page": "1"}
     assert request.headers["Authorization"] == "Basic " + base64.b64encode(b"ck_test:cs_test").decode()
     assert "ck_test" not in str(request.url) and "cs_test" not in str(request.url)
+    assert [request.url.path for request in observed] == [
+        "/wp-json/wc/v3/products", "/wp-json/wc/v3/orders",
+        "/wp-json/wc/v3/settings/general/woocommerce_currency",
+    ]
+
+
+def test_connection_verification_requires_order_and_currency_read_contract():
+    def denied_orders(request):
+        if request.url.path.endswith("/orders"):
+            return httpx.Response(403, json={"code": "woocommerce_rest_cannot_view"})
+        if request.url.path.endswith("/settings/general/woocommerce_currency"):
+            return httpx.Response(200, json={"id": "woocommerce_currency", "value": "USD"})
+        return httpx.Response(200, json=[])
+
+    with pytest.raises(WooCommerceError) as error:
+        _client(denied_orders).verify_connection()
+    assert error.value.code == "authentication_failed"
+
+    invalid_currency = _client(lambda request: httpx.Response(
+        200, json={"value": "US"} if request.url.path.endswith("/woocommerce_currency") else []
+    ))
+    with pytest.raises(WooCommerceError) as error:
+        invalid_currency.verify_connection()
+    assert error.value.code == "invalid_response"
 
 
 def test_products_variations_and_orders_are_returned_with_provider_identity():
