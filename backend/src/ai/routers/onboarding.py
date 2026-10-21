@@ -392,12 +392,15 @@ def list_connected_sources(ctx: TenantContext = Depends(get_tenant_context)) -> 
             cursor.execute(
                 """
                 SELECT ds.source_id, ds.source_name, ds.collector_key, ds.sync_frequency_minutes, ds.last_synced_at,
-                       ds.created_at, ds.is_active, j.job_status, j.rows_processed, j.rows_failed, j.ended_at
+                       ds.created_at, ds.is_active, j.job_status, j.rows_processed, j.rows_failed, j.ended_at,
+                       ps.connection_state, ps.verified_at, j.job_id, j.created_at
                 FROM data_sources ds
                 LEFT JOIN LATERAL (
-                    SELECT job_status, rows_processed, rows_failed, ended_at FROM ingestion_jobs
+                    SELECT job_id, job_status, rows_processed, rows_failed, ended_at, created_at FROM ingestion_jobs
                     WHERE tenant_id = ds.tenant_id AND source_id = ds.source_id ORDER BY created_at DESC LIMIT 1
                 ) j ON TRUE
+                LEFT JOIN public.keel_provider_sources ps
+                  ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id
                 WHERE ds.tenant_id = %s AND ds.collector_key = ANY(%s) AND ds.is_active
                 ORDER BY ds.created_at DESC;
                 """,
@@ -408,8 +411,12 @@ def list_connected_sources(ctx: TenantContext = Depends(get_tenant_context)) -> 
             "source_id": str(r[0]), "name": r[1], "kind": r[2],
             "sync_frequency_minutes": r[3], "last_synced_at": r[4].isoformat() if r[4] else None,
             "created_at": r[5].isoformat() if r[5] else None,
+            "connection_status": r[11] or ("verification_required" if r[2] in {"woocommerce", "shopify"} else "active"),
+            "verified_at": r[12].isoformat() if r[12] else None,
             "last_run": None if r[7] is None else {"status": r[7], "rows_processed": r[8], "rows_failed": r[9],
-                                                    "finished_at": r[10].isoformat() if r[10] else None},
+                                                    "finished_at": r[10].isoformat() if r[10] else None,
+                                                    "job_id": str(r[13]) if r[13] else None,
+                                                    "created_at": r[14].isoformat() if r[14] else None},
         } for r in rows]}
     finally:
         conn.close()

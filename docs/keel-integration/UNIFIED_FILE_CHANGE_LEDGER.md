@@ -1403,3 +1403,11 @@ Updated original `AT-CONNECT-003?005`, `AT-STORE-001/003?007`, `AT-SHOP-004/005`
 - Provider sync checkpoints represent completed full scans with empty continuation. The adapters consume page cursors during a run; incremental cursor-resume is not implemented.
 - M97 separate-upload POST idempotency and browser E2E remain outstanding. No new schema or migration was introduced.
 - Upstream metadata refresh was attempted with read-only git ls-remote and failed because the configured proxy at 127.0.0.1:9 is unavailable. The last known origin/main is c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90; teammate comparison may be stale. No upstream changes were merged or copied.
+
+
+## Store connection status and sync feedback - 2026-10-22
+
+- Extended the existing tenant-scoped connected-source response with M94 verification state and the latest ingestion job identity/timestamps. Provider sources without a verified M94 binding are surfaced as `verification_required`; no credentials or provider payloads are returned.
+- The existing Data Connections screen now shows verification status/time, provides reconnect when verification is absent, maps source-capacity HTTP 402 to its localized explanation, and polls queued/running syncs until a terminal job appears (bounded to 120 seconds). No success is inferred from the enqueue response.
+- Focused backend suite: **65 passed, 7 skipped, 0 failed**. The seven skips remain native PostgreSQL dependent. Frontend tests: **119 passed, 0 failed, 0 skipped**; ESLint passed; Vite production build passed. `git diff --check` and English/Arabic locale JSON validation passed.
+- Native database integration selection: **16 skipped** because disposable database configuration is unavailable. Receipt integration test collection was blocked by missing Scrapy; installation into the isolated venv failed because the configured package index returned no matching distribution. PostgreSQL/pgvector and browser E2E remain unverified. Migrations 1-97 remain unchanged.

@@ -1911,7 +1911,17 @@
       "failed": "KEEL could not verify or save this store connection. Try again.",
       "finishFailed": "Shopify could not finish this connection. Start authorization again.",
       "sessionExpired": "Your session expired. Sign in and start the Shopify connection again.",
-      "callbackFailed": "Shopify could not confirm the installation. Start the connection again."
+      "callbackFailed": "Shopify could not confirm the installation. Start the connection again.",
+      "capacityReached": "Your plan has reached its connected-store limit.",
+      "reconnect": "Reconnect",
+      "verifiedAt": "Verified {date}",
+      "status": {
+        "verified": "Verified",
+        "verification_required": "Reconnect to verify",
+        "disabled": "Disconnected",
+        "active": "Verification required",
+        "QUEUED": "Queued"
+      }
     }
   },
   "demand": {
