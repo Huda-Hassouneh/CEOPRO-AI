@@ -40,6 +40,7 @@ import os
 import time
 
 from src.market_scraper import api_connector_sync, connector_sync, data_access
+from src.market_scraper.enrichment_queue import receipt_operations_enabled
 
 logger = logging.getLogger("CEOPRO_AI_CONNECTOR_WORKER")
 
@@ -87,6 +88,9 @@ def run_connector_syncs_for_tenant(tenant_id: str) -> dict:
     otherwise-healthy DB connector sync for the same tenant, or vice
     versa.
     """
+    if not receipt_operations_enabled():
+        return {"db_connector": {"skipped": "receipt_worker_rollout_disabled"},
+                "api_connector": {"skipped": "receipt_worker_rollout_disabled"}}
     conn = data_access.get_tenant_connection(tenant_id)
     try:
         db_results = connector_sync.run_due_connector_syncs(conn, tenant_id)

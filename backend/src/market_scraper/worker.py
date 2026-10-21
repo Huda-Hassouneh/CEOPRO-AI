@@ -132,7 +132,13 @@ def dispatch_pending_receipts(client) -> int:
             operation_receipts.recover_expired(conn, tenant_id)
             pending = operation_receipts.dispatch_pending(conn, tenant_id)
             for receipt in pending:
-                client.xadd(STREAM, {"tenant_id": tenant_id, **receipt})
+                # Redis carries only a delivery signal. The receipt row remains
+                # authoritative for operation type, target, parameters and state.
+                client.xadd(STREAM, {
+                    "tenant_id": tenant_id,
+                    "source_id": receipt["source_id"],
+                    "receipt_id": receipt["receipt_id"],
+                })
                 operation_receipts.mark_queued(conn, tenant_id, receipt["receipt_id"])
                 dispatched += 1
         finally:

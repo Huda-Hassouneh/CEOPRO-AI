@@ -69,6 +69,21 @@ def tenant_users_source(admin_conn):
             "period_start": prior_start}
 
 
+def _insert_private_competitor(admin_conn, tenant_id):
+    competitor_id = str(uuid.uuid4())
+    with admin_conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO global_competitors (global_competitor_id,competitor_name,visibility,added_by_tenant_id) "
+            "VALUES (%s::uuid,%s,'PRIVATE',%s::uuid);",
+            (competitor_id, f"Private competitor {competitor_id[:8]}", tenant_id),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_competitors (tenant_id,global_competitor_id,is_tracked) VALUES (%s::uuid,%s::uuid,TRUE);",
+            (tenant_id, competitor_id),
+        )
+    return competitor_id
+
+
 def _app_conn(tenant_id, actor_id):
     return db.app_role_connection(tenant_id, actor_id)
 
@@ -105,6 +120,153 @@ def test_receipt_is_idempotent_tenant_scoped_and_restricted_role(tenant_users_so
             assert cursor.fetchone() is None
     finally:
         other.close()
+    owner = _app_conn(f["tenant_a"], f["actor_a"])
+    try:
+        claimed = operation_receipts.claim(owner, f["tenant_a"], first["receipt_id"], "idempotency-test-cleanup")
+        operation_receipts.finish(owner, claimed, "failed", "TEST_ONLY_NO_PROVIDER_CALL")
+    finally:
+        owner.close()
+
+
+def test_competitor_enrichment_receipt_persists_sanitized_tenant_bound_intent(tenant_users_source, admin_conn):
+    f = tenant_users_source
+    competitor_id = _insert_private_competitor(admin_conn, f["tenant_a"])
+    conn = _app_conn(f["tenant_a"], f["actor_a"])
+    try:
+        request = {"mode": "single", "facets": ["PRICES"], "depth": "deep"}
+        first = operation_receipts.create_or_get_operation(
+            conn, operation_receipts.COMPETITOR_ENRICHMENT, f["tenant_a"],
+            "competitor", competitor_id, f["actor_a"], "user", request,
+        )
+        second = operation_receipts.create_or_get_operation(
+            conn, operation_receipts.COMPETITOR_ENRICHMENT, f["tenant_a"],
+            "competitor", competitor_id, f["actor_a"], "user", request,
+        )
+        assert first["created"] is True
+        assert second["created"] is False
+        assert first["receipt_id"] == second["receipt_id"]
+        claimed = operation_receipts.claim(conn, f["tenant_a"], first["receipt_id"], "enrichment-native")
+        assert claimed["operation_type"] == operation_receipts.COMPETITOR_ENRICHMENT
+        assert claimed["source_id"] is None
+        assert claimed["target_kind"] == "competitor"
+        assert claimed["target_id"] == competitor_id
+        assert claimed["request_payload"] == request
+        operation_receipts.finish(conn, claimed, "failed", "TEST_ONLY_NO_PROVIDER_CALL")
+    finally:
+        conn.close()
+
+    other = _app_conn(f["tenant_b"], f["actor_b"])
+    try:
+        with other.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM public.keel_operation_receipts WHERE receipt_id=%s::uuid;",
+                           (first["receipt_id"],))
+            assert cursor.fetchone() is None
+        with pytest.raises(operation_receipts.ReceiptError, match="not found"):
+            operation_receipts.claim(other, f["tenant_b"], first["receipt_id"], "cross-tenant-worker")
+    finally:
+        other.close()
+
+
+def test_competitor_enrichment_revalidates_tracking_and_actor_before_provider(tenant_users_source, admin_conn):
+    f = tenant_users_source
+    competitor_id = _insert_private_competitor(admin_conn, f["tenant_a"])
+    conn = _app_conn(f["tenant_a"], f["actor_a"])
+    intent = operation_receipts.create_or_get_operation(
+        conn, operation_receipts.COMPETITOR_ENRICHMENT, f["tenant_a"],
+        "competitor", competitor_id, f["actor_a"], "user", {"facets": ["PRICES"]},
+    )
+    conn.close()
+    admin_conn.cursor().execute(
+        "UPDATE tenant_users SET removed_at=NOW() WHERE tenant_id=%s::uuid AND user_id=%s::uuid;",
+        (f["tenant_a"], f["actor_a"]),
+    )
+    worker = _app_conn(f["tenant_a"], f["service_a"])
+    try:
+        with pytest.raises(operation_receipts.ReceiptAuthorizationError):
+            operation_receipts.claim(worker, f["tenant_a"], intent["receipt_id"], "enrichment-revoked")
+        with worker.cursor() as cursor:
+            cursor.execute("SELECT state,provider_started_at FROM public.keel_operation_receipts WHERE receipt_id=%s::uuid;",
+                           (intent["receipt_id"],))
+            assert cursor.fetchone() == ("denied", None)
+    finally:
+        worker.close()
+
+
+def test_competitor_receipt_concurrent_claim_and_uncertain_provider_are_not_repeated(tenant_users_source, admin_conn):
+    f = tenant_users_source
+    competitor_id = _insert_private_competitor(admin_conn, f["tenant_a"])
+    creator = _app_conn(f["tenant_a"], f["actor_a"])
+    intent = operation_receipts.create_or_get_operation(
+        creator, operation_receipts.COMPETITOR_ENRICHMENT, f["tenant_a"],
+        "competitor", competitor_id, f["actor_a"], "user", {"facets": ["PRICES"]},
+    )
+    creator.close()
+    claims, errors = [], []
+
+    def claim(worker_id):
+        worker = _app_conn(f["tenant_a"], f["service_a"])
+        try:
+            claims.append(operation_receipts.claim(worker, f["tenant_a"], intent["receipt_id"], worker_id))
+        except operation_receipts.ReceiptError as exc:
+            errors.append(exc)
+        finally:
+            worker.close()
+
+    import threading
+    threads = [threading.Thread(target=claim, args=(f"enrichment-worker-{n}",)) for n in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(claims) == len(errors) == 1
+
+    active = claims[0]
+    worker = _app_conn(f["tenant_a"], f["service_a"])
+    operation_receipts.begin_provider(worker, active)
+    worker.close()
+    admin_conn.cursor().execute(
+        "UPDATE keel_operation_receipts SET lease_expires_at=NOW()-INTERVAL '1 second' WHERE receipt_id=%s::uuid;",
+        (intent["receipt_id"],),
+    )
+    recovery = _app_conn(f["tenant_a"], f["service_a"])
+    try:
+        assert operation_receipts.recover_expired(recovery, f["tenant_a"]) == {
+            "retryable": 0, "reconciliation_required": 1,
+        }
+        with pytest.raises(operation_receipts.ReceiptError, match="reconciliation"):
+            operation_receipts.claim(recovery, f["tenant_a"], intent["receipt_id"], "unsafe-retry")
+    finally:
+        recovery.close()
+
+
+def test_scheduled_connector_receipt_rechecks_current_source_and_subscription(tenant_users_source, admin_conn):
+    f = tenant_users_source
+    with admin_conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE data_sources SET collector_key='db_connector',source_type='DB_CONNECTOR' "
+            "WHERE tenant_id=%s::uuid AND source_id=%s::uuid;",
+            (f["tenant_a"], f["source_a"]),
+        )
+    conn = _app_conn(f["tenant_a"], f["service_a"])
+    intent = operation_receipts.create_or_get_operation(
+        conn, operation_receipts.SCHEDULED_CONNECTOR_SYNC, f["tenant_a"],
+        "source", f["source_a"], f["service_a"], "service", {},
+    )
+    conn.close()
+    admin_conn.cursor().execute(
+        "UPDATE data_sources SET is_active=FALSE WHERE tenant_id=%s::uuid AND source_id=%s::uuid;",
+        (f["tenant_a"], f["source_a"]),
+    )
+    worker = _app_conn(f["tenant_a"], f["service_a"])
+    try:
+        with pytest.raises(operation_receipts.ReceiptAuthorizationError, match="active approved connector"):
+            operation_receipts.claim(worker, f["tenant_a"], intent["receipt_id"], "connector-disabled")
+        with worker.cursor() as cursor:
+            cursor.execute("SELECT state,provider_started_at FROM public.keel_operation_receipts WHERE receipt_id=%s::uuid;",
+                           (intent["receipt_id"],))
+            assert cursor.fetchone() == ("denied", None)
+    finally:
+        worker.close()
 
 
 def test_source_hard_delete_is_restricted_while_receipt_exists(tenant_users_source, admin_conn):
@@ -144,6 +306,11 @@ def test_source_hard_delete_is_restricted_while_receipt_exists(tenant_users_sour
             (f["tenant_a"], receipt["receipt_id"]),
         )
         assert cursor.fetchone()[0] == 1
+        cursor.execute(
+            "UPDATE public.keel_operation_receipts SET state='failed', error_code='TEST_ONLY_CLEANUP' "
+            "WHERE tenant_id=%s::uuid AND receipt_id=%s::uuid;",
+            (f["tenant_a"], receipt["receipt_id"]),
+        )
 
 
 def test_revoked_actor_is_denied_by_worker_before_provider(tenant_users_source, admin_conn):
@@ -331,7 +498,8 @@ def test_expired_pre_provider_lease_is_requeued_and_claimable(
     conn.close()
     with admin_conn.cursor() as cursor:
         cursor.execute(
-            "SELECT count(*) FROM public.keel_operation_receipts WHERE state IN ('dispatch_pending','retryable');"
+            "SELECT count(*) FROM public.keel_operation_receipts "
+            "WHERE operation_type='reviewed_source_collection' AND state IN ('dispatch_pending','retryable');"
         )
         pending_before = cursor.fetchone()[0]
     admin_conn.cursor().execute(
@@ -373,6 +541,47 @@ def test_expired_pre_provider_lease_is_requeued_and_claimable(
         retry.close()
 
 
+def test_pre_provider_receipt_retry_reuses_its_processing_ingestion_job(tenant_users_source, admin_conn):
+    f = tenant_users_source
+    conn = _app_conn(f["tenant_a"], f["actor_a"])
+    intent = operation_receipts.create_or_get_collection(
+        conn, f["tenant_a"], f["source_a"], f["actor_a"],
+    )
+    first = operation_receipts.claim(conn, f["tenant_a"], intent["receipt_id"], "job-retry-first")
+    first_job = data_access.create_or_reuse_receipt_ingestion_job(
+        conn, f["tenant_a"], f["source_a"], first,
+    )
+    conn.close()
+
+    admin_conn.cursor().execute(
+        "UPDATE keel_operation_receipts SET lease_expires_at=NOW()-INTERVAL '1 second' WHERE receipt_id=%s::uuid;",
+        (intent["receipt_id"],),
+    )
+    retry = _app_conn(f["tenant_a"], f["service_a"])
+    try:
+        assert operation_receipts.recover_expired(retry, f["tenant_a"]) == {
+            "retryable": 1, "reconciliation_required": 0,
+        }
+        second = operation_receipts.claim(retry, f["tenant_a"], intent["receipt_id"], "job-retry-second")
+        second_job = data_access.create_or_reuse_receipt_ingestion_job(
+            retry, f["tenant_a"], f["source_a"], second,
+        )
+        assert second_job == first_job
+        with retry.cursor() as cursor:
+            cursor.execute(
+                "SELECT count(*) FROM ingestion_jobs WHERE tenant_id=%s::uuid AND source_id=%s::uuid;",
+                (f["tenant_a"], f["source_a"]),
+            )
+            assert cursor.fetchone()[0] == 1
+        data_access.finish_ingestion_job(
+            retry, f["tenant_a"], second_job, "FAILED", 0, 0,
+            "test cleanup before provider start", receipt=second, receipt_allow_pre_provider=True,
+        )
+        operation_receipts.finish(retry, second, "failed", "TEST_ONLY_NO_PROVIDER_CALL")
+    finally:
+        retry.close()
+
+
 def test_enqueue_commits_receipt_before_redis_and_outbox_recovers_delivery(
     tenant_users_source, admin_conn, monkeypatch,
 ):
@@ -380,7 +589,8 @@ def test_enqueue_commits_receipt_before_redis_and_outbox_recovers_delivery(
     monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", f["service_a"])
     with admin_conn.cursor() as cursor:
         cursor.execute(
-            "SELECT count(*) FROM public.keel_operation_receipts WHERE state IN ('dispatch_pending','retryable');"
+                "SELECT count(*) FROM public.keel_operation_receipts "
+                "WHERE operation_type='reviewed_source_collection' AND state IN ('dispatch_pending','retryable');"
         )
         pending_before = cursor.fetchone()[0]
 

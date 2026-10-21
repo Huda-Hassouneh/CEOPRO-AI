@@ -46,6 +46,10 @@ def admin_conn():
 @pytest.fixture(autouse=True)
 def _scraper_env(monkeypatch):
     monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", "00000000-0000-0000-0000-000000000000")
+    # These orchestration tests exercise the receipt-backed scheduler. Keep
+    # the opt-in explicit so the suite's ambient environment cannot decide
+    # whether connector work is dispatched.
+    monkeypatch.setenv("KEEL_ENT008_STAGE2_ENABLED", "true")
 
 
 @pytest.fixture(autouse=True)
@@ -146,6 +150,22 @@ def test_run_connector_syncs_for_tenant_isolates_db_connector_failure_from_api_c
     mock_api.assert_called_once()  # still ran despite the DB-connector batch crashing
     assert "error" in result["db_connector"][0]
     assert result["api_connector"] == [{"source_id": "s2"}]
+
+
+def test_receipt_rollout_gate_off_skips_connector_dispatch(monkeypatch):
+    monkeypatch.setenv("KEEL_ENT008_STAGE2_ENABLED", "false")
+    with patch("src.market_scraper.connector_worker.data_access.get_tenant_connection") as connection, \
+         patch("src.market_scraper.connector_worker.connector_sync.run_due_connector_syncs") as db_sync, \
+         patch("src.market_scraper.connector_worker.api_connector_sync.run_due_api_connector_syncs") as api_sync:
+        result = connector_worker.run_connector_syncs_for_tenant("tenant-1")
+
+    connection.assert_not_called()
+    db_sync.assert_not_called()
+    api_sync.assert_not_called()
+    assert result == {
+        "db_connector": {"skipped": "receipt_worker_rollout_disabled"},
+        "api_connector": {"skipped": "receipt_worker_rollout_disabled"},
+    }
 
 
 def test_run_once_isolates_one_tenants_failure_from_another(admin_conn):
