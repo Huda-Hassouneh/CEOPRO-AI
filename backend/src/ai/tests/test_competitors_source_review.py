@@ -101,7 +101,7 @@ def test_review_source_enqueues_real_collection_when_the_result_is_allowed():
     assert body["status"] == "ALLOWED"
     assert body["enqueued"] is True
     assert body["enqueue_error"] is None
-    mock_enqueue.assert_called_once_with("t1", "s1")
+    mock_enqueue.assert_called_once_with("t1", "s1", actor_user_id="u1")
 
 
 def test_review_source_never_enqueues_when_the_result_is_not_allowed():
