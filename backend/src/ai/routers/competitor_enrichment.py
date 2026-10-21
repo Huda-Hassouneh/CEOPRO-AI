@@ -11,7 +11,7 @@ routers/competitors.py); a PRICES gap that needs it carries
 """
 import logging
 from typing import List, Literal, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from src.ai import db
 from src.ai.billing import credits
+from src.ai.core import operation_receipts
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import product_market
@@ -63,6 +64,32 @@ def _queue_enrichment(tenant_id: str, competitor_id: Optional[str], facets, mode
     )
 
 
+def _stage2_enabled():
+    if not enrichment_queue.receipt_operations_enabled():
+        raise HTTPException(status_code=503, detail="Receipt-backed enrichment is temporarily unavailable during worker rollout.")
+
+
+def _create_competitor_receipt(conn, tenant_id, competitor_id, actor_user_id, facets, depth, mode="single"):
+    params = {"mode": mode}
+    if facets is not None:
+        params["facets"] = list(facets)
+    if depth != "standard":
+        params["depth"] = depth
+    return operation_receipts.create_or_get_operation(
+        conn, operation_receipts.COMPETITOR_ENRICHMENT, tenant_id, "competitor", competitor_id,
+        actor_user_id, "user", params,
+    )
+
+
+def _queue_competitor_receipts(conn, tenant_id, actor_user_id, competitor_ids, facets, depth, mode):
+    _stage2_enabled()
+    receipts = [
+        _create_competitor_receipt(conn, tenant_id, competitor_id, actor_user_id, facets, depth, mode)
+        for competitor_id in competitor_ids
+    ]
+    return receipts
+
+
 @router.post("/competitors/enrich-failed", dependencies=[credits.requires_budget(credits.DATA)])
 def enrich_failed_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)):
     """
@@ -71,7 +98,24 @@ def enrich_failed_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_c
     blocked only on a missing/rejected key. 202 immediately; identical jobs are
     deduplicated (competitor_enrichment.enrich_tenant_competitors, mode="force").
     """
-    return _queue_enrichment(ctx.tenant_id, None, None, enrichment_queue.MODE_FORCE)
+    _stage2_enabled()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        competitor_ids = competitor_enrichment.list_tenant_enrichment_candidates(conn, ctx.tenant_id, "force")
+        receipts = _queue_competitor_receipts(
+            conn, ctx.tenant_id, ctx.user_id, competitor_ids,
+            list(competitor_enrichment.ROUTINE_FACETS), "standard", "force",
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return JSONResponse(status_code=202, content={
+        "queued": bool(receipts), "already_queued": bool(receipts) and not any(r.get("created") for r in receipts),
+        "competitor_id": None, "mode": enrichment_queue.MODE_FORCE,
+    })
 
 
 @router.get("/competitors/{competitor_id}/data-status")
@@ -120,27 +164,65 @@ def enrich_competitor_endpoint(
     if deep:
         background = True  # a deep read can take minutes (24 pages, 15 menu files, OCR): never hold the request open
     if background:
-        return _queue_enrichment(ctx.tenant_id, competitor_id, facets, enrichment_queue.MODE_FORCE,
-                                  *(("deep",) if deep else ()))
+        _stage2_enabled()
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+        try:
+            receipt = _create_competitor_receipt(
+                conn, ctx.tenant_id, competitor_id, ctx.user_id, facets,
+                "deep" if deep else "standard", "single",
+            )
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        return JSONResponse(status_code=202, content={
+            "queued": True, "already_queued": not receipt.get("created", False),
+            "competitor_id": competitor_id, "mode": enrichment_queue.MODE_FORCE,
+        })
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    receipt = None
     try:
+        intent = _create_competitor_receipt(
+            conn, ctx.tenant_id, competitor_id, ctx.user_id, facets,
+            "deep" if deep else "standard", "single",
+        )
+        if not intent.get("created"):
+            return JSONResponse(status_code=202, content={
+                "queued": True, "already_queued": True,
+                "competitor_id": competitor_id, "mode": enrichment_queue.MODE_FORCE,
+            })
+        receipt = operation_receipts.claim(conn, ctx.tenant_id, intent["receipt_id"], f"http-{uuid4()}")
+        operation_receipts.begin_provider(conn, receipt)
+        fenced_conn = operation_receipts.FencedConnection(conn, receipt)
         try:
             results = competitor_enrichment.enrich_competitor(
-                conn, ctx.tenant_id, competitor_id, facets=facets, throttle=True, actor_user_id=ctx.user_id, **({"deep": True} if deep else {}),
+                fenced_conn, ctx.tenant_id, competitor_id, facets=facets, throttle=True,
+                actor_user_id=ctx.user_id, **({"deep": True} if deep else {}),
             )
         except ValueError:
             conn.rollback()
+            operation_receipts.finish(conn, receipt, "failed", "COMPETITOR_NOT_FOUND")
             raise HTTPException(status_code=404, detail="Competitor not found.")
         if results and all(r.get("status") == "THROTTLED" for r in results.values()):
             wait = max(r["retry_after_seconds"] for r in results.values())
             raise HTTPException(status_code=429, detail="Retried too recently.", headers={"Retry-After": str(wait)})
         completeness = competitor_enrichment.load_data_completeness(conn, ctx.tenant_id, competitor_id)
-        conn.commit()
+        operation_receipts.finish(conn, receipt, "completed")
         return {"competitor_id": competitor_id, "results": results, "data_completeness": completeness.get(competitor_id)}
     except HTTPException:
         raise
     except Exception:
         conn.rollback()
+        if receipt is not None:
+            try:
+                operation_receipts.finish(
+                    conn, receipt,
+                    "reconciliation_required" if receipt.get("provider_started") else "failed",
+                    "ENRICHMENT_FAILED",
+                )
+            except operation_receipts.ReceiptError:
+                conn.rollback()
         raise
     finally:
         conn.close()
