@@ -95,6 +95,7 @@ class _FakeMinioClient:
 
     def __init__(self):
         self.put_calls = []
+        self.objects = set()
         self.buckets = set()  # a fresh MinIO: no buckets yet
 
     def bucket_exists(self, bucket):
@@ -107,6 +108,10 @@ class _FakeMinioClient:
         if bucket not in self.buckets:
             raise RuntimeError(f"NoSuchBucket: {bucket}")  # what real MinIO does
         self.put_calls.append({"bucket": bucket, "object_key": object_key, "content_type": content_type})
+        self.objects.add((bucket, object_key))
+
+    def remove_object(self, bucket, object_key):
+        self.objects.discard((bucket, object_key))
 
 
 @pytest.fixture
@@ -181,6 +186,12 @@ def test_pdf_upload_registers_and_ingests_a_real_rag_document(tenant, monkeypatc
     assert storage_bucket_path == fake_minio.put_calls[0]["object_key"]
     assert content_type == "application/pdf"
     assert processed_status == "Processed"
+    with psycopg2.connect(ADMIN_DATABASE_URL) as admin, admin.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM tenant_storage_objects WHERE tenant_id = %s AND bucket = %s AND object_key = %s;",
+            (tenant_id, rag_pipeline.DEFAULT_BUCKET, storage_bucket_path),
+        )
+        assert cursor.fetchone()[0] == 0  # RAG metadata is the one authoritative byte counter.
 
 
 def test_pdf_upload_still_succeeds_when_rag_ingestion_fails(tenant, monkeypatch):
@@ -205,6 +216,34 @@ def test_pdf_upload_still_succeeds_when_rag_ingestion_fails(tenant, monkeypatch)
     rows = _rag_documents_for(tenant_id)
     assert len(rows) == 1
     assert rows[0][3] in ("Pending", "Failed")  # row survives; never silently dropped (spec S12)
+
+
+def test_pdf_object_is_removed_when_registration_transaction_fails(tenant):
+    from src.ai import db
+
+    tenant_id, user_id = tenant
+    fake_minio = _FakeMinioClient()
+    conn = db.app_role_connection(tenant_id, user_id)
+    try:
+        # A non-existent uploader violates the existing FK after MinIO has
+        # accepted the object, exercising the compensation path.
+        result = extraction._register_pdf_as_rag_document(
+            conn, fake_minio, tenant_id, str(uuid.uuid4()), str(uuid.uuid4()),
+            "company_overview.pdf", _make_pdf_bytes("Company profile"),
+        )
+    finally:
+        conn.close()
+
+    assert result is None
+    assert len(fake_minio.put_calls) == 1
+    uploaded = fake_minio.put_calls[0]
+    assert (uploaded["bucket"], uploaded["object_key"]) not in fake_minio.objects
+    with psycopg2.connect(ADMIN_DATABASE_URL) as admin, admin.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM tenant_storage_objects WHERE tenant_id = %s AND bucket = %s AND object_key = %s;",
+            (tenant_id, uploaded["bucket"], uploaded["object_key"]),
+        )
+        assert cursor.fetchone()[0] == 0
 
 
 def test_csv_upload_does_not_touch_rag_documents_at_all(tenant, monkeypatch):

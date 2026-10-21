@@ -8,6 +8,7 @@ import io
 import logging
 import os
 import tempfile
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import redis
@@ -19,10 +20,11 @@ from src.ai.extraction.template_contract import TEMPLATE_ID
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
+from src.ai.extraction import minio_persistence
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.rag import pipeline as rag_pipeline
 from src.ai.core.office_files import InvalidOfficeFileError
-from src.ai.core import usage
+from src.ai.core import storage_ledger, usage
 
 router = APIRouter(prefix="/extraction", tags=["extraction"])
 
@@ -39,6 +41,8 @@ _MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)
 # compute). 500 is a starting point (SCALING.md suggests 500-2,000), not a
 # value tuned against production write latency yet.
 _EXTRACTION_COMMIT_EVERY = int(os.getenv("EXTRACTION_COMMIT_EVERY", "500"))
+_STORAGE_RECOVERY_GRACE = timedelta(hours=24)
+_STORAGE_RECOVERY_BATCH = 100
 
 # Content sniffing beyond the file extension - catches a trivial extension
 # spoof (e.g. an arbitrary file renamed to .xlsx). CSV has no reliable magic
@@ -50,6 +54,38 @@ _MAGIC_BYTES = {".pdf": b"%PDF-", ".xlsx": b"PK\x03\x04", ".xlsm": b"PK\x03\x04"
 _TEMPLATES_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "templates"
 )
+
+
+def _track_extraction_result_before_put(tenant_id: str, user_id: str, minio_client):
+    """Commit the result ledger entry before upload on a tenant-scoped connection.
+
+    Old pre-upload rows are forgotten only when MinIO confirms that the
+    specific object is absent. A missing bucket or transient error is
+    inconclusive and therefore leaves accounting intact.
+    """
+    def track(bucket: str, object_key: str, size_bytes: int) -> None:
+        ledger_conn = db.app_role_connection(tenant_id, user_id)
+        try:
+            cutoff = datetime.now(timezone.utc) - _STORAGE_RECOVERY_GRACE
+            storage_ledger.recover_stale(
+                ledger_conn,
+                tenant_id,
+                "upload_result",
+                cutoff,
+                lambda stale_bucket, stale_key: minio_persistence.object_exists(
+                    minio_client, stale_bucket, stale_key,
+                ),
+                limit=_STORAGE_RECOVERY_BATCH,
+            )
+            storage_ledger.record(ledger_conn, tenant_id, bucket, object_key, size_bytes, "upload_result")
+            ledger_conn.commit()
+        except Exception:
+            ledger_conn.rollback()
+            raise
+        finally:
+            ledger_conn.close()
+
+    return track
 
 
 def _publish_discovery_request(tenant_id: str) -> None:
@@ -181,6 +217,12 @@ def _register_pdf_as_rag_document(
     """
     object_key = f"uploads/{job_id}{os.path.splitext(file_name)[1] or '.pdf'}"
     try:
+        # The deterministic key lets an interrupted attempt be retried. Commit
+        # its tenant-scoped byte record first so a crash around PUT cannot
+        # leave a successfully stored PDF outside the storage quota.
+        storage_ledger.record(conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key, len(contents),
+                              "rag_document_upload")
+        conn.commit()
         # Found in first-customer acceptance testing: nothing ever created
         # this bucket, so on a fresh MinIO every PDF failed here (NoSuchBucket)
         # and never reached the assistant. Same create-on-first-use pattern
@@ -201,12 +243,48 @@ def _register_pdf_as_rag_document(
                 """,
                 (tenant_id, file_name, object_key, len(contents), user_id),
             )
+            # A previous interrupted cleanup may have retained this same
+            # object in the generic storage ledger. RAG metadata is now the
+            # canonical byte counter for it, so do not count it twice.
+        storage_ledger.forget(conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key)
         conn.commit()
     except Exception:
         logger.exception(
             "extraction upload: could not register PDF as a RAG document (tenant=%s job=%s)", tenant_id, job_id
         )
         conn.rollback()
+        try:
+            already_registered = None
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT 1 FROM rag_documents_metadata WHERE tenant_id = %s AND storage_bucket_path = %s;",
+                        (tenant_id, object_key),
+                    )
+                    already_registered = cursor.fetchone() is not None
+            except Exception:
+                # A failed COMMIT can be ambiguous. Count conservatively
+                # unless the database proves that the metadata row exists.
+                logger.exception("Could not inspect failed RAG registration (tenant=%s job=%s)", tenant_id, job_id)
+                conn.rollback()
+            if already_registered is True:
+                storage_ledger.forget(conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key)
+            elif already_registered is False:
+                removed = storage_ledger.compensate_upload(
+                    conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key, len(contents),
+                    "rag_document_upload",
+                    lambda: minio_client.remove_object(rag_pipeline.DEFAULT_BUCKET, object_key),
+                )
+                if not removed:
+                    logger.error("Retained storage accounting for failed RAG upload cleanup (tenant=%s job=%s)",
+                                 tenant_id, job_id)
+            else:
+                storage_ledger.record(conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key, len(contents),
+                                      "rag_document_upload")
+            conn.commit()
+        except Exception:
+            logger.exception("Could not reconcile failed RAG object upload (tenant=%s job=%s)", tenant_id, job_id)
+            conn.rollback()
         return None
 
     try:
@@ -383,6 +461,8 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
             tenant_id=ctx.tenant_id, job_id=job_id, source_name=file.filename or f"upload{ext}",
             headers=headers, rows=rows, conn=conn, redis_client=None, minio_client=minio_client,
             commit_every=_EXTRACTION_COMMIT_EVERY,
+            storage_preupload_callback=_track_extraction_result_before_put(ctx.tenant_id, ctx.user_id, minio_client)
+            if minio_client is not None else None,
         )
 
         currency_resolution = geo_currency.resolve_company_currency(conn, ctx.tenant_id)
