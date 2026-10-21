@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from src.ai.billing import credits
 from src.ai.rag import access as acl
 from src.ai.rag import advisor, citations, llm_client
 from src.ai.rag import evidence as ev
@@ -118,6 +119,28 @@ def test_the_provider_failing_shows_the_evidence_itself(model, monkeypatch):
     assert result["answer_mode"] == "evidence"
     assert {"need": "answer_writing", "status": "provider_busy"} in result["evidence_status"]
     assert result["references"] and result["token_usage"]["total_tokens"] == 0
+
+
+@pytest.mark.parametrize("reason, status", [("COST_NOT_CONFIGURED", "not_configured"),
+                                            ("PROVIDER_DISABLED", "provider_unavailable"),
+                                            ("PROVIDER_CAP_REACHED", "provider_unavailable")])
+def test_a_server_side_credits_refusal_shows_the_evidence_not_an_error(model, monkeypatch, reason, status):
+    result, _ = _answer_with_sales(model, monkeypatch, credits.BudgetError(reason, credits.AI))
+    assert result["answer_mode"] == "evidence"
+    assert {"need": "answer_writing", "status": status} in result["evidence_status"]
+    assert result["references"]
+
+
+@pytest.mark.parametrize("reason", ["BUDGET_EXHAUSTED", "SUBSCRIPTION_INACTIVE"])
+def test_the_companys_own_credit_or_plan_limit_still_stops_the_question(model, monkeypatch, reason):
+    with pytest.raises(credits.BudgetError):
+        _answer_with_sales(model, monkeypatch, credits.BudgetError(reason, credits.AI))
+
+
+def test_a_refusal_inside_the_research_helper_call_is_translated_too():
+    guarded = advisor._guarded(lambda *a, **k: (_ for _ in ()).throw(credits.BudgetError("COST_NOT_CONFIGURED", credits.AI)))
+    with pytest.raises(llm_client.LLMNotConfiguredError):
+        guarded([])
 
 
 def test_with_no_evidence_and_no_provider_the_error_reaches_the_caller(model, monkeypatch):
