@@ -1321,7 +1321,7 @@ The panel consumes the actual backend routes: `GET /extraction/import-drafts`, `
 
 ### Verification
 
-- Focused suite: **59 passed, 39 skipped, 0 failed** across new orchestration tests, Shopify/Woo adapters, M94 lifecycle, M95 identities, M96 inventory, generic API worker regressions, and M97 typed-import service tests. The 39 skips require native PostgreSQL credentials.
+- Focused suite: **60 passed, 39 skipped, 0 failed** across new orchestration tests (including the real Shopify GraphQL client with an official-contract-shaped mock transport), Shopify/Woo adapters, M94 lifecycle, M95 identities, M96 inventory, generic API worker regressions, and M97 typed-import service tests. The 39 skips require native PostgreSQL credentials.
 - A real-dependency test venv was installed in the OS temp directory. No repository dependency manifest changed.
 - Native PostgreSQL/RLS verification was attempted but not executed: Docker Desktop denied its named pipe; the local PostgreSQL 17 service requires an unavailable password, and its local PostgreSQL distribution lacks the pgvector extension files. The service was not modified. No native RLS, concurrency, lease-fencing, or checkpoint SQL claim is made for this batch.
 - No real merchant requests/credentials, connection activation, webhook activation, canonical writes, quota changes, billing, usage or Credit changes occurred.

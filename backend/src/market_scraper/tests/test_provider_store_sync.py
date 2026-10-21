@@ -1,11 +1,15 @@
+import json
+import socket
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
+
+import httpx
 
 import pytest
 
 from src.market_scraper import data_access, provider_store_sync as sync
 from src.market_scraper.provider_lifecycle import ProviderLifecycleError
-from src.market_scraper.shopify import ShopifyError, ShopifyRecord
+from src.market_scraper.shopify import ShopifyError, ShopifyGraphQLClient, ShopifyRecord
 
 
 def test_client_uses_only_verified_store_identity_and_vault_token():
@@ -207,3 +211,76 @@ def test_safe_retry_reopens_the_same_failed_job_under_the_receipt_fence(monkeypa
     assert "SET job_status='PROCESSING'" in statements[1]
     assert "ps.connection_state='verified'" in statements[1]
     conn.commit.assert_called_once()
+
+
+def test_worker_uses_real_shopify_graphql_client_with_contract_fixture(monkeypatch):
+    source = {
+        "source_id": "source-1", "collector_key": "shopify", "provider": "shopify",
+        "verified_store_id": "gid://shopify/Shop/1", "verified_store_domain": "shop.myshopify.com",
+        "connection_state": "verified", "configuration_version": 4,
+    }
+    conn = Mock()
+    conn.cursor.return_value = MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (
+        "shopify", source["verified_store_id"], source["verified_store_domain"], "verified", 4,
+    )
+    loaded = {"collector_key": "shopify", "collector_config": {"api_version": "2026-10"},
+              "connection_credentials": {"access_token": "fixture-only-token"},
+              "source_execution_fingerprint": "fingerprint"}
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        assert request.url.scheme == "https"
+        assert request.headers["X-Shopify-Access-Token"] == "fixture-only-token"
+        query = json.loads(request.content)["query"]
+        if "currentAppInstallation" in query:
+            payload = {"data": {
+                "shop": {"id": source["verified_store_id"], "myshopifyDomain": source["verified_store_domain"], "currencyCode": "USD"},
+                "currentAppInstallation": {"accessScopes": [{"handle": "read_products"}]},
+            }}
+        else:
+            product = {
+                "id": "gid://shopify/Product/42", "title": "Fixture product", "handle": "fixture-product",
+                "status": "ACTIVE", "vendor": "Fixture", "createdAt": "2026-10-20T09:00:00Z",
+                "updatedAt": "2026-10-20T10:00:00Z",
+                "variants": {
+                    "edges": [{"cursor": "variant-cursor-1", "node": {
+                        "id": "gid://shopify/ProductVariant/43", "title": "Default", "sku": "FIXTURE-43",
+                        "barcode": None, "updatedAt": "2026-10-20T10:00:00Z",
+                        "inventoryItem": {"id": "gid://shopify/InventoryItem/44", "tracked": True},
+                    }}],
+                    "pageInfo": {"hasNextPage": False, "endCursor": "variant-cursor-1"},
+                },
+            }
+            payload = {"data": {"products": {
+                "edges": [{"cursor": "product-cursor-1", "node": product}],
+                "pageInfo": {"hasNextPage": False, "endCursor": "product-cursor-1"},
+            }}}
+        return httpx.Response(200, json=payload, headers={"X-Shopify-API-Version": "2026-10"}, request=request)
+
+    def client_factory(domain, token, **kwargs):
+        return ShopifyGraphQLClient(
+            domain, token, resolver=lambda *_args, **_kwargs: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443))],
+            transport_factory=lambda _ip: httpx.MockTransport(handler), sleeper=lambda _delay: None, **kwargs,
+        )
+
+    persisted = Mock(return_value=[{"mapping_status": "pending_review"}, {"mapping_status": "pending_review"}])
+    monkeypatch.setattr(sync.data_access, "load_source", lambda *_: loaded)
+    monkeypatch.setattr(sync.data_access, "create_or_reuse_receipt_ingestion_job", lambda *_, **__: "job-1")
+    monkeypatch.setattr(sync.operation_receipts, "begin_provider", lambda *_: None)
+    monkeypatch.setattr(sync, "persist_shopify_records", persisted)
+    finish = Mock()
+    monkeypatch.setattr(sync.data_access, "finish_ingestion_job", finish)
+    receipt = {"operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC, "receipt_id": "receipt-1"}
+
+    result = sync.sync_shopify_stream(conn, "tenant-1", source, "products", receipt, client_factory=client_factory)
+
+    assert result["records_persisted"] == 2
+    assert result["canonical_promotion"] is False
+    assert len(requests) == 3  # two authenticated shop verifications and one bounded product page
+    records = persisted.call_args.args[2]
+    assert [(record.entity_type, record.provider_id) for record in records] == [
+        ("product", "gid://shopify/Product/42"), ("variant", "gid://shopify/ProductVariant/43"),
+    ]
+    assert finish.call_args.kwargs["provider_checkpoint"]["stream_key"] == "products"
