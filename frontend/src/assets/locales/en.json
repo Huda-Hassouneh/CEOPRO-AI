@@ -1982,8 +1982,10 @@
       "you": "You",
       "generating": "Generating answer...",
       "unavailable": "The assistant could not answer that question right now. Your question was kept in this session - please try again.",
-      "evidenceNote": "Shown without an AI summary — this is the information KEEL found for your question.",
+      "evidenceNote": "Shown without AI writing — this is the information KEEL found for your question.",
       "unverifiedNote": "Parts of this answer could not be checked against the evidence. Treat anything marked as not verified with care.",
+      "showFullAnswer": "Show the full answer",
+      "hideFullAnswer": "Hide the full answer",
       "followUps": "Suggested follow-up questions"
     },
     "composer": {

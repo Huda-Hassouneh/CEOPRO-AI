@@ -53,6 +53,12 @@ export function mapBlocks(blocks) {
   return mapped.length ? mapped : null;
 }
 
+// The short answer shown above a long one: its claims, or null.
+export function mapSummary(summary) {
+  const claims = Array.isArray(summary?.claims) ? summary.claims.map(mapClaim) : [];
+  return claims.length ? { claims } : null;
+}
+
 export function mapReferences(references) {
   if (!Array.isArray(references)) return [];
   return references.filter((ref) => Number.isInteger(ref?.n)).map((ref) => ({
@@ -96,6 +102,7 @@ export function mapAnswer(data) {
   const references = mapReferences(data?.references);
   return {
     content: data?.answer ?? data?.content ?? '',
+    summary: mapSummary(data?.answer_summary),
     blocks: mapBlocks(data?.answer_blocks),
     references,
     sources: references.length ? [] : mapLegacySources(data?.sources),
