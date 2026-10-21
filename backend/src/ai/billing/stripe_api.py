@@ -40,6 +40,10 @@ def create_checkout_session(params: dict, idempotency_key: str):
     return _plain(_client().checkout.Session.create(**params, idempotency_key=idempotency_key))
 
 
+def retrieve_checkout_session(session_id: str):
+    return _plain(_client().checkout.Session.retrieve(session_id))
+
+
 def create_portal_session(customer_id: str, return_url: str):
     return _plain(_client().billing_portal.Session.create(customer=customer_id, return_url=return_url))
 
