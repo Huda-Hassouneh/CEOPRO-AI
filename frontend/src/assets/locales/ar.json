@@ -173,6 +173,7 @@
     "list": {
       "searchPlaceholder": "ابحث بالاسم أو العلامة التجارية",
       "getRecommendation": "احصل على توصية",
+      "history": "سجل التوصيات",
       "compare": "قارن السوق",
       "loadError": "تعذر تحميل المنتجات",
       "retry": "إعادة المحاولة",
@@ -180,6 +181,34 @@
       "emptyDescription": "أضف منتجاً للبدء بمقارنة سعره وتكلفته.",
       "noResultsTitle": "لا توجد منتجات مطابقة",
       "noResultsDescription": "جرّب كلمة بحث مختلفة."
+    },
+    "history": {
+      "title": "سجل التوصيات — {{name}}",
+      "note": "هذه توصيات محفوظة والأدلة التي استندت إليها. لا يعني ذلك أن سعر المنتج قد تغيّر.",
+      "errorTitle": "تعذّر تحميل السجل",
+      "errorDescription": "لم نتمكن من تحميل سجل التوصيات.",
+      "retry": "إعادة المحاولة",
+      "emptyTitle": "لا توجد توصيات محفوظة",
+      "emptyDescription": "ستظهر توصيات هذا المنتج هنا بعد إنشائها.",
+      "incomplete": "دليل التوصية",
+      "decision": "القرار",
+      "basis": "أساس الأدلة",
+      "pagination": "صفحات سجل التوصيات",
+      "previous": "السابق",
+      "next": "التالي",
+      "page": "الصفحة {{page}}",
+      "bases": {
+        "LOCAL_MARKET": "أدلة السوق المحلية",
+        "INTERNAL_ONLY": "بيانات العمل الداخلية",
+        "REGIONAL_ESTIMATE": "تقدير إقليمي",
+        "MARKET_REFERENCE": "مرجع سوقي"
+      },
+      "decisions": {
+        "PENDING": "لم تتم المراجعة",
+        "ACCEPTED": "قبله مستخدم",
+        "REJECTED": "رفضه مستخدم",
+        "unknown": "غير مسجل"
+      }
     },
     "table": {
       "product": "المنتج",

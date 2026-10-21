@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { GitCompareArrows, RefreshCw, Search, Tag } from 'lucide-react';
+import { GitCompareArrows, History, RefreshCw, Search, Tag } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { DashboardLayout } from '../../../app/layouts/DashboardLayout.jsx';
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
@@ -15,6 +15,7 @@ import { routePaths } from '../../../app/router/routePaths.js';
 import { useDebounce } from '../../../shared/hooks/useDebounce.js';
 import { productsApi } from '../../products/api/productsApi.js';
 import { PriceRecommendationModal } from '../components/PriceRecommendationModal.jsx';
+import { PriceRecommendationHistoryModal } from '../components/PriceRecommendationHistoryModal.jsx';
 import { PriceComparisonModal } from '../components/PriceComparisonModal.jsx';
 import { PositionPill, TIERS, TierPill } from '../components/PriceLadder.jsx';
 import { usePriceComparisonSummary, useRefreshComparisons } from '../hooks/usePriceComparisons.js';
@@ -48,6 +49,7 @@ export function PricingPage() {
     placeholderData: keepPreviousData,
   });
   const [activeProduct, setActiveProduct] = useState(null);
+  const [historyProduct, setHistoryProduct] = useState(null);
   const [compareProduct, setCompareProduct] = useState(null);
   const [notice, setNotice] = useState(null);
 
@@ -122,6 +124,7 @@ export function PricingPage() {
               <td className="pricing-actions">
                 <button type="button" className="pricing-link-action" onClick={() => setCompareProduct(product)}><GitCompareArrows size={13} />{t('pricing.list.compare')}</button>
                 <button type="button" className="pricing-link-action" onClick={() => setActiveProduct(product)}><Tag size={13} />{t('pricing.list.getRecommendation')}</button>
+                <button type="button" className="pricing-link-action" onClick={() => setHistoryProduct(product)}><History size={13} />{t('pricing.list.history')}</button>
               </td>
             </tr>;
           })}</tbody>
@@ -134,6 +137,7 @@ export function PricingPage() {
         />)}
 
     <PriceComparisonModal open={Boolean(compareProduct)} product={compareProduct} onClose={() => setCompareProduct(null)} t={t} />
+    <PriceRecommendationHistoryModal open={Boolean(historyProduct)} product={historyProduct} onClose={() => setHistoryProduct(null)} t={t} locale={locale} />
     {notice && <Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} />}
     <PriceRecommendationModal open={Boolean(activeProduct)} product={activeProduct} onClose={() => setActiveProduct(null)} currencyFormatter={currencyFormatter} t={t} />
   </div></DashboardLayout>;
