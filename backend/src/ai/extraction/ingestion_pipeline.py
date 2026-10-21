@@ -148,6 +148,13 @@ class IngestionSummary:
         return self.rows_failed == 0 and self.rows_partial == 0 and self.rows_processed > 0
 
 
+def job_completion_state(summary) -> tuple[str, str | None]:
+    """Use the persisted ingestion_jobs vocabulary and retain partial-result detail."""
+    if summary.rows_partial or summary.rows_failed:
+        return "FAILED", "Some source records were staged with validation errors or could not be processed."
+    return "COMPLETED", None
+
+
 _SAVEPOINT_NAME = "ingestion_pipeline_write"
 
 

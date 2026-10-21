@@ -257,13 +257,16 @@ def test_sync_does_not_advance_the_watermark_on_a_client_connection_failure(conn
     source_id = _insert_allowed_db_connector_source(conn, tenant_id, _VALID_CONFIG, last_synced_at=None)
     set_source_credentials(conn, tenant_id, source_id, {"user": "u", "password": "wrong"})
 
-    with patch("src.market_scraper.connector_sync.psycopg2.connect", side_effect=RuntimeError("connection refused")):
-        with pytest.raises(RuntimeError, match="connection refused"):
+    with patch("src.market_scraper.connector_sync.psycopg2.connect", side_effect=RuntimeError("connection refused password=wrong")):
+        with pytest.raises(RuntimeError):
             _run_with_receipt(conn, tenant_id, source_id)
 
     with conn.cursor() as cursor:
         cursor.execute("SELECT last_synced_at FROM data_sources WHERE tenant_id = %s AND source_id = %s;", (tenant_id, source_id))
         assert cursor.fetchone()[0] is None  # never advanced - this sync must be retried, not skipped
+        cursor.execute("SELECT error_log FROM ingestion_jobs WHERE tenant_id=%s ORDER BY started_at DESC LIMIT 1;", (tenant_id,))
+        error_log = cursor.fetchone()[0]
+        assert "wrong" not in error_log and "connection refused" not in error_log
 
 
 def test_run_due_connector_syncs_continues_past_one_sources_failure(conn):
@@ -280,3 +283,21 @@ def test_run_due_connector_syncs_continues_past_one_sources_failure(conn):
     by_source = {r["source_id"]: r for r in results}
     assert "error" in by_source[bad_source_id]
     assert "error" not in by_source[good_source_id]
+
+def test_partial_database_connector_result_is_not_reported_as_completed(conn):
+    from types import SimpleNamespace
+
+    tenant_id = _insert_company(conn)
+    source_id = _insert_allowed_db_connector_source(conn, tenant_id, _VALID_CONFIG)
+    set_source_credentials(conn, tenant_id, source_id, {"user": "readonly_user", "password": "synthetic"})
+    fake_client_conn = _fake_client_connection([("Widget", 1, 2.0, "JOD", "2026-10-20")])
+    partial = SimpleNamespace(rows_processed=1, rows_partial=1, rows_failed=0)
+    with patch("src.market_scraper.connector_sync.psycopg2.connect", return_value=fake_client_conn), \
+         patch("src.market_scraper.connector_sync.process_records", return_value=partial):
+        result = _run_with_receipt(conn, tenant_id, source_id)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT job_status,error_log,last_synced_at FROM ingestion_jobs j JOIN data_sources ds USING (tenant_id,source_id) WHERE j.tenant_id=%s AND j.job_id=%s;", (tenant_id, result["job_id"]))
+        status, error, synced_at = cursor.fetchone()
+    assert status == "FAILED"
+    assert error
+    assert synced_at is None
