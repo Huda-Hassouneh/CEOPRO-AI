@@ -83,4 +83,3 @@ def test_history_is_paginated_and_tenant_scoped_under_restricted_role(conn):
         assert hidden.value.status_code == 404
     finally:
         app_conn.close()
-
