@@ -21,6 +21,7 @@ import hashlib
 import time
 from src.ai.billing import config, store, stripe_api
 from src.ai.billing.stripe_api import PaymentsNotConfigured
+from src.ai.core import usage
 
 
 class BillingError(Exception):
@@ -116,6 +117,53 @@ def _live_subscription(conn, tenant_id: str) -> dict:
     return sub
 
 
+def _classify_rights_change(current: dict, target: dict) -> tuple[str, tuple[str, ...]]:
+    """Compare only explicitly configured rights; never infer a missing limit."""
+    gains = losses = False
+    uncertain = []
+
+    current_entitlements = set(current.get("entitlements", ()))
+    target_entitlements = set(target.get("entitlements", ()))
+    gains |= bool(target_entitlements - current_entitlements)
+    losses |= bool(current_entitlements - target_entitlements)
+
+    current_features = current.get("features", {})
+    target_features = target.get("features", {})
+    for code in sorted(set(current_features) | set(target_features)):
+        old = current_features.get(code)
+        new = target_features.get(code)
+        if old is None or new is None:
+            uncertain.append(code)
+            continue
+        metadata = ("unit", "aggregation_type", "reset_cycle")
+        if any(old.get(key) != new.get(key) for key in metadata):
+            uncertain.append(code)
+            continue
+        old_limit, new_limit = old.get("limit"), new.get("limit")
+        if old_limit == new_limit:
+            continue
+        # NULL is unlimited in the established usage_plan_limits schema.
+        # Zero and positive values retain their distinct configured meaning.
+        if old_limit is None:
+            losses = True
+        elif new_limit is None:
+            gains = True
+        elif new_limit > old_limit:
+            gains = True
+        else:
+            losses = True
+
+    if uncertain:
+        return "unclassified", tuple(uncertain)
+    if gains and losses:
+        return "mixed", ()
+    if gains:
+        return "gain", ()
+    if losses:
+        return "loss", ()
+    return "unchanged", ()
+
+
 def change_plan(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str) -> dict:
     """Upgrade now (to a higher tier, or the same tier with a longer period)
     or downgrade at the end of the paid period."""
@@ -133,10 +181,49 @@ def change_plan(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str)
         raise BillingError(409, "already_scheduled", "This change is already scheduled.")
     price = _price_or_error(conn, plan_key, period_code)
 
+    if store.has_custom_contract(conn, tenant_id):
+        raise BillingError(
+            409, "plan_transition_unclassified",
+            "This plan change needs review because the existing private contract has terms outside the public catalog.",
+        )
+
+    current_rights = usage.get_plan(conn, tenant_id)
+    # An active Stripe subscription and a different effective manual/offline
+    # assignment are an unresolved overlapping-grant case. Compare the
+    # current rights to the Stripe plan without assigning precedence; if they
+    # differ, require review before any provider mutation. A normal Stripe
+    # trial remains on the Stripe assignment and follows the existing path.
+    legitimate_trial = sub["status"] == "trialing" and current_rights.get("source") == "trial"
+    if current_rights.get("source") != "stripe" and not legitimate_trial:
+        stripe_rights = store.configured_plan_rights(
+            conn, tenant_id, sub["plan_key"], trialing=sub["status"] == "trialing",
+        )
+        overlap, _ = _classify_rights_change(stripe_rights, current_rights)
+        if overlap != "unchanged":
+            raise BillingError(
+                409, "plan_transition_conflict",
+                "This plan change needs review because the effective assignment conflicts with the active subscription.",
+            )
+    target_rights = store.configured_plan_rights(
+        conn, tenant_id, plan_key, trialing=sub["status"] == "trialing",
+    )
+    transition, _uncertain_features = _classify_rights_change(current_rights, target_rights)
+    if transition == "unclassified":
+        raise BillingError(
+            409, "plan_transition_unclassified",
+            "This plan change needs review because one or more feature limits are not comparable.",
+        )
+
     current_tier = store.plan_tier(conn, sub["plan_key"])
     current_price = store.current_price(conn, sub["plan_key"], sub["period_code"]) or {}
-    is_upgrade = price["tier_level"] > current_tier or (
-        price["tier_level"] == current_tier and price["amount"] >= current_price.get("amount", 0)
+    # Rights decide any gain/loss transition. Preserve the established
+    # tier/price rule only when the configured rights vector is unchanged,
+    # such as a billing-period-only change.
+    is_upgrade = transition == "gain" or (
+        transition == "unchanged" and (
+            price["tier_level"] > current_tier or
+            (price["tier_level"] == current_tier and price["amount"] >= current_price.get("amount", 0))
+        )
     )
 
     stripe_sub = stripe_api.retrieve_subscription(sub["stripe_subscription_id"])
