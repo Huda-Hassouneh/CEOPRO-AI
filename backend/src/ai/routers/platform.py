@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.ai import db
-from src.ai.billing import promotions
+from src.ai.billing import custom_offers, promotions
 from src.ai.core import auth_throttle, security
 from src.ai.core.authorization import require_platform_permission
 from src.ai.core.security import TenantContext, get_tenant_context
@@ -322,3 +322,157 @@ def accept(token: str, body: Accept):
     from src.ai.routers.auth import _session
     return _session(result["tenant_id"], result["user_id"], "staff", result["business_name"],
                     result["full_name"], "en", result["email"])
+
+class CustomQuoteDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tenant_id: UUID
+    customer_user_id: UUID | None = None
+    idempotency_key: str = Field(min_length=1, max_length=200)
+    configuration: dict = Field(default_factory=dict)
+    feature_quantities: dict = Field(default_factory=dict)
+    commercial_terms: dict = Field(default_factory=dict)
+    economic_inputs: dict = Field(default_factory=dict)
+    fx_evidence: dict = Field(default_factory=dict)
+    valid_until: datetime | None = None
+
+
+class CustomQuoteRevision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=1)
+    idempotency_key: str = Field(min_length=1, max_length=200)
+    configuration: dict = Field(default_factory=dict)
+    feature_quantities: dict = Field(default_factory=dict)
+    commercial_terms: dict = Field(default_factory=dict)
+    economic_inputs: dict = Field(default_factory=dict)
+    fx_evidence: dict = Field(default_factory=dict)
+    valid_until: datetime | None = None
+
+
+class CustomQuoteTransition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=1)
+    idempotency_key: str = Field(min_length=1, max_length=200)
+
+
+class CustomQuoteApproval(CustomQuoteTransition):
+    approval_reference: str = Field(min_length=1, max_length=200)
+
+
+def _custom_quote_operator(ctx: TenantContext) -> None:
+    result = service.command(ctx, "me")
+    if result.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Only the Platform Owner can manage custom quotes.")
+
+def _custom_quote_http_error(error: custom_offers.CustomOfferError) -> HTTPException:
+    return HTTPException(error.status, detail={"reason": error.code, "message": error.message})
+
+
+def _quote_payload(body):
+    return body.model_dump(mode="json")
+
+
+@router.post("/billing/custom-quotes", status_code=201)
+def create_custom_quote(body: CustomQuoteDraft, ctx: Ctx):
+    """Create an internal quote draft; this does not publish an offer or activate access."""
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        payload = _quote_payload(body)
+        created = custom_offers.create_draft(
+            conn, tenant_id=str(body.tenant_id), customer_user_id=str(body.customer_user_id) if body.customer_user_id else None,
+            idempotency_key=body.idempotency_key,
+            configuration=payload["configuration"], feature_quantities=payload["feature_quantities"],
+            commercial_terms=payload["commercial_terms"], economic_inputs=payload["economic_inputs"],
+            fx_evidence=payload["fx_evidence"], valid_until=body.valid_until,
+        )
+        conn.commit()
+        return created
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_quote_http_error(exc)
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.get("/billing/custom-quotes/{quote_id}")
+def get_custom_quote(quote_id: UUID, ctx: Ctx):
+    _custom_quote_operator(ctx)
+    conn = db.system_connection()
+    try:
+        result = custom_offers.quote_detail(conn, str(quote_id), include_private=True)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Quote not found.")
+        return result
+    finally:
+        conn.close()
+
+
+@router.post("/billing/custom-quotes/{quote_id}/revisions")
+def create_custom_quote_revision(quote_id: UUID, body: CustomQuoteRevision, ctx: Ctx):
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        payload = _quote_payload(body)
+        result = custom_offers.create_revision(
+            conn, quote_id=str(quote_id), expected_revision=body.expected_revision,
+            idempotency_key=body.idempotency_key, configuration=payload["configuration"],
+            feature_quantities=payload["feature_quantities"], commercial_terms=payload["commercial_terms"],
+            economic_inputs=payload["economic_inputs"], fx_evidence=payload["fx_evidence"],
+            valid_until=body.valid_until,
+        )
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_quote_http_error(exc)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/billing/custom-quotes/{quote_id}/submit")
+def submit_custom_quote(quote_id: UUID, body: CustomQuoteTransition, ctx: Ctx):
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.transition(conn, "submit", tenant_id=None, quote_id=str(quote_id),
+                                          expected_revision=body.expected_revision, idempotency_key=body.idempotency_key)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_quote_http_error(exc)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/billing/custom-quotes/{quote_id}/approve")
+def approve_custom_quote(quote_id: UUID, body: CustomQuoteApproval, ctx: Ctx):
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.transition(conn, "approve", tenant_id=None, quote_id=str(quote_id),
+                                          expected_revision=body.expected_revision,
+                                          idempotency_key=body.idempotency_key,
+                                          approval_reference=body.approval_reference)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_quote_http_error(exc)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
