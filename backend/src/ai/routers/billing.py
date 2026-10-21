@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.ai import db
-from src.ai.billing import config, credits, promotions, service, store, stripe_api, webhooks
+from src.ai.billing import config, credits, custom_offers, promotions, service, store, stripe_api, webhooks
 from src.ai.core import feature_rights, usage
 from src.ai.core.security import TenantContext, get_tenant_context
 
@@ -59,6 +59,12 @@ class PromotionValidation(BaseModel):
     code: str = Field(min_length=1, max_length=100)
     plan_key: str = Field(min_length=1, max_length=50)
     period_code: PeriodCode = "monthly"
+
+
+class CustomOfferConfiguration(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    limits: dict[str, object] = Field(default_factory=dict)
+    refresh_frequency: Literal["hourly", "daily", "weekly"] | None = None
 
 
 def _scaled(value, factor):
@@ -124,6 +130,46 @@ def _provider_failure(err: Exception) -> HTTPException:
     return HTTPException(status_code=502, detail={
         "reason": "provider_error", "message": "The payment provider didn't respond. Please try again in a moment.",
     })
+
+
+def _custom_offer_error(err: custom_offers.CustomOfferError) -> HTTPException:
+    return HTTPException(err.status, detail={"reason": err.code, "message": err.message})
+
+
+@router.get("/custom-offers/configurator")
+def custom_offer_configurator(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Read-only catalog of feature quantities the existing Python contract supports."""
+    del ctx  # Authentication is required; catalog metadata is not tenant-specific.
+    conn = db.system_connection()
+    try:
+        return {
+            "version": 1,
+            "mode": "configuration_metadata_only",
+            "features": custom_offers.feature_catalog(conn),
+            "refreshFrequencies": ["hourly", "daily", "weekly"],
+            "initialCheckoutCurrency": "USD",
+            "pricingAvailable": False,
+            "unlimitedQuantityOverridesSupported": False,
+        }
+    finally:
+        conn.close()
+
+
+@router.post("/custom-offers/configuration/validate")
+def validate_custom_offer_configuration(
+    body: CustomOfferConfiguration, ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """Check known feature units without saving or changing customer rights."""
+    del ctx
+    conn = db.system_connection()
+    try:
+        return custom_offers.validate_configuration(
+            conn, limits=body.limits, refresh_frequency=body.refresh_frequency,
+        )
+    except custom_offers.CustomOfferError as exc:
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
 
 
 @router.get("/plans")
