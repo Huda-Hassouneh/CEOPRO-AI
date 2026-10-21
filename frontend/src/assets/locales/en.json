@@ -173,6 +173,7 @@
     "list": {
       "searchPlaceholder": "Search by name or brand",
       "getRecommendation": "Get Recommendation",
+      "history": "Recommendation history",
       "compare": "Compare market",
       "loadError": "Could not load products",
       "retry": "Retry",
@@ -180,6 +181,34 @@
       "emptyDescription": "Add a product to start comparing its price and cost.",
       "noResultsTitle": "No matching products",
       "noResultsDescription": "Try a different search term."
+    },
+    "history": {
+      "title": "Recommendation history — {{name}}",
+      "note": "These are saved recommendations and their evidence. They do not mean your product price was changed.",
+      "errorTitle": "History unavailable",
+      "errorDescription": "Recommendation history could not be loaded.",
+      "retry": "Retry",
+      "emptyTitle": "No saved recommendations",
+      "emptyDescription": "Recommendations for this product will appear here after they are generated.",
+      "incomplete": "Recommendation evidence",
+      "decision": "Decision",
+      "basis": "Evidence basis",
+      "pagination": "Recommendation history pages",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}",
+      "bases": {
+        "LOCAL_MARKET": "Local market evidence",
+        "INTERNAL_ONLY": "Internal business data",
+        "REGIONAL_ESTIMATE": "Regional estimate",
+        "MARKET_REFERENCE": "Market reference"
+      },
+      "decisions": {
+        "PENDING": "Not reviewed",
+        "ACCEPTED": "Accepted by a user",
+        "REJECTED": "Rejected by a user",
+        "unknown": "Not recorded"
+      }
     },
     "table": {
       "product": "Product",

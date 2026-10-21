@@ -14,6 +14,11 @@ export const pricingApi = {
     return response.data;
   },
 
+  // Read-only history from the shared evidence/recommendation tables.
+  recommendationHistory: async (productId, { limit = 20, offset = 0 } = {}) => (
+    await httpClient.get(`/pricing/history/${encodeURIComponent(productId)}`, { params: { limit, offset } })
+  ).data,
+
   // backend/src/ai/routers/pricing.py - the price comparison ladder: how a product relates to what competitors
   // sell, in four tiers (EXACT / EQUIVALENT / SIMILAR / ADDED_VALUE). Reads only; stored competitor items are
   // classified by the market scraper's code path (market_scraper/price_comparison/).
