@@ -152,3 +152,51 @@ def test_a_paragraph_written_as_plain_text_cites_nothing_and_its_figures_fail():
     draft = c.parse_draft('{"blocks": [{"type": "paragraph", "text": "Revenue was 777 JOD."}]}')
     checked, issues = c.validate(draft, _registry())
     assert not checked.blocks and issues
+
+
+def _long_draft(**extra):
+    claims = [c.Claim(text=f"Sentence number {n} says something about the product range and its prices.",
+                      kind=c.FACT, evidence=[]) for n in range(8)]
+    return c.Draft(blocks=[{"type": "paragraph", "claims": claims}], **extra)
+
+
+def test_a_long_answer_gets_a_short_summary_and_a_short_one_does_not():
+    registry = ev.EvidenceRegistry()
+    assert c.render(_long_draft(), registry)["summary"] is not None
+    short = c.Draft(blocks=[{"type": "paragraph", "claims": [c.Claim("Net 45 days.", c.GENERAL, [])]}])
+    assert c.render(short, registry)["summary"] is None
+
+
+def test_the_fallback_summary_is_the_first_statements_never_a_greeting():
+    registry = ev.EvidenceRegistry()
+    draft = _long_draft()
+    draft.blocks[0]["claims"].insert(0, c.Claim("Hi there!", c.GENERAL, []))
+    summary = c.render(draft, registry)["summary"]
+    assert summary["text"].startswith("Sentence number 0") and "Hi there" not in summary["text"]
+    assert len(summary["claims"]) <= c.SUMMARY_MAX_CLAIMS
+
+
+def test_the_models_own_summary_is_parsed_checked_numbered_first_and_never_triggers_a_repair():
+    registry = ev.EvidenceRegistry()
+    first = registry.add(ev.COMPANY_RECORD, "Sales", "Revenue was 500 JOD", ev.COMPANY, ev.OBSERVED)
+    second = registry.add(ev.COMPANY_RECORD, "Costs", "Costs were 300 JOD", ev.COMPANY, ev.OBSERVED)
+    raw = json.dumps({"summary": [{"text": "Revenue was 999 JOD.", "kind": "fact", "evidence": [first.id]}],
+                      "blocks": [{"type": "paragraph", "claims": [
+                          {"text": "Costs were 300 JOD." + " More detail." * 30, "kind": "fact", "evidence": [second.id]}]}]})
+    draft = c.parse_draft(raw)
+    assert [x.text for x in draft.summary] == ["Revenue was 999 JOD."]
+    checked, issues = c.validate(draft, registry)
+    assert checked.summary == [] and issues == []  # the unsupported figure is dropped, not repaired
+    ok = c.parse_draft(raw.replace("999", "500"))
+    checked, issues = c.validate(ok, registry)
+    rendered = c.render(checked, registry)
+    assert rendered["summary"]["refs"] == [1]  # numbered before the detail's own reference
+    assert rendered["summary"]["text"] == "Revenue was 500 JOD."
+
+
+def test_a_summary_alone_is_a_complete_answer():
+    registry = ev.EvidenceRegistry()
+    item = registry.add(ev.COMPANY_RECORD, "Terms", "Net 45 days", ev.COMPANY, ev.OBSERVED)
+    draft = c.parse_draft(json.dumps({"summary": [{"text": "Net 45 days.", "kind": "fact", "evidence": [item.id]}],
+                                      "blocks": []}))
+    assert draft is not None and draft.blocks[0]["claims"][0].text == "Net 45 days."
