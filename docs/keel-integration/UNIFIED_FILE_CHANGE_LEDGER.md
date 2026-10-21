@@ -1,8 +1,8 @@
 # KEEL â€” Unified File Change Ledger
 
-Destination: Python/FastAPI main. Node reference strictly read-only. **Historical phases: 0/1A. B1 incremental changes are recorded below.**
+Destination: Python/FastAPI main. Node reference strictly read-only. **Historical phases: 0/1A. Phase 1B B1–B4 increments are recorded below.**
 
-Incoming Git HEAD: `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. Verified clean post-Task-6 commit: **UNAVAILABLE / SOURCE-001 BLOCKED**. B2 implementation checkpoint: `2607de847428d928eed63abf7dd761f62e543775`; B3 changes below are uncommitted. Frozen byte baseline: evidence/SUPPLIED_CONTENT_HASHES.json; ZIP hashes: INPUT_ARCHIVE_HASHES.json.
+Incoming Git HEAD: `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. Verified clean post-Task-6 commit: **UNAVAILABLE / SOURCE-001 BLOCKED**. B2 implementation checkpoint: `2607de847428d928eed63abf7dd761f62e543775`; B3 verification commit: `3c240c41a9e2207fdd212bea8692bfae2703824e`; B4 focused native verification completed. Frozen byte baseline: evidence/SUPPLIED_CONTENT_HASHES.json; ZIP hashes: INPUT_ARCHIVE_HASHES.json.
 
 
 ## Phase 1B B1 — Read-only effective-rights compatibility projection
@@ -34,7 +34,13 @@ The version 1 `effectiveRights` contract is an informational projection of the a
 | Phase | Capability | Path | Action | Change and preservation | Verification/status |
 |---|---|---|---|---|---|
 | 1B-B3 | ENT-001; ENT-002; ENT-011 | `backend/src/ai/tests/test_billing_integration_db.py` | MODIFY | Exercises the production billing router over authenticated HTTP using the restricted `ceopro_app` role; verifies two tenants receive their own distinct configured rights, unauthenticated and cross-tenant requests are rejected, the legacy response and v1 contract remain intact, and subscription/usage/credit snapshots do not change on reads. | PostgreSQL 17.11 disposable `keel_billing_test` on localhost:55440; empty-target check passed before applying 88 existing migrations; read-only role preflight PASS; focused test `test_subscription_effective_rights_are_tenant_isolated_and_read_only` — 1 passed, 16 deselected. No production changes. |
-| 1B-B3 | DOCS-001 | `docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md` | MODIFY | Corrects B2 commit status and records B3 native verification evidence. | B2 commit confirmed at `2607de847428d928eed63abf7dd761f62e543775`; B3 pre-migration identity, role preflight, and focused test passed; `git diff --check` PASS. B3 changes remain uncommitted. |
+| 1B-B3 | DOCS-001 | `docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md` | MODIFY | Corrects B2 commit status and records B3 native verification evidence. | B2 commit confirmed at `2607de847428d928eed63abf7dd761f62e543775`; B3 pre-migration identity, role preflight, and focused test passed; `git diff --check` PASS. COMMITTED: `3c240c41a9e2207fdd212bea8692bfae2703824e`. |
+## Phase 1B B4 — Native connected-source capacity race verification
+
+| Phase | Capability | Path | Action | Change and preservation | Verification/status |
+|---|---|---|---|---|---|
+| 1B-B4 | ENT-005; ENT-006 | `backend/src/ai/tests/test_connected_source_capacity_integration_db.py` | ADD | Exercises the existing authenticated onboarding connector route with 12 concurrent requests against one remaining active `OWN_SYSTEM_CONNECTOR` slot, using real PostgreSQL and the restricted application role. Asserts one success and 11 CAPACITY_REACHED rejections, no failed-attempt source rows, tenant isolation, and unchanged subscription, usage, and credit records. An active CSV_UPLOAD remains outside the connected-source count. Does not change the existing source-counting contract. | Fresh disposable PostgreSQL 17.11 on localhost:55441; pre-migration identity/empty-schema check passed; existing migrations 1–88 applied; restricted-role preflight PASS; focused native test — 1 passed. B4 Compose project, temporary credentials, and isolated Python environment were removed. |
+| 1B-B4 | DOCS-001 | `docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md` | MODIFY | Corrects B3 commit status and records B4 scope and actual native evidence. | git diff --check PASS; B4 changes remain uncommitted. |
 ## Current upstream reconciliation (local merge commit recorded)
 
 Worktree: `C:\Users\Mohamamd-P\Desktop\Mahmoud\Orange Summer Challenge\KEEL\CEOPRO-AI-reconcile`; branch `reconcile/keel-origin-main-20261020`. Local merge commit `47f2f1bed3623179ce506d934de9403924d814ff` has first parent `d98bdedf4ee86173dce5e543cd70aadca2debb4f` and second parent `81ac008d6f1288ec4bbf9c8996bc80222f76ef2c`; common ancestor is `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. The original nine integration commits and all 33 upstream commits remain reachable.
