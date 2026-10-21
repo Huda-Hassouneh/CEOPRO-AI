@@ -835,12 +835,24 @@ EVIDENCE_SUMMARY_CHARS = 220
 EVIDENCE_MODE_MAX_RELEVANT = 5
 
 
+def _stems(text: str) -> set:
+    """_content_words with a plural folded into its singular ("competitors" matches "competitor"); used to rank
+    evidence-mode items, not to admit retrieved chunks."""
+    return {w[:-1] if w.endswith("s") and len(w) > 4 else w for w in _content_words(text)}
+
+
+def _shorten(text: str) -> str:
+    return text if len(text) <= EVIDENCE_SUMMARY_CHARS else text[:EVIDENCE_SUMMARY_CHARS].rsplit(" ", 1)[0] + " …"
+
+
 def _best_sentence(question: str, text: str) -> str:
-    """The sentence of `text` sharing most words with `question` (the first one when none do), kept short."""
-    sentences = [s.strip() for s in _SENTENCE_END.split(text or "") if s.strip()] or [(text or "").strip()]
-    wanted = _content_words(question)
-    best = max(sentences, key=lambda s: len(wanted & _content_words(s)))  # max keeps the first on a tie
-    return best if len(best) <= EVIDENCE_SUMMARY_CHARS else best[:EVIDENCE_SUMMARY_CHARS].rsplit(" ", 1)[0] + " …"
+    """The sentence of `text` sharing most words with `question`, kept short. When none shares a word (a
+    question in another language) a single sentence may be only a title, so the start of the text is used."""
+    text = " ".join((text or "").split())  # text read from a PDF breaks lines mid-sentence
+    sentences = [s for s in _SENTENCE_END.split(text) if s] or [text]
+    wanted = _stems(question)
+    best = max(sentences, key=lambda s: len(wanted & _stems(s)))  # max keeps the first on a tie
+    return _shorten(best if wanted & _stems(best) else text)
 
 
 def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "evidence_mode",
@@ -850,8 +862,8 @@ def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "ev
     priority = {ev.PRODUCT_GUIDE: 0, ev.CALCULATION: 1, ev.COMPANY_RECORD: 2, ev.COMPANY_DOCUMENT: 3, ev.WEB_PAGE: 4,
                 ev.COMPANY_SUMMARY: 5, ev.USER_INPUT: 9}
     rank = lambda i: -1 if (i.data or {}).get("summary") else priority.get(i.kind, 6)  # noqa: E731
-    wanted = _content_words(question)
-    overlap = lambda i: len(wanted & _content_words(f"{i.title} {i.excerpt}"))  # noqa: E731
+    wanted = _stems(question)
+    overlap = lambda i: len(wanted & _stems(f"{i.title} {i.excerpt}"))  # noqa: E731
     ranked = sorted((i for i in registry.items() if i.kind != ev.USER_INPUT), key=rank)
     # Passages already matched to this question keep room among the 8: a
     # question matching no topic brings every record section, which would
@@ -859,15 +871,24 @@ def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "ev
     documents = [i for i in ranked if i.kind == ev.COMPANY_DOCUMENT][:3]
     others = [i for i in ranked if i.kind != ev.COMPANY_DOCUMENT][:8 - len(documents)]
     items = sorted(documents + others, key=lambda i: (-overlap(i), rank(i)))
-    if any(overlap(i) for i in items):
+    shares = any(overlap(i) for i in items)
+    if shares:
         # Items that share nothing with the question only bury the one that answers it (a supplier agreement
-        # under a leave question). When no item shares a word - an Arabic question about English records -
-        # none can be told apart, so all stay.
+        # under a leave question).
         items = [i for i in items if overlap(i)][:EVIDENCE_MODE_MAX_RELEVANT]
-    claims = [[citations.Claim(text=f"{item.title}: {item.excerpt[:400]}", kind=citations.FACT, evidence=[item.id])]
+    elif wanted:
+        # No item shares a word (an Arabic question about English records), so words cannot rank them. A
+        # document was matched to the question by meaning before it got here; the record sections were not, so
+        # they are shown only when there is no such document.
+        matched = [i for i in items if i.kind == ev.COMPANY_DOCUMENT]
+        items = matched[:EVIDENCE_MODE_MAX_RELEVANT] or items
+    claims = [[citations.Claim(text=f"{item.title}: {' '.join(item.excerpt.split())[:400]}", kind=citations.FACT, evidence=[item.id])]
               for item in items]
-    summary = ([citations.Claim(text=_best_sentence(question, items[0].excerpt), kind=citations.FACT,
-                                evidence=[items[0].id])] if items else [])
+    # A summary only when the top item is known to answer the question (it shares words with it, or retrieval
+    # matched that document to it); a confident but unrelated line is worse than none.
+    top = items[0] if items and wanted and (shares or items[0].kind == ev.COMPANY_DOCUMENT) else None
+    summary = ([citations.Claim(text=_best_sentence(question, top.excerpt), kind=citations.FACT, evidence=[top.id])]
+               if top else [])
     return citations.Draft(blocks=[
         {"type": "paragraph", "claims": [citations.Claim(text=_LEADS[lead][language], kind=citations.GENERAL,
                                                          evidence=[])]},
