@@ -96,6 +96,8 @@ Expected result in brackets (this is the behaviour PR #74 guarantees).
 
 ## Known gotchas
 
+- Run the backend suite with the CI environment from `pr-checks.yml` only (`env -i ...`), not with `backend/.env` sourced: the dev file makes about 280 tests fail (429 rate limits, extra keys).
+- Groq's free tier allows 200,000 tokens per day; a full QA session can use it up. The 429 shows as evidence mode with `provider_busy`.
 - zsh treats `<name>` as a redirect: placeholders in copied commands must be replaced by real values, including the angle brackets.
 - The `ruff` default ruleset reports about 120 findings on these files; the repo has no ruff configuration and CI does not run it. Check `--select F` only.
 - The ledger status after a settled call is `consumed`, not `settled`.

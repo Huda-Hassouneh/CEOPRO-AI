@@ -50,6 +50,10 @@ logger = logging.getLogger("KEEL_ADVISOR")
 MAX_TOKENS = int(os.getenv("ADVISOR_MAX_TOKENS", "1500"))
 # A compact prompt, for providers whose per-request ceiling (e.g. a free
 # tier's tokens per minute) the full one exceeds.
+# Earlier turns sent with a question (user + assistant messages) and evidence records sent when the
+# question names no business need: more costs tokens on every call without improving the answer.
+HISTORY_MESSAGES = int(os.getenv("ADVISOR_HISTORY_MESSAGES", "6"))
+GENERAL_ITEMS = int(os.getenv("ADVISOR_GENERAL_ITEMS", "12"))
 COMPACT_ITEMS, COMPACT_EXCERPT_CHARS, COMPACT_MAX_TOKENS = 24, 350, 1100
 U = understanding
 
@@ -117,6 +121,10 @@ _WORDS = {
     "summary_limit": ("a generated summary; the live records are the exact figures",
                       "ملخص مُولّد؛ الأرقام الدقيقة في السجلات الحية"),
     "product_title": ("Product: {name}", "المنتج: {name}"),
+    "catalogue_title": ("Your product catalogue", "كتالوج منتجاتك"),
+    "catalogue_line": ("You have {count} products: {items}{more}.", "لديك {count} منتجاً: {items}{more}."),
+    "catalogue_more": (" (and {rest} more)", " (و{rest} أخرى)"),
+    "same_source": ("(same source as above)", "(المصدر نفسه أعلاه)"),
     "selling_price": ("selling price {value} {currency}", "سعر البيع {value} {currency}"),
     "cost_price": ("recorded cost price {value} {currency}", "سعر التكلفة المسجّل {value} {currency}"),
     "reviews_title": ("Customer reviews: overview", "تقييمات الزبائن: نظرة عامة"),
@@ -403,6 +411,26 @@ def _analysis(conn, tenant_id: str, u: understanding.Understanding, access: acl.
         added += len(registry.add_fact_lines(text.splitlines(), route=route, capabilities=capabilities,
                                              observed_at=datetime.now(timezone.utc)))
     return added
+
+
+CATALOGUE_NAMES = 40
+
+
+def _catalogue_record(u: understanding.Understanding, catalog: List[dict], access: acl.Access,
+                      registry: ev.EvidenceRegistry, language: str = "en") -> int:
+    """The catalogue itself - how many products, and which - so that "how many
+    products do I have" is answered from the records and not guessed."""
+    if not catalog or U.PRODUCTS not in u.intents:
+        return 0
+    shown = catalog[:CATALOGUE_NAMES]
+    items = "; ".join(
+        p["name"] + (f" {p['price']} {p['currency']}" if p["price"] is not None else "") for p in shown)
+    more = _w("catalogue_more", language, rest=len(catalog) - len(shown)) if len(catalog) > len(shown) else ""
+    registry.add(ev.COMPANY_RECORD, _w("catalogue_title", language),
+                 _w("catalogue_line", language, count=len(catalog), items=items, more=more),
+                 ev.COMPANY, ev.OBSERVED, route="/products", capabilities=frozenset({acl.CATALOG}),
+                 observed_at=datetime.now(timezone.utc))
+    return 1
 
 
 def _product_records(u: understanding.Understanding, catalog: List[dict], access: acl.Access,
@@ -708,10 +736,21 @@ def _prompt(question: str, u: understanding.Understanding, company: dict, access
                  ev.COMPANY_DOCUMENT: 5, ev.COMPANY_SUMMARY: 6}
         keep = {item.id for item in sorted(items, key=lambda i: (order.get(i.kind, 7), int(i.id[1:])))[:COMPACT_ITEMS]}
         items = [item for item in items if item.id in keep]
+    elif not u.intents and len(items) > GENERAL_ITEMS:
+        # No business need was recognised (small talk, an off-topic or hostile message): a few records
+        # are enough to orient the answer; sending every section only costs tokens.
+        keep = {item.id for item in items[:GENERAL_ITEMS]}
+        items = [item for item in items if item.id in keep]
     limit = COMPACT_EXCERPT_CHARS if compact else None
-    evidence_text = "\n\n".join(
-        item.prompt_block(limit) if item.kind in (ev.COMPANY_RECORD, ev.CALCULATION, ev.PRODUCT_GUIDE)
-        else untrusted.neutralize(item.prompt_block(limit)) for item in items)
+    blocks, seen_titles = [], set()
+    for item in items:
+        # Records of one list repeat a long title: say it once, the model still sees which source each is.
+        repeat = item.title in seen_titles and len(item.title) > 40
+        seen_titles.add(item.title)
+        text = item.prompt_block(limit, title=_w("same_source", _language(question)) if repeat else None)
+        blocks.append(text if item.kind in (ev.COMPANY_RECORD, ev.CALCULATION, ev.PRODUCT_GUIDE)
+                      else untrusted.neutralize(text))
+    evidence_text = "\n\n".join(blocks)
     lines.append("Evidence:\n" + (evidence_text or "(none)"))
     if statuses:
         lines.append("Evidence status:\n" + "\n".join(
@@ -730,7 +769,7 @@ def _messages(question: str, u: understanding.Understanding, company: dict, acce
               registry: ev.EvidenceRegistry, statuses: List[dict], history: Optional[list], compact: bool) -> list:
     turns = _history_messages(history)
     return [{"role": "system", "content": f"{llm_client.SYSTEM_PROMPT}\n\n{citations.DRAFT_CONTRACT}"},
-            *(turns[-4:] if compact else turns),
+            *(turns[-4:] if compact else turns[-HISTORY_MESSAGES:]),
             {"role": "user", "content": _prompt(question, u, company, access, registry, statuses, compact)}]
 
 
@@ -817,6 +856,11 @@ def _legacy_sources(references: List[dict]) -> List[dict]:
     return out
 
 
+_FORMAT_RETRY = ("Your reply had no usable claims (a heading alone is not an answer). Reply again with only the JSON "
+                 "object: at least one paragraph, list or table block whose claims cite evidence ids. If the "
+                 "evidence does not establish what was asked, say so in an \"unknown\" claim and say what would.")
+
+
 def _draft(question: str, u: understanding.Understanding, company: dict, access: acl.Access,
            registry: ev.EvidenceRegistry, statuses: List[dict], history: Optional[list], usage: dict,
            regulatory: bool, language: str):
@@ -836,11 +880,13 @@ def _draft(question: str, u: understanding.Understanding, company: dict, access:
     if draft is None:
         try:
             raw = _call(messages + [{"role": "assistant", "content": raw[:3000]},
-                                    {"role": "user", "content": "Reply again with only the JSON object in the "
-                                                                "required format."}], usage, budget)
+                                    {"role": "user", "content": _FORMAT_RETRY}], usage, budget)
             draft = citations.parse_draft(raw)
         except llm_client.LLMError as err:
             logger.info("format retry failed: %s", type(err).__name__)
+    if draft is None and raw.lstrip().startswith("{"):
+        # JSON that carries no claim (a heading only): showing it as text would print the JSON itself.
+        return _evidence_mode(registry, language, lead="unverifiable"), "unverifiable", 0, False
     if draft is None:
         return _fallback_draft(raw, registry, language), "unlinked", 0, False
     draft, issues = citations.validate(draft, registry, user_text=question, regulatory=regulatory)
@@ -905,6 +951,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         if not u.public_scope:  # "the average water price" needs no sales or price-gap records
             company_found += _fact_sections(conn, tenant_id, u, access, registry, statuses)
             company_found += _analysis(conn, tenant_id, u, access, registry)
+        company_found += _catalogue_record(u, catalog, access, registry, language)
         products = _product_records(u, catalog, access, registry, language)
         company_found += len(products)
         company_found += _reviews(conn, tenant_id, u, access, registry, statuses, language)
