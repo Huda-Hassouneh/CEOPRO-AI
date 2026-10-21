@@ -259,7 +259,11 @@ def run_due_api_connector_syncs(conn, tenant_id: str) -> list:
                 conn, tenant_id, intent["receipt_id"], f"api-connector-{uuid.uuid4()}",
             )
             result = sync_api_connector_source(conn, tenant_id, due["source_id"], receipt)
-            operation_receipts.finish(conn, receipt, "completed")
+            if result["rows_partial"] or result["rows_failed"]:
+                operation_receipts.finish(conn, receipt, "failed", "CONNECTOR_ROWS_NOT_FULLY_PROCESSED")
+                result["error"] = "Connector synchronization completed with partial or failed rows."
+            else:
+                operation_receipts.finish(conn, receipt, "completed")
             results.append(result)
         except Exception as e:  # noqa: BLE001 - one source's failure must not stop the batch
             if receipt is not None:
