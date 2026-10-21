@@ -103,7 +103,7 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
 
 
 def set_source_credentials(
-    conn, tenant_id: str, source_id: str, credentials: dict, kms=None,
+    conn, tenant_id: str, source_id: str, credentials: dict, kms=None, *, commit: bool = True,
 ) -> None:
     """
     Writes connection_credentials_vault - the real replacement for a raw
@@ -134,7 +134,8 @@ def set_source_credentials(
                 "source not found for this tenant - create it first with "
                 "`python -m src.market_scraper.policy_cli register-source`"
             )
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def load_scrape_targets(conn, tenant_id: str, source_id: str) -> list[dict]:
@@ -600,6 +601,7 @@ def list_tenant_competitors_by_proximity(
 def register_self_service_data_source(
     conn, tenant_id: str, actor_user_id: str, source_name: str, collector_key: str,
     collector_config: dict, credentials: Optional[dict] = None, sync_frequency_minutes: Optional[int] = None,
+    *, source_url: Optional[str] = None, commit: bool = True,
 ) -> str:
     """
     The onboarding flow's real INSERT - the one missing piece between the
@@ -634,20 +636,20 @@ def register_self_service_data_source(
             """
             INSERT INTO data_sources
                 (source_id, tenant_id, source_name, source_type, collector_key, collector_config,
-                 policy_status, is_active, approval_reference, approved_by, approved_at,
+                 source_url, policy_status, is_active, approval_reference, approved_by, approved_at,
                  privacy_reviewed_at, sync_frequency_minutes)
-            VALUES (%s, %s, %s, 'OWN_SYSTEM_CONNECTOR', %s, %s::jsonb, 'ALLOWED', TRUE,
+            VALUES (%s, %s, %s, 'OWN_SYSTEM_CONNECTOR', %s, %s::jsonb, %s, 'ALLOWED', TRUE,
                     %s, %s, NOW(), NOW(), %s);
             """,
             (
-                source_id, tenant_id, source_name, collector_key, json.dumps(collector_config),
+                source_id, tenant_id, source_name, collector_key, json.dumps(collector_config), source_url,
                 "Self-service connection to the tenant's own business system", actor_user_id,
                 sync_frequency_minutes,
             ),
         )
     if credentials:
-        set_source_credentials(conn, tenant_id, source_id, credentials)  # commits
-    else:
+        set_source_credentials(conn, tenant_id, source_id, credentials, commit=False)
+    if commit:
         conn.commit()
     return source_id
 

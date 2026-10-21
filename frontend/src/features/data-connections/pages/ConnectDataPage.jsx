@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Database, Download, FileText, Plug, Plus, RefreshCw, Unplug } from 'lucide-react';
+import { Check, Database, Download, FileText, Plug, Plus, RefreshCw, ShoppingBag, Store, Unplug } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
 import Button from '../../../shared/components/ui/Button.jsx';
@@ -14,6 +14,7 @@ import { ingestionApi } from '../../data-ingestion/api/ingestionApi.js';
 import { summarizeImport } from '../../data-ingestion/utils/importSummary.js';
 import { ImportDraftsPanel } from '../../data-ingestion/components/ImportDraftsPanel.jsx';
 import { ConnectSystemForm } from '../components/ConnectSystemForm.jsx';
+import { ConnectStoreForm } from '../components/ConnectStoreForm.jsx';
 import { ApexButton, Pill } from '../../../shared/components/apex/Apex.jsx';
 import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge.jsx';
 import { CustomerReviewsSection } from '../components/CustomerReviewsSection.jsx';
@@ -28,6 +29,8 @@ const ADD_OPTIONS = [
   { kind: 'documents', icon: FileText },
   { kind: 'api', icon: Plug },
   { kind: 'database', icon: Database },
+  { kind: 'woocommerce', icon: ShoppingBag },
+  { kind: 'shopify', icon: Store },
 ];
 
 export function ConnectDataPage() {
@@ -41,11 +44,42 @@ export function ConnectDataPage() {
   const [busySource, setBusySource] = useState(null);
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState(null);
+  const shopifyFinishStarted = useRef(false);
   const uploadRef = useRef(null);
   const number = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }), [locale]);
   const localize = (value) => value && typeof value === 'object' ? value[locale] || value.en : value;
   const formatDate = (value) => date.format(new Date(value));
+
+  useEffect(() => {
+    const query = new URLSearchParams(globalThis.location.search);
+    if (query.get('shopify') === 'error') {
+      globalThis.history.replaceState(null, '', globalThis.location.pathname);
+      setNotice({ variant: 'error', message: t('connectData.store.callbackFailed') });
+      return;
+    }
+    const callback = new URLSearchParams(globalThis.location.hash.slice(1));
+    const ticket = callback.get('shopify_ticket');
+    if (!ticket) return;
+    const state = callback.get('shopify_state');
+    // Remove the short-lived ticket from browser history before sending it to
+    // the authenticated finish endpoint.
+    globalThis.history.replaceState(null, '', `${globalThis.location.pathname}${globalThis.location.search}`);
+    if (!state || shopifyFinishStarted.current) {
+      setNotice({ variant: 'error', message: t('connectData.store.finishFailed') });
+      return;
+    }
+    shopifyFinishStarted.current = true;
+    dataConnectionsApi.completeShopifyConnect(ticket).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['data-connections'] });
+      setNotice({ variant: 'success', message: t('connectData.store.connected') });
+    }).catch((error) => {
+      const status = error?.response?.status;
+      setNotice({ variant: 'error', message: status === 401 ? t('connectData.store.sessionExpired')
+        : status === 403 ? t('connectData.system.adminOnly')
+          : status === 409 ? t('connectData.store.conflict') : t('connectData.store.finishFailed') });
+    });
+  }, [queryClient, t]);
 
   const goToUpload = () => {
     setAddOpen(false);
@@ -134,10 +168,10 @@ export function ConnectDataPage() {
         <ul className="connected-systems">
           {data.connectedSources.map((source) => (
             <li key={source.source_id}>
-              <span className="connected-systems__icon" aria-hidden="true">{source.kind === 'database' ? <Database size={18} /> : <Plug size={18} />}</span>
+              <span className="connected-systems__icon" aria-hidden="true">{source.kind === 'database' ? <Database size={18} /> : source.kind === 'woocommerce' ? <ShoppingBag size={18} /> : source.kind === 'shopify' ? <Store size={18} /> : <Plug size={18} />}</span>
               <div>
                 <strong>{source.name}</strong>
-                <span className="apex-muted">{t(`connectData.system.kind.${source.kind}`)} · {t(`connectData.system.every.${[15, 60, 360, 1440].includes(source.sync_frequency_minutes) ? source.sync_frequency_minutes : 1440}`)}</span>
+                <span className="apex-muted">{t(source.kind === 'woocommerce' || source.kind === 'shopify' ? `connectData.store.${source.kind}` : `connectData.system.kind.${source.kind}`)} · {t(`connectData.system.every.${[15, 60, 360, 1440].includes(source.sync_frequency_minutes) ? source.sync_frequency_minutes : 1440}`)}</span>
                 <span className="apex-muted">{source.last_synced_at ? t('connectData.system.lastSynced', { date: formatDate(source.last_synced_at) }) : t('connectData.system.notSyncedYet')}
                   {source.last_run && ` · ${t('connectData.system.lastRun', { rows: number.format(source.last_run.rows_processed || 0) })}`}</span>
               </div>
@@ -169,16 +203,17 @@ export function ConnectDataPage() {
 
     <CustomerReviewsSection t={t} locale={locale} />
 
-    <Modal isOpen={addOpen} onClose={closeAdd} title={connectKind ? t(`connectData.system.${connectKind}Title`) : t('connectData.add.title')} closeLabel={t('common.close')} maxWidth="760px">
-      {connectKind ? <ConnectSystemForm kind={connectKind} t={t} onDone={connected} onCancel={() => setConnectKind(null)} /> : (
+    <Modal isOpen={addOpen} onClose={closeAdd} title={connectKind ? t(connectKind === 'woocommerce' || connectKind === 'shopify' ? `connectData.store.${connectKind}Title` : `connectData.system.${connectKind}Title`) : t('connectData.add.title')} closeLabel={t('common.close')} maxWidth="760px">
+      {connectKind === 'woocommerce' || connectKind === 'shopify' ? <ConnectStoreForm provider={connectKind} t={t} onDone={connected} onCancel={() => setConnectKind(null)} />
+        : connectKind ? <ConnectSystemForm kind={connectKind} t={t} onDone={connected} onCancel={() => setConnectKind(null)} /> : (
         <>
           <p className="connect-data-modal-copy">{t('connectData.add.subtitle')}</p>
           <div className="connect-options">
             {ADD_OPTIONS.map(({ kind, icon: Icon }) => (
               <button key={kind} type="button" className="connect-option" onClick={() => chooseOption(kind)}>
                 <Icon size={22} aria-hidden="true" />
-                <strong>{t(`connectData.options.${kind}.title`)}</strong>
-                <span>{t(`connectData.options.${kind}.description`)}</span>
+                <strong>{t(kind === 'woocommerce' || kind === 'shopify' ? `connectData.store.options.${kind}.title` : `connectData.options.${kind}.title`)}</strong>
+                <span>{t(kind === 'woocommerce' || kind === 'shopify' ? `connectData.store.options.${kind}.description` : `connectData.options.${kind}.description`)}</span>
               </button>
             ))}
           </div>
