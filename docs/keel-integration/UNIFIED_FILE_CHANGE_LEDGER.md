@@ -1030,3 +1030,77 @@ Phase 5B remains **PARTIAL, not production-ready** because O-MPI numeric/source 
 Earlier phase gates remain tracked: Phase 1B entitlement/Credit decisions; Phase 2 catalog history, promotion activation, custom-offer economics/activation, platform financial operations and durable notifications; Phase 3 typed import identity/inventory ownership and connector canonical promotion; Phase 4 provider registration/synchronization/privacy. Phase 5A still has O-PRICE, U5, U1?U4, idempotent result-link/history and pricing front-end/release gates. Phase 6 native concurrency, security, migration compatibility, provider/browser/operational verification remains outstanding.
 
 A consolidated production-gap completion stage can begin before Phase 6 if it keeps policy-dependent operations gated, records approvals without rewriting ADR history, and separates development fixes from release-only tests. This recommendation does not declare any earlier phase complete or authorize Phase 6 release/go-live.
+
+
+## Consolidated production completion review - 2026-10-21
+
+This bounded reconciliation uses the current owner instruction, supplied source-precedence and approved decision package, original acceptance IDs, current Python source, and existing ledger/evidence. It is not a repeat architecture audit. No tests or production changes were made.
+
+Baseline verified: integration/keel-full-migration at 4b8e8f5a8f0a244713dd08563e8beddd0ef681da. Tracked/index/untracked changes were absent before this entry; the sandbox could not enumerate .pytest_cache. The migration runner sees 93 SQL files through 20261028000500_custom_offer_lifecycle.sql. Migrations 1-93 remain unchanged. OPEN_GAPS_AND_RELEASE_BLOCKERS.md is an initial Phase 0 snapshot; dated implementation entries in this ledger supersede its old state claims.
+
+The 125-row acceptance matrix and IDs/assertions were reviewed and preserved. This review ran no tests and does not relabel results. Per-batch outcomes remain in their dated entries. Remote refresh failed because fetch could not write shared FETCH_HEAD and ls-remote could not reach the configured proxy. Last local origin/main is c8c4b77ae5a9ec7a77ed105256fa5316aa09fa90; comparison may be stale. No upstream code was integrated.
+
+### Current gap matrix
+
+| Requirements | Current implementation/evidence | Remaining production gap |
+|---|---|---|
+| ENT-001-011; CREDIT-001-006 | Python rights, receipt/cache freshness, storage and selected credit paths have focused/native evidence. | ENT-007 crash/MinIO verification; remaining accounting/reservation cases, compatible mappings/source classification and rollout. |
+| SUB-001-014 | Python billing/Stripe authority preserved; SUB-005 and selected webhook-order fixes tested. | Immutable catalog/right snapshots and administration; remaining read-model/UI and provider recovery cases. |
+| PROMO-001-005 | Migration 92 lifecycle/reservation/redemption exists and remains inactive. | Approved campaign terms/activation, UI, live Stripe reconciliation and reversal policy. |
+| CUSTOM-001-013 | Migration 93 quote lifecycle exists; acceptance alone grants no access. | Economics, authorized administration, checkout/activation, offer dispatch and UI. |
+| PLATFORM-001-005 | Phase 1A authority reused; notification false-send correction recorded. | Actor-bound financial executor, durable notification delivery/recovery and native role/UI verification. |
+| IMPORT-001-012 | Extraction, sales promotion, ambiguity hold and partial status exist with focused evidence. | Typed invoice/inventory drafts, ownership, grouped order/invoice reconciliation, external revisions, crash recovery and restricted-role/RLS verification. |
+| CONNECT-001-006 | Generic DB/API registration, vault, scheduler, receipts, fencing and staging tested. | Canonical promotion remains gated; provider expansion and persistent-source classification remain open. |
+| STORE/WOO/SHOP | Generic paths and read-only Woo/Shopify clients/signature helpers exist. | Verified registration/reconnect, credential lifecycle, durable checkpoints/webhook attribution, workers, identity-preserving staging, order/inventory reconciliation and Shopify privacy receipts/fences. |
+| PRICE-001-008 | Python inference/guardrails/evidence reused; confidence validation correction tested. | Access/metering, durable request/result identity/history, approved source freshness and UI. |
+| MPI-001-010 | Three scopes, subject/provenance checks and empty-evidence UNKNOWN behavior tested. | Low-sample suppression, source/freshness/per-scope decisions, history if needed and UI. |
+
+Original acceptance rows retain detailed per-requirement statuses; these family summaries do not assert production readiness.
+
+### Coordinated migration sequence - proposals only
+
+No identifier is reserved and no DDL is created. The existing runner sorts SQL filenames; after each approval, reconcile actual current DDL, populated disposable pg_catalog, composite keys, RLS, grants and function patterns. Extend existing data_sources, import_staging_rows, ingestion_jobs, keel_operation_receipts, evidence_records, recommendation_outcomes and notification_digests where safe.
+
+1. Provider lifecycle/checkpoints/delivery receipts for STORE, CONNECT, WOO, SHOP: tenant/source-bound provider identity/version, verified state, per-stream cursor and delivery identity/status; composite tenant/source keys, FORCE RLS, narrow audited writes, no raw payloads/tokens. U6/O-SOURCE/O-PROVIDER gate identity, reconnect, counting and provider auth. Test duplicate registration/delivery, rotation/disconnect fencing, cursor replay and RLS.
+2. Source external identities and typed import review for IMPORT/STORE/WOO/SHOP: provider-scoped product/variant/order/line IDs and revisions; immutable typed draft/review rows only if current staging cannot express the contract; unresolved state retained, canonical links only after explicit review. O-IMPORT/O-SOURCE gate precedence/ownership. Test cross-tenant IDs, mixed-validity rows, revision immutability, review auth and rollback.
+3. Inventory and grouped invoice/order reconciliation for IMPORT-006/007 and STORE-006/007: location/source provenance linked to inventory.warehouse_location and provider records linked to existing transactions/invoices/invoice_items, never a second ledger. O-IMPORT/O-SOURCE/provider refund/status contracts gate writes. Test repeated revisions, ownership, mirrors and no duplicate revenue/stock effect.
+4. Shopify privacy receipt/reimport fence for SHOP-008/PRIVACY-001: minimum request identity/status/source evidence; no raw PII or deletion action. Requires source identity and legal field/retention/fence decisions. Test signed attribution, duplicate requests, fence and no unapproved deletion.
+5. Immutable catalog history for SUB-001/PLATFORM-003: append-only catalog/plan/feature/Stripe mapping snapshots; no backfill or new values. U5/O-CATALOG select cohort/effective-date rules. Test retired-price resolution and unchanged terms.
+6. General notification outbox and separate platform financial execution receipts for PLATFORM-004/005: idempotency, delivery unknown/reconciliation state and fenced claims; actor-bound allowlisted financial action only. Exclude CUSTOM-009 pending its approval. AUTH-002 and retry/retention/recipient terms gate implementation.
+7. Pricing/MPI operation history for PRICE-006/008, MPI-009/010: extend existing receipts/evidence with target, request fingerprint and result link, no new queue/accounting engine. O-PRICE/O-MPI govern outputs; U5/U1-U4 govern access/charging.
+
+These are dependency groups, not final schemas or an assumed migration 94. No migration, data operation or database execution occurred. Any SECURITY DEFINER write function must use trusted transaction-local tenant/actor context, hardened search_path and explicit grants.
+
+### Consolidated owner decisions
+
+Approved directions remain binding: Python is sole authority; preserve existing rights/accounting; mixed gains/losses at period boundary; promotion finality on qualifying settlement; quote acceptance alone grants no access; ambiguous imports are held; source-owned stock is protected; unreliable MPI numeric output is suppressed under an approved policy.
+
+- O-IMPORT/O-SOURCE: choose source-scoped provider IDs plus reviewed cross-source mapping, named source priority, or staging-only. Recommend scoped IDs and review/hold conflicts. Unlocks canonical product/order/invoice/inventory writes.
+- U6: approve verified store identity, reconnect reuse, duplicate/disabled/uninstalled counting and capacity impact. Recommend no merge/reclassification/access change before impact review. Unlocks registration/reconnect and scheduling.
+- O-PROVIDER: select app/auth model, least-privilege scopes, order history/test-order/refund contract. Unlocks OAuth/token lifecycle and provider operation.
+- PRIVACY-001: approve jurisdiction, fields, retention/exceptions, reimport key and irreversible-action authority. Recommend receipt/manual review first. Unlocks privacy processing.
+- U5/O-CATALOG: approve rights mapping, historical cohort/backfill, snapshot/effective date and new values. Recommend future-only absent approved cohort. Unlocks catalog history/admin and new rights.
+- U1-U4/ACCOUNTING-001: per operation specify units, reservation/settlement, partial/uncertain outcomes, remedy limits and provider-cost treatment. Recommend preserve current Python terms until signed. Needed before new billable activation.
+- U7/O-MANUAL: decide exceptional Stripe/manual precedence, expiry and reconciliation. Recommend hold conflicts. Needed before exceptional grants.
+- O-PROMO: approve campaign terms and Stripe mapping; keep managed campaigns off until complete.
+- O-ECON: approve cost source, margin/floor/rounding, FX and quote validity; keep quotes non-activatable.
+- O-PRICE: approve source freshness, FX freshness, newest-invalid and guardrail conflict rules.
+- O-MPI: approve minimum/cap/order, freshness/source and per-scope reliability plus API-compatible UNKNOWN/null; recommend per-scope rules and null score after compatibility review.
+- AUTH-002/notifications/CUSTOM-009: approve Owner/Admin operation matrix, limits, delivery retry/unknown/retention and offer-send architecture before execution or dispatch.
+
+These are recommendations, not approvals. Preserve original ADR history.
+
+### Next batches and Phase 6 entry
+
+1. Approve shared source/provider identity and lifecycle; implement registration/checkpoint/replay once.
+2. Approve typed import/external identity; implement reviewed drafts and only then safe promotion.
+3. Approve inventory ownership/location; implement protected stock updates.
+4. Approve privacy field/fence rules; implement durable receipts and authorized processing.
+5. Approve immutable catalog history.
+6. Approve AUTH-002/notification semantics; implement separate finance executor and outbox.
+7. Approve commercial terms/U7; complete quote/campaign activation while default-off.
+8. Approve U1-U4; add feature-specific accounting and shared pricing/MPI request history.
+9. Approve O-PRICE/O-MPI/U5; complete eligibility and compatible result contracts without algorithm changes.
+10. Then request separate Phase 6 integrated native/provider/browser/security/recovery/operations and owner go/no-go.
+
+No independent policy-free production defect was demonstrated in reviewed evidence that can be fixed without new schema, commercial/accounting terms, identity/ownership rules or security authority. No code correction, test, migration or commit was made. Phase 6 entry is NOT RECOMMENDED yet: store identity/checkpoint/webhook persistence, typed reviewable imports, canonical order/inventory reconciliation, privacy receipts, durable notifications and authorized financial execution remain absent. Integrated release verification should follow these dependency batches. Phases 1-5 are not declared complete.
