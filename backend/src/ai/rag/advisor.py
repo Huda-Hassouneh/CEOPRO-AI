@@ -830,24 +830,49 @@ def _fallback_draft(text: str, registry: ev.EvidenceRegistry, language: str) -> 
     return citations.Draft(blocks=[{"type": "paragraph", "claims": claims}])
 
 
-def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "evidence_mode") -> citations.Draft:
+_SENTENCE_END = re.compile(r"(?<=[.!?؟])\s+")
+EVIDENCE_SUMMARY_CHARS = 220
+EVIDENCE_MODE_MAX_RELEVANT = 5
+
+
+def _best_sentence(question: str, text: str) -> str:
+    """The sentence of `text` sharing most words with `question` (the first one when none do), kept short."""
+    sentences = [s.strip() for s in _SENTENCE_END.split(text or "") if s.strip()] or [(text or "").strip()]
+    wanted = _content_words(question)
+    best = max(sentences, key=lambda s: len(wanted & _content_words(s)))  # max keeps the first on a tie
+    return best if len(best) <= EVIDENCE_SUMMARY_CHARS else best[:EVIDENCE_SUMMARY_CHARS].rsplit(" ", 1)[0] + " …"
+
+
+def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "evidence_mode",
+                   question: str = "") -> citations.Draft:
+    """No model wrote this answer: the best-matching evidence is the summary (one sentence), and the
+    evidence behind it follows, most relevant first."""
     priority = {ev.PRODUCT_GUIDE: 0, ev.CALCULATION: 1, ev.COMPANY_RECORD: 2, ev.COMPANY_DOCUMENT: 3, ev.WEB_PAGE: 4,
                 ev.COMPANY_SUMMARY: 5, ev.USER_INPUT: 9}
     rank = lambda i: -1 if (i.data or {}).get("summary") else priority.get(i.kind, 6)  # noqa: E731
+    wanted = _content_words(question)
+    overlap = lambda i: len(wanted & _content_words(f"{i.title} {i.excerpt}"))  # noqa: E731
     ranked = sorted((i for i in registry.items() if i.kind != ev.USER_INPUT), key=rank)
     # Passages already matched to this question keep room among the 8: a
     # question matching no topic brings every record section, which would
     # otherwise crowd out the one document that answers it.
     documents = [i for i in ranked if i.kind == ev.COMPANY_DOCUMENT][:3]
     others = [i for i in ranked if i.kind != ev.COMPANY_DOCUMENT][:8 - len(documents)]
-    items = sorted(documents + others, key=rank)
+    items = sorted(documents + others, key=lambda i: (-overlap(i), rank(i)))
+    if any(overlap(i) for i in items):
+        # Items that share nothing with the question only bury the one that answers it (a supplier agreement
+        # under a leave question). When no item shares a word - an Arabic question about English records -
+        # none can be told apart, so all stay.
+        items = [i for i in items if overlap(i)][:EVIDENCE_MODE_MAX_RELEVANT]
     claims = [[citations.Claim(text=f"{item.title}: {item.excerpt[:400]}", kind=citations.FACT, evidence=[item.id])]
               for item in items]
+    summary = ([citations.Claim(text=_best_sentence(question, items[0].excerpt), kind=citations.FACT,
+                                evidence=[items[0].id])] if items else [])
     return citations.Draft(blocks=[
         {"type": "paragraph", "claims": [citations.Claim(text=_LEADS[lead][language], kind=citations.GENERAL,
                                                          evidence=[])]},
         *([{"type": "list", "ordered": False, "items": claims}] if claims else []),
-    ])
+    ], summary=summary)
 
 
 def _legacy_sources(references: List[dict]) -> List[dict]:
@@ -891,7 +916,7 @@ def _draft(question: str, u: understanding.Understanding, company: dict, access:
             logger.info("format retry failed: %s", type(err).__name__)
     if draft is None and raw.lstrip().startswith("{"):
         # JSON that carries no claim (a heading only): showing it as text would print the JSON itself.
-        return _evidence_mode(registry, language, lead="unverifiable"), "unverifiable", 0, False
+        return _evidence_mode(registry, language, lead="unverifiable", question=question), "unverifiable", 0, False
     if draft is None:
         return _fallback_draft(raw, registry, language), "unlinked", 0, False
     draft, issues = citations.validate(draft, registry, user_text=question, regulatory=regulatory)
@@ -996,7 +1021,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         if not len(registry):
             raise
         logger.warning("Assistant answered in evidence mode (tenant=%s): %s", tenant_id, err)
-        draft, mode = _evidence_mode(registry, language), "evidence"
+        draft, mode = _evidence_mode(registry, language, question=question), "evidence"
         reason = ("not_configured" if isinstance(err, llm_client.LLMNotConfiguredError)
                   else "provider_busy" if isinstance(err, (llm_client.LLMRateLimitError,
                                                            llm_client.LLMRequestTooLargeError))
@@ -1006,12 +1031,12 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     registry.localize_titles(language)
     if not any(block["type"] != "heading" for block in draft.blocks):
         # Every claim failed its check: show what was found instead of an empty reply.
-        draft, mode = _evidence_mode(registry, language, lead="unverifiable"), "unverifiable"
+        draft, mode = _evidence_mode(registry, language, lead="unverifiable", question=question), "unverifiable"
     rendered = citations.render(draft, registry, always=[calculation["evidence_id"]] if calculation else [])
     if calculation:
         calculation["ref"] = rendered["numbering"].get(calculation["evidence_id"])
     return {
-        "answer": rendered["answer"], "answer_blocks": rendered["blocks"], "references": rendered["references"],
+        "answer": rendered["answer"], "answer_summary": rendered["summary"], "answer_blocks": rendered["blocks"], "references": rendered["references"],
         "sources": _legacy_sources(rendered["references"]), "follow_up_questions": rendered["follow_up_questions"],
         "calculations": [calculation] if calculation else [], "evidence_status": statuses,
         "research": research_result.summary() if research_result else None, "state": u.state(),
