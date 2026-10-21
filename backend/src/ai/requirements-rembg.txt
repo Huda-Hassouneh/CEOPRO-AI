@@ -1,0 +1,10 @@
+# OPT-IN extra (installed ON TOP OF requirements.txt minus its Pillow line -
+# Dockerfile.ai does this; a plain `pip install -r` of both files conflicts on Pillow) for MARKETING_BACKGROUND_REMOVAL_PROVIDER=rembg. Not part of the
+# default install. Build with: docker build --build-arg INSTALL_REMBG=true ...
+#
+# rembg pins pillow<13, so this variant necessarily runs the newest Pillow 12.x
+# (which still has advisories fixed only in 13.0 - see PENDING_ACTIONS.md).
+# Only enable it on a plan with enough RAM (see MARKETING_AI_CAPABILITIES.md)
+# and drop the Pillow line the day rembg supports Pillow 13.
+Pillow>=12.3,<13.0
+rembg>=2.0.75,<3.0

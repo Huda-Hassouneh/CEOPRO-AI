@@ -35,13 +35,13 @@ def test_remove_background_not_configured_for_unknown_provider():
     assert exc.value.status == "NOT_CONFIGURED"
 
 
-def test_remove_background_rejects_empty_image():
+def test_remove_background_rejects_empty_image(rembg_installed):
     with pytest.raises(BackgroundRemovalError) as exc:
         remove_background(b"", provider="rembg")
     assert exc.value.status == "PROVIDER_ERROR"
 
 
-def test_remove_background_rejects_oversized_image(monkeypatch):
+def test_remove_background_rejects_oversized_image(monkeypatch, rembg_installed):
     # _MAX_IMAGE_BYTES is read from its env var at import time (same
     # convention as every other size-limit constant in this feature, e.g.
     # routers/marketing.py's own _MAX_IMAGE_BYTES) - patch the already-
@@ -56,7 +56,15 @@ def test_remove_background_rejects_oversized_image(monkeypatch):
 
 # --- rembg provider ---------------------------------------------------
 
-def test_rembg_success_returns_processed_image():
+@pytest.fixture
+def rembg_installed():
+    """The default build does not ship rembg (opt-in extra), so tests that
+    mock the provider call must not depend on whether it is installed."""
+    with patch("src.ai.marketing.background_removal._rembg_installed", return_value=True):
+        yield
+
+
+def test_rembg_success_returns_processed_image(rembg_installed):
     with patch("src.ai.marketing.background_removal._remove_via_rembg", return_value=_FAKE_PROCESSED_BYTES) as mock_remove:
         result = remove_background(_FAKE_SOURCE_BYTES, provider="rembg")
 
@@ -67,7 +75,7 @@ def test_rembg_success_returns_processed_image():
     mock_remove.assert_called_once_with(_FAKE_SOURCE_BYTES)
 
 
-def test_rembg_model_failure_raises_provider_error():
+def test_rembg_model_failure_raises_provider_error(rembg_installed):
     with patch("src.ai.marketing.background_removal._remove_via_rembg", side_effect=RuntimeError("corrupt image data")):
         with pytest.raises(BackgroundRemovalError) as exc:
             remove_background(_FAKE_SOURCE_BYTES, provider="rembg")
@@ -84,7 +92,24 @@ def test_capability_not_configured_by_default(monkeypatch):
     assert "not configured" in capability["reason"].lower()
 
 
-def test_capability_available_for_rembg(monkeypatch):
+def test_capability_unavailable_when_rembg_not_installed(monkeypatch):
+    monkeypatch.setenv("MARKETING_BACKGROUND_REMOVAL_PROVIDER", "rembg")
+    with patch("src.ai.marketing.background_removal._rembg_installed", return_value=False):
+        capability = get_background_removal_capability()
+    assert capability["available"] is False
+    assert capability["provider"] == "rembg"
+    assert "not installed" in capability["reason"]
+
+
+def test_remove_background_not_configured_when_rembg_not_installed():
+    with patch("src.ai.marketing.background_removal._rembg_installed", return_value=False):
+        with pytest.raises(BackgroundRemovalError) as exc:
+            remove_background(_FAKE_SOURCE_BYTES, provider="rembg")
+    assert exc.value.status == "NOT_CONFIGURED"
+    assert "not installed" in exc.value.message
+
+
+def test_capability_available_for_rembg(monkeypatch, rembg_installed):
     monkeypatch.setenv("MARKETING_BACKGROUND_REMOVAL_PROVIDER", "rembg")
     assert get_background_removal_capability() == {"available": True, "provider": "rembg", "reason": None}
 
