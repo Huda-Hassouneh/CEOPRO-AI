@@ -381,6 +381,7 @@ def finish_ingestion_job(
     conn, tenant_id: str, job_id: str, status: str, processed: int,
     failed: int, error=None, quarantined: int = 0, receipt: dict | None = None,
     receipt_allow_pre_provider: bool = False,
+    provider_checkpoint: dict | None = None,
 ):
     if receipt is not None:
         from src.ai.core import operation_receipts
@@ -407,6 +408,25 @@ def finish_ingestion_job(
             """,
             (tenant_id, job_id),
         )
+        if provider_checkpoint is not None and status == "COMPLETED":
+            # The checkpoint and successful job state share this transaction.
+            # The database function also verifies the receipt lease generation,
+            # source configuration version, and completed ingestion job.
+            from src.market_scraper.provider_lifecycle import advance_completed_checkpoint
+
+            advance_completed_checkpoint(
+                conn,
+                tenant_id=tenant_id,
+                source_id=provider_checkpoint["source_id"],
+                stream_key=provider_checkpoint["stream_key"],
+                continuation=provider_checkpoint["continuation"],
+                receipt=receipt or {},
+                job_id=job_id,
+                configuration_version=provider_checkpoint["configuration_version"],
+                job_completed=True,
+                rows_failed=failed,
+                rows_partial=provider_checkpoint.get("rows_partial", 0),
+            )
     conn.commit()
 
 
