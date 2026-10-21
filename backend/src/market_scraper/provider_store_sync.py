@@ -103,7 +103,11 @@ def sync_shopify_stream(conn, tenant_id: str, source: dict, stream: str, receipt
             "ps.configuration_version FROM public.keel_provider_sources ps "
             "JOIN public.data_sources ds ON ds.tenant_id=ps.tenant_id AND ds.source_id=ps.source_id "
             "WHERE ps.tenant_id=%s::uuid AND ps.source_id=%s::uuid "
-            "AND ds.is_active IS TRUE AND ds.policy_status='ALLOWED' FOR SHARE OF ps,ds;",
+            # ceopro_app is intentionally SELECT-only on M94 provider bindings.
+            # Lock the mutable data-source row (which owns active/config/credential
+            # fencing) and read the provider binding without requesting table-write
+            # privileges just to obtain a row lock on the SELECT-only evidence table.
+            "AND ds.is_active IS TRUE AND ds.policy_status='ALLOWED' FOR SHARE OF ds;",
             (tenant_id, source["source_id"]),
         )
         current_binding = cursor.fetchone()
@@ -178,6 +182,111 @@ def sync_shopify_stream(conn, tenant_id: str, source: dict, stream: str, receipt
     }
 
 
+def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
+                        client_factory: Callable = ShopifyGraphQLClient) -> dict:
+    """Synchronize all Shopify streams under one source receipt and job.
+
+    ENT-008 authorizes one active operation per source, not per stream. Keeping
+    all three reads under that receipt prevents a failed stream's retryable
+    receipt/job from being accidentally reused and completed by the next stream.
+    The evidence writes, job completion, and all full-scan checkpoints commit
+    together; a failure leaves the existing checkpoint set untouched.
+    """
+    loaded = data_access.load_source(conn, tenant_id, source["source_id"])
+    if loaded is None or loaded.get("collector_key") != SHOPIFY_COLLECTOR_KEY:
+        raise operation_receipts.ReceiptAuthorizationError("Shopify source is inactive or no longer approved")
+    receipt["source_execution_fingerprint"] = loaded["source_execution_fingerprint"]
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT ps.provider,ps.verified_store_id,ps.verified_store_domain,ps.connection_state, "
+            "ps.configuration_version FROM public.keel_provider_sources ps "
+            "JOIN public.data_sources ds ON ds.tenant_id=ps.tenant_id AND ds.source_id=ps.source_id "
+            "WHERE ps.tenant_id=%s::uuid AND ps.source_id=%s::uuid "
+            "AND ds.is_active IS TRUE AND ds.policy_status='ALLOWED' FOR SHARE OF ds;",
+            (tenant_id, source["source_id"]),
+        )
+        current_binding = cursor.fetchone()
+    if (not current_binding or current_binding[0] != "shopify"
+            or current_binding[3] != "verified"
+            or str(current_binding[1]) != source["verified_store_id"]
+            or current_binding[2] != source["verified_store_domain"]
+            or int(current_binding[4]) != int(source["configuration_version"])):
+        raise operation_receipts.ReceiptAuthorizationError("Shopify source verification changed before sync")
+
+    job_id = data_access.create_or_reuse_receipt_ingestion_job(
+        conn, tenant_id, source["source_id"], receipt, replay_safe_provider_read=True,
+    )
+    try:
+        operation_receipts.begin_provider(conn, receipt)
+        client = _client_for(source, loaded, client_factory)
+        verification = client.verify_connection()
+        if verification.get("verified") is not True or (
+            verification.get("shop_id") != source["verified_store_id"]
+            or verification.get("shop_domain") != source["verified_store_domain"]
+        ):
+            raise ShopifyError("shop_mismatch", "Authenticated Shopify identity differs from the verified source")
+        records_by_stream = {stream: _stream_records(client, stream) for stream in _STREAMS}
+    except operation_receipts.ReceiptSourceChanged:
+        data_access.fail_source_changed_ingestion_job(conn, tenant_id, receipt)
+        raise
+    except Exception as exc:
+        try:
+            data_access.finish_ingestion_job(
+                conn, tenant_id, job_id, status="FAILED", processed=0, failed=0,
+                error=safe_connector_error(exc, "Shopify provider read"), receipt=receipt,
+            )
+        except Exception:
+            conn.rollback()
+        raise
+
+    fenced = operation_receipts.FencedConnection(conn, receipt)
+    stream_results: dict[str, int] = {}
+    checkpoints = []
+    try:
+        for stream, records in records_by_stream.items():
+            if stream in {"products", "orders"}:
+                persisted = persist_shopify_records(
+                    fenced, source["source_id"], records, ingestion_job_id=job_id,
+                )
+            else:
+                persisted = persist_shopify_inventory_records(
+                    fenced, source["source_id"], records, ingestion_job_id=job_id,
+                    receipt_id=receipt["receipt_id"],
+                )
+            stream_results[stream] = len(persisted)
+            checkpoints.append({
+                "source_id": source["source_id"], "stream_key": stream,
+                # The adapter consumes bounded cursors internally. This marks a
+                # completed full scan; it is not an incremental-resume cursor.
+                "continuation": {},
+                "configuration_version": int(source["configuration_version"]),
+            })
+        data_access.finish_ingestion_job(
+            conn, tenant_id, job_id, status="COMPLETED",
+            processed=sum(stream_results.values()), failed=0, error=None,
+            receipt=receipt, provider_checkpoints=checkpoints,
+        )
+    except operation_receipts.ReceiptSourceChanged:
+        conn.rollback()
+        data_access.fail_source_changed_ingestion_job(conn, tenant_id, receipt)
+        raise
+    except Exception as exc:
+        conn.rollback()
+        data_access.finish_ingestion_job(
+            conn, tenant_id, job_id, status="FAILED", processed=0, failed=0,
+            error=safe_connector_error(exc, "Shopify evidence persistence"), receipt=receipt,
+        )
+        raise
+
+    return {
+        "source_id": source["source_id"], "job_id": job_id,
+        "stream_results": stream_results,
+        "records_persisted": sum(stream_results.values()),
+        "checkpoint_advanced": True, "full_scan": True,
+        "canonical_promotion": False,
+    }
+
+
 def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = ShopifyGraphQLClient) -> list[dict]:
     """Run due preverified Shopify streams; report unsupported Woo binding closed."""
     service_actor = os.getenv("SCRAPER_ACTOR_USER_ID", "").strip()
@@ -194,33 +303,32 @@ def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = S
             results.append({"source_id": source["source_id"], "provider": "shopify",
                             "blocked": "verified_provider_source_binding_required"})
             continue
-        for stream in _STREAMS:
-            receipt = None
-            try:
-                intent = operation_receipts.create_or_get_operation(
-                    conn, operation_receipts.SCHEDULED_CONNECTOR_SYNC, tenant_id, "source",
-                    source["source_id"], service_actor, "service", {},
-                )
-                receipt = operation_receipts.claim(
-                    conn, tenant_id, intent["receipt_id"], f"shopify-sync-{uuid.uuid4()}",
-                )
-                result = sync_shopify_stream(conn, tenant_id, source, stream, receipt, client_factory=client_factory)
-                operation_receipts.finish(conn, receipt, "completed")
-                result["provider"] = "shopify"
-                results.append(result)
-            except Exception as exc:  # isolate stream/source failures without masking them
-                if receipt is not None:
-                    try:
-                        changed = isinstance(exc, operation_receipts.ReceiptSourceChanged)
-                        operation_receipts.finish(
-                            conn, receipt, "failed" if changed else "retryable",
-                            "SOURCE_CONFIGURATION_CHANGED" if changed else "SHOPIFY_READ_SYNC_FAILED",
-                            replay_safe_provider_read=not changed,
-                        )
-                    except operation_receipts.ReceiptError:
-                        conn.rollback()
-                logger.warning("Shopify sync failed source_id=%s stream=%s error_type=%s",
-                               source["source_id"], stream, type(exc).__name__)
-                results.append({"source_id": source["source_id"], "provider": "shopify",
-                                "stream": stream, "error": safe_connector_error(exc, "Shopify synchronization")})
+        receipt = None
+        try:
+            intent = operation_receipts.create_or_get_operation(
+                conn, operation_receipts.SCHEDULED_CONNECTOR_SYNC, tenant_id, "source",
+                source["source_id"], service_actor, "service", {},
+            )
+            receipt = operation_receipts.claim(
+                conn, tenant_id, intent["receipt_id"], f"shopify-sync-{uuid.uuid4()}",
+            )
+            result = sync_shopify_source(conn, tenant_id, source, receipt, client_factory=client_factory)
+            operation_receipts.finish(conn, receipt, "completed")
+            result["provider"] = "shopify"
+            results.append(result)
+        except Exception as exc:  # isolate one provider source without masking others
+            if receipt is not None:
+                try:
+                    changed = isinstance(exc, operation_receipts.ReceiptSourceChanged)
+                    operation_receipts.finish(
+                        conn, receipt, "failed" if changed else "retryable",
+                        "SOURCE_CONFIGURATION_CHANGED" if changed else "SHOPIFY_READ_SYNC_FAILED",
+                        replay_safe_provider_read=not changed,
+                    )
+                except operation_receipts.ReceiptError:
+                    conn.rollback()
+            logger.warning("Shopify sync failed source_id=%s error_type=%s",
+                           source["source_id"], type(exc).__name__)
+            results.append({"source_id": source["source_id"], "provider": "shopify",
+                            "error": safe_connector_error(exc, "Shopify synchronization")})
     return results

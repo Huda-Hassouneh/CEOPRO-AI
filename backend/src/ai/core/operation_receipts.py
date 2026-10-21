@@ -544,7 +544,7 @@ def recover_expired(conn, tenant_id: str) -> dict[str, int]:
             "WHERE ds.tenant_id=keel_operation_receipts.tenant_id "
             "AND ds.source_id=keel_operation_receipts.target_id AND ds.is_active IS TRUE "
             "AND ds.policy_status='ALLOWED' AND ds.collector_key='shopify' "
-            "AND ps.provider='shopify' AND ps.connection_state='verified'));",
+            "AND ps.provider='shopify' AND ps.connection_state='verified');",
             (tenant_id, SCHEDULED_CONNECTOR_SYNC),
         )
         retryable += cursor.rowcount

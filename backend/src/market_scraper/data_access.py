@@ -409,7 +409,10 @@ def finish_ingestion_job(
     failed: int, error=None, quarantined: int = 0, receipt: dict | None = None,
     receipt_allow_pre_provider: bool = False,
     provider_checkpoint: dict | None = None,
+    provider_checkpoints: list[dict] | None = None,
 ):
+    if provider_checkpoint is not None and provider_checkpoints is not None:
+        raise ValueError("use one provider checkpoint argument")
     if receipt is not None:
         from src.ai.core import operation_receipts
         operation_receipts.assert_fence(
@@ -435,25 +438,29 @@ def finish_ingestion_job(
             """,
             (tenant_id, job_id),
         )
-        if provider_checkpoint is not None and status == "COMPLETED":
+        checkpoints = provider_checkpoints if provider_checkpoints is not None else (
+            [provider_checkpoint] if provider_checkpoint is not None else []
+        )
+        if checkpoints and status == "COMPLETED":
             # The checkpoint and successful job state share this transaction.
             # The database function also verifies the receipt lease generation,
             # source configuration version, and completed ingestion job.
             from src.market_scraper.provider_lifecycle import advance_completed_checkpoint
 
-            advance_completed_checkpoint(
-                conn,
-                tenant_id=tenant_id,
-                source_id=provider_checkpoint["source_id"],
-                stream_key=provider_checkpoint["stream_key"],
-                continuation=provider_checkpoint["continuation"],
-                receipt=receipt or {},
-                job_id=job_id,
-                configuration_version=provider_checkpoint["configuration_version"],
-                job_completed=True,
-                rows_failed=failed,
-                rows_partial=provider_checkpoint.get("rows_partial", 0),
-            )
+            for checkpoint in checkpoints:
+                advance_completed_checkpoint(
+                    conn,
+                    tenant_id=tenant_id,
+                    source_id=checkpoint["source_id"],
+                    stream_key=checkpoint["stream_key"],
+                    continuation=checkpoint["continuation"],
+                    receipt=receipt or {},
+                    job_id=job_id,
+                    configuration_version=checkpoint["configuration_version"],
+                    job_completed=True,
+                    rows_failed=failed,
+                    rows_partial=checkpoint.get("rows_partial", 0),
+                )
     conn.commit()
 
 
