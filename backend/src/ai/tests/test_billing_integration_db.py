@@ -112,6 +112,34 @@ def test_the_catalog_lists_self_serve_plans_with_prices_and_limits(sys_conn):
         assert {"market_intelligence", "demand_prediction", "competitor_management"} <= set(plans[plan_key]["entitlements"])
 
 
+def test_retired_stripe_price_remains_resolvable_but_is_not_sold(sys_conn, stripe_prices):
+    historical_price = stripe_prices[("growth", "monthly")]
+    with sys_conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE billing_plan_prices SET retired_at = CURRENT_TIMESTAMP "
+            "WHERE plan_key = 'growth' AND period_code = 'monthly' AND stripe_price_id = %s;",
+            (historical_price,),
+        )
+    sys_conn.commit()
+    try:
+        assert store.resolve_price(sys_conn, historical_price) == ("growth", "monthly")
+        current = {
+            price["period_code"]
+            for plan in store.catalog(sys_conn)
+            if plan["plan_key"] == "growth"
+            for price in plan["prices"]
+        }
+        assert "monthly" not in current
+    finally:
+        with sys_conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE billing_plan_prices SET retired_at = NULL "
+                "WHERE plan_key = 'growth' AND period_code = 'monthly' AND stripe_price_id = %s;",
+                (historical_price,),
+            )
+        sys_conn.commit()
+
+
 def test_a_company_gets_the_free_trial_once(sys_conn):
     tenant = _company(sys_conn)
     first = store.start_trial(sys_conn, tenant)
@@ -284,6 +312,60 @@ def test_a_failed_renewal_records_the_payment_and_removes_access(client, sys_con
     assert (plan["plan_key"], plan["status"]) == ("starter", "past_due")
     payments = store.payments(sys_conn, tenant)
     assert payments[0]["status"] == "failed" and payments[0]["amount"] == 49.0
+
+
+def test_delayed_payment_failure_cannot_downgrade_a_paid_invoice(client, sys_conn, stripe_prices, monkeypatch):
+    tenant = _company(sys_conn)
+    sub_id, customer = f"sub_{uuid.uuid4().hex[:10]}", f"cus_{uuid.uuid4().hex[:10]}"
+    store.save_customer(sys_conn, tenant, customer)
+    sys_conn.commit()
+    monkeypatch.setattr(
+        stripe_api,
+        "retrieve_subscription",
+        lambda sid: _stripe_sub(sub_id, customer, stripe_prices[("starter", "monthly")]),
+    )
+    invoice = {
+        "id": f"in_{uuid.uuid4().hex[:10]}", "object": "invoice", "subscription": sub_id,
+        "customer": customer, "status": "paid", "paid": True, "amount_due": 4900,
+        "amount_paid": 4900, "currency": "usd", "hosted_invoice_url": "https://invoice.stripe.com/i/paid",
+        "status_transitions": {"paid_at": int(time.time())},
+    }
+    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda invoice_id: invoice)
+
+    for event_type in ("invoice.payment_succeeded", "invoice.payment_failed"):
+        payload = json.dumps(_event(event_type, {**invoice, "status": "open" if event_type.endswith("failed") else "paid"})).encode()
+        response = client.post("/billing/webhook", content=payload, headers={"Stripe-Signature": _signed(payload)})
+        assert response.status_code == 200, response.text
+
+    payments = store.payments(sys_conn, tenant)
+    assert len(payments) == 1
+    assert payments[0]["status"] == "succeeded"
+    assert payments[0]["amount"] == 49.0
+
+
+def test_terminal_event_for_old_subscription_does_not_disable_replacement(
+    client, sys_conn, stripe_prices, monkeypatch
+):
+    tenant = _company(sys_conn)
+    customer = f"cus_{uuid.uuid4().hex[:10]}"
+    old_id, new_id = f"sub_{uuid.uuid4().hex[:10]}", f"sub_{uuid.uuid4().hex[:10]}"
+    store.save_customer(sys_conn, tenant, customer)
+    old = _stripe_sub(old_id, customer, stripe_prices[("starter", "monthly")])
+    new = _stripe_sub(new_id, customer, stripe_prices[("growth", "monthly")])
+    store.apply_subscription(sys_conn, tenant, old, "starter", "monthly", datetime.now(timezone.utc))
+    canceled_old = _stripe_sub(old_id, customer, stripe_prices[("starter", "monthly")], status="canceled")
+    store.apply_subscription(sys_conn, tenant, canceled_old, "starter", "monthly", datetime.now(timezone.utc))
+    store.apply_subscription(sys_conn, tenant, new, "growth", "monthly", datetime.now(timezone.utc))
+    sys_conn.commit()
+
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: canceled_old if sid == old_id else new)
+    payload = json.dumps(_event("customer.subscription.deleted", {"id": old_id})).encode()
+    response = client.post("/billing/webhook", content=payload, headers={"Stripe-Signature": _signed(payload)})
+
+    assert response.status_code == 200, response.text
+    plan = usage.get_plan(sys_conn, tenant)
+    assert (plan["plan_key"], plan["status"], plan["source"]) == ("growth", "active", "stripe")
+    assert store.current_subscription(sys_conn, tenant)["stripe_subscription_id"] == new_id
 
 
 def test_an_event_for_an_unknown_company_is_retried_not_dropped(client, stripe_prices, monkeypatch):

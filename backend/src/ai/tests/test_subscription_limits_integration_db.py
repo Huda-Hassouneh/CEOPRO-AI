@@ -251,6 +251,46 @@ def test_one_trial_per_company_and_per_person(sys_conn):
     sys_conn.rollback()
 
 
+def test_concurrent_trial_starts_for_one_person_grant_only_one_trial(sys_conn):
+    person = str(uuid.uuid4())
+    tenants = [str(uuid.uuid4()) for _ in range(8)]
+    with sys_conn.cursor() as cursor:
+        for tenant in tenants:
+            cursor.execute(
+                "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) "
+                "VALUES (%s, 'Concurrent Trial', 'JO', 'JOD');",
+                (tenant,),
+            )
+    sys_conn.commit()
+
+    results = []
+    failures = []
+
+    def start(tenant):
+        conn = psycopg2.connect(DATABASE_URL)
+        try:
+            results.append(store.start_trial(conn, tenant, started_by_user_id=person) is not None)
+            conn.commit()
+        except Exception as exc:  # surface thread failures in the main test
+            conn.rollback()
+            failures.append(exc)
+        finally:
+            conn.close()
+
+    threads = [threading.Thread(target=start, args=(tenant,)) for tenant in tenants]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert not failures
+    assert results.count(True) == 1
+    assert results.count(False) == len(tenants) - 1
+    with sys_conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM billing_trials WHERE started_by_user_id = %s;", (person,))
+        assert cursor.fetchone()[0] == 1
+
+
 def test_the_trial_endpoint_refuses_a_second_trial(client):
     _, headers = _signed_up(client, None)                  # sign-up already started the Plus trial
     again = client.post("/billing/trial", headers=headers, json={"plan_key": "enterprise"})
