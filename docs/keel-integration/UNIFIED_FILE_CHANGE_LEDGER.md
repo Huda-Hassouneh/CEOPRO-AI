@@ -1,8 +1,22 @@
 # KEEL â€” Unified File Change Ledger
 
-Destination: Python/FastAPI main. Node reference strictly read-only. **Phase: 0 (documentation/evidence only).**
+Destination: Python/FastAPI main. Node reference strictly read-only. **Historical phases: 0/1A. B1 incremental changes are recorded below.**
 
 Incoming Git HEAD: `1de393c77dfc6db9d8722d8a611d2384d64d12c0`. Verified clean post-Task-6 commit: **UNAVAILABLE / SOURCE-001 BLOCKED**. Current implementation commit: none created. Frozen byte baseline: evidence/SUPPLIED_CONTENT_HASHES.json; ZIP hashes: INPUT_ARCHIVE_HASHES.json.
+
+
+## Phase 1B B1 — Read-only effective-rights compatibility projection
+
+Base: `b3bc63601049ea91a1caa0f845ff196f519bdf37`; branch `integration/keel-full-migration`. The projection is an internal, pure read model over an already tenant-scoped `usage.get_plan()` result. It performs no database lookup and is not exposed through the billing API.
+
+| Phase | Capability | Path | Action | Change and preservation | Verification/status |
+|---|---|---|---|---|---|
+| 1B-B1 | ENT-001; ENT-002; ENT-011 | `backend/src/ai/core/feature_rights.py` | ADD | Projects established Python code configuration; labels candidate aliases and unsupported mappings without granting; distinguishes absent, disabled, explicit zero, limited and configured unlimited where represented. No enforcement or accounting calls. | Focused projection suite: `py -3.12 -m pytest --noconftest -q -p no:cacheprovider src/ai/tests/test_feature_rights_projection.py` — 9 passed. Initial conftest-enabled attempt errored before tests because optional `minio` is unavailable; isolated retry passed. NOT COMMITTED. |
+| 1B-B1 | ENT-001; ENT-002; ENT-011 | `backend/src/ai/tests/test_feature_rights_projection.py` | ADD | Covers crosswalk coverage/status, supported Python-code basis, state distinctions, plan-status context, unmapped behavior, pure transformation and malformed limits. | Focused suite with `--noconftest`: 9 passed; no database, Redis server, or provider contacted. NOT COMMITTED. |
+| 1B-B1 | ENT-001; ENT-002 | `docs/keel-integration/FEATURE_AND_ENTITLEMENT_CROSSWALK.csv` | MODIFY | Adds B1 mapping status and non-enforcement notes for all 21 Node codes and three Python-only rights; preserves original crosswalk fields. | Crosswalk-to-registry contract test; NOT COMMITTED. |
+| 1B-B1 | ENT-001; ENT-002; DOCS-001 | `docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md` | MODIFY | Records exact B1 files, scope, preservation boundary and test evidence. | Reconciled against the four permitted B1 paths; `git diff --check` PASS. NOT COMMITTED. |
+
+B1 exclusions: no API/frontend change, migration/backfill, grant activation, source-count change, limit/price/trial change, Credit change or adjustment executor. Candidate aliases are informational and do not establish equivalent commercial semantics.
 
 ## Current upstream reconciliation (local merge commit recorded)
 
