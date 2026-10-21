@@ -218,8 +218,17 @@ def send_due(now: Optional[datetime] = None, system_connection=None, tenant_conn
                 continue
             subject, body = compose(items, language if language in _TEXT else "en", company, base_url)
             try:
-                send(email, subject, body)
-                result["sent"] += 1
+                delivered = send(email, subject, body)
+                if delivered is False:
+                    # The configured sender explicitly reports that no send
+                    # was attempted (for example SMTP is not configured).
+                    # Release the claim so a later pass can retry, and never
+                    # report this as delivered.
+                    _release(conn, str(tenant_id), str(user_id), last_sent)
+                    conn.commit()
+                    result["failed"] += 1
+                else:
+                    result["sent"] += 1
             except Exception:  # noqa: BLE001 - release the claim so the next pass retries
                 logger.exception("sending an alert summary failed")
                 _release(conn, str(tenant_id), str(user_id), last_sent)

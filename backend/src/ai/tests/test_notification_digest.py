@@ -114,3 +114,11 @@ def test_a_failed_send_releases_the_claim_for_a_retry():
     result, _, tenant = _run(_row(), send=boom)
     assert result["failed"] == 1
     assert any(sql.startswith("DELETE FROM notification_digests") for sql in tenant.sql)
+
+
+def test_explicit_non_delivery_is_not_reported_as_sent_and_releases_claim():
+    result, sent, tenant = _run(_row(), send=lambda *_: False)
+    assert result["sent"] == 0
+    assert result["failed"] == 1
+    assert sent == []
+    assert any(sql.startswith("DELETE FROM notification_digests") for sql in tenant.sql)
