@@ -1982,8 +1982,10 @@
       "you": "You",
       "generating": "Generating answer...",
       "unavailable": "The assistant could not answer that question right now. Your question was kept in this session - please try again.",
-      "evidenceNote": "Shown without an AI summary — this is the information KEEL found for your question.",
+      "evidenceNote": "Shown without AI writing — this is the information KEEL found for your question.",
       "unverifiedNote": "Parts of this answer could not be checked against the evidence. Treat anything marked as not verified with care.",
+      "showFullAnswer": "Show the full answer",
+      "hideFullAnswer": "Hide the full answer",
       "followUps": "Suggested follow-up questions"
     },
     "composer": {
@@ -2179,6 +2181,7 @@
       "listSeparator": ", "
     },
     "status": {
+      "answerNotConfigured": "The AI writing service isn't set up on this server. Please ask your administrator to enable it.",
       "researchNotConfigured": "Public research isn't set up on this server, so this answer uses only your own data and documents.",
       "researchBudget": "Today's public research allowance is used up, so this answer could not check public sources.",
       "researchFailed": "Public research couldn't be completed right now, so public sources weren't checked.",
