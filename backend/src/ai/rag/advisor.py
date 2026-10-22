@@ -845,6 +845,16 @@ def _shorten(text: str) -> str:
     return text if len(text) <= EVIDENCE_SUMMARY_CHARS else text[:EVIDENCE_SUMMARY_CHARS].rsplit(" ", 1)[0] + " …"
 
 
+def _flag_foreign_summary(summary: Optional[dict], mode: str, language: str) -> Optional[dict]:
+    """An evidence-mode summary is quoted from the source, so it keeps the source's language: an Arabic question
+    about an English document gets an English sentence. Translating it would need the model that is not
+    available in this mode, so the answer says so instead (`note`, which the chat words in the user's language).
+    A model-written summary already follows the question's language."""
+    if summary and mode in ("evidence", "unverifiable") and _language(summary["text"]) != language:
+        return {**summary, "note": "source_language"}
+    return summary
+
+
 def _best_sentence(question: str, text: str) -> str:
     """The sentence of `text` sharing most words with `question`, kept short. When none shares a word (a
     question in another language) a single sentence may be only a title, so the start of the text is used."""
@@ -1056,8 +1066,17 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     rendered = citations.render(draft, registry, always=[calculation["evidence_id"]] if calculation else [])
     if calculation:
         calculation["ref"] = rendered["numbering"].get(calculation["evidence_id"])
+    # One countable line per answer: how often a summary is shown, written by the model or built from the
+    # answer, how often the checks drop the model's, and how often the repair round runs.
+    # An evidence-mode summary is a sentence quoted from the evidence, not written by the model: counting it as
+    # "model" would inflate the share of answers whose summary the model wrote.
+    summary_source = rendered["summary_source"]
+    if summary_source == "model" and mode in ("evidence", "unverifiable"):
+        summary_source = "extractive"
+    logger.info("assistant_answer mode=%s summary=%s dropped=%d issues=%d repaired=%s", mode,
+                summary_source, rendered["summary_dropped"], issue_count, repaired)
     return {
-        "answer": rendered["answer"], "answer_summary": rendered["summary"], "answer_blocks": rendered["blocks"], "references": rendered["references"],
+        "answer": rendered["answer"], "answer_summary": _flag_foreign_summary(rendered["summary"], mode, language), "answer_blocks": rendered["blocks"], "references": rendered["references"],
         "sources": _legacy_sources(rendered["references"]), "follow_up_questions": rendered["follow_up_questions"],
         "calculations": [calculation] if calculation else [], "evidence_status": statuses,
         "research": research_result.summary() if research_result else None, "state": u.state(),

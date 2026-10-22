@@ -18,6 +18,7 @@ import { DataCompleteness } from '../components/DataCompleteness.jsx';
 import { CompetitorComments } from '../components/CompetitorComments.jsx';
 import { useCompetitorDataStatus } from '../hooks/useCompetitorData.js';
 import '../styles/MarketIntelligence.css';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 function reasonText(t, number, reason) {
   switch (reason.code) {
@@ -97,7 +98,7 @@ export function CompetitorProfileDetailPage() {
               <dl className="competitor-facts">
                 {c.address && <div><dt>{t('discovery.detail.address')}</dt><dd dir="auto">{c.address}</dd></div>}
                 {c.phone && <div><dt>{t('discovery.detail.phone')}</dt><dd><a href={`tel:${c.phone.replace(/\s/g, '')}`} dir="ltr"><Phone size={12} aria-hidden="true" /> {c.phone}</a></dd></div>}
-                {c.website_url && <div><dt>{t('market.detail.website')}</dt><dd><a href={c.website_url} target="_blank" rel="noreferrer noopener" dir="ltr">{c.website_url.replace(/^https?:\/\/(www\.)?/, '')} <ExternalLink size={11} aria-hidden="true" /></a></dd></div>}
+                {c.website_url && <div><dt>{t('market.detail.website')}</dt><dd><a href={safeHref(c.website_url)} target="_blank" rel="noreferrer noopener" dir="ltr">{c.website_url.replace(/^https?:\/\/(www\.)?/, '')} <ExternalLink size={11} aria-hidden="true" /></a></dd></div>}
                 {c.categories.length > 0 && <div><dt>{t('discovery.detail.categories')}</dt><dd className="competitor-facts__chips">{c.categories.slice(0, 6).map((cat) => <Pill key={cat}>{cat.replace(/^[a-z]+=/, '').replace(/_/g, ' ')}</Pill>)}</dd></div>}
                 {c.first_seen_at && <div><dt>{t('discovery.detail.firstSeen')}</dt><dd>{date.format(new Date(c.first_seen_at))}</dd></div>}
                 {c.last_seen_at && <div><dt>{t('discovery.detail.lastSeen')}</dt><dd>{date.format(new Date(c.last_seen_at))}</dd></div>}
@@ -123,7 +124,7 @@ export function CompetitorProfileDetailPage() {
                         {s.description && <p className="competitor-source-list__about" dir="auto">{s.description}</p>}
                         <div className="apex-muted">{t('discovery.detail.seen', { date: date.format(new Date(s.last_seen_at)) })}</div>
                       </div>
-                      {s.url && <a className="apex-chip" href={s.url} target="_blank" rel="noreferrer noopener">{t('discovery.detail.open')} <ExternalLink size={11} aria-hidden="true" /></a>}
+                      {s.url && <a className="apex-chip" href={safeHref(s.url)} target="_blank" rel="noreferrer noopener">{t('discovery.detail.open')} <ExternalLink size={11} aria-hidden="true" /></a>}
                     </li>
                   ))}
                 </ul>
@@ -133,7 +134,7 @@ export function CompetitorProfileDetailPage() {
                   <strong>{t('discovery.detail.profiles')}</strong>
                   <div>
                     {c.profiles.map((link) => (
-                      <a key={link} className="apex-chip" href={link} target="_blank" rel="noreferrer noopener">
+                      <a key={link} className="apex-chip" href={safeHref(link)} target="_blank" rel="noreferrer noopener">
                         {profileLabel(link)} <ExternalLink size={11} aria-hidden="true" />
                       </a>
                     ))}

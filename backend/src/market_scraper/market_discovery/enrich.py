@@ -34,7 +34,7 @@ from src.market_scraper.market_discovery import industries
 from src.market_scraper.market_discovery.http import USER_AGENT
 from src.market_scraper.market_discovery.matching import Entity, domain_key
 from src.market_scraper.market_discovery.models import Candidate
-from src.market_scraper.network_security import UnsafeTargetError, resolve_public_addresses
+from src.market_scraper.network_security import UnsafeTargetError, pin_request
 
 logger = logging.getLogger("KEEL_MARKET_DISCOVERY")
 NAME = "website"
@@ -90,8 +90,10 @@ def _safe_get(client: httpx.Client, url: str, max_bytes: Optional[int] = None,
     (or max_bytes, for a menu PDF or image). None when the redirects never end."""
     limit = max_bytes or MAX_BYTES
     for _ in range(MAX_REDIRECTS + 1):
-        resolve_public_addresses(url)
-        with client.stream("GET", url, headers={"User-Agent": USER_AGENT, "Accept": accept}) as response:
+        # Connects to the one address that was checked for this URL, not to the name again.
+        target, pin_headers, pin_extensions = pin_request(url)
+        with client.stream("GET", target, headers={"User-Agent": USER_AGENT, "Accept": accept, **pin_headers},
+                           extensions=pin_extensions) as response:
             if response.is_redirect and response.headers.get("location"):
                 url = urljoin(url, response.headers["location"])
                 continue

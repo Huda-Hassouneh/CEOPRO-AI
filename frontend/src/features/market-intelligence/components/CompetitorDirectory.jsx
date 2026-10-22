@@ -7,6 +7,7 @@ import { ApexButton, Meter, Panel, Pill, StateBlock } from '../../../shared/comp
 import { useDiscoveredCompetitors, useTrackCompetitor } from '../hooks/useDiscovery.js';
 import { useCompetitorOverview } from '../hooks/useCompetitorData.js';
 import { CompetitorDataChips } from './DataCompleteness.jsx';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const STATUSES = ['tracked', 'suggested', 'all'];
 const SORTS = ['relevance', 'distance', 'rating', 'reviews', 'name', 'recent'];
@@ -125,7 +126,7 @@ export function CompetitorDirectory({ pricing = {}, planLimit }) {
                         {c.rating != null && <span><Star size={12} aria-hidden="true" />{number.format(c.rating)}{c.review_count ? ` (${number.format(c.review_count)})` : ''}</span>}
                         {c.branch_count > 1 && <span><Store size={12} aria-hidden="true" />{t('discovery.list.branches', { count: c.branch_count })}</span>}
                         {c.address && <span className="competitor-row__address" dir="auto">{c.address}</span>}
-                        {c.website_url && <a href={c.website_url} target="_blank" rel="noreferrer noopener" dir="ltr"><Globe size={12} aria-hidden="true" />{c.website_url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a>}
+                        {c.website_url && <a href={safeHref(c.website_url)} target="_blank" rel="noreferrer noopener" dir="ltr"><Globe size={12} aria-hidden="true" />{c.website_url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a>}
                       </div>
                       {(c.relationship || websiteSummary(c, t)) && (
                         <div className="competitor-row__evidence">
@@ -140,7 +141,7 @@ export function CompetitorDirectory({ pricing = {}, planLimit }) {
                         {c.is_demo && <Pill tone="warning">{t('discovery.list.demo')}</Pill>}
                         {c.sources.filter((s) => s.source !== 'demo').map((s, index) => (
                           s.url
-                            ? <a key={`${s.source}-${index}`} className="apex-pill apex-pill--neutral" href={s.url} target="_blank" rel="noreferrer noopener">{t(`discovery.sources.${s.source}`)}<ExternalLink size={10} aria-hidden="true" /></a>
+                            ? <a key={`${s.source}-${index}`} className="apex-pill apex-pill--neutral" href={safeHref(s.url)} target="_blank" rel="noreferrer noopener">{t(`discovery.sources.${s.source}`)}<ExternalLink size={10} aria-hidden="true" /></a>
                             : <Pill key={`${s.source}-${index}`}>{t(`discovery.sources.${s.source}`)}</Pill>
                         ))}
                       </div>

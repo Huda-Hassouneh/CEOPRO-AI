@@ -26,7 +26,6 @@ whatever it can't find. The caller (content_generator.py) is expected to
 be honest about what starting information a URL-sourced campaign actually
 had.
 """
-import ipaddress
 import socket
 from dataclasses import dataclass
 from typing import Optional
@@ -35,6 +34,8 @@ from urllib.parse import urljoin, urlparse
 import extruct
 import httpx
 from lxml import html as lxml_html
+
+from src.market_scraper.network_security import is_public_address, pin_request
 
 _REQUEST_TIMEOUT_SECONDS = 10.0
 _MAX_RESPONSE_BYTES = 2 * 1024 * 1024  # 2MB - a product page's HTML, not its assets
@@ -78,12 +79,9 @@ def _assert_url_targets_a_public_host(url: str) -> None:
         raise URLExtractionError(f"Could not resolve host '{hostname}': {err}") from err
 
     for family, _type, _proto, _canonname, sockaddr in resolved:
-        raw_ip = sockaddr[0]
-        ip = ipaddress.ip_address(raw_ip)
-        if (
-            ip.is_private or ip.is_loopback or ip.is_link_local
-            or ip.is_multicast or ip.is_reserved or ip.is_unspecified
-        ):
+        # is_public_address also judges IPv6 forms that carry an IPv4 address (NAT64, 6to4,
+        # IPv4-mapped) and shared/CGNAT ranges, which the old private/loopback checks let through.
+        if not is_public_address(sockaddr[0]):
             raise URLExtractionError(f"URL host '{hostname}' resolves to a non-public address and cannot be fetched.")
 
 
@@ -213,7 +211,10 @@ def extract_product_info_from_url(url: str, timeout: float = _REQUEST_TIMEOUT_SE
         with httpx.Client(timeout=timeout, follow_redirects=False, verify=True) as client:
             for _hop in range(_MAX_REDIRECTS + 1):
                 _assert_url_targets_a_public_host(current_url)
-                with client.stream("GET", current_url, headers={"User-Agent": _USER_AGENT}) as response:
+                # Connects to the address that was just checked, so a DNS answer can't change in between.
+                target, pin_headers, pin_extensions = pin_request(current_url)
+                with client.stream("GET", target, headers={"User-Agent": _USER_AGENT, **pin_headers},
+                                   extensions=pin_extensions) as response:
                     if response.is_redirect:
                         location = response.headers.get("location")
                         if not location:

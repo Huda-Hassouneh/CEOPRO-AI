@@ -1,4 +1,5 @@
 import Badge from '../../../shared/components/ui/Badge.jsx';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const STATUS_VARIANT = { ALLOWED: 'light-success', RESTRICTED: 'warning', BLOCKED: 'error' };
 
@@ -21,7 +22,7 @@ export function PendingSourcesTable({ t, rows, onReview }) {
       <tbody>
         {rows.map((row) => <tr key={row.source_id}>
           <td><strong>{row.competitor_name || row.source_name}</strong></td>
-          <td><a href={row.source_url} target="_blank" rel="noreferrer noopener">{row.source_url}</a></td>
+          <td><a href={safeHref(row.source_url)} target="_blank" rel="noreferrer noopener">{row.source_url}</a></td>
           <td><Badge variant={STATUS_VARIANT[row.policy_status] || 'neutral'}>{t(`market.sources.status.${row.policy_status}`)}</Badge></td>
           <td>{row.mapped_product_count}</td>
           <td>{row.created_at ? new Date(row.created_at).toLocaleDateString(document.documentElement.lang || undefined, { dateStyle: 'medium' }) : '-'}</td>

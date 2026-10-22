@@ -29,7 +29,14 @@ from src.market_scraper import data_access, enqueue, source_review
 from src.market_scraper.discovery import CandidateSource, evaluate_candidate, register_tenant_scoped_competitor
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# AI_TEST_REDIS_HOST (also read by test_consumer.py and set by CI) wins over REDIS_URL so the
+# test targets the Redis the run was pointed at; REDIS_URL stays the fallback.
+_TEST_REDIS_HOST = os.getenv("AI_TEST_REDIS_HOST")
+REDIS_URL = (
+    f"redis://{_TEST_REDIS_HOST}:{os.getenv('AI_TEST_REDIS_PORT', '6379')}/0"
+    if _TEST_REDIS_HOST
+    else os.getenv("REDIS_URL", "redis://localhost:6379/0")
+)
 
 pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AI_TEST_DATABASE_URL not set - skipping live-DB integration test")
 

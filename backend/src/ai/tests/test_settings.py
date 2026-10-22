@@ -492,7 +492,9 @@ def test_change_password_accepts_the_right_current_password_and_commits():
             json={"current_password": "correct horse battery staple", "new_password": "Str0ng!Passw0rd"},
         )
     assert response.status_code == 200
-    assert response.json() == {"ok": True}
+    body = response.json()
+    assert body["ok"] is True
+    assert body["access_token"]  # the current session continues on a fresh token; every other one is signed out
     conn.commit.assert_called_once()
 
 

@@ -64,6 +64,11 @@ def email_verification_required() -> bool:
     return notifications.is_configured()
 
 
+# The fixed identity the background workers run as (migration
+# 20260928000000_fix_service_actor_tenant_context.sql).
+SERVICE_ACTOR_USER_ID = "00000000-0000-0000-0000-000000000000"
+
+
 class TenantContext:
     def __init__(self, tenant_id: str, user_id: str):
         self.tenant_id = tenant_id
@@ -85,6 +90,10 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     user_id = claims.get("user_id")
     if not tenant_id or not user_id:
         raise HTTPException(status_code=401, detail="Token is missing tenant_id/user_id claims.")
+    if str(user_id) == SERVICE_ACTOR_USER_ID:
+        # The background workers' identity: get_current_tenant() trusts it for any company, so
+        # no signed-in session may ever carry it, even one signed with the right secret.
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
     if claims.get("jti"):
         # Money routes fail closed: if Redis is down a signed-out token is refused rather than trusted.
         strict = request is not None and request.url.path.startswith(FAIL_CLOSED_PATH_PREFIXES)
@@ -99,15 +108,20 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
         raise HTTPException(status_code=403, detail="Please confirm your email address to continue.",
                             headers={"X-Auth-Reason": EMAIL_VERIFICATION_REASON})
 
+    auth_time = claims.get("auth_time") or (claims.get("exp", 0) - JWT_EXPIRE_MINUTES * 60)
+    if sessions_invalidated_since(user_id) > float(auth_time):
+        raise HTTPException(status_code=401, detail="Your password was changed. Please sign in again.")
+
     ctx = TenantContext(tenant_id=tenant_id, user_id=user_id)
     if request is not None:
         # Lets main.py's write middleware drop this company's cached views.
         request.state.tenant_id = tenant_id
+    ctx.email_verified = claims.get("ev") is True
     ctx.token_id = claims.get("jti")
     ctx.token_expires_at = claims.get("exp")
     # When this sign-in started; renewals keep it. Older tokens didn't carry
     # it, so count from when they were issued.
-    ctx.auth_time = claims.get("auth_time") or (claims.get("exp", 0) - JWT_EXPIRE_MINUTES * 60)
+    ctx.auth_time = auth_time
     return ctx
 
 
@@ -149,7 +163,34 @@ def is_token_revoked(token_id: str, fail_closed: bool = False) -> bool:
         return fail_closed
 
 
-def create_access_token(tenant_id: str, user_id: str, auth_time: "Optional[int]" = None,
+_SESSIONS_VALID_AFTER_PREFIX = "keel:sessions-valid-after:"
+
+
+def invalidate_sessions(user_id: str) -> bool:
+    """Signs this person out everywhere: every token from a sign-in that started before this moment
+    stops working (a sign-in after it, such as the one right after a reset, still works). Times carry
+    fractions of a second, so a token issued in the same second as the change is still refused. Called when the password changes or is reset, so a stolen session can't outlive it.
+    Kept in Redis for as long as any such session could still be renewed (SESSION_MAX_HOURS)."""
+    try:
+        _revocation_store().set(_SESSIONS_VALID_AFTER_PREFIX + str(user_id), repr(datetime.now(timezone.utc).timestamp()),
+                                ex=SESSION_MAX_HOURS * 3600 + 3600)
+        return True
+    except Exception as err:  # noqa: BLE001 - same fail-open policy as revoke_token
+        _security_logger.warning("Could not sign out a user's other sessions: %s", err)
+        return False
+
+
+def sessions_invalidated_since(user_id: str) -> float:
+    """The moment before which sign-ins no longer count (0 when none was recorded)."""
+    try:
+        value = _revocation_store().get(_SESSIONS_VALID_AFTER_PREFIX + str(user_id))
+        return float(value) if value else 0.0
+    except Exception as err:  # noqa: BLE001 - fail open, see the comment above revoke_token
+        _security_logger.warning("Could not check signed-out sessions: %s", err)
+        return 0.0
+
+
+def create_access_token(tenant_id: str, user_id: str, auth_time: "Optional[float]" = None,
                         email_verified: bool = False) -> "tuple[str, int]":
     """
     Returns (token, expires_in_seconds). Claims: tenant_id/user_id (what
@@ -164,7 +205,7 @@ def create_access_token(tenant_id: str, user_id: str, auth_time: "Optional[int]"
     expires_delta = timedelta(minutes=JWT_EXPIRE_MINUTES)
     token = jwt.encode(
         {"tenant_id": str(tenant_id), "user_id": str(user_id), "exp": now + expires_delta,
-         "iat": now, "auth_time": int(auth_time if auth_time is not None else now.timestamp()),
+         "iat": now, "auth_time": float(auth_time if auth_time is not None else now.timestamp()),
          "jti": secrets.token_hex(16), "ev": bool(email_verified), "evr": email_verification_required()},
         _JWT_SECRET, algorithm="HS256",
     )
