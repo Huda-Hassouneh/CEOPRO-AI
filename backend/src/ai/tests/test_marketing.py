@@ -19,6 +19,7 @@ os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
 from src.ai.main import app  # noqa: E402
 from src.ai.marketing.content_generator import ContentVariant, GeneratedCampaign, MarketingGenerationError  # noqa: E402
 from src.ai.marketing.url_extractor import ExtractedProductInfo, URLExtractionError  # noqa: E402
+from src.ai.marketing import image_generation as image_generation_module  # noqa: E402
 
 client = TestClient(app)
 _SECRET = os.environ["JWT_SECRET"]
@@ -344,6 +345,7 @@ def test_marketing_options_reports_image_generation_available_when_configured(mo
 
 def test_marketing_options_reports_background_removal_available_when_configured(monkeypatch):
     monkeypatch.setenv("MARKETING_BACKGROUND_REMOVAL_PROVIDER", "rembg")
+    monkeypatch.setattr("src.ai.marketing.background_removal._rembg_installed", lambda: True)  # opt-in extra, not in the default build
     response = client.get("/marketing/options", headers=_auth())
     assert response.status_code == 200
     assert response.json()["capabilities"]["background_removal"] == {"available": True, "provider": "rembg", "reason": None}
@@ -383,7 +385,10 @@ def test_get_campaign_returns_full_shape():
          patch("src.ai.routers.marketing.data_access.get_campaign", return_value=row):
         response = client.get("/marketing/campaigns/c1", headers=_auth())
     assert response.status_code == 200
-    assert response.json() == row
+    body = response.json()
+    # Plus the prompt the next image starts from (editable in the Studio).
+    assert body.pop("image_prompt_default") == image_generation_module.build_image_prompt(row)
+    assert body == row
 
 
 # --- POST /marketing/campaigns/{id}/image --------------------------------

@@ -6,7 +6,9 @@ import httpClient from '../../../shared/lib/httpClient.js';
 // POST /marketing/campaigns/{id}/generate-image,
 // POST /marketing/campaigns/{id}/remove-background,
 // POST /marketing/campaigns/{id}/reference-selection,
-// GET /marketing/campaigns/{id}/image?kind=source|processed|generated.
+// GET /marketing/campaigns/{id}/image?kind=source|processed|generated,
+// and the image gallery: GET /marketing/campaigns/{id}/assets,
+// GET|PATCH|DELETE /marketing/campaigns/{id}/assets/{assetId}[/image].
 
 export const marketingApi = {
   getOptions: async () => {
@@ -31,7 +33,7 @@ export const marketingApi = {
   // named theme).
   createCampaign: async ({
     productId, text, url, style, tone, focus, strategyType, variantsPerPlatform,
-    creativeTheme, customCreativePrompt, requestKey, generateImage, language, platforms,
+    creativeTheme, customCreativePrompt, requestKey, generateImage, imageFormat, language, platforms,
   }) => {
     const payload = {
       product_id: productId || undefined,
@@ -48,6 +50,7 @@ export const marketingApi = {
       // Same key for a repeated press -> the same campaign, never a second.
       request_key: requestKey || undefined,
       generate_image: generateImage || undefined,
+      image_format: generateImage && imageFormat ? imageFormat : undefined,
     };
     // The copy is written in the language asked for, which can differ from the screen's.
     const response = await httpClient.post('/marketing/campaigns', payload, language ? { headers: { 'X-App-Language': language } } : undefined);
@@ -82,10 +85,61 @@ export const marketingApi = {
   // the real outcome ('COMPLETED' / 'NOT_CONFIGURED' / 'PROVIDER_ERROR'),
   // never inferred from the HTTP status. See routers/marketing.py's own
   // generate_campaign_image_endpoint() docstring for why.
-  generateImage: async (campaignId) => {
-    const response = await httpClient.post(`/marketing/campaigns/${encodeURIComponent(campaignId)}/generate-image`);
+  // Options (all optional): imageFormat ('SQUARE' | 'PORTRAIT' | 'STORY' |
+  // 'LANDSCAPE' | 'WIDE'), prompt (the owner's edited image prompt), channel,
+  // attach (false keeps the current image and only adds to the gallery).
+  // The response's `asset` is the new gallery entry.
+  generateImage: async (campaignId, { imageFormat, prompt, channel, attach } = {}) => {
+    const payload = {
+      image_format: imageFormat || undefined,
+      prompt: prompt?.trim() ? prompt.trim() : undefined,
+      channel: channel || undefined,
+      attach: attach === false ? false : undefined,
+    };
+    const hasOptions = Object.values(payload).some((v) => v !== undefined);
+    const response = await httpClient.post(
+      `/marketing/campaigns/${encodeURIComponent(campaignId)}/generate-image`,
+      hasOptions ? payload : undefined,
+    );
     return response.data;
   },
+
+  listAssets: async (campaignId) => (await httpClient.get(`/marketing/campaigns/${encodeURIComponent(campaignId)}/assets`)).data,
+
+  getAssetImageBlob: async (campaignId, assetId) => (await httpClient.get(
+    `/marketing/campaigns/${encodeURIComponent(campaignId)}/assets/${encodeURIComponent(assetId)}/image`,
+    { responseType: 'blob' },
+  )).data,
+
+  // { attach: true } makes it the campaign's image; { channel } records where
+  // it will be used; { channel: null } clears that.
+  updateAsset: async (campaignId, assetId, { attach, channel } = {}) => {
+    const payload = {};
+    if (attach) payload.attach = true;
+    if (channel === null) payload.clear_channel = true;
+    else if (channel) payload.channel = channel;
+    return (await httpClient.patch(
+      `/marketing/campaigns/${encodeURIComponent(campaignId)}/assets/${encodeURIComponent(assetId)}`, payload,
+    )).data;
+  },
+
+  // Background batches: formats x variations images made by the image worker.
+  queueImageBatch: async (campaignId, { formats, variations = 1, prompt, channel, attachFirst = false }) => (await httpClient.post(
+    `/marketing/campaigns/${encodeURIComponent(campaignId)}/image-batches`,
+    { formats, variations, prompt: prompt?.trim() ? prompt.trim() : undefined, channel: channel || undefined, attach_first: attachFirst || undefined },
+  )).data,
+
+  listImageJobs: async (campaignId) => (await httpClient.get(`/marketing/campaigns/${encodeURIComponent(campaignId)}/image-jobs`, { params: { limit: 50 } })).data,
+
+  cancelImageJobs: async (campaignId) => (await httpClient.post(`/marketing/campaigns/${encodeURIComponent(campaignId)}/image-jobs/cancel`)).data,
+
+  retryImageJobs: async (campaignId) => (await httpClient.post(`/marketing/campaigns/${encodeURIComponent(campaignId)}/image-jobs/retry`)).data,
+
+  getImageCapacity: async () => (await httpClient.get('/marketing/image-capacity')).data,
+
+  deleteAsset: async (campaignId, assetId) => (await httpClient.delete(
+    `/marketing/campaigns/${encodeURIComponent(campaignId)}/assets/${encodeURIComponent(assetId)}`,
+  )).data,
 
   // Blob + object URL, same pattern as ingestionApi.js::downloadTemplate -
   // goes through this authenticated API (never a direct MinIO URL) so the

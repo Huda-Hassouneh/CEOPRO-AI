@@ -1,14 +1,18 @@
 import httpClient from '../../../shared/lib/httpClient.js';
+import { useAuthStore } from '../../auth/store/authStore.js';
 
 export const securityApi = {
   // The real backend endpoint - backend/src/ai/routers/settings.py's
   // POST /settings/security/change-password (real bcrypt verification of
   // the caller's current password before accepting a new one).
   changePassword: async ({ currentPassword, newPassword } = {}) => {
-    await httpClient.post('/settings/security/change-password', {
+    const response = await httpClient.post('/settings/security/change-password', {
       current_password: currentPassword,
       new_password: newPassword,
     });
+    // Every other session was signed out by the change; this one continues on the fresh token.
+    const accessToken = response?.data?.access_token;
+    if (accessToken) useAuthStore.getState().setAccessToken(accessToken);
     return { changed: true };
   },
 

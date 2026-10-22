@@ -29,13 +29,14 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.ai import db
-from src.ai.core import tenant_cache, usage
+from src.ai.core import permissions, tenant_cache, usage
 from src.ai.core.entitlements import requires
 from src.ai.core.exceptions import register_exception_handlers
+from src.ai.core.body_limit import BodySizeLimitMiddleware
 from src.ai.core.rate_limit import RateLimitMiddleware
 from src.infrastructure.monitoring.error_tracking import init_error_tracking
 from src.infrastructure.request_language import RequestLanguageMiddleware
@@ -91,7 +92,15 @@ if not logging.getLogger().handlers:
 # Before the app exists, so start-up errors are reported too (off without SENTRY_DSN).
 init_error_tracking("api")
 
-app = FastAPI(title="KEEL Service", lifespan=_lifespan)
+# The interactive docs list every endpoint and its parameters; useful in development, a free map for
+# anyone probing a deployed service. API_DOCS_ENABLED=false (render.yaml) turns /docs, /redoc and
+# /openapi.json off; the default keeps them on for local development.
+_DOCS_ENABLED = os.getenv("API_DOCS_ENABLED", "true").strip().lower() not in ("false", "0", "no")
+app = FastAPI(
+    title="KEEL Service", lifespan=_lifespan,
+    docs_url="/docs" if _DOCS_ENABLED else None, redoc_url="/redoc" if _DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if _DOCS_ENABLED else None,
+)
 
 # Comma-separated list of real origins allowed to call this API from a
 # browser - required for the frontend (a separate origin: Vite dev server
@@ -113,6 +122,8 @@ _cors_origins = [
 # before CORS so CORS wraps it: a 429 still carries the CORS headers the
 # browser needs to read it.
 app.add_middleware(RateLimitMiddleware)
+# Added after the rate limiter so it runs first: an oversized body is refused before anything reads it.
+app.add_middleware(BodySizeLimitMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -172,22 +183,22 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(platform.router)
 app.include_router(pricing.router)
-app.include_router(sentiment.router, dependencies=[requires(usage.MARKET_INTELLIGENCE)])
+app.include_router(sentiment.router, dependencies=[requires(usage.MARKET_INTELLIGENCE), Depends(permissions.forbid_read_only_writes)])
 app.include_router(mpi.router, dependencies=[requires(usage.MARKET_INTELLIGENCE)])
 app.include_router(rag.router)
-app.include_router(extraction.router)
+app.include_router(extraction.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
 app.include_router(onboarding.router)
 app.include_router(dashboard.router)
-app.include_router(sales.router)
-app.include_router(competitors.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT)])
-app.include_router(competitor_enrichment.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT)])
-app.include_router(discovery.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT)])
+app.include_router(sales.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
+app.include_router(competitors.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT), Depends(permissions.forbid_read_only_writes)])
+app.include_router(competitor_enrichment.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT), Depends(permissions.forbid_read_only_writes)])
+app.include_router(discovery.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT), Depends(permissions.forbid_read_only_writes)])
 app.include_router(alerts.router)
-app.include_router(products.router)
+app.include_router(products.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
 app.include_router(settings.router)
 app.include_router(operator.router)
-app.include_router(marketing.router)
+app.include_router(marketing.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
 app.include_router(reports.router)
-app.include_router(reviews.router)
+app.include_router(reviews.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
 app.include_router(billing.router)
-app.include_router(forecasting.router, dependencies=[requires(usage.DEMAND_PREDICTION)])
+app.include_router(forecasting.router, dependencies=[requires(usage.DEMAND_PREDICTION), Depends(permissions.forbid_read_only_writes)])

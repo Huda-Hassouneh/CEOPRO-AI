@@ -17,7 +17,8 @@ export function useBillingAction(action) {
     mutationFn: billingApi[action],
     onSuccess: (result) => {
       if (result?.url) {
-        window.location.assign(result.url);
+        // Only an https address is followed: the redirect target comes from the server response.
+        if (/^https:\/\//i.test(result.url)) window.location.assign(result.url);
         return;
       }
       client.invalidateQueries({ queryKey: ['subscription'] });

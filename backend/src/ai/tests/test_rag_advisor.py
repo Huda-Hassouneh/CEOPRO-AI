@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from src.ai.billing import credits
 from src.ai.rag import access as acl
 from src.ai.rag import advisor, citations, llm_client
 from src.ai.rag import evidence as ev
@@ -118,6 +119,28 @@ def test_the_provider_failing_shows_the_evidence_itself(model, monkeypatch):
     assert result["answer_mode"] == "evidence"
     assert {"need": "answer_writing", "status": "provider_busy"} in result["evidence_status"]
     assert result["references"] and result["token_usage"]["total_tokens"] == 0
+
+
+@pytest.mark.parametrize("reason, status", [("COST_NOT_CONFIGURED", "not_configured"),
+                                            ("PROVIDER_DISABLED", "provider_unavailable"),
+                                            ("PROVIDER_CAP_REACHED", "provider_unavailable")])
+def test_a_server_side_credits_refusal_shows_the_evidence_not_an_error(model, monkeypatch, reason, status):
+    result, _ = _answer_with_sales(model, monkeypatch, credits.BudgetError(reason, credits.AI))
+    assert result["answer_mode"] == "evidence"
+    assert {"need": "answer_writing", "status": status} in result["evidence_status"]
+    assert result["references"]
+
+
+@pytest.mark.parametrize("reason", ["BUDGET_EXHAUSTED", "SUBSCRIPTION_INACTIVE"])
+def test_the_companys_own_credit_or_plan_limit_still_stops_the_question(model, monkeypatch, reason):
+    with pytest.raises(credits.BudgetError):
+        _answer_with_sales(model, monkeypatch, credits.BudgetError(reason, credits.AI))
+
+
+def test_a_refusal_inside_the_research_helper_call_is_translated_too():
+    guarded = advisor._guarded(lambda *a, **k: (_ for _ in ()).throw(credits.BudgetError("COST_NOT_CONFIGURED", credits.AI)))
+    with pytest.raises(llm_client.LLMNotConfiguredError):
+        guarded([])
 
 
 def test_with_no_evidence_and_no_provider_the_error_reaches_the_caller(model, monkeypatch):
@@ -421,3 +444,177 @@ def test_when_research_cannot_run_the_model_is_told_to_give_the_reason(monkeypat
     advisor.answer(_Conn(), "t", "What is the average water price?", access=acl.FULL_ACCESS)
     assert "Public research could not run for this question (web search is not set up on this server" in model.prompts[0]
     assert "never that the information doesn't exist" in model.prompts[0]
+
+
+def _stub_gathering(monkeypatch, catalog, fact_lines=()):
+    def gather(conn, tenant_id, u, access, registry, statuses):
+        for index, line in enumerate(fact_lines):
+            registry.add_fact_lines([line], route="/x", capabilities=frozenset({acl.SALES}))
+        return len(fact_lines)
+    monkeypatch.setattr(advisor, "_fact_sections", gather)
+    for name in ("_documents", "_analysis", "_reviews"):
+        monkeypatch.setattr(advisor, name, lambda *a, **k: 0)
+    monkeypatch.setattr(advisor, "_company", lambda conn, tenant_id: {"business_name": "Z", "currency": "JOD",
+                                                                     "country_code": "JO"})
+    monkeypatch.setattr(advisor, "_catalog", lambda conn, tenant_id, access: catalog)
+
+
+def _product(n, price="2.50"):
+    return {"product_id": f"p{n}", "name": f"Product {n}", "name_alt": None, "price": price, "cost": None, "currency": "JOD"}
+
+
+def test_a_products_question_gets_the_catalogue_count_so_the_model_can_answer_it(model, monkeypatch):
+    _stub_gathering(monkeypatch, [_product(n) for n in range(10)])
+    fake = model(_reply(("You have 10 products.", "fact", ["E1"])))
+    result = advisor.answer(object(), "t", "How many products do I have?", access=acl.FULL_ACCESS, enable_research=False)
+    prompt = fake.prompts[0][-1]["content"]
+    assert "You have 10 products: Product 0 2.50 JOD" in prompt
+    assert result["references"][0]["route"] == "/products"
+
+
+def test_a_long_catalogue_lists_a_bounded_number_of_names_but_the_true_count(model, monkeypatch):
+    _stub_gathering(monkeypatch, [_product(n) for n in range(200)])
+    fake = model(_reply(("You have 200 products.", "fact", ["E1"])))
+    advisor.answer(object(), "t", "How many products do I have?", access=acl.FULL_ACCESS, enable_research=False)
+    prompt = fake.prompts[0][-1]["content"]
+    assert "You have 200 products" in prompt and "(and 160 more)" in prompt and "Product 41" not in prompt
+
+
+def test_a_role_without_catalogue_access_gets_no_catalogue_record(model, monkeypatch):
+    _stub_gathering(monkeypatch, [])   # _catalog returns [] for a role that may not see the catalogue
+    fake = model(_reply(("x", "general", [])))
+    advisor.answer(object(), "t", "How many products do I have?", access=acl.FULL_ACCESS, enable_research=False)
+    assert "Your product catalogue" not in fake.prompts[0][-1]["content"]
+
+
+def test_a_repeated_long_evidence_title_is_sent_once(model, monkeypatch):
+    title_line = "Olive Oil: you charge 33.00 JOD; Rival charges 29.50 JOD."
+    _stub_gathering(monkeypatch, [], [title_line, title_line.replace("Olive Oil", "Dates")])
+    monkeypatch.setattr(ev.EvidenceRegistry, "add_fact_lines", lambda self, lines, **kw: [
+        self.add(ev.COMPANY_RECORD, "A deliberately long evidence title shared by every line of one list", line,
+                 ev.COMPANY, ev.OBSERVED, route="/x", capabilities=frozenset({acl.SALES})) for line in lines])
+    fake = model(_reply(("x", "fact", ["E1"])))
+    advisor.answer(object(), "t", "What are my sales prices?", access=acl.FULL_ACCESS, enable_research=False)
+    prompt = fake.prompts[0][-1]["content"]
+    assert prompt.count("A deliberately long evidence title") == 1 and "(same source as above)" in prompt
+
+
+def test_only_the_recent_turns_and_a_few_records_go_to_the_model_for_a_message_with_no_business_need(model, monkeypatch):
+    lines = [f"Fact number {n}: something about the business." for n in range(30)]
+    _stub_gathering(monkeypatch, [], lines)
+    history = [{"role": "user" if n % 2 == 0 else "assistant", "content": f"turn {n}"} for n in range(20)]
+    fake = model(_reply(("x", "general", [])))
+    advisor.answer(object(), "t", "hello there my friend", access=acl.FULL_ACCESS, enable_research=False,
+                   history=history)
+    messages = fake.prompts[0]
+    assert len(messages) == 1 + advisor.HISTORY_MESSAGES + 1
+    assert messages[1]["content"] == f"turn {20 - advisor.HISTORY_MESSAGES}"
+    assert messages[-1]["content"].count("] company record") <= advisor.GENERAL_ITEMS
+
+
+def test_a_heading_only_reply_is_retried_with_a_specific_instruction_then_shows_evidence_not_json(model, monkeypatch):
+    heading_only = json.dumps({"blocks": [{"type": "heading", "text": "Most profitable products"}],
+                               "follow_up_questions": []})
+    result, fake = _answer_with_sales(model, monkeypatch, heading_only, heading_only)
+    assert len(fake.prompts) == 2
+    assert "no usable claims" in fake.prompts[1][-1]["content"]
+    assert result["answer_mode"] == "unverifiable" and "{" not in result["answer"]
+    assert result["references"], "the evidence found is still shown"
+
+
+def test_a_heading_only_reply_that_the_retry_fixes_is_an_ai_answer(model, monkeypatch):
+    heading_only = json.dumps({"blocks": [{"type": "heading", "text": "Profit"}], "follow_up_questions": []})
+    result, fake = _answer_with_sales(model, monkeypatch, heading_only,
+                                      _reply(("Revenue was 20,016.928 JOD in the last 30 days.", "fact", ["E1"])))
+    assert result["answer_mode"] == "ai" and len(fake.prompts) == 2
+
+
+# --- the short answer shown first ---------------------------------------------
+
+_LONG_DETAIL = " Further detail, kept for those who want the whole picture." * 6
+
+
+def _summarised(summary, *detail, follow_ups=()):
+    return json.dumps({"summary": [{"text": t, "kind": k, "evidence": ids} for t, k, ids in summary],
+                       "blocks": [{"type": "paragraph", "claims": [
+                           {"text": t, "kind": k, "evidence": ids} for t, k, ids in detail]}],
+                       "follow_up_questions": list(follow_ups)})
+
+
+def test_a_long_answer_carries_the_models_summary_numbered_first(model, monkeypatch):
+    result, _ = _answer_with_sales(model, monkeypatch, _summarised(
+        [("Revenue was 20,016.928 JOD in the last 30 days.", "fact", ["E1"])],
+        ("Revenue fell by 219.935 JOD." + _LONG_DETAIL, "calculation", ["E1"])))
+    assert result["answer_mode"] == "ai" and result["citation_check"] == {"issues": 0, "repaired": False}
+    summary = result["answer_summary"]
+    assert summary["text"] == "Revenue was 20,016.928 JOD in the last 30 days." and summary["refs"] == [1]
+    assert summary["claims"][0]["verified"] is True
+    assert "Further detail" in result["answer"]  # the raw answer is kept whole
+
+
+def test_a_summary_the_evidence_does_not_support_is_dropped_without_another_model_call(model, monkeypatch):
+    result, fake = _answer_with_sales(model, monkeypatch, _summarised(
+        [("Revenue was 99,999 JOD.", "fact", ["E1"])],
+        ("Revenue fell by 219.935 JOD." + _LONG_DETAIL, "calculation", ["E1"])))
+    assert len(fake.prompts) == 1  # no repair round was spent on the summary
+    assert result["citation_check"] == {"issues": 0, "repaired": False}
+    assert "99,999" not in json.dumps(result["answer_summary"])
+    assert result["answer_summary"]["text"].startswith("Revenue fell by 219.935 JOD.")  # the answer's own first claim
+
+
+def test_a_short_answer_has_no_summary_to_repeat_it(model, monkeypatch):
+    result, _ = _answer_with_sales(model, monkeypatch, _reply(("Revenue was 20,016.928 JOD.", "fact", ["E1"])))
+    assert result["answer_summary"] is None
+
+
+def test_a_summary_alone_is_a_complete_answer(model, monkeypatch):
+    reply = json.dumps({"summary": [{"text": "Revenue was 20,016.928 JOD.", "kind": "fact", "evidence": ["E1"]}],
+                        "blocks": []})
+    result, fake = _answer_with_sales(model, monkeypatch, reply)
+    assert result["answer_mode"] == "ai" and len(fake.prompts) == 1
+    assert result["answer_blocks"][0]["claims"][0]["text"] == "Revenue was 20,016.928 JOD."
+    assert result["answer_summary"] is None  # short: nothing to summarise
+
+
+def test_the_contract_asks_for_the_summary_first_and_for_less_detail():
+    contract = citations.DRAFT_CONTRACT
+    assert contract.index('"summary"') < contract.index('"blocks"')
+    assert "leave it empty" in contract.replace("\n", " ")
+
+
+def test_the_evidence_mode_summary_is_stored_with_the_message_fields():
+    from src.ai.routers import rag
+
+    assert "answer_summary" in rag._STORED_ANSWER_FIELDS
+
+
+def _answer_lines(caplog):
+    return [r.getMessage() for r in caplog.records if r.getMessage().startswith("assistant_answer")]
+
+
+def test_the_answer_log_line_counts_a_model_written_summary_as_model(model, monkeypatch, caplog):
+    caplog.set_level("INFO", logger="KEEL_ADVISOR")
+    _answer_with_sales(model, monkeypatch, _summarised(
+        [("Revenue was 20,016.928 JOD in the last 30 days.", "fact", ["E1"])],
+        ("Revenue fell by 219.935 JOD." + _LONG_DETAIL, "calculation", ["E1"])))
+    assert _answer_lines(caplog) == ["assistant_answer mode=ai summary=model dropped=0 issues=0 repaired=False"]
+
+
+def test_an_evidence_mode_summary_is_logged_as_extractive_never_as_model(model, monkeypatch, caplog):
+    caplog.set_level("INFO", logger="KEEL_ADVISOR")
+    monkeypatch.setattr(citations, "SUMMARY_MIN_ANSWER_CHARS", 0)  # whatever the evidence length, summarise
+    result, _ = _answer_with_sales(model, monkeypatch, llm_client.LLMRateLimitError("busy", 5))
+    assert result["answer_mode"] == "evidence" and result["answer_summary"]
+    assert _answer_lines(caplog) == ["assistant_answer mode=evidence summary=extractive dropped=0 issues=0 repaired=False"]
+
+
+def test_an_evidence_summary_in_another_language_than_the_question_carries_a_note():
+    summary = {"text": "Every employee receives 21 days of paid annual leave.", "claims": [], "refs": [1]}
+    flagged = advisor._flag_foreign_summary(summary, "evidence", "ar")
+    assert flagged["note"] == "source_language" and flagged["text"] == summary["text"] and "note" not in summary
+    assert advisor._flag_foreign_summary(summary, "unverifiable", "ar")["note"] == "source_language"
+    assert advisor._flag_foreign_summary(summary, "evidence", "en") is summary  # same language: nothing to say
+    assert advisor._flag_foreign_summary({**summary, "text": "كل موظف يحصل على 21 يوما من الإجازة السنوية."},
+                                         "evidence", "ar").get("note") is None
+    assert advisor._flag_foreign_summary(summary, "ai", "ar") is summary  # the model answers in the question's language
+    assert advisor._flag_foreign_summary(None, "evidence", "ar") is None

@@ -122,6 +122,7 @@ Main fields of `result`:
 | Field | Meaning |
 |---|---|
 | `answer` | Plain text with superscript markers (¹ ² …), for clients that cannot render blocks. |
+| `answer_summary` | The short answer (one or two checked claims) shown first when the full answer is long; `null` when the answer is already short. The model writes it as the first field of its JSON; otherwise it is the answer's first statements. In evidence mode it is the one sentence that best matches the question. `answer` and `answer_blocks` stay the full answer. In evidence mode `note` is `"source_language"` when the quoted sentence is in another language than the question (section 7). |
 | `answer_blocks` | Headings, paragraphs, lists and tables made of claims; each claim lists its reference numbers, its kind (fact, calculation, regulation, recommendation, …) and whether it was verified. |
 | `references` | Numbered by first use: title, kind, credibility, excerpt, page or screen link, source URL, publication and retrieval dates, limitations, and the calculation trace for calculated figures. |
 | `calculations` | Deterministic landed-cost results (steps, inputs, missing inputs, assumptions, sensitivity). |
@@ -271,3 +272,27 @@ mechanism — see each module's own docstring for the full reasoning, summarized
 **Known, flagged gap**: neither `regenerate_all_structured_summaries()` nor the four narrative
 generators are yet wired into an automatic schedule (a cron/webhook after a scraping run) — they're
 real, tested, callable functions, just not yet triggered automatically end-to-end.
+
+## 7. Evidence mode: design decisions
+
+Evidence mode answers from the gathered evidence with no model call. It is used when the model cannot write the
+answer: no key, no confirmed price, a rate limit, an outage, or nothing that passes the claim checks.
+
+**D1. Its summary is extractive, never model-written (PENDING_ACTIONS #139).** The summary is the best-matching
+sentence of the best-matching item (plurals folded), or, for a question sharing no word with the evidence (Arabic
+about English documents), the start of a document that retrieval already matched by meaning. A model call to improve
+it was rejected: this mode exists exactly when the model is unavailable, so the call could fail the same way, it
+would cost tokens on the path that is meant to cost none, and the answer would stop being traceable to a quoted
+source. Guardrails: no summary unless the top item is known to answer the question (a confident but unrelated
+line is worse than none), whitespace from PDF text is collapsed, and the summary is at most about 220 characters.
+Revisit only if users report broad questions ("give me an overview") reading poorly, and then as an opt-in model
+step with its own budget, never on this path.
+
+**D2. A summary in another language than the question is labelled, not translated (#140).** The summary quotes
+the source, so an Arabic question about an English document gets an English sentence. Translating needs the model
+(see D1), so `answer_summary.note = "source_language"` is set and the chat shows a one-line note in the user's
+language. A model-written answer follows the question's language already (see `SYSTEM_PROMPT`) and gets no note.
+The check is `advisor._flag_foreign_summary`, by script (`product_guide.question_language`), so it is free.
+
+**Observability.** One log line per answer (`assistant_answer mode=... summary=model|extractive|fallback|none`,
+logger `KEEL_ADVISOR`) is the source for the post-deploy numbers (PENDING_ACTIONS #151).

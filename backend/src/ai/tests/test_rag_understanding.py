@@ -141,3 +141,26 @@ def test_an_adjective_of_origin_is_never_read_as_the_destination():
 
 def test_my_top_product_is_flagged_for_the_advisor_to_resolve():
     assert u.understand("Would importing my top product be cheaper than buying it locally?").slots["top_product"]
+
+
+TWO_PRODUCTS = [{"product_id": "p1", "name": "Olive Oil 1L"}, {"product_id": "p2", "name": "Za'atar"}]
+
+
+def test_a_pronoun_question_keeps_the_product_just_discussed():
+    first = u.understand("How is Olive Oil 1L selling?", catalog=TWO_PRODUCTS)
+    follow = u.understand("what is its price?", previous=first.state(), catalog=TWO_PRODUCTS)
+    assert follow.follow_up
+    assert [p["product_id"] for p in follow.slots["products"]] == ["p1"]
+    assert u.PRICING in follow.intents
+
+
+def test_a_pronoun_question_naming_another_product_is_not_a_follow_up():
+    first = u.understand("How is Olive Oil 1L selling?", catalog=TWO_PRODUCTS)
+    other = u.understand("what is its price compared to Za'atar?", previous=first.state(), catalog=TWO_PRODUCTS)
+    assert [p["product_id"] for p in other.slots["products"]] == ["p2"]
+    assert not other.follow_up
+
+
+def test_a_pronoun_without_a_product_before_it_is_not_a_follow_up():
+    first = u.understand("How are sales this month?", catalog=TWO_PRODUCTS)
+    assert not u.understand("what is its price?", previous=first.state(), catalog=TWO_PRODUCTS).follow_up
