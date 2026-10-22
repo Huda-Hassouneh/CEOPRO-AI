@@ -1397,6 +1397,7 @@
         "exhausted": "This budget is used up for the period.",
         "exhaustedOptions": "New work that needs it is paused until {{date}}. You can upgrade your plan now, or contact us about a Custom plan.",
         "notIncluded": "Not included",
+        "unavailable": "Credit usage is temporarily unavailable.",
         "competitorNote": "There is no fixed number of competitors: KEEL discovers and monitors the competitors in your market, area and sources as far as your Data Credits allow.",
         "topUpsUnavailable": "Extra credits can't be bought yet.",
         "historyTitle": "Recent usage",

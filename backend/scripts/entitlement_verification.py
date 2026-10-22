@@ -24,7 +24,7 @@ def route_inventory(backend: Path = BACKEND) -> list[dict]:
     transitively, and the presence of a call does not prove every branch uses it.
     No application imports, connections, secrets, or model loads are involved.
     """
-    main = ast.parse((backend / "src/ai/main.py").read_text())
+    main = ast.parse((backend / "src/ai/main.py").read_text(encoding="utf-8"))
     included = {}
     for node in ast.walk(main):
         if (
@@ -40,7 +40,7 @@ def route_inventory(backend: Path = BACKEND) -> list[dict]:
     routes = []
     for name, gates in sorted(included.items()):
         file = backend / "src/ai/routers" / f"{name}.py"
-        tree = ast.parse(file.read_text())
+        tree = ast.parse(file.read_text(encoding="utf-8"))
         functions = {
             n.name: n
             for n in tree.body
