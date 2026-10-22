@@ -12,13 +12,15 @@ import time
 
 import jwt
 import pytest
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
 
-from src.ai.main import app  # noqa: E402
 from src.ai.routers import products  # noqa: E402
 
+app = FastAPI()
+app.include_router(products.router)
 client = TestClient(app)
 _SECRET = os.environ["JWT_SECRET"]
 
@@ -217,7 +219,9 @@ def test_create_product_calls_with_manual_semantics_and_returns_result():
     fake_conn = MagicMock()
     fake_result = {"product_id": "new-1", "product_name": {"en": "Widget"}, "source": "MANUAL"}
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.products.create_product", return_value=fake_result) as mock_create:
+         patch("src.ai.routers.products._require_catalog_admin"), \
+         patch("src.ai.routers.products.create_product", return_value=fake_result) as mock_create, \
+         patch("src.ai.routers.products._publish_discovery_request"):
         response = client.post(
             "/products",
             json={
@@ -240,7 +244,9 @@ def test_create_product_calls_with_manual_semantics_and_returns_result():
 def test_create_product_defaults_initial_stock_to_none_when_omitted():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.products.create_product", return_value={}) as mock_create:
+         patch("src.ai.routers.products._require_catalog_admin"), \
+         patch("src.ai.routers.products.create_product", return_value={}) as mock_create, \
+         patch("src.ai.routers.products._publish_discovery_request"):
         client.post(
             "/products",
             json={"product_name": {"en": "Widget"}, "current_price": 10.0, "currency": "JOD"},
@@ -262,6 +268,7 @@ def test_update_product_sends_only_provided_fields():
     fake_conn = MagicMock()
     fake_result = {"product_id": "p1", "current_price": 12.0}
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.update_product", return_value=fake_result) as mock_update:
         response = client.patch("/products/p1", json={"current_price": 12.0}, headers=_auth())
 
@@ -283,6 +290,7 @@ def test_update_product_rejects_product_name_without_en_key():
 def test_update_product_returns_404_for_missing_or_deleted_product():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.update_product", return_value=None):
         response = client.patch("/products/missing", json={"current_price": 12.0}, headers=_auth())
 
@@ -298,6 +306,7 @@ def test_delete_product_requires_auth():
 def test_delete_product_soft_deletes_and_returns_ok():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.delete_product", return_value=True) as mock_delete:
         response = client.delete("/products/p1", headers=_auth())
 
@@ -310,6 +319,7 @@ def test_delete_product_soft_deletes_and_returns_ok():
 def test_delete_product_returns_404_for_missing_or_already_deleted_product():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.delete_product", return_value=False):
         response = client.delete("/products/missing", headers=_auth())
 
@@ -327,6 +337,7 @@ def test_update_inventory_upserts_and_returns_the_row():
     fake_result = {"stock_quantity": 5, "reorder_level": 10, "safety_stock": 5,
                     "warehouse_location": None, "updated_at": "2026-09-01T00:00:00+00:00"}
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.upsert_inventory", return_value=fake_result) as mock_upsert:
         response = client.patch("/products/p1/inventory", json={"stock_quantity": 5}, headers=_auth())
 
@@ -340,9 +351,41 @@ def test_update_inventory_rejects_negative_stock_quantity():
     assert response.status_code == 422
 
 
+def test_canonical_inventory_preserves_fractional_quantities():
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
+         patch("src.ai.routers.products.upsert_inventory", return_value={"stock_quantity": 1.2345}) as mock_upsert:
+        response = client.patch("/products/p1/inventory", json={"stock_quantity": 1.2345}, headers=_auth())
+    assert response.status_code == 200
+    assert str(mock_upsert.call_args.args[3]) == "1.2345"
+    assert client.patch("/products/p1/inventory", json={"stock_quantity": 1.23456}, headers=_auth()).status_code == 422
+
+
+def test_catalog_mutations_require_current_owner_or_admin_membership():
+    member_conn = MagicMock()
+    member_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = ("staff",)
+    with pytest.raises(HTTPException) as denied:
+        products._require_catalog_admin(member_conn, "t1", "u1")
+    assert denied.value.status_code == 403
+    executed_sql = member_conn.cursor.return_value.__enter__.return_value.execute.call_args.args[0]
+    assert "FOR SHARE" in executed_sql
+    assert "role_key IN" not in executed_sql  # role is checked against a fixed code set in Python
+
+
+def test_discovery_dependency_failure_does_not_report_committed_product_create_as_failed(caplog):
+    # Discovery is a post-commit notification. An absent optional extraction
+    # dependency must not turn a persisted product create into an apparent
+    # failure that could duplicate on client retry.
+    with patch("src.ai.routers.products.importlib.import_module", side_effect=ImportError("optional parser unavailable")):
+        products._publish_discovery_request("tenant-a")
+    assert "Could not enqueue product discovery" in caplog.text
+
+
 def test_update_inventory_returns_404_for_missing_or_deleted_product():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.upsert_inventory", return_value=None):
         response = client.patch("/products/missing/inventory", json={"stock_quantity": 5}, headers=_auth())
 
@@ -569,6 +612,7 @@ def test_query_upsert_inventory_inserts_when_no_row_exists_yet():
     assert "INSERT INTO inventory" in insert_call.args[0]
     assert result["stock_quantity"] == 5
     assert result["reorder_level"] == 10
+    assert "FOR UPDATE" in cursor.execute.call_args_list[0].args[0]
 
 
 def test_query_upsert_inventory_updates_only_provided_fields_when_row_exists():
@@ -615,6 +659,7 @@ def test_create_and_update_refuse_a_bad_barcode_with_a_422():
 
 def test_create_passes_a_normalized_barcode_through():
     with patch("src.ai.routers.products.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products._publish_discovery_request"), \
          patch("src.ai.routers.products.create_product", return_value={"product_id": "n"}) as mock_create:
         response = client.post(

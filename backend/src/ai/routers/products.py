@@ -62,7 +62,10 @@ two write paths into `inventory`, at most one row per product ever
 exists; that is an application-level guarantee, not one this schema
 itself enforces, flagged here rather than silently assumed.
 """
+import importlib
 import json
+import logging
+from decimal import Decimal
 from typing import Dict, Optional
 
 from src.ai.core.barcode import normalize_barcode
@@ -73,10 +76,29 @@ from pydantic import BaseModel, Field, field_validator
 from src.ai.core.quantities import as_quantity
 from src.ai import db
 from src.ai.core.security import TenantContext, get_tenant_context
-from src.ai.routers.extraction import _publish_discovery_request
 from src.ai.core import usage
 
 router = APIRouter(tags=["products"])
+logger = logging.getLogger(__name__)
+
+
+def _publish_discovery_request(tenant_id: str) -> None:
+    """Load the extraction subsystem only after product creation.
+
+    The discovery queue helper lives beside file-ingestion routes, whose
+    imports include PDF/XLSX parsers. Eagerly importing that router here made
+    a basic Products API depend on every extraction-only package at startup.
+    Keep the same queue contract while deferring that unrelated dependency
+    graph until the post-commit notification is actually sent.
+    """
+    try:
+        extraction = importlib.import_module("src.ai.routers.extraction")
+        extraction._publish_discovery_request(tenant_id)
+    except Exception:
+        # Product creation is already committed before this best-effort
+        # notification. Returning an error now would invite a duplicate
+        # product retry when an optional parser/Redis dependency is down.
+        logger.warning("Could not enqueue product discovery for tenant=%s", tenant_id, exc_info=True)
 
 DEFAULT_LIMIT = 50
 # Matches shared/catalog/planCatalog.js's own documented per-tenant product
@@ -91,6 +113,26 @@ DEFAULT_LIMIT = 50
 # directly: GET /products?limit=500 -> 422 on every /market and /demand
 # page load.
 MAX_LIMIT = 1000
+_CATALOG_ADMIN_ROLES = {"owner", "admin"}
+
+
+def _require_catalog_admin(conn, tenant_id: str, user_id: str) -> None:
+    """Require the caller's current tenant Owner/Admin role for mutations.
+
+    Roles are read from the active membership inside this request's
+    restricted tenant transaction; no JWT role claim can grant write access.
+    FOR SHARE keeps a concurrent membership role/removal change from racing
+    this mutation before its transaction commits.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT role_key FROM tenant_users WHERE tenant_id=%s AND user_id=%s "
+            "AND removed_at IS NULL AND platform_suspended_at IS NULL FOR SHARE;",
+            (tenant_id, user_id),
+        )
+        row = cursor.fetchone()
+    if not row or row[0] not in _CATALOG_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Only workspace owners and admins can manage products or inventory.")
 
 # Locale-resolution expression matching the read-side convention already
 # established across dashboard/search.py, dashboard/inventory_recommendations.py -
@@ -144,8 +186,8 @@ class ProductCreateRequest(BaseModel):
     current_price: float = Field(..., ge=0)
     cost_price: Optional[float] = Field(default=None, ge=0)
     currency: str = Field(..., pattern=r"^[A-Z]{3}$")
-    # float: stock is counted in the product's own unit (pieces, kg, m, L).
-    initial_stock_quantity: Optional[float] = Field(default=None, ge=0, le=1_000_000_000)
+    # Canonical quantities follow the approved NUMERIC(14,4) schema.
+    initial_stock_quantity: Optional[Decimal] = Field(default=None, ge=0, le=1_000_000_000, max_digits=14, decimal_places=4)
     # EAN/UPC/GTIN. Optional; checked (length + GS1 check digit) and stored digits-only.
     barcode: Optional[str] = None
 
@@ -196,9 +238,9 @@ class InventoryUpdateRequest(BaseModel):
     inventory row. All three fields are optional; an omitted field is
     left as-is on an existing row, or takes inventory's own DB DEFAULT on
     first creation (stock_quantity=0, reorder_level=10, safety_stock=5)."""
-    stock_quantity: Optional[float] = Field(default=None, ge=0, le=1_000_000_000)
-    reorder_level: Optional[float] = Field(default=None, ge=0, le=1_000_000_000)
-    safety_stock: Optional[float] = Field(default=None, ge=0, le=1_000_000_000)
+    stock_quantity: Optional[Decimal] = Field(default=None, ge=0, le=1_000_000_000, max_digits=14, decimal_places=4)
+    reorder_level: Optional[Decimal] = Field(default=None, ge=0, le=1_000_000_000, max_digits=14, decimal_places=4)
+    safety_stock: Optional[Decimal] = Field(default=None, ge=0, le=1_000_000_000, max_digits=14, decimal_places=4)
 
 
 # --- query functions --------------------------------------------------------
@@ -237,7 +279,12 @@ def list_products(conn, tenant_id: str, limit: int = DEFAULT_LIMIT, offset: int 
             SELECT p.product_id, {_NAME_EXPR} AS name, {_BRAND_EXPR} AS brand, {_CATEGORY_EXPR} AS category,
                    p.current_price, p.cost_price, p.currency, p.source, i.stock_quantity
             FROM products p
-            LEFT JOIN inventory i ON i.tenant_id = p.tenant_id AND i.product_id = p.product_id
+            LEFT JOIN LATERAL (
+                SELECT stock_quantity FROM inventory
+                WHERE tenant_id = p.tenant_id AND product_id = p.product_id
+                ORDER BY updated_at DESC NULLS LAST, inventory_id
+                LIMIT 1
+            ) i ON TRUE
             WHERE p.tenant_id = %s AND p.deleted_at IS NULL{where_search}
             ORDER BY name ASC
             LIMIT %s OFFSET %s;
@@ -337,7 +384,7 @@ def create_product(
     conn, tenant_id: str, user_id: Optional[str],
     product_name: Dict[str, str], brand: Optional[Dict[str, str]], category: Optional[Dict[str, str]],
     description: Optional[Dict[str, str]], current_price: float, cost_price: Optional[float],
-    currency: str, initial_stock_quantity: Optional[float] = None, barcode: Optional[str] = None,
+    currency: str, initial_stock_quantity: Optional[Decimal] = None, barcode: Optional[str] = None,
 ) -> dict:
     """Inserts a new MANUAL product, plus an inventory row only when
     initial_stock_quantity is given (None = stock not tracked). JSONB columns are
@@ -437,7 +484,7 @@ def delete_product(conn, tenant_id: str, product_id: str) -> bool:
 
 def upsert_inventory(
     conn, tenant_id: str, product_id: str,
-    stock_quantity: Optional[float] = None, reorder_level: Optional[float] = None, safety_stock: Optional[float] = None,
+    stock_quantity: Optional[Decimal] = None, reorder_level: Optional[Decimal] = None, safety_stock: Optional[Decimal] = None,
 ) -> Optional[dict]:
     """Creates the product's inventory row if none exists yet, otherwise
     updates only the fields provided. Returns None (never creates a row)
@@ -446,14 +493,15 @@ def upsert_inventory(
     orphan data."""
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT 1 FROM products WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;",
+            "SELECT 1 FROM products WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL FOR UPDATE;",
             (tenant_id, product_id),
         )
         if cursor.fetchone() is None:
             return None
 
         cursor.execute(
-            "SELECT inventory_id FROM inventory WHERE tenant_id = %s AND product_id = %s LIMIT 1;",
+            "SELECT inventory_id FROM inventory WHERE tenant_id = %s AND product_id = %s "
+            "ORDER BY updated_at DESC NULLS LAST, inventory_id LIMIT 1;",
             (tenant_id, product_id),
         )
         existing = cursor.fetchone()
@@ -549,6 +597,7 @@ def get_product_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenan
 def create_product_endpoint(body: ProductCreateRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        _require_catalog_admin(conn, ctx.tenant_id, ctx.user_id)
         usage.ensure_capacity(conn, ctx.tenant_id, usage.TRACKED_PRODUCTS)
         result = create_product(
             conn, ctx.tenant_id, ctx.user_id, body.product_name, body.brand, body.category,
@@ -578,6 +627,7 @@ def create_product_endpoint(body: ProductCreateRequest, ctx: TenantContext = Dep
 def update_product_endpoint(product_id: str, body: ProductUpdateRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        _require_catalog_admin(conn, ctx.tenant_id, ctx.user_id)
         result = update_product(conn, ctx.tenant_id, ctx.user_id, product_id, body.model_dump(exclude_unset=True))
         conn.commit()
         if result is None:
@@ -597,6 +647,7 @@ def update_product_endpoint(product_id: str, body: ProductUpdateRequest, ctx: Te
 def delete_product_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        _require_catalog_admin(conn, ctx.tenant_id, ctx.user_id)
         deleted = delete_product(conn, ctx.tenant_id, product_id)
         conn.commit()
         if not deleted:
@@ -616,6 +667,7 @@ def delete_product_endpoint(product_id: str, ctx: TenantContext = Depends(get_te
 def update_product_inventory_endpoint(product_id: str, body: InventoryUpdateRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        _require_catalog_admin(conn, ctx.tenant_id, ctx.user_id)
         result = upsert_inventory(conn, ctx.tenant_id, product_id, body.stock_quantity, body.reorder_level, body.safety_stock)
         conn.commit()
         if result is None:

@@ -104,6 +104,17 @@
       "saving": "Saving...",
       "cancel": "Cancel"
     },
+    "inventory": {
+      "title": "Manual canonical stock",
+      "sourceBoundary": "This updates KEEL's manually maintained stock record. Shopify and WooCommerce observations remain separate and are not changed here.",
+      "quantity": "Current stock quantity",
+      "reorder": "Reorder level",
+      "safety": "Safety stock",
+      "save": "Save stock",
+      "saved": "Stock saved",
+      "stockInvalid": "Enter non-negative stock values with up to 4 decimal places",
+      "saveError": "Could not save stock"
+    },
     "form": {
       "name": "Product name",
       "brand": "Brand",
@@ -120,9 +131,11 @@
       "errors": {
         "nameRequired": "Product name is required",
         "priceInvalid": "Enter a valid, non-negative price",
+        "stockInvalid": "Enter a non-negative stock quantity with up to 4 decimal places",
         "currencyInvalid": "Enter a valid 3-letter currency code"
       },
       "notFound": "Product not found",
+      "restricted": "Only workspace owners and admins can manage products or inventory.",
       "back": "Back to Products",
       "editTitle": "Edit Product",
       "createTitle": "Add Product",
