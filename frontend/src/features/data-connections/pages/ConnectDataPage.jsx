@@ -11,7 +11,7 @@ import Toast from '../../../shared/components/ui/Toast.jsx';
 import { FileUploadDropzone } from '../../data-ingestion/components/FileUploadDropzone.jsx';
 import { DATA_TEMPLATE_OPTIONS } from '../../data-ingestion/config/dataTemplateOptions.js';
 import { ingestionApi } from '../../data-ingestion/api/ingestionApi.js';
-import { summarizeImport } from '../../data-ingestion/utils/importSummary.js';
+import { retainFailedImportFiles, summarizeImport } from '../../data-ingestion/utils/importSummary.js';
 import { ImportDraftsPanel } from '../../data-ingestion/components/ImportDraftsPanel.jsx';
 import { ProviderRecordsPanel } from '../components/ProviderRecordsPanel.jsx';
 import { ConnectSystemForm } from '../components/ConnectSystemForm.jsx';
@@ -168,7 +168,7 @@ export function ConnectDataPage() {
       queryClient.invalidateQueries({ queryKey: ['data-connections'] });
       queryClient.invalidateQueries({ queryKey: ['import-drafts'] });
       setNotice(summarizeImport(result.files, t, number.format));
-      if (result.uploaded) setFiles([]);
+      setFiles((selected) => retainFailedImportFiles(selected, result.files));
     } finally {
       setImporting(false);
     }
