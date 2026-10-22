@@ -160,15 +160,16 @@ staging or production system was touched.
 | Check | Result |
 |---|---|
 | Backend suite before any change (baseline) | 3502 passed, 23 skipped, 0 failed |
-| Backend suite on the final tree | 3588 passed, 23 skipped (need external services, same as baseline), 0 failed |
+| Backend suite on the final tree (after merging `main`) | 3588 passed, 23 skipped (need external services, same as baseline), 0 failed |
 | New: image queue integration tests (batch of formats x variations, retry with backoff then FAILED, busy re-queue without using an attempt, takeover of a dead worker's job, companies take turns, limits, cancel/retry, capacity, isolation via API and RLS, plan allowance rule) | 8 passed (skip when another company's jobs are queued) |
 | New: image server unit tests (sizes, one at a time, low-memory guard, key, seeds, JPEG response) | 9 passed |
 | New: LLM fallback chain tests | 19 passed |
 | Image provider / format tests | 47 passed |
 | Gallery integration tests | 13 passed |
 | Frontend lint / unit tests / production build | clean / 113 passed / passes |
-| Browser smoke test of every screen, English desktop / Arabic mobile / dark (before the queue UI) | 27/27 clean in each |
-| Accessibility audit incl. an open campaign with its gallery, three modes (before the queue UI) | 0 findings in each |
+| Browser smoke test of every screen, English desktop / Arabic mobile / dark, with the queue UI and a live worker | 27/27 clean in each |
+| Accessibility audit (axe, WCAG 2.1 AA) of every screen plus an open campaign with 3 real images and the batch panel, three modes | 0 findings in each |
+| Application Knowledge Registry validator | OK (12 entries) |
 
 In total: 17 real SDXL images went through the full product path (5 + 6 + 3 + 3), plus 7 direct image-server
 benchmark images. Bug found by the Arabic run and fixed: a download named after an Arabic campaign title was
