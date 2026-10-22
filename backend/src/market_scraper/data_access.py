@@ -284,6 +284,7 @@ def create_ingestion_job(conn, tenant_id: str, source_id: str, receipt: dict | N
 
 def create_or_reuse_receipt_ingestion_job(
     conn, tenant_id: str, source_id: str, receipt: dict, *, replay_safe_provider_read: bool = False,
+    provider: str | None = None,
 ) -> str:
     """Reuse a receipt-owned job, optionally reopening a failed safe provider read."""
     if not receipt or str(receipt.get("tenant_id")) != str(tenant_id):
@@ -302,12 +303,15 @@ def create_or_reuse_receipt_ingestion_job(
         if row and row[1] == "PROCESSING":
             return str(existing_job_id)
         if row and row[1] == "FAILED" and replay_safe_provider_read:
-            # This option is used only by the verified Shopify GET worker.
-            # Reuse the receipt's existing job identity; M95/M96 evidence is
-            # idempotent and the failed attempt never advanced a checkpoint.
+            # Reuse the receipt's existing job identity for verified Shopify
+            # GraphQL and WooCommerce REST reads. Both are read-only provider
+            # operations; their M95/M96/M98 writes are idempotent and the
+            # failed attempt never advanced a checkpoint.
             from src.ai.core import operation_receipts
             if receipt.get("operation_type") != operation_receipts.SCHEDULED_CONNECTOR_SYNC:
                 raise ValueError("safe provider retry requires a scheduled connector receipt")
+            if provider not in {"shopify", "woocommerce"}:
+                raise ValueError("safe provider retry requires a supported verified provider")
             operation_receipts.assert_fence(conn, receipt, allow_pre_provider=True)
             with conn.cursor() as cursor:
                 cursor.execute(
@@ -316,10 +320,10 @@ def create_or_reuse_receipt_ingestion_job(
                     "WHERE tenant_id=%s::uuid AND source_id=%s::uuid AND job_id=%s::uuid "
                     "AND job_status='FAILED' AND EXISTS (SELECT 1 FROM data_sources ds "
                     "JOIN public.keel_provider_sources ps ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id "
-                    "WHERE ds.tenant_id=%s::uuid AND ds.source_id=%s::uuid AND ds.collector_key='shopify' "
+                    "WHERE ds.tenant_id=%s::uuid AND ds.source_id=%s::uuid AND ds.collector_key=%s "
                     "AND ds.is_active IS TRUE AND ds.policy_status='ALLOWED' "
-                    "AND ps.provider='shopify' AND ps.connection_state='verified');",
-                    (tenant_id, source_id, existing_job_id, tenant_id, source_id),
+                    "AND ps.provider=ds.collector_key AND ps.provider=%s AND ps.connection_state='verified');",
+                    (tenant_id, source_id, existing_job_id, tenant_id, source_id, provider, provider),
                 )
                 reopened = cursor.rowcount == 1
             if not reopened:

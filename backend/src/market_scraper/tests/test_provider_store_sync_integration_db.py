@@ -13,6 +13,7 @@ from cryptography.fernet import Fernet
 from src.market_scraper import connector_worker, data_access, provider_store_sync
 from src.market_scraper.provider_lifecycle import bind_verified_provider_source
 from src.market_scraper.shopify import ShopifyGraphQLClient, ShopifyRecord
+from src.market_scraper.woocommerce import WooRecord
 
 ADMIN_URL = os.getenv("AI_TEST_DATABASE_URL")
 APP_PASSWORD = os.getenv("APP_DB_PASSWORD")
@@ -382,3 +383,146 @@ def test_worker_dispatch_persists_all_streams_atomically_and_recovers(monkeypatc
     assert _rows("SELECT count(*) FROM keel_provider_record_identities WHERE tenant_id=%s", (tenant,))[0][0] == 6
     assert _rows("SELECT count(*) FROM keel_inventory_observations WHERE tenant_id=%s", (tenant,))[0][0] == 2
     data_access._POOL = None
+
+
+def test_woocommerce_retry_reuses_failed_job_and_persists_only_scoped_evidence(monkeypatch):
+    tenant, actor, source, canonical_product = (str(uuid.uuid4()) for _ in range(4))
+    store_url = f"https://{tenant.replace('-', '')[:12]}.example.test"
+    monkeypatch.setenv("APP_DB_PASSWORD", APP_PASSWORD)
+    monkeypatch.setenv("SCRAPER_DATABASE_URL", _app_url())
+    monkeypatch.setenv("SCRAPER_ACTOR_USER_ID", actor)
+    monkeypatch.setenv("KEEL_ENT008_STAGE2_ENABLED", "true")
+    monkeypatch.setenv("CREDENTIAL_VAULT_MASTER_KEY", Fernet.generate_key().decode())
+
+    with psycopg2.connect(ADMIN_URL) as admin:
+        admin.autocommit = True
+        with admin.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) "
+                "VALUES(%s,%s,'US','USD')", (tenant, f"WooCommerce retry {tenant[:8]}"),
+            )
+            cursor.execute(
+                "INSERT INTO users(user_id,email,password_hash,full_name) VALUES(%s,%s,'x','Woo test owner')",
+                (actor, f"woo-worker-{actor}@example.test"),
+            )
+            cursor.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')",
+                           (tenant, actor))
+            cursor.execute(
+                "INSERT INTO tenant_plan_assignments(tenant_id,plan_key,status,source) "
+                "VALUES(%s,'starter','active','manual')", (tenant,),
+            )
+            cursor.execute(
+                "INSERT INTO data_sources(source_id,tenant_id,source_name,source_url,source_type,collector_key,"
+                "collector_config,is_active,policy_status,approval_reference,approved_by,approved_at,"
+                "privacy_reviewed_at,sync_frequency_minutes) VALUES(%s,%s,'Woo fixture',%s,"
+                "'OWN_SYSTEM_CONNECTOR','woocommerce',%s::jsonb,true,'ALLOWED','synthetic-test-approval',%s,now(),now(),1)",
+                (source, tenant, store_url,
+                 '{"provider":"woocommerce","store_url":"' + store_url + '","max_pages":3}', actor),
+            )
+            cursor.execute(
+                "INSERT INTO products(product_id,tenant_id,product_name,current_price,currency,source) "
+                "VALUES(%s,%s,'{\"en\":\"Canonical unchanged\"}'::jsonb,12.5,'USD','MANUAL')",
+                (canonical_product, tenant),
+            )
+            cursor.execute("INSERT INTO inventory(tenant_id,product_id,stock_quantity) VALUES(%s,%s,13)",
+                           (tenant, canonical_product))
+        data_access.set_source_credentials(admin, tenant, source,
+                                           {"consumer_key": "fixture-key", "consumer_secret": "fixture-secret"})
+
+    app_conn = psycopg2.connect(_app_url())
+    with app_conn.cursor() as cursor:
+        cursor.execute("SELECT set_config('app.current_tenant_id',%s,false)", (tenant,))
+        cursor.execute("SELECT set_config('app.current_user_id',%s,false)", (actor,))
+    bind_verified_provider_source(
+        app_conn, tenant_id=tenant, source_id=source, provider="woocommerce",
+        verification={"verified": True, "api": "wc/v3", "products_accessible": True,
+                      "orders_accessible": True, "currency_code": "USD", "canonical_store_url": store_url},
+    )
+    app_conn.commit()
+    app_conn.close()
+
+    state = {"invalid": True}
+    original_safe_error = provider_store_sync.safe_connector_error
+    captured_errors = []
+
+    def _capture_safe_error(error, operation="Connector synchronization"):
+        captured_errors.append((type(error).__name__, str(error), operation))
+        return original_safe_error(error, operation)
+
+    monkeypatch.setattr(provider_store_sync, "safe_connector_error", _capture_safe_error)
+
+    class _WooFixture:
+        def __init__(self, url, _key, _secret, **_kwargs):
+            self.url = url
+
+        def verify_connection(self):
+            return {"verified": True, "api": "wc/v3", "products_accessible": True,
+                    "orders_accessible": True, "currency_code": "USD", "canonical_store_url": self.url}
+
+        def iter_products(self):
+            product = WooRecord("product", 101, {
+                "id": 101, "name": "Provider widget", "sku": "WIDGET-101", "type": "simple",
+                "status": "publish", "price": "10.00", "regular_price": "10.00",
+                "manage_stock": True, "stock_quantity": 7, "date_modified_gmt": "2026-10-20T10:00:00",
+            })
+            if state["invalid"]:
+                return iter([product, WooRecord("product", 0, {"id": 0, "name": "invalid"})])
+            return iter([product])
+
+        def iter_orders(self):
+            return iter([WooRecord("order", 201, {
+                "id": 201, "status": "processing", "currency": "USD", "total": "10.00",
+                "date_created_gmt": "2026-10-20T10:00:00",
+                "line_items": [{"id": 301, "product_id": 101, "variation_id": 0, "name": "Widget",
+                                "quantity": 1, "sku": "WIDGET-101", "subtotal": "10.00", "total": "10.00"}],
+            })])
+
+    with psycopg2.connect(_app_url()) as app_conn:
+        with app_conn.cursor() as cursor:
+            cursor.execute("SELECT set_config('app.current_tenant_id',%s,false)", (tenant,))
+            cursor.execute("SELECT set_config('app.current_user_id',%s,false)", (actor,))
+        before_canonical = {
+            table: _rows(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (tenant,))[0][0]
+            for table in ("transactions", "invoices", "tenant_usage_counters", "usage_ledger")
+        }
+        before_stock = _rows("SELECT stock_quantity FROM inventory WHERE tenant_id=%s AND product_id=%s",
+                             (tenant, canonical_product))[0][0]
+
+        first = provider_store_sync.run_due_provider_syncs(
+            app_conn, tenant, woocommerce_client_factory=_WooFixture,
+        )
+        assert len(first) == 1 and "error" in first[0]
+        failed_job = _rows("SELECT job_id FROM ingestion_jobs WHERE tenant_id=%s AND source_id=%s "
+                           "AND job_status='FAILED'", (tenant, source))[0][0]
+        assert _rows("SELECT count(*) FROM keel_provider_record_identities WHERE tenant_id=%s", (tenant,))[0][0] == 0
+        assert _rows("SELECT count(*) FROM keel_provider_sync_checkpoints WHERE tenant_id=%s", (tenant,))[0][0] == 0
+
+        state["invalid"] = False
+        retried = provider_store_sync.run_due_provider_syncs(
+            app_conn, tenant, woocommerce_client_factory=_WooFixture,
+        )
+        assert len(retried) == 1 and retried[0].get("checkpoint_advanced") is True, (
+            f"unexpected WooCommerce retry result: {retried!r}; captured errors: {captured_errors!r}"
+        )
+        assert retried[0]["full_scan"] is True and retried[0]["canonical_promotion"] is False
+        completed_job = _rows("SELECT job_id FROM ingestion_jobs WHERE tenant_id=%s AND source_id=%s "
+                              "AND job_status='COMPLETED'", (tenant, source))[0][0]
+        assert str(completed_job) == str(failed_job)
+        assert _rows("SELECT stream_key,checkpoint_version,continuation FROM keel_provider_sync_checkpoints "
+                     "WHERE tenant_id=%s ORDER BY stream_key", (tenant,)) == [
+                         ("inventory", 1, {}), ("orders", 1, {}), ("products", 1, {}),
+                     ]
+        assert _rows("SELECT entity_type,count(*) FROM keel_provider_record_identities WHERE tenant_id=%s "
+                     "GROUP BY entity_type ORDER BY entity_type", (tenant,)) == [
+                         ("order", 1), ("order_line_item", 1), ("product", 1),
+                     ]
+        assert _rows("SELECT count(*) FROM keel_provider_business_revisions WHERE tenant_id=%s", (tenant,))[0][0] == 3
+        assert _rows("SELECT count(*) FROM keel_inventory_observations WHERE tenant_id=%s", (tenant,))[0][0] == 1
+        after_canonical = {
+            table: _rows(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (tenant,))[0][0]
+            for table in before_canonical
+        }
+        assert after_canonical == before_canonical
+        assert _rows("SELECT stock_quantity FROM inventory WHERE tenant_id=%s AND product_id=%s",
+                     (tenant, canonical_product))[0][0] == before_stock == 13
+    app_conn.close()
