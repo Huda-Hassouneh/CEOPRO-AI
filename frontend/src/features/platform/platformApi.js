@@ -3,9 +3,11 @@ const unwrap = (promise) => promise.then((response) => response.data);
 const id = encodeURIComponent;
 export const platformApi = Object.freeze({
   me: () => unwrap(httpClient.get('/platform/me')),
-  read: (area, offset = 0) => {
+  read: (area, offset = 0, search) => {
     if (!['overview', 'companies', 'users', 'team', 'audit', 'settings'].includes(area)) throw new Error('Unknown platform area');
-    return unwrap(httpClient.get(`/platform/${area}`, { params: { limit: 50, offset } }));
+    const params = { limit: 50, offset };
+    if (['companies', 'users'].includes(area) && search !== undefined) params.search = search;
+    return unwrap(httpClient.get(`/platform/${area}`, { params }));
   },
   detail: (area, value) => {
     if (!['companies', 'users'].includes(area)) throw new Error('Unknown detail area');

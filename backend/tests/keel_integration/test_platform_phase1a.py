@@ -39,8 +39,22 @@ def test_management_contract_has_bounded_pagination(api,monkeypatch,token):
     calls=[];monkeypatch.setattr(service,'command',lambda c,a,p:(calls.append((a,p))or[]))
     assert api.get('/platform/users?limit=101',headers=token).status_code==422
     assert api.get('/platform/users?offset=-1',headers=token).status_code==422
+    assert api.get('/platform/users?offset=1000001',headers=token).status_code==422
+    assert api.get('/platform/users?search='+('x'*201),headers=token).status_code==422
     assert api.get('/platform/users?limit=20&offset=40',headers=token).json()=={'items':[]}
     assert calls==[('users',{'limit':20,'offset':40})]
+
+
+def test_platform_directory_search_uses_bounded_backend_contract(api,monkeypatch,token):
+    calls=[]
+    monkeypatch.setattr(service,'search',lambda ctx,resource,query,limit,offset:(
+        calls.append((resource,query,limit,offset)) or {'items':[{'business_name':'Later result'}],'total':1,'limit':10,'offset':10}))
+    response=api.get('/platform/companies?search=Needle&limit=10&offset=10',headers=token)
+    assert response.status_code==200
+    assert response.json()=={'items':[{'business_name':'Later result'}],'total':1,'limit':10,'offset':10}
+    assert calls==[('companies','Needle',10,10)]
+    assert api.get('/platform/users?search=needle',headers=token).status_code==200
+    assert calls[-1]==('users','needle',50,0)
 
 
 def test_invitation_cannot_create_an_owner_or_arbitrary_permission(api,monkeypatch,token):
