@@ -56,10 +56,14 @@ services:
         value: "30"
       - key: EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES
         value: "60"
+      # true: nobody can register with an address they do not own. Needs the SMTP_* settings below.
       - key: REQUIRE_EMAIL_VERIFICATION
-        value: auto
+        value: "true"
       - key: API_TRUST_FORWARDED_FOR
         value: "true"
+      # No public endpoint map (/docs, /redoc, /openapi.json) on a deployed service.
+      - key: API_DOCS_ENABLED
+        value: "false"
       - key: TEAM_INVITATION_EXPIRE_MINUTES
         value: "20160"
 

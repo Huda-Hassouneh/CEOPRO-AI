@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, X } from 'lucide-react';
 import { CalculationTrace } from './CalculationTrace.jsx';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const KIND_KEYS = {
   company_record: 'kindCompanyRecord', company_summary: 'kindCompanySummary', company_document: 'kindCompanyDocument',
@@ -71,7 +72,7 @@ export function ReferencePanel({ reference, onClose, onOpenRef, activeRef, t, lo
       <ul>{reference.limitations.map((text) => <li key={text} dir="auto">{text}</li>)}</ul>
     </div>}
     <footer>
-      {reference.url && <a href={reference.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} aria-hidden="true" />{t('ragAssistant.references.openSource')}<span className="ceopro-visually-hidden"> {t('ragAssistant.references.newTab')}</span></a>}
+      {reference.url && <a href={safeHref(reference.url)} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} aria-hidden="true" />{t('ragAssistant.references.openSource')}<span className="ceopro-visually-hidden"> {t('ragAssistant.references.newTab')}</span></a>}
       {!reference.url && reference.route && <Link to={reference.route}>{t('ragAssistant.references.openRecord')}</Link>}
     </footer>
   </aside>;
