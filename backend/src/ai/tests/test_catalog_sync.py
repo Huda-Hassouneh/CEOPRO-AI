@@ -94,3 +94,4 @@ def test_product_selection():
 
 def test_minor_units():
     assert cs.minor_units(55.0, "USD") == 5500 and cs.minor_units(1680, "jpy") == 1680
+    assert cs.minor_units(5, "ISK") == 500 and cs.minor_units(5, "UGX") == 500
