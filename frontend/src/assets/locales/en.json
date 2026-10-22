@@ -3971,6 +3971,9 @@
   },
   "platform": {
     "title": "Platform administration",
+    "searchCurrentPage": "Search this page",
+    "searchCurrentPageHint": "Search applies only to the currently loaded page. Use pagination to inspect other pages.",
+    "noMatchesCurrentPage": "No matching records on this page.",
     "back": "Customer dashboard",
     "forbidden": "You do not have permission to administer the platform.",
     "conflict": "This change conflicts with an existing or protected record. Refresh and try again.",

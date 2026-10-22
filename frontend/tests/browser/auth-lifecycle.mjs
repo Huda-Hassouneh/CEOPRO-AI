@@ -265,7 +265,7 @@ try {
   assert.ok(platformEmail && platformPassword);
   await loginAs(platformEmail, platformPassword);
   await page.goto(`${base}/platform`);
-  await page.getByRole('heading', { name: /platform/i }).waitFor();
+  await page.locator('main.keel-platform').waitFor();
   await page.getByRole('button', { name: /operators/i }).click();
   await page.getByRole('button', { name: /invite/i }).click();
   const platformInvitee = `auth-browser-${randomUUID()}@example.test`;
@@ -285,6 +285,12 @@ try {
   const platformAdmin = await session();
   const platformWho = await (await api('/platform/me', null, platformAdmin.accessToken, 'GET')).json();
   assert.equal(platformWho.role, 'admin');
+  await page.goto(`${base}/platform`);
+  await page.getByRole('button', { name: /operators/i }).click();
+  assert.equal(await page.getByRole('button', { name: /transfer platform ownership/i }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: /remove operator/i }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: /^exceptional approvals$/i }).count(), 0);
+  pass('Platform Admin sees operational team view without Owner-only controls');
   const ownerOnly = await api('/platform/financial-approvals', {
     request_id: randomUUID(), kind: 'manual_access', subject: 'auth-browser-check',
     terms: { description: 'not an owner approval' },
@@ -328,6 +334,32 @@ try {
   assert.ok((await expiredAlert.textContent()).trim().length > 0);
   assert.equal((await api(`/platform/invitations/${expiredLink.split('/').at(-1)}`, null, null, 'GET')).status(), 404);
   pass('tenant owners cannot send platform invitations; expired/reused links fail with localized RTL feedback');
+
+  // The authenticated Platform Owner view must render real rows from the
+  // disposable database and expose their detail journeys. Search is explicitly
+  // page-local until a server-side search contract is approved.
+  await page.evaluate(() => localStorage.setItem('ceopro_locale', 'en'));
+  await page.goto(`${base}/platform`);
+  await page.locator('main.keel-platform').waitFor();
+  await page.locator('nav[aria-label] button').nth(1).click();
+  await page.getByLabel(/search this page/i).waitFor();
+  const companyRows = page.locator('table tbody tr');
+  await companyRows.first().waitFor();
+  assert.ok(await companyRows.count() > 0);
+  await page.getByLabel(/search this page/i).fill(`missing-${randomUUID()}`);
+  await page.getByRole('status').filter({ hasText: /no matching records/i }).waitFor();
+  await page.getByLabel(/search this page/i).fill('');
+  await page.getByRole('button', { name: /details/i }).first().click();
+  await page.locator('main.keel-platform section h2').waitFor();
+  pass('Platform Owner lists, filters and opens real company detail records');
+
+  await page.locator('nav[aria-label] button').nth(2).click();
+  await page.getByLabel(/search this page/i).waitFor();
+  await page.locator('table tbody tr').first().waitFor();
+  assert.ok(await page.locator('table tbody tr').count() > 0);
+  await page.getByRole('button', { name: /details/i }).first().click();
+  await page.locator('main.keel-platform section h2').waitFor();
+  pass('Platform Owner lists and opens real global user details with memberships');
 
   console.log(`AUTH BROWSER: ${passed} passed, 0 failed, 0 skipped (listed journeys only)`);
 } catch (error) {

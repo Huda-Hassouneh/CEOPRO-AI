@@ -9,13 +9,14 @@ import { platformApi as api } from './platformApi.js';
 import './platform.css';
 import { PlatformAccount } from './PlatformAccount.jsx';
 import { signOut } from '../../shared/components/layout/signOut.js';
+import { filterPlatformPage } from './platformUtils.js';
 
 const areas = ['overview', 'companies', 'users', 'team', 'audit', 'settings', 'approvals', 'account'];
 export function PlatformDashboard() {
   const { t } = useI18n(); const location = useLocation(); const navigate = useNavigate(); const queryClient = useQueryClient();
   const actor = useAuthStore((s) => s.user?.id);
   const hydrated = useAuthStore((s) => s.isHydrated); const authenticated = useAuthStore(selectIsAuthenticated);
-  const [area, setArea] = React.useState('overview'); const [offset, setOffset] = React.useState(0);
+  const [area, setArea] = React.useState('overview'); const [offset, setOffset] = React.useState(0); const [search, setSearch] = React.useState('');
   const [editor, setEditor] = React.useState(null); const [reason, setReason] = React.useState('');
   const [value, setValue] = React.useState(''); const [busy, setBusy] = React.useState(false);
   const [notice, setNotice] = React.useState(''); const [detail, setDetail] = React.useState(null);
@@ -53,18 +54,18 @@ export function PlatformDashboard() {
     if (handlers[editor?.type]) act(handlers[editor.type]);
   };
   const inspect = async (row) => { setNotice(''); try { setDetail(await api.detail(area, row.tenant_id || row.user_id)); } catch (error) { setNotice(errorMessage(error)); } };
-  const items = data.data?.items || [];
+  const items = data.data?.items || []; const visibleItems = filterPlatformPage(items, search);
   return <main className="keel-platform">
     <header><h1>{t('platform.title')}</h1><Link to="/dashboard">{t('platform.back')}</Link><Button variant="secondary" onClick={() => signOut(useAuthStore.getState().clearSession, navigate)}>{t('platform.signOut')}</Button></header>
     {who.error ? <section role="alert"><p>{errorMessage(who.error)}</p><Button onClick={() => who.refetch()}>{t('platform.retry')}</Button></section> : !who.data ? <p role="status">{t('common.loading')}</p> : <>
       <p>{t(owner ? 'platform.owner' : 'platform.admin')}</p>
-      <nav aria-label={t('platform.title')}>{areas.filter((a) => a !== 'approvals' || owner).map((a) => <Button key={a} variant={a === area ? 'primary' : 'secondary'} onClick={() => { setArea(a); setOffset(0); setDetail(null); setEditor(null); setNotice(''); }}>{t(`platform.${a}`)}</Button>)}</nav>
+      <nav aria-label={t('platform.title')}>{areas.filter((a) => a !== 'approvals' || owner).map((a) => <Button key={a} variant={a === area ? 'primary' : 'secondary'} onClick={() => { setArea(a); setOffset(0); setSearch(''); setDetail(null); setEditor(null); setNotice(''); }}>{t(`platform.${a}`)}</Button>)}</nav>
       {notice && <p role="status">{notice}</p>}
       {data.error && area !== 'approvals' && <p role="alert">{errorMessage(data.error)} <Button onClick={() => data.refetch()}>{t('platform.retry')}</Button></p>}
       {!['approvals', 'account'].includes(area) && data.isPending ? <p role="status">{t('common.loading')}</p> : null}
       {area === 'account' && <PlatformAccount />}
       {area === 'overview' && data.data && <dl>{Object.entries(data.data).map(([k, v]) => <React.Fragment key={k}><dt>{t(`platform.${k}`)}</dt><dd>{v}</dd></React.Fragment>)}</dl>}
-      {['companies', 'users'].includes(area) && <table><thead><tr><th>{t('platform.name')}</th><th>{t('platform.status')}</th><th>{t('platform.actions')}</th></tr></thead><tbody>{items.map((row) => <tr key={row.tenant_id || row.user_id}><td>{row.business_name || row.full_name}<br />{row.email || `${row.country_code} · ${row.primary_currency}`}</td><td>{t(row.platform_suspended_at || row.platform_disabled_at ? 'platform.suspended' : 'platform.active')}</td><td><Button size="sm" onClick={() => inspect(row)}>{t('platform.details')}</Button>{area === 'companies' && <Button size="sm" onClick={() => edit('metadata', row)}>{t('platform.notes')}</Button>}<Button size="sm" onClick={() => edit(area === 'companies' ? 'companyStatus' : 'userStatus', row)}>{t('platform.changeStatus')}</Button></td></tr>)}</tbody></table>}
+      {['companies', 'users'].includes(area) && <><Input label={t('platform.searchCurrentPage')} value={search} onChange={(event) => setSearch(event.target.value)} /><small>{t('platform.searchCurrentPageHint')}</small><table><thead><tr><th>{t('platform.name')}</th><th>{t('platform.status')}</th><th>{t('platform.actions')}</th></tr></thead><tbody>{visibleItems.map((row) => <tr key={row.tenant_id || row.user_id}><td>{row.business_name || row.full_name}<br />{row.email || `${row.country_code} · ${row.primary_currency}`}</td><td>{t(row.platform_suspended_at || row.platform_disabled_at ? 'platform.suspended' : 'platform.active')}</td><td><Button size="sm" onClick={() => inspect(row)}>{t('platform.details')}</Button>{area === 'companies' && <Button size="sm" onClick={() => edit('metadata', row)}>{t('platform.notes')}</Button>}<Button size="sm" onClick={() => edit(area === 'companies' ? 'companyStatus' : 'userStatus', row)}>{t('platform.changeStatus')}</Button></td></tr>)}</tbody></table>{search.trim() && visibleItems.length === 0 && <p role="status">{t('platform.noMatchesCurrentPage')}</p>}</>}
       {detail && <section><h2>{detail.business_name || detail.full_name}</h2><p>{detail.platform_notes || detail.email}</p><ul>{(detail.members || detail.memberships || []).map((m) => <li key={m.user_id || m.tenant_id}>{m.user_id || m.tenant_id}: {m.role}{m.removed_at ? ` · ${t('platform.removed')}` : ''} {(!m.removed_at || m.platform_suspended_at) && <Button size="sm" onClick={() => edit('membershipStatus', m)}>{t('platform.changeStatus')}</Button>}</li>)}</ul></section>}
       {area === 'team' && data.data && <><Button onClick={() => edit('invite')}>{t('platform.invite')}</Button><table><thead><tr><th>{t('platform.name')}</th><th>{t('platform.status')}</th><th>{t('platform.actions')}</th></tr></thead><tbody>{data.data.members.map((m) => <tr key={m.user_id}><td>{m.full_name}<br />{m.email}</td><td>{t(`platform.${m.role}`)} · {t(`platform.${m.status}`)}</td><td>{owner && m.role !== 'owner' && <><Button onClick={() => edit('suspendMember', m)}>{t('platform.changeStatus')}</Button><Button onClick={() => edit('removeMember', m)}>{t('platform.remove')}</Button>{m.status === 'active' && <Button onClick={() => edit('transfer', m)}>{t('platform.transfer')}</Button>}</>}</td></tr>)}</tbody></table><h2>{t('platform.invitations')}</h2>{data.data.invitations.map((i) => <p key={i.invitation_id}>{i.email} · {new Date(i.expires_at).toLocaleString()} · {t(`platform.${i.status}`)} <Button onClick={() => edit('resend', i)}>{t('platform.resend')}</Button> <Button onClick={() => edit('cancel', i)}>{t('platform.cancel')}</Button></p>)}</>}
       {area === 'audit' && <table><thead><tr><th>{t('platform.actions')}</th><th>{t('platform.name')}</th><th>{t('platform.reason')}</th><th>{t('platform.status')}</th></tr></thead><tbody>{items.map((entry) => <tr key={entry.audit_id}><td>{entry.action}<br />{new Date(entry.created_at).toLocaleString()}</td><td>{entry.actor_user_id}<br />{entry.actor_role}</td><td>{entry.reason}</td><td>{entry.outcome}</td></tr>)}</tbody></table>}
