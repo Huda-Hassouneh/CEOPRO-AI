@@ -1866,6 +1866,23 @@ Design, causes and as-built notes: `COMPETITOR_COMMENTS_AND_RETRY_PLAN.md` (sect
   needs a live Redis and is unrelated. **Not tested**: any live YouTube call - the build environment has no key.
 - **Not done**: Instagram / Facebook comments (paid social provider).
 
+## 2026-10-22 (assistant summary: follow-up sweep, observability and a wrong guess corrected)
+
+- **Observability**: of the three post-deploy numbers for the short summary, only the share with a summary could be counted
+  (stored `answer_summary`). The repair flag was returned but not stored, and a summary dropped by the claim checks was
+  silent (the render falls back to the answer's first claims). `Draft.summary_dropped` and `render()["summary_source"]`
+  (`model` / `fallback` / `none`) now feed one `assistant_answer` log line per answer. No API or schema change. See
+  PENDING_ACTIONS #144 for the queries and the baseline to record before deploy.
+- **Corrected assumption**: a future-date check on migration filenames was written and failed on eight existing files; dating
+  ahead is the repo's convention. The runner tracks applied files by name, so ordering cannot skip a migration (PENDING_ACTIONS
+  #145). Kept only a filename-format test.
+- **Local cleanup**: the two `qa.summary*` companies were deleted (#142). A SQL delete cascades through the database but not
+  to MinIO; 8 orphaned result files and 8 PDFs were removed through the API. Prefer `company_data.delete_company`.
+- **Testing**: 21 citation tests pass, including the new one; the filename test passes on all current migrations. The
+  DB-backed advisor tests were not run locally (no FastAPI in this environment); CI is the check of record.
+- **Not done (needs a person or the daily quota)**: the model check (#137), the hosted Groq key and price (#124-#126), the
+  docs-only tracker PR for `f4a0f12`, and the product decisions #138, #140, #143.
+
 ## How to add an entry
 
 1. New date-stamped `##` section at the bottom (never edit history).
