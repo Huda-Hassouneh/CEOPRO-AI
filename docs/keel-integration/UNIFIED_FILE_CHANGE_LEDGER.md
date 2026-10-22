@@ -1538,3 +1538,23 @@ For one coordinated owner decision round:
 - **U4 — Credit conversion and commercial terms (CREDIT-001/002/004):** decide whether to retain current cost-derived Credit model, define fixed conversions/top-ups/expiry, or provide another explicit commercial schedule. Recommendation: retain current separately configured Data/AI budgets and provider cost ledgers; keep top-ups/credits terms disabled until approved. Impact: existing balances and provider spend remain unchanged. Exact block: new conversions, top-ups, rollover/expiry changes and customer-facing adjustments.
 
 Remaining acceptance statuses and this run's evidence are appended to the original ENT/CREDIT rows in `evidence/ACCEPTANCE_TEST_SPEC.csv`; original IDs, cases and assertions are unchanged.
+
+## Feature Completion 04 — Platform Administration and Tenant Management — 2026-10-22
+
+Starting checkpoint: `2585c9017e47137cadbaf9aa1b766a58f4dddab2` on `integration/keel-full-migration`. Reused the existing Python platform principal, command service, permissioned SQL functions, audit stream, invitation flow, React platform page and AUTH-002 authority. No migration was created; migrations 1–98 remain unchanged. No permissions, financial rights, customer data, catalog prices, Credits or billing contracts were expanded or modified.
+
+- Added accessible English/Arabic page-local search to the existing company and global-user tables. Search operates only on rows returned by the existing bounded paginated API and visibly explains that pagination is needed to inspect other pages; it does not imply global search. The helper searches only existing displayed fields. No new identifiers or sensitive records are exposed.
+- Extended actual Chromium coverage for Platform Admin owner-only control hiding and for Platform Owner company/user list, page-local filter, and detail journeys using records in the isolated PostgreSQL database. Existing controlled-SMTP platform invitation acceptance/expiry/replay and tenant-owner denial journeys also passed.
+- Native PostgreSQL 17.11/pgvector 0.8.7 verification used the real restricted `ceopro_app` role and existing migration chain. The platform/auth suite passed **44 tests, 0 failures, 0 skips**, including FORCE RLS, role separation, operator suspension/removal, audit actor attribution, tenant suspension, invitation/role protections, and concurrent owner-transfer checks. No shared or production database was used.
+- Actual browser harness ran FastAPI, React, controlled SMTP, Chromium, PostgreSQL and configured Redis against disposable fixtures. It passed **24 journeys, 0 failures, 0 skips**, including Platform Owner and Platform Admin separation, ordinary tenant denial, invitation lifecycle, owner company/user records and details, and Arabic RTL invitation errors. Browser evidence does not imply production email delivery certification.
+- Frontend checks: **127 tests passed, 0 failed, 0 skipped**; ESLint passed; Vite production build passed. A temporary missing English locale during the first browser selector attempt was corrected by setting the isolated owner session to English for English-label assertions; final Chromium run passed.
+
+### Remaining PLATFORM acceptance boundaries
+
+- `PLATFORM-001`: locally verified existing owner/admin permission split, tenant-owner denial, operator invitation, suspension/removal and audit/ownership protections. No new role or financial authority was added.
+- `PLATFORM-002`: bounded overview/company/user/detail experience is verified. Global server-side search across pages is not implemented: the existing query/function contract accepts pagination but no search term. Current UI filtering is explicitly page-local. A server-side search contract/schema extension would require a separate scope authorization.
+- `PLATFORM-003`: authenticated plan/feature administration and immutable catalog history are missing and remain gated by CATALOG-001/U5 and separate migration authorization. Existing catalog and plan terms were untouched.
+- `PLATFORM-004`: exceptional financial approval receipts remain audit/approval evidence only; no platform financial execution API was added. Manual grants, Credit adjustments, price publication and provider-spending overrides remain unauthorized/policy-gated.
+- `PLATFORM-005`: platform invitations were verified through controlled SMTP, but general durable notification outbox delivery/recovery is not present and remains schema-gated. No Migration 99 was created.
+
+The exact original `PLATFORM-001` through `PLATFORM-005` acceptance IDs and this run's evidence/statuses are recorded in `evidence/ACCEPTANCE_TEST_SPEC.csv`; previous acceptance history is retained.
