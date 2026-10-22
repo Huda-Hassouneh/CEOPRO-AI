@@ -55,6 +55,7 @@ def main(argv=None) -> int:
     parser.add_argument("--email", required=True)
     parser.add_argument("--password", required=True)
     parser.add_argument("--campaign")
+    parser.add_argument("--batch", help="with --campaign: retry that batch's failed images and check it, instead of queuing a new one")
     parser.add_argument("--variations", type=int, default=1)
     parser.add_argument("--formats", default=",".join(RATIOS))
     parser.add_argument("--prompt", help="the owner's image description (default: the campaign's own)")
@@ -79,13 +80,18 @@ def main(argv=None) -> int:
 
     formats = [f for f in args.formats.split(",") if f]
     before = {a["asset_id"] for a in client.get(f"/marketing/campaigns/{campaign_id}/assets").json()["assets"]}
-    queued = client.post(f"/marketing/campaigns/{campaign_id}/image-batches",
-                         json={"formats": formats, "variations": args.variations, "prompt": args.prompt})
-    if queued.status_code != 200:
-        print(f"FAIL: batch not queued ({queued.status_code}): {queued.text[:300]}")
-        return 1
-    batch = queued.json()
-    print(f"queued {batch['queued']} images (batch {batch['batch_id']}); capacity: {json.dumps(batch['capacity'])}")
+    if args.batch:
+        retried = client.post(f"/marketing/campaigns/{campaign_id}/image-jobs/retry").json()
+        batch = {"batch_id": args.batch}
+        print(f"re-queued {retried['requeued']} failed image(s) of batch {args.batch}")
+    else:
+        queued = client.post(f"/marketing/campaigns/{campaign_id}/image-batches",
+                             json={"formats": formats, "variations": args.variations, "prompt": args.prompt})
+        if queued.status_code != 200:
+            print(f"FAIL: batch not queued ({queued.status_code}): {queued.text[:300]}")
+            return 1
+        batch = queued.json()
+        print(f"queued {batch['queued']} images (batch {batch['batch_id']}); capacity: {json.dumps(batch['capacity'])}")
 
     started, deadline = time.monotonic(), time.monotonic() + args.timeout_minutes * 60
     while time.monotonic() < deadline:

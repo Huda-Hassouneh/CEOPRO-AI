@@ -111,9 +111,25 @@ def queue(monkeypatch):
 
 
 def _drain():
-    """Other tests' leftovers must not be claimed here."""
+    """Leftovers of earlier runs of these tests (their companies' emails start
+    with jobs+) must not be claimed here. Anyone else's queued images are
+    never touched: when there are some, the tests skip instead - their worker
+    claims from the shared queue and would make those images with this
+    file's fake server."""
     with psycopg2.connect(DATABASE_URL) as conn, conn.cursor() as cursor:
-        cursor.execute("UPDATE image_generation_jobs SET status = 'CANCELLED' WHERE status IN ('QUEUED', 'RUNNING');")
+        cursor.execute(
+            """
+            UPDATE image_generation_jobs j SET status = 'CANCELLED'
+            WHERE j.status IN ('QUEUED', 'RUNNING') AND EXISTS (
+                SELECT 1 FROM tenant_users tu JOIN users u ON u.user_id = tu.user_id
+                WHERE tu.tenant_id = j.tenant_id AND u.email LIKE 'jobs+%%@example.com');
+            """
+        )
+        cursor.execute("SELECT COUNT(*) FROM image_generation_jobs WHERE status IN ('QUEUED', 'RUNNING');")
+        others = cursor.fetchone()[0]
+    if others:
+        pytest.skip(f"{others} image job(s) of other companies are queued in this database; "
+                    "run these tests against a database without a live image queue")
 
 
 def _work(n=1):
