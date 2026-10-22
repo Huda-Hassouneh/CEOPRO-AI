@@ -5,7 +5,9 @@ from history: anyone can still read it at commit `128dba2` (merged 2026-10-19) o
 may already be in forks, clones and search-engine caches. Every value in it must be treated as known to the
 public. This document lists names only, never values.
 
-The file was the repository-root `.env`. Its URLs point at Docker service names (`postgres`, `searxng`) and
+Exposed in three places: the repository-root `.env` (commit `128dba2`) and earlier versions of
+`backend/KEYS_AND_ACCOUNTS_NEEDED.md` and `.env.example` (2026-10-13 to 2026-10-19; see the system audit). The root
+`.env` Its URLs point at Docker service names (`postgres`, `searxng`) and
 `localhost`, so it was written for the Docker/local setup. That does not make it harmless: if any of these values
 was ever reused on Render (staging or production), in a Codespace secret, or for another account, that place is
 exposed too. Whether that happened cannot be checked from the development sandbox.
@@ -23,7 +25,12 @@ exposed too. Whether that happened cannot be checked from the development sandbo
 | 7 | `SEARXNG_SECRET` | SearXNG instance secret | The SearXNG deployment's settings | |
 | 8 | `REDIS_URL` | Queue/cache | Only if a password was ever added to it in a hosted environment | The exposed value has no password. |
 
+| 9 | `SMTP_USERNAME`, `SMTP_PASSWORD` | Outgoing email (sign-up codes, password resets) | The email provider's console | Found in history by the system audit (`docs/FINAL_SYSTEM_AUDIT.md` 3.1), in `KEYS_AND_ACCOUNTS_NEEDED.md` / `.env.example`, not only the root `.env`. |
+| 10 | `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNTS`, `HUGGINGFACE_API_TOKEN(S)`, `GEMINI_API_KEYS`, `TOGETHER_API_KEYS`, `HORDE_API_KEYS`, `POLLINATIONS_API_KEYS` | Hosted image-provider accounts | Each provider's dashboard: delete and recreate | Same finding. Hugging Face's token is already rejected (expired/revoked). The self-hosted image server needs none of these. |
+
 Non-secret settings in the same file (pool sizes, stream names, timeouts, the fixed service-actor id) need no action.
+The system audit compared values (never printing them) and found 16 of the owner's 17 current credential values in
+history; the newer Groq key created after those commits is not in it.
 
 ## Optional: purge history
 
