@@ -150,7 +150,7 @@ def sync_shopify_stream(conn, tenant_id: str, source: dict, stream: str, receipt
             or int(current_binding[4]) != int(source["configuration_version"])):
         raise operation_receipts.ReceiptAuthorizationError("Shopify source verification changed before sync")
     job_id = data_access.create_or_reuse_receipt_ingestion_job(
-        conn, tenant_id, source["source_id"], receipt, replay_safe_provider_read=True,
+        conn, tenant_id, source["source_id"], receipt, replay_safe_provider_read=True, provider="shopify",
     )
 
     try:
@@ -260,7 +260,7 @@ def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
         raise operation_receipts.ReceiptAuthorizationError("Shopify source verification changed before sync")
 
     job_id = data_access.create_or_reuse_receipt_ingestion_job(
-        conn, tenant_id, source["source_id"], receipt, replay_safe_provider_read=True,
+        conn, tenant_id, source["source_id"], receipt, replay_safe_provider_read=True, provider="shopify",
     )
     try:
         operation_receipts.begin_provider(conn, receipt)
@@ -368,7 +368,7 @@ def sync_woocommerce_source(conn, tenant_id: str, source: dict, receipt: dict, *
             or int(binding[4]) != int(source["configuration_version"])):
         raise operation_receipts.ReceiptAuthorizationError("WooCommerce source verification changed before sync")
     job_id = data_access.create_or_reuse_receipt_ingestion_job(
-        conn, tenant_id, source["source_id"], receipt, replay_safe_provider_read=True,
+        conn, tenant_id, source["source_id"], receipt, replay_safe_provider_read=True, provider="woocommerce",
     )
     try:
         operation_receipts.begin_provider(conn, receipt)
@@ -483,5 +483,5 @@ def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = S
             logger.warning("Provider sync failed source_id=%s provider=%s error_type=%s",
                            source["source_id"], provider, type(exc).__name__)
             results.append({"source_id": source["source_id"], "provider": provider,
-                            "error": safe_connector_error(exc, "Shopify synchronization")})
+                            "error": safe_connector_error(exc, f"{provider.title()} synchronization")})
     return results

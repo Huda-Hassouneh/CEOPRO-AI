@@ -55,15 +55,15 @@ def test_shopify_line_item_keeps_provider_product_and_variant_ids():
     assert findings == []
 
 
-def test_woocommerce_preserves_decimal_values_without_inventing_currency():
+def test_woocommerce_product_holds_fields_not_supported_by_m98_contract():
     values, findings = normalize_woocommerce_record("product", {
         "name": "Coffee", "type": "simple", "sku": "C-1", "price": "15.2500",
         "regular_price": "16.00", "sale_price": "15.2500", "stock_quantity": 91,
         "billing": {"email": "private@example.test"},
     })
-    assert values["price"] == "15.2500"
-    assert values["currency_code"] is None
-    assert {f["code"] for f in findings} == {"store_currency_unavailable"}
+    assert values == {"title": "Coffee", "status": None, "created_at": None, "updated_at": None}
+    assert {f["field"] for f in findings} == {"sku", "type", "price", "regular_price", "sale_price"}
+    assert {f["code"] for f in findings} == {"provider_business_field_not_supported"}
     assert "stock_quantity" not in values
     assert "billing" not in values and "email" not in str(values)
 
