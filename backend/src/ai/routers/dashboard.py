@@ -24,7 +24,9 @@ from src.ai.dashboard import product_intelligence as dashboard_product_intellige
 from src.ai.dashboard import price_competitiveness as dashboard_price_competitiveness
 from src.ai.dashboard import recommendations as dashboard_recommendations
 from src.ai.dashboard import search as dashboard_search
-from src.ai.forecasting import pipeline as forecasting_pipeline
+from src.ai.forecasting import refresh as forecasting_refresh
+from src.ai.forecasting import generation as forecasting_generation
+from src.ai.forecasting.authorization import require_forecast_authorization
 from src.ai.routers.products import get_product
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -104,7 +106,7 @@ def dashboard_recommendations_endpoint(
         conn.close()
 
 
-@router.get("/forecast")
+@router.get("/forecast", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def dashboard_forecast_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """
     The dashboard's Forecast KPI card - total predicted units across all
@@ -350,7 +352,7 @@ def dashboard_search_endpoint(
         conn.close()
 
 
-@router.get("/forecast-movers")
+@router.get("/forecast-movers", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def dashboard_forecast_movers_endpoint(
     limit: int = Query(default=dashboard_forecast_movers.DEFAULT_LIMIT, ge=1, le=50),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -373,7 +375,7 @@ def dashboard_forecast_movers_endpoint(
         conn.close()
 
 
-@router.get("/inventory-recommendations")
+@router.get("/inventory-recommendations", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def dashboard_inventory_recommendations_endpoint(
     limit: int = Query(default=dashboard_inventory_recommendations.DEFAULT_LIMIT, ge=1, le=100),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -398,7 +400,7 @@ def dashboard_inventory_recommendations_endpoint(
 
 
 @router.post("/products/{product_id}/forecast", dependencies=[requires(usage.DEMAND_PREDICTION)])
-def dashboard_generate_product_forecast_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def dashboard_generate_product_forecast_endpoint(product_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """
     Synchronously generates a real forecast for one product, mirroring
     routers/pricing.py's POST /pricing/recommend (on-demand HTTP trigger
@@ -421,9 +423,11 @@ def dashboard_generate_product_forecast_endpoint(product_id: str, ctx: TenantCon
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        if get_product(conn, ctx.tenant_id, product_id) is None:
+        if get_product(conn, ctx.tenant_id, str(product_id)) is None:
             raise HTTPException(status_code=404, detail="Product not found")
-        result = forecasting_pipeline.run_forecast(conn, ctx.tenant_id, product_id)
+        check = lambda: require_forecast_authorization(conn, ctx.tenant_id, ctx.user_id)
+        check()
+        result = _generate_or_reuse_forecast(conn, ctx.tenant_id, str(product_id), check)
         conn.commit()
         return result
     except HTTPException:
@@ -436,8 +440,8 @@ def dashboard_generate_product_forecast_endpoint(product_id: str, ctx: TenantCon
         conn.close()
 
 
-@router.get("/products/{product_id}/forecast")
-def dashboard_product_forecast_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+@router.get("/products/{product_id}/forecast", dependencies=[requires(usage.DEMAND_PREDICTION)])
+def dashboard_product_forecast_endpoint(product_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """
     The product detail page's forecast section - real current stock,
     latest forecast (with its real confidence interval), real average
@@ -447,7 +451,7 @@ def dashboard_product_forecast_endpoint(product_id: str, ctx: TenantContext = De
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = dashboard_forecast_detail.get_product_forecast_detail(conn, ctx.tenant_id, product_id)
+        result = dashboard_forecast_detail.get_product_forecast_detail(conn, ctx.tenant_id, str(product_id))
         conn.commit()
         if result is None:
             raise HTTPException(status_code=404, detail="Product not found")
@@ -462,7 +466,12 @@ def dashboard_product_forecast_endpoint(product_id: str, ctx: TenantContext = De
         conn.close()
 
 
-@router.get("/products/{product_id}/intelligence")
+def _generate_or_reuse_forecast(conn, tenant_id: str, product_id: str, authorization_check=None) -> dict:
+    """Compatibility wrapper for the shared generation/idempotency service."""
+    return forecasting_generation.generate_or_reuse_forecast(conn, tenant_id, product_id, authorization_check=authorization_check)
+
+
+@router.get("/products/{product_id}/intelligence", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def dashboard_product_intelligence_endpoint(product_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """The product page: sales, demand forecast, stock advice, competitor
     prices (this product's competitors and the company's others), reviews
@@ -477,7 +486,7 @@ def dashboard_product_intelligence_endpoint(product_id: UUID, ctx: TenantContext
         conn.close()
 
 
-@router.get("/command-center")
+@router.get("/command-center", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def dashboard_command_center_endpoint(
     window_days: int = Query(default=30, ge=7, le=365),
     ctx: TenantContext = Depends(get_tenant_context),

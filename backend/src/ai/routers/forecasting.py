@@ -16,6 +16,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.ai import db
+from src.ai.core import usage
+from src.ai.core.entitlements import requires
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.forecasting import overview as forecast_overview
 from src.ai.forecasting import refresh as forecast_refresh
@@ -30,7 +32,7 @@ def _refresh_payload(tenant_id: str, pending: int, started: bool) -> dict:
     return {**status, "pending_products": pending, "started": started}
 
 
-@router.get("/overview")
+@router.get("/overview", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def get_overview(
     product_id: Optional[UUID] = Query(default=None),
     auto_refresh: bool = Query(default=True),
@@ -49,7 +51,7 @@ def get_overview(
     return result
 
 
-@router.post("/refresh")
+@router.post("/refresh", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def refresh_forecasts(
     all_products: bool = Query(default=False, description="Re-forecast every product with sales, not only stale ones."),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -65,6 +67,6 @@ def refresh_forecasts(
     return _refresh_payload(ctx.tenant_id, len(product_ids), started)
 
 
-@router.get("/status")
+@router.get("/status", dependencies=[requires(usage.DEMAND_PREDICTION)])
 def refresh_status(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     return forecast_refresh.refresh_status(ctx.tenant_id)
