@@ -59,7 +59,12 @@ def get_inventory_recommendations(conn, tenant_id: str, limit: int = DEFAULT_LIM
                 i.stock_quantity, df.expected_demand, df.forecast_target_date, er.confidence_score
             FROM demand_forecasts df
             JOIN products p ON p.tenant_id = df.tenant_id AND p.product_id = df.product_id
-            JOIN inventory i ON i.tenant_id = df.tenant_id AND i.product_id = df.product_id
+            JOIN LATERAL (
+                SELECT stock_quantity FROM inventory
+                WHERE tenant_id = df.tenant_id AND product_id = df.product_id
+                ORDER BY updated_at DESC NULLS LAST, inventory_id
+                LIMIT 1
+            ) i ON TRUE
             LEFT JOIN evidence_records er ON er.tenant_id = df.tenant_id
                 AND er.source_module = 'ai.forecasting'
                 AND (er.source_record_ids->>'forecast_id')::uuid = df.forecast_id

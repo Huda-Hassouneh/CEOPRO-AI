@@ -1,12 +1,15 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { useAuthStore } from '../../auth/store/authStore.js';
+import { hasAnyRole } from '../../auth/permissions/rolePermissions.js';
 import { DashboardLayout } from '../../../app/layouts/DashboardLayout.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
 import Button from '../../../shared/components/ui/Button.jsx';
 import { ProductForm } from '../components/ProductForm.jsx';
+import { ManualStockEditor } from '../components/ManualStockEditor.jsx';
 import { useProduct } from '../hooks/useProduct.js';
 import { useCreateProduct } from '../hooks/useCreateProduct.js';
 import { useUpdateProduct } from '../hooks/useUpdateProduct.js';
@@ -25,6 +28,8 @@ function localizedText(value) {
 
 export function ProductFormPage() {
   const { t } = useI18n();
+  const roles = useAuthStore((state) => state.roles);
+  const canManageCatalog = hasAnyRole(roles, ['owner', 'admin']);
   const navigate = useNavigate();
   const { productId } = useParams();
   const isEdit = Boolean(productId);
@@ -32,6 +37,10 @@ export function ProductFormPage() {
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
   const mutation = isEdit ? updateMutation : createMutation;
+
+  if (!canManageCatalog) {
+    return <DashboardLayout><div className="products-page"><EmptyState title={t('products.form.restricted')} action={<Button size="sm" variant="outline" onClick={() => navigate(routePaths.products)}>{t('products.form.back')}</Button>} /></div></DashboardLayout>;
+  }
 
   const goBack = () => navigate(routePaths.products);
 
@@ -75,5 +84,6 @@ export function ProductFormPage() {
         t={t}
       />
     </section>
+    {isEdit && <ManualStockEditor productId={productId} inventory={productQuery.data.product.inventory} t={t} />}
   </div></DashboardLayout>;
 }

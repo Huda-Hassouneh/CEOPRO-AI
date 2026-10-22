@@ -32,6 +32,10 @@ test('products/quick-sale api layer sends the real request shape and returns wha
         assert.deepEqual(parsed, { current_price: 39.99 });
         return res.end(JSON.stringify({ product_id: 'p1', current_price: 39.99 }));
       }
+      if (req.url === '/products/p1/inventory' && req.method === 'PATCH') {
+        assert.deepEqual(parsed, { stock_quantity: 12, reorder_level: 4, safety_stock: 2 });
+        return res.end(JSON.stringify({ stock_quantity: 12, reorder_level: 4, safety_stock: 2 }));
+      }
       if (req.url === '/products/p1' && req.method === 'DELETE') {
         res.statusCode = 204;
         return res.end();
@@ -64,6 +68,9 @@ test('products/quick-sale api layer sends the real request shape and returns wha
 
   const updated = await productsApi.update({ id: 'p1', current_price: 39.99 });
   assert.equal(updated.product.current_price, 39.99);
+
+  const inventory = await productsApi.updateInventory({ id: 'p1', stock_quantity: 12, reorder_level: 4, safety_stock: 2 });
+  assert.equal(inventory.stock_quantity, 12);
 
   const removed = await productsApi.remove('p1');
   assert.equal(removed.ok, true);
