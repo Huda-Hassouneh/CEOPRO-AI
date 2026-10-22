@@ -23,6 +23,10 @@ on:
       - backend/scripts/live_discovery_check.py
       - .github/workflows/live-discovery-check.yml
 
+# Least privilege: these jobs only read the repository (security pass 2026-10-21).
+permissions:
+  contents: read
+
 jobs:
   live-scan:
     name: "${{ matrix.case.business_type }} - ${{ matrix.case.city }}, ${{ matrix.case.country }}"

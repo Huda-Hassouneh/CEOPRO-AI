@@ -7,6 +7,7 @@ import { ApexButton, Pill } from '../../../shared/components/apex/Apex.jsx';
 import { PRICE_REASON_CODES } from '../api/competitorDataApi.js';
 import { useFindMissingPrices } from '../hooks/useCompetitorData.js';
 import { BarcodeEditor } from './BarcodeEditor.jsx';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 // For one product: does it have a market price and from what, the public listings behind it
 // (seller, price, the listing's own rating and review count), why there is none when there is
@@ -75,7 +76,7 @@ export function ProductMarketDetail({ product, competitors, currency }) {
                   </td>
                   <td>
                     {ref.counted ? <Pill tone="success">{t('competitorData.product.counted')}</Pill> : <Pill tone="warning">{t('competitorData.product.notCounted')}</Pill>}
-                    {ref.url && <a className="apex-inline-link" href={ref.url} target="_blank" rel="noreferrer noopener" aria-label={t('competitorData.product.open')}><ExternalLink size={12} aria-hidden="true" /></a>}
+                    {ref.url && <a className="apex-inline-link" href={safeHref(ref.url)} target="_blank" rel="noreferrer noopener" aria-label={t('competitorData.product.open')}><ExternalLink size={12} aria-hidden="true" /></a>}
                   </td>
                 </tr>
               ))}

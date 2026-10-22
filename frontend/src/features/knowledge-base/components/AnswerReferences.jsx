@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, FileText, Globe, Calculator, Database } from 'lucide-react';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const ICONS = { web_page: Globe, calculation: Calculator, company_document: FileText, company_summary: FileText };
 
@@ -27,7 +28,7 @@ export function AnswerReferences({ references, legacySources, onOpenRef, activeR
     })}</ol>}
     {expanded && !references.length && <ul>{legacySources.map((source) => <li key={source.citationId}>
       {source.uri
-        ? <a href={source.uri} target="_blank" rel="noopener noreferrer"><Globe size={16} aria-hidden="true" /><span><strong>{source.name}</strong><b className="rag-sources__badge--web">{t('ragAssistant.sources.web')}</b></span></a>
+        ? <a href={safeHref(source.uri)} target="_blank" rel="noopener noreferrer"><Globe size={16} aria-hidden="true" /><span><strong>{source.name}</strong><b className="rag-sources__badge--web">{t('ragAssistant.sources.web')}</b></span></a>
         : <div><FileText size={16} aria-hidden="true" /><span><strong>{source.name}</strong><b>{t('ragAssistant.sources.knowledgeBase')}</b></span></div>}
     </li>)}</ul>}
   </section>;

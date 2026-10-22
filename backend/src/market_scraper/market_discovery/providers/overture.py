@@ -19,6 +19,8 @@ own website.
 OVERTURE_BASE_URL points at a mirror; OVERTURE_RELEASE pins a release
 (default: the newest); DISCOVERY_DISABLE_OVERTURE=true turns it off.
 """
+import hashlib
+import hmac
 import io
 import logging
 import math
@@ -136,6 +138,39 @@ def _release(client: httpx.Client) -> str:
     return releases[-1]
 
 
+def _cache_key() -> Optional[bytes]:
+    """Key that signs the on-disk index. Without one the cache is neither read nor written."""
+    secret = os.getenv("OVERTURE_CACHE_SIGNING_KEY") or os.getenv("JWT_SECRET")
+    return hashlib.sha256(b"overture-index:" + secret.encode()).digest() if secret else None
+
+
+def _read_signed_index(path: str) -> Optional[dict]:
+    """Unpickle only bytes whose HMAC matches; anyone able to write the cache dir cannot plant code."""
+    key = _cache_key()
+    if not key:
+        return None
+    with open(path, "rb") as handle:
+        blob = handle.read()
+    with open(path + ".sig", "rb") as handle:
+        signature = handle.read()
+    if not hmac.compare_digest(hmac.new(key, blob, hashlib.sha256).digest(), signature):
+        return None
+    return pickle.loads(blob)  # noqa: S301 - signature verified above
+
+
+def _write_signed_index(path: str, index: dict) -> None:
+    key = _cache_key()
+    if not key:
+        return
+    blob = pickle.dumps(index)
+    with open(path + ".tmp", "wb") as handle:
+        handle.write(blob)
+    with open(path + ".sig.tmp", "wb") as handle:
+        handle.write(hmac.new(key, blob, hashlib.sha256).digest())
+    os.replace(path + ".tmp", path)
+    os.replace(path + ".sig.tmp", path + ".sig")
+
+
 def _load_index(client: httpx.Client) -> dict:
     """{release, files: [(key, size, metadata)]} - footers fetched once per
     release and kept on disk, so later scans start immediately."""
@@ -147,10 +182,11 @@ def _load_index(client: httpx.Client) -> dict:
             return _index[release]
         path = os.path.join(CACHE_DIR, f"places-{release}.pickle")
         try:
-            with open(path, "rb") as handle:
-                _index[release] = pickle.load(handle)
-                return _index[release]
-        except Exception:  # noqa: BLE001 - missing, truncated, or written by another pyarrow: rebuild
+            cached = _read_signed_index(path)
+            if cached is not None:
+                _index[release] = cached
+                return cached
+        except Exception:  # noqa: BLE001 - missing, unsigned, truncated, or written by another pyarrow: rebuild
             pass
         keys, _ = _list(client, f"release/{release}/theme=places/type=place/")
         files = []
@@ -164,9 +200,7 @@ def _load_index(client: httpx.Client) -> dict:
         index = {"release": release, "files": files}
         try:
             os.makedirs(CACHE_DIR, exist_ok=True)
-            with open(path + ".tmp", "wb") as handle:
-                pickle.dump(index, handle)
-            os.replace(path + ".tmp", path)
+            _write_signed_index(path, index)
         except OSError as exc:
             logger.warning("Overture index not cached: %s", exc)
         _index[release] = index

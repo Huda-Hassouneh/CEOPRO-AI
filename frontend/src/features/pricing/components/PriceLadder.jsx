@@ -3,9 +3,9 @@ import { ExternalLink } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { Pill } from '../../../shared/components/apex/Apex.jsx';
 import '../styles/Pricing.css';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 // Links come from scraped pages: only http(s) is ever followed.
-const safeUrl = (url) => (/^https?:\/\//i.test(url || '') ? url : null);
 
 export const TIERS = ['EXACT', 'EQUIVALENT', 'SIMILAR', 'ADDED_VALUE'];
 const TIER_TONE = { EXACT: 'success', EQUIVALENT: 'accent', SIMILAR: 'neutral', ADDED_VALUE: 'violet' };
@@ -155,7 +155,7 @@ export function PriceLadder({ ladder, onDecide, onSetBand, busy = false }) {
                           )}
                           <div className="apex-muted">
                             {item.observed_at ? date.format(new Date(item.observed_at)) : null}
-                            {safeUrl(item.source_url) && <a className="apex-inline-link" href={safeUrl(item.source_url)} target="_blank" rel="noreferrer noopener" aria-label={t('pricing.ladder.openSource', { name: item.competitor_name })}><ExternalLink size={12} aria-hidden="true" /></a>}
+                            {safeHref(item.source_url) && <a className="apex-inline-link" href={safeHref(item.source_url)} target="_blank" rel="noreferrer noopener" aria-label={t('pricing.ladder.openSource', { name: item.competitor_name })}><ExternalLink size={12} aria-hidden="true" /></a>}
                           </div>
                         </td>
                       </tr>
