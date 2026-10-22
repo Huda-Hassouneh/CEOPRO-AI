@@ -129,6 +129,16 @@ def main(argv=None) -> int:
         or llm_client.MODEL_NAME
     credential = {"groq": "GROQ_API_KEY", "huggingface": "HUGGINGFACE_API_TOKEN", "paid": "PAID_LLM_API_KEY"}.get(provider)
     print(f"provider: {provider}, model: {model}")
+    chain = llm_client.provider_chain()
+    if len(chain) > 1:
+        # This check covers the first provider; a real answer (--tenant) goes through the whole chain.
+        provider = chain[0]
+        model = {"paid": llm_client.PAID_LLM_MODEL, "huggingface": llm_client.HUGGINGFACE_LLM_MODEL}.get(provider) \
+            or llm_client.MODEL_NAME
+        credential = {"groq": "GROQ_API_KEY", "huggingface": "HUGGINGFACE_API_TOKEN", "paid": "PAID_LLM_API_KEY"}.get(provider)
+        print(f"fallback chain (LLM_PROVIDERS): {' -> '.join(chain)}; "
+              f"configured: {', '.join(p for p in chain if llm_client._configured(p)) or 'none'}")
+        print(f"first provider: {provider}, model: {model}")
     if credential:
         print(f"{credential}: {'available' if os.getenv(credential) else 'not set'}")
     if not llm_client.provider_configured():
