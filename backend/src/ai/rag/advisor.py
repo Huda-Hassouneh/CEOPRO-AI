@@ -1058,8 +1058,13 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         calculation["ref"] = rendered["numbering"].get(calculation["evidence_id"])
     # One countable line per answer: how often a summary is shown, written by the model or built from the
     # answer, how often the checks drop the model's, and how often the repair round runs.
+    # An evidence-mode summary is a sentence quoted from the evidence, not written by the model: counting it as
+    # "model" would inflate the share of answers whose summary the model wrote.
+    summary_source = rendered["summary_source"]
+    if summary_source == "model" and mode in ("evidence", "unverifiable"):
+        summary_source = "extractive"
     logger.info("assistant_answer mode=%s summary=%s dropped=%d issues=%d repaired=%s", mode,
-                rendered["summary_source"], rendered["summary_dropped"], issue_count, repaired)
+                summary_source, rendered["summary_dropped"], issue_count, repaired)
     return {
         "answer": rendered["answer"], "answer_summary": rendered["summary"], "answer_blocks": rendered["blocks"], "references": rendered["references"],
         "sources": _legacy_sources(rendered["references"]), "follow_up_questions": rendered["follow_up_questions"],
