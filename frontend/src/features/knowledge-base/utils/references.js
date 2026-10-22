@@ -56,7 +56,7 @@ export function mapBlocks(blocks) {
 // The short answer shown above a long one: its claims, or null.
 export function mapSummary(summary) {
   const claims = Array.isArray(summary?.claims) ? summary.claims.map(mapClaim) : [];
-  return claims.length ? { claims } : null;
+  return claims.length ? { claims, note: summary?.note === 'source_language' ? 'sourceLanguage' : null } : null;
 }
 
 export function mapReferences(references) {
