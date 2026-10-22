@@ -46,6 +46,7 @@ export function mapDocuments(response) {
     uploadedAt: document.uploaded_at,
     status: document.status,
     chunkCount: document.chunk_count,
+    searchable: Boolean(document.searchable),
   }));
 }
 
@@ -114,13 +115,15 @@ export const knowledgeBaseApi = {
         },
       };
     } catch (error) {
+      const failedSessionId = error?.response?.headers?.['x-assistant-session-id'] || null;
+      const persistedSession = failedSessionId ? { sessionId: failedSessionId } : {};
       // A stale/invalid session id (e.g. restored from localStorage after
       // the session was deleted server-side) is a 404 - distinguish it so
       // the caller can drop the dead id and retry as a fresh session,
       // rather than surfacing a generic "chat unavailable" for a case
       // that's actually recoverable.
       if (error?.response?.status === 404) {
-        return { available: false, sessionNotFound: true, message: null };
+        return { available: false, sessionNotFound: true, ...persistedSession, message: null };
       }
       // An AI call refused before it ran by the company's AI Credits or the
       // server's provider settings (backend billing/credits.py BudgetError,
@@ -129,7 +132,8 @@ export const knowledgeBaseApi = {
       // must never read as "busy, try again in 30 seconds".
       const detail = error?.response?.data?.detail;
       if (detail && typeof detail === 'object' && 'budget' in detail && BILLING_REASONS[detail.reason]) {
-        return { available: false, reason: BILLING_REASONS[detail.reason], renewsOn: detail.period_end || null, message: null };
+        return { available: false, reason: BILLING_REASONS[detail.reason], renewsOn: detail.period_end || null,
+          ...persistedSession, message: null };
       }
       // 503 = the assistant's language model is rate limited right now;
       // Retry-After says how long until a new question can be answered.
@@ -138,7 +142,8 @@ export const knowledgeBaseApi = {
       // limit); detail.period_end says when it renews.
       if (error?.response?.status === 402) {
         const detail = error.response.data?.detail || {};
-        return { available: false, planLimit: true, renewsOn: detail.period_end || null, message: null };
+        return { available: false, planLimit: true, renewsOn: detail.period_end || null,
+          ...persistedSession, message: null };
       }
       // 429 = this company sent many questions in the last minute;
       // 503 = the language model provider is busy for everyone.
@@ -146,18 +151,20 @@ export const knowledgeBaseApi = {
       // so the chat can tell the user the real cause.
       const reason = error?.response?.headers?.['x-assistant-reason'] || null;
       if (reason === 'not_configured') {
-        return { available: false, reason: 'notConfigured', message: null };
+        return { available: false, reason: 'notConfigured', ...persistedSession, message: null };
       }
       if (error?.response?.status === 429 || error?.response?.status === 503) {
         const retryAfter = Number.parseInt(error.response.headers?.['retry-after'], 10);
-        return { available: false, busy: true, retryAfterSeconds: Number.isFinite(retryAfter) ? retryAfter : null, message: null };
+        return { available: false, busy: true, retryAfterSeconds: Number.isFinite(retryAfter) ? retryAfter : null,
+          ...persistedSession, message: null };
       }
       if (!error?.response) {
-        return { available: false, reason: 'offline', message: null };
+        return { available: false, reason: 'offline', ...persistedSession, message: null };
       }
       return {
         available: false,
         reason: reason === 'provider_unavailable' || error.response.status === 502 ? 'providerUnavailable' : 'internalError',
+        ...persistedSession,
         message: null,
       };
     }
@@ -190,22 +197,20 @@ export const knowledgeBaseApi = {
       const file = fileEntry.file || fileEntry;
       const formData = new FormData();
       formData.append('file', file);
-      const response = await httpClient.post('/extraction/upload', formData, {
+      const response = await httpClient.post('/rag/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      // Only PDFs become assistant documents; spreadsheets are imported as
-      // business data (still usable by the assistant through its live
-      // sales/product summaries), never silently claimed as documents.
-      return { file, ragStatus: response.data?.rag_document_status ?? null };
+      return { file, document: response.data };
     }));
     const uploaded = settled.filter((result) => result.status === 'fulfilled').map((result) => result.value);
     return {
       available: uploaded.length > 0,
       uploaded: uploaded.length > 0,
       files: uploaded.map((entry) => entry.file),
-      documentsAdded: uploaded.filter((entry) => entry.ragStatus === 'Processed').length,
-      documentsFailed: uploaded.filter((entry) => entry.ragStatus === 'Failed').length,
-      importedAsData: uploaded.filter((entry) => entry.ragStatus === null).length,
+      documentsAdded: uploaded.filter((entry) => entry.document?.searchable).length,
+      documentsProcessing: uploaded.filter((entry) => entry.document?.status === 'processing').length,
+      documentsFailed: uploaded.filter((entry) => entry.document?.status === 'failed').length,
+      duplicate: uploaded.filter((entry) => entry.document?.duplicate).length,
       rejected: settled.length - uploaded.length,
     };
   },

@@ -143,12 +143,17 @@ test('knowledge base api tells AI Credit refusals apart from a busy provider', a
     'credits used': [402, { reason: 'BUDGET_EXHAUSTED', budget: 'ai', message: 'x', limit: 500, used: 500, remaining: 0, period_end: '2026-10-31' }],
     'switched off': [503, { reason: 'PROVIDER_DISABLED', budget: 'ai', message: 'x', limit: null, used: null, remaining: null, period_end: null }],
     busy: [503, 'The assistant is handling too many questions right now.'],
+    persisted: [503, 'The assistant is not configured.'],
   };
   const server = http.createServer((req, res) => {
     const [status, detail] = refusals[new URL(req.url, 'http://localhost').searchParams.get('query_text')];
     res.statusCode = status;
     res.setHeader('Content-Type', 'application/json');
     if (typeof detail === 'string') res.setHeader('Retry-After', '12');
+    if (new URL(req.url, 'http://localhost').searchParams.get('query_text') === 'persisted') {
+      res.setHeader('X-Assistant-Reason', 'not_configured');
+      res.setHeader('X-Assistant-Session-Id', 'kept-session');
+    }
     res.end(JSON.stringify({ detail }));
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -164,6 +169,9 @@ test('knowledge base api tells AI Credit refusals apart from a busy provider', a
   const busy = await knowledgeBaseApi.chat({ question: 'busy' });
   assert.equal(busy.busy, true);
   assert.equal(busy.retryAfterSeconds, 12);
+  const persisted = await knowledgeBaseApi.chat({ question: 'persisted' });
+  assert.equal(persisted.reason, 'notConfigured');
+  assert.equal(persisted.sessionId, 'kept-session');
 });
 
 test('every AI Credit refusal reason has an English and an Arabic message', async () => {
@@ -180,8 +188,8 @@ test('every AI Credit refusal reason has an English and an Arabic message', asyn
 test('mapDocuments exposes real uploaded documents with their processing status', async () => {
   const { mapDocuments } = await import('../src/features/knowledge-base/api/knowledgeBaseApi.js');
   const docs = mapDocuments({ documents: [
-    { document_id: 'd1', file_name: 'Return policy.pdf', type: 'pdf', size_bytes: 2048, uploaded_at: '2026-10-06T08:00:00+00:00', status: 'ready', chunk_count: 3 },
+    { document_id: 'd1', file_name: 'Return policy.pdf', type: 'pdf', size_bytes: 2048, uploaded_at: '2026-10-06T08:00:00+00:00', status: 'ready', chunk_count: 3, searchable: true },
   ] });
-  assert.deepEqual(docs, [{ id: 'd1', name: 'Return policy.pdf', type: 'pdf', size: 2048, uploadedAt: '2026-10-06T08:00:00+00:00', status: 'ready', chunkCount: 3 }]);
+  assert.deepEqual(docs, [{ id: 'd1', name: 'Return policy.pdf', type: 'pdf', size: 2048, uploadedAt: '2026-10-06T08:00:00+00:00', status: 'ready', chunkCount: 3, searchable: true }]);
   assert.deepEqual(mapDocuments(undefined), []);
 });

@@ -2232,6 +2232,7 @@
       "title": "Knowledge Base",
       "subtitle": "Manage the documents used by the assistant.",
       "upload": "Upload Document",
+      "supported": "Supported: TXT, Markdown, PDF, DOCX and XLSX (maximum 10 MB). These files are indexed only for assistant questions; they do not create business records.",
       "search": "Search documents...",
       "type": "Document Type",
       "allTypes": "All types",
@@ -2250,7 +2251,7 @@
       "errorDescription": "We could not load the company's documents.",
       "showing": "Showing {{start}}–{{end}} of {{total}} documents",
       "status": {
-        "ready": "Ready",
+        "ready": "Ready for questions",
         "processing": "Processing",
         "failed": "Failed"
       },
@@ -2259,7 +2260,7 @@
     },
     "upload": {
       "title": "Upload documents for the assistant",
-      "description": "PDF documents become searchable by the assistant. CSV and Excel files are imported as sales data, which the assistant also uses.",
+      "description": "Upload TXT, Markdown, PDF, DOCX or XLSX files for assistant search. Knowledge Base uploads stay separate from business imports.",
       "uploading": "Uploading..."
     },
     "actions": {
@@ -2290,7 +2291,7 @@
       "planLimit": "You've used all assistant questions included in your plan for this billing period. They renew after {{date}} — or upgrade your plan in Billing.",
       "busy": "The assistant is answering many questions right now. Please ask again in about {{seconds}} seconds.",
       "uploadFailed": "The document upload failed. Please try again.",
-      "uploadSummary": "{{added}} document(s) added to the assistant · {{data}} spreadsheet(s) imported as business data · {{failed}} could not be processed"
+      "uploadSummary": "{{added}} ready for questions · {{processing}} still processing · {{failed}} need attention"
     },
     "claims": {
       "kindCalculation": "Calculation",
