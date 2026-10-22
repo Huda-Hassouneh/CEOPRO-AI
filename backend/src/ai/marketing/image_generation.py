@@ -277,10 +277,12 @@ def _credentials(name: str) -> List[Optional[str]]:
         return _csv("POLLINATIONS_API_KEYS")
     if name == "aihorde":
         return _csv("HORDE_API_KEYS") or [_ANON_HORDE_KEY]
+    if name == "local":  # one "credential" per self-hosted server: its URL
+        return _local_image_base_urls()
     return []
 
 
-def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None) -> GeneratedImage:
+def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     url = f"{_POLLINATIONS_BASE_URL}/{quote(prompt)}"
     width, height = size or (_POLLINATIONS_WIDTH, _POLLINATIONS_HEIGHT)
     try:
@@ -307,7 +309,7 @@ def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = N
     )
 
 
-def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None) -> GeneratedImage:
+def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     token = credential or os.getenv("HUGGINGFACE_API_TOKEN")
     if not token:
         raise ImageGenerationError(
@@ -373,7 +375,7 @@ def _cloudflare_models() -> List[str]:
     return _csv("CLOUDFLARE_IMAGE_MODELS", "CLOUDFLARE_IMAGE_MODEL") or list(_CLOUDFLARE_MODELS)
 
 
-def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None) -> GeneratedImage:
+def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     if credential:
         account, _, token = credential.partition(":")
     else:
@@ -424,7 +426,7 @@ _GEMINI_URL = os.getenv("GEMINI_URL", "https://generativelanguage.googleapis.com
 _GEMINI_RATIOS = {"1:1": 1.0, "4:5": 0.8, "9:16": 9 / 16, "16:9": 16 / 9, "3:4": 0.75, "4:3": 4 / 3}
 
 
-def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None) -> GeneratedImage:
+def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     """Google AI Studio's image model on a free API key (no card). Images carry
     Google's invisible SynthID mark, never a visible one."""
     if not credential:
@@ -461,7 +463,7 @@ _HORDE_URL = "https://aihorde.net/api/v2"
 _HORDE_MAX_WAIT = float(os.getenv("MARKETING_AI_HORDE_MAX_WAIT_SECONDS", "240"))
 
 
-def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None) -> GeneratedImage:
+def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     """Together's free FLUX.1 [schnell] model (needs a free account key)."""
     if not credential:
         raise ImageGenerationError("NOT_CONFIGURED", "TOGETHER_API_KEYS is not set.")
@@ -496,7 +498,7 @@ def _horde_size(size: Optional[tuple]) -> tuple:
     return max(64, int(width * scale) // 64 * 64), max(64, int(height * scale) // 64 * 64)
 
 
-def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None) -> GeneratedImage:
+def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     """AI Horde (aihorde.net): a free, community-run Stable Diffusion network.
     Works with no account (the anonymous key) but anonymous jobs can wait in a
     queue for minutes, so it sits last in the chain; a free registered key
@@ -558,12 +560,27 @@ _LOCAL_IMAGE_TIMEOUT_SECONDS = float(os.getenv("LOCAL_IMAGE_TIMEOUT_SECONDS", "3
 _NEGATIVE_PROMPT = "text, letters, watermark, logo, blurry, low quality, deformed"
 
 
+def _local_image_base_urls() -> List[str]:
+    """Every self-hosted server: LOCAL_IMAGE_BASE_URLS (comma list - one per
+    machine, each its own chain entry with its own busy/cooldown state) or
+    the single LOCAL_IMAGE_BASE_URL."""
+    return [u.rstrip("/") for u in _csv("LOCAL_IMAGE_BASE_URLS", "LOCAL_IMAGE_BASE_URL")]
+
+
 def _local_image_base_url() -> str:
-    return os.getenv("LOCAL_IMAGE_BASE_URL", "").strip().rstrip("/")
+    urls = _local_image_base_urls()
+    return urls[0] if urls else ""
 
 
-def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None) -> GeneratedImage:
-    base = _local_image_base_url()
+def only_self_hosted() -> bool:
+    """True when every image provider that can run is a self-hosted server
+    (no per-image provider cost)."""
+    entries = [e for e in provider_chain() if _split(e)[0] != "local" or _local_image_base_urls()]
+    return bool(entries) and all(_split(e)[0] == "local" for e in entries)
+
+
+def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
+    base = (credential or _local_image_base_url()).rstrip("/")
     if not base:
         raise ImageGenerationError("NOT_CONFIGURED", "LOCAL_IMAGE_BASE_URL is not set.")
     api = os.getenv("LOCAL_IMAGE_API", "openai").strip().lower()
@@ -573,11 +590,12 @@ def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, re
     if api == "a1111":
         url = f"{base}/sdapi/v1/txt2img"
         body = {"prompt": prompt[:2000], "negative_prompt": _NEGATIVE_PROMPT, "width": width, "height": height,
-                "steps": int(os.getenv("LOCAL_IMAGE_STEPS", "20")), "batch_size": 1, "n_iter": 1}
+                "steps": int(os.getenv("LOCAL_IMAGE_STEPS", "20")), "batch_size": 1, "n_iter": 1,
+                "seed": seed if seed is not None else -1}
     elif api == "openai":
         url = f"{base}/v1/images/generations"
         body = {"prompt": prompt[:2000], "n": 1, "size": f"{width}x{height}", "response_format": "b64_json",
-                **({"model": model} if model else {})}
+                **({"model": model} if model else {}), **({"seed": seed} if seed is not None else {})}
     else:
         raise ImageGenerationError("NOT_CONFIGURED", f"LOCAL_IMAGE_API must be 'openai' or 'a1111', not {api!r}.")
     try:
@@ -723,9 +741,11 @@ def provider_chain() -> List[str]:
     else:
         keyed = [entry for name in _KEYED for entry in _entries(name)]
         random.shuffle(keyed)
-        names = (["local"] if _local_image_base_url() else []) + keyed
+        names = _entries("local") + keyed
         if os.getenv("MARKETING_IMAGE_KEYLESS", "true").strip().lower() not in ("0", "false", "no"):
             names += list(_KEYLESS_ORDER)
+    # A plain "local" means every configured self-hosted server.
+    names = [entry for n in names for entry in ((_entries("local") or ["local"]) if n == "local" else [n])]
     return [n for n in dict.fromkeys(names) if n != "none"]
 
 
@@ -772,7 +792,7 @@ def get_reference_image_capability() -> dict:
 def generate_campaign_image(
     prompt: str, provider: Optional[str] = None,
     reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None,
-    image_format: str = DEFAULT_IMAGE_FORMAT,
+    image_format: str = DEFAULT_IMAGE_FORMAT, seed: Optional[int] = None,
 ) -> GeneratedImage:
     """
     Tries each provider in provider_chain() (or only `provider`, which tests
@@ -814,7 +834,7 @@ def generate_campaign_image(
             with credits.provider_call(credits.AI, base, "image_generation", {"image": 1}) as call:
                 raw = _PROVIDERS[base](
                     prompt, reference_image=reference_image, reference_content_type=reference_content_type,
-                    credential=credential, size=size,
+                    credential=credential, size=size, seed=seed,
                 )
                 call.measured({"image": 1})
             image = fit_to_format(verify_image(raw), image_format)
@@ -855,7 +875,7 @@ def get_image_generation_capability() -> dict:
     def usable(entry: str) -> bool:
         base, credential = _split(entry)
         if base == "local":
-            return bool(_local_image_base_url())
+            return bool(_local_image_base_urls())
         return base not in _KEYED or credential is not None
 
     usable_entries = [entry for entry in provider_chain() if usable(entry)]

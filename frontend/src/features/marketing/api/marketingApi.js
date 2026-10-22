@@ -123,6 +123,20 @@ export const marketingApi = {
     )).data;
   },
 
+  // Background batches: formats x variations images made by the image worker.
+  queueImageBatch: async (campaignId, { formats, variations = 1, prompt, channel, attachFirst = false }) => (await httpClient.post(
+    `/marketing/campaigns/${encodeURIComponent(campaignId)}/image-batches`,
+    { formats, variations, prompt: prompt?.trim() ? prompt.trim() : undefined, channel: channel || undefined, attach_first: attachFirst || undefined },
+  )).data,
+
+  listImageJobs: async (campaignId) => (await httpClient.get(`/marketing/campaigns/${encodeURIComponent(campaignId)}/image-jobs`, { params: { limit: 50 } })).data,
+
+  cancelImageJobs: async (campaignId) => (await httpClient.post(`/marketing/campaigns/${encodeURIComponent(campaignId)}/image-jobs/cancel`)).data,
+
+  retryImageJobs: async (campaignId) => (await httpClient.post(`/marketing/campaigns/${encodeURIComponent(campaignId)}/image-jobs/retry`)).data,
+
+  getImageCapacity: async () => (await httpClient.get('/marketing/image-capacity')).data,
+
   deleteAsset: async (campaignId, assetId) => (await httpClient.delete(
     `/marketing/campaigns/${encodeURIComponent(campaignId)}/assets/${encodeURIComponent(assetId)}`,
   )).data,
