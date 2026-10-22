@@ -40,7 +40,9 @@ class Action:
 
 
 def minor_units(amount: float, currency: str) -> int:
-    zero_decimal = {"jpy", "krw", "vnd", "clp", "xaf", "xof", "xpf", "bif", "djf", "gnf", "kmf", "mga", "pyg", "rwf", "ugx", "vuv"}
+    # Stripe retains two-decimal API representation for ISK and UGX; callers
+    # must provide whole major units, converted to an integer ending in 00.
+    zero_decimal = {"jpy", "krw", "vnd", "clp", "xaf", "xof", "xpf", "bif", "djf", "gnf", "kmf", "mga", "pyg", "rwf", "vuv"}
     return int(round(amount)) if currency.lower() in zero_decimal else int(round(amount * 100))
 
 

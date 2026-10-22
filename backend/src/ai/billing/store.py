@@ -400,7 +400,10 @@ def set_schedule(sys_conn, tenant_id: str, stripe_subscription_id: str, plan_key
 # --- payments ---------------------------------------------------------------
 
 def _minor_to_major(amount: int, currency: str) -> float:
-    zero_decimal = {"bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf"}
+    # ISK and UGX are compatibility exceptions in Stripe: their API amounts
+    # still use two-decimal representation (with a trailing 00), despite the
+    # currencies having no fractional charge unit.
+    zero_decimal = {"bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "vnd", "vuv", "xaf", "xof", "xpf"}
     return float(amount) if currency.lower() in zero_decimal else round(amount / 100.0, 2)
 
 

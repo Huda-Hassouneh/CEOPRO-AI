@@ -1587,8 +1587,10 @@
       "trialCredits": "Free trial includes {{data}} Data Credits and {{ai}} AI Credits"
     },
     "checkout": {
-      "success": "Payment received. Your plan updates here in a few seconds.",
-      "cancelled": "Checkout was cancelled — nothing was charged."
+      "confirmed": "Subscription confirmed. Your plan is active in KEEL.",
+      "pending": "Checkout returned to KEEL. We are confirming the subscription; access changes only after billing confirmation.",
+      "notConfirmed": "Checkout returned, but your subscription is not active yet. Your current access has not changed. Check billing status or try again.",
+      "cancelled": "Checkout was cancelled. This checkout did not activate a subscription."
     },
     "errors": {
       "generic": "That didn’t work. Please try again in a moment.",
