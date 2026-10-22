@@ -1047,6 +1047,7 @@
     "errors": {
       "generic": "Something went wrong. Please try again.",
       "network": "Unable to connect. Check your connection and try again.",
+      "sessionExpired": "Your session has expired or is no longer valid. Please sign in again.",
       "serverUnavailable": "The service is temporarily unavailable. Please try again later.",
       "tooManyAttempts": "Too many attempts. Please wait and try again.",
       "authenticationUnavailable": "Authentication is ready for backend connection but is not active yet.",

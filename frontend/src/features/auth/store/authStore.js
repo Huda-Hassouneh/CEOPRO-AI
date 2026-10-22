@@ -28,6 +28,7 @@ export const useAuthStore = create((set, get) => ({
   isHydrated: false,
   // Set when the API refuses a request until the email address is confirmed.
   emailVerificationBlocked: false,
+  sessionExpired: false,
 
   setEmailVerificationBlocked: (blocked) => set({ emailVerificationBlocked: Boolean(blocked) }),
 
@@ -54,6 +55,7 @@ export const useAuthStore = create((set, get) => ({
         : AUTH_STATUS.UNAUTHENTICATED,
       isHydrated: true,
       emailVerificationBlocked: false,
+      sessionExpired: false,
     });
   },
 
@@ -64,6 +66,21 @@ export const useAuthStore = create((set, get) => ({
       status: AUTH_STATUS.UNAUTHENTICATED,
       isHydrated: true,
       emailVerificationBlocked: false,
+      sessionExpired: false,
+    });
+  },
+
+  // Server-side 401s mean the bearer session is no longer valid. Preserve a
+  // one-screen explanation for the login page instead of silently dropping
+  // the user at an unexplained sign-in form.
+  expireSession: () => {
+    authSessionStorage.clear();
+    set({
+      ...emptySessionState,
+      status: AUTH_STATUS.UNAUTHENTICATED,
+      isHydrated: true,
+      emailVerificationBlocked: false,
+      sessionExpired: true,
     });
   },
 
@@ -77,6 +94,7 @@ export const useAuthStore = create((set, get) => ({
         ? AUTH_STATUS.AUTHENTICATED
         : AUTH_STATUS.UNAUTHENTICATED,
       isHydrated: true,
+      sessionExpired: false,
     });
   },
 

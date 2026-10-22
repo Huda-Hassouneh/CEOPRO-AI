@@ -10,6 +10,10 @@ export function configureHttpClientAuth({ getAccessToken, onUnauthorized, onEmai
   handleEmailVerificationRequired = typeof onEmailVerificationRequired === 'function' ? onEmailVerificationRequired : () => {};
 }
 
+export function unauthorizedBelongsToCurrentSession(requestAuthorization, currentToken) {
+  return Boolean(currentToken && requestAuthorization === `Bearer ${currentToken}`);
+}
+
 // No `/api` prefix: the real FastAPI backend (backend/src/ai/main.py) mounts
 // every router at the bare root (e.g. `/auth/login`, `/dashboard/metrics`,
 // not `/api/auth/login`) - matching that here, rather than in every caller.
@@ -63,12 +67,16 @@ httpClient.interceptors.request.use((config) => {
 // had actually expired. This clears the stale local session on any 401,
 // which flips the auth store's isAuthenticated to false - ProtectedRoute
 // (already mounted, subscribed to that same store) re-renders immediately
-// and redirects to /login, no manual logout/page-reload required.
+// and redirects to /login. Only the token that is active when the response
+// arrives may be cleared; switching workspaces revokes the old token while
+// old in-flight requests may still be returning.
 httpClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      handleUnauthorized();
+      const headers = error.config?.headers;
+      const authorization = headers?.Authorization || headers?.authorization || null;
+      handleUnauthorized(authorization);
     }
     // The API answers 403 with this reason until the email address is
     // confirmed (backend core/security.py); the app then shows the code screen.

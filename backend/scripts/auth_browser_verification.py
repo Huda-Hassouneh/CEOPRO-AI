@@ -13,6 +13,7 @@ import sys
 import tempfile
 import threading
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 from urllib.request import urlopen
@@ -26,6 +27,33 @@ def main():
     assert os.environ.get('PHASE1A_ISOLATED_BROWSER') == 'YES'
     database_url = validate_test_environment(dict(os.environ), database=True)
     root = Path(__file__).resolve().parents[2]
+    # A real platform owner is bootstrapped only inside the explicitly
+    # disposable verification database. This exercises the same one-time
+    # privileged bootstrap function used by the native acceptance fixture.
+    from src.ai.core.security import hash_password
+    platform_email = f"auth-browser-platform-owner-{secrets.token_hex(8)}@example.test"
+    platform_password = f"Platform-{secrets.token_urlsafe(18)}!aA9"
+    with psycopg2.connect(database_url) as conn, conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT u.user_id,u.email FROM keel_platform_members m JOIN users u USING(user_id) "
+            "WHERE m.role_key='owner' AND m.status='active' AND u.email LIKE 'auth-browser-platform-owner-%@example.test' "
+            "LIMIT 1"
+        )
+        existing_owner = cursor.fetchone()
+        if existing_owner:
+            platform_user_id, platform_email = str(existing_owner[0]), existing_owner[1]
+            cursor.execute("UPDATE users SET password_hash=%s WHERE user_id=%s", (hash_password(platform_password), platform_user_id))
+        else:
+            platform_user_id = str(uuid.uuid4())
+            cursor.execute(
+                "INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at) "
+                "VALUES(%s,%s,%s,%s,now())",
+                (platform_user_id, platform_email, hash_password(platform_password), "Browser Platform Owner"),
+            )
+            cursor.execute(
+                "SELECT keel_bootstrap_platform_owner(%s,'JO','JOD','isolated AUTH browser acceptance fixture')",
+                (platform_user_id,),
+            )
     mailbox = {}
     secret = secrets.token_hex(32)
 
@@ -60,6 +88,30 @@ def main():
             self.end_headers()
             self.wfile.write(body)
 
+        def do_POST(self):
+            if self.headers.get('X-Test-Key') != secret:
+                self.send_error(403)
+                return
+            address = parse_qs(urlparse(self.path).query).get('email', [''])[0]
+            if not address.startswith('auth-browser-') or not address.endswith('@example.test'):
+                self.send_error(400)
+                return
+            if urlparse(self.path).path != '/expire-platform-invitation':
+                self.send_error(404)
+                return
+            with psycopg2.connect(database_url) as conn, conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE keel_platform_invitations SET expires_at=now()-interval '1 minute' "
+                    "WHERE lower(email)=lower(%s) AND accepted_at IS NULL AND canceled_at IS NULL",
+                    (address,),
+                )
+                changed = cursor.rowcount
+            body = json.dumps({'expired': changed == 1}).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(body)
+
     smtp = Controller(Mailbox(), hostname='127.0.0.1', port=18025)
     control = ThreadingHTTPServer(('127.0.0.1', 18002), Handler)
     env = {**os.environ, 'SMTP_HOST': '127.0.0.1', 'SMTP_PORT': '18025',
@@ -67,7 +119,9 @@ def main():
            'FRONTEND_BASE_URL': 'http://127.0.0.1:15173',
            'VITE_API_BASE_URL': '/api', 'KEEL_API_PROXY_TARGET': 'http://127.0.0.1:18001',
            'PHASE1A_BROWSER_BASE_URL': 'http://127.0.0.1:15173',
-           'AUTH_TEST_MAILBOX_KEY': secret, 'REQUIRE_EMAIL_VERIFICATION': 'true'}
+           'AUTH_TEST_MAILBOX_KEY': secret, 'REQUIRE_EMAIL_VERIFICATION': 'true',
+           'AUTH_BROWSER_PLATFORM_OWNER_EMAIL': platform_email,
+           'AUTH_BROWSER_PLATFORM_OWNER_PASSWORD': platform_password}
     processes = []
     with tempfile.TemporaryDirectory(prefix='keel-auth-browser-') as logs:
         handles = []
