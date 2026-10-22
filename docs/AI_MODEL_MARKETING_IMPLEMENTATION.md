@@ -1,6 +1,7 @@
 # KEEL: AI model, image generation and Marketing integration
 
-Branch `claude/peaceful-planck-083t1y`, 2026-10-21/22. This builds on what was already in the repository
+Branch `claude/peaceful-planck-083t1y`, 2026-10-21/22. **For zero-cost image generation (self-hosted SDXL, the
+image queue, measured capacity and setup) see `docs/ZERO_COST_IMAGE_GENERATION.md`.** This builds on what was already in the repository
 (the Groq/local/Hugging Face/paid language-model client, six hosted image providers with failover, the
 designed-poster fallback and the Marketing Studio). It does not replace any of it.
 
@@ -137,47 +138,54 @@ Security properties:
 
 ## 7. Tests run and results
 
-All on this sandbox against real local services: Postgres 15 + pgvector (Docker), Redis 7 (Docker), MinIO built
-from source. The remote Render database in this session's environment was never used.
+All on the development sandbox against real local services: Postgres 15 + pgvector (Docker), Redis 7 (Docker),
+MinIO built from source. The remote Render database present in this session's environment was never used. No
+staging or production system was touched.
+
+### 7.1 Real models (2026-10-22) - no stand-ins
+
+| Check | Result |
+|---|---|
+| SDXL 1.0 base downloaded from `docker.io/ai/stable-diffusion` and verified against the registry digest | PASS |
+| Direct benchmark, one real image per format (20 steps, CPU bfloat16) | PASS: square 172 s, portrait 145 s, story 162 s, landscape 154 s, wide 235 s (CPU shared with a compile) |
+| `real_image_check`, batch 1: 5 formats through API -> queue -> worker -> SDXL -> storage -> gallery -> download | **5/5 PASS**, 141-153 s each (CPU idle) |
+| Copy written by the local model: Groq rejected (401), Qwen3-4B (Apache-2.0) answered via `LLM_PROVIDERS=groq,local` | PASS (67 s; English copy, hashtags, CTA, image prompt) |
+| `real_image_check`, batch 2: that campaign, 3 formats x 2 variations | First attempt **0/6 FAIL**: the image server was OOM-killed (copy model loaded at the same time). Jobs retried and were then marked FAILED, as designed. After the fixes (see 8): **6/6 PASS**, 120-145 s each, variations distinct (mean pixel difference ~66) |
+| Browser E2E `marketing-batch.mjs`, English 1440px: create campaign (real copy), first image via queue in 4:5, "Make many images" square + landscape, progress, download, attach, cross-company 404 | **PASS** (12 min; 3 real images, 181-218 s each with the browser sharing the CPU) |
+| Browser E2E, Arabic 390px (right to left), same steps | **PASS** (11 min; Arabic copy from the local model; 3 real images, 154-226 s each) |
+| Realism check: every image above has 20k-60k distinct colours and edge detail 24-30; a flat or gradient placeholder fails the same check | PASS |
+
+### 7.2 Automated suites
 
 | Check | Result |
 |---|---|
 | Backend suite before any change (baseline) | 3502 passed, 23 skipped, 0 failed |
-| Backend suite after the changes (final tree) | 3560 passed, 23 skipped (need external services, same as baseline), 0 failed |
-| New: `test_llm_provider_chain.py` (bad key 401, 403, 429, 5xx, malformed answer, non-JSON, network error, unpriced provider, company budget refusal never falls back, nothing configured, paid never implicit, per-provider breaker) | 19 passed |
-| New/extended: `test_marketing_image_generation.py` (crop per format, size per provider, Gemini ratio, Horde sizes, local OpenAI and A1111 APIs, busy/malformed/unreachable/misconfigured local server, local -> hosted fallback) | 46 passed |
-| New: `test_marketing_image_gallery_integration_db.py` (real DB, MinIO and a real HTTP image server: each format's exact ratio, provider that ignores size, A1111 API, edited prompt, channel, attach/detach/delete with storage accounting, bad requests, server down -> designed poster in format, cross-company 404s and RLS on a direct query) | 13 passed |
-| Frontend lint | clean |
-| Frontend unit tests (incl. new gallery API test and English/Arabic key consistency) | 112 passed |
-| Production build | passes |
-| Application Knowledge Registry validator | OK (12 entries) |
-| Browser smoke test, every screen, English desktop / Arabic mobile / dark | 27/27 clean in each |
-| Accessibility audit (axe, WCAG 2.1 AA), every screen plus an open campaign with its gallery, three modes | 0 findings in each |
-| New browser E2E `tests/browser/marketing-images.mjs`, designed-image mode, English 1440px and Arabic 390px | 16/16 checks in each |
-| Same E2E through the self-hosted image path (AI mode), English and Arabic | 17/17 checks in each |
-| Live fallback against the real Groq API | Groq answered 401 `invalid_api_key`; the call was answered by the next provider (server log) |
+| Backend suite on the final tree | 3588 passed, 23 skipped (need external services, same as baseline), 0 failed |
+| New: image queue integration tests (batch of formats x variations, retry with backoff then FAILED, busy re-queue without using an attempt, takeover of a dead worker's job, companies take turns, limits, cancel/retry, capacity, isolation via API and RLS, plan allowance rule) | 8 passed (skip when another company's jobs are queued) |
+| New: image server unit tests (sizes, one at a time, low-memory guard, key, seeds, JPEG response) | 9 passed |
+| New: LLM fallback chain tests | 19 passed |
+| Image provider / format tests | 47 passed |
+| Gallery integration tests | 13 passed |
+| Frontend lint / unit tests / production build | clean / 113 passed / passes |
+| Browser smoke test of every screen, English desktop / Arabic mobile / dark (before the queue UI) | 27/27 clean in each |
+| Accessibility audit incl. an open campaign with its gallery, three modes (before the queue UI) | 0 findings in each |
 
-What the browser E2E covers: create a campaign with copy and a Story image, check the preview really is 9:16,
-copy in the chosen language, gallery entry attached; make a Landscape image for Facebook without attaching it
-(preview 16:9, edited prompt stored), attach it, relabel it, delete the Story image, reload, check another
-company gets 404 for list/stream/delete, delete the campaign.
-
-**Stand-ins used, stated plainly:** no language or image model could run in this sandbox (Groq key invalid,
-Hugging Face token expired, hosted image providers blocked by the network policy, no model weights
-downloadable). For the browser E2E, a small local stand-in server answered the OpenAI chat API with fixed,
-well-formed campaign copy and the OpenAI images API with a flat generated picture. It is **not a model**; it
-exercises KEEL's real HTTP adapters, storage, security and UI. No AI-generated image or AI-written copy was
-produced in this work.
+In total: 17 real SDXL images went through the full product path (5 + 6 + 3 + 3), plus 7 direct image-server
+benchmark images. Bug found by the Arabic run and fixed: a download named after an Arabic campaign title was
+saved as plain "download" by Chrome; download names are now ASCII.
 
 ## 8. Known limitations and blockers
 
-- **No live AI generation verified here.** Needs one run on staging with real keys: a Groq answer, one hosted
-  image (Cloudflare or Hugging Face), and, if used, the self-hosted server.
-- The injected Hugging Face token (`ceopro-deploy`) is **expired**; the injected Groq key returns **401**
-  (already recorded as #126). Both need replacing by their owners.
-- Product-photo-preserving generation is still not available (unchanged; see `MARKETING_AI_CAPABILITIES.md`).
-- Video generation: not implemented (unchanged).
-- Licence of the default local model: see section 2.
-- Kept images use plan storage until deleted (by design; regeneration used to delete the previous image).
-- Security item #102 in `backend/PENDING_ACTIONS.md` remains open: secrets once committed to the public
-  repository must be rotated by their owners (see the final report for the list).
+- **Hardware, measured:** SDXL on CPU needs 7.8 GB idle and **10.2 GB at peak** per image. On a 16 GB machine it
+  cannot share memory with the copy model (3.4 GB) and the app: the server was OOM-killed twice here before the
+  guard was raised. The image server now answers "busy" below 3 GB free, so jobs wait instead of crashing. Run
+  the copy model on another machine, use 24 GB+, or stop it while images are made (what the sandbox run did).
+- **Speed:** about 24-27 images per hour per 4-core CPU server (measured); more needs more machines you own, or a
+  GPU (not measured here).
+- **SDXL cannot write legible text:** product labels come out as invented letters. Prompts longer than 77 CLIP
+  tokens are cut (SDXL's limit), so the end of a long image description is ignored.
+- **Not tested on staging:** the sandbox cannot reach Render. The Render 512 MB service cannot host the models.
+- Product-photo-preserving generation and video: not available (unchanged).
+- The Hugging Face token configured for this environment is expired; the Groq key returns 401.
+- Credentials exposed in public Git history: **open**, see `docs/SECURITY_CREDENTIAL_ROTATION.md`.
+- Kept images use plan storage until deleted (about 0.25 GB per 1,000 JPEG images).

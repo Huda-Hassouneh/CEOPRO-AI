@@ -18,9 +18,13 @@ export const DEFAULT_IMAGE_FORMATS = [
 export const DEFAULT_ASSET_CHANNELS = ['INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'GOOGLE_ADS', 'WEBSITE', 'PRINT', 'OTHER'];
 const EXTENSIONS = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
+// ASCII only: browsers replace a download name with non-Latin letters (an
+// Arabic title) by a bare "download" (seen in Chrome). The asset id keeps
+// several images of one campaign apart.
 function fileName(campaign, asset, type) {
-  const base = (campaign.campaign_brief || 'campaign').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40);
-  return `keel-${base}${asset ? `-${asset.image_format.toLowerCase()}` : ''}.${EXTENSIONS[type] || 'png'}`;
+  const base = (campaign.campaign_brief || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'campaign';
+  const suffix = asset ? `-${asset.image_format.toLowerCase()}-${asset.asset_id.slice(0, 8)}` : '';
+  return `keel-${base}${suffix}.${EXTENSIONS[type] || 'png'}`;
 }
 
 function aspect(asset) {

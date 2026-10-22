@@ -124,4 +124,15 @@ is set and a price is recorded. Free cloud tiers that require a payment card wer
 
 ## 6. Results of the real runs (2026-10-22, development sandbox)
 
-See `docs/AI_MODEL_MARKETING_IMPLEMENTATION.md` section 7 for the full test table.
+- 17 real SDXL images through the full product path (API, queue, worker, image server, storage, gallery,
+  download) in four batches - every format, 2 variations per format, and two browser runs (English desktop,
+  Arabic mobile) - plus 7 direct image-server benchmark images. Every product-path image passed the ratio,
+  gallery, download and not-a-placeholder checks.
+- Campaign copy written by Qwen3-4B on the same machine (Groq's key was rejected; the fallback chain answered).
+- Browser runs of the whole Studio workflow with these real models: see `docs/AI_MODEL_MARKETING_IMPLEMENTATION.md`
+  section 7, which also lists every automated suite.
+- Failures seen and handled: the image server was killed for lack of memory twice while the copy model was also
+  loaded; the worker retried and then marked those jobs FAILED (nothing was faked or lost), "Retry failed images"
+  re-queued them, and the low-memory guard now prevents the crash.
+
+Not done: a staging run (no access from the sandbox), a GPU measurement (no GPU), a multi-machine run.
