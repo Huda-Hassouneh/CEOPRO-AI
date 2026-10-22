@@ -91,6 +91,34 @@ def command(ctx, action, payload=None):
     return _error(result)
 
 
+def search(ctx, resource, query, limit, offset):
+    """Search a platform directory through its narrow authorized SQL function."""
+    conn = None
+    try:
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT public.keel_platform_search(%s,%s,%s,%s);",
+                (resource, query, limit, offset),
+            )
+            result = cur.fetchone()[0]
+        # As with keel_platform_command, persist the database-authored denial
+        # audit before converting it to the established 403 response.
+        conn.commit()
+    except DatabaseError:
+        if conn is not None:
+            conn.rollback()
+        raise HTTPException(503, "Platform administration is temporarily unavailable.") from None
+    except Exception:
+        if conn is not None:
+            conn.rollback()
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
+    return _error(result)
+
+
 def invite(ctx, payload, invitation_id=None):
     raw = security.generate_url_safe_token()
     data = {**payload, "token_hash": security.hash_token(raw), "expires_at": (

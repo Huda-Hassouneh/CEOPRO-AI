@@ -159,6 +159,142 @@ def command(actor,tenant,action,payload):
     finally:conn.close()
 
 
+def platform_search(actor,tenant,resource,query='',limit=50,offset=0):
+    conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute('SET ROLE ceopro_app')
+            cur.execute("SELECT set_config('app.current_user_id',%s,true),set_config('app.current_tenant_id',%s,true)",(actor,tenant))
+            cur.execute('SELECT public.keel_platform_search(%s,%s,%s,%s)',(resource,query,limit,offset))
+            result=cur.fetchone()[0]
+        conn.commit();return result
+    finally:conn.close()
+
+
+def test_platform_search_function_acl_and_hardened_security(platform_owner):
+    owner,tenant=platform_owner;conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute("SELECT prosecdef,proconfig FROM pg_proc WHERE oid='public.keel_platform_search(text,text,integer,integer)'::regprocedure")
+            security_definer,config=cur.fetchone();assert security_definer is True and any('search_path=public, pg_temp' in value for value in config)
+            cur.execute("SELECT has_function_privilege('ceopro_app','public.keel_platform_search(text,text,integer,integer)','EXECUTE')")
+            assert cur.fetchone()[0] is True
+            cur.execute("SELECT count(*) FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE p.oid='public.keel_platform_search(text,text,integer,integer)'::regprocedure AND a.grantee=0 AND a.privilege_type='EXECUTE'")
+            assert cur.fetchone()[0]==0
+            for table in ('keel_platform_members','keel_platform_audit'):
+                cur.execute('SELECT has_table_privilege(%s,%s,%s)',('ceopro_app',table,'SELECT'));assert cur.fetchone()[0] is False
+                cur.execute('SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid=%s::regclass',(table,));assert cur.fetchone()==(True,True)
+            # The base schema grants the restricted role SELECT on tenant
+            # tables, so prove those pre-existing grants remain FORCE-RLS
+            # scoped and cannot replace the new platform search function.
+            for table in ('companies','users'):
+                cur.execute('SELECT has_table_privilege(%s,%s,%s),relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid=%s::regclass',('ceopro_app',table,'SELECT',table))
+                assert cur.fetchone()==(True,True,True)
+            foreign_tenant=str(uuid.uuid4());foreign_user=str(uuid.uuid4())
+            cur.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,'M99 RLS perimeter fixture','JO','JOD')",(foreign_tenant,))
+            cur.execute("INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at) VALUES(%s,%s,'fixture-only','M99 RLS perimeter user',now())",(foreign_user,f'm99-rls-{foreign_user}@example.test'))
+        conn.commit()
+    finally:conn.close()
+    conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute('SET ROLE ceopro_app')
+            cur.execute("SELECT set_config('app.current_user_id',%s,true),set_config('app.current_tenant_id',%s,true)",(owner,tenant))
+            cur.execute('SELECT count(*) FROM companies WHERE tenant_id=%s',(foreign_tenant,));assert cur.fetchone()[0]==0
+            cur.execute('SELECT count(*) FROM users WHERE user_id=%s',(foreign_user,));assert cur.fetchone()[0]==0
+        conn.commit()
+    finally:conn.close()
+    conn=connect()
+    try:
+        with conn.cursor()as cur:
+            cur.execute('DELETE FROM companies WHERE tenant_id=%s',(foreign_tenant,))
+            cur.execute('DELETE FROM users WHERE user_id=%s',(foreign_user,))
+        conn.commit()
+    finally:conn.close()
+    assert platform_search(owner,tenant,'companies','')['total'] >= 1
+
+
+def test_native_company_user_search_filters_before_deterministic_pagination(platform_owner):
+    owner,tenant=platform_owner;marker=uuid.uuid4().hex[:16];base=datetime.now(timezone.utc)
+    company_ids=[];user_ids=[];conn=connect()
+    try:
+        with conn.cursor()as cur:
+            for index in range(120):
+                company_id=str(uuid.uuid4());user_id=str(uuid.uuid4());company_ids.append(company_id);user_ids.append(user_id)
+                # Equal timestamps force the UUID tie-breaker to provide a
+                # deterministic page boundary across repeated requests.
+                at=base
+                cur.execute('INSERT INTO companies(tenant_id,business_name,country_code,primary_currency,created_at) VALUES(%s,%s,\'JO\',\'JOD\',%s)',
+                    (company_id,f'directory-company-{marker}-{index:03}',at))
+                cur.execute('INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at,created_at) VALUES(%s,%s,\'fixture-only\',%s,now(),%s)',
+                    (user_id,f'directory-{marker}-{index:03}@example.test',f'directory-user-{marker}-{index:03}',at))
+            special_company=str(uuid.uuid4());special_user=str(uuid.uuid4())
+            cur.execute('INSERT INTO companies(tenant_id,business_name,country_code,primary_currency,created_at) VALUES(%s,%s,\'JO\',\'JOD\',%s)',(special_company,f'literal-%_-{marker}',base))
+            cur.execute('INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at,created_at) VALUES(%s,%s,\'fixture-only\',%s,now(),%s)',
+                (special_user,f'literal-{marker}@example.test',f'literal-%_-{marker}',base))
+        conn.commit()
+
+        company_first=platform_search(owner,tenant,'companies',f'directory-company-{marker}',50,0)
+        company_second=platform_search(owner,tenant,'companies',f'directory-company-{marker}',50,50)
+        company_last=platform_search(owner,tenant,'companies',f'directory-company-{marker}',50,100)
+        assert company_first['total']==company_second['total']==company_last['total']==120
+        assert len(company_first['items'])==len(company_second['items'])==50 and len(company_last['items'])==20
+        observed=[row['tenant_id'] for result in (company_first,company_second,company_last) for row in result['items']]
+        assert observed==sorted(company_ids,reverse=True)
+        old_company=platform_search(owner,tenant,'companies',f'directory-company-{marker}-119',50,0)
+        assert old_company['total']==1 and old_company['items'][0]['tenant_id']==company_ids[-1]
+
+        user_first=platform_search(owner,tenant,'users',f'directory-user-{marker}',50,0)
+        user_second=platform_search(owner,tenant,'users',f'directory-user-{marker}',50,50)
+        user_last=platform_search(owner,tenant,'users',f'directory-user-{marker}',50,100)
+        assert user_first['total']==user_second['total']==user_last['total']==120
+        assert len(user_first['items'])==len(user_second['items'])==50 and len(user_last['items'])==20
+        observed=[row['user_id'] for result in (user_first,user_second,user_last) for row in result['items']]
+        assert observed==sorted(user_ids,reverse=True)
+        old_user=platform_search(owner,tenant,'users',f'directory-user-{marker}-119',50,0)
+        assert old_user['total']==1 and old_user['items'][0]['user_id']==user_ids[-1]
+
+        # LIKE metacharacters and SQL-looking text are literal values, not
+        # wildcard or executable syntax.
+        assert platform_search(owner,tenant,'companies','%_',100,0)['items'][0]['tenant_id']==special_company
+        assert platform_search(owner,tenant,'companies','%_',100,0)['total']==1
+        assert platform_search(owner,tenant,'users','%_',100,0)['items'][0]['user_id']==special_user
+        assert platform_search(owner,tenant,'companies',f"%' OR 1=1 -- {marker}",100,0)['total']==0
+        assert platform_search(owner,tenant,'users',f"%' OR 1=1 -- {marker}",100,0)['total']==0
+
+        # The existing detail command receives the exact IDs returned by the
+        # directory and remains compatible with the new search contract.
+        assert command(owner,tenant,'company',{'id':old_company['items'][0]['tenant_id']})['tenant_id']==old_company['items'][0]['tenant_id']
+        assert command(owner,tenant,'user',{'id':old_user['items'][0]['user_id']})['user_id']==old_user['items'][0]['user_id']
+    finally:
+        conn=connect()
+        try:
+            with conn.cursor()as cur:
+                cur.execute('DELETE FROM users WHERE email LIKE %s',(f'directory-{marker}-%@example.test',))
+                cur.execute('DELETE FROM users WHERE user_id=%s',(special_user,))
+                cur.execute('DELETE FROM companies WHERE business_name LIKE %s',(f'directory-company-{marker}-%',))
+                cur.execute('DELETE FROM companies WHERE tenant_id=%s',(special_company,))
+            conn.commit()
+        finally:conn.close()
+
+
+def test_native_platform_search_denies_tenant_owners_and_suspended_operators(platform_owner):
+    owner,tenant=platform_owner;payload=registration();pending('register',payload);customer=pending('verify',payload)
+    denied=platform_search(customer['user_id'],customer['tenant_id'],'companies','',10,0)
+    assert denied=={'error':'forbidden'}
+    conn=connect()
+    try:
+        with conn.cursor()as cur:cur.execute("UPDATE keel_platform_members SET status='suspended' WHERE user_id=%s",(owner,))
+        conn.commit()
+        assert platform_search(owner,tenant,'users','',10,0)=={'error':'forbidden'}
+    finally:
+        conn=connect()
+        try:
+            with conn.cursor()as cur:cur.execute("UPDATE keel_platform_members SET status='active' WHERE user_id=%s",(owner,))
+            conn.commit()
+        finally:conn.close()
+
+
 def test_customer_owner_never_has_platform_permissions(platform_owner):
     payload=registration();pending('register',payload);customer=pending('verify',payload)
     assert command(customer['user_id'],customer['tenant_id'],'overview',{})=={'error':'forbidden'}

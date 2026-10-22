@@ -335,31 +335,67 @@ try {
   assert.equal((await api(`/platform/invitations/${expiredLink.split('/').at(-1)}`, null, null, 'GET')).status(), 404);
   pass('tenant owners cannot send platform invitations; expired/reused links fail with localized RTL feedback');
 
-  // The authenticated Platform Owner view must render real rows from the
-  // disposable database and expose their detail journeys. Search is explicitly
-  // page-local until a server-side search contract is approved.
+  // The authenticated Platform Admin view searches a populated disposable
+  // directory. Matching records span three pages, proving the server filters
+  // the full directory before it paginates.
   await page.evaluate(() => localStorage.setItem('ceopro_locale', 'en'));
   await page.goto(`${base}/platform`);
   await page.locator('main.keel-platform').waitFor();
   await page.locator('nav[aria-label] button').nth(1).click();
-  await page.getByLabel(/search this page/i).waitFor();
+  const searchMarker = process.env.AUTH_BROWSER_PLATFORM_SEARCH_MARKER;
+  assert.ok(searchMarker);
+  const companySearch = page.getByLabel(/search all companies/i);
+  await companySearch.waitFor();
+  await companySearch.fill(searchMarker);
+  await page.getByRole('status').filter({ hasText: 'Matching records: 120' }).waitFor();
   const companyRows = page.locator('table tbody tr');
-  await companyRows.first().waitFor();
-  assert.ok(await companyRows.count() > 0);
-  await page.getByLabel(/search this page/i).fill(`missing-${randomUUID()}`);
-  await page.getByRole('status').filter({ hasText: /no matching records/i }).waitFor();
-  await page.getByLabel(/search this page/i).fill('');
-  await page.getByRole('button', { name: /details/i }).first().click();
+  await page.waitForFunction(() => document.querySelectorAll('main.keel-platform table tbody tr').length === 50);
+  assert.equal(await companyRows.count(), 50);
+  assert.equal(await page.getByText(new RegExp(`Company 119`)).count(), 0);
+  await page.getByRole('button', { name: /next/i }).click();
+  await page.waitForFunction(() => document.querySelectorAll('main.keel-platform table tbody tr').length === 50);
+  await page.getByRole('button', { name: /next/i }).click();
+  await page.waitForFunction(() => document.querySelectorAll('main.keel-platform table tbody tr').length === 20);
+  await page.getByText(new RegExp(`Company 119`)).waitFor();
+  pass('Platform Admin company search finds a third-page record and paginates the 120-result filtered set');
+  await companySearch.fill(`missing-${randomUUID()}`);
+  await page.getByRole('status').filter({ hasText: /no matching records found/i }).waitFor();
+  await page.getByRole('status').filter({ hasText: 'Matching records: 0' }).waitFor();
+  await companySearch.fill(`${searchMarker} Company 119`);
+  await page.getByRole('status').filter({ hasText: 'Matching records: 1' }).waitFor();
+  assert.equal(await page.locator('table tbody tr').count(), 1);
+  await page.getByRole('button', { name: /details/i }).click();
   await page.locator('main.keel-platform section h2').waitFor();
-  pass('Platform Owner lists, filters and opens real company detail records');
+  pass('Platform Admin filtered count and company detail remain correct for a later-page match');
 
+  // Switch to Users and search the same-size directory, then exercise Arabic
+  // RTL rendering and a match that is only reached on the final filtered page.
   await page.locator('nav[aria-label] button').nth(2).click();
-  await page.getByLabel(/search this page/i).waitFor();
-  await page.locator('table tbody tr').first().waitFor();
-  assert.ok(await page.locator('table tbody tr').count() > 0);
-  await page.getByRole('button', { name: /details/i }).first().click();
-  await page.locator('main.keel-platform section h2').waitFor();
-  pass('Platform Owner lists and opens real global user details with memberships');
+  const userSearch = page.getByLabel(/search all users/i);
+  await userSearch.fill(searchMarker);
+  await page.getByRole('status').filter({ hasText: 'Matching records: 120' }).waitFor();
+  await page.waitForFunction(() => document.querySelectorAll('main.keel-platform table tbody tr').length === 50);
+  await page.getByRole('button', { name: /next/i }).click();
+  await page.waitForFunction(() => document.querySelectorAll('main.keel-platform table tbody tr').length === 50);
+  await page.getByRole('button', { name: /next/i }).click();
+  await page.waitForFunction(() => document.querySelectorAll('main.keel-platform table tbody tr').length === 20);
+  await page.getByText(new RegExp(`User 119`)).waitFor();
+  pass('Platform Admin user search reaches the third filtered page and preserves its total count');
+
+  await page.evaluate(() => localStorage.setItem('ceopro_locale', 'ar'));
+  await page.reload();
+  await page.locator('main.keel-platform').waitFor();
+  await page.waitForFunction(() => document.documentElement.dir === 'rtl');
+  await page.locator('nav[aria-label] button').nth(1).click();
+  const arabicCompanySearch = page.locator('main.keel-platform input').first();
+  await arabicCompanySearch.waitFor();
+  const arabicLabel = await arabicCompanySearch.evaluate((input) => input.labels?.[0]?.textContent || '');
+  assert.ok(/[\u0600-\u06FF]/.test(arabicLabel));
+  await arabicCompanySearch.fill(`${searchMarker} Company 119`);
+  await page.waitForFunction(() => [...document.querySelectorAll('[role="status"]')]
+    .some((node) => node.textContent?.trim().endsWith('1')));
+  await page.getByText(new RegExp('Company 119')).waitFor();
+  pass('Arabic RTL platform search reaches the same server-filtered company result');
 
   console.log(`AUTH BROWSER: ${passed} passed, 0 failed, 0 skipped (listed journeys only)`);
 } catch (error) {
