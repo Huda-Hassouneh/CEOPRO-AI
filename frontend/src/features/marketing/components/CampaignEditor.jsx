@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Download, ImageIcon, PenLine, RefreshCw, Save, Sparkles, Trash2 } from 'lucide-react';
+import { Check, Copy, PenLine, Save, Sparkles, Trash2 } from 'lucide-react';
 import { ApexButton, Panel, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
-import { useCampaignImage } from '../hooks/useCampaignImage.js';
-import { useGenerateCampaignImage } from '../hooks/useGenerateCampaignImage.js';
 import { useDeleteCampaign, useUpdateCampaign } from '../hooks/useCampaignActions.js';
 import { MarketingErrorMessage } from './MarketingErrorMessage.jsx';
+import { ImageStudio } from './ImageStudio.jsx';
 import { ProductReferenceEditor } from './ProductReferenceEditor.jsx';
 
 export const PLATFORM_LABELS = { INSTAGRAM: 'Instagram', FACEBOOK: 'Facebook', TIKTOK: 'TikTok', GOOGLE_ADS: 'Google Ads' };
-const IMAGE_EXTENSIONS = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 const LIMITS = { GOOGLE_ADS: { headline: 30, body_copy: 90 } };
 
 // The text a post needs, ready to paste: headline, caption, hashtags, call to action.
@@ -39,9 +37,9 @@ function hashtagsFromText(text) {
 
 // One campaign as the customer sees and edits it: the image and the copy
 // together as a post preview (older campaigns: one tab per platform). Edits are kept locally until
-// "Save changes"; the image can be regenerated or downloaded; the whole
-// campaign can be deleted.
-export function CampaignEditor({ campaign, capability, t, locale, onDeleted, onRewrite, rewriting }) {
+// "Save changes"; images in any format are made, picked and downloaded in
+// ImageStudio; the whole campaign can be deleted.
+export function CampaignEditor({ campaign, capability, imageFormats, assetChannels, t, locale, onDeleted, onRewrite, rewriting }) {
   const id = campaign.campaign_id;
   const platforms = Object.keys(campaign.content || {});
   const [platform, setPlatform] = useState(platforms[0]);
@@ -51,11 +49,6 @@ export function CampaignEditor({ campaign, capability, t, locale, onDeleted, onR
   const [confirmDelete, setConfirmDelete] = useState(false);
   const update = useUpdateCampaign();
   const remove = useDeleteCampaign();
-  const regenerate = useGenerateCampaignImage();
-  const imageStatus = regenerate.data?.image_generation_status || campaign.image_generation_status;
-  const imageKey = regenerate.data?.generated_image_key || campaign.generated_image_key;
-  const hasImage = imageStatus === 'COMPLETED' && Boolean(imageKey);
-  const image = useCampaignImage(id, 'generated', { enabled: hasImage, version: imageKey });
   const when = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }), [locale]);
 
   useEffect(() => {
@@ -80,43 +73,6 @@ export function CampaignEditor({ campaign, capability, t, locale, onDeleted, onR
       return { platform: p, variant_index: Number(index), ...fields };
     }),
   }, { onSuccess: () => setEdits({}) });
-
-  const imagePanel = (
-    <div className="studio-image">
-      {hasImage ? (
-        image.isLoading ? <div className="studio-image__frame"><span className="apex-spinner" aria-hidden="true" /></div>
-          : image.url ? <img className="studio-image__frame" src={image.url} alt={t('studio.imageAlt', { title: campaign.campaign_brief })} />
-            : <div className="studio-image__frame is-empty"><p>{t('marketing.results.imageLoadError')}</p></div>
-      ) : (
-        <div className="studio-image__frame is-empty">
-          <ImageIcon size={28} aria-hidden="true" />
-          <p>{regenerate.isPending ? t('studio.creatingImage')
-            : campaign.image_generation_blocked ? t('studio.imageBlocked')
-              : imageStatus === 'PROVIDER_ERROR' ? t('studio.imageFailed')
-                : imageStatus === 'NOT_CONFIGURED' || !capability?.available ? t('studio.imageOff') : t('studio.noImageYet')}</p>
-        </div>
-      )}
-      {hasImage && (regenerate.data?.image_generation_provider || campaign.image_generation_provider) === 'designed' && (
-        <p className="studio-image__note">{t('studio.imageDesigned')}</p>
-      )}
-      {campaign.image_generation_blocked && !hasImage && <MarketingErrorMessage error={{ response: { status: 402, data: { detail: campaign.image_generation_blocked } } }} action="image" t={t} />}
-      {regenerate.isError && <MarketingErrorMessage error={regenerate.error} action="image" t={t} />}
-      {regenerate.data?.image_generation_status === 'PROVIDER_ERROR' && <p className="marketing-inline-error" role="alert">{t('studio.imageFailed')}</p>}
-      <div className="studio-image__actions">
-        {capability?.available && (
-          <ApexButton size="sm" variant="secondary" icon={RefreshCw} loading={regenerate.isPending} onClick={() => regenerate.mutate(id)}>
-            {hasImage ? t('studio.regenerateImage') : t('studio.createImage')}
-          </ApexButton>
-        )}
-        {hasImage && image.url && (
-          <a className="apex-btn apex-btn--secondary apex-btn--sm" href={image.url} download={`keel-${(campaign.campaign_brief || 'campaign').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}.${IMAGE_EXTENSIONS[image.type] || 'png'}`}>
-            <Download size={14} aria-hidden="true" />{t('marketing.results.downloadImage')}
-          </a>
-        )}
-      </div>
-      {capability?.external && <p className="apex-muted studio-note">{t('studio.imagePrivacy')}</p>}
-    </div>
-  );
 
   const variants = campaign.content?.[platform] || [];
   return (
@@ -148,7 +104,7 @@ export function CampaignEditor({ campaign, capability, t, locale, onDeleted, onR
       {remove.isError && <MarketingErrorMessage error={remove.error} action="write" t={t} />}
 
       <div className="studio-layout">
-        {imagePanel}
+        <ImageStudio campaign={campaign} capability={capability} formats={imageFormats} channels={assetChannels} t={t} />
         <div className="studio-copy">
           {platforms.length > 1 && (
             <div className="apex-segmented studio-platforms" role="tablist" aria-label={t('studio.platforms')}>
