@@ -5,9 +5,9 @@ import { ApexButton, Panel, Pill, StateBlock } from '../../../shared/components/
 import { facetNextStep } from '../api/competitorDataApi.js';
 import { useCommentAction, useCompetitorComments, useCompetitorDataStatus } from '../hooks/useCompetitorData.js';
 import { FacetReason, RetryFindings, retryNoticeKey, useRetryNotice } from './DataCompleteness.jsx';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 // Only web links are opened from stored data (the server stores nothing else, this keeps it that way).
-const safeHref = (url) => (/^https?:\/\//i.test(url || '') ? url : null);
 const SORTS = ['helpful', 'recent'];
 const ACTIONS = [{ status: 'noted', icon: Eye }, { status: 'acted_on', icon: Check }];
 const SENTIMENT_FILTERS = ['negative', 'positive', 'neutral'];
