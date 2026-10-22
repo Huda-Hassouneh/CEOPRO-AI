@@ -121,16 +121,25 @@ def test_confidence_counts_the_own_website_less_than_an_independent_source():
     assert listing_conf > site_conf > scoring.confidence(_ranked([base], query)[0][0])
 
 
+def _unpinned(url):
+    """Stand-in for pin_request that skips DNS: the request goes to the URL as written."""
+    return url, {}, {}
+
+
+def _resolver_returning(ip):
+    return lambda host, port, *a, **kw: [(2, 1, 6, "", (ip, port or 0))]
+
+
 def test_private_addresses_are_refused(monkeypatch):
-    def private_resolver(url):
+    def private_pin(url):
         raise UnsafeTargetError("private")
-    monkeypatch.setattr(enrich, "resolve_public_addresses", private_resolver)
+    monkeypatch.setattr(enrich, "pin_request", private_pin)
     # Refused before any request; it counts as unreadable, not as robots-blocked.
     assert enrich.fetch_site("http://10.0.0.5/") is None
 
 
 def test_robots_disallow_stops_the_fetch(monkeypatch):
-    monkeypatch.setattr(enrich, "resolve_public_addresses", lambda url: {"93.184.216.34"})
+    monkeypatch.setattr(enrich, "pin_request", _unpinned)
     fetched = []
 
     def handler(request):
@@ -146,7 +155,7 @@ def test_robots_disallow_stops_the_fetch(monkeypatch):
 
 
 def test_allowed_site_is_read(monkeypatch):
-    monkeypatch.setattr(enrich, "resolve_public_addresses", lambda url: {"93.184.216.34"})
+    monkeypatch.setattr(enrich, "pin_request", _unpinned)
 
     def handler(request):
         if request.url.path == "/robots.txt":
@@ -161,7 +170,7 @@ def test_allowed_site_is_read(monkeypatch):
 
 @pytest.mark.parametrize("path", ["/robots.txt"])
 def test_robots_server_error_means_not_allowed(monkeypatch, path):
-    monkeypatch.setattr(enrich, "resolve_public_addresses", lambda url: {"93.184.216.34"})
+    monkeypatch.setattr(enrich, "pin_request", _unpinned)
     real_client = httpx.Client
     handler = lambda request: httpx.Response(503) if request.url.path == path else httpx.Response(200, text=HOMEPAGE)  # noqa: E731
     monkeypatch.setattr(enrich.httpx, "Client", lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw))
@@ -179,3 +188,38 @@ def test_profile_links_are_deduplicated_across_sources_and_only_http():
         {"social": ["https://instagram.com/olive.jo", "https://facebook.com/olive"]},
     ]
     assert _profiles(payloads) == ["https://www.instagram.com/olive.jo/", "https://facebook.com/olive"]
+
+
+def test_fetch_connects_to_the_checked_address_and_keeps_the_real_name(monkeypatch):
+    """Regression (DNS rebinding): the request goes to the one IP that was checked, while the
+    Host header and TLS server name still carry the site's real name."""
+    from src.market_scraper import network_security
+
+    monkeypatch.delenv("CONNECTORS_ALLOW_PRIVATE_HOSTS", raising=False)  # the suite default disables pinning
+    seen = []
+
+    def handler(request):
+        seen.append((request.url.host, request.headers["host"], request.extensions.get("sni_hostname")))
+        return httpx.Response(404) if request.url.path == "/robots.txt" else httpx.Response(
+            200, text=HOMEPAGE, headers={"content-type": "text/html"})
+
+    monkeypatch.setattr(enrich, "pin_request",
+                        lambda url: network_security.pin_request(url, resolver=_resolver_returning("93.184.216.34")))
+    real_client = httpx.Client
+    monkeypatch.setattr(enrich.httpx, "Client", lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw))
+    assert enrich.fetch_site("https://shop.example/")["schema_types"][0] == "Restaurant"
+    assert seen and all(entry == ("93.184.216.34", "shop.example", "shop.example") for entry in seen)
+
+
+def test_a_name_that_resolves_to_a_private_address_is_never_requested(monkeypatch):
+    from src.market_scraper import network_security
+
+    monkeypatch.delenv("CONNECTORS_ALLOW_PRIVATE_HOSTS", raising=False)
+    requested = []
+    monkeypatch.setattr(enrich, "pin_request",
+                        lambda url: network_security.pin_request(url, resolver=_resolver_returning("10.0.0.5")))
+    real_client = httpx.Client
+    monkeypatch.setattr(enrich.httpx, "Client", lambda **kw: real_client(
+        transport=httpx.MockTransport(lambda r: requested.append(r) or httpx.Response(200)), **kw))
+    assert enrich.fetch_site("https://rebind.example/") is None
+    assert requested == []
