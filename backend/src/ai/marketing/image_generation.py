@@ -572,6 +572,22 @@ def _local_image_base_url() -> str:
     return urls[0] if urls else ""
 
 
+def local_server_health(timeout: float = 3.0) -> List[dict]:
+    """Each self-hosted server's own /health (device, busy, measured seconds
+    per image, memory), for the capacity view. Addresses are not included."""
+    report = []
+    for i, base in enumerate(_local_image_base_urls(), 1):
+        try:
+            data = httpx.get(f"{base}/health", timeout=timeout).json()
+            report.append({"server": i, "ok": bool(data.get("ok")), "busy": data.get("busy"), "device": data.get("device"),
+                           "dtype": data.get("dtype"), "images_made": data.get("images_made"),
+                           "average_seconds_per_image": data.get("average_seconds_per_image"),
+                           "memory": data.get("memory")})
+        except (httpx.HTTPError, ValueError):
+            report.append({"server": i, "ok": False})
+    return report
+
+
 def only_self_hosted() -> bool:
     """True when every image provider that can run is a self-hosted server
     (no per-image provider cost)."""
@@ -604,7 +620,8 @@ def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, re
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Local image server request failed: {type(err).__name__}") from err
     if response.status_code in (429, 503):  # busy with another image
-        raise ProviderBusy(f"Local image server busy (HTTP {response.status_code})", _retry_after(response))
+        # Our own server: check back soon rather than sitting out a whole image's time.
+        raise ProviderBusy(f"Local image server busy (HTTP {response.status_code})", min(_retry_after(response), 15.0))
     try:
         payload = response.json() if response.status_code == 200 else {}
         encoded = payload["images"][0] if api == "a1111" else payload["data"][0]["b64_json"]

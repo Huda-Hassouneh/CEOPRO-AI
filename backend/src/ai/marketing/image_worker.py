@@ -141,7 +141,7 @@ def _thread_loop(worker_id: str) -> None:
         except Exception:  # noqa: BLE001 - e.g. database briefly unreachable
             logger.exception("worker %s: claim failed", worker_id)
             outcome = None
-        if outcome is None:
+        if outcome is None or outcome == "QUEUED":  # nothing to do, or servers busy / a retry: don't spin
             _stop.wait(POLL_SECONDS)
 
 

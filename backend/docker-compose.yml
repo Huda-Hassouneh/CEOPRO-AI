@@ -585,6 +585,10 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       # Marketing images (paid ones stay refused until priced).
       MARKETING_IMAGE_PROVIDERS: ${MARKETING_IMAGE_PROVIDERS:-}
+      # The self-hosted image server below (profile "local-images"):
+      # http://image-server:7860 from inside this network.
+      LOCAL_IMAGE_BASE_URL: ${LOCAL_IMAGE_BASE_URL:-}
+      LOCAL_IMAGE_BASE_URLS: ${LOCAL_IMAGE_BASE_URLS:-}
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       HUGGINGFACE_API_TOKEN: ${HUGGINGFACE_API_TOKEN:-}
@@ -619,12 +623,57 @@ services:
     volumes:
       - ./models:/models
     command: >
-      -m /models/qwen2.5-3b-instruct-q5_k_m.gguf
-      --host 0.0.0.0 --port 8080 -t 4 -c 4096
+      -m /models/qwen3-4b-instruct-2507-q4_k_m.gguf
+      --host 0.0.0.0 --port 8080 -t 4 -c 4096 --no-mmap
     ports:
       - "8090:8080"
     networks:
       - ceopro_core_net
+  # Free, self-hosted marketing images (profile "local-images"): an open-weight
+  # diffusion model (default SDXL 1.0 base) and the worker that makes queued
+  # images with it. Fetch the model once: scripts/fetch_image_model.sh ./models
+  # Needs ~10 GB RAM on CPU (about 2-3 min per image on 4 modern cores) or an
+  # NVIDIA GPU. Start: docker compose --profile local-images up -d
+  image-server:
+    build:
+      context: .
+      dockerfile: image_server/Dockerfile
+    container_name: ceopro_image_server
+    profiles: ["local-images"]
+    volumes:
+      - ./models:/models:ro
+    environment:
+      KEEL_IMAGE_MODEL_DIR: /models/sdxl-base-1.0
+      KEEL_IMAGE_STEPS: ${KEEL_IMAGE_STEPS:-20}
+    ports:
+      - "7860:7860"
+    networks:
+      - ceopro_core_net
+
+  image-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    container_name: ceopro_image_worker
+    profiles: ["local-images"]
+    command: python -m src.ai.marketing.image_worker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: redis
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MARKETING_IMAGE_PROVIDERS: local
+      LOCAL_IMAGE_BASE_URL: http://image-server:7860
+    depends_on:
+      - postgres
+      - minio
+      - image-server
+    networks:
+      - ceopro_core_net
+
 volumes:
   postgres_data:
   redis_data:
