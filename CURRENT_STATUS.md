@@ -63,6 +63,12 @@ or simulated.
 - **Running it:** `./keel setup`, `./keel start`, `./keel seed`, `./keel test`
   locally or in a Codespace (`RUNNING_LOCALLY.md`).
 
+- **AI provider fallback and marketing image gallery (2026-10-22):** `LLM_PROVIDERS` lets the assistant and
+  campaign writing fall back to the next configured model (for example Groq, then a local llama-server);
+  Marketing images come in five formats (1:1, 4:5, 9:16, 16:9, 1.91:1), can come from a self-hosted image
+  server, and every image is kept in the campaign's gallery to attach, label, download or delete. See
+  `docs/AI_MODEL_MARKETING_IMPLEMENTATION.md`.
+
 ## Verification (latest run)
 
 | Check | Result |
