@@ -1,12 +1,21 @@
 // Real React -> FastAPI -> PostgreSQL/Redis/SMTP. No intercepted API responses.
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 
 const base = process.env.PHASE1A_BROWSER_BASE_URL;
 if (process.env.PHASE1A_ISOLATED_BROWSER !== 'YES' || base !== 'http://127.0.0.1:15173') throw new Error('Disposable auth harness required');
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, headless: true });
 const page = await browser.newPage();
+const failedResponses = [];
+page.on('response', (response) => {
+  if (response.status() >= 400) {
+    response.json().then((body) => {
+      const detail = typeof body?.detail === 'string' ? body.detail : body?.detail?.reason;
+      failedResponses.push(`${response.status()} ${new URL(response.url()).pathname}${detail ? `: ${detail}` : ''}`);
+    }).catch(() => failedResponses.push(`${response.status()} ${new URL(response.url()).pathname}`));
+  }
+});
 page.setDefaultTimeout(15000);
 const email = `auth-browser-${randomUUID()}@example.test`;
 const password = `Auth-${randomUUID()}!aA9`;
@@ -32,6 +41,20 @@ const login = async (secret) => {
   await page.locator('input[type="password"]').fill(secret);
   await page.locator('button[type="submit"]').click();
   await page.waitForURL('**/dashboard');
+};
+const loginAs = async (address, secret) => {
+  await page.goto(`${base}/login`);
+  await page.locator('input[type="email"]').fill(address);
+  await page.locator('input[type="password"]').fill(secret);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL('**/dashboard');
+};
+const jwtClaims = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+const signedToken = (claims) => {
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const unsigned = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode(claims)}`;
+  const signature = createHmac('sha256', process.env.JWT_SECRET).update(unsigned).digest('base64url');
+  return `${unsigned}.${signature}`;
 };
 try {
   await page.goto(`${base}/signup`);
@@ -152,11 +175,176 @@ try {
   assert.equal((await api('/auth/workspaces', null, beforeChange.accessToken, 'GET')).status(), 401);
   await login(changedPassword);
   pass('authenticated password change rotates credential version and rejects prior session');
+
+  // Create a second fully initialized workspace through the existing UI and
+  // onboarding APIs, without bypassing their membership or entitlement gates.
+  const firstWorkspace = await session();
+  await page.goto(`${base}/workspaces/new`);
+  await page.locator('.workspace-create input').fill('Browser Secondary Workspace');
+  await page.locator('.workspace-create select').nth(0).selectOption('JO');
+  await page.locator('.workspace-create select').nth(1).selectOption('JOD');
+  await page.locator('.workspace-create button[type="submit"]').click();
+  // Dashboard renders first; SetupGate performs the real profile read before
+  // redirecting. Wait for that gate rather than mistaking the initial route
+  // transition for completed setup.
+  await page.waitForURL('**/onboarding');
+  await page.getByRole('radio').first().click();
+  await page.locator('.setup-actions button').first().click();
+  await page.locator('.setup-steps li[aria-current="step"]:nth-child(2)').waitFor();
+  await page.locator('.setup-field input').first().fill('Amman');
+  await page.locator('.setup-actions button').last().click();
+  await page.locator('.setup-steps li[aria-current="step"]:nth-child(3)').waitFor();
+  await page.locator('.setup-actions button').last().click();
+  await page.locator('.setup-steps li[aria-current="step"]:nth-child(4)').waitFor();
+  await page.locator('.setup-actions button').nth(1).click();
+  await page.waitForURL('**/dashboard');
+  const secondWorkspace = await session();
+  assert.notEqual(firstWorkspace.tenantId, secondWorkspace.tenantId);
+  assert.equal(jwtClaims(secondWorkspace.accessToken).ev, true, 'workspace creation must preserve verified email state');
+  const initializedCompany = await api('/settings/company', null, secondWorkspace.accessToken, 'GET');
+  assert.equal(initializedCompany.status(), 200);
+  assert.ok((await initializedCompany.json()).onboarding_completed_at);
+  const workspaceList = await (await api('/auth/workspaces', null, secondWorkspace.accessToken, 'GET')).json();
+  assert.equal(workspaceList.workspaces.length, 2);
+  assert.ok(workspaceList.workspaces.every((item) => item.business_name));
+  pass('second workspace is created and fully initialized through existing onboarding');
+
+  // Login without tenant_id must present the actual server-approved choices.
+  await page.evaluate(async () => {
+    const { signOut } = await import('/src/shared/components/layout/signOut.js');
+    const { useAuthStore } = await import('/src/features/auth/store/authStore.js');
+    await signOut(useAuthStore.getState().clearSession, (path) => { location.href = path; });
+  });
+  await page.waitForURL('**/login');
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(changedPassword);
+  await page.locator('button[type="submit"]').click();
+  await page.getByRole('heading', { name: /choose a company/i }).waitFor();
+  const intended = page.getByRole('button', { name: /Browser Secondary Workspace/ });
+  await intended.click();
+  await page.waitForURL('**/dashboard');
+  assert.equal((await session()).tenantId, secondWorkspace.tenantId);
+  pass('multi-workspace login lists active workspaces and opens the selected tenant');
+
+  const beforeSwitch = await session();
+  const authTime = jwtClaims(beforeSwitch.accessToken).auth_time;
+  await page.locator('button[aria-haspopup="menu"]').first().click();
+  await page.getByRole('menuitemradio', { name: /Browser Auth Workspace/ }).click();
+  await page.waitForFunction((tenantId) => JSON.parse(localStorage.getItem('ceopro_auth_session'))?.tenantId === tenantId, firstWorkspace.tenantId);
+  const afterSwitch = await session();
+  assert.equal(afterSwitch.tenantId, firstWorkspace.tenantId);
+  assert.equal(jwtClaims(afterSwitch.accessToken).auth_time, authTime);
+  assert.equal((await api('/auth/workspaces', null, afterSwitch.accessToken, 'GET')).status(), 200);
+  assert.equal((await api('/auth/workspaces/switch', { tenant_id: randomUUID() }, afterSwitch.accessToken)).status(), 403);
+  const renewed = await api('/auth/refresh', null, afterSwitch.accessToken);
+  assert.equal(renewed.status(), 200);
+  assert.equal(jwtClaims((await renewed.json()).access_token).auth_time, authTime);
+  pass('workspace switch changes tenant context, rejects guessed IDs, and preserves auth_time through renewal');
+
+  // Deterministic boundary tests: a valid signed expired token exercises the
+  // browser 401 route, while an over-age auth_time exercises the server's
+  // maximum-lifetime renewal guard without sleeping.
+  const activeClaims = jwtClaims(afterSwitch.accessToken);
+  const expiryNow = Math.floor(Date.now() / 1000);
+  const oldAuth = signedToken({ ...activeClaims, exp: expiryNow + 600, iat: expiryNow, auth_time: expiryNow - (168 * 3600) - 1, jti: randomUUID() });
+  assert.equal((await api('/auth/refresh', null, oldAuth)).status(), 401);
+  const expired = signedToken({ ...activeClaims, exp: expiryNow - 1, iat: expiryNow - 7200, jti: randomUUID() });
+  await page.evaluate((token) => {
+    const saved = JSON.parse(localStorage.getItem('ceopro_auth_session'));
+    localStorage.setItem('ceopro_auth_session', JSON.stringify({ ...saved, accessToken: token }));
+  }, expired);
+  await page.goto(`${base}/settings/team`);
+  await page.waitForURL('**/login');
+  await page.getByRole('alert').filter({ hasText: /session has expired/i }).waitFor();
+  pass('maximum session age is enforced and expired-session UX explains the sign-in redirect');
+
+  // Platform invitation acceptance uses the existing one-time owner bootstrap,
+  // real platform APIs, controlled SMTP, and the actual React invitation page.
+  const platformEmail = process.env.AUTH_BROWSER_PLATFORM_OWNER_EMAIL;
+  const platformPassword = process.env.AUTH_BROWSER_PLATFORM_OWNER_PASSWORD;
+  assert.ok(platformEmail && platformPassword);
+  await loginAs(platformEmail, platformPassword);
+  await page.goto(`${base}/platform`);
+  await page.getByRole('heading', { name: /platform/i }).waitFor();
+  await page.getByRole('button', { name: /operators/i }).click();
+  await page.getByRole('button', { name: /invite/i }).click();
+  const platformInvitee = `auth-browser-${randomUUID()}@example.test`;
+  const platformForm = page.locator('form.platform-editor');
+  await platformForm.locator('input[type="email"]').fill(platformInvitee);
+  await platformForm.locator('input').nth(1).fill('Browser acceptance invitation');
+  await platformForm.getByRole('button', { name: /confirm/i }).click();
+  await page.waitForFunction((address) => document.body.innerText.includes(address), platformInvitee);
+  const platformMessage = (await mail(platformInvitee)).message;
+  const platformLink = platformMessage.match(/http:\/\/127\.0\.0\.1:15173\/platform\/invitations\/[^\s]+/)[0];
+  await page.goto(platformLink);
+  await page.locator('input[autocomplete="name"]').fill('Browser Platform Admin');
+  const platformAdminPassword = `Admin-${randomUUID()}!aA9`;
+  await page.locator('input[autocomplete="new-password"]').fill(platformAdminPassword);
+  await page.getByRole('button', { name: /accept.*invitation/i }).click();
+  await page.waitForURL('**/platform');
+  const platformAdmin = await session();
+  const platformWho = await (await api('/platform/me', null, platformAdmin.accessToken, 'GET')).json();
+  assert.equal(platformWho.role, 'admin');
+  const ownerOnly = await api('/platform/financial-approvals', {
+    request_id: randomUUID(), kind: 'manual_access', subject: 'auth-browser-check',
+    terms: { description: 'not an owner approval' },
+    expires_at: new Date(Date.now() + 3600000).toISOString(), reason: 'verify admin boundary',
+  }, platformAdmin.accessToken);
+  assert.equal(ownerOnly.status(), 403);
+  const acceptedReplay = await api(`/platform/invitations/${platformLink.split('/').at(-1)}/accept`, {}, null);
+  assert.equal(acceptedReplay.status(), 404);
+  await page.goto(platformLink);
+  await page.getByRole('alert').waitFor();
+  pass('platform owner invitation is emailed, accepted once, and creates only the approved admin role');
+
+  const tenantInviteDenied = await api('/platform/team/invitations', { email: `auth-browser-${randomUUID()}@example.test`, reason: 'tenant owner must not invite platform staff' }, firstWorkspace.accessToken);
+  assert.equal(tenantInviteDenied.status(), 403);
+  await page.evaluate(async () => {
+    const { signOut } = await import('/src/shared/components/layout/signOut.js');
+    const { useAuthStore } = await import('/src/features/auth/store/authStore.js');
+    await signOut(useAuthStore.getState().clearSession, (path) => { location.href = path; });
+  });
+  await page.waitForURL('**/login');
+  await loginAs(platformEmail, platformPassword);
+  await page.goto(`${base}/platform`);
+  await page.getByRole('button', { name: /operators/i }).click();
+  await page.getByRole('button', { name: /invite/i }).click();
+  const expiredInvitee = `auth-browser-${randomUUID()}@example.test`;
+  const expiredForm = page.locator('form.platform-editor');
+  await expiredForm.locator('input[type="email"]').fill(expiredInvitee);
+  await expiredForm.locator('input').nth(1).fill('Expired invitation acceptance test');
+  await expiredForm.getByRole('button', { name: /confirm/i }).click();
+  await page.waitForFunction((address) => document.body.innerText.includes(address), expiredInvitee);
+  const expiredLink = (await mail(expiredInvitee)).message.match(/http:\/\/127\.0\.0\.1:15173\/platform\/invitations\/[^\s]+/)[0];
+  const expireResponse = await fetch(`http://127.0.0.1:18002/expire-platform-invitation?email=${encodeURIComponent(expiredInvitee)}`, {
+    method: 'POST', headers: { 'X-Test-Key': process.env.AUTH_TEST_MAILBOX_KEY },
+  });
+  assert.equal((await expireResponse.json()).expired, true);
+  await page.evaluate(() => localStorage.setItem('ceopro_locale', 'ar'));
+  await page.goto(expiredLink);
+  await page.waitForFunction(() => document.documentElement.dir === 'rtl');
+  const expiredAlert = page.getByRole('alert');
+  await expiredAlert.waitFor();
+  assert.ok((await expiredAlert.textContent()).trim().length > 0);
+  assert.equal((await api(`/platform/invitations/${expiredLink.split('/').at(-1)}`, null, null, 'GET')).status(), 404);
+  pass('tenant owners cannot send platform invitations; expired/reused links fail with localized RTL feedback');
+
   console.log(`AUTH BROWSER: ${passed} passed, 0 failed, 0 skipped (listed journeys only)`);
 } catch (error) {
   console.error(`AUTH BROWSER: ${passed} passed before failure; ${error.message}`);
   console.error(`Page path: ${new URL(page.url()).pathname}`);
   console.error((await page.locator('[role="alert"]').allTextContents().catch(() => [])).join('\n'));
+  console.error([...new Set(failedResponses)].slice(-12).join('\n'));
+  const current = await session().catch(() => null);
+  if (current?.accessToken) {
+    const claims = jwtClaims(current.accessToken);
+    const statuses = [];
+    for (const [path, method] of [['/auth/workspaces', 'GET'], ['/settings/company', 'GET'], ['/settings/company/search-scope', 'GET'], ['/auth/refresh', 'POST']]) {
+      const response = await api(path, null, current.accessToken, method).catch(() => null);
+      statuses.push(`${path}=${response?.status() ?? 'network-error'}`);
+    }
+    console.error(`Current disposable session claims ev=${claims.ev} evr=${claims.evr} cv=${claims.cv}; ` + statuses.join(' '));
+  }
   process.exitCode = 1;
 } finally {
   await browser.close();
