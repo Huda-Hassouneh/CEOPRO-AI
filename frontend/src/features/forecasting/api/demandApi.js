@@ -15,4 +15,12 @@ export const demandApi = {
     const response = await httpClient.post('/forecasting/refresh', null, { params: { all_products: allProducts } });
     return response.data;
   },
+  generate: async (productId) => {
+    const response = await httpClient.post(`/dashboard/products/${encodeURIComponent(productId)}/forecast`);
+    return response.data;
+  },
+  history: async (productId) => {
+    const response = await httpClient.get(`/dashboard/products/${encodeURIComponent(productId)}/forecast`);
+    return response.data;
+  },
 };

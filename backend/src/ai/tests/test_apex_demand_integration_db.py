@@ -13,6 +13,7 @@ import psycopg2
 import pytest
 
 from src.ai.forecasting import overview, refresh
+from src.ai.forecasting.data_access import load_daily_demand
 from src.ai.forecasting.pipeline import run_forecast
 from src.ai.tests.sales_fixtures import insert_sale
 
@@ -114,6 +115,33 @@ def test_overview_is_scoped_to_one_product_when_asked(conn):
     data = overview.build_overview(conn, tenant, product_id=a)
     assert data["totals"]["products"] == 1
     assert sum(p["actual"] or 0 for p in data["series"]) == pytest.approx(2 * 39)
+    with conn.cursor() as cursor:
+        _cleanup(cursor, tenant)
+    conn.commit()
+
+
+def test_cancelled_invoices_are_not_forecast_as_demand_or_reported_as_sales(conn):
+    now = datetime.now(timezone.utc)
+    with conn.cursor() as cursor:
+        tenant = _company(cursor)
+        product = _product(cursor, tenant, {"en": "Cancelled sale test"})
+        insert_sale(cursor, tenant, product, 4, 3.0, now - timedelta(days=2))
+        insert_sale(cursor, tenant, product, 100, 3.0, now - timedelta(days=1))
+        cursor.execute(
+            "UPDATE invoices SET payment_status = 'CANCELLED' WHERE tenant_id = %s "
+            "AND invoice_id = (SELECT i.invoice_id FROM invoices i JOIN invoice_items ii "
+            "ON ii.tenant_id = i.tenant_id AND ii.invoice_id = i.invoice_id "
+            "WHERE ii.tenant_id = %s AND ii.product_id = %s ORDER BY i.issue_date DESC LIMIT 1);",
+            (tenant, tenant, product),
+        )
+    conn.commit()
+
+    history = load_daily_demand(conn, tenant, product)
+    assert history["quantity"].sum() == pytest.approx(4)
+    assert refresh.products_needing_forecast(conn, tenant) == [product]
+    report = overview.build_overview(conn, tenant, product_id=product)
+    assert report["products"][0]["sold_last_30"] == pytest.approx(4)
+
     with conn.cursor() as cursor:
         _cleanup(cursor, tenant)
     conn.commit()

@@ -10,7 +10,7 @@ create/use a real consumer group on ceopro:stream:demand_forecast_requested.
 """
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 import redis
@@ -30,6 +30,7 @@ def dummy_actor_user_id(monkeypatch):
     # to Postgres with it - the tests here mock out app_role_connection/
     # run_forecast so no real DB is needed.
     monkeypatch.setenv("AI_SERVICE_ACTOR_USER_ID", "00000000-0000-0000-0000-000000000000")
+    monkeypatch.setattr(consumer_module, "require_forecast_authorization", lambda *_args: None)
 
 
 @pytest.fixture
@@ -79,13 +80,13 @@ def test_handle_message_opens_a_tenant_scoped_connection_and_closes_it(consumer)
     # The summary regeneration after a forecast is not what this test is about, and with a real MinIO
     # reachable it would run against this fake connection and (correctly) roll back its failed steps.
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn) as mock_app_conn, \
-         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast, \
+         patch("src.ai.forecasting.consumer.generate_or_reuse_forecast") as mock_run_forecast, \
          patch("src.ai.forecasting.consumer.regenerate_all_structured_summaries"), \
          patch("src.ai.forecasting.consumer.minio_client"):
         consumer._handle_message(payload={"tenant_id": "t1", "product_id": "p1", "horizon_days": "14"})
 
     mock_app_conn.assert_called_once_with("t1", consumer.actor_user_id)
-    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 14)
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 14, authorization_check=ANY)
     fake_conn.close.assert_called_once()
     fake_conn.rollback.assert_not_called()
 
@@ -103,12 +104,12 @@ def test_handle_message_regenerates_structured_summaries_after_a_successful_fore
     fake_conn = MagicMock()
     fake_minio = MagicMock()
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast, \
+         patch("src.ai.forecasting.consumer.generate_or_reuse_forecast") as mock_run_forecast, \
          patch("src.ai.forecasting.consumer.minio_client", return_value=fake_minio), \
          patch("src.ai.forecasting.consumer.regenerate_all_structured_summaries") as mock_regenerate:
         consumer._handle_message(payload={"tenant_id": "t1", "product_id": "p1", "horizon_days": "7"})
 
-    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7)
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7, authorization_check=ANY)
     mock_regenerate.assert_called_once_with(fake_conn, fake_minio, "t1")
     fake_conn.rollback.assert_not_called()
     fake_conn.close.assert_called_once()
@@ -124,12 +125,12 @@ def test_handle_message_survives_a_structured_summary_regeneration_failure(consu
     """
     fake_conn = MagicMock()
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast, \
+         patch("src.ai.forecasting.consumer.generate_or_reuse_forecast") as mock_run_forecast, \
          patch("src.ai.forecasting.consumer.minio_client", return_value=MagicMock()), \
          patch("src.ai.forecasting.consumer.regenerate_all_structured_summaries", side_effect=RuntimeError("minio down")):
         consumer._handle_message(payload={"tenant_id": "t1", "product_id": "p1", "horizon_days": "7"})  # must not raise
 
-    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7)
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7, authorization_check=ANY)
     fake_conn.rollback.assert_not_called()
     fake_conn.close.assert_called_once()
 
@@ -138,15 +139,15 @@ def test_handle_message_defaults_horizon_days_to_thirty(consumer):
     """A forecast means demand over the next 30 days everywhere it is shown."""
     fake_conn = MagicMock()
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast:
+         patch("src.ai.forecasting.consumer.generate_or_reuse_forecast") as mock_run_forecast:
         consumer._handle_message(payload={"tenant_id": "t1", "product_id": "p1"})
-    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 30)
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 30, authorization_check=ANY)
 
 
 def test_handle_message_rolls_back_and_closes_on_run_forecast_failure(consumer):
     fake_conn = MagicMock()
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.forecasting.consumer.run_forecast", side_effect=RuntimeError("boom")):
+         patch("src.ai.forecasting.consumer.generate_or_reuse_forecast", side_effect=RuntimeError("boom")):
         with pytest.raises(RuntimeError, match="boom"):
             consumer._handle_message(payload={"tenant_id": "t1", "product_id": "p1"})
 
@@ -163,7 +164,7 @@ def test_full_publish_consume_ack_cycle_matches_listen_loop_mechanics(consumer, 
 
     fake_conn = MagicMock()
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast:
+         patch("src.ai.forecasting.consumer.generate_or_reuse_forecast") as mock_run_forecast:
         response = consumer.client.xreadgroup(
             groupname=consumer.group_id, consumername=consumer.consumer_name,
             streams={consumer.stream_key: ">"}, count=10, block=1000,
@@ -175,7 +176,7 @@ def test_full_publish_consume_ack_cycle_matches_listen_loop_mechanics(consumer, 
                 consumer._handle_message(payload)
                 consumer.client.xack(consumer.stream_key, consumer.group_id, message_id)
 
-    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7)
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 7, authorization_check=ANY)
 
     pending = redis_client.xpending(consumer.stream_key, consumer.group_id)
     assert pending["pending"] == 0  # message was acked, nothing left outstanding
@@ -292,11 +293,11 @@ def test_listen_acks_only_after_successful_processing(consumer):
     consumer.client.xack = MagicMock()
 
     with patch("src.ai.forecasting.consumer.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.forecasting.consumer.run_forecast") as mock_run_forecast, \
+         patch("src.ai.forecasting.consumer.generate_or_reuse_forecast") as mock_run_forecast, \
          patch("src.ai.forecasting.consumer.regenerate_all_structured_summaries"), \
          patch("src.ai.forecasting.consumer.minio_client"):
         consumer.listen()
 
-    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 30)
+    mock_run_forecast.assert_called_once_with(fake_conn, "t1", "p1", 30, authorization_check=ANY)
     consumer.client.xack.assert_called_once_with(consumer.stream_key, consumer.group_id, "124-0")
     fake_conn.rollback.assert_not_called()
