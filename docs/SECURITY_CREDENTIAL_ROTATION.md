@@ -7,7 +7,7 @@ public. This document lists names only, never values.
 
 Exposed in three places: the repository-root `.env` (commit `128dba2`) and earlier versions of
 `backend/KEYS_AND_ACCOUNTS_NEEDED.md` and `.env.example` (2026-10-13 to 2026-10-19; see the system audit). The root
-`.env` Its URLs point at Docker service names (`postgres`, `searxng`) and
+`.env`'s URLs point at Docker service names (`postgres`, `searxng`) and
 `localhost`, so it was written for the Docker/local setup. That does not make it harmless: if any of these values
 was ever reused on Render (staging or production), in a Codespace secret, or for another account, that place is
 exposed too. Whether that happened cannot be checked from the development sandbox.
