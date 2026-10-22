@@ -12,7 +12,8 @@ const SCOPE = { BUSINESS: 'BUSINESS', PRODUCT: 'PRODUCT', COMPETITOR: 'COMPETITO
 export function MarketPerceptionPanel({ t }) {
   const [scope, setScope] = useState(SCOPE.BUSINESS);
   const [subjectId, setSubjectId] = useState('');
-  const products = useQuery({ queryKey: ['mpi-products'], queryFn: () => productsApi.list({ limit: 100, offset: 0 }) });
+  const [productSearch, setProductSearch] = useState('');
+  const products = useQuery({ queryKey: ['mpi-products', productSearch], queryFn: () => productsApi.list({ limit: 100, offset: 0, search: productSearch || undefined }) });
   const competitors = useQuery({ queryKey: ['mpi-competitors'], queryFn: competitorsApi.list });
   const summary = useQuery({
     queryKey: ['mpi-summary', scope, subjectId],
@@ -43,6 +44,7 @@ export function MarketPerceptionPanel({ t }) {
         <option value={SCOPE.COMPETITOR}>{t('marketPerception.competitor')}</option>
       </select></label>
       {scope !== SCOPE.BUSINESS && <label>{scope === SCOPE.PRODUCT ? t('marketPerception.chooseProduct') : t('marketPerception.chooseCompetitor')}
+        {scope === SCOPE.PRODUCT && <input type="search" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder={t('marketPerception.searchProducts')} aria-label={t('marketPerception.searchProducts')} />}
         <select value={subjectId} onChange={(event) => setSubjectId(event.target.value)}>
           <option value="">{t('marketPerception.choose')}</option>
           {options.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
