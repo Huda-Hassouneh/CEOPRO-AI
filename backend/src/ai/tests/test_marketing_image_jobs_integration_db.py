@@ -83,12 +83,15 @@ def queue(monkeypatch):
     monkeypatch.setattr(image_generation, "_cool_down", lambda name, seconds: None)
     client = TestClient(app)
 
+    tenants = []
+
     def company():
         email = f"jobs+{uuid.uuid4().hex[:8]}@example.com"
         assert client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Jobs Bakery", "email": email,
                                                  "country_code": "JO", "primary_currency": "JOD",
                                                  "password": "Jobs!Test-2026"}).status_code in (200, 201)
         session = client.post("/auth/login", json={"email": email, "password": "Jobs!Test-2026"}).json()
+        tenants.append(session["tenant_id"])
         return session, {"Authorization": f"Bearer {session['access_token']}"}
 
     def campaign(headers):
@@ -100,6 +103,10 @@ def queue(monkeypatch):
     _drain()
     yield client, server, company, campaign
     _drain()
+    # These jobs ran against an instant fake server: keep them out of the
+    # capacity figures (seconds per image) of whatever else uses this database.
+    with psycopg2.connect(DATABASE_URL) as conn, conn.cursor() as cursor:
+        cursor.execute("DELETE FROM image_generation_jobs WHERE tenant_id = ANY(%s::uuid[]);", (tenants,))
     server.httpd.shutdown()
 
 

@@ -57,6 +57,11 @@ MAX_PIXELS = int(os.getenv("KEEL_IMAGE_MAX_PIXELS", str(1408 * 1024)))
 OUTPUT_FORMAT = os.getenv("KEEL_IMAGE_OUTPUT", "jpeg").lower()  # jpeg (smaller files) or png
 JPEG_QUALITY = int(os.getenv("KEEL_IMAGE_JPEG_QUALITY", "93"))
 API_KEY = os.getenv("KEEL_IMAGE_API_KEY", "")
+# Making one 1024x1024 image needs about 0.5-1 GB on top of the loaded model.
+# Below this much free memory the server answers "busy" (the KEEL worker
+# retries later) instead of starting an image the kernel may kill it for -
+# seen for real on a 16 GB machine also running the copy model.
+MIN_FREE_GB = float(os.getenv("KEEL_IMAGE_MIN_FREE_GB", "1.5"))
 DEFAULT_NEGATIVE = os.getenv(
     "KEEL_IMAGE_NEGATIVE_PROMPT",
     "text, letters, words, watermark, logo, signature, blurry, low quality, jpeg artifacts, deformed, "
@@ -142,6 +147,15 @@ def _encode(image) -> str:
     return base64.b64encode(buffer.getvalue()).decode()
 
 
+def _available_gb() -> Optional[float]:
+    try:
+        import psutil
+
+        return psutil.virtual_memory().available / 1e9
+    except Exception:  # noqa: BLE001 - no psutil: no guard
+        return None
+
+
 def _average_seconds() -> Optional[float]:
     recent = list(_state["recent"])
     return round(sum(recent) / len(recent), 1) if recent else None
@@ -160,6 +174,11 @@ def generate(body: GenerationRequest):
     if _state["pipe"] is None:
         detail = "model not loaded" + (f": {_state['error']}" if _state["error"] else "")
         return JSONResponse(status_code=503, content={"error": detail}, headers={"Retry-After": "60"})
+    free_gb = _available_gb()
+    if free_gb is not None and free_gb < MIN_FREE_GB:
+        logger.warning("refusing: %.1f GB free, need %.1f GB", free_gb, MIN_FREE_GB)
+        return JSONResponse(status_code=503, content={"error": f"low memory ({free_gb:.1f} GB free)"},
+                            headers={"Retry-After": "60"})
     if not _lock.acquire(blocking=False):  # one image at a time; the caller tries another server or waits
         wait = int(_average_seconds() or 120)
         return JSONResponse(status_code=503, content={"error": "busy"}, headers={"Retry-After": str(wait)})
