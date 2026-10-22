@@ -365,6 +365,30 @@
       }
     }
   },
+  "marketPerception": {
+    "title": "Customer Market Perception",
+    "description": "Analyze only reviewed and classified customer feedback for your business, products, or tracked competitors.",
+    "scope": "Analysis scope",
+    "business": "Whole business",
+    "product": "Product",
+    "competitor": "Tracked competitor",
+    "chooseProduct": "Product",
+    "chooseCompetitor": "Competitor",
+    "choose": "Choose a subject",
+    "refresh": "Analyze reviews",
+    "loading": "Analyzing…",
+    "subjectLoadError": "Could not load available subjects. Retry by reloading this page.",
+    "denied": "Market intelligence is not available for this workspace plan.",
+    "subjectMissing": "This subject is no longer available in this workspace.",
+    "error": "Analysis could not be completed. Please retry.",
+    "noReviews": "No eligible analyzed reviews are available yet.",
+    "insufficient": "Only {{count}} analyzed reviews are available; {{minimum}} are currently required before showing an index.",
+    "index": "Market Perception Index",
+    "reviewCount": "Eligible analyzed reviews: {{count}}",
+    "breakdown": "Positive: {{positive}} · Neutral: {{neutral}} · Negative: {{negative}}",
+    "lowSampleNotice": "The numeric index is hidden because the sample is below the backend reliability status.",
+    "evidenceNotice": "Based on eligible, analyzed reviews. This is an evidence summary, not a financial or operational action."
+  },
   "marketScoped": {
     "common": {
       "actions": "Actions",
