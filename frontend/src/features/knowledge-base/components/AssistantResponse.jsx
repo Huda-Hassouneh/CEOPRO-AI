@@ -66,7 +66,8 @@ function MarkdownAnswer({ text }) {
 function SummarisedAnswer({ summary, blocks, onOpenRef, activeRef, t }) {
   const [open, setOpen] = useState(false);
   return <>
-    <p className="rag-answer-summary"><Claims claims={summary.claims} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></p>
+    <p className="rag-answer-summary" dir="auto"><Claims claims={summary.claims} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></p>
+    {summary.note && <p className="rag-answer-summary__note">{t(`ragAssistant.chat.summary_${summary.note}`)}</p>}
     <details className="rag-answer-details" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary>{t(open ? 'ragAssistant.chat.hideFullAnswer' : 'ragAssistant.chat.showFullAnswer')}</summary>
       <CitedBlocks blocks={blocks} onOpenRef={onOpenRef} activeRef={activeRef} t={t} />
