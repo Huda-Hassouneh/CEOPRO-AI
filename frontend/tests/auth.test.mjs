@@ -24,7 +24,8 @@ test('password recovery and invitation adapters preserve the actual Python contr
   await authHttpAdapter.resetPassword({ email: 'member@example.test', code: '123456', password: 'NewPassword1!', confirmPassword: 'NewPassword1!' });
   assert.deepEqual(received[0].body, { email: 'member@example.test', code: '123456', new_password: 'NewPassword1!' });
   const invitation = await authHttpAdapter.getInvitation('invite-token');
-  assert.equal(invitation.business_name, 'Workspace');
+  assert.equal(invitation.invitation.organizationName, 'Workspace');
+  assert.equal(invitation.invitation.roleName, 'Staff');
   const accepted = await authHttpAdapter.acceptInvitation({ token: 'invite-token', full_name: 'Member', password: 'NewPassword1!' });
   assert.equal(accepted.session.tenantId, 'tenant');
   assert.deepEqual(accepted.session.roles, ['staff']);

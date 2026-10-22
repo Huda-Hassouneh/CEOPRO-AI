@@ -15,6 +15,10 @@ on:
     # KEEL_Test is the integration branch: pushed to directly, never via PR.
     branches: [main, KEEL_Test]
 
+# Least privilege: these jobs only read the repository (security pass 2026-10-21).
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -135,8 +139,22 @@ jobs:
           # imports twisted.mail/imap4 or runs an IMAP server, 26.4.0 is already the newest
           # release and no fixed version exists (checked 2026-10-17). Remove this ignore as
           # soon as Twisted publishes a fix; every other finding still fails the job.
+          # CVE-2026-112395, -112397, -112400, -112404, -112895, -112896, -112897 and
+          # -112899 are Pillow 12.3.0 advisories, all fixed only in Pillow 13.0.0. rembg
+          # (background removal, up to its newest 2.0.85) requires pillow<13, so the
+          # upgrade is blocked (checked 2026-10-21). Remove these ignores once rembg
+          # allows Pillow 13 and both requirements files are raised; tracked as #123 in
+          # backend/PENDING_ACTIONS.md.
           pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off \
-            --ignore-vuln CVE-2026-106454
+            --ignore-vuln CVE-2026-106454 \
+            --ignore-vuln CVE-2026-112395 \
+            --ignore-vuln CVE-2026-112397 \
+            --ignore-vuln CVE-2026-112400 \
+            --ignore-vuln CVE-2026-112404 \
+            --ignore-vuln CVE-2026-112895 \
+            --ignore-vuln CVE-2026-112896 \
+            --ignore-vuln CVE-2026-112897 \
+            --ignore-vuln CVE-2026-112899
 
       # Same source build docker-compose.yml uses (Dockerfile.minio, pinned version).
       - name: Build and start MinIO
@@ -298,6 +316,12 @@ jobs:
       - name: Browser smoke test (English desktop, Arabic mobile, dark mode)
         working-directory: frontend
         run: npm run test:browser
+
+      - name: Assistant evidence mode (reply served by the test, no model called; English and Arabic)
+        working-directory: frontend
+        run: |
+          node tests/browser/assistant-evidence.mjs
+          E2E_LOCALE=ar E2E_WIDTH=390 node tests/browser/assistant-evidence.mjs
 
       - name: Accessibility audit (axe-core, WCAG 2.1 AA; fails on serious or critical)
         working-directory: frontend

@@ -55,7 +55,7 @@ from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.marketing import occasions
 from src.ai.marketing import (
     background_removal, content_generator, creative_direction, data_access, designed_poster, image_generation,
-    image_storage, positioning, url_extractor, video_generation,
+    image_jobs, image_service, image_storage, positioning, url_extractor, video_generation,
 )
 from src.ai.core import storage_ledger, usage
 from src.ai.rag import llm_client
@@ -194,8 +194,17 @@ class CampaignCreateRequest(BaseModel):
     # The Studio's id for one "Generate" press: the same key again returns
     # the campaign already made instead of writing (and charging) a second.
     request_key: Optional[str] = Field(default=None, min_length=8, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
-    # Also make the campaign's image in the same request (the Studio does).
+    # Also make the campaign's image in the same request (the Studio does),
+    # in this format (image_generation.IMAGE_FORMATS; square when omitted).
     generate_image: bool = False
+    image_format: Optional[str] = None
+
+    @field_validator("image_format")
+    @classmethod
+    def _valid_image_format(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in image_generation.IMAGE_FORMATS:
+            raise ValueError(f"image_format must be one of {list(image_generation.IMAGE_FORMATS)}")
+        return value
 
     @field_validator("strategy_type")
     @classmethod
@@ -405,7 +414,8 @@ def create_campaign_endpoint(body: CampaignCreateRequest, ctx: TenantContext = D
             # that can't be made leaves a complete campaign with an honest
             # image status (and the allowance unused) - never a failed campaign.
             try:
-                image = _generate_image(conn, ctx, campaign_id, result)
+                image = _generate_image(conn, ctx, campaign_id, result,
+                                        image_format=body.image_format or image_generation.DEFAULT_IMAGE_FORMAT)
             except (usage.PlanLimitReached, credits.BudgetError) as err:  # images, storage or AI Credits used up: copy kept
                 conn.rollback()
                 image = {"image_generation_blocked": err.as_http().detail}
@@ -457,6 +467,8 @@ def marketing_options_endpoint(ctx: TenantContext = Depends(get_tenant_context))
     return {
         "strategies": content_generator.STRATEGIES,
         "themes": creative_direction.THEMES,
+        "image_formats": image_generation.image_formats(),
+        "asset_channels": list(data_access.ASSET_CHANNELS),
         "capabilities": {
             "image_generation": image_generation.get_image_generation_capability(),
             "reference_image_generation": image_generation.get_reference_image_capability(),
@@ -493,7 +505,8 @@ def get_campaign_endpoint(campaign_id: str, ctx: TenantContext = Depends(get_ten
         conn.commit()
         if result is None:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        return result
+        # The prompt the next image starts from, for the Studio to show and edit.
+        return {**result, "image_prompt_default": image_generation.build_image_prompt(result)}
     except HTTPException:
         conn.rollback()
         raise
@@ -831,148 +844,74 @@ def set_reference_selection_endpoint(
         conn.close()
 
 
-def _load_reference_image(client, campaign: dict) -> tuple:
-    """Resolves campaign.reference_image_selection ('ORIGINAL'/'PROCESSED'/
-    None) into real stored image bytes, or (None, None) if nothing is
-    selected or the selected version was never actually stored (e.g. the
-    tenant picked PROCESSED before background removal ever completed) -
-    silently falling back to no reference rather than erroring the whole
-    generation attempt over a stale selection."""
-    selection = campaign.get("reference_image_selection")
-    if selection == "PROCESSED" and campaign.get("source_image_processed_key"):
-        content, content_type = image_storage.get_image(client, image_storage.PROCESSED_IMAGES_BUCKET, campaign["source_image_processed_key"])
-        return content, content_type
-    if selection == "ORIGINAL" and campaign.get("source_image_key"):
-        content, content_type = image_storage.get_image(client, image_storage.SOURCE_IMAGES_BUCKET, campaign["source_image_key"])
-        return content, content_type
-    return None, None
-
-
-def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict) -> dict:
-    """Makes the campaign's image with the free provider chain and stores
-    it, replacing (and deleting) the previous one. The plan's image
-    allowance is reserved first and given back whenever no image comes out.
-    Always returns the honest outcome; HTTP errors only for a missing
-    reference image or a plan limit (402, raised before any provider call)."""
-    reference_content = reference_content_type = None
-    if campaign.get("reference_image_selection"):
-        try:
-            reference_content, reference_content_type = _load_reference_image(db.minio_client(), campaign)
-        except Exception as err:
-            logger.error("Could not read reference image (tenant=%s campaign=%s): %s", ctx.tenant_id, campaign_id, err)
-            raise HTTPException(status_code=502, detail="Could not read the selected reference image. Please try again.") from err
-
-    prompt = image_generation.build_image_prompt(campaign)
+def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict, *,
+                    image_format: str = image_generation.DEFAULT_IMAGE_FORMAT, prompt: Optional[str] = None,
+                    channel: Optional[str] = None, attach: bool = True) -> dict:
+    """Generate through the shared gallery/service path while retaining durable
+    pre-upload storage accounting and stale-object recovery.
+    """
     try:
-        recovery_client = db.minio_client()
-        _reconcile_stale_marketing_uploads(conn, recovery_client, ctx.tenant_id)
-    except Exception:
-        # Preserve the existing provider/storage failure response path. A
-        # cleanup outage keeps old bytes accounted and does not block generation.
-        logger.exception("Could not run stale-image recovery before generation (tenant=%s)", ctx.tenant_id)
-    usage.ensure_capacity(conn, ctx.tenant_id, usage.DOCUMENT_STORAGE_MB, 0.001)  # refuse when storage is full
-    reservation = usage.reserve(conn, ctx.tenant_id, usage.IMAGE_GENERATION)
-    uploaded_key = None
-    upload_client = None
-    uploaded_size = 0
-    preupload_recorded = False
-
-    def mark_preupload_recorded():
-        nonlocal preupload_recorded
-        preupload_recorded = True
-
-    conn.commit()
-    try:
-        try:
-            with credits.metering(ctx.tenant_id, "marketing_image", usage_class="image_generation",
-                                  actor_user_id=ctx.user_id):
-                generated = image_generation.generate_campaign_image(
-                    prompt, reference_image=reference_content, reference_content_type=reference_content_type,
-                )
-        except image_generation.ImageGenerationError as err:
-            # No AI image (free allowances used up / providers down / none
-            # configured): deliver a designed poster from the campaign's own
-            # copy (+ the product photo if selected) so the tenant always gets
-            # a finished, watermark-free image. Not AI-generated - and it says so.
-            logger.warning("No AI image for campaign %s (%s); using the designed poster", campaign_id, err.message)
-            try:
-                generated = image_generation.GeneratedImage(
-                    content=designed_poster.render_designed_poster(campaign, reference_content),
-                    content_type="image/png", provider="designed", mode="designed",
-                    used_reference=bool(reference_content),
-                )
-            except Exception:  # noqa: BLE001 - never turn a render bug into a lost image: report honestly
-                logger.exception("Designed poster failed for campaign %s", campaign_id)
-                usage.release(conn, reservation)
-                reservation = None
-                data_access.save_image_generation_failure(
-                    conn, ctx.tenant_id, campaign_id, status=err.status, error_message=err.message, provider=None,
-                )
-                conn.commit()
-                return {
-                    "campaign_id": campaign_id, "image_generation_status": err.status,
-                    "image_generation_provider": None, "image_generation_error": err.message,
-                    "image_generation_used_reference": False, "image_generation_reference_note": None,
-                }
-
         client = db.minio_client()
-        upload_client = client
-        uploaded_size = len(generated.content)
-        uploaded_key = image_storage.new_generated_image_object_key(
-            ctx.tenant_id, campaign_id, generated.content_type,
-        )
-        image_key = image_storage.upload_generated_image(
-            client, generated.content, generated.content_type, ctx.tenant_id, campaign_id,
-            object_key=uploaded_key,
-            on_pre_upload=_track_image_before_put(ctx, "marketing_generated_image", mark_preupload_recorded),
-        )
-        uploaded_key = image_key
-        previous = campaign.get("generated_image_key")
-        # Only "ai" or "designed" is stored/shown; which free model served it is not (server log only).
-        logger.info("Campaign %s image served by %s", campaign_id, generated.provider)
-        data_access.save_generated_image(
-            conn, ctx.tenant_id, campaign_id, provider=generated.mode, image_key=image_key,
-            used_reference=generated.used_reference, reference_note=generated.reference_note,
-        )
-        storage_ledger.record(conn, ctx.tenant_id, image_storage.GENERATED_IMAGES_BUCKET, image_key,
-                              len(generated.content), "marketing_generated_image")
-        conn.commit()
-        reservation = None  # used: an image was produced and saved
-        if previous and previous != image_key:
-            try:
-                storage_ledger.remove_object_and_forget(
-                    conn, ctx.tenant_id, image_storage.GENERATED_IMAGES_BUCKET, previous,
-                    lambda: image_storage.remove_image(client, image_storage.GENERATED_IMAGES_BUCKET, previous),
-                )
-                conn.commit()
-            except Exception:  # noqa: BLE001 - the new image is saved; a leftover file is only logged
-                conn.rollback()
-                logger.exception("Could not delete the replaced image (tenant=%s campaign=%s)", ctx.tenant_id, campaign_id)
-        return {
-            "campaign_id": campaign_id, "image_generation_status": "COMPLETED",
-            "image_generation_provider": generated.mode, "image_generation_mode": generated.mode,
-            "generated_image_key": image_key,
-            "image_generation_used_reference": generated.used_reference,
-            "image_generation_reference_note": generated.reference_note,
-        }
+        _reconcile_stale_marketing_uploads(conn, client, ctx.tenant_id)
     except Exception:
-        if uploaded_key and upload_client and preupload_recorded:
-            conn.rollback()
-            _compensate_image_upload(conn, ctx.tenant_id, campaign_id, image_storage.GENERATED_IMAGES_BUCKET,
-                                     uploaded_key, uploaded_size, "marketing_generated_image", upload_client)
-        raise
-    finally:
-        if reservation is not None:  # failed after reserving: give it back
+        logger.exception("Could not run stale-image recovery before generation (tenant=%s)", ctx.tenant_id)
+
+    upload = {}
+    def remember_preupload(bucket: str, object_key: str, size_bytes: int) -> None:
+        upload.update(bucket=bucket, object_key=object_key, size_bytes=size_bytes)
+
+    track_preupload = _track_image_before_put(ctx, "marketing_generated_image")
+    def on_pre_upload(bucket: str, object_key: str, size_bytes: int) -> None:
+        remember_preupload(bucket, object_key, size_bytes)
+        track_preupload(bucket, object_key, size_bytes)
+
+    try:
+        return image_service.generate_and_store(
+            conn, ctx.tenant_id, ctx.user_id, campaign_id, campaign,
+            image_format=image_format, prompt=prompt, channel=channel, attach=attach,
+            on_pre_upload=on_pre_upload,
+        )
+    except image_service.ReferenceImageError as err:
+        raise HTTPException(status_code=502, detail="Could not read the selected reference image. Please try again.") from err
+    except Exception:
+        if upload:
             try:
-                conn.rollback()
-                usage.release(conn, reservation)
-                conn.commit()
+                _compensate_image_upload(
+                    conn, ctx.tenant_id, campaign_id, upload["bucket"], upload["object_key"],
+                    upload["size_bytes"], "marketing_generated_image", client,
+                )
             except Exception:
-                logger.exception("Could not release an unused image reservation (tenant=%s)", ctx.tenant_id)
+                logger.exception("Could not reconcile failed generated image (tenant=%s campaign=%s)", ctx.tenant_id, campaign_id)
+        raise
+
+
+class GenerateImageRequest(BaseModel):
+    """Optional gallery generation controls; an empty body uses the campaign prompt."""
+    image_format: str = Field(default=image_generation.DEFAULT_IMAGE_FORMAT)
+    prompt: Optional[str] = Field(default=None, max_length=2000)
+    channel: Optional[str] = None
+    attach: bool = True
+
+    @field_validator("image_format")
+    @classmethod
+    def _valid_format(cls, value: str) -> str:
+        if value not in image_generation.IMAGE_FORMATS:
+            raise ValueError(f"image_format must be one of {list(image_generation.IMAGE_FORMATS)}")
+        return value
+
+    @field_validator("channel")
+    @classmethod
+    def _valid_channel(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in data_access.ASSET_CHANNELS:
+            raise ValueError(f"channel must be one of {list(data_access.ASSET_CHANNELS)}")
+        return value
 
 
 @router.post("/campaigns/{campaign_id}/generate-image")
-def generate_campaign_image_endpoint(campaign_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def generate_campaign_image_endpoint(
+    campaign_id: str, body: Optional[GenerateImageRequest] = None,
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
     """
     (Re)generates the campaign's image - the "Regenerate image" action; a
     new campaign gets its image during creation (generate_image=true).
@@ -990,7 +929,9 @@ def generate_campaign_image_endpoint(campaign_id: str, ctx: TenantContext = Depe
             raise HTTPException(status_code=404, detail="Campaign not found")
         if campaign["status"] != "COMPLETED":
             raise HTTPException(status_code=409, detail="Campaign content must be generated successfully before an image can be generated.")
-        return _generate_image(conn, ctx, campaign_id, campaign)
+        body = body or GenerateImageRequest()
+        return _generate_image(conn, ctx, campaign_id, campaign, image_format=body.image_format,
+                               prompt=body.prompt, channel=body.channel, attach=body.attach)
     except HTTPException:
         conn.rollback()
         raise
@@ -1043,3 +984,276 @@ def get_campaign_image_endpoint(
         logger.error("Could not read stored image (tenant=%s): %s", ctx.tenant_id, err)
         raise HTTPException(status_code=502, detail="Could not read the stored image. Please try again.") from err
     return Response(content=content, media_type=content_type)
+
+
+# --- Image gallery -----------------------------------------------------------
+# Every image made for a campaign (campaign_image_assets). All reads and
+# writes go through the company's RLS-scoped connection, and an asset is
+# only ever looked up together with its campaign id, so a guessed asset id
+# from another campaign or company is simply "not found".
+
+def _asset_or_404(conn, ctx: TenantContext, campaign_id: str, asset_id: str) -> dict:
+    try:
+        asset = data_access.get_image_asset(conn, ctx.tenant_id, campaign_id, asset_id)
+    except psycopg2.errors.InvalidTextRepresentation:  # not a UUID
+        conn.rollback()
+        asset = None
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return asset
+
+
+@router.get("/campaigns/{campaign_id}/assets")
+def list_campaign_assets_endpoint(campaign_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """The campaign's images, newest first; `attached` marks the one its post uses."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            assets = data_access.list_image_assets(conn, ctx.tenant_id, campaign_id)
+        except psycopg2.errors.InvalidTextRepresentation:
+            conn.rollback()
+            assets = None
+        conn.commit()
+        if assets is None:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        return {"campaign_id": campaign_id, "assets": assets}
+    finally:
+        conn.close()
+
+
+@router.get("/campaigns/{campaign_id}/assets/{asset_id}/image")
+def get_campaign_asset_image_endpoint(campaign_id: str, asset_id: str,
+                                      ctx: TenantContext = Depends(get_tenant_context)) -> Response:
+    """Streams one gallery image through this authenticated API (never a
+    direct storage URL), like GET .../image."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        asset = _asset_or_404(conn, ctx, campaign_id, asset_id)
+        conn.commit()
+    finally:
+        conn.close()
+    # Defence in depth: a stored key always sits under this company's own prefix.
+    if not asset["image_key"].startswith(f"{ctx.tenant_id}/{campaign_id}/"):
+        logger.error("Asset %s key outside its company prefix (tenant=%s)", asset_id, ctx.tenant_id)
+        raise HTTPException(status_code=404, detail="Image not found")
+    try:
+        content, content_type = image_storage.get_image(db.minio_client(), image_storage.GENERATED_IMAGES_BUCKET,
+                                                        asset["image_key"])
+    except Exception as err:
+        logger.error("Could not read stored asset (tenant=%s): %s", ctx.tenant_id, err)
+        raise HTTPException(status_code=502, detail="Could not read the stored image. Please try again.") from err
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
+
+
+class AssetUpdateRequest(BaseModel):
+    """attach: make this the campaign's image. channel: where it will be
+    used (null clears it). Send either or both."""
+    attach: Optional[bool] = None
+    channel: Optional[str] = None
+    clear_channel: bool = False
+
+    @field_validator("channel")
+    @classmethod
+    def _valid_channel(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in data_access.ASSET_CHANNELS:
+            raise ValueError(f"channel must be one of {list(data_access.ASSET_CHANNELS)}")
+        return value
+
+
+@router.patch("/campaigns/{campaign_id}/assets/{asset_id}")
+def update_campaign_asset_endpoint(campaign_id: str, asset_id: str, body: AssetUpdateRequest,
+                                   ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        asset = _asset_or_404(conn, ctx, campaign_id, asset_id)
+        if body.channel is not None or body.clear_channel:
+            data_access.set_image_asset_channel(conn, ctx.tenant_id, campaign_id, asset_id, body.channel)
+        if body.attach:
+            data_access.attach_image_asset(conn, ctx.tenant_id, campaign_id, asset["image_key"], asset["mode"],
+                                           asset["used_reference"])
+        result = data_access.get_image_asset_public(conn, ctx.tenant_id, campaign_id, asset_id)
+        conn.commit()
+        return result
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.delete("/campaigns/{campaign_id}/assets/{asset_id}")
+def delete_campaign_asset_endpoint(campaign_id: str, asset_id: str,
+                                   ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Deletes one gallery image (its file too, which then no longer counts
+    toward storage). Deleting the attached image attaches the newest one left."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _asset_or_404(conn, ctx, campaign_id, asset_id)
+        asset = data_access.delete_image_asset(conn, ctx.tenant_id, campaign_id, asset_id)
+        storage_ledger.forget(conn, ctx.tenant_id, image_storage.GENERATED_IMAGES_BUCKET, asset["image_key"])
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    try:
+        image_storage.remove_image(db.minio_client(), image_storage.GENERATED_IMAGES_BUCKET, asset["image_key"])
+    except Exception:  # noqa: BLE001 - the record is gone; a leftover file is only logged
+        logger.exception("Could not delete asset file (tenant=%s campaign=%s)", ctx.tenant_id, campaign_id)
+    return {"campaign_id": campaign_id, "asset_id": asset_id, "deleted": True}
+
+
+# --- Background image batches ------------------------------------------------
+# Many images at once (formats x variations) are queued and made by the image
+# worker (marketing/image_worker.py), so no request waits minutes per image.
+
+class ImageBatchRequest(BaseModel):
+    formats: List[str] = Field(min_length=1, max_length=5)
+    variations: int = Field(default=1, ge=1, le=image_jobs.BATCH_MAX)
+    prompt: Optional[str] = Field(default=None, max_length=2000)
+    channel: Optional[str] = None
+    # Attach the first image of the batch to the campaign when it is made.
+    attach_first: bool = False
+
+    @field_validator("formats")
+    @classmethod
+    def _valid_formats(cls, value: List[str]) -> List[str]:
+        if any(f not in image_generation.IMAGE_FORMATS for f in value):
+            raise ValueError(f"formats must be among {list(image_generation.IMAGE_FORMATS)}")
+        return value
+
+    @field_validator("channel")
+    @classmethod
+    def _valid_channel(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in data_access.ASSET_CHANNELS:
+            raise ValueError(f"channel must be one of {list(data_access.ASSET_CHANNELS)}")
+        return value
+
+
+def _completed_campaign_or_error(conn, ctx: TenantContext, campaign_id: str) -> dict:
+    try:
+        campaign = data_access.get_campaign(conn, ctx.tenant_id, campaign_id)
+    except psycopg2.errors.InvalidTextRepresentation:
+        conn.rollback()
+        campaign = None
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign["status"] != "COMPLETED":
+        raise HTTPException(status_code=409, detail="Campaign content must be generated successfully before images can be made.")
+    return campaign
+
+
+@router.post("/campaigns/{campaign_id}/image-batches")
+def queue_image_batch_endpoint(campaign_id: str, body: ImageBatchRequest,
+                               ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Queues variations x formats images for the background worker. 202-like:
+    returns at once with the batch id; GET .../image-jobs shows progress and
+    every finished image appears in the gallery. 429 when over the request
+    or per-company queue limit (image_jobs.py)."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _completed_campaign_or_error(conn, ctx, campaign_id)
+        try:
+            batch = image_jobs.enqueue_batch(
+                conn, ctx.tenant_id, ctx.user_id, campaign_id, formats=body.formats, variations=body.variations,
+                prompt=body.prompt, channel=body.channel, attach_first=body.attach_first,
+            )
+        except image_jobs.QueueLimit as err:
+            conn.rollback()
+            raise HTTPException(status_code=429, detail={"message": err.message, "limit": err.limit, "pending": err.pending})
+        if (body.prompt or "").strip():
+            data_access.set_image_prompt(conn, ctx.tenant_id, campaign_id, body.prompt.strip()[:2000])
+        conn.commit()
+        return {**batch, "campaign_id": campaign_id, "capacity": image_jobs.capacity(conn)}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.get("/campaigns/{campaign_id}/image-jobs")
+def list_image_jobs_endpoint(campaign_id: str, batch_id: Optional[UUID] = None, limit: int = Query(default=200, ge=1, le=1000),
+                             ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        try:
+            if data_access.get_campaign(conn, ctx.tenant_id, campaign_id) is None:
+                raise HTTPException(status_code=404, detail="Campaign not found")
+        except psycopg2.errors.InvalidTextRepresentation:
+            conn.rollback()
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        result = image_jobs.list_jobs(conn, ctx.tenant_id, campaign_id=campaign_id,
+                                      batch_id=str(batch_id) if batch_id else None, limit=limit)
+        conn.commit()
+        return {"campaign_id": campaign_id, **result}
+    finally:
+        conn.close()
+
+
+class ImageJobsActionRequest(BaseModel):
+    batch_id: Optional[UUID] = None
+
+
+@router.post("/campaigns/{campaign_id}/image-jobs/cancel")
+def cancel_image_jobs_endpoint(campaign_id: str, body: Optional[ImageJobsActionRequest] = None,
+                               ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Cancels the campaign's waiting images (one being made finishes)."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if _campaign_exists(conn, ctx, campaign_id) is False:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        batch = str(body.batch_id) if body and body.batch_id else None
+        cancelled = image_jobs.cancel(conn, ctx.tenant_id, campaign_id, batch)
+        conn.commit()
+        return {"campaign_id": campaign_id, "cancelled": cancelled}
+    finally:
+        conn.close()
+
+
+@router.post("/campaigns/{campaign_id}/image-jobs/retry")
+def retry_image_jobs_endpoint(campaign_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Queues the campaign's failed images again."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if _campaign_exists(conn, ctx, campaign_id) is False:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        retried = image_jobs.retry_failed(conn, ctx.tenant_id, campaign_id)
+        conn.commit()
+        return {"campaign_id": campaign_id, "requeued": retried}
+    finally:
+        conn.close()
+
+
+def _campaign_exists(conn, ctx: TenantContext, campaign_id: str) -> bool:
+    try:
+        return data_access.get_campaign(conn, ctx.tenant_id, campaign_id) is not None
+    except psycopg2.errors.InvalidTextRepresentation:
+        conn.rollback()
+        return False
+
+
+@router.get("/image-capacity")
+def image_capacity_endpoint(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Measured queue capacity (no company's data): live workers and image
+    servers, recent seconds per image, images per hour, queue wait - and
+    whether only self-hosted servers (no per-image cost) are in use."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = image_jobs.capacity(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    return {**result, "self_hosted_only": image_generation.only_self_hosted(),
+            "uses_plan_allowance": image_service.uses_plan_allowance(),
+            "servers": image_generation.local_server_health()}

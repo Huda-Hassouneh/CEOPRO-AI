@@ -142,6 +142,16 @@ sentiment classification) is added on top. Enabling
 staging deployment risks the **whole service** being OOM-killed, not just
 this one feature failing.
 
+**Install:** rembg is an opt-in extra, not in the default image. It pins
+`pillow<13`, so shipping it by default would block Pillow's security fixes
+(the 13.0 line). Build the variant with
+`docker build -f Dockerfile.ai --build-arg INSTALL_REMBG=true ...`
+(`src/ai/requirements-rembg.txt`; that variant runs Pillow 12.3.x, which
+still has advisories fixed only in 13.0). Without it, setting the provider
+makes `/marketing/options` report `available: false` ("not installed") and
+removal requests return `NOT_CONFIGURED`. Drop the Pillow line in
+`requirements-rembg.txt` once rembg supports Pillow 13.
+
 **Real paths to enabling it later** (per the "document the limitation and
 use the best practical architecture that does not break staging"
 instruction this was built under): (a) upgrade the `ai` service's Render

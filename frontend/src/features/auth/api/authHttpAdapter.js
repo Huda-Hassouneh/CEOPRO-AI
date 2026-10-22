@@ -55,7 +55,11 @@ export const authHttpAdapter = Object.freeze({
   resetPassword: ({ email, code, password }) => unwrap(httpClient.post(authEndpoints.resetPassword, { email, code, new_password: password })),
   resendVerification: (payload) => unwrap(httpClient.post(authEndpoints.resendVerification, payload)),
   verifyEmail: (payload) => unwrap(httpClient.post(authEndpoints.verifyEmail, payload)),
-  getInvitation: (token) => unwrap(httpClient.get(`${authEndpoints.invitation}/${encodeURIComponent(token)}`)),
+  // GET /auth/invitations/{token} -> {email, business_name, role_name, account_exists}. The API does not
+  // say who invited or when it expires, so those stay unset and the page leaves them out.
+  getInvitation: (token) => unwrap(httpClient.get(`${authEndpoints.invitation}/${encodeURIComponent(token)}`)).then((body) => ({
+    invitation: { email: body.email, organizationName: body.business_name, roleName: body.role_name, accountExists: Boolean(body.account_exists) },
+  })),
   acceptInvitation: ({ token, ...payload }) => unwrap(httpClient.post(`${authEndpoints.invitation}/${encodeURIComponent(token)}/accept`, payload)).then((body) => ({ session: toSession(body) })),
   logout: (payload) => unwrap(httpClient.post(authEndpoints.logout, payload)),
   // A fresh access token for the current, still-valid session.

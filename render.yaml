@@ -56,10 +56,14 @@ services:
         value: "30"
       - key: EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES
         value: "60"
+      # true: nobody can register with an address they do not own. Needs the SMTP_* settings below.
       - key: REQUIRE_EMAIL_VERIFICATION
-        value: auto
+        value: "true"
       - key: API_TRUST_FORWARDED_FOR
         value: "true"
+      # No public endpoint map (/docs, /redoc, /openapi.json) on a deployed service.
+      - key: API_DOCS_ENABLED
+        value: "false"
       - key: TEAM_INVITATION_EXPIRE_MINUTES
         value: "20160"
 
@@ -245,87 +249,92 @@ services:
       - key: SERVER_ALLOCATION_USD
         sync: false
 
-  # Background workers - all six market workers in one container, run by
-  # src/market_scraper/supervisor.py, which restarts any that exit.
-  # Needs a paid plan: Render has no free background workers, and the
-  # analysis worker's sentiment models plus the headless browser need
-  # about 1.5 GB of memory (standard = 2 GB). KEEL_WORKERS=name,name runs
-  # a subset instead (prices, analysis, discovery, enrichment,
-  # connectors, maintenance) if you split them across services later.
-  - type: worker
-    name: keel-workers-staging
-    runtime: docker
-    dockerfilePath: ./backend/src/infrastructure/Dockerfile.market-workers
-    dockerContext: ./backend
-    plan: standard
-    envVars:
-      # Restricted ceopro_app connection string (never the admin one) -
-      # same database as DATABASE_URL on the API service.
-      - key: SCRAPER_DATABASE_URL
-        sync: false
-      # The database's built-in service identity for background work.
-      - key: SCRAPER_ACTOR_USER_ID
-        value: "00000000-0000-0000-0000-000000000000"
-      - key: SENTRY_DSN
-        sync: false
-      - key: SENTRY_ENVIRONMENT
-        value: "staging"
-      - key: SCRAPER_DB_POOL_MIN_SIZE
-        value: "1"
-      - key: SCRAPER_DB_POOL_MAX_SIZE
-        value: "5"
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: keel-redis-staging
-          property: connectionString
-      - key: DISCOVERY_STREAM_KEY
-        value: "market.discovery.requested"
-      - key: SCRAPER_USER_AGENT
-        value: "KEEL-MarketResearchBot/1.0"
-      - key: CONNECTOR_WORKER_POLL_INTERVAL_SECONDS
-        value: "300"
-      - key: SCRAPER_MAINTENANCE_INTERVAL_SECONDS
-        value: "300"
-      # Same value as on the API service: the connector worker decrypts the
-      # credentials the API stored for a company's own database or API.
-      - key: CREDENTIAL_VAULT_MASTER_KEY
-        sync: false
-      - key: CREDENTIAL_VAULT_PREVIOUS_KEYS
-        sync: false
-      - key: GOOGLE_PLACES_API_KEY
-        sync: false
-      - key: GOOGLE_CUSTOM_SEARCH_API_KEY
-        sync: false
-      - key: GOOGLE_CUSTOM_SEARCH_CX
-        sync: false
-      - key: SEARXNG_INSTANCE_URL
-        sync: false
-      # Google Custom Search closes on 2027-01-01; set one of these instead
-      # (order via WEB_SEARCH_PROVIDERS, see market_scraper/web_search.py).
-      - key: BRAVE_SEARCH_API_KEY
-        sync: false
-      - key: TAVILY_API_KEY
-        sync: false
-      # Competitor data from more sources (all optional, set in Render's dashboard):
-      # YouTube comments with likes, deeper Google reviews with likes (Apify), and the
-      # operators' recorded approval to store them / Google Places reviews.
-      - key: YOUTUBE_API_KEY
-        sync: false
-      - key: APIFY_API_TOKEN
-        sync: false
-      - key: EXTERNAL_COMMENTS_APPROVAL_REFERENCE
-        sync: false
-      - key: PLACES_TERMS_APPROVAL_REFERENCE
-        sync: false
-      - key: SOCIAL_CONTENT_APPROVAL_REFERENCE
-        sync: false
-      - key: DISCOVERY_VISION_OCR
-        value: "off"
-      - key: GEMINI_API_KEYS
-        sync: false
-      - key: SERPAPI_API_KEY
-        sync: false
+  # Disabled: Render has no free background workers, so a Blueprint sync
+  # would create this service on the paid "standard" plan. KEEL stays at
+  # zero cost until the owner approves a paid plan; to enable it,
+  # uncomment the service below. Until then run the workers elsewhere
+  # (./keel workers).
+#  # Background workers - all six market workers in one container, run by
+#  # src/market_scraper/supervisor.py, which restarts any that exit.
+#  # Needs a paid plan: Render has no free background workers, and the
+#  # analysis worker's sentiment models plus the headless browser need
+#  # about 1.5 GB of memory (standard = 2 GB). KEEL_WORKERS=name,name runs
+#  # a subset instead (prices, analysis, discovery, enrichment,
+#  # connectors, maintenance) if you split them across services later.
+#  - type: worker
+#    name: keel-workers-staging
+#    runtime: docker
+#    dockerfilePath: ./backend/src/infrastructure/Dockerfile.market-workers
+#    dockerContext: ./backend
+#    plan: standard
+#    envVars:
+#      # Restricted ceopro_app connection string (never the admin one) -
+#      # same database as DATABASE_URL on the API service.
+#      - key: SCRAPER_DATABASE_URL
+#        sync: false
+#      # The database's built-in service identity for background work.
+#      - key: SCRAPER_ACTOR_USER_ID
+#        value: "00000000-0000-0000-0000-000000000000"
+#      - key: SENTRY_DSN
+#        sync: false
+#      - key: SENTRY_ENVIRONMENT
+#        value: "staging"
+#      - key: SCRAPER_DB_POOL_MIN_SIZE
+#        value: "1"
+#      - key: SCRAPER_DB_POOL_MAX_SIZE
+#        value: "5"
+#      - key: REDIS_URL
+#        fromService:
+#          type: keyvalue
+#          name: keel-redis-staging
+#          property: connectionString
+#      - key: DISCOVERY_STREAM_KEY
+#        value: "market.discovery.requested"
+#      - key: SCRAPER_USER_AGENT
+#        value: "KEEL-MarketResearchBot/1.0"
+#      - key: CONNECTOR_WORKER_POLL_INTERVAL_SECONDS
+#        value: "300"
+#      - key: SCRAPER_MAINTENANCE_INTERVAL_SECONDS
+#        value: "300"
+#      # Same value as on the API service: the connector worker decrypts the
+#      # credentials the API stored for a company's own database or API.
+#      - key: CREDENTIAL_VAULT_MASTER_KEY
+#        sync: false
+#      - key: CREDENTIAL_VAULT_PREVIOUS_KEYS
+#        sync: false
+#      - key: GOOGLE_PLACES_API_KEY
+#        sync: false
+#      - key: GOOGLE_CUSTOM_SEARCH_API_KEY
+#        sync: false
+#      - key: GOOGLE_CUSTOM_SEARCH_CX
+#        sync: false
+#      - key: SEARXNG_INSTANCE_URL
+#        sync: false
+#      # Google Custom Search closes on 2027-01-01; set one of these instead
+#      # (order via WEB_SEARCH_PROVIDERS, see market_scraper/web_search.py).
+#      - key: BRAVE_SEARCH_API_KEY
+#        sync: false
+#      - key: TAVILY_API_KEY
+#        sync: false
+#      # Competitor data from more sources (all optional, set in Render's dashboard):
+#      # YouTube comments with likes, deeper Google reviews with likes (Apify), and the
+#      # operators' recorded approval to store them / Google Places reviews.
+#      - key: YOUTUBE_API_KEY
+#        sync: false
+#      - key: APIFY_API_TOKEN
+#        sync: false
+#      - key: EXTERNAL_COMMENTS_APPROVAL_REFERENCE
+#        sync: false
+#      - key: PLACES_TERMS_APPROVAL_REFERENCE
+#        sync: false
+#      - key: SOCIAL_CONTENT_APPROVAL_REFERENCE
+#        sync: false
+#      - key: DISCOVERY_VISION_OCR
+#        value: "off"
+#      - key: GEMINI_API_KEYS
+#        sync: false
+#      - key: SERPAPI_API_KEY
+#        sync: false
 
   # The frontend - Render's free tier static sites are genuinely free
   # (unlimited, no card required, no 15-minute spin-down the web service

@@ -299,7 +299,8 @@ def test_get_invitation_returns_real_invite_details_for_a_valid_token():
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=conn), \
          patch("src.ai.routers.auth._fetch_active_token", return_value={
              "email": "invitee@example.com", "tenant_id": "t1", "role_key": "staff",
-         }):
+         }), \
+         patch("src.ai.routers.auth._fetch_user_by_email", return_value=None):
         response = client.get("/auth/invitations/good-token")
 
     assert response.status_code == 200
@@ -307,6 +308,7 @@ def test_get_invitation_returns_real_invite_details_for_a_valid_token():
     assert body["email"] == "invitee@example.com"
     assert body["business_name"] == "Jane's Shop"
     assert body["role_name"] == "Staff Member"
+    assert body["account_exists"] is False
 
 
 def test_accept_invitation_requires_full_name_and_password_for_a_brand_new_user():
@@ -316,39 +318,49 @@ def test_accept_invitation_requires_full_name_and_password_for_a_brand_new_user(
              "token_id": "tok1", "email": "new@example.com", "tenant_id": "t1", "role_key": "staff",
          }), \
          patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=conn), \
-         patch("src.ai.routers.auth._seat_limit", return_value=5):
+         patch("src.ai.routers.auth._seat_limit", return_value=5), \
+         patch("src.ai.routers.auth._fetch_user_by_email", return_value=None):
         response = client.post("/auth/invitations/good-token/accept", json={})
     assert response.status_code == 422
     assert response.json()["detail"] == "Full name and password are required for a new account."
     conn.commit.assert_called_once()
 
 
-def test_accept_invitation_joins_an_existing_user_without_needing_a_password():
-    conn = _fake_conn()
-    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = ({
-        "user_id": "00000000-0000-4000-8000-000000000002",
-        "email": "existing@example.com",
-        "full_name": "Existing User",
-        "business_name": "Shop",
-        "role_key": "staff",
-        "preferred_language": "en",
-    },)
-    with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=conn), \
+def test_accept_invitation_joins_an_existing_user_only_with_their_password():
+    from src.ai.core.security import hash_password
+    from src.ai.core import auth_throttle
+
+    stored_hash = hash_password("Str0ng!Passw0rd")
+    connections = [_fake_conn(), _fake_conn(), _fake_conn()]
+    results = [
+        ({"user_id": "00000000-0000-4000-8000-000000000002", "email": "existing@example.com",
+          "full_name": "Existing User", "business_name": "Shop", "role_key": "staff",
+          "preferred_language": "en"},),
+    ]
+    for connection in connections:
+        connection.cursor.return_value.__enter__.return_value.fetchone.return_value = results[0]
+
+    with patch("src.ai.routers.auth.db.auth_lookup_connection", side_effect=connections), \
          patch("src.ai.routers.auth._fetch_active_token", return_value={
              "token_id": "tok1", "email": "existing@example.com", "tenant_id": "t1", "role_key": "staff",
          }), \
+         patch("src.ai.routers.auth._fetch_user_by_email", return_value=("u1", stored_hash, "Existing User", "en")), \
          patch("src.ai.routers.auth._seat_limit", return_value=5), \
          patch("src.ai.routers.auth._session", side_effect=lambda tenant_id, user_id, role_key, *args, **kwargs: {
              "user_id": user_id, "role_key": role_key,
-         }):
-        response = client.post("/auth/invitations/good-token/accept", json={})
+         }), \
+         patch.object(auth_throttle, "ensure_allowed"), patch.object(auth_throttle, "record_failure", return_value=False), \
+         patch.object(auth_throttle, "reset"):
+        no_password = client.post("/auth/invitations/good-token/accept", json={})
+        wrong_password = client.post("/auth/invitations/good-token/accept", json={"password": "Wrong!Passw0rd1"})
+        response = client.post("/auth/invitations/good-token/accept", json={"password": "Str0ng!Passw0rd"})
 
+    assert (no_password.status_code, wrong_password.status_code) == (401, 401)
     assert response.status_code == 200
-    body = response.json()
-    assert body["user_id"] == "00000000-0000-4000-8000-000000000002"
-    assert body["role_key"] == "staff"
-    assert conn.commit.call_count == 1
-
+    assert response.json()["user_id"] == "00000000-0000-4000-8000-000000000002"
+    assert response.json()["role_key"] == "staff"
+    assert connections[0].commit.call_count == 0 and connections[1].commit.call_count == 0
+    assert connections[2].commit.call_count == 1
 
 def test_accept_invitation_creates_an_account_when_none_exists():
     conn = _fake_conn()
@@ -365,6 +377,7 @@ def test_accept_invitation_creates_an_account_when_none_exists():
              "token_id": "tok1", "email": "brandnew@example.com", "tenant_id": "t1", "role_key": "staff",
          }), \
          patch("src.ai.routers.auth._seat_limit", return_value=5), \
+         patch("src.ai.routers.auth._fetch_user_by_email", return_value=None), \
          patch("src.ai.routers.auth._session", side_effect=lambda tenant_id, user_id, role_key, *args, **kwargs: {
              "user_id": user_id, "role_key": role_key,
              "full_name": "Brand New",

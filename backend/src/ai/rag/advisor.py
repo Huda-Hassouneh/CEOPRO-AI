@@ -29,10 +29,12 @@ import json
 import logging
 import os
 import re
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Callable, Dict, List, Optional
 
+from src.ai.billing import credits
 from src.ai.rag import access as acl
 from src.ai.rag import business_analysis, citations, evidence as ev, llm_client, product_guide, understanding, untrusted
 from src.ai.rag.business_tools import build_financial_facts_block
@@ -48,6 +50,10 @@ logger = logging.getLogger("KEEL_ADVISOR")
 MAX_TOKENS = int(os.getenv("ADVISOR_MAX_TOKENS", "1500"))
 # A compact prompt, for providers whose per-request ceiling (e.g. a free
 # tier's tokens per minute) the full one exceeds.
+# Earlier turns sent with a question (user + assistant messages) and evidence records sent when the
+# question names no business need: more costs tokens on every call without improving the answer.
+HISTORY_MESSAGES = int(os.getenv("ADVISOR_HISTORY_MESSAGES", "6"))
+GENERAL_ITEMS = int(os.getenv("ADVISOR_GENERAL_ITEMS", "12"))
 COMPACT_ITEMS, COMPACT_EXCERPT_CHARS, COMPACT_MAX_TOKENS = 24, 350, 1100
 U = understanding
 
@@ -115,6 +121,10 @@ _WORDS = {
     "summary_limit": ("a generated summary; the live records are the exact figures",
                       "ملخص مُولّد؛ الأرقام الدقيقة في السجلات الحية"),
     "product_title": ("Product: {name}", "المنتج: {name}"),
+    "catalogue_title": ("Your product catalogue", "كتالوج منتجاتك"),
+    "catalogue_line": ("You have {count} products: {items}{more}.", "لديك {count} منتجاً: {items}{more}."),
+    "catalogue_more": (" (and {rest} more)", " (و{rest} أخرى)"),
+    "same_source": ("(same source as above)", "(المصدر نفسه أعلاه)"),
     "selling_price": ("selling price {value} {currency}", "سعر البيع {value} {currency}"),
     "cost_price": ("recorded cost price {value} {currency}", "سعر التكلفة المسجّل {value} {currency}"),
     "reviews_title": ("Customer reviews: overview", "تقييمات الزبائن: نظرة عامة"),
@@ -276,6 +286,14 @@ def _semantic_check(question: str, texts: List[str]) -> Optional[Callable[[str],
     return close
 
 
+def _chunk_filter(question: str, texts: List[str]) -> Callable[[str], bool]:
+    """text -> does this retrieved chunk answer `question`: it shares its words, or is the closest in meaning.
+    Closeness is measured against every retrieved chunk, the word-matched ones included - against the leftovers
+    alone the best of them always passed (a supplier agreement shown for a leave question)."""
+    close = _semantic_check(question, texts) if any(not _relevant(question, t) for t in texts) else None
+    return lambda text: _relevant(question, text) or (close is not None and close(text))
+
+
 def _status(statuses: List[dict], need: str, status: str, detail: str = "") -> None:
     statuses.append({"need": need, "status": status, **({"detail": detail} if detail else {})})
 
@@ -323,10 +341,7 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
         )
         rows = {str(row[0]): row for row in cursor.fetchall()}
     added, withheld = 0, 0
-    close = None
-    unmatched = [row[2] for row in rows.values() if not _relevant(question, row[2])]
-    if unmatched:
-        close = _semantic_check(question, unmatched)
+    admits = _chunk_filter(question, [row[2] for row in rows.values()])
     for source in context.sources:
         row = rows.get(source["chunk_id"])
         if row is None:
@@ -338,7 +353,7 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
             continue
         if added >= top_k:
             continue
-        if not _relevant(question, text) and (close is None or not close(text)):
+        if not admits(text):
             continue
         summary = (path or "").startswith("_generated/")
         title = (_w("summary_title", language, name=file_name.rsplit('.', 1)[0].replace('_', ' ')) if summary
@@ -402,6 +417,26 @@ def _analysis(conn, tenant_id: str, u: understanding.Understanding, access: acl.
         added += len(registry.add_fact_lines(text.splitlines(), route=route, capabilities=capabilities,
                                              observed_at=datetime.now(timezone.utc)))
     return added
+
+
+CATALOGUE_NAMES = 40
+
+
+def _catalogue_record(u: understanding.Understanding, catalog: List[dict], access: acl.Access,
+                      registry: ev.EvidenceRegistry, language: str = "en") -> int:
+    """The catalogue itself - how many products, and which - so that "how many
+    products do I have" is answered from the records and not guessed."""
+    if not catalog or U.PRODUCTS not in u.intents:
+        return 0
+    shown = catalog[:CATALOGUE_NAMES]
+    items = "; ".join(
+        p["name"] + (f" {p['price']} {p['currency']}" if p["price"] is not None else "") for p in shown)
+    more = _w("catalogue_more", language, rest=len(catalog) - len(shown)) if len(catalog) > len(shown) else ""
+    registry.add(ev.COMPANY_RECORD, _w("catalogue_title", language),
+                 _w("catalogue_line", language, count=len(catalog), items=items, more=more),
+                 ev.COMPANY, ev.OBSERVED, route="/products", capabilities=frozenset({acl.CATALOG}),
+                 observed_at=datetime.now(timezone.utc))
+    return 1
 
 
 def _product_records(u: understanding.Understanding, catalog: List[dict], access: acl.Access,
@@ -707,10 +742,21 @@ def _prompt(question: str, u: understanding.Understanding, company: dict, access
                  ev.COMPANY_DOCUMENT: 5, ev.COMPANY_SUMMARY: 6}
         keep = {item.id for item in sorted(items, key=lambda i: (order.get(i.kind, 7), int(i.id[1:])))[:COMPACT_ITEMS]}
         items = [item for item in items if item.id in keep]
+    elif not u.intents and len(items) > GENERAL_ITEMS:
+        # No business need was recognised (small talk, an off-topic or hostile message): a few records
+        # are enough to orient the answer; sending every section only costs tokens.
+        keep = {item.id for item in items[:GENERAL_ITEMS]}
+        items = [item for item in items if item.id in keep]
     limit = COMPACT_EXCERPT_CHARS if compact else None
-    evidence_text = "\n\n".join(
-        item.prompt_block(limit) if item.kind in (ev.COMPANY_RECORD, ev.CALCULATION, ev.PRODUCT_GUIDE)
-        else untrusted.neutralize(item.prompt_block(limit)) for item in items)
+    blocks, seen_titles = [], set()
+    for item in items:
+        # Records of one list repeat a long title: say it once, the model still sees which source each is.
+        repeat = item.title in seen_titles and len(item.title) > 40
+        seen_titles.add(item.title)
+        text = item.prompt_block(limit, title=_w("same_source", _language(question)) if repeat else None)
+        blocks.append(text if item.kind in (ev.COMPANY_RECORD, ev.CALCULATION, ev.PRODUCT_GUIDE)
+                      else untrusted.neutralize(text))
+    evidence_text = "\n\n".join(blocks)
     lines.append("Evidence:\n" + (evidence_text or "(none)"))
     if statuses:
         lines.append("Evidence status:\n" + "\n".join(
@@ -729,8 +775,36 @@ def _messages(question: str, u: understanding.Understanding, company: dict, acce
               registry: ev.EvidenceRegistry, statuses: List[dict], history: Optional[list], compact: bool) -> list:
     turns = _history_messages(history)
     return [{"role": "system", "content": f"{llm_client.SYSTEM_PROMPT}\n\n{citations.DRAFT_CONTRACT}"},
-            *(turns[-4:] if compact else turns),
+            *(turns[-4:] if compact else turns[-HISTORY_MESSAGES:]),
             {"role": "user", "content": _prompt(question, u, company, access, registry, statuses, compact)}]
+
+
+# Refusals by AI Credits that are about the server, not the company: the model
+# has no confirmed price, or its provider is switched off / over its platform
+# cap. The company did nothing wrong and has plenty of credits, so the question
+# still gets its evidence (the same fallback as a provider outage) instead of a
+# bare error. A company's own plan or credit limit (SUBSCRIPTION_INACTIVE,
+# BUDGET_EXHAUSTED, ...) is deliberately not here: that refusal is the answer.
+_SERVER_SIDE_REFUSALS = {"COST_NOT_CONFIGURED": llm_client.LLMNotConfiguredError,
+                         "PROVIDER_DISABLED": llm_client.LLMError, "PROVIDER_CAP_REACHED": llm_client.LLMError}
+
+
+@contextmanager
+def _server_refusals_as_llm_errors():
+    try:
+        yield
+    except credits.BudgetError as err:
+        error_type = _SERVER_SIDE_REFUSALS.get(err.reason)
+        if error_type is None:
+            raise
+        raise error_type(f"AI call refused by the server's billing setup: {err.reason} ({err.detail})") from err
+
+
+def _guarded(ask):
+    def call(*args, **kwargs):
+        with _server_refusals_as_llm_errors():
+            return ask(*args, **kwargs)
+    return call
 
 
 def _call(messages: list, usage: dict, max_tokens: int = MAX_TOKENS) -> str:
@@ -757,24 +831,80 @@ def _fallback_draft(text: str, registry: ev.EvidenceRegistry, language: str) -> 
     return citations.Draft(blocks=[{"type": "paragraph", "claims": claims}])
 
 
-def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "evidence_mode") -> citations.Draft:
+_SENTENCE_END = re.compile(r"(?<=[.!?؟])\s+")
+EVIDENCE_SUMMARY_CHARS = 220
+EVIDENCE_MODE_MAX_RELEVANT = 5
+
+
+def _stems(text: str) -> set:
+    """_content_words with a plural folded into its singular ("competitors" matches "competitor"); used to rank
+    evidence-mode items, not to admit retrieved chunks."""
+    return {w[:-1] if w.endswith("s") and len(w) > 4 else w for w in _content_words(text)}
+
+
+def _shorten(text: str) -> str:
+    return text if len(text) <= EVIDENCE_SUMMARY_CHARS else text[:EVIDENCE_SUMMARY_CHARS].rsplit(" ", 1)[0] + " …"
+
+
+def _flag_foreign_summary(summary: Optional[dict], mode: str, language: str) -> Optional[dict]:
+    """An evidence-mode summary is quoted from the source, so it keeps the source's language: an Arabic question
+    about an English document gets an English sentence. Translating it would need the model that is not
+    available in this mode, so the answer says so instead (`note`, which the chat words in the user's language).
+    A model-written summary already follows the question's language."""
+    if summary and mode in ("evidence", "unverifiable") and _language(summary["text"]) != language:
+        return {**summary, "note": "source_language"}
+    return summary
+
+
+def _best_sentence(question: str, text: str) -> str:
+    """The sentence of `text` sharing most words with `question`, kept short. When none shares a word (a
+    question in another language) a single sentence may be only a title, so the start of the text is used."""
+    text = " ".join((text or "").split())  # text read from a PDF breaks lines mid-sentence
+    sentences = [s for s in _SENTENCE_END.split(text) if s] or [text]
+    wanted = _stems(question)
+    best = max(sentences, key=lambda s: len(wanted & _stems(s)))  # max keeps the first on a tie
+    return _shorten(best if wanted & _stems(best) else text)
+
+
+def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "evidence_mode",
+                   question: str = "") -> citations.Draft:
+    """No model wrote this answer: the best-matching evidence is the summary (one sentence), and the
+    evidence behind it follows, most relevant first."""
     priority = {ev.PRODUCT_GUIDE: 0, ev.CALCULATION: 1, ev.COMPANY_RECORD: 2, ev.COMPANY_DOCUMENT: 3, ev.WEB_PAGE: 4,
                 ev.COMPANY_SUMMARY: 5, ev.USER_INPUT: 9}
     rank = lambda i: -1 if (i.data or {}).get("summary") else priority.get(i.kind, 6)  # noqa: E731
+    wanted = _stems(question)
+    overlap = lambda i: len(wanted & _stems(f"{i.title} {i.excerpt}"))  # noqa: E731
     ranked = sorted((i for i in registry.items() if i.kind != ev.USER_INPUT), key=rank)
     # Passages already matched to this question keep room among the 8: a
     # question matching no topic brings every record section, which would
     # otherwise crowd out the one document that answers it.
     documents = [i for i in ranked if i.kind == ev.COMPANY_DOCUMENT][:3]
     others = [i for i in ranked if i.kind != ev.COMPANY_DOCUMENT][:8 - len(documents)]
-    items = sorted(documents + others, key=rank)
-    claims = [[citations.Claim(text=f"{item.title}: {item.excerpt[:400]}", kind=citations.FACT, evidence=[item.id])]
+    items = sorted(documents + others, key=lambda i: (-overlap(i), rank(i)))
+    shares = any(overlap(i) for i in items)
+    if shares:
+        # Items that share nothing with the question only bury the one that answers it (a supplier agreement
+        # under a leave question).
+        items = [i for i in items if overlap(i)][:EVIDENCE_MODE_MAX_RELEVANT]
+    elif wanted:
+        # No item shares a word (an Arabic question about English records), so words cannot rank them. A
+        # document was matched to the question by meaning before it got here; the record sections were not, so
+        # they are shown only when there is no such document.
+        matched = [i for i in items if i.kind == ev.COMPANY_DOCUMENT]
+        items = matched[:EVIDENCE_MODE_MAX_RELEVANT] or items
+    claims = [[citations.Claim(text=f"{item.title}: {' '.join(item.excerpt.split())[:400]}", kind=citations.FACT, evidence=[item.id])]
               for item in items]
+    # A summary only when the top item is known to answer the question (it shares words with it, or retrieval
+    # matched that document to it); a confident but unrelated line is worse than none.
+    top = items[0] if items and wanted and (shares or items[0].kind == ev.COMPANY_DOCUMENT) else None
+    summary = ([citations.Claim(text=_best_sentence(question, top.excerpt), kind=citations.FACT, evidence=[top.id])]
+               if top else [])
     return citations.Draft(blocks=[
         {"type": "paragraph", "claims": [citations.Claim(text=_LEADS[lead][language], kind=citations.GENERAL,
                                                          evidence=[])]},
         *([{"type": "list", "ordered": False, "items": claims}] if claims else []),
-    ])
+    ], summary=summary)
 
 
 def _legacy_sources(references: List[dict]) -> List[dict]:
@@ -786,6 +916,11 @@ def _legacy_sources(references: List[dict]) -> List[dict]:
         else:
             out.append({"source_index": ref["n"], "title": ref["title"], "kind": ref["kind"], "route": ref["route"]})
     return out
+
+
+_FORMAT_RETRY = ("Your reply had no usable claims (a heading alone is not an answer). Reply again with only the JSON "
+                 "object: at least one paragraph, list or table block whose claims cite evidence ids. If the "
+                 "evidence does not establish what was asked, say so in an \"unknown\" claim and say what would.")
 
 
 def _draft(question: str, u: understanding.Understanding, company: dict, access: acl.Access,
@@ -807,11 +942,13 @@ def _draft(question: str, u: understanding.Understanding, company: dict, access:
     if draft is None:
         try:
             raw = _call(messages + [{"role": "assistant", "content": raw[:3000]},
-                                    {"role": "user", "content": "Reply again with only the JSON object in the "
-                                                                "required format."}], usage, budget)
+                                    {"role": "user", "content": _FORMAT_RETRY}], usage, budget)
             draft = citations.parse_draft(raw)
         except llm_client.LLMError as err:
             logger.info("format retry failed: %s", type(err).__name__)
+    if draft is None and raw.lstrip().startswith("{"):
+        # JSON that carries no claim (a heading only): showing it as text would print the JSON itself.
+        return _evidence_mode(registry, language, lead="unverifiable", question=question), "unverifiable", 0, False
     if draft is None:
         return _fallback_draft(raw, registry, language), "unlinked", 0, False
     draft, issues = citations.validate(draft, registry, user_text=question, regulatory=regulatory)
@@ -876,13 +1013,14 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         if not u.public_scope:  # "the average water price" needs no sales or price-gap records
             company_found += _fact_sections(conn, tenant_id, u, access, registry, statuses)
             company_found += _analysis(conn, tenant_id, u, access, registry)
+        company_found += _catalogue_record(u, catalog, access, registry, language)
         products = _product_records(u, catalog, access, registry, language)
         company_found += len(products)
         company_found += _reviews(conn, tenant_id, u, access, registry, statuses, language)
 
     ask = None
     if llm_client.provider_configured():
-        ask = llm_client.chat_completion
+        ask = _guarded(llm_client.chat_completion)
     research_result = None
     # "Price" or "cost" alone is not a private question: "the average water price" is about the world.
     private_only = bool(u.intents) and set(u.intents) <= _PRIVATE_ONLY and not u.public_scope
@@ -908,13 +1046,14 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     regulatory = bool({U.REGULATION, U.TRADE, U.LANDED_COST} & set(u.intents))
     mode, repaired, issue_count = "ai", False, 0
     try:
-        draft, mode, issue_count, repaired = _draft(question, u, company, access, registry, statuses, history,
-                                                    usage, regulatory, language)
+        with _server_refusals_as_llm_errors():
+            draft, mode, issue_count, repaired = _draft(question, u, company, access, registry, statuses, history,
+                                                        usage, regulatory, language)
     except llm_client.LLMError as err:
         if not len(registry):
             raise
         logger.warning("Assistant answered in evidence mode (tenant=%s): %s", tenant_id, err)
-        draft, mode = _evidence_mode(registry, language), "evidence"
+        draft, mode = _evidence_mode(registry, language, question=question), "evidence"
         reason = ("not_configured" if isinstance(err, llm_client.LLMNotConfiguredError)
                   else "provider_busy" if isinstance(err, (llm_client.LLMRateLimitError,
                                                            llm_client.LLMRequestTooLargeError))
@@ -924,12 +1063,21 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     registry.localize_titles(language)
     if not any(block["type"] != "heading" for block in draft.blocks):
         # Every claim failed its check: show what was found instead of an empty reply.
-        draft, mode = _evidence_mode(registry, language, lead="unverifiable"), "unverifiable"
+        draft, mode = _evidence_mode(registry, language, lead="unverifiable", question=question), "unverifiable"
     rendered = citations.render(draft, registry, always=[calculation["evidence_id"]] if calculation else [])
     if calculation:
         calculation["ref"] = rendered["numbering"].get(calculation["evidence_id"])
+    # One countable line per answer: how often a summary is shown, written by the model or built from the
+    # answer, how often the checks drop the model's, and how often the repair round runs.
+    # An evidence-mode summary is a sentence quoted from the evidence, not written by the model: counting it as
+    # "model" would inflate the share of answers whose summary the model wrote.
+    summary_source = rendered["summary_source"]
+    if summary_source == "model" and mode in ("evidence", "unverifiable"):
+        summary_source = "extractive"
+    logger.info("assistant_answer mode=%s summary=%s dropped=%d issues=%d repaired=%s", mode,
+                summary_source, rendered["summary_dropped"], issue_count, repaired)
     return {
-        "answer": rendered["answer"], "answer_blocks": rendered["blocks"], "references": rendered["references"],
+        "answer": rendered["answer"], "answer_summary": _flag_foreign_summary(rendered["summary"], mode, language), "answer_blocks": rendered["blocks"], "references": rendered["references"],
         "sources": _legacy_sources(rendered["references"]), "follow_up_questions": rendered["follow_up_questions"],
         "calculations": [calculation] if calculation else [], "evidence_status": statuses,
         "research": research_result.summary() if research_result else None, "state": u.state(),

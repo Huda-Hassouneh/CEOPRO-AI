@@ -42,7 +42,8 @@ class FakeProvider:
 
 
 def _company(business_type, industry_key=None):
-    tenant_id, user_id = str(uuid.uuid4()), SERVICE_ACTOR
+    # A real member: a signed-in session may never carry the background-worker identity.
+    tenant_id, user_id = str(uuid.uuid4()), str(uuid.uuid4())
     with psycopg2.connect(DATABASE_URL) as conn, conn.cursor() as cursor:
         cursor.execute(
             """
@@ -52,6 +53,9 @@ def _company(business_type, industry_key=None):
             """,
             (tenant_id, f"Discovery {tenant_id[:6]}", business_type, industry_key, *AMMAN),
         )
+        cursor.execute("INSERT INTO users (user_id, email, password_hash, full_name) VALUES (%s, %s, 'x', 'Discovery Owner');",
+                       (user_id, f"discovery-{user_id}@example.test"))
+        cursor.execute("INSERT INTO tenant_users (tenant_id, user_id, role_key) VALUES (%s, %s, 'owner');", (tenant_id, user_id))
     return tenant_id, user_id
 
 

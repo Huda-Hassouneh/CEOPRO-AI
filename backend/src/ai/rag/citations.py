@@ -41,7 +41,11 @@ NEEDS_EVIDENCE = frozenset({FACT, CALCULATION, ESTIMATE, INFERENCE, RECOMMENDATI
 
 DRAFT_CONTRACT = """\
 Answer format (strict): reply with ONE JSON object and nothing else:
-{"blocks": [BLOCK, ...], "follow_up_questions": ["...", ...]}
+{"summary": [CLAIM, ...], "blocks": [BLOCK, ...], "follow_up_questions": ["...", ...]}
+"summary" comes first: the answer itself in one or two short claims (about 40 words in all), the part most
+readers will read alone. It follows every claim rule below, citing its evidence. "blocks" is the detail behind it:
+add only what the summary leaves out, as little as the question needs, and leave it empty when the summary
+already answers the question.
 BLOCK is one of:
   {"type": "heading", "text": "..."}
   {"type": "paragraph", "claims": [CLAIM, ...]}
@@ -69,6 +73,10 @@ Rules for claims:
   them (only when an answer depends on them). Write them in the user's language.
 """
 
+SUMMARY_MAX_CLAIMS = 2
+# An answer this short needs no summary above it.
+SUMMARY_MIN_ANSWER_CHARS = 240
+
 _SUPERSCRIPT = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 _NUMBER = re.compile(r"(?<![\w.])[-+]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.])[-+]?\d+(?:\.\d+)?")
 _APPROXIMATE = re.compile(r"\b(about|around|approximately|roughly|nearly|almost|over|under|more than|less than)\b|"
@@ -94,6 +102,8 @@ class Claim:
 class Draft:
     blocks: List[dict]
     follow_up_questions: List[str] = field(default_factory=list)
+    summary: List["Claim"] = field(default_factory=list)  # the short answer shown first; may be empty
+    summary_dropped: int = 0  # model-written summary claims removed by the checks
 
 
 @dataclass
@@ -158,10 +168,16 @@ def parse_draft(text: str) -> Optional[Draft]:
             if columns and rows:
                 blocks.append({"type": "table", "columns": columns, "rows": rows,
                                "evidence": [str(i) for i in raw.get("evidence") or []]})
+    raw_summary = payload.get("summary")
+    summary = [c for c in (_parse_claim(r) for r in (raw_summary if isinstance(raw_summary, list) else
+                                                      [raw_summary] if raw_summary else [])) if c][:SUMMARY_MAX_CLAIMS]
     if not any(block["type"] != "heading" for block in blocks):
-        return None
+        if not summary:
+            return None
+        blocks.append({"type": "paragraph",  # a summary that says it all
+                       "claims": [Claim(c.text, c.kind, list(c.evidence)) for c in summary]})
     questions = [str(q).strip() for q in payload.get("follow_up_questions") or [] if str(q).strip()][:3]
-    return Draft(blocks=blocks, follow_up_questions=questions)
+    return Draft(blocks=blocks, follow_up_questions=questions, summary=summary)
 
 
 # --- numbers -----------------------------------------------------------------
@@ -290,6 +306,12 @@ def validate(draft: Draft, registry: ev.EvidenceRegistry, user_text: str = "",
                 claim.notes.append("unofficial_source")
         return claim
 
+    # A summary that fails its checks is dropped rather than repaired: the render falls back to the answer's
+    # own first claims, so it never costs a repair round.
+    checked = len(issues)
+    summary = [c for c in (check(claim) for claim in draft.summary) if c and (c.evidence or c.kind in (GENERAL, UNKNOWN))]
+    del issues[checked:]
+
     blocks: List[dict] = []
     for block in draft.blocks:
         if block["type"] == "paragraph":
@@ -317,7 +339,8 @@ def validate(draft: Draft, registry: ev.EvidenceRegistry, user_text: str = "",
                 blocks.append({**block, "rows": rows, "evidence": ids})
         else:
             blocks.append(block)
-    return Draft(blocks=blocks, follow_up_questions=draft.follow_up_questions), issues
+    return Draft(blocks=blocks, follow_up_questions=draft.follow_up_questions, summary=summary,
+                 summary_dropped=len(draft.summary) - len(summary)), issues
 
 
 def repair_prompt(issues: List[Issue]) -> str:
@@ -338,6 +361,35 @@ USED_AS = {FACT: "supports_fact", CALCULATION: "calculation", ESTIMATE: "support
 
 def superscript(numbers: List[int]) -> str:
     return "˒".join(str(n).translate(_SUPERSCRIPT) for n in numbers)
+
+
+def _answer_length(draft: Draft) -> int:
+    texts = [c.text for b in draft.blocks if b["type"] == "paragraph" for c in b["claims"]]
+    texts += [c.text for b in draft.blocks if b["type"] == "list" for item in b["items"] for c in item]
+    texts += [cell for b in draft.blocks if b["type"] == "table" for row in b["rows"] for cell in row]
+    return sum(len(t) for t in texts)
+
+
+def _summary_claims(draft: Draft) -> List[Claim]:
+    """What to show above a long answer: the model's own summary, else its first claims that state something
+    (never a greeting or a lead-in), kept short. Empty when the answer is already short."""
+    if _answer_length(draft) <= SUMMARY_MIN_ANSWER_CHARS:
+        return []
+    if draft.summary:
+        return draft.summary
+    picked: List[Claim] = []
+    for block in draft.blocks:
+        group = (block["claims"] if block["type"] == "paragraph" else
+                 [c for item in block["items"] for c in item] if block["type"] == "list" else [])
+        for claim in group:
+            if claim.kind == GENERAL:
+                continue
+            if picked and sum(len(c.text) for c in picked) + len(claim.text) > SUMMARY_MIN_ANSWER_CHARS:
+                return picked
+            picked.append(claim)
+            if len(picked) == SUMMARY_MAX_CLAIMS:
+                return picked
+    return picked
 
 
 def render(draft: Draft, registry: ev.EvidenceRegistry, always: Iterable[str] = ()) -> dict:
@@ -361,6 +413,14 @@ def render(draft: Draft, registry: ev.EvidenceRegistry, always: Iterable[str] = 
         return {"text": claim.text, "kind": CALCULATION if claim.derived and claim.kind == FACT else claim.kind,
                 "refs": refs(claim.evidence, claim.kind), "verified": claim.verified, "notes": claim.notes}
 
+    summary = _summary_claims(draft)
+    summary_source = "none" if not summary else "model" if draft.summary else "fallback"
+    answer_summary = None
+    if summary:
+        # Numbered first, so the references the short answer cites are the lowest numbers.
+        claims_out = [claim_out(c) for c in summary]
+        answer_summary = {"text": " ".join(c["text"] for c in claims_out),
+                          "claims": claims_out, "refs": sorted({n for c in claims_out for n in c["refs"]})}
     blocks, lines = [], []
     for block in draft.blocks:
         if block["type"] == "heading":
@@ -413,7 +473,8 @@ def render(draft: Draft, registry: ev.EvidenceRegistry, always: Iterable[str] = 
             reference["input_refs"] = input_refs[evidence_id]
         references.append(reference)
     return {"blocks": blocks, "answer": "\n\n".join(line for line in lines if line), "references": references,
-            "follow_up_questions": draft.follow_up_questions, "numbering": numbering}
+            "follow_up_questions": draft.follow_up_questions, "numbering": numbering,
+            "summary": answer_summary, "summary_source": summary_source, "summary_dropped": draft.summary_dropped}
 
 
 def plain_text(answer: str) -> str:

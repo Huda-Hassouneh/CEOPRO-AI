@@ -2,7 +2,7 @@
 Integration tests for api_connector_sync.py against a real PostgreSQL
 instance for the PLATFORM's own database - same convention as
 test_connector_sync_integration_db.py. The CLIENT's REST API is mocked
-throughout (httpx.get is patched for api_connector_sync's own module,
+throughout (fetch_public_json is patched for api_connector_sync's own module,
 not for the platform conn fixture below) - this verifies the scheduling/
 persistence/ingestion wiring, not a real external vendor API.
 """
@@ -166,10 +166,10 @@ def test_sync_processes_real_rows_and_advances_the_watermark(conn):
     source_id = _insert_allowed_api_connector_source(conn, tenant_id, _VALID_CONFIG, last_synced_at=None)
     set_source_credentials(conn, tenant_id, source_id, {"api_key": "secret-token"})
 
-    page_1 = _fake_api_response([{"name": "Espresso Machine", "qty": 2, "price": 45.5}])
-    page_2 = _fake_api_response([])
+    page_1 = [{"name": "Espresso Machine", "qty": 2, "price": 45.5}]
+    page_2 = []
 
-    with patch("src.market_scraper.api_connector_sync.httpx.get", side_effect=[page_1, page_2]) as mock_get:
+    with patch("src.market_scraper.api_connector_sync.fetch_public_json", side_effect=[page_1, page_2]) as mock_get:
         result = _run_with_receipt(conn, tenant_id, source_id)
 
     first_call_headers = mock_get.call_args_list[0].kwargs["headers"]
@@ -191,7 +191,7 @@ def test_sync_does_not_advance_the_watermark_on_a_request_failure(conn):
     tenant_id = _insert_company(conn)
     source_id = _insert_allowed_api_connector_source(conn, tenant_id, _VALID_CONFIG, last_synced_at=None)
 
-    with patch("src.market_scraper.api_connector_sync.httpx.get", side_effect=RuntimeError("connection refused api_key=synthetic-secret")):
+    with patch("src.market_scraper.api_connector_sync.fetch_public_json", side_effect=RuntimeError("connection refused api_key=synthetic-secret")):
         with pytest.raises(RuntimeError):
             _run_with_receipt(conn, tenant_id, source_id)
 
@@ -214,7 +214,7 @@ def test_run_due_api_connector_syncs_continues_past_one_sources_failure(conn):
     bad_source_id = _insert_allowed_api_connector_source(conn, tenant_id, {"base_url": "https://x.example"})
     good_source_id = _insert_allowed_api_connector_source(conn, tenant_id, _VALID_CONFIG)
 
-    with patch("src.market_scraper.api_connector_sync.httpx.get", return_value=_fake_api_response([])):
+    with patch("src.market_scraper.api_connector_sync.fetch_public_json", return_value=[]):
         results = run_due_api_connector_syncs(conn, tenant_id)
 
     by_source = {r["source_id"]: r for r in results}
@@ -228,8 +228,8 @@ def test_partial_api_connector_result_is_not_reported_as_completed(conn):
     source_id = _insert_allowed_api_connector_source(conn, tenant_id, _VALID_CONFIG)
     set_source_credentials(conn, tenant_id, source_id, {"api_key": "synthetic-token"})
     partial = SimpleNamespace(rows_processed=1, rows_partial=0, rows_failed=1)
-    with patch("src.market_scraper.api_connector_sync.httpx.get", side_effect=[
-             _fake_api_response([{"name":"Widget","qty":1,"price":2}]), _fake_api_response([])]), \
+    with patch("src.market_scraper.api_connector_sync.fetch_public_json", side_effect=[
+             [{"name":"Widget","qty":1,"price":2}], []]), \
          patch("src.market_scraper.api_connector_sync.process_records", return_value=partial):
         results = run_due_api_connector_syncs(conn, tenant_id)
     assert len(results) == 1 and results[0]["source_id"] == source_id
