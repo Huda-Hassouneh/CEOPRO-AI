@@ -200,3 +200,24 @@ def test_a_summary_alone_is_a_complete_answer():
     draft = c.parse_draft(json.dumps({"summary": [{"text": "Net 45 days.", "kind": "fact", "evidence": [item.id]}],
                                       "blocks": []}))
     assert draft is not None and draft.blocks[0]["claims"][0].text == "Net 45 days."
+
+
+def test_the_summary_source_and_drops_are_reported_for_the_per_answer_log():
+    registry = ev.EvidenceRegistry()
+    first = registry.add(ev.COMPANY_RECORD, "Sales", "Revenue was 500 JOD", ev.COMPANY, ev.OBSERVED)
+    detail = {"type": "paragraph", "claims": [{"text": "Revenue was 500 JOD." + " More detail." * 30, "kind": "fact",
+                                                "evidence": [first.id]}]}
+    good = {"text": "Revenue was 500 JOD.", "kind": "fact", "evidence": [first.id]}
+    bad = {"text": "Revenue was 999 JOD.", "kind": "fact", "evidence": [first.id]}
+
+    def rendered(summary):
+        checked, _ = c.validate(c.parse_draft(json.dumps({"summary": summary, "blocks": [detail]})), registry)
+        return c.render(checked, registry)
+
+    kept = rendered([good])
+    assert (kept["summary_source"], kept["summary_dropped"]) == ("model", 0)
+    dropped = rendered([bad])  # falls back to the answer's own first claims
+    assert (dropped["summary_source"], dropped["summary_dropped"]) == ("fallback", 1)
+    assert rendered([])["summary_source"] == "fallback"
+    short = c.render(_draft(("Net 45 days.", c.GENERAL, [])), _registry())
+    assert (short["summary_source"], short["summary_dropped"]) == ("none", 0)

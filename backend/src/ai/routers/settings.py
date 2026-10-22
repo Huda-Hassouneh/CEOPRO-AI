@@ -38,7 +38,7 @@ from pydantic import BaseModel, Field, field_validator
 from src.ai import company_data, db
 from src.ai.core import security, usage
 from src.ai import notification_prefs
-from src.ai.core import notifications
+from src.ai.core import auth_throttle, notifications
 from src.ai.core.security import (
     TEAM_INVITATION_EXPIRE_MINUTES,
     TenantContext,
@@ -536,7 +536,7 @@ def list_team_members(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
 
 
 class InviteTeamMemberRequest(BaseModel):
-    email: str
+    email: str = Field(max_length=254)
     role_key: str
 
 
@@ -589,7 +589,8 @@ def invite_team_member(body: InviteTeamMemberRequest, ctx: TenantContext = Depen
 
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
+        caller_role = _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
+        _require_owner_to_touch_owners(caller_role, body.role_key)
         _ensure_seat_for_invitation(conn, ctx.tenant_id, body.email)
 
         with conn.cursor() as cursor:
@@ -620,6 +621,13 @@ def invite_team_member(body: InviteTeamMemberRequest, ctx: TenantContext = Depen
         raise
     finally:
         conn.close()
+
+
+def _require_owner_to_touch_owners(caller_role: str, *roles: str) -> None:
+    """Only an owner may hand out, change or remove the owner role: otherwise an admin could
+    promote themselves (or a friend) and then do the owner-only things, such as deleting the company."""
+    if caller_role != "owner" and "owner" in roles:
+        raise HTTPException(status_code=403, detail="Only an owner can grant, change or remove the owner role.")
 
 
 def _fetch_active_member(conn, tenant_id: str, tenant_user_id: str):
@@ -667,12 +675,13 @@ def update_team_member_role(
 
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
+        caller_role = _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
 
         member = _fetch_active_member(conn, ctx.tenant_id, tenant_user_id)
         if member is None:
             raise HTTPException(status_code=404, detail="Team member not found.")
         _, _, current_role = member
+        _require_owner_to_touch_owners(caller_role, current_role, body.role_key)
 
         if current_role == "owner" and body.role_key != "owner" and _count_active_owners(conn, ctx.tenant_id) <= 1:
             raise HTTPException(status_code=400, detail="Cannot change the role of the last remaining owner.")
@@ -708,12 +717,13 @@ def remove_team_member(tenant_user_id: str, ctx: TenantContext = Depends(get_ten
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
+        caller_role = _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
 
         member = _fetch_active_member(conn, ctx.tenant_id, tenant_user_id)
         if member is None:
             raise HTTPException(status_code=404, detail="Team member not found.")
         _, _, current_role = member
+        _require_owner_to_touch_owners(caller_role, current_role)
 
         if current_role == "owner" and _count_active_owners(conn, ctx.tenant_id) <= 1:
             raise HTTPException(status_code=400, detail="Cannot remove the last remaining owner.")
@@ -753,6 +763,9 @@ def change_password(body: ChangePasswordRequest, ctx: TenantContext = Depends(ge
     SECURITY DEFINER function needed, unlike auth.py's pre-auth password-
     reset, which genuinely has no authenticated user_id yet at that point.
     """
+    # A stolen session must not be a way to guess the password: same limit as signing in.
+    throttle_key = f"user:{ctx.user_id}"
+    auth_throttle.ensure_allowed("login", throttle_key)
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         with conn.cursor() as cursor:
@@ -762,14 +775,21 @@ def change_password(body: ChangePasswordRequest, ctx: TenantContext = Depends(ge
             raise HTTPException(status_code=404, detail="User not found.")
 
         if not verify_password(body.current_password, row[0]):
+            auth_throttle.record_failure("login", throttle_key)
             raise HTTPException(status_code=400, detail="Current password is incorrect.")
+        auth_throttle.reset("login", throttle_key)
 
         ensure_password_policy(body.new_password)
         new_hash = hash_password(body.new_password)
         with conn.cursor() as cursor:
             cursor.execute("UPDATE users SET password_hash = %s WHERE user_id = %s;", (new_hash, ctx.user_id))
         conn.commit()
-        return {"ok": True}
+        # Every other session (a stolen one included) is signed out; this one continues on a fresh token.
+        security.invalidate_sessions(ctx.user_id)
+        security.revoke_token(getattr(ctx, "token_id", None), getattr(ctx, "token_expires_at", None))
+        token, expires_in = security.create_access_token(
+            ctx.tenant_id, ctx.user_id, email_verified=getattr(ctx, "email_verified", False))
+        return {"ok": True, "access_token": token, "token_type": "bearer", "expires_in": expires_in}
     except HTTPException:
         conn.rollback()
         raise

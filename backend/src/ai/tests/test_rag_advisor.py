@@ -586,3 +586,35 @@ def test_the_evidence_mode_summary_is_stored_with_the_message_fields():
     from src.ai.routers import rag
 
     assert "answer_summary" in rag._STORED_ANSWER_FIELDS
+
+
+def _answer_lines(caplog):
+    return [r.getMessage() for r in caplog.records if r.getMessage().startswith("assistant_answer")]
+
+
+def test_the_answer_log_line_counts_a_model_written_summary_as_model(model, monkeypatch, caplog):
+    caplog.set_level("INFO", logger="KEEL_ADVISOR")
+    _answer_with_sales(model, monkeypatch, _summarised(
+        [("Revenue was 20,016.928 JOD in the last 30 days.", "fact", ["E1"])],
+        ("Revenue fell by 219.935 JOD." + _LONG_DETAIL, "calculation", ["E1"])))
+    assert _answer_lines(caplog) == ["assistant_answer mode=ai summary=model dropped=0 issues=0 repaired=False"]
+
+
+def test_an_evidence_mode_summary_is_logged_as_extractive_never_as_model(model, monkeypatch, caplog):
+    caplog.set_level("INFO", logger="KEEL_ADVISOR")
+    monkeypatch.setattr(citations, "SUMMARY_MIN_ANSWER_CHARS", 0)  # whatever the evidence length, summarise
+    result, _ = _answer_with_sales(model, monkeypatch, llm_client.LLMRateLimitError("busy", 5))
+    assert result["answer_mode"] == "evidence" and result["answer_summary"]
+    assert _answer_lines(caplog) == ["assistant_answer mode=evidence summary=extractive dropped=0 issues=0 repaired=False"]
+
+
+def test_an_evidence_summary_in_another_language_than_the_question_carries_a_note():
+    summary = {"text": "Every employee receives 21 days of paid annual leave.", "claims": [], "refs": [1]}
+    flagged = advisor._flag_foreign_summary(summary, "evidence", "ar")
+    assert flagged["note"] == "source_language" and flagged["text"] == summary["text"] and "note" not in summary
+    assert advisor._flag_foreign_summary(summary, "unverifiable", "ar")["note"] == "source_language"
+    assert advisor._flag_foreign_summary(summary, "evidence", "en") is summary  # same language: nothing to say
+    assert advisor._flag_foreign_summary({**summary, "text": "كل موظف يحصل على 21 يوما من الإجازة السنوية."},
+                                         "evidence", "ar").get("note") is None
+    assert advisor._flag_foreign_summary(summary, "ai", "ar") is summary  # the model answers in the question's language
+    assert advisor._flag_foreign_summary(None, "evidence", "ar") is None

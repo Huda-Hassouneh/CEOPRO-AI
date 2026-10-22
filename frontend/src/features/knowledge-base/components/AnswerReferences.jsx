@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, FileText, Globe, Calculator, Database } from 'lucide-react';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const ICONS = { web_page: Globe, calculation: Calculator, company_document: FileText, company_summary: FileText };
 
@@ -10,7 +11,8 @@ export function AnswerReferences({ references, legacySources, onOpenRef, activeR
   const [expanded, setExpanded] = useState(false);
   const count = references.length || legacySources.length;
   if (!count) return null;
-  return <section className={`rag-sources ${expanded ? 'is-expanded' : ''}`} aria-label={t('ragAssistant.references.title')}>
+  // A labelled group, not a <section>: every answer has one, and a page may not repeat a landmark.
+  return <div role="group" className={`rag-sources ${expanded ? 'is-expanded' : ''}`} aria-label={t('ragAssistant.references.title')}>
     <button type="button" className="rag-sources__toggle" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
       <span>{t('ragAssistant.references.title')} <small>{count}</small></span>
       <ChevronDown size={15} aria-hidden="true" />
@@ -27,8 +29,8 @@ export function AnswerReferences({ references, legacySources, onOpenRef, activeR
     })}</ol>}
     {expanded && !references.length && <ul>{legacySources.map((source) => <li key={source.citationId}>
       {source.uri
-        ? <a href={source.uri} target="_blank" rel="noopener noreferrer"><Globe size={16} aria-hidden="true" /><span><strong>{source.name}</strong><b className="rag-sources__badge--web">{t('ragAssistant.sources.web')}</b></span></a>
+        ? <a href={safeHref(source.uri)} target="_blank" rel="noopener noreferrer"><Globe size={16} aria-hidden="true" /><span><strong>{source.name}</strong><b className="rag-sources__badge--web">{t('ragAssistant.sources.web')}</b></span></a>
         : <div><FileText size={16} aria-hidden="true" /><span><strong>{source.name}</strong><b>{t('ragAssistant.sources.knowledgeBase')}</b></span></div>}
     </li>)}</ul>}
-  </section>;
+  </div>;
 }

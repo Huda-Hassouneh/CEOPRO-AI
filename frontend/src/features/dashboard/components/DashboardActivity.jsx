@@ -9,6 +9,7 @@ import httpClient from '../../../shared/lib/httpClient.js';
 import { describeAlert, ICONS } from '../../alerts/AlertsBell.jsx';
 import { useCampaigns } from '../../marketing/hooks/useCampaigns.js';
 import { discoveryApi } from '../../market-intelligence/api/discoveryApi.js';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const CAMPAIGN_TONE = { COMPLETED: 'success', FAILED: 'danger', PENDING: 'neutral', DRAFT: 'neutral', SCHEDULED: 'violet', PUBLISHED: 'success' };
 
@@ -69,7 +70,7 @@ export function DashboardActivity() {
                 <ul className="intel-news">
                   {news.data.map((a) => (
                     <li key={a.url}><Newspaper size={14} aria-hidden="true" />
-                      <div><a href={a.url} target="_blank" rel="noreferrer noopener" dir="auto">{a.title}</a>
+                      <div><a href={safeHref(a.url)} target="_blank" rel="noreferrer noopener" dir="auto">{a.title}</a>
                         <div className="apex-muted">{[a.source_domain, a.published_at && date.format(new Date(a.published_at))].filter(Boolean).join(' · ')}</div></div>
                     </li>
                   ))}
