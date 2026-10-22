@@ -5,7 +5,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { UploadedFileRow } from './UploadedFileRow.jsx';
 import { ACCEPTED_UPLOAD_FILE_TYPES, getInvalidUploadFile } from '../utils/fileValidation.js';
 
-export function FileUploadDropzone({ files, onFilesChange }) {
+export function FileUploadDropzone({ files, onFilesChange, knowledgeBase = false }) {
   const { t } = useI18n();
   const inputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
@@ -13,7 +13,9 @@ export function FileUploadDropzone({ files, onFilesChange }) {
 
   const addFiles = (incoming) => {
     const nextFiles = Array.from(incoming);
-    const invalid = getInvalidUploadFile(nextFiles);
+    const invalid = knowledgeBase
+      ? nextFiles.find((file) => !/\.(txt|md|pdf|docx|xlsx)$/i.test(file.name) || file.size > 10 * 1024 * 1024)
+      : getInvalidUploadFile(nextFiles);
     if (invalid) {
       setError(t('dataIngestion.invalidFile', { name: invalid.name }));
       return;
@@ -43,10 +45,10 @@ export function FileUploadDropzone({ files, onFilesChange }) {
           aria-label={t('dataIngestion.browse')}
           tabIndex={-1}
           multiple
-          accept={ACCEPTED_UPLOAD_FILE_TYPES}
+          accept={knowledgeBase ? '.txt,.md,.pdf,.docx,.xlsx' : ACCEPTED_UPLOAD_FILE_TYPES}
           onChange={(event) => { addFiles(event.target.files); event.target.value = ''; }}
         />
-        <small>{t('dataIngestion.supported')}</small>
+        <small>{knowledgeBase ? t('ragAssistant.knowledge.supported') : t('dataIngestion.supported')}</small>
         <small>{t('dataIngestion.maxSize')}</small>
       </div>
       {error && <p className="ceopro-upload-error" role="alert">{error}</p>}

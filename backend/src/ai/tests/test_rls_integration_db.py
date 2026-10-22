@@ -363,13 +363,13 @@ def two_tenant_rag_documents(admin_conn, two_tenant_setup):
     cursor = admin_conn.cursor()
     doc_a, doc_b = str(uuid.uuid4()), str(uuid.uuid4())
     cursor.execute(
-        "INSERT INTO rag_documents_metadata (document_id, tenant_id, file_name, storage_bucket_path, file_size_bytes) "
-        "VALUES (%s, %s, 'tenant-a-secret.pdf', 'a/secret.pdf', 100);",
+        "INSERT INTO rag_documents_metadata (document_id, tenant_id, file_name, storage_bucket_path, file_size_bytes, processed_status) "
+        "VALUES (%s, %s, 'tenant-a-secret.pdf', 'a/secret.pdf', 100, 'Processed');",
         (doc_a, two_tenant_setup["tenant_a"]),
     )
     cursor.execute(
-        "INSERT INTO rag_documents_metadata (document_id, tenant_id, file_name, storage_bucket_path, file_size_bytes) "
-        "VALUES (%s, %s, 'tenant-b-secret.pdf', 'b/secret.pdf', 100);",
+        "INSERT INTO rag_documents_metadata (document_id, tenant_id, file_name, storage_bucket_path, file_size_bytes, processed_status) "
+        "VALUES (%s, %s, 'tenant-b-secret.pdf', 'b/secret.pdf', 100, 'Processed');",
         (doc_b, two_tenant_setup["tenant_b"]),
     )
     cursor.execute(
