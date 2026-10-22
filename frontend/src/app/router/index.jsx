@@ -144,7 +144,7 @@ const routes = [
     ),
   },
   {
-    path: routePaths.invitation,
+    path: `${routePaths.invitation}/:token?`,
     element: (
       <AuthLayout brand wide>
         <InvitationPage />

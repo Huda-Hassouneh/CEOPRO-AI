@@ -1,6 +1,9 @@
 import React from 'react';
-import { AlertCircle, Building2, Clock3, UserRound } from 'lucide-react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { AlertCircle, Building2 } from 'lucide-react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import Input from '../../../shared/components/ui/Input.jsx';
+import PasswordInput from '../../../shared/components/ui/PasswordInput.jsx';
+import { useAuthStore } from '../store/authStore.js';
 import Button from '../../../shared/components/ui/Button.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -17,12 +20,22 @@ export function InvitationPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { t } = useI18n();
-  const token = searchParams.get('token') || '';
+  const { token: pathToken } = useParams();
+  const token = pathToken || searchParams.get('token') || '';
+  const [fullName, setFullName] = React.useState('');
+  const [password, setPassword] = React.useState('');
   const invitationQuery = useInvitationQuery(token);
-  const invitation = invitationQuery.data?.invitation || null;
+  const invitation = invitationQuery.data || null;
   const [requestMessage, setRequestMessage] = React.useState(null);
   const acceptMutation = useAcceptInvitationMutation({
-    onSuccess: () => setRequestMessage({ tone: 'success', key: 'auth.success.invitationAccepted' }),
+    onSuccess: (response) => {
+      if (!response?.session?.accessToken) {
+        setRequestMessage({ tone: 'error', key: 'auth.errors.authenticationUnavailable' });
+        return;
+      }
+      useAuthStore.getState().setSession(response.session);
+      navigate(routePaths.dashboard, { replace: true });
+    },
     onError: (requestFailure) => setRequestMessage({ tone: 'error', key: getAuthErrorTranslationKey(requestFailure) }),
   });
   const goToLogin = () => navigate(routePaths.login, { state: { from: location } });
@@ -82,36 +95,36 @@ export function InvitationPage() {
       <div className="ceopro-invitation-summary">
         <div className="ceopro-invitation-summary__icon" aria-hidden="true"><Building2 /></div>
         <div>
-          <strong>{invitation.organizationName}</strong>
+          <strong>{invitation.business_name}</strong>
           <p>{t('auth.invitation.joinTeam')}</p>
         </div>
       </div>
-      <div className="ceopro-invitation-meta" aria-label={t('auth.invitation.detailsLabel')}>
-        <div className="ceopro-invitation-meta__item">
-          <UserRound size={19} aria-hidden="true" />
-          <span>{t('auth.invitation.invitedBy')}<strong>{invitation.inviterName}</strong></span>
+      <p>{invitation.email} · {invitation.role_name}</p>
+      <form onSubmit={(event) => {
+        event.preventDefault();
+        if (acceptMutation.isPending) return;
+        setRequestMessage(null);
+        acceptMutation.mutate({ token, ...(fullName.trim() ? { full_name: fullName.trim() } : {}), ...(password ? { password } : {}) });
+      }}>
+        <p>{t('auth.invitation.credentialsHelp')}</p>
+        <Input label={t('auth.common.fullName')} autoComplete="name" maxLength={150} value={fullName} onChange={(event) => setFullName(event.target.value)} disabled={acceptMutation.isPending} />
+        <PasswordInput label={t('auth.common.password')} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={acceptMutation.isPending} />
+        <div className="ceopro-invitation-actions">
+          <Button
+            variant="primary"
+            fullWidth
+            loading={acceptMutation.isPending}
+            loadingLabel={t('auth.loading.acceptingInvitation')}
+            disabled={invitationQuery.isLoading}
+            type="submit"
+          >
+            {t('auth.invitation.accept')}
+          </Button>
+          <Button variant="outline" fullWidth disabled={acceptMutation.isPending} onClick={goToLogin}>
+            {t('auth.invitation.anotherAccount')}
+          </Button>
         </div>
-        <div className="ceopro-invitation-meta__divider" aria-hidden="true" />
-        <div className="ceopro-invitation-meta__item">
-          <Clock3 size={19} aria-hidden="true" />
-          <span>{t('auth.invitation.expiresIn')}<strong>{t('auth.invitation.days', { count: invitation.expiresInDays })}</strong></span>
-        </div>
-      </div>
-      <div className="ceopro-invitation-actions">
-        <Button
-          variant="primary"
-          fullWidth
-          loading={acceptMutation.isPending}
-          loadingLabel={t('auth.loading.acceptingInvitation')}
-          disabled={invitationQuery.isLoading}
-          onClick={() => { setRequestMessage(null); acceptMutation.mutate({ token }); }}
-        >
-          {t('auth.invitation.accept')}
-        </Button>
-        <Button variant="outline" fullWidth disabled={acceptMutation.isPending} onClick={goToLogin}>
-          {t('auth.invitation.anotherAccount')}
-        </Button>
-      </div>
+      </form>
       <p className="ceopro-invitation-footer">
         {t('auth.invitation.wrongAccount')}{' '}
         <button type="button" className="ceopro-auth-link ceopro-auth-text-button" onClick={goToLogin}>

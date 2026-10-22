@@ -987,6 +987,7 @@
       "backToLogin": "Back to sign in"
     },
     "invitation": {
+      "credentialsHelp": "For a new account, enter your full name and a new password. Existing account holders can leave these fields blank; their password will not change.",
       "imageAlt": "Team invitation",
       "title": "You're invited!",
       "subtitle": "You've been invited to join",

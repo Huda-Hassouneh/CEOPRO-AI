@@ -4,6 +4,34 @@ import http from 'node:http';
 import { authHttpAdapter } from '../src/features/auth/api/authHttpAdapter.js';
 import httpClient from '../src/shared/lib/httpClient.js';
 
+test('password recovery and invitation adapters preserve the actual Python contracts', async (t) => {
+  const received = [];
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      received.push({ path: req.url, body: body ? JSON.parse(body) : null });
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(req.url.endsWith('/accept')
+        ? { access_token: 'test-token', tenant_id: 'tenant', user_id: 'member', role_key: 'staff' }
+        : req.method === 'GET' ? { email: 'member@example.test', business_name: 'Workspace', role_name: 'Staff' } : { ok: true }));
+    });
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const previous = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = previous; server.close(); });
+  await authHttpAdapter.resetPassword({ email: 'member@example.test', code: '123456', password: 'NewPassword1!', confirmPassword: 'NewPassword1!' });
+  assert.deepEqual(received[0].body, { email: 'member@example.test', code: '123456', new_password: 'NewPassword1!' });
+  const invitation = await authHttpAdapter.getInvitation('invite-token');
+  assert.equal(invitation.business_name, 'Workspace');
+  const accepted = await authHttpAdapter.acceptInvitation({ token: 'invite-token', full_name: 'Member', password: 'NewPassword1!' });
+  assert.equal(accepted.session.tenantId, 'tenant');
+  assert.deepEqual(accepted.session.roles, ['staff']);
+  assert.deepEqual(received[2].body, { full_name: 'Member', password: 'NewPassword1!' });
+  assert.equal(received[2].path, '/auth/invitations/invite-token/accept');
+});
+
 // SignupPage's local form state ({name, business, email, password,
 // confirmPassword, acceptedTerms, country, currency}) never matched the
 // backend's real SignupRequest ({email, password, full_name, business_name,
