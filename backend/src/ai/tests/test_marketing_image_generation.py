@@ -46,7 +46,8 @@ def _response(status=200, content=b"", content_type="image/png", json_body=None,
 def _clean_env(monkeypatch):
     for name in ("MARKETING_IMAGE_PROVIDER", "MARKETING_IMAGE_PROVIDERS", "MARKETING_IMAGE_KEYLESS", "HUGGINGFACE_API_TOKEN",
                  "HUGGINGFACE_API_TOKENS", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNTS",
-                 "TOGETHER_API_KEYS", "POLLINATIONS_API_KEYS", "HORDE_API_KEYS", "GEMINI_API_KEYS"):
+                 "TOGETHER_API_KEYS", "POLLINATIONS_API_KEYS", "HORDE_API_KEYS", "GEMINI_API_KEYS",
+                 "LOCAL_IMAGE_BASE_URL", "LOCAL_IMAGE_API", "LOCAL_IMAGE_MODEL", "LOCAL_IMAGE_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     cooling = set()
     monkeypatch.setattr(image_generation, "_cooling_down", lambda name: name in cooling)
@@ -366,3 +367,166 @@ def test_huggingface_falls_through_to_the_second_model(monkeypatch):
     with patch("src.ai.marketing.image_generation.httpx.post", side_effect=replies) as post:
         image = image_generation._generate_via_huggingface("x", credential="tok")
     assert image.content == PNG and post.call_count == 2
+
+
+# --- formats and the self-hosted server ----------------------------------
+
+def _rect(width, height, fmt="PNG"):
+    buffer = io.BytesIO()
+    Image.new("RGB", (width, height), (10, 20, 30)).save(buffer, format=fmt)
+    return buffer.getvalue()
+
+
+@pytest.mark.parametrize("image_format,expected", [
+    ("SQUARE", (1024, 1024)), ("PORTRAIT", (819, 1024)), ("STORY", (576, 1024)),
+    ("LANDSCAPE", (1024, 576)), ("WIDE", (1024, 536)),
+])
+def test_a_square_image_is_centre_cropped_to_each_format(image_format, expected):
+    image = image_generation.fit_to_format(GeneratedImage(content=PNG, content_type="image/png", provider="x"), image_format)
+    assert (image.width, image.height) == expected
+    with Image.open(io.BytesIO(image.content)) as picture:
+        assert picture.size == expected
+
+
+def test_an_image_already_in_the_right_shape_is_kept_untouched():
+    content = _rect(1344, 768, "JPEG")
+    image = image_generation.fit_to_format(GeneratedImage(content=content, content_type="image/jpeg", provider="x"), "LANDSCAPE")
+    assert image.content == content and (image.width, image.height) == (1344, 768)
+
+
+def test_an_unknown_format_is_refused_before_any_provider_call(monkeypatch):
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    with patch("src.ai.marketing.image_generation.httpx.post") as post, pytest.raises(ImageGenerationError):
+        generate_campaign_image("x", image_format="BANNER")
+    post.assert_not_called()
+
+
+def test_each_provider_asks_for_the_formats_size(monkeypatch):
+    sent = []
+
+    def capture(url, **kwargs):
+        sent.append((url, kwargs.get("json"), kwargs.get("params")))
+        return _response(content=_rect(1344, 768), content_type="image/png")
+
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=capture), \
+         patch("src.ai.marketing.image_generation.httpx.get", side_effect=capture):
+        image_generation._generate_via_huggingface("x", credential="tok", size=(1344, 768))
+        image_generation._generate_via_pollinations("x", credential="pk", size=(1344, 768))
+    assert sent[0][1]["parameters"] == {"width": 1344, "height": 768}
+    assert (sent[1][2]["width"], sent[1][2]["height"]) == (1344, 768)
+
+
+def test_gemini_asks_for_the_nearest_supported_aspect_ratio():
+    encoded = base64.b64encode(PNG).decode()
+    ok = _response(content_type="application/json",
+                   json_body={"candidates": [{"content": {"parts": [{"inlineData": {"data": encoded, "mimeType": "image/png"}}]}}]})
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=ok) as post:
+        image_generation._generate_via_gemini("x", credential="g1", size=(768, 1344))
+        image_generation._generate_via_gemini("x", credential="g1", size=(1344, 704))
+    ratios = [c.kwargs["json"]["generationConfig"]["imageConfig"]["aspectRatio"] for c in post.call_args_list]
+    assert ratios == ["9:16", "16:9"]
+
+
+def test_ai_horde_sizes_are_multiples_of_64_at_about_the_same_area():
+    for size in [(1024, 1024), (768, 1344), (1344, 704), (896, 1120)]:
+        width, height = image_generation._horde_size(size)
+        assert width % 64 == 0 and height % 64 == 0 and width * height <= 768 * 768
+        assert abs(width / height - size[0] / size[1]) < 0.2
+
+
+def test_local_server_is_first_in_the_default_chain_and_keeps_the_prompt_at_home(monkeypatch):
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:7860/")
+    assert provider_chain()[0] == "local#1"
+    assert get_image_generation_capability()["external"] is True  # Hugging Face can still be used
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "local")
+    capability = get_image_generation_capability()
+    assert capability["available"] is True and capability["external"] is False
+
+
+def test_local_openai_api_request_and_answer(monkeypatch):
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:7860/")
+    monkeypatch.setenv("LOCAL_IMAGE_MODEL", "sdxl-turbo")
+    encoded = base64.b64encode(PNG).decode()
+    with patch("src.ai.marketing.image_generation.httpx.post",
+               return_value=_response(content_type="application/json", json_body={"data": [{"b64_json": encoded}]})) as post:
+        image = image_generation._generate_via_local("a cake", size=(896, 1120))
+    assert post.call_args.args[0] == "http://127.0.0.1:7860/v1/images/generations"
+    assert post.call_args.kwargs["json"]["size"] == "896x1120" and post.call_args.kwargs["json"]["model"] == "sdxl-turbo"
+    assert post.call_args.kwargs["headers"] is None  # no key configured, none sent
+    assert image.content == PNG and image.provider == "local" and image.model == "sdxl-turbo"
+
+
+def test_local_a1111_answer_with_a_data_url_prefix(monkeypatch):
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://gpu-box:7860")
+    monkeypatch.setenv("LOCAL_IMAGE_API", "a1111")
+    monkeypatch.setenv("LOCAL_IMAGE_API_KEY", "lk")
+    encoded = "data:image/png;base64," + base64.b64encode(PNG).decode()
+    with patch("src.ai.marketing.image_generation.httpx.post",
+               return_value=_response(content_type="application/json", json_body={"images": [encoded]})) as post:
+        image = image_generation._generate_via_local("a cake", size=(768, 1344))
+    assert post.call_args.args[0] == "http://gpu-box:7860/sdapi/v1/txt2img"
+    assert post.call_args.kwargs["headers"] == {"Authorization": "Bearer lk"}
+    assert image.content == PNG
+
+
+@pytest.mark.parametrize("response,error", [
+    (_response(503, content=b"busy", content_type="text/plain"), image_generation.ProviderBusy),
+    (_response(200, content_type="application/json", json_body={"data": []}), ImageGenerationError),
+    (_response(500, content=b"oom", content_type="text/plain"), ImageGenerationError),
+])
+def test_local_server_failures_are_honest(monkeypatch, response, error):
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:7860")
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=response), pytest.raises(error):
+        image_generation._generate_via_local("x")
+
+
+def test_local_server_unreachable_or_misconfigured(monkeypatch):
+    with pytest.raises(ImageGenerationError) as missing:
+        image_generation._generate_via_local("x")
+    assert missing.value.status == "NOT_CONFIGURED"
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:7860")
+    monkeypatch.setenv("LOCAL_IMAGE_API", "comfy")
+    with pytest.raises(ImageGenerationError) as wrong:
+        image_generation._generate_via_local("x")
+    assert wrong.value.status == "NOT_CONFIGURED"
+    monkeypatch.setenv("LOCAL_IMAGE_API", "openai")
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=httpx.ConnectError("refused")), \
+         pytest.raises(ImageGenerationError) as down:
+        image_generation._generate_via_local("x")
+    assert down.value.status == "PROVIDER_ERROR"
+
+
+def test_local_server_down_falls_back_to_the_free_hosted_chain(monkeypatch):
+    monkeypatch.setattr(image_generation.random, "shuffle", lambda items: None)
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:7860")
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    monkeypatch.setenv("MARKETING_IMAGE_KEYLESS", "false")
+
+    def answer(url, **kwargs):
+        if url.startswith("http://127.0.0.1"):
+            raise httpx.ConnectError("refused")
+        return _response(content=PNG)
+
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=answer):
+        image = generate_campaign_image("x", image_format="PORTRAIT")
+    assert image.provider == "huggingface" and image.attempts == [{"provider": "local#1", "reason": "failed"}]
+    assert (image.width, image.height) == (819, 1024) and image.image_format == "PORTRAIT"
+
+
+def test_local_server_health_is_reported_without_addresses(monkeypatch):
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URLS", "http://gpu-a:7860, http://gpu-b:7860")
+    healthy = _response(content_type="application/json", json_body={"ok": True, "busy": False, "device": "cpu",
+                                                                     "average_seconds_per_image": 150.0})
+
+    def get(url, timeout):
+        if "gpu-b" in url:
+            raise httpx.ConnectError("down")
+        return healthy
+
+    with patch("src.ai.marketing.image_generation.httpx.get", side_effect=get):
+        report = image_generation.local_server_health()
+    assert report[0]["ok"] is True and report[0]["average_seconds_per_image"] == 150.0
+    assert report[1] == {"server": 2, "ok": False}
+    assert "gpu-a" not in str(report)
+    assert provider_chain()[:2] == ["local#1", "local#2"]

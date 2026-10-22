@@ -63,6 +63,18 @@ or simulated.
 - **Running it:** `./keel setup`, `./keel start`, `./keel seed`, `./keel test`
   locally or in a Codespace (`RUNNING_LOCALLY.md`).
 
+- **AI provider fallback and marketing image gallery (2026-10-22):** `LLM_PROVIDERS` lets the assistant and
+  campaign writing fall back to the next configured model (for example Groq, then a local llama-server);
+  Marketing images come in five formats (1:1, 4:5, 9:16, 16:9, 1.91:1), can come from a self-hosted image
+  server, and every image is kept in the campaign's gallery to attach, label, download or delete. See
+  `docs/AI_MODEL_MARKETING_IMPLEMENTATION.md`.
+
+- **Zero-cost marketing images (2026-10-22):** a self-hosted image server runs Stable Diffusion XL 1.0 base
+  (commercial-use licence, free from Docker Hub's model catalog) on a machine you own; a background queue makes
+  hundreds of images (5 formats x variations) with retries, crash recovery and fair turns between companies; the
+  Studio has "Make many images" with progress. Measured: ~24-27 images/hour per 4-core CPU server, 10.2 GB peak
+  memory. Campaign copy can come from Qwen3-4B (Apache-2.0) locally. See `docs/ZERO_COST_IMAGE_GENERATION.md`.
+
 ## Verification (latest run)
 
 | Check | Result |
