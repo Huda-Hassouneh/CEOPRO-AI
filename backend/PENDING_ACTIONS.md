@@ -306,6 +306,18 @@ Branch `claude/peaceful-planck-083t1y`; details and test evidence in `docs/AI_MO
 | 147 | **Decide whether to set `LLM_PROVIDERS`** on staging/production, and which providers it may list: each listed provider is another place questions and company passages are sent. | Product owner | 🟠 Open |
 | 148 | **Self-hosted image server (optional)**: if wanted, run AUTOMATIC1111/Forge (`--api`) or LocalAI on a GPU machine reachable from the API and set `LOCAL_IMAGE_BASE_URL` / `LOCAL_IMAGE_API`. Not possible on the 512 MB service. | Infra | ⚪ Optional |
 
+## Zero-cost image generation and the image queue (added 2026-10-22)
+
+Details: `docs/ZERO_COST_IMAGE_GENERATION.md`. Credential rotation: `docs/SECURITY_CREDENTIAL_ROTATION.md`.
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 149 | **Run the image server and worker on a machine you already own** (no rental): ~10 GB free RAM on a modern CPU (about 2-3 min per image) or any NVIDIA GPU with 8 GB+ (seconds per image). Fetch the model with `backend/scripts/fetch_image_model.sh`, then `docker compose --profile local-images up -d` (or the commands in the guide). The 512 MB Render service cannot run it. | Owner / infra | 🔴 Open |
+| 150 | **Make that machine reachable from the API without opening ports** (only if it is not on the same network): a free Cloudflare Tunnel or Tailscale account; set `LOCAL_IMAGE_BASE_URL(S)` and `KEEL_IMAGE_API_KEY`. | Owner / infra | 🔴 Open |
+| 151 | **Rotate every credential in `docs/SECURITY_CREDENTIAL_ROTATION.md`** (supersedes the list in #102: it adds `CREDENTIAL_VAULT_MASTER_KEY`, `MINIO_ROOT_PASSWORD`, `GRAFANA_ADMIN_PASSWORD`, `SCRAPER_DATABASE_URL`). | Repo admin + secret owners | 🔴 Open - do first |
+| 152 | **Decide whether self-hosted images use the plan's image count** (`MARKETING_SELF_HOSTED_IMAGES_USE_PLAN_ALLOWANCE`, default false: no per-image cost, so only storage limits apply). | Product owner | 🟠 Open |
+| 153 | **Staging run**: deploy the migration (`20261030000000`), start one worker, run `python -m scripts.real_image_check` against staging. Not done from the sandbox (no staging access). | Developer with staging access | 🟠 Open |
+
 ## How to update this file
 
 - **Numbers repeat across sections.** Rows were numbered per section at different times, so #1-#26, #51-#59 and #85 each appear more than once (for example #51-#58 in "Needs a decision" are competitor and pricing items, and #51-#58 in "Subscriptions & billing" are staging go-live items; #85 is both the test run log in "Marketing images" and the image rebuild in "Competitor menus and OCR"). Other documents and commit messages cite these numbers, so they are not renumbered: cite a row as *section name + number* ("Subscriptions #54"), and give new rows a number above the highest one in the file (currently 123).
