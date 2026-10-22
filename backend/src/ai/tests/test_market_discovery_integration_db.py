@@ -192,7 +192,7 @@ def test_auto_tracking_stays_within_the_plan_limit_and_one_run_at_a_time():
         conn.close()
 
 
-def test_stale_discovery_is_refreshed_on_schedule_and_fresh_is_left_alone():
+def test_stale_discovery_is_refreshed_on_schedule_and_fresh_is_left_alone(monkeypatch):
     from datetime import datetime, timedelta, timezone
 
     from src.market_scraper.market_discovery import refresh
@@ -215,6 +215,20 @@ def test_stale_discovery_is_refreshed_on_schedule_and_fresh_is_left_alone():
 
     source = FakeProvider("openstreetmap", [_place("Bean There", "node/5", industry="cafe"),
                                             _place("Daily Grind", "node/6", industry="cafe")])
+    # Keep this scheduled-worker test entirely on controlled fixtures. The
+    # discovery provider is already fake; also prevent the post-discovery
+    # enrichment/news pipeline from contacting external sources.
+    monkeypatch.setattr(pipeline.enrich, "enrich", lambda candidates: {
+        "checked": 0, "read": 0, "blocked": 0, "statuses": {},
+    })
+    monkeypatch.setattr(pipeline, "_collect_site_intel", lambda *args, **kwargs: {
+        "checked": 0, "read": 0, "pages": 0, "pages_tried": 0, "facts": 0,
+        "products": 0, "prices": 0, "promotions": 0, "statuses": {}, "competitor_ids": [],
+    })
+    monkeypatch.setattr(pipeline, "_collect_news", lambda *args, **kwargs: {
+        "articles": [], "requests": 0, "answered": 0, "status": "skipped",
+        "reason": "fixture", "added": 0,
+    })
     # Other test companies in this database are due too; refresh only this one.
     real_due = refresh.due
     refresh.due = lambda conn, now=None: [row for row in real_due(conn, now=now, limit=1000) if row[0] == tenant]

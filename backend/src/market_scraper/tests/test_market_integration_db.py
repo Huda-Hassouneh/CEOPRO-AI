@@ -171,6 +171,28 @@ def test_safe_stage_promotes_and_quarantine_does_not_create_price(seeded):
     connection.close()
 
 
+def test_market_observation_product_image_url_round_trips_with_tenant_provenance(seeded):
+    """Image metadata on a collected competitor product remains attached to
+    its real observation and is hidden by the restricted role from another
+    tenant. This is the persisted market-observation image contract; it does
+    not imply a separate competitor-logo gallery in the React profile UI."""
+    first, second = seeded
+    connection, cursor = scoped_app_connection(first)
+    image_url = "https://images.example.test/catalogue/competitor-widget.jpg"
+    observation = market_item(first, image_url=image_url)
+    observation["_staging_id"] = stage_record(connection, observation)
+    promoted = save_market_record(connection, observation)
+    assert promoted["status"] == "PROMOTED"
+    cursor.execute("SELECT image_url FROM market_observations WHERE observation_id = %s;", (promoted["observation_id"],))
+    assert cursor.fetchone() == (image_url,)
+    connection.close()
+
+    other_connection, other_cursor = scoped_app_connection(second)
+    other_cursor.execute("SELECT image_url FROM market_observations WHERE observation_id = %s;", (promoted["observation_id"],))
+    assert other_cursor.fetchone() is None
+    other_connection.close()
+
+
 def test_review_only_record_promotes_without_a_price_row(seeded):
     """Google Places has no price to report; promotion must still land the
     observation and its reviews without ever touching competitor_prices."""
