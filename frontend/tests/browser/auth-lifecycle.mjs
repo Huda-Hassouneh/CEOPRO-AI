@@ -1,0 +1,163 @@
+// Real React -> FastAPI -> PostgreSQL/Redis/SMTP. No intercepted API responses.
+import assert from 'node:assert/strict';
+import { chromium } from 'playwright-core';
+import { randomUUID } from 'node:crypto';
+
+const base = process.env.PHASE1A_BROWSER_BASE_URL;
+if (process.env.PHASE1A_ISOLATED_BROWSER !== 'YES' || base !== 'http://127.0.0.1:15173') throw new Error('Disposable auth harness required');
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, headless: true });
+const page = await browser.newPage();
+page.setDefaultTimeout(15000);
+const email = `auth-browser-${randomUUID()}@example.test`;
+const password = `Auth-${randomUUID()}!aA9`;
+let passed = 0;
+const pass = (name) => { passed++; console.log(`PASS ${name}`); };
+const mail = async (address) => {
+  const response = await fetch(`http://127.0.0.1:18002/?email=${encodeURIComponent(address)}`, { headers: { 'X-Test-Key': process.env.AUTH_TEST_MAILBOX_KEY } });
+  assert.equal(response.status, 200);
+  return response.json();
+};
+const session = () => page.evaluate(() => JSON.parse(localStorage.getItem('ceopro_auth_session')));
+const api = (path, body, token, method = 'POST') => page.request.fetch(`${base}/api${path}`, {
+  method, ...(body ? { data: body } : {}), headers: token ? { Authorization: `Bearer ${token}` } : {},
+});
+const fillCode = async (code) => {
+  assert.match(code, /^\d{6}$/);
+  for (let i = 0; i < 6; i++) await page.locator('input[inputmode="numeric"]').nth(i).fill(code[i]);
+  await page.locator('button[type="submit"]').click();
+};
+const login = async (secret) => {
+  if (new URL(page.url()).pathname !== '/login') await page.goto(`${base}/login`);
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(secret);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL('**/dashboard');
+};
+try {
+  await page.goto(`${base}/signup`);
+  await page.locator('input[autocomplete="name"]').fill('Browser Owner');
+  await page.locator('input[autocomplete="organization"]').fill('Browser Auth Workspace');
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('select').nth(0).selectOption('JO');
+  await page.locator('select').nth(1).selectOption('JOD');
+  await page.locator('input[type="password"]').nth(0).fill(password);
+  await page.locator('input[type="password"]').nth(1).fill(password);
+  await page.locator('input[type="checkbox"]').check();
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL('**/verify-email');
+  const pending = await mail(email);
+  assert.equal(pending.users, 0);
+  pass('React signup persists pending registration without canonical user');
+  await fillCode(pending.message.match(/code is: (\d{6})/)[1]);
+  await page.waitForURL('**/dashboard');
+  assert.equal((await mail(email)).users, 1);
+  const original = await session();
+  assert.ok(original.accessToken && original.tenantId);
+  pass('SMTP verification provisions exactly one user and enters workspace');
+  await page.reload();
+  await page.waitForURL('**/dashboard');
+  assert.equal((await api('/auth/workspaces', null, original.accessToken, 'GET')).status(), 200);
+  pass('session restoration and authenticated workspace lookup');
+  assert.equal((await api('/platform/me', null, original.accessToken, 'GET')).status(), 403);
+  assert.equal((await api('/auth/workspaces/switch', { tenant_id: randomUUID() }, original.accessToken)).status(), 403);
+  pass('ordinary owner denied platform and guessed tenant access');
+  assert.equal((await api('/auth/refresh', null, original.accessToken)).status(), 200);
+  pass('real token renewal');
+  // Log out through the same production action used by the navigation menu.
+  await page.evaluate(async () => {
+    const { signOut } = await import('/src/shared/components/layout/signOut.js');
+    const { useAuthStore } = await import('/src/features/auth/store/authStore.js');
+    await signOut(useAuthStore.getState().clearSession, (path) => { location.href = path; });
+  });
+  await page.waitForURL('**/login');
+  await page.locator('input[type="email"]').waitFor();
+  assert.equal((await api('/auth/workspaces', null, original.accessToken, 'GET')).status(), 401);
+  pass('frontend logout durably revokes old session');
+  await login(password);
+  const beforeReset = await session();
+  await page.goto(`${base}/forgot-password`);
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL('**/verify-code');
+  const resetCode = (await mail(email)).message.match(/code is: (\d{6})/)[1];
+  await fillCode(resetCode);
+  await page.waitForURL('**/reset-password');
+  const newPassword = `Reset-${randomUUID()}!aA9`;
+  await page.locator('input[type="password"]').nth(0).fill(newPassword);
+  await page.locator('input[type="password"]').nth(1).fill(newPassword);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL('**/login');
+  assert.equal((await api('/auth/workspaces', null, beforeReset.accessToken, 'GET')).status(), 401);
+  assert.equal((await api('/auth/password/reset', { email, code: resetCode, new_password: password })).status(), 400);
+  pass('SMTP password recovery changes password, invalidates session and rejects reuse');
+  await login(newPassword);
+  pass('login with recovered password');
+  const owner = await session();
+  const invitee = `auth-browser-${randomUUID()}@example.test`;
+  await page.goto(`${base}/settings/team`);
+  await page.getByRole('button', { name: /Invite member/i }).first().click();
+  const dialog = page.getByRole('dialog');
+  await dialog.locator('input[type="email"]').fill(invitee);
+  await dialog.getByRole('button', { name: /Send invitation/i }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  const invitation = (await mail(invitee)).message.match(/http:\/\/127\.0\.0\.1:15173\/invitation\/[^\s]+/)[0];
+  pass('owner sends real invitation through team settings and SMTP');
+  await page.goto(invitation);
+  await page.locator('input[autocomplete="name"]').fill('Browser Member');
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole('button', { name: 'Accept Invitation', exact: true }).click();
+  await page.waitForURL('**/dashboard');
+  const member = await session();
+  assert.equal(member.tenantId, owner.tenantId);
+  assert.deepEqual(member.roles, ['staff']);
+  assert.equal((await mail(invitee)).users, 1);
+  pass('emailed path token creates new invitee and establishes tenant session');
+  assert.equal((await api('/settings/team/invitations', { email, role_key: 'admin' }, member.accessToken)).status(), 403);
+  assert.equal((await api(`/auth/invitations/${invitation.split('/').at(-1)}/accept`, {}, null)).status(), 404);
+  pass('member cannot invite and consumed invitation cannot be reused');
+  const membershipResponse = await api('/settings/team/members', null, owner.accessToken, 'GET');
+  const membership = (await membershipResponse.json()).members.find((row) => row.user_id === member.user.id);
+  assert.ok(membership?.tenant_user_id);
+  assert.equal((await api(`/settings/team/members/${membership.tenant_user_id}`, null, owner.accessToken, 'DELETE')).status(), 200);
+  assert.equal((await api('/auth/workspaces', null, member.accessToken, 'GET')).status(), 403);
+  pass('removed membership rejects stale access token');
+  for (const locale of ['en', 'ar']) {
+    await api('/auth/logout', {}, member.accessToken);
+    await page.goto(`${base}/login`);
+    await page.evaluate(() => { localStorage.removeItem('ceopro_auth_session'); localStorage.removeItem('ceopro_session'); localStorage.removeItem('ceopro_token'); });
+    await page.evaluate((value) => localStorage.setItem('ceopro_locale', value), locale);
+    await page.reload();
+    await page.goto(`${base}/signup`);
+    assert.equal(await page.locator('html').getAttribute('dir'), locale === 'ar' ? 'rtl' : 'ltr');
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.locator('input[type="email"]').isVisible());
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    pass(`${locale} responsive signup form and document direction`);
+  }
+  await page.goto(`${base}/login`);
+  await page.evaluate(() => localStorage.setItem('ceopro_locale', 'en'));
+  await page.reload();
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(newPassword);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL('**/dashboard');
+  const beforeChange = await session();
+  await page.goto(`${base}/settings?tab=security`);
+  await page.locator('input[autocomplete="current-password"]').fill(newPassword);
+  const changedPassword = `Changed-${randomUUID()}!aA9`;
+  await page.locator('input[autocomplete="new-password"]').nth(0).fill(changedPassword);
+  await page.locator('input[autocomplete="new-password"]').nth(1).fill(changedPassword);
+  await page.getByRole('button', { name: /Change password/i }).click();
+  await page.waitForURL('**/login');
+  assert.equal((await api('/auth/workspaces', null, beforeChange.accessToken, 'GET')).status(), 401);
+  await login(changedPassword);
+  pass('authenticated password change rotates credential version and rejects prior session');
+  console.log(`AUTH BROWSER: ${passed} passed, 0 failed, 0 skipped (listed journeys only)`);
+} catch (error) {
+  console.error(`AUTH BROWSER: ${passed} passed before failure; ${error.message}`);
+  console.error(`Page path: ${new URL(page.url()).pathname}`);
+  console.error((await page.locator('[role="alert"]').allTextContents().catch(() => [])).join('\n'));
+  process.exitCode = 1;
+} finally {
+  await browser.close();
+}

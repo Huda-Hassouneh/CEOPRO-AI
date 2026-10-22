@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuthStore } from '../store/authStore.js';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Button from '../../../shared/components/ui/Button.jsx';
 import PasswordInput from '../../../shared/components/ui/PasswordInput.jsx';
@@ -32,7 +33,10 @@ export function ResetPasswordPage() {
     t('auth.resetPassword.strengthStrong'),
   ];
   const mutation = useResetPasswordMutation({
-    onSuccess: () => navigate(routePaths.login, { replace: true, state: { authNotice: 'password-reset' } }),
+    onSuccess: () => {
+      useAuthStore.getState().clearSession();
+      navigate(routePaths.login, { replace: true, state: { authNotice: 'password-reset' } });
+    },
     onError: (requestFailure) => setRequestError(getAuthErrorTranslationKey(requestFailure)),
   });
 
