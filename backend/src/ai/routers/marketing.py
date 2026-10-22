@@ -1100,4 +1100,5 @@ def image_capacity_endpoint(ctx: TenantContext = Depends(get_tenant_context)) ->
     finally:
         conn.close()
     return {**result, "self_hosted_only": image_generation.only_self_hosted(),
-            "uses_plan_allowance": image_service.uses_plan_allowance()}
+            "uses_plan_allowance": image_service.uses_plan_allowance(),
+            "servers": image_generation.local_server_health()}

@@ -512,3 +512,21 @@ def test_local_server_down_falls_back_to_the_free_hosted_chain(monkeypatch):
         image = generate_campaign_image("x", image_format="PORTRAIT")
     assert image.provider == "huggingface" and image.attempts == [{"provider": "local#1", "reason": "failed"}]
     assert (image.width, image.height) == (819, 1024) and image.image_format == "PORTRAIT"
+
+
+def test_local_server_health_is_reported_without_addresses(monkeypatch):
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URLS", "http://gpu-a:7860, http://gpu-b:7860")
+    healthy = _response(content_type="application/json", json_body={"ok": True, "busy": False, "device": "cpu",
+                                                                     "average_seconds_per_image": 150.0})
+
+    def get(url, timeout):
+        if "gpu-b" in url:
+            raise httpx.ConnectError("down")
+        return healthy
+
+    with patch("src.ai.marketing.image_generation.httpx.get", side_effect=get):
+        report = image_generation.local_server_health()
+    assert report[0]["ok"] is True and report[0]["average_seconds_per_image"] == 150.0
+    assert report[1] == {"server": 2, "ok": False}
+    assert "gpu-a" not in str(report)
+    assert provider_chain()[:2] == ["local#1", "local#2"]
