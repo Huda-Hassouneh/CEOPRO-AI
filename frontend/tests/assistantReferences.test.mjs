@@ -79,3 +79,10 @@ test('a long answer carries its short summary, and a short one has none', () => 
   assert.equal(mapAnswer(response).summary, null);
   assert.equal(mapAnswer({ ...response, answer_summary: { claims: [] } }).summary, null);
 });
+
+test('a summary quoted in another language than the question carries a note', () => {
+  const claims = [{ text: 'Every employee receives 21 days.', kind: 'fact', refs: [1], verified: true, notes: [] }];
+  assert.equal(mapAnswer({ ...response, answer_summary: { claims, note: 'source_language' } }).summary.note, 'sourceLanguage');
+  assert.equal(mapAnswer({ ...response, answer_summary: { claims } }).summary.note, null);
+  assert.equal(mapAnswer({ ...response, answer_summary: { claims, note: 'something_else' } }).summary.note, null);
+});

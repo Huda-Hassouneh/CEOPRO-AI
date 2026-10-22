@@ -4,6 +4,7 @@ import { ExternalLink } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { Panel, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
 import { discoveryApi } from '../api/discoveryApi.js';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const RELATIONSHIPS = ['DIRECT', 'INDIRECT', 'RELATED', 'UNVERIFIED'];
 const BANDS = ['under_1km', '1_3km', '3_5km', '5_10km', 'over_10km'];
@@ -76,7 +77,7 @@ export function MarketStructure() {
                     <td>{p.currency} {number.format(p.median)} <span className="apex-muted">({t('structure.competitors', { count: p.count })})</span></td>
                     <td>
                       {p.prices.slice(0, 3).map((x) => (
-                        <a key={`${x.competitor}-${x.price}`} className="apex-pill apex-pill--neutral" href={x.source_url} target="_blank" rel="noreferrer noopener" dir="auto">
+                        <a key={`${x.competitor}-${x.price}`} className="apex-pill apex-pill--neutral" href={safeHref(x.source_url)} target="_blank" rel="noreferrer noopener" dir="auto">
                           {x.competitor} · {number.format(x.price)}<ExternalLink size={10} aria-hidden="true" />
                         </a>
                       ))}

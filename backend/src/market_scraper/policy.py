@@ -51,7 +51,9 @@ def is_public_http_url(url: str) -> bool:
         address = ipaddress.ip_address(hostname)
     except ValueError:
         return True
-    return address.is_global
+    from src.market_scraper.network_security import is_public_address
+
+    return is_public_address(address)
 
 
 def evaluate_source(capabilities: SourceCapabilities) -> PolicyDecision:
