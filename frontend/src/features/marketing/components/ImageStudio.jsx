@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Check, Download, ImageIcon, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Download, ImageIcon, Layers, RefreshCw, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { ApexButton, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
 import { useCampaignImage } from '../hooks/useCampaignImage.js';
 import { useGenerateCampaignImage } from '../hooks/useGenerateCampaignImage.js';
 import { useAssetImage, useCampaignAssets, useDeleteAsset, useUpdateAsset } from '../hooks/useCampaignAssets.js';
+import { useCancelImageJobs, useImageCapacity, useImageJobs, useQueueImageBatch, useRetryImageJobs } from '../hooks/useImageJobs.js';
 import { MarketingErrorMessage } from './MarketingErrorMessage.jsx';
 
 // Used until GET /marketing/options answers (the server's list wins).
@@ -85,6 +86,69 @@ function GalleryItem({ campaign, asset, selected, onSelect, channels, t }) {
   );
 }
 
+// Many images at once (formats x variations), made by the background image
+// worker: progress, an estimate from the measured speed, cancel and retry.
+function BatchPanel({ campaign, formatList, channel, prompt, capacity, jobs, t }) {
+  const id = campaign.campaign_id;
+  const [formats, setFormats] = useState(['SQUARE']);
+  const [variations, setVariations] = useState(4);
+  const queue = useQueueImageBatch();
+  const cancel = useCancelImageJobs();
+  const retry = useRetryImageJobs();
+  const counts = jobs.data?.counts;
+  const max = capacity?.batch_max || 200;
+  const perFormat = Math.max(1, Math.floor(max / Math.max(1, formats.length)));
+  const total = formats.length * Math.min(variations || 0, perFormat);
+  const perImage = capacity?.average_seconds_per_image;
+  const servers = Math.max(1, capacity?.image_servers || 1);
+  const minutes = perImage ? Math.max(1, Math.round((total * perImage) / servers / 60)) : null;
+  const finished = counts ? counts.COMPLETED + counts.FAILED + counts.CANCELLED : 0;
+  const active = counts ? counts.QUEUED + counts.RUNNING : 0;
+  const toggle = (key) => setFormats((all) => (all.includes(key) ? all.filter((k) => k !== key) : [...all, key]));
+
+  return (
+    <fieldset className="studio-image__options studio-batch">
+      <legend><Layers size={14} aria-hidden="true" /> {t('studio.batch.title')}</legend>
+      <p className="apex-muted studio-note">{t('studio.batch.hint')}</p>
+      <div className="studio-batch__formats" role="group" aria-label={t('studio.gallery.formatLabel')}>
+        {formatList.map((f) => (
+          <label key={f.key} className="studio-check">
+            <input type="checkbox" checked={formats.includes(f.key)} onChange={() => toggle(f.key)} />{t(`studio.gallery.formats.${f.key}`)}
+          </label>
+        ))}
+      </div>
+      <label className="apex-field"><span>{t('studio.batch.variations')}</span>
+        <input className="apex-input" type="number" min={1} max={perFormat} value={variations}
+          onChange={(e) => setVariations(Math.max(1, Math.min(perFormat, Number(e.target.value) || 1)))} />
+      </label>
+      <p className="studio-batch__summary" role="status">
+        {t('studio.batch.summary', { count: total })}
+        {minutes ? ` · ${t('studio.batch.estimate', { minutes })}` : ''}
+      </p>
+      <ApexButton size="sm" icon={Layers} disabled={!formats.length || !total} loading={queue.isPending}
+        onClick={() => queue.mutate({ campaignId: id, formats, variations: Math.min(variations, perFormat), prompt, channel: channel || undefined })}>
+        {t('studio.batch.queue', { count: total })}
+      </ApexButton>
+      {queue.isError && (queue.error?.response?.status === 429
+        ? <p className="marketing-inline-error" role="alert">{t('studio.batch.limit', { limit: queue.error.response.data?.detail?.limit ?? max })}</p>
+        : <MarketingErrorMessage error={queue.error} action="image" t={t} />)}
+      {counts && counts.QUEUED + counts.RUNNING + counts.COMPLETED + counts.FAILED > 0 && (
+        <div className="studio-batch__progress">
+          <progress max={Math.max(1, finished + active)} value={finished} aria-label={t('studio.batch.progressLabel')} />
+          <p>{t('studio.batch.progress', { done: counts.COMPLETED, running: counts.RUNNING, waiting: counts.QUEUED, failed: counts.FAILED })}</p>
+          <span className="studio-gallery__actions">
+            {counts.QUEUED > 0 && <ApexButton size="sm" variant="ghost" icon={XCircle} loading={cancel.isPending} onClick={() => cancel.mutate(id)}>{t('studio.batch.cancel')}</ApexButton>}
+            {counts.FAILED > 0 && <ApexButton size="sm" variant="secondary" icon={RefreshCw} loading={retry.isPending} onClick={() => retry.mutate(id)}>{t('studio.batch.retry')}</ApexButton>}
+          </span>
+          {counts.FAILED > 0 && jobs.data.jobs.find((j) => j.status === 'FAILED')?.error && (
+            <p className="apex-muted studio-note">{t('studio.batch.lastError')}: {jobs.data.jobs.find((j) => j.status === 'FAILED').error}</p>
+          )}
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
 // The campaign's images: the one its post uses (or the one picked to look
 // at), the options for a new one (format, where it will be used, the
 // description the image model gets), and every image made so far.
@@ -115,15 +179,24 @@ export function ImageStudio({ campaign, capability, formats, channels, t }) {
   const result = generate.data;
   const status = result?.image_generation_status || campaign.image_generation_status;
   const aiAvailable = Boolean(capability?.available);
+  // A live background worker: new images go through its queue, so the page never waits minutes.
+  const capacity = useImageCapacity();
+  const queued = Boolean(capacity.data?.available);
+  const jobs = useImageJobs(id);
+  const queueOne = useQueueImageBatch();
+  const counts = jobs.data?.counts;
+  const making = counts ? counts.QUEUED + counts.RUNNING : 0;
 
-  const create = () => generate.mutate(
-    { campaignId: id, imageFormat: format, prompt, channel: channel || undefined, attach },
-    { onSuccess: (data) => { if (data?.asset?.asset_id) setSelectedId(data.asset.asset_id); } },
-  );
+  const create = () => (queued
+    ? queueOne.mutate({ campaignId: id, formats: [format], variations: 1, prompt, channel: channel || undefined, attachFirst: attach || !list.length })
+    : generate.mutate(
+      { campaignId: id, imageFormat: format, prompt, channel: channel || undefined, attach },
+      { onSuccess: (data) => { if (data?.asset?.asset_id) setSelectedId(data.asset.asset_id); } },
+    ));
 
   return (
     <div className="studio-image">
-      {generate.isPending ? (
+      {generate.isPending || (making > 0 && !shown) ? (
         <div className="studio-image__frame is-empty" role="status" aria-live="polite" style={{ aspectRatio: aspect(formatList.find((f) => f.key === format)) }}>
           <span className="apex-spinner" aria-hidden="true" /><p>{t('studio.creatingImage')}</p>
         </div>
@@ -184,11 +257,17 @@ export function ImageStudio({ campaign, capability, formats, channels, t }) {
         {list.length > 0 && (
           <label className="studio-check"><input type="checkbox" checked={attach} onChange={(e) => setAttach(e.target.checked)} />{t('studio.gallery.attachNew')}</label>
         )}
-        <ApexButton size="sm" icon={RefreshCw} loading={generate.isPending} onClick={create}>
+        <ApexButton size="sm" icon={RefreshCw} loading={generate.isPending || queueOne.isPending} onClick={create}>
           {aiAvailable ? t('studio.gallery.create') : t('studio.gallery.createDesigned')}
         </ApexButton>
+        {queued && making > 0 && <p className="apex-muted studio-note" role="status">{t('studio.batch.making', { count: making })}</p>}
+        {queueOne.isError && <MarketingErrorMessage error={queueOne.error} action="image" t={t} />}
         {capability?.external && <p className="apex-muted studio-note">{t('studio.imagePrivacy')}</p>}
       </fieldset>
+
+      {queued && aiAvailable && (
+        <BatchPanel campaign={campaign} formatList={formatList} channel={channel} prompt={prompt} capacity={capacity.data} jobs={jobs} t={t} />
+      )}
 
       <section className="studio-gallery" aria-label={t('studio.gallery.title')}>
         <h3>{t('studio.gallery.title')}{list.length > 0 && <small className="apex-muted"> · {t('studio.gallery.count', { count: list.length })}</small>}</h3>

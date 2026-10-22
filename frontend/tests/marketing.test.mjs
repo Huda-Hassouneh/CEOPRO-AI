@@ -215,3 +215,36 @@ test('image gallery api calls send the backend request shapes', async (t) => {
   await marketingApi.createCampaign({ text: 'Cake', imageFormat: 'PORTRAIT' });
   assert.equal(seen.at(-1).body.image_format, undefined); // no image asked for: no format sent
 });
+
+test('image batch api calls send the backend request shapes', async (t) => {
+  const seen = [];
+  const server = http.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      const raw = Buffer.concat(chunks).toString('utf8');
+      seen.push({ method: req.method, url: req.url, body: raw ? JSON.parse(raw) : null });
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ ok: true, counts: { QUEUED: 1, RUNNING: 0, COMPLETED: 0, FAILED: 0, CANCELLED: 0 }, jobs: [] }));
+    });
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => server.close());
+  const previous = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = previous; });
+
+  await marketingApi.queueImageBatch('c1', { formats: ['SQUARE', 'STORY'], variations: 3, prompt: ' cake ', channel: 'TIKTOK', attachFirst: true });
+  await marketingApi.queueImageBatch('c1', { formats: ['WIDE'] });
+  await marketingApi.listImageJobs('c1');
+  await marketingApi.cancelImageJobs('c1');
+  await marketingApi.retryImageJobs('c1');
+  await marketingApi.getImageCapacity();
+  assert.deepEqual(seen[0], { method: 'POST', url: '/marketing/campaigns/c1/image-batches',
+    body: { formats: ['SQUARE', 'STORY'], variations: 3, prompt: 'cake', channel: 'TIKTOK', attach_first: true } });
+  assert.deepEqual(seen[1].body, { formats: ['WIDE'], variations: 1 });
+  assert.deepEqual(seen.slice(2).map((r) => `${r.method} ${r.url}`), [
+    'GET /marketing/campaigns/c1/image-jobs?limit=50', 'POST /marketing/campaigns/c1/image-jobs/cancel',
+    'POST /marketing/campaigns/c1/image-jobs/retry', 'GET /marketing/image-capacity',
+  ]);
+});

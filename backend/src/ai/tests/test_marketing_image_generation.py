@@ -437,7 +437,7 @@ def test_ai_horde_sizes_are_multiples_of_64_at_about_the_same_area():
 def test_local_server_is_first_in_the_default_chain_and_keeps_the_prompt_at_home(monkeypatch):
     monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
     monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:7860/")
-    assert provider_chain()[0] == "local"
+    assert provider_chain()[0] == "local#1"
     assert get_image_generation_capability()["external"] is True  # Hugging Face can still be used
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "local")
     capability = get_image_generation_capability()
@@ -510,5 +510,5 @@ def test_local_server_down_falls_back_to_the_free_hosted_chain(monkeypatch):
 
     with patch("src.ai.marketing.image_generation.httpx.post", side_effect=answer):
         image = generate_campaign_image("x", image_format="PORTRAIT")
-    assert image.provider == "huggingface" and image.attempts == [{"provider": "local", "reason": "failed"}]
+    assert image.provider == "huggingface" and image.attempts == [{"provider": "local#1", "reason": "failed"}]
     assert (image.width, image.height) == (819, 1024) and image.image_format == "PORTRAIT"

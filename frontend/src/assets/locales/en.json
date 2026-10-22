@@ -3462,6 +3462,21 @@
       "deleteNamed": "Delete the {{format}} image",
       "confirmDelete": "Delete image"
     },
+    "batch": {
+      "title": "Make many images",
+      "hint": "Pick formats and how many variations of each. They are made in the background; you can leave this page and come back.",
+      "variations": "Variations per format",
+      "summary": "{{count}} images",
+      "estimate": "about {{minutes}} min at the current speed",
+      "queue": "Make {{count}} images",
+      "limit": "That's more than can be queued at once (limit {{limit}}). Make a smaller batch, or wait for the current one.",
+      "progressLabel": "Image batch progress",
+      "progress": "{{done}} made · {{running}} being made · {{waiting}} waiting · {{failed}} failed",
+      "cancel": "Cancel waiting images",
+      "retry": "Retry failed images",
+      "lastError": "Last problem",
+      "making": "{{count}} image(s) being made - they appear below when ready."
+    },
     "step2HintNoImage": "One click writes the caption and makes a designed image (AI images are turned off on this server).",
     "summary": "{{what}} · {{goal}} · {{language}}",
     "yourDescription": "your description",

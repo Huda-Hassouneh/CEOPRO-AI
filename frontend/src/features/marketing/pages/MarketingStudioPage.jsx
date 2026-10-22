@@ -22,6 +22,7 @@ import { useMarketingOptions } from '../hooks/useMarketingOptions.js';
 import { useCreateCampaign } from '../hooks/useCreateCampaign.js';
 import { useCampaigns } from '../hooks/useCampaigns.js';
 import { useDeleteCampaign } from '../hooks/useCampaignActions.js';
+import { useImageCapacity } from '../hooks/useImageJobs.js';
 import '../styles/Marketing.css';
 
 const STEPS = ['what', 'create', 'review'];
@@ -100,6 +101,9 @@ export default function MarketingStudioPage() {
   const [params, setParams] = useSearchParams();
   const options = useMarketingOptions();
   const createCampaign = useCreateCampaign();
+  // With a live image worker the first image is queued, not made inside the create request.
+  const imageQueue = useImageCapacity();
+  const queueImages = Boolean(imageQueue.data?.available);
   const runLocked = useSubmitLock();
   const queryClient = useQueryClient();
 
@@ -181,10 +185,15 @@ export default function MarketingStudioPage() {
         variantsPerPlatform: 1,
         platforms: ONE_POST,
         requestKey: requestKey.current,
-        generateImage: true,
+        generateImage: !queueImages,
         imageFormat,
         language,
       });
+      if (queueImages) {
+        try {
+          await marketingApi.queueImageBatch(campaign.campaign_id, { formats: [imageFormat], variations: 1, attachFirst: true });
+        } catch { /* the campaign is saved; images can be made from the campaign */ }
+      }
       if (photo) {
         try {
           await marketingApi.uploadCampaignImage({ campaignId: campaign.campaign_id, file: photo });
@@ -211,8 +220,11 @@ export default function MarketingStudioPage() {
           text: !draft.product_id && !draft.source_url ? draft.source_text : undefined,
           strategyType: draft.strategy_type, focus: draft.focus || undefined, creativeTheme: draft.creative_theme || undefined,
           customCreativePrompt: draft.custom_creative_prompt || undefined, variantsPerPlatform: 1, platforms: ONE_POST,
-          requestKey: newRequestKey(), generateImage: true, imageFormat, language,
+          requestKey: newRequestKey(), generateImage: !queueImages, imageFormat, language,
         });
+        if (queueImages) {
+          await marketingApi.queueImageBatch(campaign.campaign_id, { formats: [imageFormat], variations: 1, attachFirst: true }).catch(() => {});
+        }
         queryClient.setQueryData(['marketing-campaign', campaign.campaign_id], campaign);
         open(campaign.campaign_id);
         return campaign;
