@@ -195,6 +195,12 @@ def test_new_token_carries_additive_credential_version():
     assert claims['cv']==7
 
 
+def test_static_onboarding_choices_are_available_without_market_entitlement(api):
+    response=api.get('/onboarding/industries')
+    assert response.status_code==200
+    assert response.json()['industries']
+
+
 def test_password_change_invalidates_old_token_without_revoking_account(monkeypatch):
     conn=MagicMock();conn.cursor.return_value.__enter__.return_value.fetchone.return_value=(True,1)
     monkeypatch.setattr(auth.db,'auth_lookup_connection',lambda:conn)

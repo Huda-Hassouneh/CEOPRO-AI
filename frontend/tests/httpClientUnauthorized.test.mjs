@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import httpClient, { configureHttpClientAuth } from '../src/shared/lib/httpClient.js';
+import httpClient, { configureHttpClientAuth, unauthorizedBelongsToCurrentSession } from '../src/shared/lib/httpClient.js';
 
 // Regression test for the "dashboard (and every other protected page)
 // shows a generic 'unavailable' error forever after a token expires"
@@ -43,4 +43,10 @@ test('httpClient invokes onUnauthorized on a real 401 and never on other statuse
 
   await assert.rejects(() => httpClient.get('/needs-auth'));
   assert.equal(unauthorizedCalls, 2, 'every distinct 401 should still clear the session, not just the first one');
+});
+
+test('a delayed 401 from a revoked workspace cannot expire the newly selected session', () => {
+  assert.equal(unauthorizedBelongsToCurrentSession('Bearer old-workspace-token', 'new-workspace-token'), false);
+  assert.equal(unauthorizedBelongsToCurrentSession('Bearer new-workspace-token', 'new-workspace-token'), true);
+  assert.equal(unauthorizedBelongsToCurrentSession(null, 'new-workspace-token'), false);
 });

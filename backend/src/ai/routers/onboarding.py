@@ -20,6 +20,19 @@ from src.market_scraper import provider_business_staging
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
 
+@router.get("/industries")
+def onboarding_industries() -> dict:
+    """Static profile choices needed to finish setup on every plan.
+
+    Discovery endpoints are plan-gated as a whole, but reading the shared
+    industry catalog is not a discovery operation and must remain available
+    to an owner completing a workspace that has no paid market entitlement.
+    """
+    from src.market_scraper.market_discovery import industries
+
+    return {"industries": industries.choices()}
+
+
 def _require_vault(credentials) -> None:
     """Connection secrets are only ever stored encrypted; without a
     configured key the connection is refused rather than stored in clear."""

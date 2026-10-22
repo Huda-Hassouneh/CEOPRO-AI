@@ -3,11 +3,11 @@ import { useAuthStore, getAuthAccessToken } from '../../features/auth/store/auth
 import { authSessionStorage } from '../../features/auth/store/authSessionStorage.js';
 import { authHttpAdapter } from '../../features/auth/api/authHttpAdapter.js';
 import { startSessionKeeper } from '../../features/auth/sessionKeeper.js';
-import { configureHttpClientAuth } from '../../shared/lib/httpClient.js';
+import { configureHttpClientAuth, unauthorizedBelongsToCurrentSession } from '../../shared/lib/httpClient.js';
 
 export function AuthProvider({ children }) {
   const initialize = useAuthStore((state) => state.initialize);
-  const clearSession = useAuthStore((state) => state.clearSession);
+  const expireSession = useAuthStore((state) => state.expireSession);
 
   useEffect(() => {
     // onUnauthorized: any 401 means this session's token is no longer
@@ -17,11 +17,13 @@ export function AuthProvider({ children }) {
     // comment on the interceptor for the full reasoning.
     configureHttpClientAuth({
       getAccessToken: getAuthAccessToken,
-      onUnauthorized: clearSession,
+      onUnauthorized: (requestAuthorization) => {
+        if (unauthorizedBelongsToCurrentSession(requestAuthorization, getAuthAccessToken())) expireSession();
+      },
       onEmailVerificationRequired: () => useAuthStore.getState().setEmailVerificationBlocked(true),
     });
     initialize();
-  }, [initialize, clearSession]);
+  }, [initialize, expireSession]);
 
   // Renew the access token while the app is in use (features/auth/sessionKeeper.js).
   useEffect(() => startSessionKeeper({
